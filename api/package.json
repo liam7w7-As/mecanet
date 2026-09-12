@@ -8,7 +8,10 @@
     "build": "tsc",
     "start": "node dist/main.js",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:seed": "sequelize-cli db:seed:all"
   },
   "dependencies": {
     "@unithor/shared": "*",
@@ -35,6 +38,7 @@
     "@types/jsonwebtoken": "^9.0.8",
     "@types/node": "^22.13.5",
     "@types/supertest": "^6.0.2",
+    "sequelize-cli": "^6.6.5",
     "supertest": "^7.0.0",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3",

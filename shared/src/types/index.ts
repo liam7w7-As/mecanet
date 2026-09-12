@@ -1,6 +1,64 @@
 import { z } from 'zod';
 
-import { loginSchema, paginationSchema } from '../schemas/index.js';
+import {
+  paginationSchema,
+  createClientSchema,
+  updateClientSchema,
+  clientQuerySchema,
+  createVehicleSchema,
+  updateVehicleSchema,
+  vehicleQuerySchema,
+  createCatalogItemSchema,
+  updateCatalogItemSchema,
+  catalogItemQuerySchema,
+  createWorkOrderSchema,
+  createWorkOrderItemSchema,
+  updateWorkOrderSchema,
+  workOrderQuerySchema,
+  createQuotationSchema,
+  createQuotationItemSchema,
+  updateQuotationSchema,
+  quotationQuerySchema,
+  createPaymentSchema,
+  updatePaymentSchema,
+  paymentQuerySchema,
+  loginSchema,
+} from '../schemas/index.js';
 
+// Login
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// Paginación
 export type PaginationInput = z.infer<typeof paginationSchema>;
+
+// Clientes
+export type CreateClientInput = z.infer<typeof createClientSchema>;
+export type UpdateClientInput = z.infer<typeof updateClientSchema>;
+export type ClientQueryInput = z.infer<typeof clientQuerySchema>;
+
+// Vehículos
+export type CreateVehicleInput = z.infer<typeof createVehicleSchema>;
+export type UpdateVehicleInput = z.infer<typeof updateVehicleSchema>;
+export type VehicleQueryInput = z.infer<typeof vehicleQuerySchema>;
+
+// Catálogos
+export type CreateCatalogItemInput = z.infer<typeof createCatalogItemSchema>;
+export type UpdateCatalogItemInput = z.infer<typeof updateCatalogItemSchema>;
+export type CatalogItemQueryInput = z.infer<typeof catalogItemQuerySchema>;
+
+// Órdenes de Trabajo
+export type CreateWorkOrderItemInput = z.infer<typeof createWorkOrderItemSchema>;
+export type CreateWorkOrderInput = z.infer<typeof createWorkOrderSchema>;
+export type UpdateWorkOrderInput = z.infer<typeof updateWorkOrderSchema>;
+export type WorkOrderQueryInput = z.infer<typeof workOrderQuerySchema>;
+
+// Cotizaciones
+export type CreateQuotationItemInput = z.infer<typeof createQuotationItemSchema>;
+export type CreateQuotationInput = z.infer<typeof createQuotationSchema>;
+export type UpdateQuotationInput = z.infer<typeof updateQuotationSchema>;
+export type QuotationQueryInput = z.infer<typeof quotationQuerySchema>;
+
+// Pagos
+export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
+export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
+export type PaymentQueryInput = z.infer<typeof paymentQuerySchema>;

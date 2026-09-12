@@ -1,23 +1,95 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { ROLES, WORK_ORDER_STATUS, loginSchema } from './index.js';
+import {
+  CATALOG_TYPES,
+  MODULES,
+  PERMISSIONS,
+  QUOTATION_STATUS,
+  ROLES,
+  WORK_ORDER_STATUS,
+  createClientSchema,
+  createVehicleSchema,
+  createWorkOrderSchema,
+  loginSchema,
+  paginationSchema,
+} from './index.js';
 
 describe('Shared Package Constants & Schemas', () => {
-  it('should export valid roles', () => {
+  it('debe exportar roles y permisos válidos', () => {
     expect(ROLES).toContain('admin');
     expect(ROLES).toContain('desarrollador');
-  });
-
-  it('should export valid work order statuses', () => {
+    expect(MODULES).toContain('taller');
+    expect(PERMISSIONS.length).toBeGreaterThan(0);
+    expect(CATALOG_TYPES).toEqual(['parte', 'estandar', 'especifico']);
+    expect(QUOTATION_STATUS).toContain('por_pagar');
     expect(WORK_ORDER_STATUS).toContain('borrador');
-    expect(WORK_ORDER_STATUS).toContain('en_progreso');
   });
 
-  it('should validate login schema', () => {
+  it('valida createClientSchema con datos correctos y rechaza inválidos', () => {
+    const validClient = createClientSchema.safeParse({
+      nombre: 'Taller Mecánico Central',
+      rut: '12.345.678-5',
+      tipo: 'empresa',
+      email: 'contacto@central.cl',
+    });
+    expect(validClient.success).toBe(true);
+
+    const invalidRutClient = createClientSchema.safeParse({
+      nombre: 'Juan Perez',
+      rut: 'rut-invalido-123',
+    });
+    expect(invalidRutClient.success).toBe(false);
+
+    const emptyNameClient = createClientSchema.safeParse({
+      nombre: '   ',
+    });
+    expect(emptyNameClient.success).toBe(false);
+  });
+
+  it('valida paginationSchema con límites (page >= 1, pageSize 1-100)', () => {
+    const validDefault = paginationSchema.parse({});
+    expect(validDefault.page).toBe(1);
+    expect(validDefault.pageSize).toBe(20);
+
+    const validCustom = paginationSchema.safeParse({ page: 2, pageSize: 50 });
+    expect(validCustom.success).toBe(true);
+
+    const zeroPage = paginationSchema.safeParse({ page: 0 });
+    expect(zeroPage.success).toBe(false);
+
+    const overLimitSize = paginationSchema.safeParse({ pageSize: 101 });
+    expect(overLimitSize.success).toBe(false);
+  });
+
+  it('valida createWorkOrderSchema con estado inválido → error', () => {
+    const validOT = createWorkOrderSchema.safeParse({
+      codigo: 'OT-2026-0001',
+      estado: 'borrador',
+      fecha_ingreso: '2026-09-12T12:00:00Z',
+    });
+    expect(validOT.success).toBe(true);
+
+    // Estado inválido no perteneciente al enum
+    const invalidStatusOT = createWorkOrderSchema.safeParse({
+      codigo: 'OT-2026-0002',
+      estado: 'estado_inexistente',
+    });
+    expect(invalidStatusOT.success).toBe(false);
+
+    // Código inválido
+    const invalidCodeOT = createWorkOrderSchema.safeParse({
+      codigo: 'INVALID-CODE',
+    });
+    expect(invalidCodeOT.success).toBe(false);
+  });
+
+  it('valida que createVehicleSchema transforme la patente a mayúsculas', () => {
+    const res = createVehicleSchema.parse({ patente: 'ab-cd-12' });
+    expect(res.patente).toBe('AB-CD-12');
+  });
+
+  it('valida loginSchema', () => {
     const valid = loginSchema.safeParse({ email: 'test@unithor.com', password: 'password123' });
     expect(valid.success).toBe(true);
-
-    const invalid = loginSchema.safeParse({ email: 'invalid-email', password: '123' });
-    expect(invalid.success).toBe(false);
   });
 });

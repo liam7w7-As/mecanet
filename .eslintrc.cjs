@@ -37,5 +37,13 @@ module.exports = {
       },
     ],
   },
+  overrides: [
+    {
+      files: ['*.cjs'],
+      rules: {
+        '@typescript-eslint/no-var-requires': 'off',
+      },
+    },
+  ],
   ignorePatterns: ['dist', 'node_modules', '*.min.js', 'coverage'],
 };

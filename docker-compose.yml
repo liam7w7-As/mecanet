@@ -1,0 +1,36 @@
+services:
+  mysql:
+    image: mysql:8
+    container_name: unithor-mysql
+    restart: unless-stopped
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-unithor_dev}
+      MYSQL_USER: ${MYSQL_USER:-unithor_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-unithor_pass}
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7
+    container_name: unithor-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+
+  adminer:
+    image: adminer
+    container_name: unithor-adminer
+    restart: unless-stopped
+    ports:
+      - '8081:8080'
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
+  redis_data:

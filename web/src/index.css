@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #0e2b4e;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #ffd600;
+  --color-accent-foreground: #0e2b4e;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Outfit',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

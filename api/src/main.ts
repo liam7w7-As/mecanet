@@ -8,11 +8,18 @@ import { sequelize } from './config/database.js';
 import { env } from './config/env.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
-import { healthRouter } from './routes/health.js';
+import { requestIdMiddleware } from './middlewares/request-id.js';
+import { apiRouter } from './routes/index.js';
 import { logger } from './utils/logger.js';
+
+import type { Logger } from 'pino';
 
 export const app: Application = express();
 
+// 1. Request ID (debe ser el primero para trazar toda la petición)
+app.use(requestIdMiddleware);
+
+// 2. Seguridad HTTP y CORS
 app.use(helmet());
 app.use(
   cors({
@@ -20,13 +27,35 @@ app.use(
     credentials: true,
   }),
 );
+
+// 3. Parsers de petición
 app.use(cookieParser());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Montar rutas
-app.use('/api', healthRouter);
+// 4. Logger de peticiones HTTP
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const log = (res.locals.logger as Logger) ?? logger;
+    log.info(
+      {
+        method: req.method,
+        url: req.originalUrl,
+        statusCode: res.statusCode,
+        duration: `${duration}ms`,
+      },
+      `${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`,
+    );
+  });
+  next();
+});
 
-// Manejo de 404 y errores globales
+// 5. Montar rutas API
+app.use('/api', apiRouter);
+
+// 6. Manejo de 404 y errores globales
 app.use(notFoundHandler);
 app.use(errorHandler);
 

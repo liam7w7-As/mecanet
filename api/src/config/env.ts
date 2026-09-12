@@ -10,6 +10,7 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(8, 'JWT_ACCESS_SECRET debe tener al menos 8 caracteres'),
   JWT_REFRESH_SECRET: z.string().min(8, 'JWT_REFRESH_SECRET debe tener al menos 8 caracteres'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 
 const parseEnv = () => {

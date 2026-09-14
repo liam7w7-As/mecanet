@@ -6,6 +6,7 @@ import { healthRouter } from './health.js';
 import { paymentRouter } from './payment.routes.js';
 import { permissionRouter } from './permission.routes.js';
 import { quotationRouter } from './quotation.routes.js';
+import { reportRouter } from './report.routes.js';
 import { searchRouter } from './search.routes.js';
 import { userRouter } from './user.routes.js';
 import { vehicleRouter } from './vehicle.routes.js';
@@ -42,6 +43,9 @@ apiRouter.use('/quotations', quotationRouter);
 
 // Pagos (/api/payments)
 apiRouter.use('/payments', paymentRouter);
+
+// Reportes comerciales (/api/reports)
+apiRouter.use('/reports', reportRouter);
 
 // Futuras rutas de módulos (Fases posteriores)
 // apiRouter.use('/catalogs', catalogsRouter);

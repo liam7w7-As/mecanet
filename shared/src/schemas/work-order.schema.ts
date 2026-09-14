@@ -42,7 +42,6 @@ export const updateWorkOrderSchema = z
   .object({
     clientId: nullablePositiveId,
     vehicleId: nullablePositiveId,
-    estado: z.enum(WORK_ORDER_STATUS).optional(),
     kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),
     descripcion: optionalText(),
     fechaIngreso: z
@@ -70,7 +69,13 @@ export const workOrderQuerySchema = paginationSchema.extend({
   fechaHasta: z.string().date('fechaHasta debe ser una fecha YYYY-MM-DD válida').optional(),
 });
 
+export const changeWorkOrderStatusSchema = z.object({
+  nuevoEstado: z.enum(WORK_ORDER_STATUS),
+  motivo: optionalText(500),
+});
+
 export type WorkOrderItemInput = z.infer<typeof workOrderItemInputSchema>;
 export type CreateWorkOrderInput = z.infer<typeof createWorkOrderSchema>;
 export type UpdateWorkOrderInput = z.infer<typeof updateWorkOrderSchema>;
 export type WorkOrderQueryInput = z.infer<typeof workOrderQuerySchema>;
+export type ChangeWorkOrderStatusInput = z.infer<typeof changeWorkOrderStatusSchema>;

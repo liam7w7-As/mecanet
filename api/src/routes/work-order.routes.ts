@@ -1,9 +1,15 @@
-import { createWorkOrderSchema, updateWorkOrderSchema, workOrderQuerySchema } from '@unithor/shared';
+import {
+  changeWorkOrderStatusSchema,
+  createWorkOrderSchema,
+  updateWorkOrderSchema,
+  workOrderQuerySchema,
+} from '@unithor/shared';
 import { Router } from 'express';
 import { z } from 'zod';
 
 import {
   createWorkOrderHandler,
+  changeWorkOrderStatusHandler,
   deleteWorkOrderHandler,
   getWorkOrderByIdHandler,
   getWorkOrdersHandler,
@@ -40,6 +46,13 @@ workOrderRouter.post(
   authorize('taller', 'create'),
   validate({ body: createWorkOrderSchema }),
   createWorkOrderHandler,
+);
+
+workOrderRouter.patch(
+  '/:id/status',
+  authorize('taller', 'update'),
+  validate({ params: idParamSchema, body: changeWorkOrderStatusSchema }),
+  changeWorkOrderStatusHandler,
 );
 
 workOrderRouter.patch(

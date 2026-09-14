@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import type {
   CreateWorkOrderInput,
   UpdateWorkOrderInput,
+  ChangeWorkOrderStatusInput,
   WorkOrderQueryInput,
 } from '@unithor/shared';
 import type { Request, Response } from 'express';
@@ -49,6 +50,19 @@ export const updateWorkOrderHandler = asyncHandler(
     const workOrder = await workOrderService.updateWorkOrder(
       getParamId(req),
       req.body as UpdateWorkOrderInput,
+    );
+    res.status(200).json({ workOrder });
+  },
+);
+
+export const changeWorkOrderStatusHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { nuevoEstado, motivo } = req.body as ChangeWorkOrderStatusInput;
+    const workOrder = await workOrderService.changeStatus(
+      getParamId(req),
+      nuevoEstado,
+      getCurrentUserId(req),
+      motivo,
     );
     res.status(200).json({ workOrder });
   },

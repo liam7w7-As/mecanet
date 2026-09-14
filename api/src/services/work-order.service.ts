@@ -1,4 +1,5 @@
-import { Op } from 'sequelize';
+import { isValidWorkOrderTransition } from '@unithor/shared';
+import { Op, Transaction } from 'sequelize';
 
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -18,7 +19,7 @@ import type {
   WorkOrderQueryInput,
   WorkOrderStatus,
 } from '@unithor/shared';
-import type { InferAttributes, Transaction, WhereOptions } from 'sequelize';
+import type { InferAttributes, WhereOptions } from 'sequelize';
 
 interface WorkOrderClientPublic {
   id: number;
@@ -407,7 +408,6 @@ export const updateWorkOrder = async (
         WorkOrder,
         | 'clientId'
         | 'vehicleId'
-        | 'estado'
         | 'descripcion'
         | 'kilometrajeIngreso'
         | 'fechaIngreso'
@@ -421,9 +421,6 @@ export const updateWorkOrder = async (
     if (data.vehicleId !== undefined) {
       updatePayload.vehicleId = data.vehicleId;
     }
-    if (data.estado !== undefined) {
-      updatePayload.estado = data.estado;
-    }
     if (data.descripcion !== undefined) {
       updatePayload.descripcion = data.descripcion;
     }
@@ -435,6 +432,55 @@ export const updateWorkOrder = async (
     }
     if (data.fechaEntrega !== undefined) {
       updatePayload.fechaEntrega = toDateOrNull(data.fechaEntrega);
+    }
+
+    await workOrder.update(updatePayload, { transaction });
+
+    return workOrder.id;
+  });
+
+  return getWorkOrderById(workOrderId);
+};
+
+export const changeStatus = async (
+  id: number,
+  nuevoEstado: WorkOrderStatus,
+  _userId: number,
+  motivo?: string | null,
+): Promise<WorkOrderPublic> => {
+  const workOrderId = await sequelize.transaction(async (transaction) => {
+    const workOrder = await WorkOrder.findByPk(id, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+
+    if (!workOrder) {
+      throw ApiError.notFound('Orden de trabajo no encontrada');
+    }
+
+    if (workOrder.estado === nuevoEstado) {
+      return workOrder.id;
+    }
+
+    if (!isValidWorkOrderTransition(workOrder.estado, nuevoEstado)) {
+      throw ApiError.badRequest(
+        `Transición inválida: no se puede cambiar de '${workOrder.estado}' a '${nuevoEstado}'`,
+      );
+    }
+
+    const updatePayload: Partial<Pick<WorkOrder, 'estado' | 'fechaEntrega' | 'descripcion'>> = {
+      estado: nuevoEstado,
+    };
+
+    if (nuevoEstado === 'entregada' && workOrder.fechaEntrega === null) {
+      updatePayload.fechaEntrega = new Date();
+    }
+
+    if (nuevoEstado === 'cancelada' && motivo) {
+      const cancellationNote = `[CANCELADA: ${motivo}]`;
+      updatePayload.descripcion = workOrder.descripcion
+        ? `${workOrder.descripcion}\n${cancellationNote}`
+        : cancellationNote;
     }
 
     await workOrder.update(updatePayload, { transaction });

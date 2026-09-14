@@ -45,6 +45,7 @@ export type {
   CreateWorkOrderInput,
   UpdateWorkOrderInput,
   WorkOrderQueryInput,
+  ChangeWorkOrderStatusInput,
 } from '../schemas/index.js';
 
 // Cotizaciones

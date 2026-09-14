@@ -8,3 +8,4 @@ export * from './work-order.schema.js';
 export * from './quotation.schema.js';
 export * from './payment.schema.js';
 export * from './permission.schema.js';
+export * from './search.schema.js';

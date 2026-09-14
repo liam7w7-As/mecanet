@@ -62,3 +62,6 @@ export type PaymentQueryInput = z.infer<typeof paymentQuerySchema>;
 
 // Permisos y roles
 export type { UpdateRolePermissionsInput, RoleQueryInput } from '../schemas/index.js';
+
+// Búsqueda
+export type { QuickSearchQueryInput, LookupByPlateInput } from '../schemas/index.js';

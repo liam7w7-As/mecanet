@@ -4,6 +4,7 @@ import { authRouter } from './auth.routes.js';
 import { clientRouter } from './client.routes.js';
 import { healthRouter } from './health.js';
 import { permissionRouter } from './permission.routes.js';
+import { searchRouter } from './search.routes.js';
 import { userRouter } from './user.routes.js';
 import { vehicleRouter } from './vehicle.routes.js';
 
@@ -26,6 +27,9 @@ apiRouter.use('/clients', clientRouter);
 
 // Módulo de vehículos (/api/vehicles)
 apiRouter.use('/vehicles', vehicleRouter);
+
+// Búsqueda rápida (/api/search)
+apiRouter.use('/search', searchRouter);
 
 // Futuras rutas de módulos (Fases posteriores)
 // apiRouter.use('/work-orders', workOrdersRouter);

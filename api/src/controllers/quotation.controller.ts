@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 import type {
+  ConvertQuotationInput,
   CreateQuotationInput,
   QuotationQueryInput,
   UpdateQuotationInput,
@@ -51,6 +52,17 @@ export const updateQuotationHandler = asyncHandler(
       req.body as UpdateQuotationInput,
     );
     res.status(200).json({ quotation });
+  },
+);
+
+export const convertToWorkOrderHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const result = await quotationService.convertQuotationToWorkOrder(
+      getParamId(req),
+      getCurrentUserId(req),
+      req.body as ConvertQuotationInput,
+    );
+    res.status(201).json(result);
   },
 );
 

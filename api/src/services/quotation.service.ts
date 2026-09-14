@@ -1,5 +1,6 @@
-import { Op } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 
+import { getWorkOrderById, type WorkOrderPublic } from './work-order.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -11,17 +12,18 @@ import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { ApiError } from '../utils/ApiError.js';
-import { generateQuotationCode } from '../utils/generateCode.js';
+import { generateQuotationCode, generateWorkOrderCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
 
 import type {
+  ConvertQuotationInput,
   CreateQuotationInput,
   QuotationItemInput,
   QuotationQueryInput,
   QuotationStatus,
   UpdateQuotationInput,
 } from '@unithor/shared';
-import type { InferAttributes, Transaction, WhereOptions } from 'sequelize';
+import type { InferAttributes, WhereOptions } from 'sequelize';
 
 interface QuotationClientPublic {
   id: number;
@@ -87,6 +89,11 @@ export interface ListQuotationsResult {
   totalPages: number;
 }
 
+export interface ConvertQuotationResult {
+  quotation: QuotationPublic;
+  workOrder: WorkOrderPublic;
+}
+
 type QuotationWhere = WhereOptions<InferAttributes<Quotation>> & {
   [Op.or]?: WhereOptions<InferAttributes<Quotation>>[];
 };
@@ -118,6 +125,14 @@ const itemsInclude = {
 };
 
 const numberValue = (value: number | string): number => Number(value);
+
+const toDateOrNull = (value: string | null | undefined): Date | null => {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  return new Date(value);
+};
 
 const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
   id: quotation.id,
@@ -453,6 +468,84 @@ export const updateQuotation = async (
   });
 
   return getQuotationById(quotationId);
+};
+
+export const convertQuotationToWorkOrder = async (
+  quotationId: number,
+  userId: number,
+  data: ConvertQuotationInput = {},
+): Promise<ConvertQuotationResult> => {
+  const converted = await sequelize.transaction(async (transaction) => {
+    const quotation = await Quotation.findByPk(quotationId, {
+      include: [{ model: QuotationItem }],
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+
+    if (!quotation) {
+      throw ApiError.notFound('Cotización no encontrada');
+    }
+
+    if (quotation.workOrderId !== null) {
+      throw ApiError.badRequest(
+        'Esta cotización ya está vinculada a una Orden de Trabajo existente',
+      );
+    }
+
+    if (quotation.clientId === null && quotation.vehicleId === null) {
+      throw ApiError.badRequest(
+        'La cotización requiere un cliente o vehículo para generar una Orden de Trabajo',
+      );
+    }
+
+    const codigo = await generateWorkOrderCode(transaction);
+    const workOrder = await WorkOrder.create(
+      {
+        codigo,
+        clientId: quotation.clientId,
+        vehicleId: quotation.vehicleId,
+        estado: 'borrador',
+        descripcion:
+          data.descripcion ??
+          quotation.notas ??
+          `Generada desde cotización ${quotation.codigo}`,
+        kilometrajeIngreso: data.kilometrajeIngreso ?? null,
+        fechaIngreso: toDateOrNull(data.fechaIngreso) ?? new Date(),
+        fechaEntrega: toDateOrNull(data.fechaEntrega),
+        createdBy: userId,
+      },
+      { transaction },
+    );
+
+    const items = quotation.items ?? [];
+    if (items.length > 0) {
+      await WorkOrderItem.bulkCreate(
+        items.map((item) => ({
+          workOrderId: workOrder.id,
+          catalogItemId: item.catalogItemId,
+          descripcion: item.descripcion,
+          cantidad: numberValue(item.cantidad),
+          precioUnitario: numberValue(item.precioUnitario),
+          subtotal: numberValue(item.subtotal),
+        })),
+        { transaction, hooks: true },
+      );
+    }
+
+    await quotation.update({ workOrderId: workOrder.id }, { transaction });
+
+    return {
+      quotationId: quotation.id,
+      workOrderId: workOrder.id,
+    };
+  });
+
+  const [quotation, workOrder] = await Promise.all([
+    getQuotationById(converted.quotationId),
+    getWorkOrderById(converted.workOrderId),
+  ]);
+
+  return { quotation, workOrder };
 };
 
 export const deleteQuotation = async (id: number): Promise<void> => {

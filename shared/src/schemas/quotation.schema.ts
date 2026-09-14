@@ -56,7 +56,23 @@ export const quotationQuerySchema = paginationSchema.extend({
   workOrderId: z.coerce.number().int().positive().optional(),
 });
 
+export const convertQuotationToWorkOrderSchema = z.object({
+  kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),
+  fechaIngreso: z
+    .string()
+    .datetime({ message: 'fechaIngreso debe ser una fecha ISO 8601 válida' })
+    .nullable()
+    .optional(),
+  fechaEntrega: z
+    .string()
+    .datetime({ message: 'fechaEntrega debe ser una fecha ISO 8601 válida' })
+    .nullable()
+    .optional(),
+  descripcion: optionalText(),
+});
+
 export type QuotationItemInput = z.infer<typeof quotationItemInputSchema>;
 export type CreateQuotationInput = z.infer<typeof createQuotationSchema>;
 export type UpdateQuotationInput = z.infer<typeof updateQuotationSchema>;
 export type QuotationQueryInput = z.infer<typeof quotationQuerySchema>;
+export type ConvertQuotationInput = z.infer<typeof convertQuotationToWorkOrderSchema>;

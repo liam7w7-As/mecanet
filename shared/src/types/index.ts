@@ -46,6 +46,7 @@ export type {
 
 // Cotizaciones
 export type {
+  ConvertQuotationInput,
   QuotationItemInput,
   CreateQuotationInput,
   UpdateQuotationInput,

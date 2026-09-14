@@ -5,6 +5,7 @@ import { clientRouter } from './client.routes.js';
 import { healthRouter } from './health.js';
 import { permissionRouter } from './permission.routes.js';
 import { userRouter } from './user.routes.js';
+import { vehicleRouter } from './vehicle.routes.js';
 
 export const apiRouter = Router();
 
@@ -23,8 +24,10 @@ apiRouter.use(permissionRouter);
 // Módulo de clientes (/api/clients)
 apiRouter.use('/clients', clientRouter);
 
+// Módulo de vehículos (/api/vehicles)
+apiRouter.use('/vehicles', vehicleRouter);
+
 // Futuras rutas de módulos (Fases posteriores)
 // apiRouter.use('/work-orders', workOrdersRouter);
 // apiRouter.use('/quotations', quotationsRouter);
-// apiRouter.use('/vehicles', vehiclesRouter);
 // apiRouter.use('/catalogs', catalogsRouter);

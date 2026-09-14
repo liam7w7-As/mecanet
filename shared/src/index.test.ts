@@ -83,9 +83,9 @@ describe('Shared Package Constants & Schemas', () => {
     expect(invalidCodeOT.success).toBe(false);
   });
 
-  it('valida que createVehicleSchema transforme la patente a mayúsculas', () => {
+  it('valida que createVehicleSchema normalice la patente', () => {
     const res = createVehicleSchema.parse({ patente: 'ab-cd-12' });
-    expect(res.patente).toBe('AB-CD-12');
+    expect(res.patente).toBe('ABCD12');
   });
 
   it('valida loginSchema', () => {

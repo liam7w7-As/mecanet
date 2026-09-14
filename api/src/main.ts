@@ -6,6 +6,7 @@ import helmet from 'helmet';
 
 import { sequelize } from './config/database.js';
 import { env } from './config/env.js';
+import { csrfProtection } from './middlewares/csrf-protection.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
 import { requestIdMiddleware } from './middlewares/request-id.js';
@@ -25,6 +26,12 @@ app.use(
   cors({
     origin: env.CORS_ORIGIN,
     credentials: true,
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Request-Id',
+      'X-CSRF-Token',
+    ],
   }),
 );
 
@@ -32,6 +39,9 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 4. Protección CSRF (Double-Submit Cookie)
+app.use(csrfProtection);
 
 // 4. Logger de peticiones HTTP
 app.use((req, res, next) => {

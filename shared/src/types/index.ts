@@ -22,11 +22,10 @@ import {
   createPaymentSchema,
   updatePaymentSchema,
   paymentQuerySchema,
-  loginSchema,
 } from '../schemas/index.js';
 
-// Login
-export type LoginInput = z.infer<typeof loginSchema>;
+// Auth
+export type { LoginInput, RegisterInput } from '../schemas/index.js';
 
 // Paginación
 export type PaginationInput = z.infer<typeof paginationSchema>;

@@ -51,7 +51,6 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   })
   declare passwordHash: string;
 
-  @Index
   @ForeignKey(() => Role)
   @Column({
     type: DataType.INTEGER,

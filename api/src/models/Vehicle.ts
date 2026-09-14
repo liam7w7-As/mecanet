@@ -93,7 +93,6 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   })
   declare transmision: string | null;
 
-  @Index
   @ForeignKey(() => Client)
   @Column({
     type: DataType.INTEGER,

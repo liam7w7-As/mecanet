@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { sequelize } from '../config/database.js';
 import { RefreshToken } from '../models/RefreshToken.js';
 import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
@@ -100,78 +101,99 @@ export const refresh = async (
   const payload = verifyRefreshToken(refreshTokenString);
   const tokenHash = hashToken(refreshTokenString);
 
-  const tokenRecord = await RefreshToken.findOne({
-    where: { tokenHash },
-  });
+  const result = await sequelize.transaction(
+    async (transaction): Promise<LoginResult | 'TOKEN_REUSED'> => {
+      const tokenRecord = await RefreshToken.findOne({
+        where: { tokenHash },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
 
-  if (!tokenRecord) {
-    throw ApiError.unauthorized('Token inválido', 'TOKEN_INVALID');
-  }
+      if (!tokenRecord) {
+        throw ApiError.unauthorized('Token inválido', 'TOKEN_INVALID');
+      }
 
-  // Detección de reuso: si el token ya estaba revocado, posible ataque o robo de sesión
-  if (tokenRecord.revokedAt !== null) {
-    await RefreshToken.update(
-      { revokedAt: new Date() },
-      { where: { userId: payload.sub, revokedAt: null } },
-    );
+      // Detección de reuso: si el token ya estaba revocado, posible ataque o robo de sesión
+      if (tokenRecord.revokedAt !== null) {
+        await RefreshToken.update(
+          { revokedAt: new Date() },
+          { where: { userId: payload.sub, revokedAt: null }, transaction },
+        );
+        return 'TOKEN_REUSED';
+      }
+
+      // Validación de expiración
+      if (tokenRecord.expiresAt < new Date()) {
+        throw ApiError.unauthorized('Token expirado', 'TOKEN_EXPIRED');
+      }
+
+      if (tokenRecord.userId !== payload.sub) {
+        throw ApiError.unauthorized('Token inválido', 'TOKEN_INVALID');
+      }
+
+      // Buscar usuario activo
+      const user = await User.findOne({
+        where: {
+          id: payload.sub,
+          activo: true,
+        },
+        include: [Role],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!user || !user.role) {
+        throw ApiError.unauthorized('Usuario inactivo o no encontrado');
+      }
+
+      // Revocar el token actual dentro de la misma transacción que crea el reemplazo.
+      await tokenRecord.update({ revokedAt: new Date() }, { transaction });
+
+      // Rotación: emitir nuevos tokens y csrf
+      const newAccessToken = signAccessToken({
+        sub: user.id,
+        role: user.role.nombre,
+      });
+      const newJti = randomUUID();
+      const newRefreshToken = signRefreshToken({
+        sub: user.id,
+        jti: newJti,
+      });
+      const newCsrfToken = randomUUID();
+
+      const newExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+      await RefreshToken.create(
+        {
+          userId: user.id,
+          tokenHash: hashToken(newRefreshToken),
+          expiresAt: newExpiresAt,
+          deviceInfo: deviceInfo ? deviceInfo.slice(0, 255) : null,
+        },
+        { transaction },
+      );
+
+      return {
+        user: {
+          id: user.id,
+          nombre: user.nombre,
+          email: user.email,
+          role: user.role.nombre,
+        },
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        csrfToken: newCsrfToken,
+      };
+    },
+  );
+
+  if (result === 'TOKEN_REUSED') {
     throw ApiError.unauthorized(
       'Token ya revocado (posible reuso detectado)',
       'TOKEN_REUSED',
     );
   }
 
-  // Validación de expiración
-  if (tokenRecord.expiresAt < new Date()) {
-    throw ApiError.unauthorized('Token expirado', 'TOKEN_EXPIRED');
-  }
-
-  // Revocar el token actual
-  await tokenRecord.update({ revokedAt: new Date() });
-
-  // Buscar usuario activo
-  const user = await User.findOne({
-    where: {
-      id: payload.sub,
-      activo: true,
-    },
-    include: [Role],
-  });
-
-  if (!user || !user.role) {
-    throw ApiError.unauthorized('Usuario inactivo o no encontrado');
-  }
-
-  // Rotación: emitir nuevos tokens y csrf
-  const newAccessToken = signAccessToken({
-    sub: user.id,
-    role: user.role.nombre,
-  });
-  const newJti = randomUUID();
-  const newRefreshToken = signRefreshToken({
-    sub: user.id,
-    jti: newJti,
-  });
-  const newCsrfToken = randomUUID();
-
-  const newExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
-  await RefreshToken.create({
-    userId: user.id,
-    tokenHash: hashToken(newRefreshToken),
-    expiresAt: newExpiresAt,
-    deviceInfo: deviceInfo ? deviceInfo.slice(0, 255) : null,
-  });
-
-  return {
-    user: {
-      id: user.id,
-      nombre: user.nombre,
-      email: user.email,
-      role: user.role.nombre,
-    },
-    accessToken: newAccessToken,
-    refreshToken: newRefreshToken,
-    csrfToken: newCsrfToken,
-  };
+  return result;
 };
 
 /**

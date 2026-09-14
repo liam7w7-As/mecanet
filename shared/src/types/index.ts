@@ -27,6 +27,14 @@ import {
 // Auth
 export type { LoginInput, RegisterInput } from '../schemas/index.js';
 
+// Usuarios
+export type {
+  CreateUserInput,
+  UpdateUserInput,
+  UserQueryInput,
+  ChangePasswordInput,
+} from '../schemas/index.js';
+
 // Paginación
 export type PaginationInput = z.infer<typeof paginationSchema>;
 

@@ -15,6 +15,10 @@ export interface RefreshPayload {
   jti: string;
 }
 
+const isObjectPayload = (decoded: string | jwt.JwtPayload): decoded is jwt.JwtPayload => {
+  return typeof decoded === 'object' && decoded !== null;
+};
+
 /**
  * Firma un Access Token JWT con expiración corta (default: 15m)
  */
@@ -50,10 +54,19 @@ export const signRefreshToken = (
 export const verifyAccessToken = (token: string): AccessPayload => {
   try {
     const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET);
-    if (typeof decoded !== 'object' || decoded === null || !('sub' in decoded)) {
+    if (!isObjectPayload(decoded)) {
       throw ApiError.unauthorized('Token inválido', 'TOKEN_INVALID');
     }
-    return decoded as unknown as AccessPayload;
+
+    const payload = decoded as Record<string, unknown>;
+    if (typeof payload.sub !== 'number' || typeof payload.role !== 'string') {
+      throw ApiError.unauthorized('Token inválido', 'TOKEN_INVALID');
+    }
+
+    return {
+      sub: payload.sub,
+      role: payload.role,
+    };
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;
@@ -75,15 +88,19 @@ export const verifyAccessToken = (token: string): AccessPayload => {
 export const verifyRefreshToken = (token: string): RefreshPayload => {
   try {
     const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
-    if (
-      typeof decoded !== 'object' ||
-      decoded === null ||
-      !('sub' in decoded) ||
-      !('jti' in decoded)
-    ) {
+    if (!isObjectPayload(decoded)) {
       throw ApiError.unauthorized('Token inválido', 'TOKEN_INVALID');
     }
-    return decoded as unknown as RefreshPayload;
+
+    const payload = decoded as Record<string, unknown>;
+    if (typeof payload.sub !== 'number' || typeof payload.jti !== 'string') {
+      throw ApiError.unauthorized('Token inválido', 'TOKEN_INVALID');
+    }
+
+    return {
+      sub: payload.sub,
+      jti: payload.jti,
+    };
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;

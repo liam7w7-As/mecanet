@@ -47,7 +47,6 @@ export class Quotation extends Model<
   })
   declare codigo: string;
 
-  @Index
   @ForeignKey(() => WorkOrder)
   @Column({
     type: DataType.INTEGER,
@@ -84,7 +83,6 @@ export class Quotation extends Model<
   })
   declare asesorId: number | null;
 
-  @Index
   @Column({
     type: DataType.ENUM(...QUOTATION_STATUS),
     allowNull: false,

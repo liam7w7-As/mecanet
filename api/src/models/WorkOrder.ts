@@ -47,7 +47,6 @@ export class WorkOrder extends Model<
   })
   declare codigo: string;
 
-  @Index
   @ForeignKey(() => Client)
   @Column({
     type: DataType.INTEGER,
@@ -57,7 +56,6 @@ export class WorkOrder extends Model<
   })
   declare clientId: number | null;
 
-  @Index
   @ForeignKey(() => Vehicle)
   @Column({
     type: DataType.INTEGER,

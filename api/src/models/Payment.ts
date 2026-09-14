@@ -4,7 +4,6 @@ import {
   Column,
   DataType,
   ForeignKey,
-  Index,
   Model,
   PrimaryKey,
   Table,
@@ -28,7 +27,6 @@ export class Payment extends Model<InferAttributes<Payment>, InferCreationAttrib
   @Column(DataType.INTEGER)
   declare id: CreationOptional<number>;
 
-  @Index
   @ForeignKey(() => Quotation)
   @Column({
     type: DataType.INTEGER,

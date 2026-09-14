@@ -1,4 +1,5 @@
 export * from './auth.schema.js';
+export * from './user.schema.js';
 export * from './pagination.schema.js';
 export * from './client.schema.js';
 export * from './vehicle.schema.js';

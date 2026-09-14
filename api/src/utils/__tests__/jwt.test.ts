@@ -46,6 +46,21 @@ describe('JWT Utilities', () => {
         expect((err as ApiError).code).toBe('TOKEN_INVALID');
       }
     });
+
+    it('lanza ApiError con TOKEN_INVALID si el payload firmado no tiene tipos válidos', () => {
+      const token = signAccessToken({
+        sub: '123',
+        role: 'admin',
+      } as unknown as Parameters<typeof signAccessToken>[0]);
+
+      expect(() => verifyAccessToken(token)).toThrowError(ApiError);
+      try {
+        verifyAccessToken(token);
+      } catch (err) {
+        expect((err as ApiError).statusCode).toBe(401);
+        expect((err as ApiError).code).toBe('TOKEN_INVALID');
+      }
+    });
   });
 
   describe('Refresh Token', () => {
@@ -78,6 +93,21 @@ describe('JWT Utilities', () => {
       expect(() => verifyRefreshToken(badToken)).toThrowError(ApiError);
       try {
         verifyRefreshToken(badToken);
+      } catch (err) {
+        expect((err as ApiError).statusCode).toBe(401);
+        expect((err as ApiError).code).toBe('TOKEN_INVALID');
+      }
+    });
+
+    it('lanza ApiError con TOKEN_INVALID si el payload firmado no incluye sub y jti válidos', () => {
+      const token = signRefreshToken({
+        sub: 456,
+        jti: 123,
+      } as unknown as Parameters<typeof signRefreshToken>[0]);
+
+      expect(() => verifyRefreshToken(token)).toThrowError(ApiError);
+      try {
+        verifyRefreshToken(token);
       } catch (err) {
         expect((err as ApiError).statusCode).toBe(401);
         expect((err as ApiError).code).toBe('TOKEN_INVALID');

@@ -5,7 +5,6 @@ import {
   CreatedAt,
   DataType,
   ForeignKey,
-  Index,
   Model,
   PrimaryKey,
   Table,
@@ -32,7 +31,6 @@ export class RefreshToken extends Model<
   @Column(DataType.INTEGER)
   declare id: CreationOptional<number>;
 
-  @Index
   @ForeignKey(() => User)
   @Column({
     type: DataType.INTEGER,
@@ -42,7 +40,6 @@ export class RefreshToken extends Model<
   })
   declare userId: number;
 
-  @Index
   @Column({
     type: DataType.STRING(255),
     allowNull: false,

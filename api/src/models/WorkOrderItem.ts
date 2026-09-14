@@ -4,7 +4,6 @@ import {
   Column,
   DataType,
   ForeignKey,
-  Index,
   Model,
   PrimaryKey,
   Table,
@@ -31,7 +30,6 @@ export class WorkOrderItem extends Model<
   @Column(DataType.INTEGER)
   declare id: CreationOptional<number>;
 
-  @Index
   @ForeignKey(() => WorkOrder)
   @Column({
     type: DataType.INTEGER,

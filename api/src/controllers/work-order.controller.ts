@@ -1,3 +1,4 @@
+import { generateWorkOrderPdf } from '../services/work-order-pdf.service.js';
 import * as workOrderService from '../services/work-order.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -32,6 +33,20 @@ export const getWorkOrderByIdHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const workOrder = await workOrderService.getWorkOrderById(getParamId(req));
     res.status(200).json({ workOrder });
+  },
+);
+
+export const getWorkOrderPdfHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const [workOrder, pdfBytes] = await Promise.all([
+      workOrderService.getWorkOrderById(id),
+      generateWorkOrderPdf(id),
+    ]);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${workOrder.codigo}.pdf"`);
+    res.end(Buffer.from(pdfBytes));
   },
 );
 

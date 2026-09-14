@@ -12,6 +12,7 @@ import {
   changeWorkOrderStatusHandler,
   deleteWorkOrderHandler,
   getWorkOrderByIdHandler,
+  getWorkOrderPdfHandler,
   getWorkOrdersHandler,
   updateWorkOrderHandler,
 } from '../controllers/work-order.controller.js';
@@ -32,6 +33,13 @@ workOrderRouter.get(
   authorize('taller', 'read'),
   validate({ query: workOrderQuerySchema }),
   getWorkOrdersHandler,
+);
+
+workOrderRouter.get(
+  '/:id/pdf',
+  authorize('taller', 'read'),
+  validate({ params: idParamSchema }),
+  getWorkOrderPdfHandler,
 );
 
 workOrderRouter.get(

@@ -5,10 +5,6 @@ import {
   createCatalogItemSchema,
   updateCatalogItemSchema,
   catalogItemQuerySchema,
-  createQuotationSchema,
-  createQuotationItemSchema,
-  updateQuotationSchema,
-  quotationQuerySchema,
   createPaymentSchema,
   updatePaymentSchema,
   paymentQuerySchema,
@@ -49,10 +45,12 @@ export type {
 } from '../schemas/index.js';
 
 // Cotizaciones
-export type CreateQuotationItemInput = z.infer<typeof createQuotationItemSchema>;
-export type CreateQuotationInput = z.infer<typeof createQuotationSchema>;
-export type UpdateQuotationInput = z.infer<typeof updateQuotationSchema>;
-export type QuotationQueryInput = z.infer<typeof quotationQuerySchema>;
+export type {
+  QuotationItemInput,
+  CreateQuotationInput,
+  UpdateQuotationInput,
+  QuotationQueryInput,
+} from '../schemas/index.js';
 
 // Pagos
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;

@@ -4,6 +4,7 @@ import { authRouter } from './auth.routes.js';
 import { clientRouter } from './client.routes.js';
 import { healthRouter } from './health.js';
 import { permissionRouter } from './permission.routes.js';
+import { quotationRouter } from './quotation.routes.js';
 import { searchRouter } from './search.routes.js';
 import { userRouter } from './user.routes.js';
 import { vehicleRouter } from './vehicle.routes.js';
@@ -35,6 +36,8 @@ apiRouter.use('/search', searchRouter);
 // Órdenes de trabajo (/api/work-orders)
 apiRouter.use('/work-orders', workOrderRouter);
 
+// Cotizaciones (/api/quotations)
+apiRouter.use('/quotations', quotationRouter);
+
 // Futuras rutas de módulos (Fases posteriores)
-// apiRouter.use('/quotations', quotationsRouter);
 // apiRouter.use('/catalogs', catalogsRouter);

@@ -2,9 +2,6 @@ import { z } from 'zod';
 
 import {
   paginationSchema,
-  createClientSchema,
-  updateClientSchema,
-  clientQuerySchema,
   createVehicleSchema,
   updateVehicleSchema,
   vehicleQuerySchema,
@@ -39,9 +36,7 @@ export type {
 export type PaginationInput = z.infer<typeof paginationSchema>;
 
 // Clientes
-export type CreateClientInput = z.infer<typeof createClientSchema>;
-export type UpdateClientInput = z.infer<typeof updateClientSchema>;
-export type ClientQueryInput = z.infer<typeof clientQuerySchema>;
+export type { CreateClientInput, UpdateClientInput, ClientQueryInput } from '../schemas/index.js';
 
 // Vehículos
 export type CreateVehicleInput = z.infer<typeof createVehicleSchema>;

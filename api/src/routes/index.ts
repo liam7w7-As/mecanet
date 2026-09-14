@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { authRouter } from './auth.routes.js';
+import { clientRouter } from './client.routes.js';
 import { healthRouter } from './health.js';
 import { permissionRouter } from './permission.routes.js';
 import { userRouter } from './user.routes.js';
@@ -19,9 +20,11 @@ apiRouter.use('/users', userRouter);
 // Módulo de roles y permisos (/api/roles, /api/permissions)
 apiRouter.use(permissionRouter);
 
+// Módulo de clientes (/api/clients)
+apiRouter.use('/clients', clientRouter);
+
 // Futuras rutas de módulos (Fases posteriores)
 // apiRouter.use('/work-orders', workOrdersRouter);
 // apiRouter.use('/quotations', quotationsRouter);
-// apiRouter.use('/clients', clientsRouter);
 // apiRouter.use('/vehicles', vehiclesRouter);
 // apiRouter.use('/catalogs', catalogsRouter);

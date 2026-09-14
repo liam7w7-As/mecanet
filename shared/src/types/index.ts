@@ -5,10 +5,6 @@ import {
   createCatalogItemSchema,
   updateCatalogItemSchema,
   catalogItemQuerySchema,
-  createWorkOrderSchema,
-  createWorkOrderItemSchema,
-  updateWorkOrderSchema,
-  workOrderQuerySchema,
   createQuotationSchema,
   createQuotationItemSchema,
   updateQuotationSchema,
@@ -44,10 +40,12 @@ export type UpdateCatalogItemInput = z.infer<typeof updateCatalogItemSchema>;
 export type CatalogItemQueryInput = z.infer<typeof catalogItemQuerySchema>;
 
 // Órdenes de Trabajo
-export type CreateWorkOrderItemInput = z.infer<typeof createWorkOrderItemSchema>;
-export type CreateWorkOrderInput = z.infer<typeof createWorkOrderSchema>;
-export type UpdateWorkOrderInput = z.infer<typeof updateWorkOrderSchema>;
-export type WorkOrderQueryInput = z.infer<typeof workOrderQuerySchema>;
+export type {
+  WorkOrderItemInput,
+  CreateWorkOrderInput,
+  UpdateWorkOrderInput,
+  WorkOrderQueryInput,
+} from '../schemas/index.js';
 
 // Cotizaciones
 export type CreateQuotationItemInput = z.infer<typeof createQuotationItemSchema>;

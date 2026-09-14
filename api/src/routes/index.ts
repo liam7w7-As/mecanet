@@ -7,6 +7,7 @@ import { permissionRouter } from './permission.routes.js';
 import { searchRouter } from './search.routes.js';
 import { userRouter } from './user.routes.js';
 import { vehicleRouter } from './vehicle.routes.js';
+import { workOrderRouter } from './work-order.routes.js';
 
 export const apiRouter = Router();
 
@@ -31,7 +32,9 @@ apiRouter.use('/vehicles', vehicleRouter);
 // Búsqueda rápida (/api/search)
 apiRouter.use('/search', searchRouter);
 
+// Órdenes de trabajo (/api/work-orders)
+apiRouter.use('/work-orders', workOrderRouter);
+
 // Futuras rutas de módulos (Fases posteriores)
-// apiRouter.use('/work-orders', workOrdersRouter);
 // apiRouter.use('/quotations', quotationsRouter);
 // apiRouter.use('/catalogs', catalogsRouter);

@@ -3,44 +3,74 @@ import { z } from 'zod';
 import { paginationSchema } from './pagination.schema.js';
 import { WORK_ORDER_STATUS } from '../constants/work-order-status.js';
 
-export const createWorkOrderItemSchema = z.object({
-  catalog_item_id: z.coerce.number().int().positive().nullable().optional(),
-  descripcion: z.string().trim().min(1, 'La descripción del ítem es requerida').max(255),
+const optionalText = (maxLength?: number) => {
+  const schema = z.string().trim();
+  return (maxLength ? schema.max(maxLength) : schema)
+    .transform((value) => (value === '' ? null : value))
+    .nullable()
+    .optional();
+};
+
+const nullablePositiveId = z.coerce.number().int().positive().nullable().optional();
+
+export const workOrderItemInputSchema = z.object({
+  catalogItemId: z.coerce.number().int().positive().nullable().optional(),
+  descripcion: z.string().trim().min(2, 'La descripción debe tener al menos 2 caracteres').max(255),
   cantidad: z.coerce.number().positive('La cantidad debe ser mayor a 0').default(1),
-  precio_unitario: z.coerce.number().min(0, 'El precio no puede ser negativo').default(0),
-  subtotal: z.coerce.number().min(0).default(0),
+  precioUnitario: z.coerce.number().min(0, 'El precio no puede ser negativo').default(0),
 });
 
 export const createWorkOrderSchema = z.object({
-  codigo: z
+  clientId: nullablePositiveId,
+  vehicleId: nullablePositiveId,
+  kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),
+  descripcion: optionalText(),
+  fechaIngreso: z
     .string()
-    .trim()
-    .regex(/^OT-\d{4}-\d{4,}$/, 'El código debe tener formato OT-YYYY-NNNN')
-    .max(30),
-  client_id: z.coerce.number().int().positive().nullable().optional(),
-  vehicle_id: z.coerce.number().int().positive().nullable().optional(),
-  estado: z.enum(WORK_ORDER_STATUS).default('borrador'),
-  descripcion: z.string().trim().nullable().optional(),
-  kilometraje_ingreso: z.coerce.number().int().min(0).nullable().optional(),
-  fecha_ingreso: z
-    .string()
-    .datetime({ message: 'fecha_ingreso debe ser una fecha ISO 8601 válida' })
+    .datetime({ message: 'fechaIngreso debe ser una fecha ISO 8601 válida' })
     .nullable()
     .optional(),
-  fecha_entrega: z
+  fechaEntrega: z
     .string()
-    .datetime({ message: 'fecha_entrega debe ser una fecha ISO 8601 válida' })
+    .datetime({ message: 'fechaEntrega debe ser una fecha ISO 8601 válida' })
     .nullable()
     .optional(),
-  created_by: z.coerce.number().int().positive().nullable().optional(),
-  items: z.array(createWorkOrderItemSchema).optional(),
+  items: z.array(workOrderItemInputSchema).default([]),
 });
 
-export const updateWorkOrderSchema = createWorkOrderSchema.partial();
+export const updateWorkOrderSchema = z
+  .object({
+    clientId: nullablePositiveId,
+    vehicleId: nullablePositiveId,
+    estado: z.enum(WORK_ORDER_STATUS).optional(),
+    kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),
+    descripcion: optionalText(),
+    fechaIngreso: z
+      .string()
+      .datetime({ message: 'fechaIngreso debe ser una fecha ISO 8601 válida' })
+      .nullable()
+      .optional(),
+    fechaEntrega: z
+      .string()
+      .datetime({ message: 'fechaEntrega debe ser una fecha ISO 8601 válida' })
+      .nullable()
+      .optional(),
+    items: z.array(workOrderItemInputSchema).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'Debe enviar al menos un campo para actualizar',
+  });
 
 export const workOrderQuerySchema = paginationSchema.extend({
   search: z.string().trim().optional(),
   estado: z.enum(WORK_ORDER_STATUS).optional(),
-  client_id: z.coerce.number().int().positive().optional(),
-  vehicle_id: z.coerce.number().int().positive().optional(),
+  clientId: z.coerce.number().int().positive().optional(),
+  vehicleId: z.coerce.number().int().positive().optional(),
+  fechaDesde: z.string().date('fechaDesde debe ser una fecha YYYY-MM-DD válida').optional(),
+  fechaHasta: z.string().date('fechaHasta debe ser una fecha YYYY-MM-DD válida').optional(),
 });
+
+export type WorkOrderItemInput = z.infer<typeof workOrderItemInputSchema>;
+export type CreateWorkOrderInput = z.infer<typeof createWorkOrderSchema>;
+export type UpdateWorkOrderInput = z.infer<typeof updateWorkOrderSchema>;
+export type WorkOrderQueryInput = z.infer<typeof workOrderQuerySchema>;

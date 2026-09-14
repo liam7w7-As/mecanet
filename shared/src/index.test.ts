@@ -61,26 +61,24 @@ describe('Shared Package Constants & Schemas', () => {
     expect(overLimitSize.success).toBe(false);
   });
 
-  it('valida createWorkOrderSchema con estado inválido → error', () => {
+  it('valida createWorkOrderSchema con cabecera e items', () => {
     const validOT = createWorkOrderSchema.safeParse({
-      codigo: 'OT-2026-0001',
-      estado: 'borrador',
-      fecha_ingreso: '2026-09-12T12:00:00Z',
+      clientId: 1,
+      vehicleId: 1,
+      fechaIngreso: '2026-09-12T12:00:00Z',
+      items: [{ descripcion: 'Cambio de aceite', cantidad: 2, precioUnitario: 10000 }],
     });
     expect(validOT.success).toBe(true);
 
-    // Estado inválido no perteneciente al enum
-    const invalidStatusOT = createWorkOrderSchema.safeParse({
-      codigo: 'OT-2026-0002',
-      estado: 'estado_inexistente',
+    const invalidDateOT = createWorkOrderSchema.safeParse({
+      fechaIngreso: 'fecha-invalida',
     });
-    expect(invalidStatusOT.success).toBe(false);
+    expect(invalidDateOT.success).toBe(false);
 
-    // Código inválido
-    const invalidCodeOT = createWorkOrderSchema.safeParse({
-      codigo: 'INVALID-CODE',
+    const invalidItemOT = createWorkOrderSchema.safeParse({
+      items: [{ descripcion: 'x', cantidad: 0, precioUnitario: 10000 }],
     });
-    expect(invalidCodeOT.success).toBe(false);
+    expect(invalidItemOT.success).toBe(false);
   });
 
   it('valida que createVehicleSchema normalice la patente', () => {

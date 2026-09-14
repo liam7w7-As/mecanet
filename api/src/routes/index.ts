@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { authRouter } from './auth.routes.js';
 import { clientRouter } from './client.routes.js';
 import { healthRouter } from './health.js';
+import { paymentRouter } from './payment.routes.js';
 import { permissionRouter } from './permission.routes.js';
 import { quotationRouter } from './quotation.routes.js';
 import { searchRouter } from './search.routes.js';
@@ -38,6 +39,9 @@ apiRouter.use('/work-orders', workOrderRouter);
 
 // Cotizaciones (/api/quotations)
 apiRouter.use('/quotations', quotationRouter);
+
+// Pagos (/api/payments)
+apiRouter.use('/payments', paymentRouter);
 
 // Futuras rutas de módulos (Fases posteriores)
 // apiRouter.use('/catalogs', catalogsRouter);

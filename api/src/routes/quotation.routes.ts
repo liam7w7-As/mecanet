@@ -7,6 +7,7 @@ import {
 import { Router } from 'express';
 import { z } from 'zod';
 
+import { getQuotationPaymentsHandler } from '../controllers/payment.controller.js';
 import {
   convertToWorkOrderHandler,
   createQuotationHandler,
@@ -63,6 +64,13 @@ quotationRouter.get(
   authorize('comercial', 'read'),
   validate({ query: quotationQuerySchema }),
   getQuotationsHandler,
+);
+
+quotationRouter.get(
+  '/:id/payments',
+  authorize('comercial', 'read'),
+  validate({ params: idParamSchema }),
+  getQuotationPaymentsHandler,
 );
 
 quotationRouter.get(

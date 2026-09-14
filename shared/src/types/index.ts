@@ -69,3 +69,6 @@ export type QuotationQueryInput = z.infer<typeof quotationQuerySchema>;
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
 export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
 export type PaymentQueryInput = z.infer<typeof paymentQuerySchema>;
+
+// Permisos y roles
+export type { UpdateRolePermissionsInput, RoleQueryInput } from '../schemas/index.js';

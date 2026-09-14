@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import { authRouter } from './auth.routes.js';
 import { healthRouter } from './health.js';
+import { permissionRouter } from './permission.routes.js';
 import { userRouter } from './user.routes.js';
 
 export const apiRouter = Router();
@@ -14,6 +15,9 @@ apiRouter.use('/auth', authRouter);
 
 // Módulo de usuarios (/api/users)
 apiRouter.use('/users', userRouter);
+
+// Módulo de roles y permisos (/api/roles, /api/permissions)
+apiRouter.use(permissionRouter);
 
 // Futuras rutas de módulos (Fases posteriores)
 // apiRouter.use('/work-orders', workOrdersRouter);

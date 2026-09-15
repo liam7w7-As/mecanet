@@ -11,6 +11,7 @@ import { User } from './User.js';
 import { Vehicle } from './Vehicle.js';
 import { WorkOrder } from './WorkOrder.js';
 import { WorkOrderInspection } from './WorkOrderInspection.js';
+import { WorkOrderInspectionPhoto } from './WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
 
 import type { Sequelize } from 'sequelize-typescript';
@@ -27,6 +28,7 @@ export const models = [
   WorkOrder,
   WorkOrderItem,
   WorkOrderInspection,
+  WorkOrderInspectionPhoto,
   Quotation,
   QuotationItem,
   Payment,
@@ -48,6 +50,7 @@ export {
   WorkOrder,
   WorkOrderItem,
   WorkOrderInspection,
+  WorkOrderInspectionPhoto,
   Quotation,
   QuotationItem,
   Payment,

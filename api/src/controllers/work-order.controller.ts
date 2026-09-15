@@ -1,3 +1,4 @@
+import * as inspectionPhotoService from '../services/work-order-inspection-photo.service.js';
 import { generateWorkOrderPdf } from '../services/work-order-pdf.service.js';
 import * as workOrderService from '../services/work-order.service.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -8,10 +9,14 @@ import type {
   UpdateWorkOrderInput,
   ChangeWorkOrderStatusInput,
   WorkOrderQueryInput,
+  WorkOrderInspectionPhotoSlot,
 } from '@unithor/shared';
 import type { Request, Response } from 'express';
 
 const getParamId = (req: Request): number => Number(req.params.id);
+
+const getPhotoSlot = (req: Request): WorkOrderInspectionPhotoSlot =>
+  req.params.slot as WorkOrderInspectionPhotoSlot;
 
 const getCurrentUserId = (req: Request): number => {
   if (!req.user) {
@@ -57,6 +62,44 @@ export const createWorkOrderHandler = asyncHandler(
       getCurrentUserId(req),
     );
     res.status(201).json({ workOrder });
+  },
+);
+
+export const uploadWorkOrderInspectionPhotoHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.file) {
+      throw ApiError.badRequest('Debe adjuntar una foto en el campo photo');
+    }
+
+    const photo = await inspectionPhotoService.saveInspectionPhoto(
+      getParamId(req),
+      getPhotoSlot(req),
+      req.file,
+      getCurrentUserId(req),
+    );
+    res.status(201).json({ photo });
+  },
+);
+
+export const getWorkOrderInspectionPhotoHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { photo, bytes } = await inspectionPhotoService.getInspectionPhoto(
+      getParamId(req),
+      getPhotoSlot(req),
+    );
+
+    res.setHeader('Content-Type', photo.mimeType);
+    res.setHeader('Content-Length', String(bytes.length));
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Content-Disposition', `inline; filename="inspeccion-${photo.slot}"`);
+    res.end(bytes);
+  },
+);
+
+export const deleteWorkOrderInspectionPhotoHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    await inspectionPhotoService.deleteInspectionPhoto(getParamId(req), getPhotoSlot(req));
+    res.status(204).send();
   },
 );
 

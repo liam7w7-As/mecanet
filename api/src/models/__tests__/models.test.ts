@@ -15,6 +15,7 @@ import {
   Vehicle,
   WorkOrder,
   WorkOrderInspection,
+  WorkOrderInspectionPhoto,
   WorkOrderItem,
   initModels,
   models,
@@ -48,6 +49,7 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     await Payment.destroy({ where: {}, force: true });
     await QuotationItem.destroy({ where: {}, force: true });
     await Quotation.destroy({ where: {}, force: true });
+    await WorkOrderInspectionPhoto.destroy({ where: {}, force: true });
     await WorkOrderItem.destroy({ where: {}, force: true });
     await WorkOrderInspection.destroy({ where: {}, force: true });
     await WorkOrder.destroy({ where: {}, force: true });
@@ -61,8 +63,8 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     await Role.destroy({ where: {}, force: true });
   });
 
-  it('verifica que los 14 modelos se registran correctamente en la instancia Sequelize', () => {
-    expect(models.length).toBe(14);
+  it('verifica que los 15 modelos se registran correctamente en la instancia Sequelize', () => {
+    expect(models.length).toBe(15);
 
     const registeredModelNames = Object.keys(testSequelize.models);
     expect(registeredModelNames).toContain('Role');
@@ -76,6 +78,7 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     expect(registeredModelNames).toContain('WorkOrder');
     expect(registeredModelNames).toContain('WorkOrderItem');
     expect(registeredModelNames).toContain('WorkOrderInspection');
+    expect(registeredModelNames).toContain('WorkOrderInspectionPhoto');
     expect(registeredModelNames).toContain('Quotation');
     expect(registeredModelNames).toContain('QuotationItem');
     expect(registeredModelNames).toContain('Payment');
@@ -159,6 +162,16 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     });
     expect(inspection.id).toBeDefined();
 
+    const photo = await WorkOrderInspectionPhoto.create({
+      inspectionId: inspection.id,
+      slot: 'frontal',
+      storageKey: 'test/photo.png',
+      mimeType: 'image/png',
+      sizeBytes: 8,
+      sha256: 'a'.repeat(64),
+    });
+    expect(photo.id).toBeDefined();
+
     // Eliminar la orden de trabajo directamente (hard delete para probar cascade en BD)
     await WorkOrder.destroy({ where: { id: workOrder.id }, force: true });
 
@@ -170,6 +183,10 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
       where: { workOrderId: workOrder.id },
     });
     expect(remainingInspections.length).toBe(0);
+    const remainingPhotos = await WorkOrderInspectionPhoto.findAll({
+      where: { inspectionId: inspection.id },
+    });
+    expect(remainingPhotos.length).toBe(0);
   });
 
   it('crea una Quotation con work_order_id = null (COT sin OT) y persiste correctamente', async () => {

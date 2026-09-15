@@ -11,6 +11,7 @@ import {
   Column,
   DataType,
   ForeignKey,
+  HasMany,
   Index,
   Model,
   PrimaryKey,
@@ -19,6 +20,7 @@ import {
 
 import { User } from './User.js';
 import { WorkOrder } from './WorkOrder.js';
+import { WorkOrderInspectionPhoto } from './WorkOrderInspectionPhoto.js';
 
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 
@@ -82,4 +84,7 @@ export class WorkOrderInspection extends Model<
 
   @BelongsTo(() => User, 'inspectedBy')
   declare inspector?: User;
+
+  @HasMany(() => WorkOrderInspectionPhoto)
+  declare photos?: WorkOrderInspectionPhoto[];
 }

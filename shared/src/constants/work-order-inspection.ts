@@ -29,6 +29,20 @@ export const VEHICLE_INVENTORY_ITEMS = [
   'limpiaparabrisas',
 ] as const;
 
+export const WORK_ORDER_INSPECTION_PHOTO_SLOTS = [
+  'frontal',
+  'trasera',
+  'lateral_izquierdo',
+  'lateral_derecho',
+  'frontal_izquierdo',
+  'frontal_derecho',
+  'trasero_izquierdo',
+  'trasero_derecho',
+  'interior',
+] as const;
+
 export type FuelLevel = (typeof FUEL_LEVELS)[number];
 export type TireCondition = (typeof TIRE_CONDITIONS)[number];
 export type VehicleInventoryItem = (typeof VEHICLE_INVENTORY_ITEMS)[number];
+export type WorkOrderInspectionPhotoSlot =
+  (typeof WORK_ORDER_INSPECTION_PHOTO_SLOTS)[number];

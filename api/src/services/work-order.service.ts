@@ -8,6 +8,7 @@ import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
+import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { ApiError } from '../utils/ApiError.js';
 import { generateWorkOrderCode } from '../utils/generateCode.js';
@@ -24,6 +25,7 @@ import type {
   FuelLevel,
   TireCondition,
   VehicleInventoryItem,
+  WorkOrderInspectionPhotoSlot,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
 
@@ -84,6 +86,16 @@ interface WorkOrderInspectionPublic {
   inspectedBy: number | null;
   createdAt: Date;
   updatedAt: Date;
+  photos: Array<{
+    id: number;
+    slot: WorkOrderInspectionPhotoSlot;
+    mimeType: string;
+    sizeBytes: number;
+    uploadedBy: number | null;
+    createdAt: Date;
+    updatedAt: Date;
+    url: string;
+  }>;
 }
 
 export interface WorkOrderPublic {
@@ -162,6 +174,21 @@ const inspectionInclude = {
     'inspectedBy',
     'createdAt',
     'updatedAt',
+  ],
+  include: [
+    {
+      model: WorkOrderInspectionPhoto,
+      as: 'photos',
+      attributes: [
+        'id',
+        'slot',
+        'mimeType',
+        'sizeBytes',
+        'uploadedBy',
+        'createdAt',
+        'updatedAt',
+      ],
+    },
   ],
 };
 
@@ -288,6 +315,19 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
         inspectedBy: workOrder.inspection.inspectedBy,
         createdAt: workOrder.inspection.createdAt,
         updatedAt: workOrder.inspection.updatedAt,
+        photos: (workOrder.inspection.photos ?? [])
+          .slice()
+          .sort((left, right) => left.slot.localeCompare(right.slot))
+          .map((photo) => ({
+            id: photo.id,
+            slot: photo.slot,
+            mimeType: photo.mimeType,
+            sizeBytes: photo.sizeBytes,
+            uploadedBy: photo.uploadedBy,
+            createdAt: photo.createdAt,
+            updatedAt: photo.updatedAt,
+            url: `/api/work-orders/${workOrder.id}/inspection/photos/${photo.slot}`,
+          })),
       }
     : workOrder.inspection === null
       ? null

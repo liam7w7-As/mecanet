@@ -20,6 +20,8 @@ const envSchema = z
     JWT_REFRESH_EXPIRES: z.string().default('7d'),
     COOKIE_DOMAIN: z.string().optional(),
     CORS_ORIGIN: z.string().default('http://localhost:5173'),
+    UPLOAD_DIR: z.string().min(1).default('./storage/uploads'),
+    MAX_INSPECTION_PHOTO_SIZE_MB: z.coerce.number().int().min(1).max(20).default(8),
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
@@ -38,6 +40,10 @@ const parseEnv = () => {
     );
     throw new Error('Configuración de entorno inválida');
   }
+  if (result.data.NODE_ENV === 'test' && process.env.UPLOAD_DIR === undefined) {
+    return { ...result.data, UPLOAD_DIR: './storage/test-uploads' };
+  }
+
   return result.data;
 };
 

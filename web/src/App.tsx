@@ -10,6 +10,9 @@ import ForbiddenPage from './pages/ForbiddenPage';
 import ModulePage from './pages/ModulePage';
 import NotFoundPage from './pages/NotFoundPage';
 import VehiclesPage from './pages/vehicles/VehiclesPage';
+import WorkOrderCreatePage from './pages/work-orders/WorkOrderCreatePage';
+import WorkOrderDetailPage from './pages/work-orders/WorkOrderDetailPage';
+import WorkOrdersPage from './pages/work-orders/WorkOrdersPage';
 
 export const App = () => (
   <Routes>
@@ -21,15 +24,9 @@ export const App = () => (
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route
-          path="/work-orders"
-          element={
-            <ModulePage
-              title="Órdenes de trabajo"
-              description="Gestión operativa de ingresos, trabajos, estados y entrega de vehículos."
-            />
-          }
-        />
+        <Route path="/work-orders" element={<WorkOrdersPage />} />
+        <Route path="/work-orders/new" element={<WorkOrderCreatePage />} />
+        <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
         <Route
           path="/quotations"
           element={

@@ -80,3 +80,64 @@ export interface QuickSearchResult {
   clients: QuickSearchClient[];
   vehicles: QuickSearchVehicle[];
 }
+
+export interface CatalogItem {
+  id: number;
+  tipo: 'parte' | 'estandar' | 'especifico';
+  codigo: string | null;
+  nombre: string;
+  descripcion: string | null;
+  precio: number;
+  stock: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkOrderClient {
+  id: number;
+  rut: string | null;
+  nombre: string;
+  telefono: string | null;
+}
+
+export interface WorkOrderVehicle {
+  id: number;
+  patente: string;
+  marca: string | null;
+  modelo: string | null;
+  ano?: number | null;
+}
+
+export interface WorkOrderCreator {
+  id: number;
+  nombre: string;
+  email: string;
+}
+
+export interface WorkOrderItem {
+  id: number;
+  catalogItemId: number | null;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+}
+
+export interface WorkOrder {
+  id: number;
+  codigo: string;
+  clientId: number | null;
+  vehicleId: number | null;
+  estado: import('@unithor/shared').WorkOrderStatus;
+  descripcion: string | null;
+  kilometrajeIngreso: number | null;
+  fechaIngreso: string | null;
+  fechaEntrega: string | null;
+  createdBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+  client?: WorkOrderClient | null;
+  vehicle?: WorkOrderVehicle | null;
+  creator?: WorkOrderCreator | null;
+  items?: WorkOrderItem[];
+}

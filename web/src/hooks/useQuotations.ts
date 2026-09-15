@@ -64,6 +64,7 @@ export const useCreateQuotationMutation = () => {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -79,6 +80,7 @@ export const useUpdateQuotationMutation = () => {
     onSuccess: (quotation) => {
       queryClient.setQueryData(quotationKeys.detail(quotation.id), quotation);
       void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -95,6 +97,7 @@ export const useConvertToWorkOrderMutation = () => {
       queryClient.setQueryData(quotationKeys.detail(quotation.id), quotation);
       void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };

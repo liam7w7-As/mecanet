@@ -62,6 +62,7 @@ export const useCreateWorkOrderMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.all });
       void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -77,6 +78,7 @@ export const useUpdateWorkOrderMutation = () => {
     onSuccess: (workOrder) => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -92,6 +94,7 @@ export const useChangeWorkOrderStatusMutation = () => {
     onSuccess: (workOrder) => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };

@@ -75,7 +75,7 @@ describe('App routing and authentication', () => {
     expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Taller / OT' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Usuarios' })).toBeInTheDocument();
-    expect(screen.getByText('Hola, Desarrollador UNITHOR')).toBeInTheDocument();
+    expect(screen.getByText('Bienvenido de vuelta, Desarrollador')).toBeInTheDocument();
   });
 
   it('limpia la sesión y vuelve al login al cerrar sesión', async () => {

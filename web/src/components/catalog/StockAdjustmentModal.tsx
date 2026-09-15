@@ -9,7 +9,7 @@ import { getFieldErrors } from '../../lib/form-errors';
 import type { CatalogItem } from '../../types/entities';
 
 interface StockAdjustmentModalProps {
-  item: CatalogItem;
+  item: Pick<CatalogItem, 'id' | 'codigo' | 'nombre' | 'stock'>;
   onClose: () => void;
 }
 

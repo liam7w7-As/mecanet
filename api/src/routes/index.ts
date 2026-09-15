@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { authRouter } from './auth.routes.js';
 import { catalogRouter } from './catalog.routes.js';
 import { clientRouter } from './client.routes.js';
+import { dashboardRouter } from './dashboard.routes.js';
 import { healthRouter } from './health.js';
 import { paymentRouter } from './payment.routes.js';
 import { permissionRouter } from './permission.routes.js';
@@ -20,6 +21,9 @@ apiRouter.use(healthRouter);
 
 // Módulo de autenticación (/api/auth)
 apiRouter.use('/auth', authRouter);
+
+// Resumen analítico del panel principal (/api/dashboard)
+apiRouter.use('/dashboard', dashboardRouter);
 
 // Módulo de usuarios (/api/users)
 apiRouter.use('/users', userRouter);

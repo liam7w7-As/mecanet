@@ -5,4 +5,5 @@ export * from './constants/work-order-transitions.js';
 export * from './constants/quotation-status.js';
 export * from './constants/catalog-types.js';
 export * from './schemas/index.js';
+export * from './schemas/dashboard.schema.js';
 export * from './types/index.js';

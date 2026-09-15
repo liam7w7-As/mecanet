@@ -2,6 +2,7 @@ export * from './auth.schema.js';
 export * from './user.schema.js';
 export * from './pagination.schema.js';
 export * from './client.schema.js';
+export * from './dashboard.schema.js';
 export * from './vehicle.schema.js';
 export * from './catalog-item.schema.js';
 export * from './work-order.schema.js';

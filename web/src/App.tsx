@@ -6,7 +6,7 @@ import PublicRoute from './components/layout/PublicRoute';
 import LoginPage from './pages/auth/LoginPage';
 import CatalogPage from './pages/catalog/CatalogPage';
 import ClientsPage from './pages/clients/ClientsPage';
-import DashboardPage from './pages/DashboardPage';
+import DashboardPage from './pages/dashboard/DashboardPage';
 import ForbiddenPage from './pages/ForbiddenPage';
 import ModulePage from './pages/ModulePage';
 import NotFoundPage from './pages/NotFoundPage';

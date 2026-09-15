@@ -62,7 +62,10 @@ export const useCreateCatalogItemMutation = () => {
       const response = await api.post<CatalogItemResponse>('/catalog', data);
       return response.data.item;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.all }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 };
 
@@ -80,6 +83,7 @@ export const useUpdateCatalogItemMutation = () => {
         (current) => replaceCatalogItem(current, item),
       );
       void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -98,6 +102,7 @@ export const useAdjustStockMutation = () => {
         (current) => replaceCatalogItem(current, item),
       );
       void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -109,6 +114,9 @@ export const useDeleteCatalogItemMutation = () => {
     mutationFn: async (id: number) => {
       await api.delete(`/catalog/${id}`);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.all }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 };

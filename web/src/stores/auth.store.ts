@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { api, setSessionExpiredHandler } from '../lib/api';
 
-import type { LoginInput, Role } from '@unithor/shared';
+import type { Role } from '@unithor/shared';
 
 export interface UserPublic {
   id: number;
@@ -11,7 +11,7 @@ export interface UserPublic {
   role: Role;
 }
 
-interface AuthResponse {
+export interface AuthResponse {
   user: UserPublic;
 }
 
@@ -21,8 +21,6 @@ interface AuthState {
   isLoading: boolean;
   setUser: (user: UserPublic | null) => void;
   checkAuth: () => Promise<void>;
-  login: (credentials: LoginInput) => Promise<void>;
-  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -56,26 +54,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  login: async (credentials) => {
-    const response = await api.post<AuthResponse>('/auth/login', credentials);
-    set({
-      user: response.data.user,
-      isAuthenticated: true,
-      isLoading: false,
-    });
-  },
-
-  logout: async () => {
-    try {
-      await api.post('/auth/logout');
-    } finally {
-      set({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
-    }
-  },
 }));
 
 setSessionExpiredHandler(() => {

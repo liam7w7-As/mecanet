@@ -3,7 +3,6 @@ import {
   Car,
   ClipboardList,
   Gauge,
-  LogOut,
   Menu,
   ReceiptText,
   UserCog,
@@ -14,6 +13,7 @@ import {
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
+import UserMenu from './UserMenu';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth.store';
 
@@ -87,36 +87,9 @@ const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
   );
 };
 
-const getInitials = (name: string): string =>
-  name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
-
-const formatRole = (role: string): string =>
-  role
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
 export const AppLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isLoggingOut, setLoggingOut] = useState(false);
   const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-
-  const handleLogout = async (): Promise<void> => {
-    setLoggingOut(true);
-    try {
-      await logout();
-    } catch {
-      // El store limpia la sesión local incluso si la red no responde.
-    } finally {
-      setLoggingOut(false);
-    }
-  };
 
   if (!user) {
     return null;
@@ -169,24 +142,7 @@ export const AppLayout = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold text-slate-900">{user.nombre}</p>
-              <p className="text-xs text-slate-500">{formatRole(user.role)}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-blue text-sm font-semibold text-white">
-              {getInitials(user.nombre)}
-            </div>
-            <button
-              type="button"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-brand-blue hover:border-brand-blue/30 hover:bg-brand-light disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={() => void handleLogout()}
-              disabled={isLoggingOut}
-            >
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden md:inline">Cerrar sesión</span>
-            </button>
-          </div>
+          <UserMenu />
         </header>
 
         <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">

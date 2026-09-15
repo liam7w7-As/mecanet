@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,12 +25,19 @@ const authenticatedUser = {
   role: 'desarrollador' as const,
 };
 
-const renderRoute = (path: string) =>
-  render(
-    <MemoryRouter initialEntries={[path]}>
-      <App />
-    </MemoryRouter>,
+const renderRoute = (path: string) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
+};
 
 describe('App routing and authentication', () => {
   beforeEach(() => {
@@ -53,7 +61,7 @@ describe('App routing and authentication', () => {
     renderRoute('/dashboard');
 
     expect(await screen.findByRole('heading', { name: 'UNITHOR' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Iniciar Sesión' })).toBeInTheDocument();
   });
 
   it('renderiza el layout y su navegación para un usuario autenticado', () => {
@@ -79,7 +87,8 @@ describe('App routing and authentication', () => {
     });
     renderRoute('/dashboard');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Menú de usuario' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }));
 
     await waitFor(() => {
       expect(useAuthStore.getState().isAuthenticated).toBe(false);

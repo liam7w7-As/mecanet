@@ -90,9 +90,23 @@ interface WorkOrderItemsEditorProps {
   items: EditableWorkOrderItem[];
   onChange: (items: EditableWorkOrderItem[]) => void;
   errors?: Record<string, string>;
+  title?: string;
+  description?: string;
+  emptyMessage?: string;
+  totalLabel?: string;
+  totalTestId?: string;
 }
 
-export const WorkOrderItemsEditor = ({ items, onChange, errors = {} }: WorkOrderItemsEditorProps) => {
+export const WorkOrderItemsEditor = ({
+  items,
+  onChange,
+  errors = {},
+  title = 'Trabajos y repuestos',
+  description = 'Busque en el catálogo o escriba un trabajo particular.',
+  emptyMessage = 'La orden puede guardarse sin ítems para realizar un diagnóstico inicial.',
+  totalLabel = 'Total estimado',
+  totalTestId = 'work-order-total',
+}: WorkOrderItemsEditorProps) => {
   const updateItem = (index: number, patch: Partial<EditableWorkOrderItem>): void => {
     onChange(items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
   };
@@ -105,8 +119,8 @@ export const WorkOrderItemsEditor = ({ items, onChange, errors = {} }: WorkOrder
     <section className="border-t border-slate-200 pt-6" aria-labelledby="work-items-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 id="work-items-title" className="text-lg font-bold text-brand-blue">Trabajos y repuestos</h2>
-          <p className="mt-1 text-sm text-slate-500">Busque en el catálogo o escriba un trabajo particular.</p>
+          <h2 id="work-items-title" className="text-lg font-bold text-brand-blue">{title}</h2>
+          <p className="mt-1 text-sm text-slate-500">{description}</p>
         </div>
         <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-blue px-4 text-sm font-semibold text-brand-blue hover:bg-brand-blue hover:text-white" onClick={() => onChange([...items, createEmptyWorkOrderItem()])}>
           <Plus className="h-4 w-4" aria-hidden="true" /> Añadir ítem
@@ -114,7 +128,7 @@ export const WorkOrderItemsEditor = ({ items, onChange, errors = {} }: WorkOrder
       </div>
 
       {items.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">La orden puede guardarse sin ítems para realizar un diagnóstico inicial.</div>
+        <div className="mt-4 rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">{emptyMessage}</div>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full min-w-[760px] text-left">
@@ -141,8 +155,8 @@ export const WorkOrderItemsEditor = ({ items, onChange, errors = {} }: WorkOrder
 
       <div className="mt-4 flex justify-end">
         <div className="w-full max-w-sm border-t-2 border-brand-blue pt-3 text-right">
-          <p className="text-xs font-semibold uppercase text-slate-500">Total estimado</p>
-          <p className="mt-1 text-2xl font-bold text-brand-blue" data-testid="work-order-total">{formatClp(calculateItemsTotal(items))}</p>
+          <p className="text-xs font-semibold uppercase text-slate-500">{totalLabel}</p>
+          <p className="mt-1 text-2xl font-bold text-brand-blue" data-testid={totalTestId}>{formatClp(calculateItemsTotal(items))}</p>
         </div>
       </div>
     </section>

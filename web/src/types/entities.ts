@@ -141,3 +141,94 @@ export interface WorkOrder {
   creator?: WorkOrderCreator | null;
   items?: WorkOrderItem[];
 }
+
+export interface QuotationClient {
+  id: number;
+  rut: string | null;
+  nombre: string;
+  telefono: string | null;
+}
+
+export interface QuotationVehicle {
+  id: number;
+  patente: string;
+  marca: string | null;
+  modelo: string | null;
+}
+
+export interface QuotationAdvisor {
+  id: number;
+  nombre: string;
+  email: string;
+}
+
+export interface QuotationWorkOrder {
+  id: number;
+  codigo: string;
+  estado: string;
+}
+
+export interface QuotationItem {
+  id: number;
+  catalogItemId: number | null;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+}
+
+export interface Quotation {
+  id: number;
+  codigo: string;
+  workOrderId: number | null;
+  clientId: number | null;
+  vehicleId: number | null;
+  asesorId: number | null;
+  estadoPago: import('@unithor/shared').QuotationStatus;
+  subtotal: number;
+  total: number;
+  pagado: number;
+  notas: string | null;
+  createdAt: string;
+  updatedAt: string;
+  client?: QuotationClient | null;
+  vehicle?: QuotationVehicle | null;
+  asesor?: QuotationAdvisor | null;
+  workOrder?: QuotationWorkOrder | null;
+  items?: QuotationItem[];
+}
+
+export interface PaymentCreator {
+  id: number;
+  nombre: string;
+}
+
+export interface Payment {
+  id: number;
+  quotationId: number;
+  monto: number;
+  metodo: string | null;
+  fecha: string;
+  createdBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+  creator?: PaymentCreator | null;
+}
+
+export interface QuotationPaymentSummary {
+  quotationId: number;
+  total: number;
+  pagado: number;
+  saldoPendiente: number;
+  estadoPago: import('@unithor/shared').QuotationStatus;
+  payments: Payment[];
+}
+
+export interface PaymentQuotationSummary {
+  id: number;
+  codigo: string;
+  total: number;
+  pagado: number;
+  saldoPendiente: number;
+  estadoPago: import('@unithor/shared').QuotationStatus;
+}

@@ -9,6 +9,9 @@ import DashboardPage from './pages/DashboardPage';
 import ForbiddenPage from './pages/ForbiddenPage';
 import ModulePage from './pages/ModulePage';
 import NotFoundPage from './pages/NotFoundPage';
+import QuotationCreatePage from './pages/quotations/QuotationCreatePage';
+import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
+import QuotationsPage from './pages/quotations/QuotationsPage';
 import VehiclesPage from './pages/vehicles/VehiclesPage';
 import WorkOrderCreatePage from './pages/work-orders/WorkOrderCreatePage';
 import WorkOrderDetailPage from './pages/work-orders/WorkOrderDetailPage';
@@ -27,15 +30,9 @@ export const App = () => (
         <Route path="/work-orders" element={<WorkOrdersPage />} />
         <Route path="/work-orders/new" element={<WorkOrderCreatePage />} />
         <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
-        <Route
-          path="/quotations"
-          element={
-            <ModulePage
-              title="Cotizaciones"
-              description="Presupuestos, conversión a órdenes de trabajo y seguimiento de pagos."
-            />
-          }
-        />
+        <Route path="/quotations" element={<QuotationsPage />} />
+        <Route path="/quotations/new" element={<QuotationCreatePage />} />
+        <Route path="/quotations/:id" element={<QuotationDetailPage />} />
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/vehicles" element={<VehiclesPage />} />
         <Route

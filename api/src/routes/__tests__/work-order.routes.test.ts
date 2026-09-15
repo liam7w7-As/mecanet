@@ -10,6 +10,7 @@ import { Role } from '../../models/Role.js';
 import { User } from '../../models/User.js';
 import { Vehicle } from '../../models/Vehicle.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
+import { WorkOrderInspection } from '../../models/WorkOrderInspection.js';
 import { WorkOrderItem } from '../../models/WorkOrderItem.js';
 import { hashPassword } from '../../utils/password.js';
 
@@ -235,6 +236,14 @@ describe('Work Order Routes (E2E)', () => {
 
     expect(firstResponse.status).toBe(201);
     expect(firstResponse.body.workOrder.codigo).toBe(`OT-${TEST_YEAR}-0001`);
+    expect(firstResponse.body.workOrder.contact).toMatchObject({
+      clientId,
+      nombre: 'Cliente OT Fase 41',
+    });
+    expect(firstResponse.body.workOrder.billing).toMatchObject({
+      clientId,
+      nombre: 'Cliente OT Fase 41',
+    });
 
     const secondResponse = await request(app)
       .post('/api/work-orders')
@@ -295,6 +304,117 @@ describe('Work Order Routes (E2E)', () => {
 
     const vehicle = await Vehicle.findByPk(vehicleId);
     expect(vehicle?.kilometraje).toBe(1500);
+  });
+
+  it('guarda contacto, facturación e inspección como datos históricos de la OT', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const [contact, billing] = await Promise.all([
+      Client.create({
+        rut: '18880001',
+        nombre: 'Persona que entrega el vehículo',
+        tipo: 'cliente',
+        email: `${TEST_EMAIL_PREFIX}contact@unithor.local`,
+        telefono: '+56 9 1111 2222',
+      }),
+      Client.create({
+        rut: '76888001',
+        nombre: 'Empresa Facturación SpA',
+        tipo: 'empresa',
+        email: `${TEST_EMAIL_PREFIX}billing@unithor.local`,
+        telefono: '+56 2 2222 3333',
+        direccion: 'Avenida Taller 123',
+        region: 'Metropolitana',
+        comuna: 'Santiago',
+      }),
+    ]);
+
+    const response = await request(app)
+      .post('/api/work-orders')
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({
+        clientId,
+        contactClientId: contact.id,
+        billingClientId: billing.id,
+        vehicleId,
+        inspection: {
+          nivelCombustible: 'medio',
+          llantaDelanteraIzquierda: 'regular',
+          llantaDelanteraDerecha: 'bueno',
+          llantaTraseraIzquierda: 'baja_presion',
+          llantaTraseraDerecha: 'bueno',
+          inventario: ['botiquin', 'chaleco_reflectante', 'rueda_repuesto'],
+          objetosValor: 'Lentes en la guantera',
+          observaciones: 'Rayón leve en parachoques delantero',
+        },
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.workOrder.contact).toMatchObject({
+      clientId: contact.id,
+      nombre: 'Persona que entrega el vehículo',
+      telefono: '+56 9 1111 2222',
+    });
+    expect(response.body.workOrder.billing).toMatchObject({
+      clientId: billing.id,
+      nombre: 'Empresa Facturación SpA',
+      tipo: 'empresa',
+      direccion: 'Avenida Taller 123',
+    });
+    expect(response.body.workOrder.inspection).toMatchObject({
+      nivelCombustible: 'medio',
+      llantaTraseraIzquierda: 'baja_presion',
+      inventario: ['botiquin', 'chaleco_reflectante', 'rueda_repuesto'],
+      inspectedBy: vendedorUserId,
+    });
+
+    const workOrderId = response.body.workOrder.id as number;
+    const storedInspection = await WorkOrderInspection.findOne({ where: { workOrderId } });
+    expect(storedInspection?.observaciones).toBe('Rayón leve en parachoques delantero');
+
+    await contact.update({ nombre: 'Nombre editado posteriormente' });
+    const detailResponse = await request(app)
+      .get(`/api/work-orders/${workOrderId}`)
+      .set('Cookie', authCookie(vendedorCookies));
+    expect(detailResponse.status).toBe(200);
+    expect(detailResponse.body.workOrder.contact.nombre).toBe(
+      'Persona que entrega el vehículo',
+    );
+
+    const inspectionUpdate = await request(app)
+      .patch(`/api/work-orders/${workOrderId}`)
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({ inspection: { observaciones: 'Observación corregida' } });
+    expect(inspectionUpdate.status).toBe(200);
+    expect(inspectionUpdate.body.workOrder.inspection.inventario).toEqual([
+      'botiquin',
+      'chaleco_reflectante',
+      'rueda_repuesto',
+    ]);
+    expect(inspectionUpdate.body.workOrder.inspection.observaciones).toBe(
+      'Observación corregida',
+    );
+  });
+
+  it('revierte la creación si el contacto o la facturación no existen', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const countBefore = await WorkOrder.count();
+
+    const response = await request(app)
+      .post('/api/work-orders')
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({
+        clientId,
+        vehicleId,
+        contactClientId: 2147483647,
+        inspection: { inventario: ['botiquin'] },
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toBe('El cliente de contacto especificado no existe');
+    expect(await WorkOrder.count()).toBe(countBefore);
   });
 
   it('busca órdenes por patente y nombre de cliente', async () => {

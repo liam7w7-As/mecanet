@@ -17,6 +17,7 @@ import { Client } from './Client.js';
 import { Quotation } from './Quotation.js';
 import { User } from './User.js';
 import { Vehicle } from './Vehicle.js';
+import { WorkOrderInspection } from './WorkOrderInspection.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
 
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
@@ -55,6 +56,60 @@ export class WorkOrder extends Model<
     onUpdate: 'CASCADE',
   })
   declare clientId: number | null;
+
+  @ForeignKey(() => Client)
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  declare contactClientId: number | null;
+
+  @ForeignKey(() => Client)
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  declare billingClientId: number | null;
+
+  @Column({ type: DataType.STRING(180), allowNull: true })
+  declare contactName: string | null;
+
+  @Column({ type: DataType.STRING(20), allowNull: true })
+  declare contactRut: string | null;
+
+  @Column({ type: DataType.STRING(30), allowNull: true })
+  declare contactPhone: string | null;
+
+  @Column({ type: DataType.STRING(180), allowNull: true })
+  declare contactEmail: string | null;
+
+  @Column({ type: DataType.STRING(180), allowNull: true })
+  declare billingName: string | null;
+
+  @Column({ type: DataType.STRING(20), allowNull: true })
+  declare billingRut: string | null;
+
+  @Column({ type: DataType.STRING(20), allowNull: true })
+  declare billingType: 'cliente' | 'empresa' | null;
+
+  @Column({ type: DataType.STRING(30), allowNull: true })
+  declare billingPhone: string | null;
+
+  @Column({ type: DataType.STRING(180), allowNull: true })
+  declare billingEmail: string | null;
+
+  @Column({ type: DataType.STRING(255), allowNull: true })
+  declare billingAddress: string | null;
+
+  @Column({ type: DataType.STRING(100), allowNull: true })
+  declare billingRegion: string | null;
+
+  @Column({ type: DataType.STRING(100), allowNull: true })
+  declare billingComuna: string | null;
 
   @ForeignKey(() => Vehicle)
   @Column({
@@ -115,8 +170,14 @@ export class WorkOrder extends Model<
   @Column(DataType.DATE)
   declare deletedAt: CreationOptional<Date | null>;
 
-  @BelongsTo(() => Client)
+  @BelongsTo(() => Client, 'clientId')
   declare client?: Client;
+
+  @BelongsTo(() => Client, 'contactClientId')
+  declare contactClient?: Client;
+
+  @BelongsTo(() => Client, 'billingClientId')
+  declare billingClient?: Client;
 
   @BelongsTo(() => Vehicle)
   declare vehicle?: Vehicle;
@@ -126,6 +187,9 @@ export class WorkOrder extends Model<
 
   @HasMany(() => WorkOrderItem)
   declare items?: WorkOrderItem[];
+
+  @HasOne(() => WorkOrderInspection)
+  declare inspection?: WorkOrderInspection;
 
   @HasOne(() => Quotation)
   declare quotation?: Quotation;

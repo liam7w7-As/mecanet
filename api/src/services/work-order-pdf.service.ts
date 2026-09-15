@@ -240,14 +240,17 @@ const getWorkOrderForPdf = async (workOrderId: number): Promise<WorkOrder> => {
     include: [
       {
         model: Client,
+        as: 'client',
         attributes: ['rut', 'nombre', 'telefono', 'email', 'direccion'],
       },
       {
         model: Vehicle,
+        as: 'vehicle',
         attributes: ['patente', 'marca', 'modelo', 'ano', 'vinChasis', 'kilometraje'],
       },
       {
         model: WorkOrderItem,
+        as: 'items',
         attributes: ['descripcion', 'cantidad', 'precioUnitario', 'subtotal'],
       },
       {

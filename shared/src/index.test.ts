@@ -64,9 +64,17 @@ describe('Shared Package Constants & Schemas', () => {
   it('valida createWorkOrderSchema con cabecera e items', () => {
     const validOT = createWorkOrderSchema.safeParse({
       clientId: 1,
+      contactClientId: 2,
+      billingClientId: 3,
       vehicleId: 1,
       fechaIngreso: '2026-09-12T12:00:00Z',
       items: [{ descripcion: 'Cambio de aceite', cantidad: 2, precioUnitario: 10000 }],
+      inspection: {
+        nivelCombustible: 'medio',
+        llantaDelanteraIzquierda: 'regular',
+        inventario: ['botiquin', 'rueda_repuesto'],
+        objetosValor: 'Lentes en la guantera',
+      },
     });
     expect(validOT.success).toBe(true);
 
@@ -79,6 +87,11 @@ describe('Shared Package Constants & Schemas', () => {
       items: [{ descripcion: 'x', cantidad: 0, precioUnitario: 10000 }],
     });
     expect(invalidItemOT.success).toBe(false);
+
+    const duplicatedInventoryOT = createWorkOrderSchema.safeParse({
+      inspection: { inventario: ['botiquin', 'botiquin'] },
+    });
+    expect(duplicatedInventoryOT.success).toBe(false);
   });
 
   it('valida que createVehicleSchema normalice la patente', () => {

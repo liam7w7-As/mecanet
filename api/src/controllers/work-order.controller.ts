@@ -65,6 +65,7 @@ export const updateWorkOrderHandler = asyncHandler(
     const workOrder = await workOrderService.updateWorkOrder(
       getParamId(req),
       req.body as UpdateWorkOrderInput,
+      getCurrentUserId(req),
     );
     res.status(200).json({ workOrder });
   },

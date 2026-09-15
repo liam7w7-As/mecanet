@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 import { paginationSchema } from './pagination.schema.js';
+import {
+  FUEL_LEVELS,
+  TIRE_CONDITIONS,
+  VEHICLE_INVENTORY_ITEMS,
+} from '../constants/work-order-inspection.js';
 import { WORK_ORDER_STATUS } from '../constants/work-order-status.js';
 
 const optionalText = (maxLength?: number) => {
@@ -13,6 +18,37 @@ const optionalText = (maxLength?: number) => {
 
 const nullablePositiveId = z.coerce.number().int().positive().nullable().optional();
 
+const inventorySchema = z
+  .array(z.enum(VEHICLE_INVENTORY_ITEMS))
+  .max(50)
+  .refine((items) => new Set(items).size === items.length, {
+    message: 'El inventario no puede contener elementos duplicados',
+  });
+
+const inspectionFields = {
+  nivelCombustible: z.enum(FUEL_LEVELS).nullable().optional(),
+  llantaDelanteraIzquierda: z.enum(TIRE_CONDITIONS).nullable().optional(),
+  llantaDelanteraDerecha: z.enum(TIRE_CONDITIONS).nullable().optional(),
+  llantaTraseraIzquierda: z.enum(TIRE_CONDITIONS).nullable().optional(),
+  llantaTraseraDerecha: z.enum(TIRE_CONDITIONS).nullable().optional(),
+  objetosValor: optionalText(1000),
+  observaciones: optionalText(2000),
+};
+
+export const workOrderInspectionSchema = z.object({
+  ...inspectionFields,
+  inventario: inventorySchema.default([]),
+});
+
+export const updateWorkOrderInspectionSchema = z
+  .object({
+    ...inspectionFields,
+    inventario: inventorySchema.optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'Debe enviar al menos un campo de inspección',
+  });
+
 export const workOrderItemInputSchema = z.object({
   catalogItemId: z.coerce.number().int().positive().nullable().optional(),
   descripcion: z.string().trim().min(2, 'La descripción debe tener al menos 2 caracteres').max(255),
@@ -22,6 +58,8 @@ export const workOrderItemInputSchema = z.object({
 
 export const createWorkOrderSchema = z.object({
   clientId: nullablePositiveId,
+  contactClientId: nullablePositiveId,
+  billingClientId: nullablePositiveId,
   vehicleId: nullablePositiveId,
   kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),
   descripcion: optionalText(),
@@ -36,11 +74,14 @@ export const createWorkOrderSchema = z.object({
     .nullable()
     .optional(),
   items: z.array(workOrderItemInputSchema).default([]),
+  inspection: workOrderInspectionSchema.optional(),
 });
 
 export const updateWorkOrderSchema = z
   .object({
     clientId: nullablePositiveId,
+    contactClientId: nullablePositiveId,
+    billingClientId: nullablePositiveId,
     vehicleId: nullablePositiveId,
     kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),
     descripcion: optionalText(),
@@ -55,6 +96,7 @@ export const updateWorkOrderSchema = z
       .nullable()
       .optional(),
     items: z.array(workOrderItemInputSchema).optional(),
+    inspection: updateWorkOrderInspectionSchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'Debe enviar al menos un campo para actualizar',
@@ -75,6 +117,8 @@ export const changeWorkOrderStatusSchema = z.object({
 });
 
 export type WorkOrderItemInput = z.infer<typeof workOrderItemInputSchema>;
+export type WorkOrderInspectionInput = z.infer<typeof workOrderInspectionSchema>;
+export type UpdateWorkOrderInspectionInput = z.infer<typeof updateWorkOrderInspectionSchema>;
 export type CreateWorkOrderInput = z.infer<typeof createWorkOrderSchema>;
 export type UpdateWorkOrderInput = z.infer<typeof updateWorkOrderSchema>;
 export type WorkOrderQueryInput = z.infer<typeof workOrderQuerySchema>;

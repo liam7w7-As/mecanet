@@ -100,7 +100,7 @@ export class Client extends Model<InferAttributes<Client>, InferCreationAttribut
   @HasMany(() => Vehicle)
   declare vehicles?: Vehicle[];
 
-  @HasMany(() => WorkOrder)
+  @HasMany(() => WorkOrder, 'clientId')
   declare workOrders?: WorkOrder[];
 
   @HasMany(() => Quotation)

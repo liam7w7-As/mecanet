@@ -1,4 +1,4 @@
-import { isValidWorkOrderTransition } from '@unithor/shared';
+import { isValidWorkOrderTransition, VEHICLE_INVENTORY_ITEMS } from '@unithor/shared';
 import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
 import { sequelize } from '../config/database.js';
@@ -7,6 +7,7 @@ import { Client } from '../models/Client.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
+import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { ApiError } from '../utils/ApiError.js';
 import { generateWorkOrderCode } from '../utils/generateCode.js';
@@ -16,8 +17,13 @@ import type {
   CreateWorkOrderInput,
   UpdateWorkOrderInput,
   WorkOrderItemInput,
+  WorkOrderInspectionInput,
   WorkOrderQueryInput,
   WorkOrderStatus,
+  UpdateWorkOrderInspectionInput,
+  FuelLevel,
+  TireCondition,
+  VehicleInventoryItem,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
 
@@ -50,10 +56,42 @@ interface WorkOrderItemPublic {
   subtotal: number;
 }
 
+interface WorkOrderContactPublic {
+  clientId: number | null;
+  nombre: string | null;
+  rut: string | null;
+  telefono: string | null;
+  email: string | null;
+}
+
+interface WorkOrderBillingPublic extends WorkOrderContactPublic {
+  tipo: 'cliente' | 'empresa' | null;
+  direccion: string | null;
+  region: string | null;
+  comuna: string | null;
+}
+
+interface WorkOrderInspectionPublic {
+  id: number;
+  nivelCombustible: FuelLevel | null;
+  llantaDelanteraIzquierda: TireCondition | null;
+  llantaDelanteraDerecha: TireCondition | null;
+  llantaTraseraIzquierda: TireCondition | null;
+  llantaTraseraDerecha: TireCondition | null;
+  inventario: VehicleInventoryItem[];
+  objetosValor: string | null;
+  observaciones: string | null;
+  inspectedBy: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface WorkOrderPublic {
   id: number;
   codigo: string;
   clientId: number | null;
+  contactClientId: number | null;
+  billingClientId: number | null;
   vehicleId: number | null;
   estado: WorkOrderStatus;
   descripcion: string | null;
@@ -67,6 +105,9 @@ export interface WorkOrderPublic {
   vehicle?: WorkOrderVehiclePublic | null;
   creator?: WorkOrderCreatorPublic | null;
   items?: WorkOrderItemPublic[];
+  contact: WorkOrderContactPublic | null;
+  billing: WorkOrderBillingPublic | null;
+  inspection?: WorkOrderInspectionPublic | null;
 }
 
 export interface ListWorkOrdersResult {
@@ -83,11 +124,13 @@ type WorkOrderWhere = WhereOptions<InferAttributes<WorkOrder>> & {
 
 const clientInclude = {
   model: Client,
+  as: 'client',
   attributes: ['id', 'rut', 'nombre', 'telefono'],
 };
 
 const vehicleInclude = {
   model: Vehicle,
+  as: 'vehicle',
   attributes: ['id', 'patente', 'marca', 'modelo'],
 };
 
@@ -99,10 +142,52 @@ const creatorInclude = {
 
 const itemsInclude = {
   model: WorkOrderItem,
+  as: 'items',
   attributes: ['id', 'catalogItemId', 'descripcion', 'cantidad', 'precioUnitario', 'subtotal'],
 };
 
+const inspectionInclude = {
+  model: WorkOrderInspection,
+  as: 'inspection',
+  attributes: [
+    'id',
+    'nivelCombustible',
+    'llantaDelanteraIzquierda',
+    'llantaDelanteraDerecha',
+    'llantaTraseraIzquierda',
+    'llantaTraseraDerecha',
+    'inventario',
+    'objetosValor',
+    'observaciones',
+    'inspectedBy',
+    'createdAt',
+    'updatedAt',
+  ],
+};
+
 const toNumber = (value: number | string): number => Number(value);
+
+const parseInventory = (value: unknown): VehicleInventoryItem[] => {
+  let parsed: unknown = value;
+
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value) as unknown;
+    } catch {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  return parsed.filter(
+    (item): item is VehicleInventoryItem =>
+      typeof item === 'string' &&
+      VEHICLE_INVENTORY_ITEMS.includes(item as VehicleInventoryItem),
+  );
+};
 
 const toDateOrNull = (value: string | null | undefined): Date | null => {
   if (value === undefined || value === null) {
@@ -116,6 +201,8 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
   id: workOrder.id,
   codigo: workOrder.codigo,
   clientId: workOrder.clientId,
+  contactClientId: workOrder.contactClientId,
+  billingClientId: workOrder.billingClientId,
   vehicleId: workOrder.vehicleId,
   estado: workOrder.estado,
   descripcion: workOrder.descripcion,
@@ -125,6 +212,28 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
   createdBy: workOrder.createdBy,
   createdAt: workOrder.createdAt,
   updatedAt: workOrder.updatedAt,
+  contact: workOrder.contactName
+    ? {
+        clientId: workOrder.contactClientId,
+        nombre: workOrder.contactName,
+        rut: workOrder.contactRut,
+        telefono: workOrder.contactPhone,
+        email: workOrder.contactEmail,
+      }
+    : null,
+  billing: workOrder.billingName
+    ? {
+        clientId: workOrder.billingClientId,
+        nombre: workOrder.billingName,
+        rut: workOrder.billingRut,
+        tipo: workOrder.billingType,
+        telefono: workOrder.billingPhone,
+        email: workOrder.billingEmail,
+        direccion: workOrder.billingAddress,
+        region: workOrder.billingRegion,
+        comuna: workOrder.billingComuna,
+      }
+    : null,
   client: workOrder.client
     ? {
         id: workOrder.client.id,
@@ -165,6 +274,24 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
       precioUnitario: toNumber(item.precioUnitario),
       subtotal: toNumber(item.subtotal),
     })),
+  inspection: workOrder.inspection
+    ? {
+        id: workOrder.inspection.id,
+        nivelCombustible: workOrder.inspection.nivelCombustible,
+        llantaDelanteraIzquierda: workOrder.inspection.llantaDelanteraIzquierda,
+        llantaDelanteraDerecha: workOrder.inspection.llantaDelanteraDerecha,
+        llantaTraseraIzquierda: workOrder.inspection.llantaTraseraIzquierda,
+        llantaTraseraDerecha: workOrder.inspection.llantaTraseraDerecha,
+        inventario: parseInventory(workOrder.inspection.getDataValue('inventario')),
+        objetosValor: workOrder.inspection.objetosValor,
+        observaciones: workOrder.inspection.observaciones,
+        inspectedBy: workOrder.inspection.inspectedBy,
+        createdAt: workOrder.inspection.createdAt,
+        updatedAt: workOrder.inspection.updatedAt,
+      }
+    : workOrder.inspection === null
+      ? null
+      : undefined,
 });
 
 const buildItemsPayload = (
@@ -196,11 +323,151 @@ const buildItemsPayload = (
 const assertClientExists = async (
   clientId: number,
   transaction: Transaction,
-): Promise<void> => {
+  errorMessage = 'El cliente especificado no existe',
+): Promise<Client> => {
   const client = await Client.findByPk(clientId, { transaction });
   if (!client) {
-    throw ApiError.badRequest('El cliente especificado no existe');
+    throw ApiError.badRequest(errorMessage);
   }
+
+  return client;
+};
+
+type ContactSnapshotPayload = Pick<
+  WorkOrder,
+  'contactClientId' | 'contactName' | 'contactRut' | 'contactPhone' | 'contactEmail'
+>;
+
+type BillingSnapshotPayload = Pick<
+  WorkOrder,
+  | 'billingClientId'
+  | 'billingName'
+  | 'billingRut'
+  | 'billingType'
+  | 'billingPhone'
+  | 'billingEmail'
+  | 'billingAddress'
+  | 'billingRegion'
+  | 'billingComuna'
+>;
+
+const buildContactSnapshot = (client: Client | null): ContactSnapshotPayload => ({
+  contactClientId: client?.id ?? null,
+  contactName: client?.nombre ?? null,
+  contactRut: client?.rut ?? null,
+  contactPhone: client?.telefono ?? null,
+  contactEmail: client?.email ?? null,
+});
+
+const buildBillingSnapshot = (client: Client | null): BillingSnapshotPayload => ({
+  billingClientId: client?.id ?? null,
+  billingName: client?.nombre ?? null,
+  billingRut: client?.rut ?? null,
+  billingType: client?.tipo ?? null,
+  billingPhone: client?.telefono ?? null,
+  billingEmail: client?.email ?? null,
+  billingAddress: client?.direccion ?? null,
+  billingRegion: client?.region ?? null,
+  billingComuna: client?.comuna ?? null,
+});
+
+const resolveSnapshotClient = async (
+  clientId: number | null,
+  errorMessage: string,
+  transaction: Transaction,
+): Promise<Client | null> => {
+  if (clientId === null) {
+    return null;
+  }
+
+  return assertClientExists(clientId, transaction, errorMessage);
+};
+
+const createInspection = async (
+  workOrderId: number,
+  inspection: WorkOrderInspectionInput,
+  userId: number,
+  transaction: Transaction,
+): Promise<void> => {
+  await WorkOrderInspection.create(
+    {
+      workOrderId,
+      nivelCombustible: inspection.nivelCombustible ?? null,
+      llantaDelanteraIzquierda: inspection.llantaDelanteraIzquierda ?? null,
+      llantaDelanteraDerecha: inspection.llantaDelanteraDerecha ?? null,
+      llantaTraseraIzquierda: inspection.llantaTraseraIzquierda ?? null,
+      llantaTraseraDerecha: inspection.llantaTraseraDerecha ?? null,
+      inventario: inspection.inventario,
+      objetosValor: inspection.objetosValor ?? null,
+      observaciones: inspection.observaciones ?? null,
+      inspectedBy: userId,
+    },
+    { transaction },
+  );
+};
+
+const upsertInspection = async (
+  workOrderId: number,
+  inspection: UpdateWorkOrderInspectionInput,
+  userId: number,
+  transaction: Transaction,
+): Promise<void> => {
+  const existing = await WorkOrderInspection.findOne({ where: { workOrderId }, transaction });
+
+  if (!existing) {
+    await createInspection(
+      workOrderId,
+      {
+        ...inspection,
+        inventario: inspection.inventario ?? [],
+      },
+      userId,
+      transaction,
+    );
+    return;
+  }
+
+  const updatePayload: Partial<
+    Pick<
+      WorkOrderInspection,
+      | 'nivelCombustible'
+      | 'llantaDelanteraIzquierda'
+      | 'llantaDelanteraDerecha'
+      | 'llantaTraseraIzquierda'
+      | 'llantaTraseraDerecha'
+      | 'inventario'
+      | 'objetosValor'
+      | 'observaciones'
+      | 'inspectedBy'
+    >
+  > = { inspectedBy: userId };
+
+  if (inspection.nivelCombustible !== undefined) {
+    updatePayload.nivelCombustible = inspection.nivelCombustible;
+  }
+  if (inspection.llantaDelanteraIzquierda !== undefined) {
+    updatePayload.llantaDelanteraIzquierda = inspection.llantaDelanteraIzquierda;
+  }
+  if (inspection.llantaDelanteraDerecha !== undefined) {
+    updatePayload.llantaDelanteraDerecha = inspection.llantaDelanteraDerecha;
+  }
+  if (inspection.llantaTraseraIzquierda !== undefined) {
+    updatePayload.llantaTraseraIzquierda = inspection.llantaTraseraIzquierda;
+  }
+  if (inspection.llantaTraseraDerecha !== undefined) {
+    updatePayload.llantaTraseraDerecha = inspection.llantaTraseraDerecha;
+  }
+  if (inspection.inventario !== undefined) {
+    updatePayload.inventario = inspection.inventario;
+  }
+  if (inspection.objetosValor !== undefined) {
+    updatePayload.objetosValor = inspection.objetosValor;
+  }
+  if (inspection.observaciones !== undefined) {
+    updatePayload.observaciones = inspection.observaciones;
+  }
+
+  await existing.update(updatePayload, { transaction });
 };
 
 const assertVehicleExists = async (
@@ -252,7 +519,7 @@ const getCompleteWorkOrder = async (
   transaction?: Transaction,
 ): Promise<WorkOrder> => {
   const workOrder = await WorkOrder.findByPk(id, {
-    include: [clientInclude, vehicleInclude, creatorInclude, itemsInclude],
+    include: [clientInclude, vehicleInclude, creatorInclude, itemsInclude, inspectionInclude],
     transaction,
   });
 
@@ -331,11 +598,30 @@ export const createWorkOrder = async (
 ): Promise<WorkOrderPublic> => {
   const workOrderId = await sequelize.transaction(async (transaction) => {
     const clientId = data.clientId ?? null;
+    const contactClientId = data.contactClientId === undefined ? clientId : data.contactClientId;
+    const billingClientId = data.billingClientId === undefined ? clientId : data.billingClientId;
     const vehicleId = data.vehicleId ?? null;
 
-    if (data.clientId !== undefined && data.clientId !== null) {
-      await assertClientExists(data.clientId, transaction);
-    }
+    const client =
+      clientId === null ? null : await assertClientExists(clientId, transaction);
+    const contactClient =
+      contactClientId === clientId
+        ? client
+        : await resolveSnapshotClient(
+            contactClientId,
+            'El cliente de contacto especificado no existe',
+            transaction,
+          );
+    const billingClient =
+      billingClientId === clientId
+        ? client
+        : billingClientId === contactClientId
+          ? contactClient
+          : await resolveSnapshotClient(
+              billingClientId,
+              'El cliente de facturación especificado no existe',
+              transaction,
+            );
 
     let vehicle: Vehicle | null = null;
     if (data.vehicleId !== undefined && data.vehicleId !== null) {
@@ -358,6 +644,8 @@ export const createWorkOrder = async (
       {
         codigo,
         clientId,
+        ...buildContactSnapshot(contactClient),
+        ...buildBillingSnapshot(billingClient),
         vehicleId,
         estado: 'borrador',
         descripcion: data.descripcion ?? null,
@@ -375,6 +663,10 @@ export const createWorkOrder = async (
       });
     }
 
+    if (data.inspection !== undefined) {
+      await createInspection(workOrder.id, data.inspection, userId, transaction);
+    }
+
     return workOrder.id;
   });
 
@@ -384,6 +676,7 @@ export const createWorkOrder = async (
 export const updateWorkOrder = async (
   id: number,
   data: UpdateWorkOrderInput,
+  userId: number,
 ): Promise<WorkOrderPublic> => {
   const workOrderId = await sequelize.transaction(async (transaction) => {
     const workOrder = await WorkOrder.findByPk(id, { transaction });
@@ -425,10 +718,28 @@ export const updateWorkOrder = async (
       }
     }
 
+    if (data.inspection !== undefined) {
+      await upsertInspection(id, data.inspection, userId, transaction);
+    }
+
     const updatePayload: Partial<
       Pick<
         WorkOrder,
         | 'clientId'
+        | 'contactClientId'
+        | 'contactName'
+        | 'contactRut'
+        | 'contactPhone'
+        | 'contactEmail'
+        | 'billingClientId'
+        | 'billingName'
+        | 'billingRut'
+        | 'billingType'
+        | 'billingPhone'
+        | 'billingEmail'
+        | 'billingAddress'
+        | 'billingRegion'
+        | 'billingComuna'
         | 'vehicleId'
         | 'descripcion'
         | 'kilometrajeIngreso'
@@ -439,6 +750,22 @@ export const updateWorkOrder = async (
 
     if (data.clientId !== undefined) {
       updatePayload.clientId = data.clientId;
+    }
+    if (data.contactClientId !== undefined) {
+      const contactClient = await resolveSnapshotClient(
+        data.contactClientId,
+        'El cliente de contacto especificado no existe',
+        transaction,
+      );
+      Object.assign(updatePayload, buildContactSnapshot(contactClient));
+    }
+    if (data.billingClientId !== undefined) {
+      const billingClient = await resolveSnapshotClient(
+        data.billingClientId,
+        'El cliente de facturación especificado no existe',
+        transaction,
+      );
+      Object.assign(updatePayload, buildBillingSnapshot(billingClient));
     }
     if (data.vehicleId !== undefined) {
       updatePayload.vehicleId = data.vehicleId;

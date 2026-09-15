@@ -50,8 +50,8 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
     WorkOrder.findAll({
       attributes: ['id', 'codigo', 'estado', 'fechaIngreso', 'updatedAt'],
       include: [
-        { model: Client, attributes: ['id', 'nombre'] },
-        { model: Vehicle, attributes: ['id', 'patente'] },
+        { model: Client, as: 'client', attributes: ['id', 'nombre'] },
+        { model: Vehicle, as: 'vehicle', attributes: ['id', 'patente'] },
       ],
       order: [['updatedAt', 'DESC']],
       limit: 5,

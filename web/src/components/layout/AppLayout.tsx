@@ -14,26 +14,28 @@ import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import UserMenu from './UserMenu';
+import { hasUserPermission } from '../../lib/permissions';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth.store';
 
+import type { PermissionDefinition } from '@unithor/shared';
 import type { LucideIcon } from 'lucide-react';
 
 interface NavigationItem {
   label: string;
   path: string;
   icon: LucideIcon;
-  adminOnly?: boolean;
+  permissions: PermissionDefinition[];
 }
 
 const navigationItems: NavigationItem[] = [
-  { label: 'Dashboard', path: '/dashboard', icon: Gauge },
-  { label: 'Taller / OT', path: '/work-orders', icon: ClipboardList },
-  { label: 'Comercial / Cotizaciones', path: '/quotations', icon: ReceiptText },
-  { label: 'Clientes', path: '/clients', icon: Users },
-  { label: 'Vehículos', path: '/vehicles', icon: Car },
-  { label: 'Catálogo', path: '/catalog', icon: BookOpen },
-  { label: 'Usuarios', path: '/users', icon: UserCog, adminOnly: true },
+  { label: 'Dashboard', path: '/dashboard', icon: Gauge, permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
+  { label: 'Taller / OT', path: '/work-orders', icon: ClipboardList, permissions: [{ modulo: 'taller', accion: 'read' }] },
+  { label: 'Comercial / Cotizaciones', path: '/quotations', icon: ReceiptText, permissions: [{ modulo: 'comercial', accion: 'read' }] },
+  { label: 'Clientes', path: '/clients', icon: Users, permissions: [{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }] },
+  { label: 'Vehículos', path: '/vehicles', icon: Car, permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
+  { label: 'Catálogo', path: '/catalog', icon: BookOpen, permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
+  { label: 'Usuarios', path: '/users', icon: UserCog, permissions: [{ modulo: 'admin', accion: 'read' }] },
 ];
 
 interface SidebarContentProps {
@@ -42,7 +44,6 @@ interface SidebarContentProps {
 
 const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
   const user = useAuthStore((state) => state.user);
-  const canManageUsers = user?.role === 'admin' || user?.role === 'desarrollador';
 
   return (
     <>
@@ -58,7 +59,9 @@ const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navegación principal">
         {navigationItems
-          .filter((item) => !item.adminOnly || canManageUsers)
+          .filter((item) => user && item.permissions.some((permission) =>
+            hasUserPermission(user, permission.modulo, permission.accion),
+          ))
           .map((item) => {
             const Icon = item.icon;
             return (

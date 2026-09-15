@@ -10,7 +10,7 @@ import { useDownloadCommercialExcel } from '../../hooks/usePayments';
 import { useQuotations } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp } from '../../lib/formatters';
-import { hasRolePermission } from '../../lib/permissions';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { Quotation } from '../../types/entities';
@@ -56,10 +56,10 @@ export const QuotationsPage = () => {
     fechaHasta,
   });
   const excelMutation = useDownloadCommercialExcel();
-  const canCreate = Boolean(user && hasRolePermission(user.role, 'comercial', 'create'));
-  const canEdit = Boolean(user && hasRolePermission(user.role, 'comercial', 'update'));
-  const canConvert = Boolean(user && (hasRolePermission(user.role, 'comercial', 'update') || hasRolePermission(user.role, 'taller', 'create')));
-  const canExport = Boolean(user && hasRolePermission(user.role, 'comercial', 'export'));
+  const canCreate = Boolean(user && hasUserPermission(user, 'comercial', 'create'));
+  const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
+  const canConvert = Boolean(user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'create')));
+  const canExport = Boolean(user && hasUserPermission(user, 'comercial', 'export'));
 
   useEffect(() => setPage(1), [debouncedSearch, fechaDesde, fechaHasta, status]);
 

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import {
   ACTION_LABELS,
   getRoleLabel,
-  getRolePermissionEntries,
+  getUserPermissionEntries,
   MODULE_LABELS,
 } from '../../lib/permissions';
 
@@ -26,7 +26,7 @@ export const getInitials = (name: string): string =>
     .join('');
 
 export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
-  const permissions = getRolePermissionEntries(user.role);
+  const permissions = getUserPermissionEntries(user);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {

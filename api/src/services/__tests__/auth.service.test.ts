@@ -84,12 +84,13 @@ describe('auth.service', () => {
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
       expect(result).toHaveProperty('csrfToken');
-      expect(result.user).toEqual({
+      expect(result.user).toEqual(expect.objectContaining({
         id: devUserId,
         nombre: 'Desarrollador UNITHOR',
         email: 'dev@unithor.local',
         role: 'desarrollador',
-      });
+      }));
+      expect(result.user.permissions).toHaveLength(24);
       expect(result.user).not.toHaveProperty('passwordHash');
 
       // Verificar que se haya guardado el token hash en BD
@@ -272,12 +273,13 @@ describe('auth.service', () => {
     it('retorna la información pública del usuario autenticado', async () => {
       const me = await authService.getMe(devUserId);
 
-      expect(me).toEqual({
+      expect(me).toEqual(expect.objectContaining({
         id: devUserId,
         nombre: 'Desarrollador UNITHOR',
         email: 'dev@unithor.local',
         role: 'desarrollador',
-      });
+      }));
+      expect(me.permissions).toHaveLength(24);
       expect(me).not.toHaveProperty('passwordHash');
     });
 

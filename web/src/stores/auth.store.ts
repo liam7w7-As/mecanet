@@ -2,13 +2,14 @@ import { create } from 'zustand';
 
 import { api, setSessionExpiredHandler } from '../lib/api';
 
-import type { Role } from '@unithor/shared';
+import type { PermissionDefinition, Role } from '@unithor/shared';
 
 export interface UserPublic {
   id: number;
   nombre: string;
   email: string;
   role: Role;
+  permissions?: PermissionDefinition[];
 }
 
 export interface AuthResponse {

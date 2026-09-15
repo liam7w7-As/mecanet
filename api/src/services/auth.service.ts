@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { getPermissionsForRole } from './permission.service.js';
 import { sequelize } from '../config/database.js';
 import { RefreshToken } from '../models/RefreshToken.js';
 import { Role } from '../models/Role.js';
@@ -13,12 +14,29 @@ import {
 } from '../utils/jwt.js';
 import { verifyPassword } from '../utils/password.js';
 
+import type { PermissionDefinition } from '@unithor/shared';
+
 export interface UserPublic {
   id: number;
   nombre: string;
   email: string;
   role: string;
+  permissions: PermissionDefinition[];
 }
+
+const toUserPublic = async (user: User): Promise<UserPublic> => {
+  if (!user.role) {
+    throw ApiError.internal('Usuario sin rol asociado');
+  }
+
+  return {
+    id: user.id,
+    nombre: user.nombre,
+    email: user.email,
+    role: user.role.nombre,
+    permissions: await getPermissionsForRole(user.role.nombre),
+  };
+};
 
 export interface LoginResult {
   user: UserPublic;
@@ -78,12 +96,7 @@ export const login = async (
   });
 
   return {
-    user: {
-      id: user.id,
-      nombre: user.nombre,
-      email: user.email,
-      role: user.role.nombre,
-    },
+    user: await toUserPublic(user),
     accessToken,
     refreshToken,
     csrfToken,
@@ -173,12 +186,7 @@ export const refresh = async (
       );
 
       return {
-        user: {
-          id: user.id,
-          nombre: user.nombre,
-          email: user.email,
-          role: user.role.nombre,
-        },
+        user: await toUserPublic(user),
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
         csrfToken: newCsrfToken,
@@ -240,10 +248,5 @@ export const getMe = async (userId: number): Promise<UserPublic> => {
     throw ApiError.unauthorized('Usuario no encontrado o inactivo');
   }
 
-  return {
-    id: user.id,
-    nombre: user.nombre,
-    email: user.email,
-    role: user.role.nombre,
-  };
+  return toUserPublic(user);
 };

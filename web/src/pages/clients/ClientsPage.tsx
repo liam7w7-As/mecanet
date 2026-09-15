@@ -8,7 +8,7 @@ import Pagination from '../../components/common/Pagination';
 import { useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { hasRolePermission } from '../../lib/permissions';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { Client } from '../../types/entities';
@@ -49,9 +49,9 @@ export const ClientsPage = () => {
     tipo: tab === 'all' ? undefined : tab,
   });
 
-  const canCreate = Boolean(user && (hasRolePermission(user.role, 'comercial', 'create') || hasRolePermission(user.role, 'taller', 'create')));
-  const canEdit = Boolean(user && (hasRolePermission(user.role, 'comercial', 'update') || hasRolePermission(user.role, 'taller', 'update')));
-  const canDelete = Boolean(user && hasRolePermission(user.role, 'comercial', 'delete'));
+  const canCreate = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'taller', 'create')));
+  const canEdit = Boolean(user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'update')));
+  const canDelete = Boolean(user && hasUserPermission(user, 'comercial', 'delete'));
 
   useEffect(() => {
     setPage(1);

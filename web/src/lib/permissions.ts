@@ -1,3 +1,6 @@
+import { MODULES } from '@unithor/shared';
+
+import type { UserPublic } from '../stores/auth.store';
 import type { Action, Module, Role } from '@unithor/shared';
 
 export type RolePermissionMap = Record<Role, Partial<Record<Module, readonly Action[]>>>;
@@ -64,5 +67,28 @@ export const getRoleLabel = (role: Role): string => ROLE_LABELS[role];
 export const hasRolePermission = (role: Role, module: Module, action: Action): boolean =>
   ROLE_PERMISSIONS[role][module]?.includes(action) ?? false;
 
+export const hasUserPermission = (
+  user: UserPublic,
+  module: Module,
+  action: Action,
+): boolean => {
+  if (user.role === 'desarrollador') return true;
+  if (!user.permissions) return hasRolePermission(user.role, module, action);
+  return user.permissions.some(
+    (permission) => permission.modulo === module && permission.accion === action,
+  );
+};
+
 export const getRolePermissionEntries = (role: Role): [Module, readonly Action[]][] =>
   Object.entries(ROLE_PERMISSIONS[role]) as [Module, readonly Action[]][];
+
+export const getUserPermissionEntries = (user: UserPublic): [Module, readonly Action[]][] => {
+  if (!user.permissions) return getRolePermissionEntries(user.role);
+
+  return MODULES.flatMap((module) => {
+    const actions = user.permissions
+      ?.filter((permission) => permission.modulo === module)
+      .map((permission) => permission.accion) ?? [];
+    return actions.length > 0 ? [[module, actions] as [Module, readonly Action[]]] : [];
+  });
+};

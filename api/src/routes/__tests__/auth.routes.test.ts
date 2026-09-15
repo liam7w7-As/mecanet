@@ -186,12 +186,14 @@ describe('Auth Routes (E2E)', () => {
         .set('Cookie', [`access_token=${cookies.access_token}`]);
 
       expect(meRes.status).toBe(200);
-      expect(meRes.body.user).toEqual({
+      expect(meRes.body.user).toEqual(expect.objectContaining({
         id: devUserId,
         nombre: 'Desarrollador UNITHOR',
         email: 'dev@unithor.local',
         role: 'desarrollador',
-      });
+      }));
+      expect(meRes.body.user.permissions).toHaveLength(24);
+      expect(meRes.body.user.permissions).toContainEqual({ modulo: 'admin', accion: 'read' });
     });
 
     it('responde 401 si no hay cookie access_token', async () => {

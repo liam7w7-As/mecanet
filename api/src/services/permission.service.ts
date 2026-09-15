@@ -5,7 +5,7 @@ import { RolePermission } from '../models/RolePermission.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 
-import type { Action, Module } from '@unithor/shared';
+import type { Action, Module, PermissionDefinition } from '@unithor/shared';
 
 export interface RolePublic {
   id: number;
@@ -131,7 +131,7 @@ export const updateRolePermissions = async (
  */
 export const getPermissionsForRole = async (
   roleName: string,
-): Promise<Array<{ modulo: string; accion: string }>> => {
+): Promise<PermissionDefinition[]> => {
   const role = await Role.findOne({
     where: { nombre: roleName },
     include: [

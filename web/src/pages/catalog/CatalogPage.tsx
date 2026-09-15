@@ -11,7 +11,7 @@ import {
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp } from '../../lib/formatters';
-import { hasRolePermission } from '../../lib/permissions';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { CatalogItem } from '../../types/entities';
@@ -79,9 +79,9 @@ export const CatalogPage = () => {
     soloConStock: tab === 'parte' && onlyInStock ? true : undefined,
   });
   const deleteMutation = useDeleteCatalogItemMutation();
-  const canCreate = Boolean(user && (hasRolePermission(user.role, 'taller', 'create') || hasRolePermission(user.role, 'admin', 'create')));
-  const canEdit = Boolean(user && (hasRolePermission(user.role, 'taller', 'update') || hasRolePermission(user.role, 'admin', 'update')));
-  const canDelete = Boolean(user && (hasRolePermission(user.role, 'taller', 'delete') || hasRolePermission(user.role, 'admin', 'delete')));
+  const canCreate = Boolean(user && (hasUserPermission(user, 'taller', 'create') || hasUserPermission(user, 'admin', 'create')));
+  const canEdit = Boolean(user && (hasUserPermission(user, 'taller', 'update') || hasUserPermission(user, 'admin', 'update')));
+  const canDelete = Boolean(user && (hasUserPermission(user, 'taller', 'delete') || hasUserPermission(user, 'admin', 'delete')));
 
   useEffect(() => setPage(1), [debouncedSearch, tab, onlyInStock]);
 

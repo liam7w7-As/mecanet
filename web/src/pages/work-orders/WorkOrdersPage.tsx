@@ -22,7 +22,7 @@ import {
 } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate } from '../../lib/formatters';
-import { hasRolePermission } from '../../lib/permissions';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { WorkOrder } from '../../types/entities';
@@ -76,8 +76,8 @@ export const WorkOrdersPage = () => {
   });
   const statusMutation = useChangeWorkOrderStatusMutation();
   const pdfMutation = useDownloadWorkOrderPdf();
-  const canCreate = Boolean(user && hasRolePermission(user.role, 'taller', 'create'));
-  const canUpdate = Boolean(user && hasRolePermission(user.role, 'taller', 'update'));
+  const canCreate = Boolean(user && hasUserPermission(user, 'taller', 'create'));
+  const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
 
   useEffect(() => setPage(1), [debouncedSearch, status]);
 

@@ -10,7 +10,7 @@ import { useDeletePaymentMutation, useQuotationPayments } from '../../hooks/useP
 import { useQuotation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
-import { hasRolePermission } from '../../lib/permissions';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { Payment } from '../../types/entities';
@@ -39,10 +39,10 @@ export const QuotationDetailPage = () => {
   const total = summary?.total ?? quotation?.total ?? 0;
   const paid = summary?.pagado ?? quotation?.pagado ?? 0;
   const balance = summary?.saldoPendiente ?? Math.max(0, total - paid);
-  const canCreatePayment = Boolean(user && hasRolePermission(user.role, 'comercial', 'create'));
-  const canDeletePayment = Boolean(user && hasRolePermission(user.role, 'comercial', 'delete'));
-  const canEdit = Boolean(user && hasRolePermission(user.role, 'comercial', 'update'));
-  const canConvert = Boolean(user && (hasRolePermission(user.role, 'comercial', 'update') || hasRolePermission(user.role, 'taller', 'create')));
+  const canCreatePayment = Boolean(user && hasUserPermission(user, 'comercial', 'create'));
+  const canDeletePayment = Boolean(user && hasUserPermission(user, 'comercial', 'delete'));
+  const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
+  const canConvert = Boolean(user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'create')));
 
   if (quotationQuery.isPending) {
     return <div className="flex min-h-72 items-center justify-center"><LoaderCircle className="h-8 w-8 animate-spin text-brand-blue" aria-label="Cargando cotización" /></div>;

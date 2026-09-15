@@ -8,7 +8,7 @@ import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDeleteVehicleMutation, useVehicles } from '../../hooks/useVehicles';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { hasRolePermission } from '../../lib/permissions';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { Vehicle } from '../../types/entities';
@@ -30,9 +30,9 @@ export const VehiclesPage = () => {
   const user = useAuthStore((state) => state.user);
   const vehiclesQuery = useVehicles({ page, pageSize: 20, search: debouncedSearch || undefined });
   const deleteMutation = useDeleteVehicleMutation();
-  const canCreate = Boolean(user && (hasRolePermission(user.role, 'taller', 'create') || hasRolePermission(user.role, 'comercial', 'create')));
-  const canEdit = Boolean(user && (hasRolePermission(user.role, 'taller', 'update') || hasRolePermission(user.role, 'comercial', 'update')));
-  const canDelete = Boolean(user && hasRolePermission(user.role, 'taller', 'delete'));
+  const canCreate = Boolean(user && (hasUserPermission(user, 'taller', 'create') || hasUserPermission(user, 'comercial', 'create')));
+  const canEdit = Boolean(user && (hasUserPermission(user, 'taller', 'update') || hasUserPermission(user, 'comercial', 'update')));
+  const canDelete = Boolean(user && hasUserPermission(user, 'taller', 'delete'));
 
   useEffect(() => {
     setPage(1);

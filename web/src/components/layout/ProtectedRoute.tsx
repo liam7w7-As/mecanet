@@ -1,13 +1,15 @@
 import { LoaderCircle } from 'lucide-react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
-import type { Role } from '@unithor/shared';
+import type { PermissionDefinition, Role } from '@unithor/shared';
 import type { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
   allowedRoles?: Role[];
+  requiredAnyPermission?: PermissionDefinition[];
   children?: ReactNode;
 }
 
@@ -24,7 +26,11 @@ export const RouteLoading = () => (
   </div>
 );
 
-export const ProtectedRoute = ({ allowedRoles, children }: ProtectedRouteProps) => {
+export const ProtectedRoute = ({
+  allowedRoles,
+  requiredAnyPermission,
+  children,
+}: ProtectedRouteProps) => {
   const location = useLocation();
   const { user, isAuthenticated, isLoading } = useAuthStore();
 
@@ -37,6 +43,15 @@ export const ProtectedRoute = ({ allowedRoles, children }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/forbidden" replace />;
+  }
+
+  if (
+    requiredAnyPermission &&
+    !requiredAnyPermission.some((permission) =>
+      hasUserPermission(user, permission.modulo, permission.accion),
+    )
+  ) {
     return <Navigate to="/forbidden" replace />;
   }
 

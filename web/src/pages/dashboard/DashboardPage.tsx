@@ -18,7 +18,7 @@ import WorkOrderStatusBadge from '../../components/work-orders/WorkOrderStatusBa
 import { useDashboardSummary } from '../../hooks/useDashboard';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate } from '../../lib/formatters';
-import { hasRolePermission } from '../../lib/permissions';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { DashboardSummary } from '@unithor/shared';
@@ -72,10 +72,10 @@ export const DashboardPage = () => {
   const [showClientForm, setShowClientForm] = useState(false);
   const [stockItem, setStockItem] = useState<DashboardSummary['lowStockItems'][number] | null>(null);
   const firstName = user?.nombre.trim().split(/\s+/)[0] ?? 'usuario';
-  const canCreateWorkOrder = Boolean(user && hasRolePermission(user.role, 'taller', 'create'));
-  const canCreateQuotation = Boolean(user && hasRolePermission(user.role, 'comercial', 'create'));
-  const canCreateClient = Boolean(user && (hasRolePermission(user.role, 'comercial', 'create') || hasRolePermission(user.role, 'taller', 'create')));
-  const canAdjustStock = Boolean(user && (hasRolePermission(user.role, 'taller', 'update') || hasRolePermission(user.role, 'admin', 'update')));
+  const canCreateWorkOrder = Boolean(user && hasUserPermission(user, 'taller', 'create'));
+  const canCreateQuotation = Boolean(user && hasUserPermission(user, 'comercial', 'create'));
+  const canCreateClient = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'taller', 'create')));
+  const canAdjustStock = Boolean(user && (hasUserPermission(user, 'taller', 'update') || hasUserPermission(user, 'admin', 'update')));
   const summary = dashboardQuery.data;
 
   return (

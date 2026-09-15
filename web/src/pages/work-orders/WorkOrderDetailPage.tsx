@@ -8,7 +8,7 @@ import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components
 import { useChangeWorkOrderStatusMutation, useDownloadWorkOrderPdf, useWorkOrder } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
-import { hasRolePermission } from '../../lib/permissions';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { WorkOrderStatus } from '@unithor/shared';
@@ -21,7 +21,7 @@ export const WorkOrderDetailPage = () => {
   const pdfMutation = useDownloadWorkOrderPdf();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const user = useAuthStore((state) => state.user);
-  const canUpdate = Boolean(user && hasRolePermission(user.role, 'taller', 'update'));
+  const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
   const workOrder = workOrderQuery.data;
   const validTransitions = useMemo(
     () => workOrder ? WORK_ORDER_STATUS.filter((candidate) => isValidWorkOrderTransition(workOrder.estado, candidate)) : [],

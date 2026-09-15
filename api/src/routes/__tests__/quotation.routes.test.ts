@@ -384,6 +384,120 @@ describe('Quotation Routes (E2E)', () => {
     });
   });
 
+  it('busca cotizaciones por cliente y aplica el rango de emisión', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const marker = 'Filtro relacional fase 81';
+    await Quotation.create({
+      codigo: `COT-${TEST_YEAR}-9100`,
+      clientId,
+      estadoPago: 'por_pagar',
+      subtotal: 0,
+      total: 0,
+      pagado: 0,
+      notas: marker,
+      createdAt: new Date('2020-01-15T12:00:00.000Z'),
+      updatedAt: new Date('2020-01-15T12:00:00.000Z'),
+    });
+    const currentResponse = await request(app)
+      .post('/api/quotations')
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({ clientId, notas: marker });
+    expect(currentResponse.status).toBe(201);
+
+    const emissionDate = String(currentResponse.body.quotation.createdAt).slice(0, 10);
+    const byDate = await request(app)
+      .get('/api/quotations')
+      .query({ search: marker, fechaDesde: emissionDate, fechaHasta: emissionDate })
+      .set('Cookie', authCookie(vendedorCookies));
+    const byClient = await request(app)
+      .get('/api/quotations')
+      .query({ search: 'Cliente Cotización Fase 51' })
+      .set('Cookie', authCookie(vendedorCookies));
+
+    expect(byDate.status).toBe(200);
+    expect(byDate.body.total).toBe(1);
+    expect(byDate.body.items[0].id).toBe(currentResponse.body.quotation.id);
+    expect(byClient.status).toBe(200);
+    expect(byClient.body.total).toBeGreaterThan(0);
+  });
+
+  it('rechaza fechas invertidas y asociaciones cliente-vehículo incoherentes', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const invalidDates = await request(app)
+      .get('/api/quotations')
+      .query({ fechaDesde: '2026-09-20', fechaHasta: '2026-09-10' })
+      .set('Cookie', authCookie(vendedorCookies));
+    expect(invalidDates.status).toBe(400);
+
+    const otherClient = await Client.create({
+      rut: '76510002',
+      nombre: 'Cliente Cotización Incorrecto',
+      tipo: 'cliente',
+      email: `${TEST_EMAIL_PREFIX}other-client@unithor.local`,
+    });
+    const mismatch = await request(app)
+      .post('/api/quotations')
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({ clientId: otherClient.id, vehicleId });
+
+    expect(mismatch.status).toBe(400);
+    expect(mismatch.body.error.message).toBe(
+      'El vehículo pertenece a un cliente distinto al seleccionado',
+    );
+  });
+
+  it('impide asignar un estado financiero incompatible con los montos', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const quotation = await Quotation.create({
+      codigo: `COT-${TEST_YEAR}-9200`,
+      clientId,
+      estadoPago: 'por_pagar',
+      subtotal: 10000,
+      total: 10000,
+      pagado: 0,
+    });
+
+    const invalidStatus = await request(app)
+      .patch(`/api/quotations/${quotation.id}`)
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({ estadoPago: 'total' });
+    const specialStatus = await request(app)
+      .patch(`/api/quotations/${quotation.id}`)
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({ estadoPago: 'por_verificar' });
+
+    expect(invalidStatus.status).toBe(400);
+    expect(invalidStatus.body.error.message).toBe(
+      "El estado de pago debe ser 'por_pagar' según los montos registrados",
+    );
+    expect(specialStatus.status).toBe(200);
+    expect(specialStatus.body.quotation.estadoPago).toBe('por_verificar');
+
+    const partiallyPaid = await Quotation.create({
+      codigo: `COT-${TEST_YEAR}-9201`,
+      clientId,
+      estadoPago: 'parcial',
+      subtotal: 10000,
+      total: 10000,
+      pagado: 5000,
+    });
+    const recalculated = await request(app)
+      .patch(`/api/quotations/${partiallyPaid.id}`)
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({
+        items: [{ descripcion: 'Total ajustado', cantidad: 1, precioUnitario: 5000 }],
+      });
+
+    expect(recalculated.status).toBe(200);
+    expect(recalculated.body.quotation.total).toBe(5000);
+    expect(recalculated.body.quotation.estadoPago).toBe('total');
+  });
+
   it('rechaza borrar cotización con pagos simulados', async () => {
     const devCookies = await loginAs('dev@unithor.local');
     const quotation = await Quotation.create({

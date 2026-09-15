@@ -1,4 +1,4 @@
-import { Op, Transaction } from 'sequelize';
+import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
 import { getWorkOrderById, type WorkOrderPublic } from './work-order.service.js';
 import { sequelize } from '../config/database.js';
@@ -126,6 +126,18 @@ const itemsInclude = {
 
 const numberValue = (value: number | string): number => Number(value);
 
+const FINANCIAL_QUOTATION_STATUSES = new Set<QuotationStatus>([
+  'por_pagar',
+  'parcial',
+  'total',
+]);
+
+const getFinancialQuotationStatus = (pagado: number, total: number): QuotationStatus => {
+  if (pagado <= 0) return 'por_pagar';
+  if (pagado >= total) return 'total';
+  return 'parcial';
+};
+
 const toDateOrNull = (value: string | null | undefined): Date | null => {
   if (value === undefined || value === null) {
     return null;
@@ -236,10 +248,18 @@ const assertClientExists = async (clientId: number, transaction: Transaction): P
   }
 };
 
-const assertVehicleExists = async (vehicleId: number, transaction: Transaction): Promise<void> => {
+const assertVehicleExists = async (vehicleId: number, transaction: Transaction): Promise<Vehicle> => {
   const vehicle = await Vehicle.findByPk(vehicleId, { transaction });
   if (!vehicle) {
     throw ApiError.badRequest('El vehículo especificado no existe');
+  }
+
+  return vehicle;
+};
+
+const assertClientMatchesVehicle = (clientId: number | null, vehicle: Vehicle | null): void => {
+  if (clientId !== null && vehicle !== null && vehicle.clientId !== null && vehicle.clientId !== clientId) {
+    throw ApiError.badRequest('El vehículo pertenece a un cliente distinto al seleccionado');
   }
 };
 
@@ -300,9 +320,13 @@ export const listQuotations = async (
   const where: QuotationWhere = {};
 
   if (query.search) {
+    const searchPattern = `%${query.search}%`;
     where[Op.or] = [
-      { codigo: { [Op.like]: `%${query.search}%` } },
-      { notas: { [Op.like]: `%${query.search}%` } },
+      { codigo: { [Op.like]: searchPattern } },
+      { notas: { [Op.like]: searchPattern } },
+      sequelizeWhere(col('client.nombre'), { [Op.like]: searchPattern }),
+      sequelizeWhere(col('client.rut'), { [Op.like]: searchPattern }),
+      sequelizeWhere(col('vehicle.patente'), { [Op.like]: searchPattern }),
     ];
   }
 
@@ -317,6 +341,17 @@ export const listQuotations = async (
   }
   if (query.workOrderId !== undefined) {
     where.workOrderId = query.workOrderId;
+  }
+
+  if (query.fechaDesde || query.fechaHasta) {
+    const range: { [Op.gte]?: Date; [Op.lte]?: Date } = {};
+    if (query.fechaDesde) {
+      range[Op.gte] = new Date(`${query.fechaDesde}T00:00:00.000Z`);
+    }
+    if (query.fechaHasta) {
+      range[Op.lte] = new Date(`${query.fechaHasta}T23:59:59.999Z`);
+    }
+    where.createdAt = range;
   }
 
   const { rows, count } = await Quotation.findAndCountAll({
@@ -377,21 +412,16 @@ export const createQuotation = async (
       if (items.length === 0 && workOrder.items) {
         items = copyWorkOrderItems(workOrder.items);
       }
-    } else {
-      if (clientId !== null) {
-        await assertClientExists(clientId, transaction);
-      }
-      if (vehicleId !== null) {
-        await assertVehicleExists(vehicleId, transaction);
-      }
     }
 
     if (clientId !== null) {
       await assertClientExists(clientId, transaction);
     }
+    let vehicle: Vehicle | null = null;
     if (vehicleId !== null) {
-      await assertVehicleExists(vehicleId, transaction);
+      vehicle = await assertVehicleExists(vehicleId, transaction);
     }
+    assertClientMatchesVehicle(clientId, vehicle);
     await assertCatalogItemsExist(items, transaction);
 
     const total = calculateTotal(items);
@@ -433,6 +463,7 @@ export const updateQuotation = async (
     }
 
     const updatePayload: Partial<Pick<Quotation, 'notas' | 'estadoPago' | 'subtotal' | 'total'>> = {};
+    let nextTotal = numberValue(quotation.total);
 
     if (data.items !== undefined) {
       if (quotation.estadoPago === 'total') {
@@ -446,6 +477,7 @@ export const updateQuotation = async (
       if (total < numberValue(quotation.pagado)) {
         throw ApiError.badRequest('El nuevo total no puede ser inferior al monto ya pagado');
       }
+      nextTotal = total;
 
       await QuotationItem.destroy({ where: { quotationId: id }, transaction });
       if (data.items.length > 0) {
@@ -459,8 +491,26 @@ export const updateQuotation = async (
     if (data.notas !== undefined) {
       updatePayload.notas = data.notas;
     }
+    const expectedFinancialStatus = getFinancialQuotationStatus(
+      numberValue(quotation.pagado),
+      nextTotal,
+    );
+
     if (data.estadoPago !== undefined) {
+      if (
+        FINANCIAL_QUOTATION_STATUSES.has(data.estadoPago) &&
+        data.estadoPago !== expectedFinancialStatus
+      ) {
+        throw ApiError.badRequest(
+          `El estado de pago debe ser '${expectedFinancialStatus}' según los montos registrados`,
+        );
+      }
       updatePayload.estadoPago = data.estadoPago;
+    } else if (
+      data.items !== undefined &&
+      FINANCIAL_QUOTATION_STATUSES.has(quotation.estadoPago)
+    ) {
+      updatePayload.estadoPago = expectedFinancialStatus;
     }
 
     await quotation.update(updatePayload, { transaction });
@@ -497,6 +547,14 @@ export const convertQuotationToWorkOrder = async (
         'La cotización requiere un cliente o vehículo para generar una Orden de Trabajo',
       );
     }
+
+    if (quotation.clientId !== null) {
+      await assertClientExists(quotation.clientId, transaction);
+    }
+    const vehicle = quotation.vehicleId === null
+      ? null
+      : await assertVehicleExists(quotation.vehicleId, transaction);
+    assertClientMatchesVehicle(quotation.clientId, vehicle);
 
     const codigo = await generateWorkOrderCode(transaction);
     const workOrder = await WorkOrder.create(

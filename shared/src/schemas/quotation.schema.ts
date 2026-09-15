@@ -48,13 +48,23 @@ export const updateQuotationSchema = z
     message: 'Debe enviar al menos un campo para actualizar',
   });
 
-export const quotationQuerySchema = paginationSchema.extend({
-  search: z.string().trim().optional(),
-  estadoPago: z.enum(QUOTATION_STATUS).optional(),
-  clientId: z.coerce.number().int().positive().optional(),
-  vehicleId: z.coerce.number().int().positive().optional(),
-  workOrderId: z.coerce.number().int().positive().optional(),
-});
+export const quotationQuerySchema = paginationSchema
+  .extend({
+    search: z.string().trim().optional(),
+    estadoPago: z.enum(QUOTATION_STATUS).optional(),
+    clientId: z.coerce.number().int().positive().optional(),
+    vehicleId: z.coerce.number().int().positive().optional(),
+    workOrderId: z.coerce.number().int().positive().optional(),
+    fechaDesde: z.string().date('fechaDesde debe ser una fecha YYYY-MM-DD válida').optional(),
+    fechaHasta: z.string().date('fechaHasta debe ser una fecha YYYY-MM-DD válida').optional(),
+  })
+  .refine(
+    (data) => !data.fechaDesde || !data.fechaHasta || data.fechaDesde <= data.fechaHasta,
+    {
+      message: 'fechaDesde no puede ser posterior a fechaHasta',
+      path: ['fechaHasta'],
+    },
+  );
 
 export const convertQuotationToWorkOrderSchema = z.object({
   kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),

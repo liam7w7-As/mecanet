@@ -19,10 +19,7 @@ interface ConversionResponse {
   workOrder: WorkOrder;
 }
 
-export type QuotationQueryParams = Partial<QuotationQueryInput> & {
-  fechaDesde?: string;
-  fechaHasta?: string;
-};
+export type QuotationQueryParams = Partial<QuotationQueryInput>;
 
 export const quotationKeys = {
   all: ['quotations'] as const,

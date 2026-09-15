@@ -297,6 +297,64 @@ describe('Work Order Routes (E2E)', () => {
     expect(vehicle?.kilometraje).toBe(1500);
   });
 
+  it('busca órdenes por patente y nombre de cliente', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+
+    const byPlate = await request(app)
+      .get('/api/work-orders')
+      .query({ search: 'PH4101' })
+      .set('Cookie', authCookie(vendedorCookies));
+    const byClient = await request(app)
+      .get('/api/work-orders')
+      .query({ search: 'Cliente OT Fase 41' })
+      .set('Cookie', authCookie(vendedorCookies));
+
+    expect(byPlate.status).toBe(200);
+    expect(byPlate.body.total).toBeGreaterThan(0);
+    expect(byPlate.body.items.every((item: { vehicleId: number | null }) => item.vehicleId === vehicleId)).toBe(true);
+    expect(byClient.status).toBe(200);
+    expect(byClient.body.total).toBeGreaterThan(0);
+    expect(byClient.body.items.every((item: { clientId: number | null }) => item.clientId === clientId)).toBe(true);
+  });
+
+  it('rechaza combinar un vehículo con un cliente distinto a su dueño', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const otherClient = await Client.create({
+      rut: '76410002',
+      nombre: 'Cliente OT Incorrecto',
+      tipo: 'cliente',
+      email: `${TEST_EMAIL_PREFIX}other-client@unithor.local`,
+    });
+
+    const response = await request(app)
+      .post('/api/work-orders')
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({ clientId: otherClient.id, vehicleId });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toBe(
+      'El vehículo pertenece a un cliente distinto al seleccionado',
+    );
+
+    const validOrder = await request(app)
+      .post('/api/work-orders')
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({ clientId, vehicleId });
+    expect(validOrder.status).toBe(201);
+
+    const invalidUpdate = await request(app)
+      .patch(`/api/work-orders/${validOrder.body.workOrder.id as number}`)
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({ clientId: otherClient.id });
+    expect(invalidUpdate.status).toBe(400);
+    expect(invalidUpdate.body.error.message).toBe(
+      'El vehículo pertenece a un cliente distinto al seleccionado',
+    );
+  });
+
   it('modifica cabecera y reemplaza items atómicamente', async () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
 

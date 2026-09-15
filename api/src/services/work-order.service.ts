@@ -1,5 +1,5 @@
 import { isValidWorkOrderTransition } from '@unithor/shared';
-import { Op, Transaction } from 'sequelize';
+import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -215,6 +215,12 @@ const assertVehicleExists = async (
   return vehicle;
 };
 
+const assertClientMatchesVehicle = (clientId: number | null, vehicle: Vehicle | null): void => {
+  if (clientId !== null && vehicle !== null && vehicle.clientId !== null && vehicle.clientId !== clientId) {
+    throw ApiError.badRequest('El vehículo pertenece a un cliente distinto al seleccionado');
+  }
+};
+
 const assertCatalogItemsExist = async (
   items: WorkOrderItemInput[],
   transaction: Transaction,
@@ -264,9 +270,13 @@ export const listWorkOrders = async (
   const where: WorkOrderWhere = {};
 
   if (query.search) {
+    const searchPattern = `%${query.search}%`;
     where[Op.or] = [
-      { codigo: { [Op.like]: `%${query.search}%` } },
-      { descripcion: { [Op.like]: `%${query.search}%` } },
+      { codigo: { [Op.like]: searchPattern } },
+      { descripcion: { [Op.like]: searchPattern } },
+      sequelizeWhere(col('client.nombre'), { [Op.like]: searchPattern }),
+      sequelizeWhere(col('client.rut'), { [Op.like]: searchPattern }),
+      sequelizeWhere(col('vehicle.patente'), { [Op.like]: searchPattern }),
     ];
   }
 
@@ -320,12 +330,16 @@ export const createWorkOrder = async (
   userId: number,
 ): Promise<WorkOrderPublic> => {
   const workOrderId = await sequelize.transaction(async (transaction) => {
+    const clientId = data.clientId ?? null;
+    const vehicleId = data.vehicleId ?? null;
+
     if (data.clientId !== undefined && data.clientId !== null) {
       await assertClientExists(data.clientId, transaction);
     }
 
+    let vehicle: Vehicle | null = null;
     if (data.vehicleId !== undefined && data.vehicleId !== null) {
-      const vehicle = await assertVehicleExists(data.vehicleId, transaction);
+      vehicle = await assertVehicleExists(data.vehicleId, transaction);
       if (
         data.kilometrajeIngreso !== undefined &&
         data.kilometrajeIngreso !== null &&
@@ -335,14 +349,16 @@ export const createWorkOrder = async (
       }
     }
 
+    assertClientMatchesVehicle(clientId, vehicle);
+
     await assertCatalogItemsExist(data.items, transaction);
 
     const codigo = await generateWorkOrderCode(transaction);
     const workOrder = await WorkOrder.create(
       {
         codigo,
-        clientId: data.clientId ?? null,
-        vehicleId: data.vehicleId ?? null,
+        clientId,
+        vehicleId,
         estado: 'borrador',
         descripcion: data.descripcion ?? null,
         kilometrajeIngreso: data.kilometrajeIngreso ?? null,
@@ -379,12 +395,16 @@ export const updateWorkOrder = async (
       throw ApiError.badRequest('No se puede modificar una orden finalizada o cancelada');
     }
 
-    if (data.clientId !== undefined && data.clientId !== null) {
-      await assertClientExists(data.clientId, transaction);
+    const nextClientId = data.clientId !== undefined ? data.clientId : workOrder.clientId;
+    const nextVehicleId = data.vehicleId !== undefined ? data.vehicleId : workOrder.vehicleId;
+
+    if (nextClientId !== null) {
+      await assertClientExists(nextClientId, transaction);
     }
 
-    if (data.vehicleId !== undefined && data.vehicleId !== null) {
-      const vehicle = await assertVehicleExists(data.vehicleId, transaction);
+    let vehicle: Vehicle | null = null;
+    if (nextVehicleId !== null) {
+      vehicle = await assertVehicleExists(nextVehicleId, transaction);
       if (
         data.kilometrajeIngreso !== undefined &&
         data.kilometrajeIngreso !== null &&
@@ -393,6 +413,8 @@ export const updateWorkOrder = async (
         await vehicle.update({ kilometraje: data.kilometrajeIngreso }, { transaction });
       }
     }
+
+    assertClientMatchesVehicle(nextClientId, vehicle);
 
     if (data.items !== undefined) {
       await assertCatalogItemsExist(data.items, transaction);

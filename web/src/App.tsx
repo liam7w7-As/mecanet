@@ -4,10 +4,12 @@ import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import PublicRoute from './components/layout/PublicRoute';
 import LoginPage from './pages/auth/LoginPage';
+import ClientsPage from './pages/clients/ClientsPage';
 import DashboardPage from './pages/DashboardPage';
 import ForbiddenPage from './pages/ForbiddenPage';
 import ModulePage from './pages/ModulePage';
 import NotFoundPage from './pages/NotFoundPage';
+import VehiclesPage from './pages/vehicles/VehiclesPage';
 
 export const App = () => (
   <Routes>
@@ -37,24 +39,8 @@ export const App = () => (
             />
           }
         />
-        <Route
-          path="/clients"
-          element={
-            <ModulePage
-              title="Clientes"
-              description="Registro de personas, empresas y sus antecedentes de contacto."
-            />
-          }
-        />
-        <Route
-          path="/vehicles"
-          element={
-            <ModulePage
-              title="Vehículos"
-              description="Consulta de vehículos, propietarios e historial asociado."
-            />
-          }
-        />
+        <Route path="/clients" element={<ClientsPage />} />
+        <Route path="/vehicles" element={<VehiclesPage />} />
         <Route
           path="/catalog"
           element={

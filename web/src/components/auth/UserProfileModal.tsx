@@ -1,74 +1,21 @@
 import { Mail, ShieldCheck, UserRound, X } from 'lucide-react';
 import { useEffect } from 'react';
 
+import {
+  ACTION_LABELS,
+  getRoleLabel,
+  getRolePermissionEntries,
+  MODULE_LABELS,
+} from '../../lib/permissions';
+
 import type { UserPublic } from '../../stores/auth.store';
-import type { Action, Module, Role } from '@unithor/shared';
 
 interface UserProfileModalProps {
   user: UserPublic;
   onClose: () => void;
 }
 
-type RolePermissionMap = Record<Role, Partial<Record<Module, readonly Action[]>>>;
-
-const ROLE_LABELS: Record<Role, string> = {
-  desarrollador: 'Desarrollador',
-  admin: 'Administrador',
-  jefe: 'Jefe de Taller',
-  vendedor: 'Vendedor',
-  bodeguero: 'Bodeguero',
-};
-
-const ACTION_LABELS: Record<Action, string> = {
-  read: 'Lectura',
-  create: 'Creación',
-  update: 'Edición',
-  delete: 'Eliminación',
-  export: 'Exportación',
-  import: 'Importación',
-};
-
-const MODULE_LABELS: Record<Module, string> = {
-  taller: 'Taller',
-  comercial: 'Comercial',
-  flota: 'Flota',
-  admin: 'Administración',
-};
-
-const ALL_ACTIONS: readonly Action[] = ['read', 'create', 'update', 'delete', 'export', 'import'];
-
-const ROLE_PERMISSIONS: RolePermissionMap = {
-  desarrollador: {
-    taller: ALL_ACTIONS,
-    comercial: ALL_ACTIONS,
-    flota: ALL_ACTIONS,
-    admin: ALL_ACTIONS,
-  },
-  admin: {
-    taller: ALL_ACTIONS,
-    comercial: ALL_ACTIONS,
-    flota: ALL_ACTIONS,
-    admin: ALL_ACTIONS,
-  },
-  jefe: {
-    taller: ['read', 'create', 'update', 'delete', 'export'],
-    comercial: ['read', 'create', 'update', 'delete', 'export'],
-    flota: ['read'],
-    admin: ['read'],
-  },
-  vendedor: {
-    taller: ['read', 'create', 'update'],
-    comercial: ['read', 'create', 'update', 'export'],
-    flota: ['read'],
-  },
-  bodeguero: {
-    taller: ['read', 'update'],
-    comercial: ['read'],
-    flota: ['read'],
-  },
-};
-
-export const getRoleLabel = (role: Role): string => ROLE_LABELS[role];
+export { getRoleLabel } from '../../lib/permissions';
 
 export const getInitials = (name: string): string =>
   name
@@ -79,7 +26,7 @@ export const getInitials = (name: string): string =>
     .join('');
 
 export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
-  const permissions = Object.entries(ROLE_PERMISSIONS[user.role]) as [Module, readonly Action[]][];
+  const permissions = getRolePermissionEntries(user.role);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {

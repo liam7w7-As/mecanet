@@ -15,6 +15,7 @@ import type { InferAttributes, WhereOptions } from 'sequelize';
 export interface UserPublic {
   id: number;
   nombre: string;
+  username: string;
   email: string;
   roleId: number;
   activo: boolean;
@@ -45,6 +46,7 @@ const toUserPublic = (user: User): UserPublic => {
   return {
     id: user.id,
     nombre: user.nombre,
+    username: user.username,
     email: user.email,
     roleId: user.roleId,
     activo: user.activo,
@@ -81,6 +83,21 @@ const assertEmailAvailable = async (email: string, ignoreUserId?: number): Promi
   }
 };
 
+const assertUsernameAvailable = async (
+  username: string,
+  ignoreUserId?: number,
+): Promise<void> => {
+  const where: WhereOptions<User> = { username };
+  if (ignoreUserId !== undefined) {
+    where.id = { [Op.ne]: ignoreUserId };
+  }
+
+  const existing = await User.findOne({ where, paranoid: false });
+  if (existing) {
+    throw ApiError.conflict('El nombre de usuario ya está registrado');
+  }
+};
+
 const assertNotLastPrivilegedUser = async (user: User): Promise<void> => {
   if (!user.role || !['desarrollador', 'admin'].includes(user.role.nombre)) {
     return;
@@ -113,6 +130,7 @@ export const listUsers = async (query: UserQueryInput): Promise<ListUsersResult>
   if (query.search) {
     where[Op.or] = [
       { nombre: { [Op.like]: `%${query.search}%` } },
+      { username: { [Op.like]: `%${query.search}%` } },
       { email: { [Op.like]: `%${query.search}%` } },
     ];
   }
@@ -155,13 +173,18 @@ export const getUserById = async (id: number): Promise<UserPublic> => {
 
 export const createUser = async (data: CreateUserInput): Promise<UserPublic> => {
   const normalizedEmail = data.email.toLowerCase().trim();
+  const normalizedUsername = data.username.toLowerCase().trim();
 
-  await assertEmailAvailable(normalizedEmail);
+  await Promise.all([
+    assertEmailAvailable(normalizedEmail),
+    assertUsernameAvailable(normalizedUsername),
+  ]);
   await findRoleOrFail(data.roleId);
 
   const passwordHash = await hashPassword(data.password);
   const user = await User.create({
     nombre: data.nombre,
+    username: normalizedUsername,
     email: normalizedEmail,
     passwordHash,
     roleId: data.roleId,
@@ -180,10 +203,18 @@ export const updateUser = async (id: number, data: UpdateUserInput): Promise<Use
     throw ApiError.notFound('Usuario no encontrado');
   }
 
-  const updatePayload: Partial<Pick<User, 'nombre' | 'email' | 'roleId' | 'activo'>> = {};
+  const updatePayload: Partial<
+    Pick<User, 'nombre' | 'username' | 'email' | 'roleId' | 'activo'>
+  > = {};
 
   if (data.nombre !== undefined) {
     updatePayload.nombre = data.nombre;
+  }
+
+  if (data.username !== undefined) {
+    const normalizedUsername = data.username.toLowerCase().trim();
+    await assertUsernameAvailable(normalizedUsername, id);
+    updatePayload.username = normalizedUsername;
   }
 
   if (data.email !== undefined) {

@@ -87,7 +87,10 @@ describe('Shared Package Constants & Schemas', () => {
   });
 
   it('valida loginSchema', () => {
-    const valid = loginSchema.safeParse({ email: 'test@unithor.com', password: 'password123' });
-    expect(valid.success).toBe(true);
+    const byUsername = loginSchema.parse({ identifier: ' TEST.USER ', password: 'password123' });
+    const legacyEmail = loginSchema.parse({ email: 'test@unithor.com', password: 'password123' });
+
+    expect(byUsername.identifier).toBe('test.user');
+    expect(legacyEmail.identifier).toBe('test@unithor.com');
   });
 });

@@ -1,5 +1,7 @@
 import {
   AutoIncrement,
+  BeforeBulkCreate,
+  BeforeValidate,
   BelongsTo,
   Column,
   DataType,
@@ -36,6 +38,13 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
     allowNull: false,
   })
   declare nombre: string;
+
+  @Index({ name: 'users_username_unique', unique: true })
+  @Column({
+    type: DataType.STRING(50),
+    allowNull: false,
+  })
+  declare username: CreationOptional<string>;
 
   @Index
   @Column({
@@ -79,4 +88,15 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
 
   @HasMany(() => RefreshToken)
   declare refreshTokens?: RefreshToken[];
+
+  @BeforeValidate
+  static normalizeUsername(user: User): void {
+    const fallback = user.email?.split('@')[0] ?? '';
+    user.username = (user.username || fallback).trim().toLowerCase();
+  }
+
+  @BeforeBulkCreate
+  static normalizeBulkUsernames(users: User[]): void {
+    users.forEach((user) => User.normalizeUsername(user));
+  }
 }

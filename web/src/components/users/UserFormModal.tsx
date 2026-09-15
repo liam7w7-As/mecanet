@@ -26,6 +26,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
     ?? roles.find((role) => role.nombre !== 'desarrollador')
     ?? roles[0];
   const [nombre, setNombre] = useState(user?.nombre ?? '');
+  const [username, setUsername] = useState(user?.username ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [password, setPassword] = useState('');
   const [roleId, setRoleId] = useState(String(user?.roleId ?? defaultRole?.id ?? ''));
@@ -43,7 +44,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
     event.preventDefault();
     mutation.reset();
     if (user) {
-      const result = updateUserSchema.safeParse({ nombre, email, roleId });
+      const result = updateUserSchema.safeParse({ nombre, username, email, roleId });
       if (!result.success) {
         setErrors(getFieldErrors(result.error.issues));
         return;
@@ -51,7 +52,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
       setErrors({});
       updateMutation.mutate({ id: user.id, data: result.data }, { onSuccess: onClose });
     } else {
-      const result = createUserSchema.safeParse({ nombre, email, password, roleId });
+      const result = createUserSchema.safeParse({ nombre, username, email, password, roleId });
       if (!result.success) {
         setErrors(getFieldErrors(result.error.issues));
         return;
@@ -74,6 +75,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
         <form onSubmit={submit} className="space-y-4 p-6">
           {mutation.isError && <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700" role="alert"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(mutation.error, 'No fue posible guardar el usuario.')}</div>}
           <label className="block text-sm font-semibold text-slate-700">Nombre completo<input className={inputClass} value={nombre} onChange={(event) => setNombre(event.target.value)} autoFocus />{errors.nombre && <span className="mt-1 block text-xs font-normal text-red-700">{errors.nombre}</span>}</label>
+          <label className="block text-sm font-semibold text-slate-700">Nombre de usuario<input className={inputClass} value={username} onChange={(event) => setUsername(event.target.value.toLowerCase())} autoComplete="username" placeholder="ej. jperez" />{errors.username && <span className="mt-1 block text-xs font-normal text-red-700">{errors.username}</span>}</label>
           <label className="block text-sm font-semibold text-slate-700">Correo electrónico<input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} />{errors.email && <span className="mt-1 block text-xs font-normal text-red-700">{errors.email}</span>}</label>
           {!user && <label className="block text-sm font-semibold text-slate-700">Contraseña temporal<input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" />{errors.password && <span className="mt-1 block text-xs font-normal text-red-700">{errors.password}</span>}</label>}
           <label className="block text-sm font-semibold text-slate-700">Rol<select className={`${inputClass} bg-white`} value={roleId} onChange={(event) => setRoleId(event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{getRoleLabel(role.nombre)}</option>)}</select>{errors.roleId && <span className="mt-1 block text-xs font-normal text-red-700">{errors.roleId}</span>}</label>

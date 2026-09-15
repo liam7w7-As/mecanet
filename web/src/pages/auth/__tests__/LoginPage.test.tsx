@@ -22,6 +22,7 @@ vi.mock('../../../lib/api', () => ({
 const authenticatedUser = {
   id: 1,
   nombre: 'Desarrollador UNITHOR',
+  username: 'dev',
   email: 'dev@unithor.local',
   role: 'desarrollador' as const,
 };
@@ -43,8 +44,8 @@ const renderLogin = () => {
   );
 };
 
-const completeForm = (email = 'dev@unithor.local'): void => {
-  fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: email } });
+const completeForm = (identifier = 'dev'): void => {
+  fireEvent.change(screen.getByLabelText('Usuario o correo'), { target: { value: identifier } });
   fireEvent.change(screen.getByLabelText('Contraseña'), {
     target: { value: 'Desarrollador2026!' },
   });
@@ -63,18 +64,18 @@ describe('LoginPage', () => {
   it('renderiza los campos y el botón de ingreso', () => {
     renderLogin();
 
-    expect(screen.getByLabelText('Correo electrónico')).toBeInTheDocument();
+    expect(screen.getByLabelText('Usuario o correo')).toBeInTheDocument();
     expect(screen.getByLabelText('Contraseña')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Iniciar Sesión' })).toBeInTheDocument();
   });
 
-  it('valida el email antes de llamar a la API', () => {
+  it('valida el identificador antes de llamar a la API', () => {
     renderLogin();
-    completeForm('correo-invalido');
+    completeForm('x');
 
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
 
-    expect(screen.getByText('Email inválido')).toBeInTheDocument();
+    expect(screen.getByText('Ingrese un usuario o correo válido')).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
   });
 
@@ -92,7 +93,7 @@ describe('LoginPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Credenciales incorrectas. Verifique su email y contraseña.',
+      'Credenciales incorrectas. Verifique su usuario o correo y contraseña.',
     );
   });
 
@@ -101,13 +102,13 @@ describe('LoginPage', () => {
       data: { user: authenticatedUser },
     } as AxiosResponse<AuthResponse>);
     renderLogin();
-    completeForm(' DEV@UNITHOR.LOCAL ');
+    completeForm(' DEV ');
 
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
 
     expect(await screen.findByRole('heading', { name: 'Dashboard de prueba' })).toBeInTheDocument();
     expect(api.post).toHaveBeenCalledWith('/auth/login', {
-      email: 'dev@unithor.local',
+      identifier: 'dev',
       password: 'Desarrollador2026!',
     });
     await waitFor(() => {

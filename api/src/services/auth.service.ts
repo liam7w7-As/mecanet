@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import { Op } from 'sequelize';
+
 import { getPermissionsForRole } from './permission.service.js';
 import { sequelize } from '../config/database.js';
 import { RefreshToken } from '../models/RefreshToken.js';
@@ -19,6 +21,7 @@ import type { PermissionDefinition } from '@unithor/shared';
 export interface UserPublic {
   id: number;
   nombre: string;
+  username: string;
   email: string;
   role: string;
   permissions: PermissionDefinition[];
@@ -32,6 +35,7 @@ const toUserPublic = async (user: User): Promise<UserPublic> => {
   return {
     id: user.id,
     nombre: user.nombre,
+    username: user.username,
     email: user.email,
     role: user.role.nombre,
     permissions: await getPermissionsForRole(user.role.nombre),
@@ -49,18 +53,21 @@ const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
 
 /**
  * Autentica las credenciales de un usuario y genera la sesión inicial.
- * Devuelve tokens y usuario público sin filtrar detalles de error sobre existencia del email.
+ * Devuelve tokens y usuario público sin revelar si el usuario o correo existen.
  */
 export const login = async (
-  email: string,
+  identifier: string,
   password: string,
   deviceInfo?: string,
 ): Promise<LoginResult> => {
-  const normalizedEmail = email.toLowerCase().trim();
+  const normalizedIdentifier = identifier.toLowerCase().trim();
 
   const user = await User.findOne({
     where: {
-      email: normalizedEmail,
+      [Op.or]: [
+        { email: normalizedIdentifier },
+        { username: normalizedIdentifier },
+      ],
       activo: true,
     },
     include: [Role],

@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { clearAuthCookies, setAuthCookies } from '../utils/cookies.js';
 
+import type { LoginInput } from '@unithor/shared';
 import type { Request, Response } from 'express';
 
 const extractDeviceInfo = (req: Request): string | undefined => {
@@ -12,15 +13,15 @@ const extractDeviceInfo = (req: Request): string | undefined => {
 
 /**
  * POST /api/auth/login
- * Autentica al usuario con email y contraseña, emitiendo cookies de sesión y CSRF.
+ * Autentica al usuario con username o email y emite cookies de sesión y CSRF.
  */
 export const loginController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const { email, password } = req.body as { email: string; password: string };
+    const { identifier, password } = req.body as LoginInput;
     const deviceInfo = extractDeviceInfo(req);
 
     const { user, accessToken, refreshToken, csrfToken } =
-      await authService.login(email, password, deviceInfo);
+      await authService.login(identifier, password, deviceInfo);
 
     setAuthCookies(res, accessToken, refreshToken, csrfToken);
 

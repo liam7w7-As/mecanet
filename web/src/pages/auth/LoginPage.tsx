@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useLoginMutation } from '../../hooks/useAuth';
+import { getFieldErrors } from '../../lib/form-errors';
 
 interface ApiErrorBody {
   error?: {
@@ -18,7 +19,7 @@ interface LoginLocationState {
 }
 
 interface FieldErrors {
-  email?: string;
+  identifier?: string;
   password?: string;
 }
 
@@ -37,14 +38,14 @@ const getLoginError = (error: unknown): string => {
   }
 
   if (error.response.status === 401) {
-    return 'Credenciales incorrectas. Verifique su email y contraseña.';
+    return 'Credenciales incorrectas. Verifique su usuario o correo y contraseña.';
   }
 
   return apiMessage || 'No fue posible iniciar sesión. Intente nuevamente.';
 };
 
 export const LoginPage = () => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -58,12 +59,12 @@ export const LoginPage = () => {
     setFieldErrors({});
     loginMutation.reset();
 
-    const result = loginSchema.safeParse({ email, password });
+    const result = loginSchema.safeParse({ identifier, password });
     if (!result.success) {
-      const errors = result.error.flatten().fieldErrors;
+      const errors = getFieldErrors(result.error.issues);
       setFieldErrors({
-        email: errors.email?.[0],
-        password: errors.password?.[0],
+        identifier: errors.identifier,
+        password: errors.password,
       });
       return;
     }
@@ -98,24 +99,24 @@ export const LoginPage = () => {
 
           <form className="space-y-5" noValidate onSubmit={handleSubmit}>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="email">
-                Correo electrónico
+              <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="identifier">
+                Usuario o correo
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                aria-invalid={Boolean(fieldErrors.email)}
-                aria-describedby={fieldErrors.email ? 'email-error' : undefined}
+                id="identifier"
+                name="identifier"
+                type="text"
+                autoComplete="username"
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
+                aria-invalid={Boolean(fieldErrors.identifier)}
+                aria-describedby={fieldErrors.identifier ? 'identifier-error' : undefined}
                 className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-brand-yellow focus:ring-2 focus:ring-brand-yellow/30 aria-[invalid=true]:border-red-500"
-                placeholder="ejemplo@unithor.cl"
+                placeholder="usuario o ejemplo@unithor.cl"
               />
-              {fieldErrors.email && (
-                <p id="email-error" className="mt-1.5 text-sm text-red-600">
-                  {fieldErrors.email}
+              {fieldErrors.identifier && (
+                <p id="identifier-error" className="mt-1.5 text-sm text-red-600">
+                  {fieldErrors.identifier}
                 </p>
               )}
             </div>

@@ -124,7 +124,7 @@ export const UsersPage = () => {
             <label className="relative block">
               <span className="sr-only">Buscar usuarios</span>
               <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
-              <input className="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o correo" aria-label="Buscar usuarios" />
+              <input className="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, usuario o correo" aria-label="Buscar usuarios" />
             </label>
             <label className="sr-only" htmlFor="user-role-filter">Filtrar por rol</label>
             <select id="user-role-filter" className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700" value={roleId} onChange={(event) => setRoleId(event.target.value)}>
@@ -154,7 +154,7 @@ export const UsersPage = () => {
                   const isSelf = currentUser?.id === user.id;
                   return (
                     <tr key={user.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
-                      <td className="px-4 py-3"><span className="block font-semibold text-slate-900">{user.nombre}{isSelf && <span className="ml-2 text-xs font-medium text-slate-400">Tu cuenta</span>}</span><span className="block text-xs text-slate-500">{user.email}</span></td>
+                      <td className="px-4 py-3"><span className="block font-semibold text-slate-900">{user.nombre}{isSelf && <span className="ml-2 text-xs font-medium text-slate-400">Tu cuenta</span>}</span><span className="block text-xs text-slate-500">@{user.username} · {user.email}</span></td>
                       <td className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${roleStyles[user.role.nombre]}`}>{getRoleLabel(user.role.nombre)}</span></td>
                       <td className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${user.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
                       <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(user.createdAt)}</td>

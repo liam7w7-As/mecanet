@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 
-import { api, setSessionExpiredHandler } from '../lib/api';
+import { api, getCookie, setSessionExpiredHandler } from '../lib/api';
 
 import type { PermissionDefinition, Role } from '@unithor/shared';
 
 export interface UserPublic {
   id: number;
   nombre: string;
+  username?: string;
   email: string;
   role: Role;
   permissions?: PermissionDefinition[];
@@ -38,6 +39,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   checkAuth: async () => {
+    if (!getCookie('csrf_token')) {
+      set({ user: null, isAuthenticated: false, isLoading: false });
+      return;
+    }
+
     set({ isLoading: true });
     try {
       const response = await api.get<AuthResponse>('/auth/me');

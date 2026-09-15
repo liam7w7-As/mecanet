@@ -126,6 +126,16 @@ describe('Auth Routes (E2E)', () => {
       expect(csrfCookieStr?.toLowerCase()).not.toContain('httponly');
     });
 
+    it('inicia sesión con username y retorna la identidad normalizada', async () => {
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({ identifier: ' DEV ', password: 'Desarrollador2026!' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.user.username).toBe('dev');
+      expect(response.body.user.email).toBe('dev@unithor.local');
+    });
+
     it('responde 400 cuando el body es inválido (falta email)', async () => {
       const response = await request(app)
         .post('/api/auth/login')

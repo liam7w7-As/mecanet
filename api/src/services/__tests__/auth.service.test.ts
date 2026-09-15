@@ -103,6 +103,14 @@ describe('auth.service', () => {
       expect(stored?.deviceInfo).toBe('Vitest Test Agent');
     });
 
+    it('inicia sesión usando el nombre de usuario', async () => {
+      const result = await authService.login(' DEV ', 'Desarrollador2026!');
+
+      expect(result.user.id).toBe(devUserId);
+      expect(result.user.username).toBe('dev');
+      expect(result.user.email).toBe('dev@unithor.local');
+    });
+
     it('lanza 401 con mensaje genérico para email inexistente', async () => {
       await expect(
         authService.login('fantasma@unithor.local', 'cualquier-clave'),

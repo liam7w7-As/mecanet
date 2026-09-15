@@ -153,6 +153,7 @@ describe('User Routes (E2E)', () => {
       .set('X-CSRF-Token', vendedorCookies.csrfToken)
       .send({
         nombre: 'Usuario Bloqueado',
+        username: `${TEST_EMAIL_PREFIX}blocked`,
         email: `${TEST_EMAIL_PREFIX}blocked@unithor.local`,
         password: TEST_PASSWORD,
         roleId: bodegueroRoleId,
@@ -170,12 +171,14 @@ describe('User Routes (E2E)', () => {
       .set('X-CSRF-Token', devCookies.csrfToken)
       .send({
         nombre: 'Usuario Creado Fase',
+        username: `${TEST_EMAIL_PREFIX}created`,
         email,
         password: TEST_PASSWORD,
         roleId: bodegueroRoleId,
       });
 
     expect(response.status).toBe(201);
+    expect(response.body.user.username).toBe(`${TEST_EMAIL_PREFIX}created`);
     expect(response.body.user.email).toBe(email);
     expect(response.body.user.role.nombre).toBe('bodeguero');
     expect(response.body.user).not.toHaveProperty('passwordHash');
@@ -194,6 +197,7 @@ describe('User Routes (E2E)', () => {
       .set('X-CSRF-Token', devCookies.csrfToken)
       .send({
         nombre: 'Duplicado Fase',
+        username: `${TEST_EMAIL_PREFIX}duplicate-email`,
         email: `${TEST_EMAIL_PREFIX}created@unithor.local`,
         password: TEST_PASSWORD,
         roleId: bodegueroRoleId,
@@ -201,6 +205,25 @@ describe('User Routes (E2E)', () => {
 
     expect(response.status).toBe(409);
     expect(response.body.error.message).toBe('El email ya está registrado');
+  });
+
+  it('responde 409 al crear usuario con username duplicado', async () => {
+    const devCookies = await loginAs('dev@unithor.local');
+
+    const response = await request(app)
+      .post('/api/users')
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({
+        nombre: 'Duplicado Username',
+        username: `${TEST_EMAIL_PREFIX}created`,
+        email: `${TEST_EMAIL_PREFIX}duplicate-username@unithor.local`,
+        password: TEST_PASSWORD,
+        roleId: bodegueroRoleId,
+      });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.message).toBe('El nombre de usuario ya está registrado');
   });
 
   it('permite actualizar datos y reasignar rol sin exponer passwordHash', async () => {

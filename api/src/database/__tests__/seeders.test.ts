@@ -20,6 +20,7 @@ describe('Database Base Seeders (unithor_test)', () => {
 
   beforeAll(async () => {
     process.env.SEED_ADMIN_EMAIL = 'dev@unithor.local';
+    process.env.SEED_ADMIN_USERNAME = 'dev';
     process.env.SEED_ADMIN_PASSWORD = 'Desarrollador2026!';
     process.env.SEED_ADMIN_NAME = 'Desarrollador UNITHOR';
 
@@ -88,6 +89,7 @@ describe('Database Base Seeders (unithor_test)', () => {
       include: [{ model: Role }],
     });
     expect(users.length).toBe(1);
+    expect(users[0].username).toBe('dev');
     expect(users[0].email).toBe('dev@unithor.local');
     expect(users[0].role?.nombre).toBe('desarrollador');
     expect(users[0].passwordHash.startsWith('$2b$')).toBe(true);

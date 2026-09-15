@@ -16,6 +16,7 @@ import type {
 export interface AdminUser {
   id: number;
   nombre: string;
+  username: string;
   email: string;
   roleId: number;
   activo: boolean;

@@ -93,6 +93,7 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
       activo: true,
     });
     expect(user.id).toBeDefined();
+    expect(user.username).toBe('admin');
 
     const userWithRole = await User.findByPk(user.id, {
       include: [{ model: Role }],

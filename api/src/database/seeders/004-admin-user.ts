@@ -7,6 +7,7 @@ dotenv.config();
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   const email = process.env.SEED_ADMIN_EMAIL;
+  const username = (process.env.SEED_ADMIN_USERNAME || 'dev').trim().toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD;
   const nombre = process.env.SEED_ADMIN_NAME || 'Desarrollador UNITHOR';
 
@@ -24,14 +25,20 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
   // Verificar si el usuario ya existe por email para idempotencia
   const [existingUser] = (await queryInterface.sequelize.query(
-    'SELECT id FROM users WHERE email = :email LIMIT 1;',
+    'SELECT id, username FROM users WHERE email = :email LIMIT 1;',
     {
       replacements: { email },
     },
-  )) as [{ id: number }[], unknown];
+  )) as [{ id: number; username: string | null }[], unknown];
 
   if (existingUser.length > 0) {
-    // Usuario ya existe, no duplicar ni lanzar error
+    if (!existingUser[0].username) {
+      await queryInterface.bulkUpdate(
+        'users',
+        { username },
+        { id: existingUser[0].id },
+      );
+    }
     return;
   }
 
@@ -51,6 +58,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.bulkInsert('users', [
     {
       nombre,
+      username,
       email,
       password_hash: passwordHash,
       role_id: roleId,

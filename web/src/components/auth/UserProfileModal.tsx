@@ -1,4 +1,4 @@
-import { Mail, ShieldCheck, UserRound, X } from 'lucide-react';
+import { AtSign, Mail, ShieldCheck, UserRound, X } from 'lucide-react';
 import { useEffect } from 'react';
 
 import {
@@ -94,6 +94,12 @@ export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
             <div className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:items-center">
               <dt className="text-xs font-medium uppercase text-slate-500">Nombre completo</dt>
               <dd className="font-semibold text-slate-900">{user.nombre}</dd>
+            </div>
+            <div className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:items-center">
+              <dt className="flex items-center gap-2 text-xs font-medium uppercase text-slate-500">
+                <AtSign className="h-4 w-4" aria-hidden="true" /> Usuario
+              </dt>
+              <dd className="font-semibold text-slate-900">{user.username ?? 'Sin asignar'}</dd>
             </div>
             <div className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:items-center">
               <dt className="flex items-center gap-2 text-xs font-medium uppercase text-slate-500">

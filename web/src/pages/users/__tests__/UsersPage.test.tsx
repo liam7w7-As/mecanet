@@ -25,6 +25,7 @@ vi.mock('../../../lib/api', () => ({
 const adminUser: AdminUser = {
   id: 1,
   nombre: 'Ana Administradora',
+  username: 'ana',
   email: 'ana@unithor.local',
   roleId: 2,
   activo: true,
@@ -36,6 +37,7 @@ const adminUser: AdminUser = {
 const sellerUser: AdminUser = {
   id: 7,
   nombre: 'Víctor Ventas',
+  username: 'victor',
   email: 'victor@unithor.local',
   roleId: 4,
   activo: false,
@@ -116,6 +118,7 @@ describe('UsersPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo usuario' }));
     fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Nuevo Vendedor' } });
+    fireEvent.change(screen.getByLabelText('Nombre de usuario'), { target: { value: 'NVendedor' } });
     fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: 'nuevo@unithor.local' } });
     fireEvent.change(screen.getByLabelText('Contraseña temporal'), { target: { value: 'Temporal2026!' } });
     fireEvent.change(screen.getByLabelText('Rol'), { target: { value: '4' } });
@@ -123,6 +126,7 @@ describe('UsersPage', () => {
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/users', {
       nombre: 'Nuevo Vendedor',
+      username: 'nvendedor',
       email: 'nuevo@unithor.local',
       password: 'Temporal2026!',
       roleId: 4,

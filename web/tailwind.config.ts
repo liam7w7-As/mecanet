@@ -5,6 +5,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        brand: {
+          blue: '#0E2B4E',
+          yellow: '#FFD600',
+          dark: '#081B31',
+          light: '#F4F6F9',
+        },
         primary: {
           DEFAULT: '#0E2B4E',
           foreground: '#FFFFFF',

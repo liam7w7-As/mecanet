@@ -4,6 +4,7 @@ import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import PublicRoute from './components/layout/PublicRoute';
 import LoginPage from './pages/auth/LoginPage';
+import CatalogPage from './pages/catalog/CatalogPage';
 import ClientsPage from './pages/clients/ClientsPage';
 import DashboardPage from './pages/DashboardPage';
 import ForbiddenPage from './pages/ForbiddenPage';
@@ -35,15 +36,7 @@ export const App = () => (
         <Route path="/quotations/:id" element={<QuotationDetailPage />} />
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/vehicles" element={<VehiclesPage />} />
-        <Route
-          path="/catalog"
-          element={
-            <ModulePage
-              title="Catálogo"
-              description="Servicios estándar, trabajos específicos, repuestos y stock."
-            />
-          }
-        />
+        <Route path="/catalog" element={<CatalogPage />} />
         <Route
           path="/users"
           element={

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { authRouter } from './auth.routes.js';
+import { catalogRouter } from './catalog.routes.js';
 import { clientRouter } from './client.routes.js';
 import { healthRouter } from './health.js';
 import { paymentRouter } from './payment.routes.js';
@@ -47,5 +48,5 @@ apiRouter.use('/payments', paymentRouter);
 // Reportes comerciales (/api/reports)
 apiRouter.use('/reports', reportRouter);
 
-// Futuras rutas de módulos (Fases posteriores)
-// apiRouter.use('/catalogs', catalogsRouter);
+// Catálogo unificado de taller (/api/catalog)
+apiRouter.use('/catalog', catalogRouter);

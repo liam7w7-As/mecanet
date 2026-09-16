@@ -131,6 +131,20 @@ export const useUploadWorkOrderInspectionPhotosMutation = () => {
   });
 };
 
+export const useDeleteWorkOrderInspectionPhotoMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, slot }: { id: number; slot: WorkOrderInspectionPhotoSlot }) => {
+      await api.delete(`/work-orders/${id}/inspection/photos/${slot}`);
+      return { id, slot };
+    },
+    onSuccess: ({ id }) => {
+      void queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(id) });
+    },
+  });
+};
+
 export const useCatalogItems = (term: string) => {
   const debouncedTerm = useDebouncedValue(term.trim(), 250);
 

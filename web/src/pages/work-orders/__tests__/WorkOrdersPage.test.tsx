@@ -42,6 +42,24 @@ const workOrder: WorkOrder = {
   client: { id: 7, rut: '123456785', nombre: 'Cliente Demo', telefono: '+56912345678' },
   vehicle: { id: 4, patente: 'ABCD12', marca: 'Toyota', modelo: 'Corolla' },
   creator: { id: 1, nombre: 'Desarrollador UNITHOR', email: 'dev@unithor.local' },
+  contact: {
+    clientId: 7,
+    nombre: 'Juan Recepción',
+    rut: '111111111',
+    telefono: '+56911111111',
+    email: 'recepcion@demo.cl',
+  },
+  billing: {
+    clientId: 7,
+    nombre: 'Empresa Factura SpA',
+    rut: '761111111',
+    tipo: 'empresa',
+    telefono: '+56222222222',
+    email: 'factura@demo.cl',
+    direccion: 'Avenida Factura 123',
+    region: 'Metropolitana',
+    comuna: 'Santiago',
+  },
   items: [
     {
       id: 20,
@@ -61,6 +79,32 @@ const workOrder: WorkOrder = {
     total: 50000,
     pagado: 0,
     saldoPendiente: 50000,
+  },
+  inspection: {
+    id: 9,
+    nivelCombustible: 'medio',
+    llantaDelanteraIzquierda: 'bueno',
+    llantaDelanteraDerecha: 'regular',
+    llantaTraseraIzquierda: 'baja_presion',
+    llantaTraseraDerecha: 'bueno',
+    inventario: ['botiquin', 'rueda_repuesto'],
+    objetosValor: 'Lentes en guantera',
+    observaciones: 'Rayón lateral derecho',
+    inspectedBy: 1,
+    createdAt: '2026-09-15T10:00:00.000Z',
+    updatedAt: '2026-09-15T10:00:00.000Z',
+    photos: [
+      {
+        id: 1,
+        slot: 'frontal',
+        mimeType: 'image/png',
+        sizeBytes: 5,
+        uploadedBy: 1,
+        createdAt: '2026-09-15T10:00:00.000Z',
+        updatedAt: '2026-09-15T10:00:00.000Z',
+        url: '/api/work-orders/12/inspection/photos/frontal',
+      },
+    ],
   },
 };
 
@@ -226,6 +270,45 @@ describe('WorkOrdersPage', () => {
       expect(api.get).toHaveBeenCalledWith('/work-orders/12/pdf', { responseType: 'blob' });
       expect(createObjectUrl).toHaveBeenCalledWith(pdfBlob);
       expect(anchorClick).toHaveBeenCalled();
+    });
+  });
+
+  it('muestra recepción, facturación e inspección y permite reemplazar o eliminar fotos', async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        photo: {
+          id: 2,
+          slot: 'trasera',
+          mimeType: 'image/png',
+          sizeBytes: 5,
+          uploadedBy: 1,
+          createdAt: '2026-09-15T10:00:00.000Z',
+          updatedAt: '2026-09-15T10:00:00.000Z',
+          url: '/api/work-orders/12/inspection/photos/trasera',
+        },
+      },
+    } as AxiosResponse);
+    vi.mocked(api.delete).mockResolvedValue({ data: undefined } as AxiosResponse<void>);
+
+    createWrapper(
+      <Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>,
+      `/work-orders/${workOrder.id}`,
+    );
+
+    expect(await screen.findByText('Recepción y facturación')).toBeInTheDocument();
+    expect(screen.getByText('Juan Recepción')).toBeInTheDocument();
+    expect(screen.getByText('Empresa Factura SpA')).toBeInTheDocument();
+    expect(screen.getByText('Inspección de ingreso')).toBeInTheDocument();
+    expect(screen.getByText('Rayón lateral derecho')).toBeInTheDocument();
+    expect(screen.getByText('Rueda de repuesto')).toBeInTheDocument();
+
+    const newPhoto = new File(['photo'], 'trasera.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Subir foto Trasera'), { target: { files: [newPhoto] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar foto Frontal' }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/work-orders/12/inspection/photos/trasera', expect.any(FormData));
+      expect(api.delete).toHaveBeenCalledWith('/work-orders/12/inspection/photos/frontal');
     });
   });
 

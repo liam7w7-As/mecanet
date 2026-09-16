@@ -116,6 +116,21 @@ export interface WorkOrderCreator {
   email: string;
 }
 
+export interface WorkOrderContact {
+  clientId: number | null;
+  nombre: string | null;
+  rut: string | null;
+  telefono: string | null;
+  email: string | null;
+}
+
+export interface WorkOrderBilling extends WorkOrderContact {
+  tipo: 'cliente' | 'empresa' | null;
+  direccion: string | null;
+  region: string | null;
+  comuna: string | null;
+}
+
 export interface WorkOrderItem {
   id: number;
   catalogItemId: number | null;
@@ -185,6 +200,8 @@ export interface WorkOrder {
   creator?: WorkOrderCreator | null;
   items?: WorkOrderItem[];
   quotation?: WorkOrderQuotationSummary | null;
+  contact?: WorkOrderContact | null;
+  billing?: WorkOrderBilling | null;
   inspection?: WorkOrderInspection | null;
 }
 

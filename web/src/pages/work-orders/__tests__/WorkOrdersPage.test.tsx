@@ -7,11 +7,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from '../../../components/work-orders/WorkOrderItemsEditor';
 import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
+import WorkOrderCreatePage from '../WorkOrderCreatePage';
 import WorkOrderDetailPage from '../WorkOrderDetailPage';
 import WorkOrdersPage from '../WorkOrdersPage';
 
 import type { EditableWorkOrderItem } from '../../../components/work-orders/WorkOrderItemsEditor';
-import type { CatalogItem, PaginatedResponse, WorkOrder } from '../../../types/entities';
+import type { CatalogItem, Client, PaginatedResponse, QuickSearchResult, WorkOrder } from '../../../types/entities';
 import type { AxiosResponse } from 'axios';
 
 vi.mock('../../../lib/api', () => ({
@@ -67,6 +68,43 @@ const emptyCatalog: PaginatedResponse<CatalogItem> = {
   page: 1,
   pageSize: 12,
   totalPages: 0,
+};
+
+const client: Client = {
+  id: 7,
+  rut: '123456785',
+  nombre: 'Cliente Demo',
+  tipo: 'cliente',
+  email: 'cliente@demo.cl',
+  telefono: '+56912345678',
+  direccion: 'Avenida Demo 123',
+  region: null,
+  comuna: null,
+  notas: null,
+  createdAt: '2026-09-15T10:00:00.000Z',
+  updatedAt: '2026-09-15T10:00:00.000Z',
+};
+
+const clientsResponse: PaginatedResponse<Client> = {
+  items: [client],
+  total: 1,
+  page: 1,
+  pageSize: 8,
+  totalPages: 1,
+};
+
+const quickSearchResponse: QuickSearchResult = {
+  clients: [],
+  vehicles: [
+    {
+      id: 4,
+      patente: 'ABCD12',
+      marca: 'Toyota',
+      modelo: 'Corolla',
+      ano: 2020,
+      client: { id: 7, nombre: 'Cliente Demo', rut: '123456785' },
+    },
+  ],
 };
 
 const createWrapper = (children: React.ReactNode, route = '/work-orders') => {
@@ -178,6 +216,82 @@ describe('WorkOrdersPage', () => {
       expect(api.get).toHaveBeenCalledWith('/work-orders/12/pdf', { responseType: 'blob' });
       expect(createObjectUrl).toHaveBeenCalledWith(pdfBlob);
       expect(anchorClick).toHaveBeenCalled();
+    });
+  });
+
+  it('crea una OT desde el wizard y sube fotos de inspección', async () => {
+    const createObjectUrl = vi.fn(() => 'blob:inspection-photo');
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/clients') {
+        return Promise.resolve({ data: clientsResponse } as AxiosResponse<PaginatedResponse<Client>>);
+      }
+      if (url === '/search/quick') {
+        return Promise.resolve({ data: quickSearchResponse } as AxiosResponse<QuickSearchResult>);
+      }
+      if (url === '/catalog') {
+        return Promise.resolve({ data: emptyCatalog } as AxiosResponse<PaginatedResponse<CatalogItem>>);
+      }
+      return Promise.resolve({ data: listResponse } as AxiosResponse<PaginatedResponse<WorkOrder>>);
+    });
+    vi.mocked(api.post).mockImplementation((url) => {
+      if (url === '/work-orders') {
+        return Promise.resolve({ data: { workOrder: { ...workOrder, id: 77 } } } as AxiosResponse<{ workOrder: WorkOrder }>);
+      }
+      return Promise.resolve({
+        data: {
+          photo: {
+            id: 1,
+            slot: 'frontal',
+            mimeType: 'image/png',
+            sizeBytes: 5,
+            uploadedBy: 1,
+            createdAt: '2026-09-15T10:00:00.000Z',
+            updatedAt: '2026-09-15T10:00:00.000Z',
+            url: '/api/work-orders/77/inspection/photos/frontal',
+          },
+        },
+      } as AxiosResponse);
+    });
+
+    createWrapper(
+      <Routes>
+        <Route path="/work-orders/new" element={<WorkOrderCreatePage />} />
+        <Route path="/work-orders/:id" element={<p>Detalle generado</p>} />
+      </Routes>,
+      '/work-orders/new',
+    );
+
+    fireEvent.click(await screen.findByText('Cliente Demo'));
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    const vehicleSearch = screen.getByRole('combobox', { name: 'Búsqueda rápida de vehículos y clientes' });
+    fireEvent.focus(vehicleSearch);
+    fireEvent.change(vehicleSearch, {
+      target: { value: 'AB' },
+    });
+
+    fireEvent.click(await screen.findByText('ABCD12'));
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+
+    const photo = new File(['photo'], 'frontal.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Subir foto Frontal'), { target: { files: [photo] } });
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Crear orden' }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/work-orders', expect.objectContaining({
+        clientId: 7,
+        contactClientId: 7,
+        billingClientId: 7,
+        vehicleId: 4,
+        inspection: expect.objectContaining({ llantaDelanteraIzquierda: 'no_revisado' }),
+      }));
+      expect(api.post).toHaveBeenCalledWith(
+        '/work-orders/77/inspection/photos/frontal',
+        expect.any(FormData),
+      );
     });
   });
 });

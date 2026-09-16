@@ -7,12 +7,14 @@ import type {
   CatalogItem,
   PaginatedResponse,
   WorkOrder,
+  WorkOrderInspectionPhoto,
 } from '../types/entities';
 import type {
   ChangeWorkOrderStatusInput,
   CreateWorkOrderInput,
   UpdateWorkOrderInput,
   WorkOrderQueryInput,
+  WorkOrderInspectionPhotoSlot,
 } from '@unithor/shared';
 
 interface WorkOrderResponse {
@@ -95,6 +97,36 @@ export const useChangeWorkOrderStatusMutation = () => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+};
+
+export interface InspectionPhotoUpload {
+  slot: WorkOrderInspectionPhotoSlot;
+  file: File;
+}
+
+export const useUploadWorkOrderInspectionPhotosMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, photos }: { id: number; photos: InspectionPhotoUpload[] }) => {
+      const uploaded: WorkOrderInspectionPhoto[] = [];
+
+      for (const photo of photos) {
+        const formData = new FormData();
+        formData.append('photo', photo.file);
+        const response = await api.post<{ photo: WorkOrderInspectionPhoto }>(
+          `/work-orders/${id}/inspection/photos/${photo.slot}`,
+          formData,
+        );
+        uploaded.push(response.data.photo);
+      }
+
+      return uploaded;
+    },
+    onSuccess: (_photos, variables) => {
+      void queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(variables.id) });
     },
   });
 };

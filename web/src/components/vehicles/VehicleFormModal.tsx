@@ -13,6 +13,7 @@ import type { Client, Vehicle } from '../../types/entities';
 interface VehicleFormModalProps {
   vehicle?: Vehicle | null;
   initialPatente?: string;
+  suggestedClient?: Pick<Client, 'id' | 'nombre' | 'rut'> | null;
   onClose: () => void;
   onSaved?: (vehicle: Vehicle) => void;
 }
@@ -52,18 +53,19 @@ const inputClassName =
 export const VehicleFormModal = ({
   vehicle,
   initialPatente = '',
+  suggestedClient = null,
   onClose,
   onSaved,
 }: VehicleFormModalProps) => {
   const [form, setForm] = useState<VehicleFormState>(() => getInitialState(vehicle, initialPatente));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [ownerSearch, setOwnerSearch] = useState(vehicle?.client?.nombre ?? '');
+  const [ownerSearch, setOwnerSearch] = useState(vehicle?.client?.nombre ?? suggestedClient?.nombre ?? '');
   const [selectedClient, setSelectedClient] = useState<Pick<Client, 'id' | 'nombre' | 'rut'> | null>(
     vehicle?.client
       ? { id: vehicle.client.id, nombre: vehicle.client.nombre, rut: vehicle.client.rut }
-      : null,
+      : suggestedClient,
   );
-  const [withoutOwner, setWithoutOwner] = useState(vehicle?.clientId === null || !vehicle);
+  const [withoutOwner, setWithoutOwner] = useState(vehicle?.clientId === null || (!vehicle && !suggestedClient));
   const debouncedOwnerSearch = useDebouncedValue(ownerSearch, 300);
   const clientsQuery = useClients({ page: 1, pageSize: 8, search: debouncedOwnerSearch || undefined });
   const createMutation = useCreateVehicleMutation();

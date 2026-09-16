@@ -98,6 +98,8 @@ export interface WorkOrderClient {
   rut: string | null;
   nombre: string;
   telefono: string | null;
+  email?: string | null;
+  direccion?: string | null;
 }
 
 export interface WorkOrderVehicle {
@@ -123,10 +125,39 @@ export interface WorkOrderItem {
   subtotal: number;
 }
 
+export interface WorkOrderInspectionPhoto {
+  id: number;
+  slot: import('@unithor/shared').WorkOrderInspectionPhotoSlot;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+  url: string;
+}
+
+export interface WorkOrderInspection {
+  id: number;
+  nivelCombustible: import('@unithor/shared').FuelLevel | null;
+  llantaDelanteraIzquierda: import('@unithor/shared').TireCondition | null;
+  llantaDelanteraDerecha: import('@unithor/shared').TireCondition | null;
+  llantaTraseraIzquierda: import('@unithor/shared').TireCondition | null;
+  llantaTraseraDerecha: import('@unithor/shared').TireCondition | null;
+  inventario: import('@unithor/shared').VehicleInventoryItem[];
+  objetosValor: string | null;
+  observaciones: string | null;
+  inspectedBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+  photos: WorkOrderInspectionPhoto[];
+}
+
 export interface WorkOrder {
   id: number;
   codigo: string;
   clientId: number | null;
+  contactClientId?: number | null;
+  billingClientId?: number | null;
   vehicleId: number | null;
   estado: import('@unithor/shared').WorkOrderStatus;
   descripcion: string | null;
@@ -137,9 +168,12 @@ export interface WorkOrder {
   createdAt: string;
   updatedAt: string;
   client?: WorkOrderClient | null;
+  contactClient?: WorkOrderClient | null;
+  billingClient?: WorkOrderClient | null;
   vehicle?: WorkOrderVehicle | null;
   creator?: WorkOrderCreator | null;
   items?: WorkOrderItem[];
+  inspection?: WorkOrderInspection | null;
 }
 
 export interface QuotationClient {

@@ -10,6 +10,7 @@ interface QuickVehicleSearchProps {
   onSelectVehicle: (vehicle: QuickSearchVehicle) => void;
   onSelectClient?: (client: QuickSearchClient) => void;
   placeholder?: string;
+  suggestedClient?: Pick<QuickSearchClient, 'id' | 'nombre' | 'rut'> | null;
 }
 
 const normalizePlate = (value: string): string => value.replace(/[\s-]/g, '').toUpperCase();
@@ -29,6 +30,7 @@ export const QuickVehicleSearch = ({
   onSelectVehicle,
   onSelectClient,
   placeholder = 'Buscar por patente, cliente, RUT o teléfono',
+  suggestedClient = null,
 }: QuickVehicleSearchProps) => {
   const [term, setTerm] = useState('');
   const [isFocused, setFocused] = useState(false);
@@ -118,6 +120,7 @@ export const QuickVehicleSearch = ({
       {newVehiclePlate && (
         <VehicleFormModal
           initialPatente={newVehiclePlate}
+          suggestedClient={suggestedClient}
           onClose={() => setNewVehiclePlate(null)}
           onSaved={(vehicle) => {
             selectVehicle(toQuickVehicle(vehicle));

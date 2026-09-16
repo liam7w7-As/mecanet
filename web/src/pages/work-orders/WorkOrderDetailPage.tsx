@@ -15,6 +15,7 @@ import {
   Gauge,
   ImagePlus,
   LoaderCircle,
+  Pencil,
   Mail,
   Phone,
   Printer,
@@ -27,6 +28,7 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
+import WorkOrderReceptionInspectionModal from '../../components/work-orders/WorkOrderReceptionInspectionModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
 import {
   useChangeWorkOrderStatusMutation,
@@ -116,6 +118,7 @@ export const WorkOrderDetailPage = () => {
   const uploadPhotosMutation = useUploadWorkOrderInspectionPhotosMutation();
   const deletePhotoMutation = useDeleteWorkOrderInspectionPhotoMutation();
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showReceptionModal, setShowReceptionModal] = useState(false);
   const user = useAuthStore((state) => state.user);
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
   const workOrder = workOrderQuery.data;
@@ -162,6 +165,7 @@ export const WorkOrderDetailPage = () => {
           <div><p className="text-sm font-medium text-slate-500">Seguimiento operativo</p><div className="mt-1 flex flex-wrap items-center gap-3"><h1 className="font-mono text-2xl font-bold text-brand-blue sm:text-3xl">{workOrder.codigo}</h1><WorkOrderStatusBadge status={workOrder.estado} /></div></div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canEditInspection && <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setShowReceptionModal(true)}><Pencil className="h-4 w-4" aria-hidden="true" /> Editar ficha</button>}
           <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-blue bg-white px-4 text-sm font-semibold text-brand-blue hover:bg-brand-light disabled:opacity-60" onClick={() => pdfMutation.openPdf(workOrder.id, workOrder.codigo)} disabled={pdfMutation.isPending}><Eye className="h-4 w-4" aria-hidden="true" /> Ver PDF</button>
           <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark hover:bg-yellow-400 disabled:opacity-60" onClick={() => pdfMutation.downloadPdf(workOrder.id, workOrder.codigo)} disabled={pdfMutation.isPending}>{pdfMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />} Descargar comprobante PDF</button>
         </div>
@@ -352,6 +356,7 @@ export const WorkOrderDetailPage = () => {
       </section>
 
       {showCancelModal && <CancelStatusModal codigo={workOrder.codigo} isPending={statusMutation.isPending} errorMessage={statusMutation.isError ? getApiErrorMessage(statusMutation.error) : null} onClose={() => setShowCancelModal(false)} onConfirm={(motivo) => statusMutation.mutate({ id: workOrder.id, data: { nuevoEstado: 'cancelada', motivo } }, { onSuccess: () => setShowCancelModal(false) })} />}
+      {showReceptionModal && <WorkOrderReceptionInspectionModal workOrder={workOrder} onClose={() => setShowReceptionModal(false)} />}
     </div>
   );
 };

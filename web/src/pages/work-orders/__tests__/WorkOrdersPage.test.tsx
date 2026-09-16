@@ -30,6 +30,8 @@ const workOrder: WorkOrder = {
   id: 12,
   codigo: 'OT-2026-0012',
   clientId: 7,
+  contactClientId: 7,
+  billingClientId: 7,
   vehicleId: 4,
   estado: 'borrador',
   descripcion: 'Revisión de frenos',
@@ -190,6 +192,9 @@ describe('WorkOrdersPage', () => {
       if (url === '/catalog') {
         return Promise.resolve({ data: emptyCatalog } as AxiosResponse<PaginatedResponse<CatalogItem>>);
       }
+      if (url === '/clients') {
+        return Promise.resolve({ data: clientsResponse } as AxiosResponse<PaginatedResponse<Client>>);
+      }
       if (url === `/work-orders/${workOrder.id}`) {
         return Promise.resolve({ data: { workOrder } } as AxiosResponse<{ workOrder: WorkOrder }>);
       }
@@ -309,6 +314,42 @@ describe('WorkOrdersPage', () => {
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/work-orders/12/inspection/photos/trasera', expect.any(FormData));
       expect(api.delete).toHaveBeenCalledWith('/work-orders/12/inspection/photos/frontal');
+    });
+  });
+
+  it('edita la ficha de recepción e inspección desde el detalle', async () => {
+    vi.mocked(api.patch).mockResolvedValue({
+      data: {
+        workOrder: {
+          ...workOrder,
+          inspection: {
+            ...workOrder.inspection,
+            observaciones: 'Observación corregida en recepción',
+          },
+        },
+      },
+    } as AxiosResponse<{ workOrder: WorkOrder }>);
+
+    createWrapper(
+      <Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>,
+      `/work-orders/${workOrder.id}`,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /Editar ficha/i }));
+    await screen.findByRole('dialog', { name: /Editar recepción e inspección/i });
+    fireEvent.change(screen.getByLabelText('Observaciones de inspección'), {
+      target: { value: 'Observación corregida en recepción' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cambios/i }));
+
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith('/work-orders/12', expect.objectContaining({
+        contactClientId: 7,
+        billingClientId: 7,
+        inspection: expect.objectContaining({
+          observaciones: 'Observación corregida en recepción',
+        }),
+      }));
     });
   });
 

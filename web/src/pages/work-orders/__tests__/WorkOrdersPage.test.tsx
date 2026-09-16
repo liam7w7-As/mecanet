@@ -353,6 +353,45 @@ describe('WorkOrdersPage', () => {
     });
   });
 
+  it('edita el checklist de trabajos y repuestos desde el detalle', async () => {
+    vi.mocked(api.patch).mockResolvedValue({
+      data: {
+        workOrder: {
+          ...workOrder,
+          items: workOrder.items?.map((item) => ({
+            ...item,
+            estadoOperativo: 'completado',
+            notasOperativas: 'Pastillas instaladas',
+          })),
+        },
+      },
+    } as AxiosResponse<{ workOrder: WorkOrder }>);
+
+    createWrapper(
+      <Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>,
+      `/work-orders/${workOrder.id}`,
+    );
+
+    expect(await screen.findByText('0/1 completados')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Editar trabajos/i }));
+    await screen.findByRole('dialog', { name: /Editar trabajos y repuestos/i });
+    fireEvent.change(screen.getByLabelText('Avance 1'), { target: { value: 'completado' } });
+    fireEvent.change(screen.getByLabelText('Nota operativa 1'), { target: { value: 'Pastillas instaladas' } });
+    fireEvent.click(screen.getByRole('button', { name: /Guardar trabajos/i }));
+
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith('/work-orders/12', expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            descripcion: 'Cambio de pastillas',
+            estadoOperativo: 'completado',
+            notasOperativas: 'Pastillas instaladas',
+          }),
+        ],
+      }));
+    });
+  });
+
   it('crea una OT desde el wizard y sube fotos de inspección', async () => {
     const createObjectUrl = vi.fn(() => 'blob:inspection-photo');
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });

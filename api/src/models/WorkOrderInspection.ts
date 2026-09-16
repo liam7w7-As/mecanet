@@ -12,7 +12,6 @@ import {
   DataType,
   ForeignKey,
   HasMany,
-  Index,
   Model,
   PrimaryKey,
   Table,
@@ -30,6 +29,13 @@ import type { CreationOptional, InferAttributes, InferCreationAttributes } from 
   underscored: true,
   charset: 'utf8mb4',
   collate: 'utf8mb4_unicode_ci',
+  indexes: [
+    {
+      name: 'work_order_inspections_work_order_id_unique',
+      unique: true,
+      fields: ['work_order_id'],
+    },
+  ],
 })
 export class WorkOrderInspection extends Model<
   InferAttributes<WorkOrderInspection>,
@@ -40,7 +46,6 @@ export class WorkOrderInspection extends Model<
   @Column(DataType.INTEGER)
   declare id: CreationOptional<number>;
 
-  @Index({ unique: true })
   @ForeignKey(() => WorkOrder)
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare workOrderId: number;

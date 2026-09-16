@@ -8,7 +8,6 @@ import {
   Column,
   DataType,
   ForeignKey,
-  Index,
   Model,
   PrimaryKey,
   Table,
@@ -25,6 +24,13 @@ import type { CreationOptional, InferAttributes, InferCreationAttributes } from 
   underscored: true,
   charset: 'utf8mb4',
   collate: 'utf8mb4_unicode_ci',
+  indexes: [
+    {
+      name: 'storage_key',
+      unique: true,
+      fields: ['storage_key'],
+    },
+  ],
 })
 export class WorkOrderInspectionPhoto extends Model<
   InferAttributes<WorkOrderInspectionPhoto>,
@@ -42,7 +48,6 @@ export class WorkOrderInspectionPhoto extends Model<
   @Column({ type: DataType.ENUM(...WORK_ORDER_INSPECTION_PHOTO_SLOTS), allowNull: false })
   declare slot: WorkOrderInspectionPhotoSlot;
 
-  @Index({ unique: true })
   @Column({ type: DataType.STRING(255), allowNull: false })
   declare storageKey: string;
 

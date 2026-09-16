@@ -18,6 +18,7 @@ import { getPagination } from '../utils/paginate.js';
 import type {
   ConvertQuotationInput,
   CreateQuotationInput,
+  ItemOperationalStatus,
   QuotationItemInput,
   QuotationQueryInput,
   QuotationStatus,
@@ -58,6 +59,8 @@ interface QuotationItemPublic {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  estadoOperativo: ItemOperationalStatus;
+  notasOperativas: string | null;
 }
 
 export interface QuotationPublic {
@@ -121,7 +124,16 @@ const workOrderInclude = {
 
 const itemsInclude = {
   model: QuotationItem,
-  attributes: ['id', 'catalogItemId', 'descripcion', 'cantidad', 'precioUnitario', 'subtotal'],
+  attributes: [
+    'id',
+    'catalogItemId',
+    'descripcion',
+    'cantidad',
+    'precioUnitario',
+    'subtotal',
+    'estadoOperativo',
+    'notasOperativas',
+  ],
 };
 
 const numberValue = (value: number | string): number => Number(value);
@@ -208,6 +220,8 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
       cantidad: numberValue(item.cantidad),
       precioUnitario: numberValue(item.precioUnitario),
       subtotal: numberValue(item.subtotal),
+      estadoOperativo: item.estadoOperativo,
+      notasOperativas: item.notasOperativas,
     })),
 });
 
@@ -221,6 +235,8 @@ const buildItemsPayload = (
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  estadoOperativo: ItemOperationalStatus;
+  notasOperativas: string | null;
 }> => {
   return items.map((item) => {
     const cantidad = Number(item.cantidad);
@@ -233,6 +249,8 @@ const buildItemsPayload = (
       cantidad,
       precioUnitario,
       subtotal: cantidad * precioUnitario,
+      estadoOperativo: item.estadoOperativo ?? 'pendiente',
+      notasOperativas: item.notasOperativas ?? null,
     };
   });
 };
@@ -310,6 +328,8 @@ const copyWorkOrderItems = (items: WorkOrderItem[]): QuotationItemInput[] => {
     descripcion: item.descripcion,
     cantidad: numberValue(item.cantidad),
     precioUnitario: numberValue(item.precioUnitario),
+    estadoOperativo: item.estadoOperativo,
+    notasOperativas: item.notasOperativas,
   }));
 };
 
@@ -585,6 +605,8 @@ export const convertQuotationToWorkOrder = async (
           cantidad: numberValue(item.cantidad),
           precioUnitario: numberValue(item.precioUnitario),
           subtotal: numberValue(item.subtotal),
+          estadoOperativo: item.estadoOperativo,
+          notasOperativas: item.notasOperativas,
         })),
         { transaction, hooks: true },
       );

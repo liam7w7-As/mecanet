@@ -1,5 +1,5 @@
 import { WORK_ORDER_STATUS, isValidWorkOrderTransition } from '@unithor/shared';
-import { AlertCircle, ArrowLeft, Download, Eye, Gauge, LoaderCircle, Printer, UserRound, Wrench } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Download, Eye, Gauge, LoaderCircle, Printer, ReceiptText, UserRound, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
@@ -12,6 +12,13 @@ import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { WorkOrderStatus } from '@unithor/shared';
+
+const ITEM_OPERATIONAL_STATUS_LABELS: Record<string, string> = {
+  pendiente: 'Pendiente',
+  en_proceso: 'En proceso',
+  completado: 'Completado',
+  omitido: 'Omitido',
+};
 
 export const WorkOrderDetailPage = () => {
   const { id } = useParams();
@@ -83,9 +90,32 @@ export const WorkOrderDetailPage = () => {
         </div>
       </section>
 
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-labelledby="mirror-quotation-title">
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <ReceiptText className="mt-0.5 h-5 w-5 text-brand-blue" aria-hidden="true" />
+            <div>
+              <h2 id="mirror-quotation-title" className="font-bold text-brand-blue">Cotización espejo</h2>
+              <p className="mt-1 text-sm text-slate-500">Copia comercial editable vinculada a esta orden de taller.</p>
+            </div>
+          </div>
+          {workOrder.quotation && <Link to={`/quotations/${workOrder.quotation.id}`} className="inline-flex h-10 items-center justify-center rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark hover:bg-yellow-400">Abrir COT</Link>}
+        </div>
+        {workOrder.quotation ? (
+          <div className="grid divide-y divide-slate-200 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+            <div className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">Código</p><p className="mt-2 font-mono text-lg font-bold text-brand-blue">{workOrder.quotation.codigo}</p></div>
+            <div className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">Total COT</p><p className="mt-2 text-lg font-bold text-slate-900">{formatClp(workOrder.quotation.total)}</p></div>
+            <div className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">Pagado</p><p className="mt-2 text-lg font-bold text-emerald-700">{formatClp(workOrder.quotation.pagado)}</p></div>
+            <div className="bg-brand-light p-5"><p className="text-xs font-semibold uppercase text-brand-blue">Saldo</p><p className="mt-2 text-lg font-bold text-brand-blue">{formatClp(workOrder.quotation.saldoPendiente)}</p></div>
+          </div>
+        ) : (
+          <p className="px-5 py-6 text-sm text-slate-500">Esta orden aún no tiene una cotización espejo vinculada.</p>
+        )}
+      </section>
+
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-labelledby="work-order-items-title">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 id="work-order-items-title" className="font-bold text-brand-blue">Trabajos y repuestos</h2><p className="mt-1 text-sm text-slate-500">Detalle económico registrado en la orden.</p></div><Printer className="h-5 w-5 text-slate-400" aria-hidden="true" /></div>
-        <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3 font-semibold">Descripción</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th><th className="px-4 py-3 text-right font-semibold">Precio unitario</th><th className="px-4 py-3 text-right font-semibold">Subtotal</th></tr></thead><tbody>{workOrder.items?.map((item) => <tr key={item.id} className="border-t border-slate-100"><td className="px-4 py-3 font-medium text-slate-800">{item.descripcion}</td><td className="px-4 py-3 text-right text-slate-600">{item.cantidad}</td><td className="px-4 py-3 text-right text-slate-600">{formatClp(item.precioUnitario)}</td><td className="px-4 py-3 text-right font-semibold text-brand-blue">{formatClp(item.subtotal)}</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3 font-semibold">Descripción</th><th className="px-4 py-3 font-semibold">Avance</th><th className="px-4 py-3 font-semibold">Nota</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th><th className="px-4 py-3 text-right font-semibold">Precio unitario</th><th className="px-4 py-3 text-right font-semibold">Subtotal</th></tr></thead><tbody>{workOrder.items?.map((item) => <tr key={item.id} className="border-t border-slate-100"><td className="px-4 py-3 font-medium text-slate-800">{item.descripcion}</td><td className="px-4 py-3"><span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">{ITEM_OPERATIONAL_STATUS_LABELS[item.estadoOperativo] ?? item.estadoOperativo}</span></td><td className="max-w-64 px-4 py-3 text-slate-600">{item.notasOperativas ?? '-'}</td><td className="px-4 py-3 text-right text-slate-600">{item.cantidad}</td><td className="px-4 py-3 text-right text-slate-600">{formatClp(item.precioUnitario)}</td><td className="px-4 py-3 text-right font-semibold text-brand-blue">{formatClp(item.subtotal)}</td></tr>)}</tbody></table></div>
         {workOrder.items?.length === 0 && <p className="px-5 py-8 text-center text-sm text-slate-500">Diagnóstico inicial, sin trabajos o repuestos cargados.</p>}
         <div className="flex justify-end border-t border-slate-200 bg-slate-50 px-5 py-4"><div className="text-right"><p className="text-xs font-semibold uppercase text-slate-500">Total estimado</p><p className="mt-1 text-2xl font-bold text-brand-blue">{formatClp(total)}</p></div></div>
       </section>

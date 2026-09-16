@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { paginationSchema } from './pagination.schema.js';
+import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
 import { QUOTATION_STATUS } from '../constants/quotation-status.js';
 
 const optionalText = (maxLength?: number) => {
@@ -18,6 +19,8 @@ export const quotationItemInputSchema = z.object({
   descripcion: z.string().trim().min(2, 'La descripción debe tener al menos 2 caracteres').max(255),
   cantidad: z.coerce.number().positive('La cantidad debe ser mayor a 0').default(1),
   precioUnitario: z.coerce.number().min(0, 'El precio no puede ser negativo').default(0),
+  estadoOperativo: z.enum(ITEM_OPERATIONAL_STATUS).default('pendiente'),
+  notasOperativas: optionalText(1000),
 });
 
 export const createQuotationSchema = z

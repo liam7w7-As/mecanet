@@ -50,8 +50,18 @@ const workOrder: WorkOrder = {
       cantidad: 2,
       precioUnitario: 25000,
       subtotal: 50000,
+      estadoOperativo: 'pendiente',
+      notasOperativas: null,
     },
   ],
+  quotation: {
+    id: 44,
+    codigo: 'COT-2026-0044',
+    estadoPago: 'por_pagar',
+    total: 50000,
+    pagado: 0,
+    saldoPendiente: 50000,
+  },
 };
 
 const listResponse: PaginatedResponse<WorkOrder> = {

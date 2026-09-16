@@ -466,6 +466,8 @@ export const WorkOrderCreatePage = () => {
           descripcion: item.descripcion,
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
+          estadoOperativo: item.estadoOperativo,
+          notasOperativas: item.notasOperativas,
         })),
     });
 

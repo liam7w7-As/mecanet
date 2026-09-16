@@ -123,6 +123,17 @@ export interface WorkOrderItem {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  estadoOperativo: import('@unithor/shared').ItemOperationalStatus;
+  notasOperativas: string | null;
+}
+
+export interface WorkOrderQuotationSummary {
+  id: number;
+  codigo: string;
+  estadoPago: import('@unithor/shared').QuotationStatus;
+  total: number;
+  pagado: number;
+  saldoPendiente: number;
 }
 
 export interface WorkOrderInspectionPhoto {
@@ -173,6 +184,7 @@ export interface WorkOrder {
   vehicle?: WorkOrderVehicle | null;
   creator?: WorkOrderCreator | null;
   items?: WorkOrderItem[];
+  quotation?: WorkOrderQuotationSummary | null;
   inspection?: WorkOrderInspection | null;
 }
 
@@ -209,6 +221,8 @@ export interface QuotationItem {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  estadoOperativo: import('@unithor/shared').ItemOperationalStatus;
+  notasOperativas: string | null;
 }
 
 export interface Quotation {

@@ -46,7 +46,16 @@ const quotation: Quotation = {
   vehicle: { id: 4, patente: 'ABCD12', marca: 'Toyota', modelo: 'Corolla' },
   asesor: { id: 1, nombre: 'Desarrollador UNITHOR', email: 'dev@unithor.local' },
   workOrder: null,
-  items: [{ id: 1, catalogItemId: null, descripcion: 'Cambio de aceite', cantidad: 1, precioUnitario: 50000, subtotal: 50000 }],
+  items: [{
+    id: 1,
+    catalogItemId: null,
+    descripcion: 'Cambio de aceite',
+    cantidad: 1,
+    precioUnitario: 50000,
+    subtotal: 50000,
+    estadoOperativo: 'pendiente',
+    notasOperativas: null,
+  }],
 };
 
 const linkedQuotation: Quotation = {

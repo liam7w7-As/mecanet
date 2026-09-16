@@ -1,3 +1,4 @@
+import { ITEM_OPERATIONAL_STATUS } from '@unithor/shared';
 import { LoaderCircle, Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -5,6 +6,7 @@ import { useCatalogItems } from '../../hooks/useWorkOrders';
 import { formatClp } from '../../lib/formatters';
 
 import type { CatalogItem } from '../../types/entities';
+import type { ItemOperationalStatus } from '@unithor/shared';
 
 let itemSequence = 0;
 
@@ -14,6 +16,8 @@ export interface EditableWorkOrderItem {
   descripcion: string;
   cantidad: string;
   precioUnitario: string;
+  estadoOperativo: ItemOperationalStatus;
+  notasOperativas: string;
 }
 
 export const createEmptyWorkOrderItem = (): EditableWorkOrderItem => ({
@@ -22,6 +26,8 @@ export const createEmptyWorkOrderItem = (): EditableWorkOrderItem => ({
   descripcion: '',
   cantidad: '1',
   precioUnitario: '0',
+  estadoOperativo: 'pendiente',
+  notasOperativas: '',
 });
 
 export const getWorkOrderItemSubtotal = (item: EditableWorkOrderItem): number =>
@@ -29,6 +35,13 @@ export const getWorkOrderItemSubtotal = (item: EditableWorkOrderItem): number =>
 
 export const calculateItemsTotal = (items: EditableWorkOrderItem[]): number =>
   items.reduce((total, item) => total + getWorkOrderItemSubtotal(item), 0);
+
+const ITEM_OPERATIONAL_STATUS_LABELS: Record<ItemOperationalStatus, string> = {
+  pendiente: 'Pendiente',
+  en_proceso: 'En proceso',
+  completado: 'Completado',
+  omitido: 'Omitido',
+};
 
 interface CatalogPickerProps {
   index: number;
@@ -131,9 +144,9 @@ export const WorkOrderItemsEditor = ({
         <div className="mt-4 rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">{emptyMessage}</div>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full min-w-[760px] text-left">
+          <table className="w-full min-w-[1080px] text-left">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-              <tr><th className="px-3 py-3 font-semibold">Descripción</th><th className="w-28 px-3 py-3 font-semibold">Cantidad</th><th className="w-44 px-3 py-3 font-semibold">Precio unitario</th><th className="w-36 px-3 py-3 text-right font-semibold">Subtotal</th><th className="w-14 px-3 py-3"><span className="sr-only">Eliminar</span></th></tr>
+              <tr><th className="px-3 py-3 font-semibold">Descripción</th><th className="w-28 px-3 py-3 font-semibold">Cantidad</th><th className="w-44 px-3 py-3 font-semibold">Precio unitario</th><th className="w-40 px-3 py-3 font-semibold">Avance</th><th className="w-56 px-3 py-3 font-semibold">Nota operativa</th><th className="w-36 px-3 py-3 text-right font-semibold">Subtotal</th><th className="w-14 px-3 py-3"><span className="sr-only">Eliminar</span></th></tr>
             </thead>
             <tbody>
               {items.map((item, index) => (
@@ -144,6 +157,8 @@ export const WorkOrderItemsEditor = ({
                   </td>
                   <td className="px-3 py-3"><input type="number" min="0.01" step="0.01" value={item.cantidad} onChange={(event) => updateItem(index, { cantidad: event.target.value })} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue" aria-label={`Cantidad ${index + 1}`} /></td>
                   <td className="px-3 py-3"><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-slate-400">$</span><input type="number" min="0" step="1" value={item.precioUnitario} onChange={(event) => updateItem(index, { precioUnitario: event.target.value })} className="h-10 w-full rounded-lg border border-slate-300 pl-7 pr-3 text-sm outline-none focus:border-brand-blue" aria-label={`Precio unitario ${index + 1}`} /></div></td>
+                  <td className="px-3 py-3"><select value={item.estadoOperativo} onChange={(event) => updateItem(index, { estadoOperativo: event.target.value as ItemOperationalStatus })} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue" aria-label={`Avance ${index + 1}`}>{ITEM_OPERATIONAL_STATUS.map((status) => <option key={status} value={status}>{ITEM_OPERATIONAL_STATUS_LABELS[status]}</option>)}</select></td>
+                  <td className="px-3 py-3"><input type="text" value={item.notasOperativas} onChange={(event) => updateItem(index, { notasOperativas: event.target.value })} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue" placeholder="Checklist, detalle o repuesto usado" aria-label={`Nota operativa ${index + 1}`} /></td>
                   <td className="px-3 py-5 text-right font-semibold text-brand-blue" data-testid={`item-subtotal-${index}`}>{formatClp(getWorkOrderItemSubtotal(item))}</td>
                   <td className="px-3 py-3"><button type="button" className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-700" onClick={() => removeItem(index)} aria-label={`Eliminar ítem ${index + 1}`} title="Eliminar ítem"><Trash2 className="h-4 w-4" aria-hidden="true" /></button></td>
                 </tr>

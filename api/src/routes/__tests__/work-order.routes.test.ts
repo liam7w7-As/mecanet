@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { Client } from '../../models/Client.js';
+import { Quotation } from '../../models/Quotation.js';
+import { QuotationItem } from '../../models/QuotationItem.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
 import { User } from '../../models/User.js';
@@ -73,6 +75,15 @@ const deleteCurrentYearWorkOrders = async (): Promise<void> => {
   const workOrderIds = workOrders.map((workOrder) => workOrder.id);
 
   if (workOrderIds.length > 0) {
+    const quotations = await Quotation.findAll({
+      where: { workOrderId: workOrderIds },
+      paranoid: false,
+    });
+    const quotationIds = quotations.map((quotation) => quotation.id);
+    if (quotationIds.length > 0) {
+      await QuotationItem.destroy({ where: { quotationId: quotationIds } });
+      await Quotation.destroy({ where: { id: quotationIds }, force: true });
+    }
     await WorkOrderItem.destroy({ where: { workOrderId: workOrderIds } });
     await WorkOrder.destroy({ where: { id: workOrderIds }, force: true });
   }
@@ -304,6 +315,21 @@ describe('Work Order Routes (E2E)', () => {
 
     const vehicle = await Vehicle.findByPk(vehicleId);
     expect(vehicle?.kilometraje).toBe(1500);
+
+    const mirrorQuotation = await Quotation.findOne({
+      where: { workOrderId: response.body.workOrder.id },
+      include: [{ model: QuotationItem }],
+    });
+    expect(mirrorQuotation).not.toBeNull();
+    expect(Number(mirrorQuotation?.total)).toBe(33000);
+    expect(mirrorQuotation?.items).toHaveLength(2);
+    expect(response.body.workOrder.quotation).toEqual(
+      expect.objectContaining({
+        codigo: mirrorQuotation?.codigo,
+        total: 33000,
+        saldoPendiente: 33000,
+      }),
+    );
   });
 
   it('guarda contacto, facturación e inspección como datos históricos de la OT', async () => {

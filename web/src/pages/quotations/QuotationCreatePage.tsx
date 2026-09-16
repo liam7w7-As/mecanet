@@ -43,6 +43,8 @@ export const QuotationCreatePage = () => {
       descripcion: item.descripcion,
       cantidad: String(item.cantidad),
       precioUnitario: String(item.precioUnitario),
+      estadoOperativo: item.estadoOperativo,
+      notasOperativas: item.notasOperativas ?? '',
     })) ?? []);
   }, [workOrderQuery.data]);
 
@@ -69,7 +71,14 @@ export const QuotationCreatePage = () => {
       clientId: mode === 'work-order' ? selectedWorkOrder?.clientId ?? null : client?.id ?? null,
       vehicleId: mode === 'work-order' ? selectedWorkOrder?.vehicleId ?? null : vehicle?.id ?? null,
       notas,
-      items: items.map((item) => ({ catalogItemId: item.catalogItemId, descripcion: item.descripcion, cantidad: item.cantidad, precioUnitario: item.precioUnitario })),
+      items: items.map((item) => ({
+        catalogItemId: item.catalogItemId,
+        descripcion: item.descripcion,
+        cantidad: item.cantidad,
+        precioUnitario: item.precioUnitario,
+        estadoOperativo: item.estadoOperativo,
+        notasOperativas: item.notasOperativas,
+      })),
     });
 
     if (!result.success) {

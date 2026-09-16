@@ -17,6 +17,8 @@ const toEditableItems = (quotation: Quotation): EditableWorkOrderItem[] =>
     descripcion: item.descripcion,
     cantidad: String(item.cantidad),
     precioUnitario: String(item.precioUnitario),
+    estadoOperativo: item.estadoOperativo,
+    notasOperativas: item.notasOperativas ?? '',
   })) ?? [];
 
 interface QuotationEditModalProps {
@@ -40,6 +42,8 @@ export const QuotationEditModal = ({ quotation, onClose }: QuotationEditModalPro
         descripcion: item.descripcion,
         cantidad: item.cantidad,
         precioUnitario: item.precioUnitario,
+        estadoOperativo: item.estadoOperativo,
+        notasOperativas: item.notasOperativas,
       })),
     });
 

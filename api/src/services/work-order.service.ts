@@ -4,6 +4,8 @@ import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
+import { Quotation } from '../models/Quotation.js';
+import { QuotationItem } from '../models/QuotationItem.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
@@ -11,11 +13,13 @@ import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { ApiError } from '../utils/ApiError.js';
-import { generateWorkOrderCode } from '../utils/generateCode.js';
+import { generateQuotationCode, generateWorkOrderCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
 
 import type {
   CreateWorkOrderInput,
+  ItemOperationalStatus,
+  QuotationStatus,
   UpdateWorkOrderInput,
   WorkOrderItemInput,
   WorkOrderInspectionInput,
@@ -56,6 +60,17 @@ interface WorkOrderItemPublic {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  estadoOperativo: ItemOperationalStatus;
+  notasOperativas: string | null;
+}
+
+interface WorkOrderQuotationPublic {
+  id: number;
+  codigo: string;
+  estadoPago: QuotationStatus;
+  total: number;
+  pagado: number;
+  saldoPendiente: number;
 }
 
 interface WorkOrderContactPublic {
@@ -117,6 +132,7 @@ export interface WorkOrderPublic {
   vehicle?: WorkOrderVehiclePublic | null;
   creator?: WorkOrderCreatorPublic | null;
   items?: WorkOrderItemPublic[];
+  quotation?: WorkOrderQuotationPublic | null;
   contact: WorkOrderContactPublic | null;
   billing: WorkOrderBillingPublic | null;
   inspection?: WorkOrderInspectionPublic | null;
@@ -155,7 +171,22 @@ const creatorInclude = {
 const itemsInclude = {
   model: WorkOrderItem,
   as: 'items',
-  attributes: ['id', 'catalogItemId', 'descripcion', 'cantidad', 'precioUnitario', 'subtotal'],
+  attributes: [
+    'id',
+    'catalogItemId',
+    'descripcion',
+    'cantidad',
+    'precioUnitario',
+    'subtotal',
+    'estadoOperativo',
+    'notasOperativas',
+  ],
+};
+
+const quotationInclude = {
+  model: Quotation,
+  as: 'quotation',
+  attributes: ['id', 'codigo', 'estadoPago', 'total', 'pagado'],
 };
 
 const inspectionInclude = {
@@ -300,7 +331,24 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
       cantidad: toNumber(item.cantidad),
       precioUnitario: toNumber(item.precioUnitario),
       subtotal: toNumber(item.subtotal),
+      estadoOperativo: item.estadoOperativo,
+      notasOperativas: item.notasOperativas,
     })),
+  quotation: workOrder.quotation
+    ? {
+        id: workOrder.quotation.id,
+        codigo: workOrder.quotation.codigo,
+        estadoPago: workOrder.quotation.estadoPago,
+        total: toNumber(workOrder.quotation.total),
+        pagado: toNumber(workOrder.quotation.pagado),
+        saldoPendiente: Math.max(
+          0,
+          toNumber(workOrder.quotation.total) - toNumber(workOrder.quotation.pagado),
+        ),
+      }
+    : workOrder.quotation === null
+      ? null
+      : undefined,
   inspection: workOrder.inspection
     ? {
         id: workOrder.inspection.id,
@@ -344,6 +392,8 @@ const buildItemsPayload = (
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  estadoOperativo: ItemOperationalStatus;
+  notasOperativas: string | null;
 }> => {
   return items.map((item) => {
     const cantidad = Number(item.cantidad);
@@ -356,8 +406,50 @@ const buildItemsPayload = (
       cantidad,
       precioUnitario,
       subtotal: cantidad * precioUnitario,
+      estadoOperativo: item.estadoOperativo ?? 'pendiente',
+      notasOperativas: item.notasOperativas ?? null,
     };
   });
+};
+
+const createMirrorQuotation = async (
+  workOrder: WorkOrder,
+  items: WorkOrderItemInput[],
+  userId: number,
+  transaction: Transaction,
+): Promise<void> => {
+  const total = items.reduce(
+    (sum, item) => sum + Number(item.cantidad) * Number(item.precioUnitario),
+    0,
+  );
+  const codigo = await generateQuotationCode(transaction);
+  const quotation = await Quotation.create(
+    {
+      codigo,
+      workOrderId: workOrder.id,
+      clientId: workOrder.clientId,
+      vehicleId: workOrder.vehicleId,
+      asesorId: userId,
+      estadoPago: 'por_pagar',
+      subtotal: total,
+      total,
+      pagado: 0,
+      notas: workOrder.descripcion
+        ? `Generada automáticamente desde ${workOrder.codigo}\n${workOrder.descripcion}`
+        : `Generada automáticamente desde ${workOrder.codigo}`,
+    },
+    { transaction },
+  );
+
+  if (items.length > 0) {
+    await QuotationItem.bulkCreate(
+      buildItemsPayload(quotation.id, items).map(({ workOrderId: _workOrderId, ...item }) => ({
+        quotationId: quotation.id,
+        ...item,
+      })),
+      { transaction },
+    );
+  }
 };
 
 const assertClientExists = async (
@@ -559,7 +651,14 @@ const getCompleteWorkOrder = async (
   transaction?: Transaction,
 ): Promise<WorkOrder> => {
   const workOrder = await WorkOrder.findByPk(id, {
-    include: [clientInclude, vehicleInclude, creatorInclude, itemsInclude, inspectionInclude],
+    include: [
+      clientInclude,
+      vehicleInclude,
+      creatorInclude,
+      itemsInclude,
+      inspectionInclude,
+      quotationInclude,
+    ],
     transaction,
   });
 
@@ -702,6 +801,8 @@ export const createWorkOrder = async (
         transaction,
       });
     }
+
+    await createMirrorQuotation(workOrder, data.items, userId, transaction);
 
     if (data.inspection !== undefined) {
       await createInspection(workOrder.id, data.inspection, userId, transaction);

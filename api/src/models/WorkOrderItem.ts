@@ -1,3 +1,4 @@
+import { ITEM_OPERATIONAL_STATUS, type ItemOperationalStatus } from '@unithor/shared';
 import {
   AutoIncrement,
   BelongsTo,
@@ -74,6 +75,19 @@ export class WorkOrderItem extends Model<
     defaultValue: 0,
   })
   declare subtotal: CreationOptional<number>;
+
+  @Column({
+    type: DataType.ENUM(...ITEM_OPERATIONAL_STATUS),
+    allowNull: false,
+    defaultValue: 'pendiente',
+  })
+  declare estadoOperativo: CreationOptional<ItemOperationalStatus>;
+
+  @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+  })
+  declare notasOperativas: string | null;
 
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;

@@ -13,6 +13,13 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import StockAdjustmentModal from '../../components/catalog/StockAdjustmentModal';
 import ClientFormModal from '../../components/clients/ClientFormModal';
+import {
+  AnimateIcon,
+  AnimatedCard,
+  AnimatedTableRow,
+  Stagger,
+  StaggerItem,
+} from '../../components/animate-ui';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import WorkOrderStatusBadge from '../../components/work-orders/WorkOrderStatusBadge';
 import { useDashboardSummary } from '../../hooks/useDashboard';
@@ -34,16 +41,18 @@ interface KpiCardProps {
 }
 
 const KpiCard = ({ title, value, detail, icon: Icon, iconClassName, testId }: KpiCardProps) => (
-  <article className="min-h-36 border border-slate-200 bg-white p-4">
+  <AnimatedCard className="min-h-36 border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md" hoverLift={-3}>
     <div className="flex items-start justify-between gap-3">
       <p className="text-sm font-semibold text-slate-600">{title}</p>
       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}>
-        <Icon className="h-5 w-5" aria-hidden="true" />
+        <AnimateIcon variant="pulse" animateOnHover>
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </AnimateIcon>
       </span>
     </div>
     <p className="mt-4 text-2xl font-bold text-brand-blue" data-testid={testId}>{value}</p>
     <p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p>
-  </article>
+  </AnimatedCard>
 );
 
 const DashboardSkeleton = () => (
@@ -88,12 +97,33 @@ export const DashboardPage = () => {
         <p className="text-sm font-medium text-slate-500">{formatCurrentDate()}</p>
       </header>
 
-      <section className="border-y border-slate-200 bg-white px-4 py-4" aria-labelledby="quick-actions-title">
+      <section className="border-y border-slate-200 bg-white px-4 py-4 shadow-sm" aria-labelledby="quick-actions-title">
         <h2 id="quick-actions-title" className="mb-3 text-sm font-semibold uppercase text-slate-500">Acciones rápidas</h2>
         <div className="grid gap-3 lg:grid-cols-[auto_auto_auto_minmax(260px,1fr)]">
-          {canCreateWorkOrder && <Link to="/work-orders/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white hover:bg-brand-dark"><Wrench className="h-4 w-4" aria-hidden="true" />Ingresar vehículo / Nueva OT</Link>}
-          {canCreateQuotation && <Link to="/quotations/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark hover:bg-yellow-400"><FilePlus2 className="h-4 w-4" aria-hidden="true" />Nueva cotización</Link>}
-          {canCreateClient && <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-brand-blue hover:bg-slate-50" onClick={() => setShowClientForm(true)}><UserPlus className="h-4 w-4" aria-hidden="true" />Dar de alta cliente</button>}
+          {canCreateWorkOrder && (
+            <Link to="/work-orders/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white transition-all hover:bg-brand-dark hover:shadow-sm">
+              <AnimateIcon variant="spin" animateOnHover>
+                <Wrench className="h-4 w-4" aria-hidden="true" />
+              </AnimateIcon>
+              Ingresar vehículo / Nueva OT
+            </Link>
+          )}
+          {canCreateQuotation && (
+            <Link to="/quotations/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark transition-all hover:bg-yellow-400 hover:shadow-sm">
+              <AnimateIcon variant="bounce" animateOnHover>
+                <FilePlus2 className="h-4 w-4" aria-hidden="true" />
+              </AnimateIcon>
+              Nueva cotización
+            </Link>
+          )}
+          {canCreateClient && (
+            <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-brand-blue transition-all hover:bg-slate-50 hover:shadow-sm" onClick={() => setShowClientForm(true)}>
+              <AnimateIcon variant="hover-lift" animateOnHover>
+                <UserPlus className="h-4 w-4" aria-hidden="true" />
+              </AnimateIcon>
+              Dar de alta cliente
+            </button>
+          )}
           <QuickVehicleSearch
             placeholder="Consultar patente, RUT o cliente"
             onSelectVehicle={(vehicle) => navigate(`/vehicles?search=${encodeURIComponent(vehicle.patente)}`)}
@@ -106,37 +136,60 @@ export const DashboardPage = () => {
 
       {dashboardQuery.isPending ? <DashboardSkeleton /> : summary && (
         <>
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Indicadores principales">
-            <KpiCard title="OTs en taller" value={String(summary.metrics.activeWorkOrders)} detail="En progreso o esperando repuesto" icon={Wrench} iconClassName="bg-blue-100 text-brand-blue" testId="active-work-orders" />
-            <KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} iconClassName="bg-amber-100 text-amber-800" testId="waiting-for-parts" />
-            <KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} iconClassName="bg-yellow-100 text-yellow-800" testId="monthly-revenue" />
-            <KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} iconClassName="bg-red-100 text-red-700" testId="pending-balance" />
-            <KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} iconClassName={summary.lowStockCount > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} testId="low-stock-count" />
-          </section>
+          <Stagger className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Indicadores principales">
+            <StaggerItem><KpiCard title="OTs en taller" value={String(summary.metrics.activeWorkOrders)} detail="En progreso o esperando repuesto" icon={Wrench} iconClassName="bg-blue-100 text-brand-blue" testId="active-work-orders" /></StaggerItem>
+            <StaggerItem><KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} iconClassName="bg-amber-100 text-amber-800" testId="waiting-for-parts" /></StaggerItem>
+            <StaggerItem><KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} iconClassName="bg-yellow-100 text-yellow-800" testId="monthly-revenue" /></StaggerItem>
+            <StaggerItem><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} iconClassName="bg-red-100 text-red-700" testId="pending-balance" /></StaggerItem>
+            <StaggerItem><KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} iconClassName={summary.lowStockCount > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} testId="low-stock-count" /></StaggerItem>
+          </Stagger>
 
           <section className="grid gap-5 xl:grid-cols-[3fr_2fr]">
-            <div className="overflow-hidden border border-slate-200 bg-white">
+            <div className="overflow-hidden border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
                 <div><h2 className="font-semibold text-brand-blue">Últimos trabajos en taller</h2><p className="mt-0.5 text-xs text-slate-500">Órdenes creadas o actualizadas recientemente</p></div>
-                <Link to="/work-orders" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-blue hover:underline">Ver todas <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+                <Link to="/work-orders" className="group inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:underline">
+                  Ver todas
+                  <AnimateIcon variant="slide-right" animateOnHover>
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </AnimateIcon>
+                </Link>
               </div>
               {summary.recentWorkOrders.length === 0 ? <p className="px-5 py-12 text-center text-sm text-slate-500">Aún no hay órdenes de trabajo registradas.</p> : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[660px] text-left text-sm">
                     <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3 font-semibold">Orden</th><th className="px-4 py-3 font-semibold">Patente</th><th className="px-4 py-3 font-semibold">Cliente</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold">Ingreso</th><th className="px-4 py-3 text-right font-semibold">Detalle</th></tr></thead>
-                    <tbody>{summary.recentWorkOrders.map((workOrder) => <tr key={workOrder.id} className="border-t border-slate-100 hover:bg-slate-50/70"><td className="px-4 py-3 font-mono font-bold text-brand-blue">{workOrder.codigo}</td><td className="px-4 py-3 font-mono font-semibold text-slate-700">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</td><td className="max-w-44 px-4 py-3"><span className="block truncate text-slate-700">{workOrder.client?.nombre ?? 'Sin cliente'}</span></td><td className="px-4 py-3"><WorkOrderStatusBadge status={workOrder.estado} /></td><td className="whitespace-nowrap px-4 py-3 text-slate-500">{formatDate(workOrder.fechaIngreso)}</td><td className="px-4 py-3 text-right"><Link to={`/work-orders/${workOrder.id}`} className="inline-flex h-8 items-center rounded-lg px-2 text-sm font-semibold text-brand-blue hover:bg-blue-50" aria-label={`Ver ${workOrder.codigo}`}>Ver</Link></td></tr>)}</tbody>
+                    <tbody>
+                      {summary.recentWorkOrders.map((workOrder, index) => (
+                        <AnimatedTableRow key={workOrder.id} delay={index * 0.04} className="border-t border-slate-100">
+                          <td className="px-4 py-3 font-mono font-bold text-brand-blue">{workOrder.codigo}</td>
+                          <td className="px-4 py-3 font-mono font-semibold text-slate-700">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</td>
+                          <td className="max-w-44 px-4 py-3"><span className="block truncate text-slate-700">{workOrder.client?.nombre ?? 'Sin cliente'}</span></td>
+                          <td className="px-4 py-3"><WorkOrderStatusBadge status={workOrder.estado} /></td>
+                          <td className="whitespace-nowrap px-4 py-3 text-slate-500">{formatDate(workOrder.fechaIngreso)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <Link to={`/work-orders/${workOrder.id}`} className="inline-flex h-8 items-center rounded-lg px-2 text-sm font-semibold text-brand-blue hover:bg-blue-50" aria-label={`Ver ${workOrder.codigo}`}>Ver</Link>
+                          </td>
+                        </AnimatedTableRow>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
               )}
             </div>
 
-            <aside className="border border-slate-200 bg-white" aria-label="Alertas operativas">
+            <aside className="border border-slate-200 bg-white shadow-sm" aria-label="Alertas operativas">
               <section className="p-4 sm:p-5">
                 <div className="flex items-center justify-between"><h2 className="font-semibold text-brand-blue">Inventario crítico</h2><span className={`rounded px-2 py-1 text-xs font-bold ${summary.lowStockCount > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>{summary.lowStockCount} alerta(s)</span></div>
                 <div className="mt-3 divide-y divide-slate-100">
-                  {summary.lowStockItems.length === 0 ? <p className="py-5 text-sm text-slate-500">No hay repuestos con stock crítico.</p> : summary.lowStockItems.map((item) => <div key={item.id} className="flex items-center gap-3 py-3"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${item.stock === 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>{item.stock}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-800">{item.nombre}</span><span className="block truncate font-mono text-xs text-slate-500">{item.codigo ?? 'Sin código'}</span></span>{canAdjustStock && <button type="button" className="h-8 rounded-lg px-2 text-xs font-semibold text-brand-blue hover:bg-blue-50" onClick={() => setStockItem(item)}>Ajustar</button>}</div>)}
+                  {summary.lowStockItems.length === 0 ? <p className="py-5 text-sm text-slate-500">No hay repuestos con stock crítico.</p> : summary.lowStockItems.map((item) => <div key={item.id} className="flex items-center gap-3 py-3 transition-colors hover:bg-slate-50/70"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${item.stock === 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>{item.stock}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-800">{item.nombre}</span><span className="block truncate font-mono text-xs text-slate-500">{item.codigo ?? 'Sin código'}</span></span>{canAdjustStock && <button type="button" className="h-8 rounded-lg px-2 text-xs font-semibold text-brand-blue hover:bg-blue-50" onClick={() => setStockItem(item)}>Ajustar</button>}</div>)}
                 </div>
-                <Link to="/catalog" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand-blue hover:underline">Revisar inventario <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+                <Link to="/catalog" className="group mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:underline">
+                  Revisar inventario
+                  <AnimateIcon variant="slide-right" animateOnHover>
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </AnimateIcon>
+                </Link>
               </section>
 
               <section className="border-t border-slate-200 p-4 sm:p-5">

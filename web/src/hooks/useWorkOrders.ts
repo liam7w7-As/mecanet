@@ -110,16 +110,32 @@ export const useUploadWorkOrderInspectionPhotosMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, photos }: { id: number; photos: InspectionPhotoUpload[] }) => {
+    mutationFn: async ({
+      id,
+      photos,
+      onProgress,
+    }: {
+      id: number;
+      photos: InspectionPhotoUpload[];
+      onProgress?: (slot: WorkOrderInspectionPhotoSlot, percent: number) => void;
+    }) => {
       const uploaded: WorkOrderInspectionPhoto[] = [];
 
       for (const photo of photos) {
         const formData = new FormData();
         formData.append('photo', photo.file);
+        onProgress?.(photo.slot, 0);
         const response = await api.post<{ photo: WorkOrderInspectionPhoto }>(
           `/work-orders/${id}/inspection/photos/${photo.slot}`,
           formData,
+          {
+            onUploadProgress: (event) => {
+              if (!event.total) return;
+              onProgress?.(photo.slot, Math.round((event.loaded / event.total) * 100));
+            },
+          },
         );
+        onProgress?.(photo.slot, 100);
         uploaded.push(response.data.photo);
       }
 
@@ -145,14 +161,21 @@ export const useDeleteWorkOrderInspectionPhotoMutation = () => {
   });
 };
 
-export const useCatalogItems = (term: string) => {
+export type CatalogPickerType = 'parte' | 'estandar' | 'especifico' | 'all';
+
+export const useCatalogItems = (term: string, tipo: CatalogPickerType = 'all') => {
   const debouncedTerm = useDebouncedValue(term.trim(), 250);
 
   return useQuery({
-    queryKey: ['catalog', 'picker', debouncedTerm],
+    queryKey: ['catalog', 'picker', debouncedTerm, tipo],
     queryFn: async () => {
       const response = await api.get<PaginatedResponse<CatalogItem>>('/catalog', {
-        params: { page: 1, pageSize: 12, search: debouncedTerm || undefined },
+        params: {
+          page: 1,
+          pageSize: 12,
+          search: debouncedTerm || undefined,
+          tipo: tipo === 'all' ? undefined : tipo,
+        },
       });
       return response.data;
     },

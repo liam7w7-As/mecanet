@@ -10,10 +10,8 @@ import {
   Building2,
   Camera,
   ClipboardCheck,
-  Download,
   Eye,
   Gauge,
-  ImagePlus,
   LoaderCircle,
   Pencil,
   Mail,
@@ -28,13 +26,17 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
+import PdfPreviewModal from '../../components/common/PdfPreviewModal';
+import { PageLoader, ProgressBar } from '../../components/common/LoadingIndicator';
+import PhotoSlotInput from '../../components/work-orders/PhotoSlotInput';
+import { validateInspectionFile } from '../../lib/inspection-photos';
+import { notifyError, notifySuccess } from '../../stores/toast.store';
 import WorkOrderItemsModal from '../../components/work-orders/WorkOrderItemsModal';
 import WorkOrderReceptionInspectionModal from '../../components/work-orders/WorkOrderReceptionInspectionModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
 import {
   useChangeWorkOrderStatusMutation,
   useDeleteWorkOrderInspectionPhotoMutation,
-  useDownloadWorkOrderPdf,
   useUploadWorkOrderInspectionPhotosMutation,
   useWorkOrder,
 } from '../../hooks/useWorkOrders';
@@ -42,6 +44,7 @@ import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
+import { AnimateIcon } from '../../components/animate-ui';
 
 import type {
   FuelLevel,
@@ -115,12 +118,13 @@ export const WorkOrderDetailPage = () => {
   const workOrderId = Number(id);
   const workOrderQuery = useWorkOrder(workOrderId);
   const statusMutation = useChangeWorkOrderStatusMutation();
-  const pdfMutation = useDownloadWorkOrderPdf();
   const uploadPhotosMutation = useUploadWorkOrderInspectionPhotosMutation();
   const deletePhotoMutation = useDeleteWorkOrderInspectionPhotoMutation();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReceptionModal, setShowReceptionModal] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Partial<Record<WorkOrderInspectionPhotoSlot, number>>>({});
   const user = useAuthStore((state) => state.user);
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
   const workOrder = workOrderQuery.data;
@@ -151,16 +155,63 @@ export const WorkOrderDetailPage = () => {
       setShowCancelModal(true);
       return;
     }
-    statusMutation.mutate({ id: workOrderId, data: { nuevoEstado: nextStatus } });
+    statusMutation.mutate(
+      { id: workOrderId, data: { nuevoEstado: nextStatus } },
+      {
+        onSuccess: () => notifySuccess('Estado de la orden actualizado.'),
+        onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo cambiar el estado.')),
+      },
+    );
   };
 
   const uploadInspectionPhoto = (slot: WorkOrderInspectionPhotoSlot, file: File | undefined): void => {
     if (!file) return;
-    uploadPhotosMutation.mutate({ id: workOrderId, photos: [{ slot, file }] });
+    const validationError = validateInspectionFile(file);
+    if (validationError) {
+      notifyError(`${photoSlotLabels[slot]}: ${validationError}`);
+      return;
+    }
+    setUploadProgress((current) => ({ ...current, [slot]: 0 }));
+    uploadPhotosMutation.mutate(
+      {
+        id: workOrderId,
+        photos: [{ slot, file }],
+        onProgress: (activeSlot, percent) =>
+          setUploadProgress((current) => ({ ...current, [activeSlot]: percent })),
+      },
+      {
+        onSuccess: () => {
+          notifySuccess(`Foto ${photoSlotLabels[slot]} subida.`);
+          setUploadProgress((current) => {
+            const next = { ...current };
+            delete next[slot];
+            return next;
+          });
+        },
+        onError: (error) => {
+          notifyError(getApiErrorMessage(error, 'No se pudo subir la foto.'));
+          setUploadProgress((current) => {
+            const next = { ...current };
+            delete next[slot];
+            return next;
+          });
+        },
+      },
+    );
+  };
+
+  const handleDeletePhoto = (slot: WorkOrderInspectionPhotoSlot): void => {
+    deletePhotoMutation.mutate(
+      { id: workOrderId, slot },
+      {
+        onSuccess: () => notifySuccess(`Foto ${photoSlotLabels[slot]} eliminada.`),
+        onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo eliminar la foto.')),
+      },
+    );
   };
 
   if (workOrderQuery.isPending) {
-    return <div className="flex min-h-72 items-center justify-center"><LoaderCircle className="h-8 w-8 animate-spin text-brand-blue" aria-label="Cargando orden de trabajo" /></div>;
+    return <PageLoader label="Cargando orden de trabajo..." />;
   }
 
   if (workOrderQuery.isError || !workOrder) {
@@ -171,17 +222,38 @@ export const WorkOrderDetailPage = () => {
     <div className="space-y-5">
       <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex items-start gap-3">
-          <Link to="/work-orders" className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50" aria-label="Volver a órdenes" title="Volver"><ArrowLeft className="h-4 w-4" aria-hidden="true" /></Link>
-          <div><p className="text-sm font-medium text-slate-500">Seguimiento operativo</p><div className="mt-1 flex flex-wrap items-center gap-3"><h1 className="font-mono text-2xl font-bold text-brand-blue sm:text-3xl">{workOrder.codigo}</h1><WorkOrderStatusBadge status={workOrder.estado} /></div></div>
+          <Link to="/work-orders" className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:bg-slate-50" aria-label="Volver a órdenes" title="Volver">
+            <AnimateIcon variant="slide-left" animateOnHover>
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            </AnimateIcon>
+          </Link>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Seguimiento operativo</p>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <h1 className="font-mono text-2xl font-bold text-brand-blue sm:text-3xl">{workOrder.codigo}</h1>
+              <WorkOrderStatusBadge status={workOrder.estado} />
+            </div>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canEditInspection && <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setShowReceptionModal(true)}><Pencil className="h-4 w-4" aria-hidden="true" /> Editar ficha</button>}
-          <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-blue bg-white px-4 text-sm font-semibold text-brand-blue hover:bg-brand-light disabled:opacity-60" onClick={() => pdfMutation.openPdf(workOrder.id, workOrder.codigo)} disabled={pdfMutation.isPending}><Eye className="h-4 w-4" aria-hidden="true" /> Ver PDF</button>
-          <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark hover:bg-yellow-400 disabled:opacity-60" onClick={() => pdfMutation.downloadPdf(workOrder.id, workOrder.codigo)} disabled={pdfMutation.isPending}>{pdfMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />} Descargar comprobante PDF</button>
+          {canEditInspection && (
+            <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow" onClick={() => setShowReceptionModal(true)}>
+              <AnimateIcon variant="wiggle" animateOnHover>
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+              </AnimateIcon>
+              Editar ficha
+            </button>
+          )}
+          <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-dark hover:shadow" onClick={() => setShowPdfModal(true)}>
+            <AnimateIcon variant="bounce" animateOnHover>
+              <Eye className="h-4 w-4" aria-hidden="true" />
+            </AnimateIcon>
+            Ver PDF / Imprimir / Descargar
+          </button>
         </div>
       </header>
 
-      {(statusMutation.isError || pdfMutation.isError || uploadPhotosMutation.isError || deletePhotoMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(statusMutation.error ?? pdfMutation.error ?? uploadPhotosMutation.error ?? deletePhotoMutation.error)}</div>}
+      {(statusMutation.isError || uploadPhotosMutation.isError || deletePhotoMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(statusMutation.error ?? uploadPhotosMutation.error ?? deletePhotoMutation.error)}</div>}
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-labelledby="work-order-summary-title">
         <div className="border-b border-slate-200 px-5 py-4"><h2 id="work-order-summary-title" className="font-bold text-brand-blue">Resumen de la orden</h2></div>
@@ -285,32 +357,49 @@ export const WorkOrderDetailPage = () => {
                 {WORK_ORDER_INSPECTION_PHOTO_SLOTS.map((slot) => {
                   const photo = inspectionPhotoMap.get(slot);
                   const busy = (uploadPhotosMutation.isPending && uploadPhotosMutation.variables?.photos.some((item) => item.slot === slot)) || (deletePhotoMutation.isPending && deletePhotoMutation.variables?.slot === slot);
+                  const progress = uploadProgress[slot] ?? null;
                   return (
                     <div key={slot} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                       <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
                         <p className="text-sm font-semibold text-slate-700">{photoSlotLabels[slot]}</p>
                         {photo && canEditInspection && (
-                          <button type="button" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-700 disabled:opacity-50" onClick={() => deletePhotoMutation.mutate({ id: workOrder.id, slot })} disabled={busy} aria-label={`Eliminar foto ${photoSlotLabels[slot]}`} title="Eliminar foto">
-                            {busy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Trash2 className="h-4 w-4" aria-hidden="true" />}
+                          <button type="button" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-700 disabled:opacity-50" onClick={() => handleDeletePhoto(slot)} disabled={busy} aria-label={`Eliminar foto ${photoSlotLabels[slot]}`} title="Eliminar foto">
+                            {busy && progress === null ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Trash2 className="h-4 w-4" aria-hidden="true" />}
                           </button>
                         )}
                       </div>
+                      {progress !== null && (
+                        <div className="px-3 pt-2">
+                          <ProgressBar value={progress} label={`Subiendo ${photoSlotLabels[slot]}`} />
+                        </div>
+                      )}
                       {photo ? (
                         <div className="relative">
-                          <img src={photo.url} alt={photoSlotLabels[slot]} className="h-40 w-full object-cover" />
+                          <img src={photo.url} alt={photoSlotLabels[slot]} className="h-40 w-full object-cover" loading="lazy" />
                           {canEditInspection && (
-                            <label className="absolute bottom-2 right-2 inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-white/95 px-3 text-xs font-bold text-brand-blue shadow hover:bg-brand-light">
-                              Reemplazar
-                              <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => uploadInspectionPhoto(slot, event.target.files?.[0])} aria-label={`Reemplazar foto ${photoSlotLabels[slot]}`} />
-                            </label>
+                            <PhotoSlotInput
+                              slotLabel={photoSlotLabels[slot]}
+                              variant="replace"
+                              disabled={!canEditInspection}
+                              busy={busy}
+                              onSelect={(file) => uploadInspectionPhoto(slot, file)}
+                            />
                           )}
                         </div>
                       ) : (
-                        <label className={`flex h-40 flex-col items-center justify-center gap-2 bg-slate-50 text-sm font-semibold ${canEditInspection ? 'cursor-pointer text-slate-500 hover:bg-brand-light hover:text-brand-blue' : 'text-slate-400'}`}>
-                          <ImagePlus className="h-7 w-7" aria-hidden="true" />
-                          {canEditInspection ? 'Subir foto' : 'Sin foto'}
-                          {canEditInspection && <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => uploadInspectionPhoto(slot, event.target.files?.[0])} aria-label={`Subir foto ${photoSlotLabels[slot]}`} />}
-                        </label>
+                        <div>
+                          {canEditInspection ? (
+                            <PhotoSlotInput
+                              slotLabel={photoSlotLabels[slot]}
+                              variant="empty"
+                              busy={busy}
+                              progress={progress}
+                              onSelect={(file) => uploadInspectionPhoto(slot, file)}
+                            />
+                          ) : (
+                            <p className="flex h-40 items-center justify-center bg-slate-50 text-sm font-semibold text-slate-400">Sin foto</p>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
@@ -368,6 +457,13 @@ export const WorkOrderDetailPage = () => {
       {showCancelModal && <CancelStatusModal codigo={workOrder.codigo} isPending={statusMutation.isPending} errorMessage={statusMutation.isError ? getApiErrorMessage(statusMutation.error) : null} onClose={() => setShowCancelModal(false)} onConfirm={(motivo) => statusMutation.mutate({ id: workOrder.id, data: { nuevoEstado: 'cancelada', motivo } }, { onSuccess: () => setShowCancelModal(false) })} />}
       {showReceptionModal && <WorkOrderReceptionInspectionModal workOrder={workOrder} onClose={() => setShowReceptionModal(false)} />}
       {showItemsModal && <WorkOrderItemsModal workOrder={workOrder} onClose={() => setShowItemsModal(false)} />}
+      {showPdfModal && (
+        <PdfPreviewModal
+          type="work-order"
+          workOrder={workOrder}
+          onClose={() => setShowPdfModal(false)}
+        />
+      )}
     </div>
   );
 };

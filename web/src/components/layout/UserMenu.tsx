@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { AnimatePresence, motion } from 'motion/react';
+import { AnimateIcon } from '../animate-ui/animate-icon';
+
 import { useLogoutMutation } from '../../hooks/useAuth';
 import { useAuthStore } from '../../stores/auth.store';
 import UserProfileModal, { getInitials, getRoleLabel } from '../auth/UserProfileModal';
@@ -52,13 +55,13 @@ export const UserMenu = () => {
       <div className="relative" ref={menuRef}>
         <button
           type="button"
-          className="flex h-12 items-center gap-2 rounded-lg px-1.5 text-left hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-yellow sm:gap-3 sm:px-2"
+          className="flex h-12 items-center gap-2 rounded-lg px-1.5 text-left transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-yellow sm:gap-3 sm:px-2"
           onClick={() => setOpen((open) => !open)}
           aria-label="Menú de usuario"
           aria-haspopup="menu"
           aria-expanded={isOpen}
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-blue text-sm font-semibold text-white">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-blue text-sm font-semibold text-white shadow-sm">
             {getInitials(user.nombre)}
           </div>
           <div className="hidden min-w-0 text-right sm:block">
@@ -68,59 +71,71 @@ export const UserMenu = () => {
             </span>
           </div>
           <ChevronDown
-            className={`hidden h-4 w-4 text-slate-400 transition-transform sm:block ${isOpen ? 'rotate-180' : ''}`}
+            className={`hidden h-4 w-4 text-slate-400 transition-transform duration-200 sm:block ${isOpen ? 'rotate-180' : ''}`}
             aria-hidden="true"
           />
         </button>
 
-        {isOpen && (
-          <div
-            className="absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-xl shadow-slate-900/10"
-            role="menu"
-          >
-            <div className="border-b border-slate-100 px-4 pb-3 pt-2 sm:hidden">
-              <p className="truncate text-sm font-semibold text-slate-900">{user.nombre}</p>
-              <p className="mt-0.5 text-xs text-slate-500">{getRoleLabel(user.role)}</p>
-            </div>
-            <button
-              type="button"
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-blue"
-              onClick={openProfile}
-              role="menuitem"
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -6 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -6 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+              className="absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-xl shadow-slate-900/10"
+              role="menu"
             >
-              <UserRound className="h-4 w-4" aria-hidden="true" />
-              Ver perfil
-            </button>
-            <button
-              type="button"
-              className="flex w-full cursor-not-allowed items-center justify-between gap-3 px-4 py-2.5 text-left text-sm text-slate-400"
-              disabled
-              role="menuitem"
-              title="Cambio de contraseña no disponible"
-            >
-              <span className="flex items-center gap-3">
-                <KeyRound className="h-4 w-4" aria-hidden="true" />
-                Cambiar contraseña
-              </span>
-              <span className="text-[10px] font-semibold uppercase">Próximo</span>
-            </button>
-            <div className="my-2 border-t border-slate-100" />
-            <button
-              type="button"
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={() => logoutMutation.mutate()}
-              disabled={logoutMutation.isPending}
-              role="menuitem"
-            >
-              {logoutMutation.isPending ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-              )}
-              {logoutMutation.isPending ? 'Cerrando sesión...' : 'Cerrar sesión'}
-            </button>
-          </div>
-        )}
+              <div className="border-b border-slate-100 px-4 pb-3 pt-2 sm:hidden">
+                <p className="truncate text-sm font-semibold text-slate-900">{user.nombre}</p>
+                <p className="mt-0.5 text-xs text-slate-500">{getRoleLabel(user.role)}</p>
+              </div>
+              <button
+                type="button"
+                className="group flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-brand-blue"
+                onClick={openProfile}
+                role="menuitem"
+              >
+                <AnimateIcon variant="hover-lift" animateOnHover>
+                  <UserRound className="h-4 w-4 text-slate-500 group-hover:text-brand-blue" aria-hidden="true" />
+                </AnimateIcon>
+                Ver perfil
+              </button>
+              <button
+                type="button"
+                className="flex w-full cursor-not-allowed items-center justify-between gap-3 px-4 py-2.5 text-left text-sm text-slate-400"
+                disabled
+                role="menuitem"
+                title="Cambio de contraseña no disponible"
+              >
+                <span className="flex items-center gap-3">
+                  <AnimateIcon variant="wiggle" animateOnHover={false}>
+                    <KeyRound className="h-4 w-4" aria-hidden="true" />
+                  </AnimateIcon>
+                  Cambiar contraseña
+                </span>
+                <span className="text-[10px] font-semibold uppercase">Próximo</span>
+              </button>
+              <div className="my-2 border-t border-slate-100" />
+              <button
+                type="button"
+                className="group flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => logoutMutation.mutate()}
+                disabled={logoutMutation.isPending}
+                role="menuitem"
+              >
+                {logoutMutation.isPending ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <AnimateIcon variant="slide-right" animateOnHover>
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
+                  </AnimateIcon>
+                )}
+                {logoutMutation.isPending ? 'Cerrando sesión...' : 'Cerrar sesión'}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {isProfileOpen && <UserProfileModal user={user} onClose={() => setProfileOpen(false)} />}

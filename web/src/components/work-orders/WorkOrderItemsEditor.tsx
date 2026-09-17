@@ -1,10 +1,11 @@
 import { ITEM_OPERATIONAL_STATUS } from '@unithor/shared';
-import { LoaderCircle, Plus, Search, Trash2 } from 'lucide-react';
+import { Check, LoaderCircle, Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { useCatalogItems } from '../../hooks/useWorkOrders';
 import { formatClp } from '../../lib/formatters';
 
+import type { CatalogPickerType } from '../../hooks/useWorkOrders';
 import type { CatalogItem } from '../../types/entities';
 import type { ItemOperationalStatus } from '@unithor/shared';
 
@@ -43,6 +44,29 @@ const ITEM_OPERATIONAL_STATUS_LABELS: Record<ItemOperationalStatus, string> = {
   omitido: 'Omitido',
 };
 
+const CATALOG_TYPE_FILTERS: Array<{ value: CatalogPickerType; label: string }> = [
+  { value: 'all', label: 'Todos' },
+  { value: 'parte', label: 'Repuestos' },
+  { value: 'estandar', label: 'Estándar' },
+  { value: 'especifico', label: 'Específicos' },
+];
+
+const CATALOG_TYPE_LABELS: Record<string, string> = {
+  parte: 'Repuesto',
+  estandar: 'Estándar',
+  especifico: 'Específico',
+};
+
+const toCatalogRow = (catalogItem: CatalogItem): EditableWorkOrderItem => ({
+  key: `work-item-${(itemSequence += 1)}`,
+  catalogItemId: catalogItem.id,
+  descripcion: catalogItem.nombre,
+  cantidad: '1',
+  precioUnitario: String(catalogItem.precio),
+  estadoOperativo: 'pendiente',
+  notasOperativas: '',
+});
+
 interface CatalogPickerProps {
   index: number;
   item: EditableWorkOrderItem;
@@ -51,7 +75,8 @@ interface CatalogPickerProps {
 
 const CatalogPicker = ({ index, item, onChange }: CatalogPickerProps) => {
   const [isFocused, setFocused] = useState(false);
-  const catalogQuery = useCatalogItems(item.descripcion);
+  const [tipo, setTipo] = useState<CatalogPickerType>('all');
+  const catalogQuery = useCatalogItems(item.descripcion, tipo);
 
   const selectCatalogItem = (catalogItem: CatalogItem): void => {
     onChange({
@@ -77,7 +102,20 @@ const CatalogPicker = ({ index, item, onChange }: CatalogPickerProps) => {
       />
       {catalogQuery.isFetching && <LoaderCircle className="absolute right-3 top-3 h-4 w-4 animate-spin text-brand-blue" aria-hidden="true" />}
       {isFocused && catalogQuery.data && (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl">
+        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl">
+          <div className="flex flex-wrap gap-1 px-2 py-2" role="group" aria-label="Filtrar catálogo por tipo">
+            {CATALOG_TYPE_FILTERS.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => setTipo(filter.value)}
+                className={`rounded-md px-2 py-1 text-[11px] font-bold ${tipo === filter.value ? 'bg-brand-blue text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
           {catalogQuery.data.items.length > 0 ? catalogQuery.data.items.map((catalogItem) => (
             <button
               key={catalogItem.id}
@@ -88,13 +126,99 @@ const CatalogPicker = ({ index, item, onChange }: CatalogPickerProps) => {
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold text-slate-800">{catalogItem.nombre}</span>
-                <span className="block text-xs text-slate-500">{catalogItem.codigo ?? catalogItem.tipo}</span>
+                <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                  <span className="rounded bg-brand-light px-1.5 py-0.5 font-bold text-brand-blue">
+                    {CATALOG_TYPE_LABELS[catalogItem.tipo] ?? catalogItem.tipo}
+                  </span>
+                  {catalogItem.codigo && <span className="font-mono">{catalogItem.codigo}</span>}
+                  {catalogItem.tipo === 'parte' && (
+                    <span className={catalogItem.stock > 0 ? 'text-emerald-700' : 'text-red-600'}>
+                      Stock: {catalogItem.stock}
+                    </span>
+                  )}
+                </span>
               </span>
               <span className="whitespace-nowrap text-sm font-semibold text-brand-blue">{formatClp(catalogItem.precio)}</span>
             </button>
           )) : <p className="px-3 py-3 text-sm text-slate-500">Sin coincidencias. Puede usar una descripción libre.</p>}
         </div>
       )}
+    </div>
+  );
+};
+
+interface CatalogQuickAddProps {
+  items: EditableWorkOrderItem[];
+  onAdd: (catalogItem: CatalogItem) => void;
+}
+
+const CatalogQuickAdd = ({ items, onAdd }: CatalogQuickAddProps) => {
+  const [search, setSearch] = useState('');
+  const [tipo, setTipo] = useState<CatalogPickerType>('all');
+  const catalogQuery = useCatalogItems(search, tipo);
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3" aria-label="Agregar desde catálogo">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-brand-blue"
+            placeholder="Buscar en catálogo: repuesto, servicio estándar o específico"
+            aria-label="Buscar en catálogo por nombre o código"
+            autoComplete="off"
+          />
+        </div>
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Filtrar por tipo de catálogo">
+          {CATALOG_TYPE_FILTERS.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => setTipo(filter.value)}
+              className={`rounded-md px-2.5 py-1.5 text-xs font-bold ${tipo === filter.value ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-100'}`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white">
+        {catalogQuery.isPending && <p className="px-3 py-3 text-sm text-slate-500">Buscando en catálogo...</p>}
+        {!catalogQuery.isPending && (catalogQuery.data?.items.length ?? 0) === 0 && (
+          <p className="px-3 py-3 text-sm text-slate-500">Sin resultados. Ajuste la búsqueda o el tipo.</p>
+        )}
+        {catalogQuery.data?.items.map((catalogItem) => {
+          const alreadyAdded = items.some((item) => item.catalogItemId === catalogItem.id);
+          return (
+            <div key={catalogItem.id} className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 last:border-0">
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-slate-800">{catalogItem.nombre}</span>
+                <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                  <span className="rounded bg-brand-light px-1.5 py-0.5 font-bold text-brand-blue">
+                    {CATALOG_TYPE_LABELS[catalogItem.tipo] ?? catalogItem.tipo}
+                  </span>
+                  {catalogItem.codigo && <span className="font-mono">{catalogItem.codigo}</span>}
+                  {catalogItem.tipo === 'parte' && <span>Stock: {catalogItem.stock}</span>}
+                  <span className="font-semibold text-brand-blue">{formatClp(catalogItem.precio)}</span>
+                </span>
+              </span>
+              <button
+                type="button"
+                disabled={alreadyAdded}
+                onClick={() => onAdd(catalogItem)}
+                className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-brand-blue px-2.5 text-xs font-bold text-brand-blue hover:bg-brand-blue hover:text-white disabled:opacity-50"
+                aria-label={alreadyAdded ? `${catalogItem.nombre} ya agregado` : `Agregar ${catalogItem.nombre}`}
+              >
+                {alreadyAdded ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+                {alreadyAdded ? 'Agregado' : 'Agregar'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -128,6 +252,20 @@ export const WorkOrderItemsEditor = ({
     onChange(items.filter((_, itemIndex) => itemIndex !== index));
   };
 
+  const handleQuickAdd = (catalogItem: CatalogItem): void => {
+    if (items.some((item) => item.catalogItemId === catalogItem.id)) {
+      return;
+    }
+    const emptyIndex = items.findIndex((item) => item.descripcion.trim() === '' && item.catalogItemId === null);
+    if (emptyIndex >= 0) {
+      onChange(items.map((item, itemIndex) => itemIndex === emptyIndex
+        ? { ...item, catalogItemId: catalogItem.id, descripcion: catalogItem.nombre, precioUnitario: String(catalogItem.precio) }
+        : item));
+      return;
+    }
+    onChange([...items, toCatalogRow(catalogItem)]);
+  };
+
   return (
     <section className="border-t border-slate-200 pt-6" aria-labelledby="work-items-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -138,6 +276,10 @@ export const WorkOrderItemsEditor = ({
         <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-blue px-4 text-sm font-semibold text-brand-blue hover:bg-brand-blue hover:text-white" onClick={() => onChange([...items, createEmptyWorkOrderItem()])}>
           <Plus className="h-4 w-4" aria-hidden="true" /> Añadir ítem
         </button>
+      </div>
+
+      <div className="mt-4">
+        <CatalogQuickAdd items={items} onAdd={handleQuickAdd} />
       </div>
 
       {items.length === 0 ? (

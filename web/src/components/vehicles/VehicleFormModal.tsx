@@ -1,7 +1,9 @@
 import { createVehicleSchema } from '@unithor/shared';
 import { AlertCircle, Check, LoaderCircle, Search, UserRound, X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
+import { AnimateIcon } from '../animate-ui';
 import { useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCreateVehicleMutation, useUpdateVehicleMutation } from '../../hooks/useVehicles';
@@ -145,7 +147,15 @@ export const VehicleFormModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar formulario de vehículo" onClick={onClose} />
-      <section className="relative max-h-full w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="vehicle-form-title">
+      <motion.section
+        initial={{ opacity: 0, scale: 0.96, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+        className="relative max-h-full w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vehicle-form-title"
+      >
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
           <div>
             <h2 id="vehicle-form-title" className="text-lg font-semibold text-brand-blue">
@@ -153,8 +163,8 @@ export const VehicleFormModal = ({
             </h2>
             <p className="mt-0.5 text-sm text-slate-500">Identificación, mecánica y propietario</p>
           </div>
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar" title="Cerrar">
-            <X className="h-5 w-5" aria-hidden="true" />
+          <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar" title="Cerrar">
+            <AnimateIcon icon={X} animation="spin" size={18} />
           </button>
         </header>
 
@@ -315,7 +325,7 @@ export const VehicleFormModal = ({
             </button>
           </footer>
         </form>
-      </section>
+      </motion.section>
     </div>
   );
 };

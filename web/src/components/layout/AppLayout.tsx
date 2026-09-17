@@ -11,31 +11,37 @@ import {
   X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import UserMenu from './UserMenu';
+import { AnimatePresence, motion } from 'motion/react';
+import { AnimateIcon } from '../animate-ui/animate-icon';
+import { PageTransition } from '../animate-ui/page';
+import ToastViewport from '../common/Toast';
 import { hasUserPermission } from '../../lib/permissions';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { PermissionDefinition } from '@unithor/shared';
 import type { LucideIcon } from 'lucide-react';
+import type { AnimateIconVariant } from '../animate-ui/animate-icon';
 
 interface NavigationItem {
   label: string;
   path: string;
   icon: LucideIcon;
+  variant: AnimateIconVariant;
   permissions: PermissionDefinition[];
 }
 
 const navigationItems: NavigationItem[] = [
-  { label: 'Dashboard', path: '/dashboard', icon: Gauge, permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
-  { label: 'Taller / OT', path: '/work-orders', icon: ClipboardList, permissions: [{ modulo: 'taller', accion: 'read' }] },
-  { label: 'Comercial / Cotizaciones', path: '/quotations', icon: ReceiptText, permissions: [{ modulo: 'comercial', accion: 'read' }] },
-  { label: 'Clientes', path: '/clients', icon: Users, permissions: [{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }] },
-  { label: 'Vehículos', path: '/vehicles', icon: Car, permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
-  { label: 'Catálogo', path: '/catalog', icon: BookOpen, permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
-  { label: 'Usuarios', path: '/users', icon: UserCog, permissions: [{ modulo: 'admin', accion: 'read' }] },
+  { label: 'Dashboard', path: '/dashboard', icon: Gauge, variant: 'pulse', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
+  { label: 'Taller / OT', path: '/work-orders', icon: ClipboardList, variant: 'bounce', permissions: [{ modulo: 'taller', accion: 'read' }] },
+  { label: 'Comercial / Cotizaciones', path: '/quotations', icon: ReceiptText, variant: 'slide-right', permissions: [{ modulo: 'comercial', accion: 'read' }] },
+  { label: 'Clientes', path: '/clients', icon: Users, variant: 'hover-lift', permissions: [{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }] },
+  { label: 'Vehículos', path: '/vehicles', icon: Car, variant: 'slide-right', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
+  { label: 'Catálogo', path: '/catalog', icon: BookOpen, variant: 'wiggle', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
+  { label: 'Usuarios', path: '/users', icon: UserCog, variant: 'spin', permissions: [{ modulo: 'admin', accion: 'read' }] },
 ];
 
 interface SidebarContentProps {
@@ -48,11 +54,13 @@ const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
   return (
     <>
       <div className="flex h-20 items-center gap-3 border-b border-white/10 px-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-yellow text-brand-dark">
-          <Wrench className="h-5 w-5" aria-hidden="true" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-yellow text-brand-dark shadow-sm">
+          <AnimateIcon variant="spin" animateOnHover>
+            <Wrench className="h-5 w-5" aria-hidden="true" />
+          </AnimateIcon>
         </div>
         <div>
-          <p className="text-xl font-bold text-white">UNITHOR</p>
+          <p className="text-xl font-bold text-white tracking-wide">UNITHOR</p>
           <p className="text-xs text-white/60">Gestión de taller</p>
         </div>
       </div>
@@ -71,12 +79,14 @@ const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
                 onClick={onNavigate}
                 className={({ isActive }) =>
                   cn(
-                    'flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white',
-                    isActive && 'bg-brand-yellow text-brand-dark hover:bg-brand-yellow hover:text-brand-dark',
+                    'group flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/75 transition-all hover:bg-white/10 hover:text-white',
+                    isActive && 'bg-brand-yellow text-brand-dark font-semibold shadow-sm hover:bg-brand-yellow hover:text-brand-dark',
                   )
                 }
               >
-                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <AnimateIcon variant={item.variant} animateOnHover>
+                  <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                </AnimateIcon>
                 <span>{item.label}</span>
               </NavLink>
             );
@@ -93,6 +103,7 @@ const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
 export const AppLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
+  const { pathname } = useLocation();
 
   if (!user) {
     return null;
@@ -104,28 +115,41 @@ export const AppLayout = () => {
         <SidebarContent />
       </aside>
 
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-slate-950/45"
-            aria-label="Cerrar menú"
-            onClick={() => setSidebarOpen(false)}
-          />
-          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-brand-blue shadow-xl">
-            <button
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <motion.button
               type="button"
-              className="absolute right-3 top-5 flex h-9 w-9 items-center justify-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white"
-              aria-label="Cerrar navegación"
-              title="Cerrar navegación"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/45"
+              aria-label="Cerrar menú"
               onClick={() => setSidebarOpen(false)}
+            />
+            <motion.aside
+              initial={{ x: -288 }}
+              animate={{ x: 0 }}
+              exit={{ x: -288 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              className="relative flex h-full w-72 max-w-[85vw] flex-col bg-brand-blue shadow-xl"
             >
-              <X className="h-5 w-5" aria-hidden="true" />
-            </button>
-            <SidebarContent onNavigate={() => setSidebarOpen(false)} />
-          </aside>
-        </div>
-      )}
+              <button
+                type="button"
+                className="absolute right-3 top-5 flex h-9 w-9 items-center justify-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white"
+                aria-label="Cerrar navegación"
+                title="Cerrar navegación"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <AnimateIcon variant="spin" animateOnHover>
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </AnimateIcon>
+              </button>
+              <SidebarContent onNavigate={() => setSidebarOpen(false)} />
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
 
       <div className="lg:pl-64">
         <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-8">
@@ -149,9 +173,12 @@ export const AppLayout = () => {
         </header>
 
         <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <Outlet />
+          <PageTransition routeKey={pathname}>
+            <Outlet />
+          </PageTransition>
         </main>
       </div>
+      <ToastViewport />
     </div>
   );
 };

@@ -1,5 +1,8 @@
 import { AlertTriangle, LoaderCircle, X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useState } from 'react';
+
+import { AnimateIcon } from '../animate-ui';
 
 interface CancelStatusModalProps {
   codigo: string;
@@ -33,12 +36,20 @@ export const CancelStatusModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar cancelación" onClick={onClose} />
-      <section className="relative w-full max-w-lg rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="cancel-work-order-title">
-        <button type="button" className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar">
-          <X className="h-4 w-4" aria-hidden="true" />
+      <motion.section
+        initial={{ opacity: 0, scale: 0.96, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+        className="relative w-full max-w-lg rounded-lg bg-white p-6 shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cancel-work-order-title"
+      >
+        <button type="button" className="group absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar">
+          <AnimateIcon icon={X} animation="spin" size={16} />
         </button>
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-700">
-          <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+          <AnimateIcon icon={AlertTriangle} animation="bounce" size={20} />
         </div>
         <h2 id="cancel-work-order-title" className="mt-4 text-xl font-bold text-brand-blue">Cancelar {codigo}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">Esta orden quedará en un estado terminal. El motivo se incorporará al registro operativo.</p>
@@ -61,7 +72,7 @@ export const CancelStatusModal = ({
             Confirmar cancelación
           </button>
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 };

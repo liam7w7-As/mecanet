@@ -35,8 +35,12 @@ import {
   useCreateWorkOrderMutation,
   useUploadWorkOrderInspectionPhotosMutation,
 } from '../../hooks/useWorkOrders';
+import { motion } from 'motion/react';
+import { AnimateIcon } from '../../components/animate-ui';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { INSPECTION_PHOTO_ACCEPT, MAX_INSPECTION_PHOTO_MB, validateInspectionFile } from '../../lib/inspection-photos';
+import { notifyError, notifySuccess } from '../../stores/toast.store';
 
 import type { EditableWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
 import type {
@@ -317,6 +321,7 @@ export const WorkOrderCreatePage = () => {
   const [photos, setPhotos] = useState<InspectionPhotoDraft[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const isSubmitting = createMutation.isPending || uploadPhotosMutation.isPending;
   const vehicleOwnerMismatch = Boolean(
@@ -376,6 +381,13 @@ export const WorkOrderCreatePage = () => {
   };
 
   const setInspectionPhoto = (slot: WorkOrderInspectionPhotoSlot, file: File | null): void => {
+    if (file) {
+      const validationError = validateInspectionFile(file);
+      if (validationError) {
+        notifyError(`${photoSlotLabels[slot]}: ${validationError}`);
+        return;
+      }
+    }
     setPhotos((current) => {
       const previous = current.find((photo) => photo.slot === slot);
       if (previous) {
@@ -422,25 +434,21 @@ export const WorkOrderCreatePage = () => {
   };
 
   const goNext = (): void => {
-    if (activeStep < 4 && validateStep(activeStep)) {
-      setActiveStep((activeStep + 1) as StepIndex);
+    // Avance explícito 3 Inspección -> 4 Servicios. validateStep(3) siempre
+    // permite avanzar (la inspección es opcional), se usa update funcional
+    // para evitar cierre stale.
+    if (activeStep >= 4 || !validateStep(activeStep)) {
+      return;
     }
+    setActiveStep((previous) => (previous < 4 ? ((previous + 1) as StepIndex) : previous));
   };
 
-  const submit = (event: React.FormEvent<HTMLFormElement>): void => {
-    event.preventDefault();
-    if (createdOrderId) {
-      navigate(`/work-orders/${createdOrderId}`);
-      return;
-    }
-    if (!validateStep(activeStep) || !client || !contactClient || !billingClient || !vehicle) {
-      return;
+  const buildPayload = (): ReturnType<typeof createWorkOrderSchema.safeParse> => {
+    if (!client || !contactClient || !billingClient || !vehicle) {
+      return createWorkOrderSchema.safeParse({});
     }
 
-    createMutation.reset();
-    uploadPhotosMutation.reset();
-
-    const result = createWorkOrderSchema.safeParse({
+    return createWorkOrderSchema.safeParse({
       clientId: client.id,
       contactClientId: contactClient.id,
       billingClientId: billingClient.id,
@@ -470,24 +478,63 @@ export const WorkOrderCreatePage = () => {
           notasOperativas: item.notasOperativas,
         })),
     });
+  };
 
+  const handleOpenConfirm = (): void => {
+    if (createdOrderId) {
+      navigate(`/work-orders/${createdOrderId}`);
+      return;
+    }
+    // Validar pasos base antes de mostrar el resumen
+    if (!validateStep(0) || !validateStep(1) || !validateStep(2)) {
+      if (!client) setActiveStep(0);
+      else if (!contactClient || !billingClient) setActiveStep(1);
+      else if (!vehicle || vehicleOwnerMismatch) setActiveStep(2);
+      return;
+    }
+    const result = buildPayload();
     if (!result.success) {
       setErrors(getFieldErrors(result.error.issues));
       return;
     }
+    setErrors({});
+    setShowConfirm(true);
+  };
+
+  const handleConfirmCreate = (): void => {
+    const result = buildPayload();
+    if (!result.success) {
+      setErrors(getFieldErrors(result.error.issues));
+      setShowConfirm(false);
+      return;
+    }
 
     setErrors({});
+    createMutation.reset();
+    uploadPhotosMutation.reset();
     void (async () => {
-      const workOrder = await createMutation.mutateAsync(result.data);
-      setCreatedOrderId(workOrder.id);
-      if (photos.length > 0) {
-        await uploadPhotosMutation.mutateAsync({
-          id: workOrder.id,
-          photos: photos.map((photo) => ({ slot: photo.slot, file: photo.file })),
-        });
+      try {
+        const workOrder = await createMutation.mutateAsync(result.data);
+        setCreatedOrderId(workOrder.id);
+        if (photos.length > 0) {
+          await uploadPhotosMutation.mutateAsync({
+            id: workOrder.id,
+            photos: photos.map((photo) => ({ slot: photo.slot, file: photo.file })),
+          });
+        }
+        notifySuccess(`Orden ${workOrder.codigo} creada.`);
+        setShowConfirm(false);
+        navigate(`/work-orders/${workOrder.id}`);
+      } catch (error) {
+        notifyError(getApiErrorMessage(error, 'No fue posible crear la orden.'));
       }
-      navigate(`/work-orders/${workOrder.id}`);
-    })().catch(() => undefined);
+    })();
+  };
+
+  const submit = (event: React.FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    // El alta definitiva pasa por el modal de confirmación con resumen
+    handleOpenConfirm();
   };
 
   return (
@@ -496,58 +543,141 @@ export const WorkOrderCreatePage = () => {
         <div className="flex items-start gap-3">
           <Link
             to="/work-orders"
-            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:bg-slate-50"
             aria-label="Volver a órdenes"
             title="Volver"
           >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <AnimateIcon variant="slide-left" animateOnHover>
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            </AnimateIcon>
           </Link>
           <div>
             <p className="text-sm font-medium text-slate-500">Recepción de taller</p>
             <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Nueva Orden de Trabajo</h1>
           </div>
         </div>
-        <div className="rounded-lg border border-brand-yellow/60 bg-brand-yellow/10 px-4 py-3 text-sm text-brand-blue">
+        <div className="rounded-lg border border-brand-yellow/60 bg-brand-yellow/10 px-4 py-3 text-sm text-brand-blue shadow-sm">
           Flujo operativo: cliente, facturación, vehículo, inspección y servicios.
         </div>
       </header>
 
-      <form onSubmit={submit} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <nav className="border-b border-slate-200 bg-slate-50 px-4 py-4 sm:px-6" aria-label="Pasos de orden de trabajo">
-          <ol className="grid gap-3 md:grid-cols-5">
-            {steps.map((step) => {
-              const active = step.id === activeStep;
-              const complete = step.id < activeStep;
-              return (
-                <li key={step.id}>
+      <form onSubmit={submit} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        {/* Stepper Línea de Tiempo Continua (Estilo Unithor 1.0) */}
+        <nav className="border-b border-slate-200 bg-slate-50/80 px-4 py-6 sm:px-8" aria-label="Línea de tiempo de orden de trabajo">
+          {/* Vista Desktop / Tablet: Línea continua y nodos */}
+          <div className="relative hidden md:block">
+            {/* Barra base conectora */}
+            <div className="absolute left-[10%] right-[10%] top-[18px] h-1 -translate-y-1/2 rounded-full bg-slate-200">
+              {/* Barra de progreso azul Unithor */}
+              <div
+                className="h-full rounded-full bg-brand-blue transition-all duration-500 ease-out"
+                style={{
+                  width: activeStep === 0 ? '0%' : activeStep === 1 ? '25%' : activeStep === 2 ? '50%' : activeStep === 3 ? '75%' : '100%',
+                }}
+              />
+            </div>
+
+            {/* Nodos de la línea de tiempo */}
+            <ol className="relative z-10 flex justify-between">
+              {steps.map((step) => {
+                const active = step.id === activeStep;
+                const complete = step.id < activeStep;
+
+                return (
+                  <li key={step.id} className="flex flex-col items-center">
+                    <button
+                      type="button"
+                      onClick={() => goToStep(step.id)}
+                      className="group flex flex-col items-center text-center transition-all focus:outline-none"
+                      title={`${step.shortTitle}: ${step.description}`}
+                    >
+                      {/* Círculo del nodo */}
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-black transition-all duration-300 ${
+                          active
+                            ? 'scale-110 bg-brand-yellow text-brand-dark ring-4 ring-brand-yellow/30 shadow-md'
+                            : complete
+                              ? 'bg-brand-blue text-white shadow-sm ring-2 ring-brand-blue/30 group-hover:scale-105'
+                              : 'border-2 border-slate-300 bg-white text-slate-400 group-hover:border-slate-400 group-hover:text-slate-600'
+                        }`}
+                      >
+                        {complete ? (
+                          <AnimateIcon variant="bounce" animateOnHover={false} loop={false}>
+                            <Check className="h-4 w-4 stroke-[3]" aria-hidden="true" />
+                          </AnimateIcon>
+                        ) : (
+                          `${step.id + 1}.`
+                        )}
+                      </span>
+
+                      {/* Etiquetas del nodo */}
+                      <span className="mt-2.5 flex flex-col items-center">
+                        <span
+                          className={`text-xs uppercase tracking-wide transition-colors ${
+                            active
+                              ? 'font-black text-brand-blue'
+                              : complete
+                                ? 'font-bold text-slate-800 group-hover:text-brand-blue'
+                                : 'font-semibold text-slate-400'
+                          }`}
+                        >
+                          {step.shortTitle}
+                        </span>
+                        <span className="mt-0.5 hidden max-w-[130px] truncate text-[11px] text-slate-500 lg:block">
+                          {step.description}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
+          {/* Vista Móvil: Selector compacto con indicador de avance */}
+          <div className="space-y-3 md:hidden">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+              <span className="text-brand-blue">PASO {activeStep + 1} DE 5</span>
+              <span>{steps[activeStep].title}</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-brand-blue transition-all duration-300"
+                style={{ width: `${((activeStep + 1) / 5) * 100}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-5 gap-1.5 pt-1">
+              {steps.map((step) => {
+                const active = step.id === activeStep;
+                const complete = step.id < activeStep;
+                return (
                   <button
+                    key={step.id}
                     type="button"
-                    className={`flex w-full items-center gap-3 rounded-lg border px-3 py-3 text-left transition ${
-                      active
-                        ? 'border-brand-blue bg-white shadow-sm'
-                        : complete
-                          ? 'border-emerald-200 bg-emerald-50'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
                     onClick={() => goToStep(step.id)}
+                    className={`flex h-9 items-center justify-center rounded-lg text-xs font-bold transition ${
+                      active
+                        ? 'bg-brand-yellow text-brand-dark shadow-sm'
+                        : complete
+                          ? 'bg-brand-blue text-white'
+                          : 'border border-slate-200 bg-white text-slate-400'
+                    }`}
                   >
-                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                      active || complete ? 'bg-brand-yellow text-brand-dark' : 'bg-slate-200 text-slate-600'
-                    }`}>
-                      {complete ? <Check className="h-4 w-4" aria-hidden="true" /> : step.id + 1}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-bold text-brand-blue">{step.shortTitle}</span>
-                      <span className="block truncate text-xs text-slate-500">{step.description}</span>
-                    </span>
+                    {complete ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : step.id + 1}
                   </button>
-                </li>
-              );
-            })}
-          </ol>
+                );
+              })}
+            </div>
+          </div>
         </nav>
 
-        <div className="min-h-[560px] p-5 sm:p-6">
+        <motion.div
+          key={activeStep}
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          className="min-h-[560px] p-5 sm:p-6"
+        >
           {activeStep === 0 && (
             <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
               <SelectedClientCard title="Cliente seleccionado" client={client} onClear={() => setClient(null)} />
@@ -675,6 +805,44 @@ export const WorkOrderCreatePage = () => {
 
           {activeStep === 3 && (
             <div className="space-y-6">
+              {/* Fechas y motivo de ingreso */}
+              <section className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+                <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-brand-blue">Datos de la orden</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="text-sm font-semibold text-slate-700">
+                    Fecha de ingreso
+                    <input
+                      type="datetime-local"
+                      value={fechaIngreso}
+                      onChange={(event) => setFechaIngreso(event.target.value)}
+                      className={inputClassName}
+                      aria-invalid={Boolean(errors.fechaIngreso)}
+                    />
+                    {errors.fechaIngreso && <span className="mt-1 block text-xs font-normal text-red-700">{errors.fechaIngreso}</span>}
+                  </label>
+                  <label className="text-sm font-semibold text-slate-700">
+                    Entrega prometida
+                    <input
+                      type="datetime-local"
+                      value={fechaEntrega}
+                      onChange={(event) => setFechaEntrega(event.target.value)}
+                      className={inputClassName}
+                    />
+                  </label>
+                </div>
+                <label className="mt-3 block text-sm font-semibold text-slate-700">
+                  Motivo de ingreso / diagnóstico preliminar
+                  <textarea
+                    value={descripcion}
+                    onChange={(event) => setDescripcion(event.target.value)}
+                    rows={3}
+                    className="mt-2 w-full resize-y rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                    placeholder="Describa la falla reportada por el cliente"
+                  />
+                </label>
+              </section>
+
+              {/* Inspección de recepción */}
               <section className="grid gap-4 lg:grid-cols-2">
                 <label className="text-sm font-semibold text-slate-700">
                   Kilometraje de entrada
@@ -757,17 +925,42 @@ export const WorkOrderCreatePage = () => {
                         {photo ? (
                           <img src={photo.previewUrl} alt={photoSlotLabels[slot]} className="h-36 w-full object-cover" />
                         ) : (
-                          <label className="flex h-36 cursor-pointer flex-col items-center justify-center gap-2 bg-slate-50 text-sm font-semibold text-slate-500 hover:bg-brand-light hover:text-brand-blue">
-                            <ImagePlus className="h-7 w-7" aria-hidden="true" />
-                            Subir foto
-                            <input
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp"
-                              className="sr-only"
-                              onChange={(event) => setInspectionPhoto(slot, event.target.files?.[0] ?? null)}
-                              aria-label={`Subir foto ${photoSlotLabels[slot]}`}
-                            />
-                          </label>
+                          <div className="flex h-36 flex-col items-center justify-center gap-1.5 bg-slate-50 px-3 text-center">
+                            <ImagePlus className="h-7 w-7 text-slate-400" aria-hidden="true" />
+                            <span className="text-sm font-semibold text-slate-500">Subir foto</span>
+                            <span className="text-[11px] font-normal text-slate-400">
+                              JPG, PNG o WebP · máx {MAX_INSPECTION_PHOTO_MB} MB
+                            </span>
+                            <span className="flex gap-2">
+                              <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-brand-blue bg-white px-3 text-xs font-bold text-brand-blue hover:bg-brand-light">
+                                Elegir archivo
+                                <input
+                                  type="file"
+                                  accept={INSPECTION_PHOTO_ACCEPT}
+                                  className="sr-only"
+                                  onChange={(event) => {
+                                    setInspectionPhoto(slot, event.target.files?.[0] ?? null);
+                                    event.target.value = '';
+                                  }}
+                                  aria-label={`Subir foto ${photoSlotLabels[slot]}`}
+                                />
+                              </label>
+                              <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-brand-blue px-3 text-xs font-bold text-white hover:bg-brand-dark">
+                                Cámara
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="sr-only"
+                                  onChange={(event) => {
+                                    setInspectionPhoto(slot, event.target.files?.[0] ?? null);
+                                    event.target.value = '';
+                                  }}
+                                  aria-label={`Usar cámara ${photoSlotLabels[slot]}`}
+                                />
+                              </label>
+                            </span>
+                          </div>
                         )}
                       </div>
                     );
@@ -818,43 +1011,16 @@ export const WorkOrderCreatePage = () => {
           )}
 
           {activeStep === 4 && (
-            <div className="space-y-6">
-              <section className="grid gap-4 md:grid-cols-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  Fecha de ingreso
-                  <input
-                    type="datetime-local"
-                    value={fechaIngreso}
-                    onChange={(event) => setFechaIngreso(event.target.value)}
-                    className={inputClassName}
-                    aria-invalid={Boolean(errors.fechaIngreso)}
-                  />
-                  {errors.fechaIngreso && <span className="mt-1 block text-xs font-normal text-red-700">{errors.fechaIngreso}</span>}
-                </label>
-                <label className="text-sm font-semibold text-slate-700">
-                  Entrega prometida
-                  <input
-                    type="datetime-local"
-                    value={fechaEntrega}
-                    onChange={(event) => setFechaEntrega(event.target.value)}
-                    className={inputClassName}
-                  />
-                </label>
-              </section>
-              <label className="block text-sm font-semibold text-slate-700">
-                Motivo de ingreso / diagnóstico preliminar
-                <textarea
-                  value={descripcion}
-                  onChange={(event) => setDescripcion(event.target.value)}
-                  rows={4}
-                  className="mt-2 w-full resize-y rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
-                  placeholder="Describa la falla reportada por el cliente"
-                />
-              </label>
+            <div className="space-y-4">
+              <div className="rounded-lg border border-brand-blue/20 bg-brand-light/40 px-4 py-3">
+                <p className="text-sm font-semibold text-brand-blue">
+                  Agregue los trabajos a realizar y repuestos necesarios. Puede dejar esta sección vacía si el diagnóstico está pendiente.
+                </p>
+              </div>
               <WorkOrderItemsEditor items={items} onChange={setItems} errors={errors} />
             </div>
           )}
-        </div>
+        </motion.div>
 
         {createMutation.isError && (
           <div className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
@@ -877,29 +1043,42 @@ export const WorkOrderCreatePage = () => {
             {activeStep > 0 && (
               <button
                 type="button"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
                 onClick={() => setActiveStep((activeStep - 1) as StepIndex)}
                 disabled={isSubmitting}
               >
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Anterior
+                <AnimateIcon variant="slide-left" animateOnHover>
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                </AnimateIcon>
+                Anterior
               </button>
             )}
             {activeStep < 4 ? (
               <button
                 type="button"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-5 text-sm font-semibold text-white hover:bg-brand-dark"
+                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-dark hover:shadow"
                 onClick={goNext}
               >
-                Siguiente <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                Siguiente
+                <AnimateIcon variant="slide-right" animateOnHover>
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </AnimateIcon>
               </button>
             ) : (
               <button
-                type="submit"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-5 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+                type="button"
+                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow disabled:opacity-60"
                 disabled={isSubmitting}
+                onClick={handleOpenConfirm}
               >
-                {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
-                {createdOrderId ? 'Ir al detalle' : uploadPhotosMutation.isPending ? 'Subiendo fotos...' : 'Crear orden'}
+                {isSubmitting ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <AnimateIcon variant="bounce" animateOnHover>
+                    <Save className="h-4 w-4" aria-hidden="true" />
+                  </AnimateIcon>
+                )}
+                {createdOrderId ? 'Ir al detalle' : 'Revisar y crear orden'}
               </button>
             )}
           </div>
@@ -922,6 +1101,109 @@ export const WorkOrderCreatePage = () => {
             setVehicleModalOpen(false);
           }}
         />
+      )}
+
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/55"
+            aria-label="Cerrar confirmación"
+            onClick={() => setShowConfirm(false)}
+            disabled={isSubmitting}
+          />
+          <motion.section
+            initial={{ opacity: 0, scale: 0.96, y: 14 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+            className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-ot-title"
+          >
+            <h2 id="confirm-ot-title" className="text-xl font-bold text-brand-blue">
+              Confirmar recepción de OT
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Pequeño resumen de lo que se recepciona antes de crear la orden.
+            </p>
+
+            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 p-3">
+                <p className="text-xs font-bold uppercase text-slate-500">Cliente / Contacto</p>
+                <p className="mt-1 font-semibold text-slate-900">{client?.nombre ?? 'Sin cliente'}</p>
+                <p className="text-xs text-slate-500">{contactClient?.nombre ?? client?.nombre ?? '-'}</p>
+                <p className="mt-1 text-xs text-slate-500">Facturación: {billingClient?.nombre ?? '-'}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3">
+                <p className="text-xs font-bold uppercase text-slate-500">Vehículo</p>
+                <p className="mt-1 font-mono font-bold text-brand-blue">{vehicle?.patente ?? 'Sin vehículo'}</p>
+                <p className="text-xs text-slate-500">
+                  {[vehicle?.marca, vehicle?.modelo, vehicle?.ano].filter(Boolean).join(' ') || 'Sin datos'}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Km: {kilometrajeIngreso === '' ? 'No registrado' : Number(kilometrajeIngreso).toLocaleString('es-CL')} ·
+                  Combustible: {inspection.nivelCombustible ? fuelLabels[inspection.nivelCombustible] : 'Sin registrar'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3">
+                <p className="text-xs font-bold uppercase text-slate-500">Inspección</p>
+                <p className="mt-1 text-xs text-slate-700">
+                  Inventario: {inspection.inventario.length > 0 ? inspection.inventario.map((key) => inventoryLabels[key]).join(', ') : 'Sin elementos marcados'}
+                </p>
+                <p className="mt-1 text-xs text-slate-700">
+                  Fotos: {photos.length > 0 ? photos.map((photo) => photoSlotLabels[photo.slot]).join(', ') : 'Sin fotos'}
+                </p>
+                <p className="mt-1 text-xs text-slate-700">
+                  Objetos: {inspection.objetosValor.trim() === '' ? 'Ninguno' : inspection.objetosValor}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3">
+                <p className="text-xs font-bold uppercase text-slate-500">Servicios</p>
+                {items.filter((item) => item.descripcion.trim().length > 0).length === 0 ? (
+                  <p className="mt-1 text-xs text-slate-500">Diagnóstico inicial, sin trabajos cargados.</p>
+                ) : (
+                  <ul className="mt-1 space-y-1 text-xs text-slate-700">
+                    {items
+                      .filter((item) => item.descripcion.trim().length > 0)
+                      .map((item, index) => (
+                        <li key={index} className="flex justify-between gap-2">
+                          <span className="truncate">{item.descripcion} × {item.cantidad}</span>
+                          <span className="font-semibold">${(Number(item.cantidad) * Number(item.precioUnitario)).toLocaleString('es-CL')}</span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+                <p className="mt-1 text-xs text-slate-500">Motivo: {descripcion.trim() === '' ? 'Sin observaciones' : descripcion}</p>
+              </div>
+            </div>
+
+            {createMutation.isError && (
+              <p className="mt-3 text-sm text-red-700" role="alert">
+                {getApiErrorMessage(createMutation.error, 'No fue posible crear la orden.')}
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700"
+                onClick={() => setShowConfirm(false)}
+                disabled={isSubmitting}
+              >
+                Volver a editar
+              </button>
+              <button
+                type="button"
+                className="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+                onClick={handleConfirmCreate}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Creando orden...' : 'Confirmar y crear orden'}
+              </button>
+            </div>
+          </motion.section>
+        </div>
       )}
     </div>
   );

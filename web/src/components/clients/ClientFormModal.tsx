@@ -1,7 +1,9 @@
 import { createClientSchema } from '@unithor/shared';
 import { AlertCircle, Building2, LoaderCircle, UserRound, X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
+import { AnimateIcon } from '../animate-ui';
 import { useCreateClientMutation, useUpdateClientMutation } from '../../hooks/useClients';
 import { getApiErrorMessage, isApiConflict } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
@@ -111,7 +113,10 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
         aria-label="Cerrar formulario de cliente"
         onClick={onClose}
       />
-      <section
+      <motion.section
+        initial={{ opacity: 0, scale: 0.96, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         className="relative max-h-full w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-2xl"
         role="dialog"
         aria-modal="true"
@@ -126,12 +131,12 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
           </div>
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-brand-blue"
+            className="group flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-brand-blue"
             onClick={onClose}
             aria-label="Cerrar"
             title="Cerrar"
           >
-            <X className="h-5 w-5" aria-hidden="true" />
+            <AnimateIcon icon={X} animation="spin" size={18} />
           </button>
         </header>
 
@@ -149,7 +154,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
                   <button
                     key={option.value}
                     type="button"
-                    className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
+                    className={`group flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
                       selected
                         ? 'border-brand-blue bg-brand-blue text-white'
                         : 'border-slate-300 bg-white text-slate-600 hover:border-brand-blue/40'
@@ -157,7 +162,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
                     onClick={() => setValue('tipo', option.value)}
                     aria-pressed={selected}
                   >
-                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    <AnimateIcon icon={Icon} animation="hover-lift" size={16} />
                     {option.label}
                   </button>
                 );
@@ -290,7 +295,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
             </button>
           </footer>
         </form>
-      </section>
+      </motion.section>
     </div>
   );
 };

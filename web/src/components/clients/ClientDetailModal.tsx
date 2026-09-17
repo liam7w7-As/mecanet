@@ -1,7 +1,9 @@
 import { AlertCircle, Car, LoaderCircle, Mail, MapPin, Pencil, Phone, Trash2, X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { AnimateIcon } from '../animate-ui';
 import { useClient, useDeleteClientMutation } from '../../hooks/useClients';
 import { getApiErrorMessage } from '../../lib/api-error';
 
@@ -33,7 +35,10 @@ export const ClientDetailModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar detalle" onClick={onClose} />
-      <section
+      <motion.section
+        initial={{ opacity: 0, scale: 0.96, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         className="relative max-h-full w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-2xl"
         role="dialog"
         aria-modal="true"
@@ -46,8 +51,8 @@ export const ClientDetailModal = ({
               {clientQuery.data?.nombre ?? 'Cargando cliente...'}
             </h2>
           </div>
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar" title="Cerrar">
-            <X className="h-5 w-5" aria-hidden="true" />
+          <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar" title="Cerrar">
+            <AnimateIcon icon={X} animation="spin" size={18} />
           </button>
         </header>
 
@@ -139,15 +144,23 @@ export const ClientDetailModal = ({
 
             <footer className="flex flex-col gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:justify-between">
               {canDelete ? (
-                <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-red-200 px-4 text-sm font-semibold text-red-700 hover:bg-red-50" onClick={() => setConfirmingDelete(true)}>
-                    <Trash2 className="h-4 w-4" aria-hidden="true" /> Eliminar cliente
-                  </button>
+                <button
+                  type="button"
+                  className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-red-200 px-4 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50"
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  <AnimateIcon icon={Trash2} animation="bounce" size={16} /> Eliminar cliente
+                </button>
               ) : <span />}
               <div className="flex flex-col-reverse gap-2 sm:flex-row">
-                <button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={onClose}>Cerrar</button>
+                <button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors" onClick={onClose}>Cerrar</button>
                 {canEdit && (
-                  <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white hover:bg-brand-dark" onClick={() => onEdit(clientQuery.data!)}>
-                    <Pencil className="h-4 w-4" aria-hidden="true" /> Editar
+                  <button
+                    type="button"
+                    className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white transition-all hover:bg-brand-dark active:scale-95"
+                    onClick={() => onEdit(clientQuery.data!)}
+                  >
+                    <AnimateIcon icon={Pencil} animation="wiggle" size={16} /> Editar
                   </button>
                 )}
               </div>
@@ -167,7 +180,7 @@ export const ClientDetailModal = ({
             )}
           </div>
         )}
-      </section>
+      </motion.section>
     </div>
   );
 };

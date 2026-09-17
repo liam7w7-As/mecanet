@@ -1,11 +1,14 @@
 import { PAYMENT_METHODS, createPaymentSchema } from '@unithor/shared';
 import { AlertCircle, Banknote, LoaderCircle, X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useState } from 'react';
 
+import { AnimateIcon } from '../animate-ui';
 import { useCreatePaymentMutation } from '../../hooks/usePayments';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp } from '../../lib/formatters';
+import { notifyError, notifySuccess } from '../../stores/toast.store';
 
 import type { PaymentMethod } from '@unithor/shared';
 
@@ -60,15 +63,33 @@ export const PaymentFormModal = ({ quotationId, codigo, saldoPendiente, onClose 
     }
 
     setErrors({});
-    createMutation.mutate(result.data, { onSuccess: onClose });
+    createMutation.mutate(result.data, {
+      onSuccess: () => {
+        notifySuccess(`Abono de ${formatClp(numericAmount)} registrado.`);
+        onClose();
+      },
+      onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo registrar el abono.')),
+    });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar registro de abono" onClick={onClose} />
-      <section className="relative w-full max-w-lg rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
-        <button type="button" className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar"><X className="h-4 w-4" aria-hidden="true" /></button>
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-yellow text-brand-dark"><Banknote className="h-5 w-5" aria-hidden="true" /></div>
+      <motion.section
+        initial={{ opacity: 0, scale: 0.96, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+        className="relative w-full max-w-lg rounded-lg bg-white p-6 shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="payment-modal-title"
+      >
+        <button type="button" className="group absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar">
+          <AnimateIcon icon={X} animation="spin" size={16} />
+        </button>
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-yellow text-brand-dark">
+          <AnimateIcon icon={Banknote} animation="bounce" size={20} />
+        </div>
         <h2 id="payment-modal-title" className="mt-4 text-xl font-bold text-brand-blue">Registrar abono</h2>
         <p className="mt-1 text-sm text-slate-500">{codigo}</p>
         <div className="mt-4 border-l-4 border-brand-yellow bg-brand-light px-4 py-3"><p className="text-xs font-semibold uppercase text-slate-500">Saldo máximo permitido</p><p className="mt-1 text-xl font-bold text-brand-blue">{formatClp(saldoPendiente)}</p></div>
@@ -80,7 +101,7 @@ export const PaymentFormModal = ({ quotationId, codigo, saldoPendiente, onClose 
           {createMutation.isError && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(createMutation.error)}</div>}
           <div className="flex justify-end gap-2 pt-2"><button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700" onClick={onClose}>Cancelar</button><button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={createMutation.isPending}>{createMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}Registrar abono</button></div>
         </form>
-      </section>
+      </motion.section>
     </div>
   );
 };

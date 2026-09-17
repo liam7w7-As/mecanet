@@ -253,29 +253,26 @@ describe('WorkOrdersPage', () => {
     expect(screen.queryByRole('button', { name: 'En progreso' })).not.toBeInTheDocument();
   });
 
-  it('solicita y procesa el PDF de la orden', async () => {
-    const pdfBlob = new Blob(['%PDF-1.7'], { type: 'application/pdf' });
-    const createObjectUrl = vi.fn(() => 'blob:work-order-pdf');
-    const revokeObjectUrl = vi.fn();
-    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
-    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectUrl });
+  it('abre la vista previa PDF con el mismo diseño al pulsar descargar en la lista', async () => {
     vi.mocked(api.get).mockImplementation((url) => {
-      if (url === `/work-orders/${workOrder.id}/pdf`) {
-        return Promise.resolve({ data: pdfBlob } as AxiosResponse<Blob>);
+      if (url === `/work-orders/${workOrder.id}`) {
+        return Promise.resolve({ data: { workOrder } } as AxiosResponse<{ workOrder: WorkOrder }>);
       }
       return Promise.resolve({ data: listResponse } as AxiosResponse<PaginatedResponse<WorkOrder>>);
     });
     createWrapper(<WorkOrdersPage />);
 
     await screen.findByText('OT-2026-0012');
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar PDF de OT-2026-0012' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vista previa PDF de OT-2026-0012' }));
 
     await waitFor(() => {
-      expect(api.get).toHaveBeenCalledWith('/work-orders/12/pdf', { responseType: 'blob' });
-      expect(createObjectUrl).toHaveBeenCalledWith(pdfBlob);
-      expect(anchorClick).toHaveBeenCalled();
+      expect(api.get).toHaveBeenCalledWith('/work-orders/12');
     });
+
+    // Mismo diseño de la vista previa (anverso OT con inspección)
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getAllByText('OT-2026-0012').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/INSPECCIÓN DE INGRESO/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it('muestra recepción, facturación e inspección y permite reemplazar o eliminar fotos', async () => {
@@ -312,7 +309,11 @@ describe('WorkOrdersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar foto Frontal' }));
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/work-orders/12/inspection/photos/trasera', expect.any(FormData));
+      expect(api.post).toHaveBeenCalledWith(
+        '/work-orders/12/inspection/photos/trasera',
+        expect.any(FormData),
+        expect.objectContaining({ onUploadProgress: expect.any(Function) }),
+      );
       expect(api.delete).toHaveBeenCalledWith('/work-orders/12/inspection/photos/frontal');
     });
   });
@@ -451,7 +452,10 @@ describe('WorkOrdersPage', () => {
     const photo = new File(['photo'], 'frontal.png', { type: 'image/png' });
     fireEvent.change(screen.getByLabelText('Subir foto Frontal'), { target: { files: [photo] } });
     fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Crear orden' }));
+    // Paso 4 Servicios -> abre modal de confirmación con resumen
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar y crear orden' }));
+    expect(await screen.findByRole('dialog', { name: 'Confirmar recepción de OT' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar y crear orden' }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/work-orders', expect.objectContaining({
@@ -464,6 +468,7 @@ describe('WorkOrdersPage', () => {
       expect(api.post).toHaveBeenCalledWith(
         '/work-orders/77/inspection/photos/frontal',
         expect.any(FormData),
+        expect.objectContaining({ onUploadProgress: expect.any(Function) }),
       );
     });
   });

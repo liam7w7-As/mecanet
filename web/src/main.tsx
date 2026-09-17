@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 
 import App from './App';
 import './index.css';
+import { MotionProvider } from './components/animate-ui/motion-config';
 import { queryClient } from './lib/query-client';
 import { useAuthStore } from './stores/auth.store';
 
@@ -26,7 +27,9 @@ if (!rootElement) {
 ReactDOM.createRoot(rootElement).render(
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
-      <AuthInitializer />
+      <MotionProvider>
+        <AuthInitializer />
+      </MotionProvider>
     </BrowserRouter>
   </QueryClientProvider>,
 );

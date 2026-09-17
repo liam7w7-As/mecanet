@@ -1,7 +1,9 @@
 import { createUserSchema, updateUserSchema } from '@unithor/shared';
 import { AlertCircle, LoaderCircle, Save, X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
+import { AnimateIcon } from '../animate-ui';
 import {
   useCreateUserMutation,
   useUpdateUserMutation,
@@ -67,10 +69,20 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar formulario de usuario" onClick={onClose} />
-      <section className="relative w-full max-w-lg overflow-hidden rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="user-form-title">
+      <motion.section
+        initial={{ opacity: 0, scale: 0.96, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+        className="relative w-full max-w-lg overflow-hidden rounded-lg bg-white shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="user-form-title"
+      >
         <header className="flex items-start justify-between bg-brand-blue px-6 py-5 text-white">
           <div><h2 id="user-form-title" className="text-lg font-bold">{user ? 'Editar usuario' : 'Nuevo usuario'}</h2><p className="mt-1 text-sm text-white/70">Acceso, identidad y rol operativo</p></div>
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-white/75 hover:bg-white/10" onClick={onClose} aria-label="Cerrar"><X className="h-5 w-5" aria-hidden="true" /></button>
+          <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-white/75 hover:bg-white/10" onClick={onClose} aria-label="Cerrar">
+            <AnimateIcon icon={X} animation="spin" size={18} />
+          </button>
         </header>
         <form onSubmit={submit} className="space-y-4 p-6">
           {mutation.isError && <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700" role="alert"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(mutation.error, 'No fue posible guardar el usuario.')}</div>}
@@ -79,9 +91,15 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
           <label className="block text-sm font-semibold text-slate-700">Correo electrónico<input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} />{errors.email && <span className="mt-1 block text-xs font-normal text-red-700">{errors.email}</span>}</label>
           {!user && <label className="block text-sm font-semibold text-slate-700">Contraseña temporal<input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" />{errors.password && <span className="mt-1 block text-xs font-normal text-red-700">{errors.password}</span>}</label>}
           <label className="block text-sm font-semibold text-slate-700">Rol<select className={`${inputClass} bg-white`} value={roleId} onChange={(event) => setRoleId(event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{getRoleLabel(role.nombre)}</option>)}</select>{errors.roleId && <span className="mt-1 block text-xs font-normal text-red-700">{errors.roleId}</span>}</label>
-          <footer className="flex justify-end gap-2 pt-2"><button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700" onClick={onClose}>Cancelar</button><button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark disabled:opacity-60" disabled={mutation.isPending}>{mutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}{user ? 'Guardar cambios' : 'Crear usuario'}</button></footer>
+          <footer className="flex justify-end gap-2 pt-2">
+            <button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="group inline-flex h-10 items-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark transition-all hover:bg-yellow-400 active:scale-95 disabled:opacity-60" disabled={mutation.isPending}>
+              {mutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon icon={Save} animation="bounce" size={16} />}
+              {user ? 'Guardar cambios' : 'Crear usuario'}
+            </button>
+          </footer>
         </form>
-      </section>
+      </motion.section>
     </div>
   );
 };

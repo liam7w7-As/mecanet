@@ -1,9 +1,11 @@
-import { AlertCircle, ArrowLeft, Banknote, LoaderCircle, Pencil, Plus, ReceiptText, Trash2, UserRound, Wrench } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Banknote, Eye, LoaderCircle, Pencil, Plus, ReceiptText, Trash2, UserRound, Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+import { AnimateIcon } from '../../components/animate-ui';
 import ConvertQuotationModal from '../../components/quotations/ConvertQuotationModal';
 import PaymentFormModal, { PAYMENT_METHOD_LABELS } from '../../components/quotations/PaymentFormModal';
+import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import QuotationEditModal from '../../components/quotations/QuotationEditModal';
 import QuotationStatusBadge from '../../components/quotations/QuotationStatusBadge';
 import { useDeletePaymentMutation, useQuotationPayments } from '../../hooks/usePayments';
@@ -39,6 +41,7 @@ export const QuotationDetailPage = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(searchParams.get('payment') === 'true');
   const [showConversionModal, setShowConversionModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(searchParams.get('edit') === 'true');
+  const [showPdfModal, setShowPdfModal] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
   const user = useAuthStore((state) => state.user);
   const quotation = quotationQuery.data;
@@ -61,11 +64,59 @@ export const QuotationDetailPage = () => {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div className="flex items-start gap-3"><Link to="/quotations" className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50" aria-label="Volver a cotizaciones"><ArrowLeft className="h-4 w-4" aria-hidden="true" /></Link><div><p className="text-sm font-medium text-slate-500">Gestión de cobro</p><div className="mt-1 flex flex-wrap items-center gap-3"><h1 className="font-mono text-2xl font-bold text-brand-blue sm:text-3xl">{quotation.codigo}</h1><QuotationStatusBadge status={summary?.estadoPago ?? quotation.estadoPago} /></div></div></div>{canEdit && quotation.estadoPago !== 'total' && <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-blue bg-white px-4 text-sm font-semibold text-brand-blue hover:bg-brand-light" onClick={() => setShowEditModal(true)}><Pencil className="h-4 w-4" aria-hidden="true" />Editar cotización</button>}</header>
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex items-start gap-3">
+          <Link to="/quotations" className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:bg-slate-50" aria-label="Volver a cotizaciones">
+            <AnimateIcon variant="slide-left" animateOnHover>
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            </AnimateIcon>
+          </Link>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Gestión de cobro</p>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <h1 className="font-mono text-2xl font-bold text-brand-blue sm:text-3xl">{quotation.codigo}</h1>
+              <QuotationStatusBadge status={summary?.estadoPago ?? quotation.estadoPago} />
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-blue bg-white px-4 text-sm font-semibold text-brand-blue shadow-sm transition-all hover:bg-brand-light hover:shadow" onClick={() => setShowPdfModal(true)}>
+            <AnimateIcon variant="bounce" animateOnHover>
+              <Eye className="h-4 w-4" aria-hidden="true" />
+            </AnimateIcon>
+            Ver PDF / Imprimir
+          </button>
+          {canEdit && quotation.estadoPago !== 'total' && (
+            <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-blue bg-white px-4 text-sm font-semibold text-brand-blue shadow-sm transition-all hover:bg-brand-light hover:shadow" onClick={() => setShowEditModal(true)}>
+              <AnimateIcon variant="wiggle" animateOnHover>
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+              </AnimateIcon>
+              Editar cotización
+            </button>
+          )}
+        </div>
+      </header>
 
       {(paymentsQuery.isError || deletePaymentMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(paymentsQuery.error ?? deletePaymentMutation.error)}</div>}
 
-      {quotation.workOrderId === null && <section className="flex flex-col gap-4 border-l-4 border-brand-yellow bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><Wrench className="mt-0.5 h-5 w-5 shrink-0 text-brand-blue" aria-hidden="true" /><div><h2 className="font-bold text-brand-blue">Cotización independiente, aún sin OT</h2><p className="mt-1 text-sm text-slate-600">Cuando el cliente apruebe el presupuesto puede generar la orden del taller conservando todos los ítems.</p></div></div>{canConvert && <button type="button" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark hover:bg-yellow-400" onClick={() => setShowConversionModal(true)}>Convertir en Orden de Trabajo</button>}</section>}
+      {quotation.workOrderId === null && (
+        <section className="flex flex-col gap-4 border-l-4 border-brand-yellow bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <AnimateIcon variant="spin" animateOnHover>
+              <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-brand-blue" aria-hidden="true" />
+            </AnimateIcon>
+            <div>
+              <h2 className="font-bold text-brand-blue">Cotización independiente, aún sin OT</h2>
+              <p className="mt-1 text-sm text-slate-600">Cuando el cliente apruebe el presupuesto puede generar la orden del taller conservando todos los ítems.</p>
+            </div>
+          </div>
+          {canConvert && (
+            <button type="button" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark shadow-sm transition-all hover:bg-yellow-400 hover:shadow" onClick={() => setShowConversionModal(true)}>
+              Convertir en Orden de Trabajo
+            </button>
+          )}
+        </section>
+      )}
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-label="Resumen financiero"><div className="grid divide-y divide-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0"><div className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">Total cotizado</p><p className="mt-2 text-2xl font-bold text-slate-900">{formatClp(total)}</p></div><div className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">Monto pagado</p><p className="mt-2 text-2xl font-bold text-emerald-700" data-testid="quotation-paid">{formatClp(paid)}</p></div><div className="bg-brand-light p-5"><p className="text-xs font-semibold uppercase text-brand-blue">Saldo pendiente</p><p className="mt-2 text-2xl font-bold text-brand-blue" data-testid="quotation-balance">{formatClp(balance)}</p></div></div></section>
 
@@ -79,6 +130,13 @@ export const QuotationDetailPage = () => {
       {showConversionModal && <ConvertQuotationModal quotationId={quotation.id} codigo={quotation.codigo} notas={quotation.notas} onClose={() => setShowConversionModal(false)} onConverted={(workOrderId) => navigate(`/work-orders/${workOrderId}`)} />}
       {showEditModal && <QuotationEditModal quotation={quotation} onClose={() => setShowEditModal(false)} />}
       {paymentToDelete && <div className="fixed inset-0 z-50 flex items-center justify-center px-4"><button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar anulación" onClick={() => setPaymentToDelete(null)} /><section className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="void-payment-title"><ReceiptText className="h-8 w-8 text-red-700" aria-hidden="true" /><h2 id="void-payment-title" className="mt-4 text-xl font-bold text-brand-blue">Anular pago</h2><p className="mt-2 text-sm leading-6 text-slate-600">Se eliminará el abono de {formatClp(paymentToDelete.monto)} y el saldo pendiente de la cotización será recalculado.</p><div className="mt-6 flex justify-end gap-2"><button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700" onClick={() => setPaymentToDelete(null)}>Cancelar</button><button type="button" className="h-10 rounded-lg bg-red-700 px-4 text-sm font-semibold text-white disabled:opacity-60" onClick={() => deletePaymentMutation.mutate({ paymentId: paymentToDelete.id, quotationId: quotation.id }, { onSuccess: () => setPaymentToDelete(null) })} disabled={deletePaymentMutation.isPending}>{deletePaymentMutation.isPending ? 'Anulando...' : 'Anular pago'}</button></div></section></div>}
+      {showPdfModal && (
+        <PdfPreviewModal
+          type="quotation"
+          quotation={quotation}
+          onClose={() => setShowPdfModal(false)}
+        />
+      )}
     </div>
   );
 };

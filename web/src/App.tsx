@@ -7,6 +7,7 @@ import LoginPage from './pages/auth/LoginPage';
 import CatalogPage from './pages/catalog/CatalogPage';
 import ClientsPage from './pages/clients/ClientsPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
+import FinancePage from './pages/finance/FinancePage';
 import ForbiddenPage from './pages/ForbiddenPage';
 import NotFoundPage from './pages/NotFoundPage';
 import QuotationCreatePage from './pages/quotations/QuotationCreatePage';
@@ -34,6 +35,7 @@ export const App = () => (
         <Route path="/quotations" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }]}><QuotationsPage /></ProtectedRoute>} />
         <Route path="/quotations/new" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'create' }]}><QuotationCreatePage /></ProtectedRoute>} />
         <Route path="/quotations/:id" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }]}><QuotationDetailPage /></ProtectedRoute>} />
+        <Route path="/finance" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'finanzas', accion: 'read' }]}><FinancePage /></ProtectedRoute>} />
         <Route path="/clients" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }]}><ClientsPage /></ProtectedRoute>} />
         <Route path="/vehicles" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }]}><VehiclesPage /></ProtectedRoute>} />
         <Route path="/catalog" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }]}><CatalogPage /></ProtectedRoute>} />

@@ -353,16 +353,30 @@ export interface PaymentCreator {
   nombre: string;
 }
 
+export interface PaymentQuotation {
+  id: number;
+  codigo: string;
+  total: number;
+  client?: { id: number; nombre: string } | null;
+}
+
 export interface Payment {
   id: number;
   quotationId: number;
   monto: number;
   metodo: string | null;
+  estado?: import('@unithor/shared').PaymentStatus;
+  referencia?: string | null;
   fecha: string;
   createdBy: number | null;
+  reviewedBy?: number | null;
+  reviewedAt?: string | null;
+  reviewNote?: string | null;
   createdAt: string;
   updatedAt: string;
   creator?: PaymentCreator | null;
+  reviewer?: PaymentCreator | null;
+  quotation?: PaymentQuotation;
 }
 
 export interface QuotationPaymentSummary {

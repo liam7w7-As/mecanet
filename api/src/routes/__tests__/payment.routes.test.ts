@@ -208,14 +208,14 @@ describe('Payment Routes (E2E)', () => {
       .send({
         quotationId: quotation.id,
         monto: 40000,
-        metodo: 'transferencia',
+        metodo: 'efectivo',
       });
 
     expect(firstResponse.status).toBe(201);
     expect(firstResponse.body.payment).toMatchObject({
       quotationId: quotation.id,
       monto: 40000,
-      metodo: 'transferencia',
+      metodo: 'efectivo',
       createdBy: devUserId,
     });
     expect(firstResponse.body.quotation).toMatchObject({
@@ -301,7 +301,7 @@ describe('Payment Routes (E2E)', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error.message).toContain(
-      'El abono supera el saldo pendiente. Saldo restante: 50000',
+      'El abono supera el saldo pendiente disponible. Saldo restante: 50000',
     );
 
     const paymentCount = await Payment.count({ where: { quotationId: quotation.id } });
@@ -361,7 +361,7 @@ describe('Payment Routes (E2E)', () => {
         .send({
           quotationId: quotation.id,
           monto: 80,
-          metodo: 'transferencia',
+          metodo: 'efectivo',
         }),
       request(app)
         .post('/api/payments')
@@ -384,5 +384,79 @@ describe('Payment Routes (E2E)', () => {
     const payments = await Payment.findAll({ where: { quotationId: quotation.id } });
     expect(payments).toHaveLength(1);
     expect(Number(payments[0]?.monto)).toBe(80);
+  });
+
+  it('mantiene transferencias pendientes hasta que finanzas las aprueba o rechaza', async () => {
+    const devCookies = await loginAs('dev@unithor.local');
+    const bodegueroCookies = await loginAs(`${TEST_EMAIL_PREFIX}bodeguero@unithor.local`);
+    const quotation = await createQuotationFixture('06', clientId, 100000);
+
+    const createResponse = await request(app)
+      .post('/api/payments')
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({
+        quotationId: quotation.id,
+        monto: 40000,
+        metodo: 'transferencia',
+        referencia: 'TRX-53006',
+      });
+
+    expect(createResponse.status).toBe(201);
+    expect(createResponse.body.payment).toMatchObject({
+      estado: 'por_verificar',
+      referencia: 'TRX-53006',
+    });
+    expect(createResponse.body.quotation).toMatchObject({
+      pagado: 0,
+      saldoPendiente: 100000,
+      estadoPago: 'por_verificar',
+    });
+
+    const forbiddenResponse = await request(app)
+      .patch(`/api/payments/${createResponse.body.payment.id as number}/verify`)
+      .set('Cookie', authCookie(bodegueroCookies))
+      .set('X-CSRF-Token', bodegueroCookies.csrfToken)
+      .send({ decision: 'aprobar' });
+    expect(forbiddenResponse.status).toBe(403);
+
+    const approveResponse = await request(app)
+      .patch(`/api/payments/${createResponse.body.payment.id as number}/verify`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ decision: 'aprobar', comentario: 'Abono confirmado en cartola' });
+
+    expect(approveResponse.status).toBe(200);
+    expect(approveResponse.body.payment).toMatchObject({
+      estado: 'confirmado',
+      reviewNote: 'Abono confirmado en cartola',
+    });
+    expect(approveResponse.body.quotation).toMatchObject({
+      pagado: 40000,
+      saldoPendiente: 60000,
+      estadoPago: 'parcial',
+    });
+
+    const rejectedCreateResponse = await request(app)
+      .post('/api/payments')
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({
+        quotationId: quotation.id,
+        monto: 20000,
+        metodo: 'transferencia',
+      });
+    const rejectResponse = await request(app)
+      .patch(`/api/payments/${rejectedCreateResponse.body.payment.id as number}/verify`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ decision: 'rechazar', comentario: 'No aparece en cartola' });
+
+    expect(rejectResponse.status).toBe(200);
+    expect(rejectResponse.body.payment.estado).toBe('rechazado');
+    expect(rejectResponse.body.quotation).toMatchObject({
+      pagado: 40000,
+      estadoPago: 'parcial',
+    });
   });
 });

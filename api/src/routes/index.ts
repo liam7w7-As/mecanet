@@ -4,6 +4,7 @@ import { authRouter } from './auth.routes.js';
 import { catalogRouter } from './catalog.routes.js';
 import { clientRouter } from './client.routes.js';
 import { dashboardRouter } from './dashboard.routes.js';
+import { financeRouter } from './finance.routes.js';
 import { healthRouter } from './health.js';
 import { paymentRouter } from './payment.routes.js';
 import { permissionRouter } from './permission.routes.js';
@@ -24,6 +25,9 @@ apiRouter.use('/auth', authRouter);
 
 // Resumen analítico del panel principal (/api/dashboard)
 apiRouter.use('/dashboard', dashboardRouter);
+
+// Panel de Finanzas y Contabilidad (/api/finance)
+apiRouter.use('/finance', financeRouter);
 
 // Módulo de usuarios (/api/users)
 apiRouter.use('/users', userRouter);

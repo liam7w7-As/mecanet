@@ -400,7 +400,10 @@ export async function generateCommercialReportExcel(
     }),
     Payment.findAll({
       attributes: ['id', 'monto', 'fecha', 'metodo', 'createdBy'],
-      where: { fecha: { [Op.between]: [startDate, endDate] } },
+      where: {
+        estado: 'confirmado',
+        fecha: { [Op.between]: [startDate, endDate] },
+      },
       include: [
         {
           model: User,

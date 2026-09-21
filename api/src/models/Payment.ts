@@ -1,3 +1,4 @@
+import { PAYMENT_STATUS } from '@unithor/shared';
 import {
   AutoIncrement,
   BelongsTo,
@@ -12,6 +13,7 @@ import {
 import { Quotation } from './Quotation.js';
 import { User } from './User.js';
 
+import type { PaymentStatus } from '@unithor/shared';
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 
 @Table({
@@ -49,6 +51,19 @@ export class Payment extends Model<InferAttributes<Payment>, InferCreationAttrib
   declare metodo: string | null;
 
   @Column({
+    type: DataType.ENUM(...PAYMENT_STATUS),
+    allowNull: false,
+    defaultValue: 'confirmado',
+  })
+  declare estado: CreationOptional<PaymentStatus>;
+
+  @Column({
+    type: DataType.STRING(120),
+    allowNull: true,
+  })
+  declare referencia: CreationOptional<string | null>;
+
+  @Column({
     type: DataType.DATE,
     allowNull: false,
   })
@@ -63,6 +78,21 @@ export class Payment extends Model<InferAttributes<Payment>, InferCreationAttrib
   })
   declare createdBy: number | null;
 
+  @ForeignKey(() => User)
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  declare reviewedBy: CreationOptional<number | null>;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare reviewedAt: CreationOptional<Date | null>;
+
+  @Column({ type: DataType.TEXT, allowNull: true })
+  declare reviewNote: CreationOptional<string | null>;
+
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;
 
@@ -74,4 +104,7 @@ export class Payment extends Model<InferAttributes<Payment>, InferCreationAttrib
 
   @BelongsTo(() => User, 'createdBy')
   declare creator?: User;
+
+  @BelongsTo(() => User, 'reviewedBy')
+  declare reviewer?: User;
 }

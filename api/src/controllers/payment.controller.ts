@@ -2,7 +2,7 @@ import * as paymentService from '../services/payment.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
-import type { CreatePaymentInput, PaymentQueryInput } from '@unithor/shared';
+import type { CreatePaymentInput, PaymentQueryInput, VerifyPaymentInput } from '@unithor/shared';
 import type { Request, Response } from 'express';
 
 const getParamId = (req: Request): number => Number(req.params.id);
@@ -43,6 +43,17 @@ export const createPaymentHandler = asyncHandler(
 export const deletePaymentHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const result = await paymentService.deletePayment(getParamId(req));
+    res.status(200).json(result);
+  },
+);
+
+export const verifyPaymentHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const result = await paymentService.verifyPayment(
+      getParamId(req),
+      req.body as VerifyPaymentInput,
+      getCurrentUserId(req),
+    );
     res.status(200).json(result);
   },
 );

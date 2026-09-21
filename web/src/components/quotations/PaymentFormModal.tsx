@@ -38,6 +38,7 @@ export const PaymentFormModal = ({ quotationId, codigo, saldoPendiente, onClose 
   const [monto, setMonto] = useState('');
   const [metodo, setMetodo] = useState<PaymentMethod>('efectivo');
   const [fecha, setFecha] = useState(toLocalDateTime(new Date()));
+  const [referencia, setReferencia] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
@@ -54,6 +55,7 @@ export const PaymentFormModal = ({ quotationId, codigo, saldoPendiente, onClose 
       quotationId,
       monto,
       metodo,
+      referencia: metodo === 'transferencia' ? referencia : undefined,
       fecha: fecha ? new Date(fecha).toISOString() : undefined,
     });
 
@@ -65,7 +67,11 @@ export const PaymentFormModal = ({ quotationId, codigo, saldoPendiente, onClose 
     setErrors({});
     createMutation.mutate(result.data, {
       onSuccess: () => {
-        notifySuccess(`Abono de ${formatClp(numericAmount)} registrado.`);
+        notifySuccess(
+          metodo === 'transferencia'
+            ? `Transferencia de ${formatClp(numericAmount)} enviada a verificación.`
+            : `Abono de ${formatClp(numericAmount)} registrado.`,
+        );
         onClose();
       },
       onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo registrar el abono.')),
@@ -97,6 +103,12 @@ export const PaymentFormModal = ({ quotationId, codigo, saldoPendiente, onClose 
         <form onSubmit={submit} className="mt-5 space-y-4">
           <label className="block text-sm font-semibold text-slate-700">Monto del abono<input type="number" min="1" step="1" value={monto} onChange={(event) => setMonto(event.target.value)} className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" placeholder="0" autoFocus />{errors.monto && <span className="mt-1 block text-xs font-normal text-red-700" role="alert">{errors.monto}</span>}</label>
           <label className="block text-sm font-semibold text-slate-700">Método de pago<select value={metodo} onChange={(event) => setMetodo(event.target.value as PaymentMethod)} className="mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal outline-none focus:border-brand-blue">{PAYMENT_METHODS.map((method) => <option key={method} value={method}>{PAYMENT_METHOD_LABELS[method]}</option>)}</select></label>
+          {metodo === 'transferencia' && (
+            <div className="space-y-3 border-l-4 border-amber-400 bg-amber-50 px-4 py-3">
+              <p className="text-sm text-amber-900">La transferencia quedará pendiente hasta que Finanzas confirme su recepción.</p>
+              <label className="block text-sm font-semibold text-slate-700">Referencia o comprobante<input value={referencia} onChange={(event) => setReferencia(event.target.value)} maxLength={120} className="mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal outline-none focus:border-brand-blue" placeholder="N.º de operación, banco o referencia" /></label>
+            </div>
+          )}
           <label className="block text-sm font-semibold text-slate-700">Fecha y hora<input type="datetime-local" value={fecha} onChange={(event) => setFecha(event.target.value)} className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue" /></label>
           {createMutation.isError && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(createMutation.error)}</div>}
           <div className="flex justify-end gap-2 pt-2"><button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700" onClick={onClose}>Cancelar</button><button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={createMutation.isPending}>{createMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}Registrar abono</button></div>

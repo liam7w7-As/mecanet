@@ -11,7 +11,7 @@ import { WorkOrder } from '../models/WorkOrder.js';
 
 import type { DashboardSummary, QuotationStatus } from '@unithor/shared';
 
-const pendingQuotationStatuses: QuotationStatus[] = ['por_pagar', 'parcial'];
+const pendingQuotationStatuses: QuotationStatus[] = ['por_pagar', 'parcial', 'por_verificar'];
 
 const toIsoString = (value: Date | null): string | null => value?.toISOString() ?? null;
 
@@ -52,7 +52,9 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     isMechanic ? Promise.resolve(0) : Quotation.count({ where: pendingQuotationWhere }),
     isMechanic ? Promise.resolve(0) : Quotation.sum('total', { where: pendingQuotationWhere }),
     isMechanic ? Promise.resolve(0) : Quotation.sum('pagado', { where: pendingQuotationWhere }),
-    isMechanic ? Promise.resolve(0) : Payment.sum('monto', { where: { fecha: { [Op.gte]: monthStart } } }),
+    isMechanic ? Promise.resolve(0) : Payment.sum('monto', {
+      where: { estado: 'confirmado', fecha: { [Op.gte]: monthStart } },
+    }),
     CatalogItem.count({ where: criticalStockWhere }),
     isMechanic ? Promise.resolve(0) : Quotation.count({ where: { workOrderId: null } }),
     WorkOrder.findAll({

@@ -61,6 +61,7 @@ import type {
   TireCondition,
   VehicleInventoryItem,
   WorkOrderInspectionPhotoSlot,
+  WorkOrderEventType,
   WorkOrderStatus,
 } from '@unithor/shared';
 
@@ -69,6 +70,16 @@ const ITEM_OPERATIONAL_STATUS_LABELS: Record<string, string> = {
   en_proceso: 'En proceso',
   completado: 'Completado',
   omitido: 'Omitido',
+};
+
+const WORK_ORDER_EVENT_LABELS: Record<WorkOrderEventType, string> = {
+  creacion: 'Creación',
+  actualizacion: 'Actualización',
+  cambio_estado: 'Cambio de estado',
+  entrega: 'Entrega',
+  garantia_creada: 'Garantía',
+  reingreso_creado: 'Reingreso',
+  eliminacion: 'Eliminación',
 };
 
 const fuelLabels: Record<FuelLevel, string> = {
@@ -485,6 +496,34 @@ export const WorkOrderDetailPage = () => {
           </div>
         </section>
       )}
+
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-labelledby="audit-title">
+        <div className="flex items-start gap-3 border-b border-slate-200 px-5 py-4">
+          <ClipboardCheck className="mt-0.5 h-5 w-5 text-brand-blue" aria-hidden="true" />
+          <div>
+            <h2 id="audit-title" className="font-bold text-brand-blue">Bitácora de actividad</h2>
+            <p className="mt-1 text-sm text-slate-500">Registro cronológico de acciones críticas realizadas sobre esta orden.</p>
+          </div>
+        </div>
+        {(workOrder.events?.length ?? 0) > 0 ? (
+          <ol className="divide-y divide-slate-100">
+            {workOrder.events?.map((event) => (
+              <li key={event.id} className="grid gap-2 px-5 py-4 sm:grid-cols-[10rem_1fr_auto] sm:items-center">
+                <span className="w-fit rounded-md bg-brand-light px-2 py-1 text-xs font-bold text-brand-blue">
+                  {WORK_ORDER_EVENT_LABELS[event.tipo]}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{event.descripcion}</p>
+                  <p className="mt-1 text-xs text-slate-500">Por {event.actor?.nombre ?? 'Usuario no disponible'}</p>
+                </div>
+                <time className="text-xs font-medium text-slate-500" dateTime={event.createdAt}>{formatDateTime(event.createdAt)}</time>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="px-5 py-6 text-sm text-slate-500">No existen eventos auditables registrados para esta orden.</p>
+        )}
+      </section>
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-labelledby="mirror-quotation-title">
         <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

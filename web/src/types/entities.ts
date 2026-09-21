@@ -206,6 +206,15 @@ export interface WorkOrderRelation {
   fechaIngreso: string | null;
 }
 
+export interface WorkOrderEvent {
+  id: number;
+  tipo: import('@unithor/shared').WorkOrderEventType;
+  descripcion: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actor?: { id: number; nombre: string } | null;
+}
+
 export interface WorkOrder {
   id: number;
   codigo: string;
@@ -237,6 +246,7 @@ export interface WorkOrder {
   delivery?: WorkOrderDelivery | null;
   sourceWorkOrder?: WorkOrderRelation | null;
   relatedWorkOrders?: WorkOrderRelation[];
+  events?: WorkOrderEvent[];
 }
 
 export interface QuotationClient {

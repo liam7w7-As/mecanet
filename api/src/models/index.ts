@@ -11,6 +11,7 @@ import { User } from './User.js';
 import { Vehicle } from './Vehicle.js';
 import { WorkOrder } from './WorkOrder.js';
 import { WorkOrderDelivery } from './WorkOrderDelivery.js';
+import { WorkOrderEvent } from './WorkOrderEvent.js';
 import { WorkOrderInspection } from './WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from './WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
@@ -28,6 +29,7 @@ export const models = [
   CatalogItem,
   WorkOrder,
   WorkOrderDelivery,
+  WorkOrderEvent,
   WorkOrderItem,
   WorkOrderInspection,
   WorkOrderInspectionPhoto,
@@ -51,6 +53,7 @@ export {
   CatalogItem,
   WorkOrder,
   WorkOrderDelivery,
+  WorkOrderEvent,
   WorkOrderItem,
   WorkOrderInspection,
   WorkOrderInspectionPhoto,

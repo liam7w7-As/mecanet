@@ -13,6 +13,7 @@ import { RolePermission } from '../../models/RolePermission.js';
 import { User } from '../../models/User.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
 import { WorkOrderDelivery } from '../../models/WorkOrderDelivery.js';
+import { WorkOrderEvent } from '../../models/WorkOrderEvent.js';
 import { WorkOrderItem } from '../../models/WorkOrderItem.js';
 import { invalidatePermissionCache } from '../../services/permission.service.js';
 import { hashPassword } from '../../utils/password.js';
@@ -205,6 +206,15 @@ describe('Work Order State Machine Routes (E2E)', () => {
 
     const stored = await WorkOrder.findByPk(workOrder.id);
     expect(stored?.estado).toBe('en_progreso');
+    const event = await WorkOrderEvent.findOne({ where: { workOrderId: workOrder.id } });
+    expect(event).toMatchObject({
+      actorUserId: devUserId,
+      tipo: 'cambio_estado',
+      descripcion: 'Estado cambiado de borrador a en_progreso',
+    });
+    expect(response.body.workOrder.events).toEqual([
+      expect.objectContaining({ tipo: 'cambio_estado', actor: { id: devUserId, nombre: expect.any(String) } }),
+    ]);
   });
 
   it('permite en_progreso -> esperando_repuesto -> en_progreso', async () => {
@@ -273,6 +283,9 @@ describe('Work Order State Machine Routes (E2E)', () => {
     const stored = await WorkOrder.findByPk(workOrder.id);
     expect(stored?.fechaEntrega).not.toBeNull();
     expect(await WorkOrderDelivery.count({ where: { workOrderId: workOrder.id } })).toBe(1);
+    expect(response.body.workOrder.events).toEqual([
+      expect.objectContaining({ tipo: 'entrega', descripcion: 'Vehículo entregado a Cliente de Prueba' }),
+    ]);
   });
 
   it('rechaza transición inválida borrador -> entregada', async () => {

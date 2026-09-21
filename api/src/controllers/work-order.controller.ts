@@ -171,7 +171,7 @@ export const createWorkOrderReentryHandler = asyncHandler(
 
 export const deleteWorkOrderHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    await workOrderService.deleteWorkOrder(getParamId(req));
+    await workOrderService.deleteWorkOrder(getParamId(req), getCurrentUserId(req));
     res.status(204).send();
   },
 );

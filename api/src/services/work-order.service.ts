@@ -14,6 +14,7 @@ import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { WorkOrderDelivery } from '../models/WorkOrderDelivery.js';
+import { WorkOrderEvent } from '../models/WorkOrderEvent.js';
 import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
@@ -40,6 +41,7 @@ import type {
   DeliverWorkOrderInput,
   WorkOrderDeliveryChecklistItem,
   WorkOrderEntryType,
+  WorkOrderEventType,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
 
@@ -159,6 +161,15 @@ interface WorkOrderRelationPublic {
   fechaIngreso: Date | null;
 }
 
+interface WorkOrderEventPublic {
+  id: number;
+  tipo: WorkOrderEventType;
+  descripcion: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: Date;
+  actor?: { id: number; nombre: string } | null;
+}
+
 export interface WorkOrderPublic {
   id: number;
   codigo: string;
@@ -188,6 +199,7 @@ export interface WorkOrderPublic {
   delivery?: WorkOrderDeliveryPublic | null;
   sourceWorkOrder?: WorkOrderRelationPublic | null;
   relatedWorkOrders?: WorkOrderRelationPublic[];
+  events?: WorkOrderEventPublic[];
 }
 
 export interface ListWorkOrdersResult {
@@ -319,6 +331,18 @@ const relatedWorkOrdersInclude = {
   attributes: relationAttributes,
 };
 
+const eventsInclude = {
+  model: WorkOrderEvent,
+  as: 'events',
+  include: [
+    {
+      model: User,
+      as: 'actor',
+      attributes: ['id', 'nombre'],
+    },
+  ],
+};
+
 const toNumber = (value: number | string): number => Number(value);
 
 const parseInventory = (value: unknown): VehicleInventoryItem[] => {
@@ -363,6 +387,23 @@ const parseDeliveryChecklist = (value: unknown): WorkOrderDeliveryChecklistItem[
       typeof item === 'string' &&
       WORK_ORDER_DELIVERY_CHECKLIST.includes(item as WorkOrderDeliveryChecklistItem),
   );
+};
+
+const parseEventMetadata = (value: unknown): Record<string, unknown> | null => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value !== 'string') return null;
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
 };
 
 const toDateOrNull = (value: string | null | undefined): Date | null => {
@@ -563,7 +604,36 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
       coberturaGarantia: related.coberturaGarantia,
       fechaIngreso: related.fechaIngreso,
     })),
+  events: workOrder.events
+    ?.slice()
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+    .map((event) => ({
+      id: event.id,
+      tipo: event.tipo,
+      descripcion: event.descripcion,
+      metadata: parseEventMetadata(event.getDataValue('metadata')),
+      createdAt: event.createdAt,
+      actor: event.actor
+        ? { id: event.actor.id, nombre: event.actor.nombre }
+        : event.actorUserId === null
+          ? null
+          : undefined,
+    })),
 });
+
+const recordWorkOrderEvent = async (
+  workOrderId: number,
+  actorUserId: number | null,
+  tipo: WorkOrderEventType,
+  descripcion: string,
+  metadata: Record<string, unknown> | null,
+  transaction: Transaction,
+): Promise<void> => {
+  await WorkOrderEvent.create(
+    { workOrderId, actorUserId, tipo, descripcion, metadata },
+    { transaction },
+  );
+};
 
 const buildItemsPayload = (
   workOrderId: number,
@@ -938,6 +1008,7 @@ const getCompleteWorkOrder = async (
       deliveryInclude,
       sourceWorkOrderInclude,
       relatedWorkOrdersInclude,
+      eventsInclude,
     ],
     transaction,
   });
@@ -1089,6 +1160,15 @@ export const createWorkOrder = async (
       await createInspection(workOrder.id, data.inspection, userId, transaction);
     }
 
+    await recordWorkOrderEvent(
+      workOrder.id,
+      userId,
+      'creacion',
+      'Orden de trabajo creada',
+      { clientId, vehicleId, itemsCount: data.items.length },
+      transaction,
+    );
+
     return workOrder.id;
   });
 
@@ -1216,6 +1296,15 @@ export const updateWorkOrder = async (
 
     await workOrder.update(updatePayload, { transaction });
 
+    await recordWorkOrderEvent(
+      workOrder.id,
+      userId,
+      'actualizacion',
+      'Datos de la orden actualizados',
+      { campos: Object.keys(data) },
+      transaction,
+    );
+
     return workOrder.id;
   });
 
@@ -1225,7 +1314,7 @@ export const updateWorkOrder = async (
 export const changeStatus = async (
   id: number,
   nuevoEstado: WorkOrderStatus,
-  _userId: number,
+  userId: number,
   motivo?: string | null,
 ): Promise<WorkOrderPublic> => {
   const workOrderId = await sequelize.transaction(async (transaction) => {
@@ -1254,6 +1343,7 @@ export const changeStatus = async (
       );
     }
 
+    const estadoAnterior = workOrder.estado;
     const updatePayload: Partial<Pick<WorkOrder, 'estado' | 'fechaEntrega' | 'descripcion'>> = {
       estado: nuevoEstado,
     };
@@ -1266,6 +1356,15 @@ export const changeStatus = async (
     }
 
     await workOrder.update(updatePayload, { transaction });
+
+    await recordWorkOrderEvent(
+      workOrder.id,
+      userId,
+      'cambio_estado',
+      `Estado cambiado de ${estadoAnterior} a ${nuevoEstado}`,
+      { estadoAnterior, nuevoEstado, motivo: motivo ?? null },
+      transaction,
+    );
 
     return workOrder.id;
   });
@@ -1356,6 +1455,15 @@ export const deliverWorkOrder = async (
     await workOrder.update(
       { estado: 'entregada', fechaEntrega: workOrder.fechaEntrega ?? deliveredAt },
       { transaction },
+    );
+
+    await recordWorkOrderEvent(
+      workOrder.id,
+      userId,
+      'entrega',
+      `Vehículo entregado a ${data.receptorNombre}`,
+      { kilometrajeSalida: data.kilometrajeSalida, receptorNombre: data.receptorNombre },
+      transaction,
     );
 
     return workOrder.id;
@@ -1472,6 +1580,25 @@ export const createWorkOrderReentry = async (
     }
     await createMirrorQuotation(workOrder, copiedItems, userId, transaction);
 
+    const eventType: WorkOrderEventType =
+      data.tipoIngreso === 'garantia' ? 'garantia_creada' : 'reingreso_creado';
+    await recordWorkOrderEvent(
+      source.id,
+      userId,
+      eventType,
+      `${label} creada como ${workOrder.codigo}`,
+      { relatedWorkOrderId: workOrder.id, codigo: workOrder.codigo, motivo: data.motivo },
+      transaction,
+    );
+    await recordWorkOrderEvent(
+      workOrder.id,
+      userId,
+      'creacion',
+      `${label} creada desde ${source.codigo}`,
+      { sourceWorkOrderId: source.id, codigoOrigen: source.codigo, itemsCopiados: copiedItems.length },
+      transaction,
+    );
+
     if (
       vehicle &&
       kilometrajeIngreso !== null &&
@@ -1486,15 +1613,28 @@ export const createWorkOrderReentry = async (
   return getWorkOrderById(newWorkOrderId);
 };
 
-export const deleteWorkOrder = async (id: number): Promise<void> => {
-  const workOrder = await WorkOrder.findByPk(id);
-  if (!workOrder) {
-    throw ApiError.notFound('Orden de trabajo no encontrada');
-  }
+export const deleteWorkOrder = async (id: number, userId: number): Promise<void> => {
+  await sequelize.transaction(async (transaction) => {
+    const workOrder = await WorkOrder.findByPk(id, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    if (!workOrder) {
+      throw ApiError.notFound('Orden de trabajo no encontrada');
+    }
 
-  if (workOrder.estado !== 'borrador' && workOrder.estado !== 'cancelada') {
-    throw ApiError.badRequest('No se puede eliminar una orden activa');
-  }
+    if (workOrder.estado !== 'borrador' && workOrder.estado !== 'cancelada') {
+      throw ApiError.badRequest('No se puede eliminar una orden activa');
+    }
 
-  await workOrder.destroy();
+    await recordWorkOrderEvent(
+      workOrder.id,
+      userId,
+      'eliminacion',
+      'Orden de trabajo eliminada de los listados activos',
+      { estado: workOrder.estado },
+      transaction,
+    );
+    await workOrder.destroy({ transaction });
+  });
 };

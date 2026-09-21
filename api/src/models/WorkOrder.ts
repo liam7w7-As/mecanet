@@ -23,6 +23,7 @@ import { Quotation } from './Quotation.js';
 import { User } from './User.js';
 import { Vehicle } from './Vehicle.js';
 import { WorkOrderDelivery } from './WorkOrderDelivery.js';
+import { WorkOrderEvent } from './WorkOrderEvent.js';
 import { WorkOrderInspection } from './WorkOrderInspection.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
 
@@ -218,6 +219,9 @@ export class WorkOrder extends Model<
 
   @HasMany(() => WorkOrderItem)
   declare items?: WorkOrderItem[];
+
+  @HasMany(() => WorkOrderEvent)
+  declare events?: WorkOrderEvent[];
 
   @HasOne(() => WorkOrderInspection)
   declare inspection?: WorkOrderInspection;

@@ -111,6 +111,16 @@ const workOrder: WorkOrder = {
       },
     ],
   },
+  events: [
+    {
+      id: 101,
+      tipo: 'creacion',
+      descripcion: 'Orden de trabajo creada',
+      metadata: { itemsCount: 1 },
+      createdAt: '2026-09-15T10:00:00.000Z',
+      actor: { id: 1, nombre: 'Desarrollador UNITHOR' },
+    },
+  ],
 };
 
 const listResponse: PaginatedResponse<WorkOrder> = {
@@ -212,6 +222,17 @@ describe('WorkOrdersPage', () => {
     expect(screen.getByText('ABCD12')).toBeInTheDocument();
     expect(screen.getByText('Cliente Demo')).toBeInTheDocument();
     expect(screen.getAllByText('Borrador')).toHaveLength(2);
+  });
+
+  it('muestra la bitácora de actividad con actor y fecha', async () => {
+    createWrapper(
+      <Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>,
+      `/work-orders/${workOrder.id}`,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Bitácora de actividad' })).toBeInTheDocument();
+    expect(screen.getByText('Orden de trabajo creada')).toBeInTheDocument();
+    expect(screen.getByText('Por Desarrollador UNITHOR')).toBeInTheDocument();
   });
 
   it('actualiza la consulta al filtrar por estado', async () => {

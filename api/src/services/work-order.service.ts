@@ -1,4 +1,8 @@
-import { isValidWorkOrderTransition, VEHICLE_INVENTORY_ITEMS } from '@unithor/shared';
+import {
+  isValidWorkOrderTransition,
+  VEHICLE_INVENTORY_ITEMS,
+  WORK_ORDER_DELIVERY_CHECKLIST,
+} from '@unithor/shared';
 import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
 import { sequelize } from '../config/database.js';
@@ -9,6 +13,7 @@ import { QuotationItem } from '../models/QuotationItem.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
+import { WorkOrderDelivery } from '../models/WorkOrderDelivery.js';
 import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
@@ -31,6 +36,8 @@ import type {
   VehicleInventoryItem,
   WorkOrderInspectionPhotoSlot,
   CatalogType,
+  DeliverWorkOrderInput,
+  WorkOrderDeliveryChecklistItem,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
 
@@ -126,6 +133,21 @@ interface WorkOrderInspectionPublic {
   }>;
 }
 
+interface WorkOrderDeliveryPublic {
+  id: number;
+  kilometrajeSalida: number;
+  receptorNombre: string;
+  receptorRut: string | null;
+  receptorTelefono: string | null;
+  checklist: WorkOrderDeliveryChecklistItem[];
+  conformidad: boolean;
+  firmaRecepcion: string;
+  observaciones: string | null;
+  deliveredBy: number | null;
+  deliveredAt: Date;
+  deliverer?: { id: number; nombre: string } | null;
+}
+
 export interface WorkOrderPublic {
   id: number;
   codigo: string;
@@ -149,6 +171,7 @@ export interface WorkOrderPublic {
   contact: WorkOrderContactPublic | null;
   billing: WorkOrderBillingPublic | null;
   inspection?: WorkOrderInspectionPublic | null;
+  delivery?: WorkOrderDeliveryPublic | null;
 }
 
 export interface ListWorkOrdersResult {
@@ -246,6 +269,18 @@ const inspectionInclude = {
   ],
 };
 
+const deliveryInclude = {
+  model: WorkOrderDelivery,
+  as: 'delivery',
+  include: [
+    {
+      model: User,
+      as: 'deliverer',
+      attributes: ['id', 'nombre'],
+    },
+  ],
+};
+
 const toNumber = (value: number | string): number => Number(value);
 
 const parseInventory = (value: unknown): VehicleInventoryItem[] => {
@@ -267,6 +302,28 @@ const parseInventory = (value: unknown): VehicleInventoryItem[] => {
     (item): item is VehicleInventoryItem =>
       typeof item === 'string' &&
       VEHICLE_INVENTORY_ITEMS.includes(item as VehicleInventoryItem),
+  );
+};
+
+const parseDeliveryChecklist = (value: unknown): WorkOrderDeliveryChecklistItem[] => {
+  let parsed: unknown = value;
+
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value) as unknown;
+    } catch {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  return parsed.filter(
+    (item): item is WorkOrderDeliveryChecklistItem =>
+      typeof item === 'string' &&
+      WORK_ORDER_DELIVERY_CHECKLIST.includes(item as WorkOrderDeliveryChecklistItem),
   );
 };
 
@@ -415,6 +472,31 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
           })),
       }
     : workOrder.inspection === null
+      ? null
+      : undefined,
+  delivery: workOrder.delivery
+    ? {
+        id: workOrder.delivery.id,
+        kilometrajeSalida: workOrder.delivery.kilometrajeSalida,
+        receptorNombre: workOrder.delivery.receptorNombre,
+        receptorRut: workOrder.delivery.receptorRut,
+        receptorTelefono: workOrder.delivery.receptorTelefono,
+        checklist: parseDeliveryChecklist(workOrder.delivery.getDataValue('checklist')),
+        conformidad: workOrder.delivery.conformidad,
+        firmaRecepcion: workOrder.delivery.firmaRecepcion,
+        observaciones: workOrder.delivery.observaciones,
+        deliveredBy: workOrder.delivery.deliveredBy,
+        deliveredAt: workOrder.delivery.deliveredAt,
+        deliverer: workOrder.delivery.deliverer
+          ? {
+              id: workOrder.delivery.deliverer.id,
+              nombre: workOrder.delivery.deliverer.nombre,
+            }
+          : workOrder.delivery.deliveredBy === null
+            ? null
+            : undefined,
+      }
+    : workOrder.delivery === null
       ? null
       : undefined,
 });
@@ -789,6 +871,7 @@ const getCompleteWorkOrder = async (
       itemsInclude,
       inspectionInclude,
       quotationInclude,
+      deliveryInclude,
     ],
     transaction,
   });
@@ -1099,13 +1182,15 @@ export const changeStatus = async (
       );
     }
 
+    if (nuevoEstado === 'entregada') {
+      throw ApiError.badRequest(
+        'La entrega debe registrarse mediante el flujo de cierre con receptor y checklist',
+      );
+    }
+
     const updatePayload: Partial<Pick<WorkOrder, 'estado' | 'fechaEntrega' | 'descripcion'>> = {
       estado: nuevoEstado,
     };
-
-    if (nuevoEstado === 'entregada' && workOrder.fechaEntrega === null) {
-      updatePayload.fechaEntrega = new Date();
-    }
 
     if (nuevoEstado === 'cancelada' && motivo) {
       const cancellationNote = `[CANCELADA: ${motivo}]`;
@@ -1115,6 +1200,97 @@ export const changeStatus = async (
     }
 
     await workOrder.update(updatePayload, { transaction });
+
+    return workOrder.id;
+  });
+
+  return getWorkOrderById(workOrderId);
+};
+
+export const deliverWorkOrder = async (
+  id: number,
+  data: DeliverWorkOrderInput,
+  userId: number,
+): Promise<WorkOrderPublic> => {
+  const workOrderId = await sequelize.transaction(async (transaction) => {
+    const workOrder = await WorkOrder.findByPk(id, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+
+    if (!workOrder) {
+      throw ApiError.notFound('Orden de trabajo no encontrada');
+    }
+
+    const existingDelivery = await WorkOrderDelivery.findOne({
+      where: { workOrderId: id },
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+
+    if (workOrder.estado === 'entregada' && existingDelivery) {
+      return workOrder.id;
+    }
+
+    if (workOrder.estado !== 'finalizada') {
+      throw ApiError.badRequest('Solo una orden finalizada puede entregarse al cliente');
+    }
+
+    const unresolvedItems = await WorkOrderItem.count({
+      where: {
+        workOrderId: id,
+        estadoOperativo: { [Op.notIn]: ['completado', 'omitido'] },
+      },
+      transaction,
+    });
+
+    if (unresolvedItems > 0) {
+      throw ApiError.badRequest(
+        'Todos los trabajos y repuestos deben estar completados u omitidos antes de entregar',
+      );
+    }
+
+    if (
+      workOrder.kilometrajeIngreso !== null &&
+      data.kilometrajeSalida < workOrder.kilometrajeIngreso
+    ) {
+      throw ApiError.badRequest(
+        `El kilometraje de salida no puede ser menor al de ingreso (${workOrder.kilometrajeIngreso})`,
+      );
+    }
+
+    const deliveredAt = new Date();
+    await WorkOrderDelivery.create(
+      {
+        workOrderId: id,
+        kilometrajeSalida: data.kilometrajeSalida,
+        receptorNombre: data.receptorNombre,
+        receptorRut: data.receptorRut ?? null,
+        receptorTelefono: data.receptorTelefono ?? null,
+        checklist: data.checklist,
+        conformidad: data.conformidad,
+        firmaRecepcion: data.firmaRecepcion,
+        observaciones: data.observaciones ?? null,
+        deliveredBy: userId,
+        deliveredAt,
+      },
+      { transaction },
+    );
+
+    if (workOrder.vehicleId !== null) {
+      const vehicle = await Vehicle.findByPk(workOrder.vehicleId, {
+        transaction,
+        lock: Transaction.LOCK.UPDATE,
+      });
+      if (vehicle && (vehicle.kilometraje === null || data.kilometrajeSalida > vehicle.kilometraje)) {
+        await vehicle.update({ kilometraje: data.kilometrajeSalida }, { transaction });
+      }
+    }
+
+    await workOrder.update(
+      { estado: 'entregada', fechaEntrega: workOrder.fechaEntrega ?? deliveredAt },
+      { transaction },
+    );
 
     return workOrder.id;
   });

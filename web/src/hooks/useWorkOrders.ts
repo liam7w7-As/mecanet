@@ -11,6 +11,7 @@ import type {
 } from '../types/entities';
 import type {
   ChangeWorkOrderStatusInput,
+  DeliverWorkOrderInput,
   CreateWorkOrderInput,
   UpdateWorkOrderInput,
   WorkOrderQueryInput,
@@ -97,6 +98,23 @@ export const useChangeWorkOrderStatusMutation = () => {
     onSuccess: (workOrder) => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+};
+
+export const useDeliverWorkOrderMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: DeliverWorkOrderInput }) => {
+      const response = await api.post<WorkOrderResponse>(`/work-orders/${id}/deliver`, data);
+      return response.data.workOrder;
+    },
+    onSuccess: (workOrder) => {
+      queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
+      void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });

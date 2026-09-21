@@ -17,6 +17,7 @@ import { Client } from './Client.js';
 import { Quotation } from './Quotation.js';
 import { User } from './User.js';
 import { Vehicle } from './Vehicle.js';
+import { WorkOrderDelivery } from './WorkOrderDelivery.js';
 import { WorkOrderInspection } from './WorkOrderInspection.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
 
@@ -190,6 +191,9 @@ export class WorkOrder extends Model<
 
   @HasOne(() => WorkOrderInspection)
   declare inspection?: WorkOrderInspection;
+
+  @HasOne(() => WorkOrderDelivery)
+  declare delivery?: WorkOrderDelivery;
 
   @HasOne(() => Quotation)
   declare quotation?: Quotation;

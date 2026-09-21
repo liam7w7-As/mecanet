@@ -5,13 +5,14 @@ import {
   Download,
   Eye,
   LoaderCircle,
+  PackageCheck,
   Plus,
   Search,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { motion } from 'motion/react';
 import { AnimateIcon, AnimatedTableRow } from '../../components/animate-ui';
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
@@ -162,6 +163,7 @@ export const WorkOrdersPage = () => {
               {workOrdersQuery.isPending ? <WorkOrdersSkeleton /> : workOrdersQuery.data?.items.map((workOrder, index) => {
                 const estimatedTotal = getEstimatedTotal(workOrder);
                 const validTransitions = WORK_ORDER_STATUS.filter((candidate) =>
+                  candidate !== 'entregada' &&
                   isValidWorkOrderTransition(workOrder.estado, candidate),
                 );
                 return (
@@ -186,10 +188,15 @@ export const WorkOrdersPage = () => {
                           onChange={(event) => changeStatus(workOrder, event.target.value as WorkOrderStatus)}
                           disabled={statusMutation.isPending || validTransitions.length === 0}
                         >
-                          <option value="">{validTransitions.length === 0 ? 'Estado terminal' : 'Cambiar estado'}</option>
+                          <option value="">{workOrder.estado === 'finalizada' ? 'Entrega en detalle' : validTransitions.length === 0 ? 'Estado terminal' : 'Cambiar estado'}</option>
                           {validTransitions
                             .map((candidate) => <option key={candidate} value={candidate}>{WORK_ORDER_STATUS_LABELS[candidate]}</option>)}
                         </select>
+                      )}
+                      {canUpdate && workOrder.estado === 'finalizada' && (
+                        <Link to={`/work-orders/${workOrder.id}`} className="group flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100" aria-label={`Registrar entrega de ${workOrder.codigo}`} title="Registrar entrega">
+                          <PackageCheck className="h-4 w-4" aria-hidden="true" />
+                        </Link>
                       )}
                       <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50" onClick={() => setPreviewWorkOrderId(workOrder.id)} disabled={previewQuery.isPending && previewWorkOrderId === workOrder.id} aria-label={`Vista previa PDF de ${workOrder.codigo}`} title="Vista previa / Descargar PDF (mismo diseño)">
                         {previewQuery.isPending && previewWorkOrderId === workOrder.id ? (

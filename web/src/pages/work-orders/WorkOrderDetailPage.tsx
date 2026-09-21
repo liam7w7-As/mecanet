@@ -16,6 +16,7 @@ import {
   LoaderCircle,
   Pencil,
   Mail,
+  PackageCheck,
   Phone,
   Printer,
   ReceiptText,
@@ -26,12 +27,12 @@ import {
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
-import PdfPreviewModal from '../../components/common/PdfPreviewModal';
+import { AnimateIcon } from '../../components/animate-ui';
 import { PageLoader, ProgressBar } from '../../components/common/LoadingIndicator';
+import PdfPreviewModal from '../../components/common/PdfPreviewModal';
+import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
 import PhotoSlotInput from '../../components/work-orders/PhotoSlotInput';
-import { validateInspectionFile } from '../../lib/inspection-photos';
-import { notifyError, notifySuccess } from '../../stores/toast.store';
+import WorkOrderDeliveryModal from '../../components/work-orders/WorkOrderDeliveryModal';
 import WorkOrderItemsModal from '../../components/work-orders/WorkOrderItemsModal';
 import WorkOrderReceptionInspectionModal from '../../components/work-orders/WorkOrderReceptionInspectionModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
@@ -44,9 +45,10 @@ import {
 } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
+import { validateInspectionFile } from '../../lib/inspection-photos';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
-import { AnimateIcon } from '../../components/animate-ui';
+import { notifyError, notifySuccess } from '../../stores/toast.store';
 
 import type {
   FuelLevel,
@@ -126,6 +128,7 @@ export const WorkOrderDetailPage = () => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReceptionModal, setShowReceptionModal] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Partial<Record<WorkOrderInspectionPhotoSlot, number>>>({});
   const user = useAuthStore((state) => state.user);
@@ -156,6 +159,10 @@ export const WorkOrderDetailPage = () => {
     statusMutation.reset();
     if (nextStatus === 'cancelada') {
       setShowCancelModal(true);
+      return;
+    }
+    if (nextStatus === 'entregada') {
+      setShowDeliveryModal(true);
       return;
     }
     statusMutation.mutate(
@@ -437,6 +444,25 @@ export const WorkOrderDetailPage = () => {
         </div>
       </section>
 
+      {workOrder.delivery && (
+        <section className="overflow-hidden rounded-lg border border-emerald-200 bg-white" aria-labelledby="delivery-record-title">
+          <div className="flex items-start gap-3 border-b border-emerald-100 bg-emerald-50 px-5 py-4">
+            <PackageCheck className="mt-0.5 h-5 w-5 text-emerald-700" aria-hidden="true" />
+            <div>
+              <h2 id="delivery-record-title" className="font-bold text-emerald-900">Entrega registrada</h2>
+              <p className="mt-1 text-sm text-emerald-800">Acta de cierre confirmada el {formatDateTime(workOrder.delivery.deliveredAt)}.</p>
+            </div>
+          </div>
+          <div className="grid divide-y divide-slate-200 md:grid-cols-4 md:divide-x md:divide-y-0">
+            <div className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">Receptor</p><p className="mt-2 font-bold text-slate-900">{workOrder.delivery.receptorNombre}</p><p className="mt-1 text-sm text-slate-500">{workOrder.delivery.receptorRut || 'Sin identificación'}</p></div>
+            <div className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">Kilometraje salida</p><p className="mt-2 text-xl font-bold text-brand-blue">{workOrder.delivery.kilometrajeSalida.toLocaleString('es-CL')} km</p></div>
+            <div className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">Entregado por</p><p className="mt-2 font-bold text-slate-900">{workOrder.delivery.deliverer?.nombre ?? 'Usuario no disponible'}</p><p className="mt-1 text-sm text-slate-500">Checklist {workOrder.delivery.checklist.length}/4</p></div>
+            <div className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">Firma de conformidad</p><p className="mt-2 font-medium italic text-slate-900">{workOrder.delivery.firmaRecepcion}</p><p className="mt-1 text-sm text-emerald-700">Conformidad aceptada</p></div>
+          </div>
+          {workOrder.delivery.observaciones && <p className="border-t border-slate-200 px-5 py-4 text-sm text-slate-600"><strong className="text-slate-800">Observaciones:</strong> {workOrder.delivery.observaciones}</p>}
+        </section>
+      )}
+
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-labelledby="mirror-quotation-title">
         <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
@@ -470,6 +496,7 @@ export const WorkOrderDetailPage = () => {
       {showCancelModal && <CancelStatusModal codigo={workOrder.codigo} isPending={statusMutation.isPending} errorMessage={statusMutation.isError ? getApiErrorMessage(statusMutation.error) : null} onClose={() => setShowCancelModal(false)} onConfirm={(motivo) => statusMutation.mutate({ id: workOrder.id, data: { nuevoEstado: 'cancelada', motivo } }, { onSuccess: () => setShowCancelModal(false) })} />}
       {showReceptionModal && <WorkOrderReceptionInspectionModal workOrder={workOrder} onClose={() => setShowReceptionModal(false)} />}
       {showItemsModal && <WorkOrderItemsModal workOrder={workOrder} onClose={() => setShowItemsModal(false)} />}
+      {showDeliveryModal && <WorkOrderDeliveryModal workOrder={workOrder} onClose={() => setShowDeliveryModal(false)} />}
       {showPdfModal && (
         <PdfPreviewModal
           type="work-order"

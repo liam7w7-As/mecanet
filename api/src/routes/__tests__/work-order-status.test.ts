@@ -10,6 +10,7 @@ import { Role } from '../../models/Role.js';
 import { RolePermission } from '../../models/RolePermission.js';
 import { User } from '../../models/User.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
+import { WorkOrderDelivery } from '../../models/WorkOrderDelivery.js';
 import { WorkOrderItem } from '../../models/WorkOrderItem.js';
 import { invalidatePermissionCache } from '../../services/permission.service.js';
 import { hashPassword } from '../../utils/password.js';
@@ -207,22 +208,51 @@ describe('Work Order State Machine Routes (E2E)', () => {
     expect(resumeResponse.body.workOrder.estado).toBe('en_progreso');
   });
 
-  it('permite finalizada -> entregada y registra fechaEntrega', async () => {
+  it('exige el flujo de cierre para finalizada -> entregada y registra el acta', async () => {
     const devCookies = await loginAs('dev@unithor.local');
     const workOrder = await createWorkOrder(3, 'finalizada');
 
-    const response = await request(app)
+    const directResponse = await request(app)
       .patch(`/api/work-orders/${workOrder.id}/status`)
       .set('Cookie', authCookie(devCookies))
       .set('X-CSRF-Token', devCookies.csrfToken)
       .send({ nuevoEstado: 'entregada' });
 
+    expect(directResponse.status).toBe(400);
+
+    const response = await request(app)
+      .post(`/api/work-orders/${workOrder.id}/deliver`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({
+        kilometrajeSalida: 125000,
+        receptorNombre: 'Cliente de Prueba',
+        receptorRut: '12345678-9',
+        receptorTelefono: '+56912345678',
+        checklist: [
+          'trabajos_explicados',
+          'vehiculo_revisado',
+          'pertenencias_entregadas',
+          'documentos_entregados',
+        ],
+        conformidad: true,
+        firmaRecepcion: 'Cliente de Prueba',
+        observaciones: 'Entrega sin observaciones',
+      });
+
     expect(response.status).toBe(200);
     expect(response.body.workOrder.estado).toBe('entregada');
     expect(response.body.workOrder.fechaEntrega).toBeDefined();
+    expect(response.body.workOrder.delivery).toMatchObject({
+      kilometrajeSalida: 125000,
+      receptorNombre: 'Cliente de Prueba',
+      conformidad: true,
+      firmaRecepcion: 'Cliente de Prueba',
+    });
 
     const stored = await WorkOrder.findByPk(workOrder.id);
     expect(stored?.fechaEntrega).not.toBeNull();
+    expect(await WorkOrderDelivery.count({ where: { workOrderId: workOrder.id } })).toBe(1);
   });
 
   it('rechaza transición inválida borrador -> entregada', async () => {
@@ -239,6 +269,57 @@ describe('Work Order State Machine Routes (E2E)', () => {
     expect(response.body.error.message).toBe(
       "Transición inválida: no se puede cambiar de 'borrador' a 'entregada'",
     );
+  });
+
+  it('rechaza la entrega con trabajos pendientes o kilometraje de salida inválido', async () => {
+    const devCookies = await loginAs('dev@unithor.local');
+    const workOrder = await WorkOrder.create({
+      codigo: `${TEST_CODE_PREFIX}09`,
+      estado: 'finalizada',
+      descripcion: 'OT con controles de cierre',
+      kilometrajeIngreso: 90000,
+    });
+    const item = await WorkOrderItem.create({
+      workOrderId: workOrder.id,
+      catalogItemId: null,
+      descripcion: 'Trabajo aún pendiente',
+      cantidad: 1,
+      precioUnitario: 1000,
+      subtotal: 1000,
+      estadoOperativo: 'pendiente',
+      notasOperativas: null,
+    });
+    const deliveryPayload = {
+      kilometrajeSalida: 90010,
+      receptorNombre: 'Receptor Controlado',
+      checklist: [
+        'trabajos_explicados',
+        'vehiculo_revisado',
+        'pertenencias_entregadas',
+        'documentos_entregados',
+      ],
+      conformidad: true,
+      firmaRecepcion: 'Receptor Controlado',
+    };
+
+    const pendingResponse = await request(app)
+      .post(`/api/work-orders/${workOrder.id}/deliver`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send(deliveryPayload);
+    expect(pendingResponse.status).toBe(400);
+
+    await item.update({ estadoOperativo: 'completado' });
+    const invalidMileageResponse = await request(app)
+      .post(`/api/work-orders/${workOrder.id}/deliver`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ ...deliveryPayload, kilometrajeSalida: 89999 });
+    expect(invalidMileageResponse.status).toBe(400);
+
+    await workOrder.reload();
+    expect(workOrder.estado).toBe('finalizada');
+    expect(await WorkOrderDelivery.count({ where: { workOrderId: workOrder.id } })).toBe(0);
   });
 
   it('rechaza cambiar estados terminales entregada o cancelada', async () => {

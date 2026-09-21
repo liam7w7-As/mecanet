@@ -1,5 +1,6 @@
 import {
   changeWorkOrderStatusSchema,
+  deliverWorkOrderSchema,
   createWorkOrderSchema,
   updateWorkOrderSchema,
   workOrderQuerySchema,
@@ -12,6 +13,7 @@ import {
   createWorkOrderHandler,
   changeWorkOrderStatusHandler,
   deleteWorkOrderHandler,
+  deliverWorkOrderHandler,
   deleteWorkOrderInspectionPhotoHandler,
   getWorkOrderByIdHandler,
   getWorkOrderPdfHandler,
@@ -100,6 +102,13 @@ workOrderRouter.patch(
   authorize('taller', 'update'),
   validate({ params: idParamSchema, body: changeWorkOrderStatusSchema }),
   changeWorkOrderStatusHandler,
+);
+
+workOrderRouter.post(
+  '/:id/deliver',
+  authorize('taller', 'update'),
+  validate({ params: idParamSchema, body: deliverWorkOrderSchema }),
+  deliverWorkOrderHandler,
 );
 
 workOrderRouter.patch(

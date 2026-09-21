@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { paginationSchema } from './pagination.schema.js';
 import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
+import { WORK_ORDER_DELIVERY_CHECKLIST } from '../constants/work-order-delivery.js';
 import {
   FUEL_LEVELS,
   TIRE_CONDITIONS,
@@ -119,6 +120,33 @@ export const changeWorkOrderStatusSchema = z.object({
   motivo: optionalText(500),
 });
 
+const deliveryChecklistSchema = z
+  .array(z.enum(WORK_ORDER_DELIVERY_CHECKLIST))
+  .length(
+    WORK_ORDER_DELIVERY_CHECKLIST.length,
+    'Debe completar todos los controles de entrega',
+  )
+  .refine((items) => new Set(items).size === items.length, {
+    message: 'El checklist de entrega no puede contener controles duplicados',
+  })
+  .refine(
+    (items) => WORK_ORDER_DELIVERY_CHECKLIST.every((required) => items.includes(required)),
+    { message: 'Debe completar todos los controles de entrega' },
+  );
+
+export const deliverWorkOrderSchema = z.object({
+  kilometrajeSalida: z.coerce.number().int().min(0),
+  receptorNombre: z.string().trim().min(2).max(180),
+  receptorRut: optionalText(20),
+  receptorTelefono: optionalText(30),
+  checklist: deliveryChecklistSchema,
+  conformidad: z.literal(true, {
+    errorMap: () => ({ message: 'El receptor debe aceptar la conformidad de entrega' }),
+  }),
+  firmaRecepcion: z.string().trim().min(2, 'Debe registrar la firma nominativa').max(180),
+  observaciones: optionalText(2000),
+});
+
 export type WorkOrderItemInput = z.infer<typeof workOrderItemInputSchema>;
 export type WorkOrderInspectionInput = z.infer<typeof workOrderInspectionSchema>;
 export type UpdateWorkOrderInspectionInput = z.infer<typeof updateWorkOrderInspectionSchema>;
@@ -126,3 +154,4 @@ export type CreateWorkOrderInput = z.infer<typeof createWorkOrderSchema>;
 export type UpdateWorkOrderInput = z.infer<typeof updateWorkOrderSchema>;
 export type WorkOrderQueryInput = z.infer<typeof workOrderQuerySchema>;
 export type ChangeWorkOrderStatusInput = z.infer<typeof changeWorkOrderStatusSchema>;
+export type DeliverWorkOrderInput = z.infer<typeof deliverWorkOrderSchema>;

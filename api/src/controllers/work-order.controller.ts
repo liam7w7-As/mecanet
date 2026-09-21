@@ -9,6 +9,7 @@ import type {
   CreateWorkOrderInput,
   UpdateWorkOrderInput,
   ChangeWorkOrderStatusInput,
+  DeliverWorkOrderInput,
   WorkOrderQueryInput,
   WorkOrderInspectionPhotoSlot,
 } from '@unithor/shared';
@@ -140,6 +141,17 @@ export const changeWorkOrderStatusHandler = asyncHandler(
       nuevoEstado,
       getCurrentUserId(req),
       motivo,
+    );
+    res.status(200).json({ workOrder });
+  },
+);
+
+export const deliverWorkOrderHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const workOrder = await workOrderService.deliverWorkOrder(
+      getParamId(req),
+      req.body as DeliverWorkOrderInput,
+      getCurrentUserId(req),
     );
     res.status(200).json({ workOrder });
   },

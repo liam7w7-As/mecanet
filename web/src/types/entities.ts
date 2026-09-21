@@ -182,6 +182,21 @@ export interface WorkOrderInspection {
   photos: WorkOrderInspectionPhoto[];
 }
 
+export interface WorkOrderDelivery {
+  id: number;
+  kilometrajeSalida: number;
+  receptorNombre: string;
+  receptorRut: string | null;
+  receptorTelefono: string | null;
+  checklist: import('@unithor/shared').WorkOrderDeliveryChecklistItem[];
+  conformidad: boolean;
+  firmaRecepcion: string;
+  observaciones: string | null;
+  deliveredBy: number | null;
+  deliveredAt: string;
+  deliverer?: { id: number; nombre: string } | null;
+}
+
 export interface WorkOrder {
   id: number;
   codigo: string;
@@ -207,6 +222,7 @@ export interface WorkOrder {
   contact?: WorkOrderContact | null;
   billing?: WorkOrderBilling | null;
   inspection?: WorkOrderInspection | null;
+  delivery?: WorkOrderDelivery | null;
 }
 
 export interface QuotationClient {

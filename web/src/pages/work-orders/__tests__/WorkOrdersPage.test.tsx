@@ -256,6 +256,50 @@ describe('WorkOrdersPage', () => {
     expect(screen.queryByRole('button', { name: 'En progreso' })).not.toBeInTheDocument();
   });
 
+  it('usa el formulario de cierre para entregar una orden finalizada', async () => {
+    const finalOrder: WorkOrder = {
+      ...workOrder,
+      estado: 'finalizada',
+      items: workOrder.items?.map((item) => ({ ...item, estadoOperativo: 'completado' })),
+    };
+    vi.mocked(api.get).mockResolvedValue({ data: { workOrder: finalOrder } } as AxiosResponse<{ workOrder: WorkOrder }>);
+    vi.mocked(api.post).mockResolvedValue({
+      data: { workOrder: { ...finalOrder, estado: 'entregada' } },
+    } as AxiosResponse<{ workOrder: WorkOrder }>);
+
+    createWrapper(
+      <Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>,
+      `/work-orders/${workOrder.id}`,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Entregada' }));
+    expect(screen.getByRole('heading', { name: 'Cierre y entrega del vehículo' })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Kilometraje de salida'), { target: { value: '84520' } });
+    fireEvent.change(screen.getByLabelText('Firma nominativa del receptor'), { target: { value: 'Juan Recepción' } });
+    const deliveryCheckboxes = screen.getAllByRole('checkbox');
+    deliveryCheckboxes.forEach((checkbox) => fireEvent.click(checkbox));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar entrega' }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith(
+        '/work-orders/12/deliver',
+        expect.objectContaining({
+          kilometrajeSalida: 84520,
+          receptorNombre: 'Juan Recepción',
+          conformidad: true,
+          firmaRecepcion: 'Juan Recepción',
+          checklist: expect.arrayContaining([
+            'trabajos_explicados',
+            'vehiculo_revisado',
+            'pertenencias_entregadas',
+            'documentos_entregados',
+          ]),
+        }),
+      );
+    });
+  });
+
   it('abre la vista previa PDF con el mismo diseño al pulsar descargar en la lista', async () => {
     vi.mocked(api.get).mockImplementation((url) => {
       if (url === `/work-orders/${workOrder.id}`) {

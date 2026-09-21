@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { Permission } from '../../models/Permission.js';
+import { Quotation } from '../../models/Quotation.js';
+import { QuotationItem } from '../../models/QuotationItem.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
 import { RolePermission } from '../../models/RolePermission.js';
@@ -95,6 +97,15 @@ describe('Work Order State Machine Routes (E2E)', () => {
     });
     const existingWorkOrderIds = existingWorkOrders.map((workOrder) => workOrder.id);
     if (existingWorkOrderIds.length > 0) {
+      const quotations = await Quotation.findAll({
+        where: { workOrderId: existingWorkOrderIds },
+        paranoid: false,
+      });
+      const quotationIds = quotations.map((quotation) => quotation.id);
+      if (quotationIds.length > 0) {
+        await QuotationItem.destroy({ where: { quotationId: quotationIds } });
+        await Quotation.destroy({ where: { id: quotationIds }, force: true });
+      }
       await WorkOrderItem.destroy({ where: { workOrderId: existingWorkOrderIds } });
       await WorkOrder.destroy({ where: { id: existingWorkOrderIds }, force: true });
     }
@@ -159,6 +170,15 @@ describe('Work Order State Machine Routes (E2E)', () => {
     });
     const testWorkOrderIds = testWorkOrders.map((workOrder) => workOrder.id);
     if (testWorkOrderIds.length > 0) {
+      const quotations = await Quotation.findAll({
+        where: { workOrderId: testWorkOrderIds },
+        paranoid: false,
+      });
+      const quotationIds = quotations.map((quotation) => quotation.id);
+      if (quotationIds.length > 0) {
+        await QuotationItem.destroy({ where: { quotationId: quotationIds } });
+        await Quotation.destroy({ where: { id: quotationIds }, force: true });
+      }
       await WorkOrderItem.destroy({ where: { workOrderId: testWorkOrderIds } });
       await WorkOrder.destroy({ where: { id: testWorkOrderIds }, force: true });
     }
@@ -320,6 +340,81 @@ describe('Work Order State Machine Routes (E2E)', () => {
     await workOrder.reload();
     expect(workOrder.estado).toBe('finalizada');
     expect(await WorkOrderDelivery.count({ where: { workOrderId: workOrder.id } })).toBe(0);
+  });
+
+  it('crea una garantía vinculada, reinicia items y conserva el historial', async () => {
+    const devCookies = await loginAs('dev@unithor.local');
+    const source = await WorkOrder.create({
+      codigo: `${TEST_CODE_PREFIX}10`,
+      estado: 'entregada',
+      descripcion: 'Orden original entregada',
+      kilometrajeIngreso: 100000,
+      fechaEntrega: new Date(),
+    });
+    await WorkOrderItem.create({
+      workOrderId: source.id,
+      catalogItemId: null,
+      descripcion: 'Reparación de frenos',
+      cantidad: 1,
+      precioUnitario: 45000,
+      subtotal: 45000,
+      estadoOperativo: 'completado',
+      notasOperativas: 'Trabajo de origen',
+    });
+
+    const response = await request(app)
+      .post(`/api/work-orders/${source.id}/reentry`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({
+        tipoIngreso: 'garantia',
+        motivo: 'Persistencia de ruido en frenado',
+        kilometrajeIngreso: 100250,
+        copiarItems: true,
+        coberturaGarantia: true,
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.workOrder).toMatchObject({
+      estado: 'borrador',
+      tipoIngreso: 'garantia',
+      sourceWorkOrderId: source.id,
+      coberturaGarantia: true,
+      kilometrajeIngreso: 100250,
+    });
+    expect(response.body.workOrder.items).toEqual([
+      expect.objectContaining({
+        descripcion: 'Reparación de frenos',
+        precioUnitario: 0,
+        subtotal: 0,
+        estadoOperativo: 'pendiente',
+      }),
+    ]);
+    expect(response.body.workOrder.quotation).toMatchObject({ total: 0, pagado: 0 });
+
+    const sourceDetail = await request(app)
+      .get(`/api/work-orders/${source.id}`)
+      .set('Cookie', authCookie(devCookies));
+    expect(sourceDetail.status).toBe(200);
+    expect(sourceDetail.body.workOrder.relatedWorkOrders).toEqual([
+      expect.objectContaining({
+        id: response.body.workOrder.id,
+        tipoIngreso: 'garantia',
+      }),
+    ]);
+  });
+
+  it('rechaza crear un reingreso desde una orden que aún no fue entregada', async () => {
+    const devCookies = await loginAs('dev@unithor.local');
+    const source = await createWorkOrder(18, 'finalizada');
+
+    const response = await request(app)
+      .post(`/api/work-orders/${source.id}/reentry`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ tipoIngreso: 'reingreso', motivo: 'Nueva revisión', copiarItems: false });
+
+    expect(response.status).toBe(400);
   });
 
   it('rechaza cambiar estados terminales entregada o cancelada', async () => {

@@ -1,4 +1,9 @@
-import { WORK_ORDER_STATUS, type WorkOrderStatus } from '@unithor/shared';
+import {
+  WORK_ORDER_ENTRY_TYPES,
+  WORK_ORDER_STATUS,
+  type WorkOrderEntryType,
+  type WorkOrderStatus,
+} from '@unithor/shared';
 import {
   AutoIncrement,
   BelongsTo,
@@ -48,6 +53,25 @@ export class WorkOrder extends Model<
     unique: true,
   })
   declare codigo: string;
+
+  @Column({
+    type: DataType.ENUM(...WORK_ORDER_ENTRY_TYPES),
+    allowNull: false,
+    defaultValue: 'normal',
+  })
+  declare tipoIngreso: CreationOptional<WorkOrderEntryType>;
+
+  @ForeignKey(() => WorkOrder)
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  declare sourceWorkOrderId: number | null;
+
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare coberturaGarantia: CreationOptional<boolean>;
 
   @ForeignKey(() => Client)
   @Column({
@@ -185,6 +209,12 @@ export class WorkOrder extends Model<
 
   @BelongsTo(() => User, 'createdBy')
   declare creator?: User;
+
+  @BelongsTo(() => WorkOrder, 'sourceWorkOrderId')
+  declare sourceWorkOrder?: WorkOrder;
+
+  @HasMany(() => WorkOrder, 'sourceWorkOrderId')
+  declare relatedWorkOrders?: WorkOrder[];
 
   @HasMany(() => WorkOrderItem)
   declare items?: WorkOrderItem[];

@@ -197,9 +197,21 @@ export interface WorkOrderDelivery {
   deliverer?: { id: number; nombre: string } | null;
 }
 
+export interface WorkOrderRelation {
+  id: number;
+  codigo: string;
+  tipoIngreso: import('@unithor/shared').WorkOrderEntryType;
+  estado: import('@unithor/shared').WorkOrderStatus;
+  coberturaGarantia: boolean;
+  fechaIngreso: string | null;
+}
+
 export interface WorkOrder {
   id: number;
   codigo: string;
+  tipoIngreso?: import('@unithor/shared').WorkOrderEntryType;
+  sourceWorkOrderId?: number | null;
+  coberturaGarantia?: boolean;
   clientId: number | null;
   contactClientId?: number | null;
   billingClientId?: number | null;
@@ -223,6 +235,8 @@ export interface WorkOrder {
   billing?: WorkOrderBilling | null;
   inspection?: WorkOrderInspection | null;
   delivery?: WorkOrderDelivery | null;
+  sourceWorkOrder?: WorkOrderRelation | null;
+  relatedWorkOrders?: WorkOrderRelation[];
 }
 
 export interface QuotationClient {

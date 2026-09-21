@@ -12,7 +12,9 @@ import {
   ClipboardCheck,
   Download,
   Eye,
+  FileCheck2,
   Gauge,
+  History,
   LoaderCircle,
   Pencil,
   Mail,
@@ -20,6 +22,8 @@ import {
   Phone,
   Printer,
   ReceiptText,
+  RotateCcw,
+  ShieldCheck,
   Trash2,
   UserRound,
   Wrench,
@@ -33,8 +37,10 @@ import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
 import PhotoSlotInput from '../../components/work-orders/PhotoSlotInput';
 import WorkOrderDeliveryModal from '../../components/work-orders/WorkOrderDeliveryModal';
+import WorkOrderDeliveryReceiptModal from '../../components/work-orders/WorkOrderDeliveryReceiptModal';
 import WorkOrderItemsModal from '../../components/work-orders/WorkOrderItemsModal';
 import WorkOrderReceptionInspectionModal from '../../components/work-orders/WorkOrderReceptionInspectionModal';
+import WorkOrderReentryModal from '../../components/work-orders/WorkOrderReentryModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
 import {
   useChangeWorkOrderStatusMutation,
@@ -129,10 +135,13 @@ export const WorkOrderDetailPage = () => {
   const [showReceptionModal, setShowReceptionModal] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [showDeliveryReceipt, setShowDeliveryReceipt] = useState(false);
+  const [showReentryModal, setShowReentryModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Partial<Record<WorkOrderInspectionPhotoSlot, number>>>({});
   const user = useAuthStore((state) => state.user);
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
+  const canCreate = Boolean(user && hasUserPermission(user, 'taller', 'create'));
   const workOrder = workOrderQuery.data;
   const validTransitions = useMemo(
     () => workOrder ? WORK_ORDER_STATUS.filter((candidate) => isValidWorkOrderTransition(workOrder.estado, candidate)) : [],
@@ -242,6 +251,7 @@ export const WorkOrderDetailPage = () => {
             <div className="mt-1 flex flex-wrap items-center gap-3">
               <h1 className="font-mono text-2xl font-bold text-brand-blue sm:text-3xl">{workOrder.codigo}</h1>
               <WorkOrderStatusBadge status={workOrder.estado} />
+              {workOrder.tipoIngreso && workOrder.tipoIngreso !== 'normal' && <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${workOrder.tipoIngreso === 'garantia' ? 'bg-amber-100 text-amber-800' : 'bg-blue-50 text-blue-700'}`}>{workOrder.tipoIngreso === 'garantia' ? 'Garantía' : 'Reingreso'}{workOrder.coberturaGarantia ? ' cubierta' : ''}</span>}
             </div>
           </div>
         </div>
@@ -446,11 +456,14 @@ export const WorkOrderDetailPage = () => {
 
       {workOrder.delivery && (
         <section className="overflow-hidden rounded-lg border border-emerald-200 bg-white" aria-labelledby="delivery-record-title">
-          <div className="flex items-start gap-3 border-b border-emerald-100 bg-emerald-50 px-5 py-4">
-            <PackageCheck className="mt-0.5 h-5 w-5 text-emerald-700" aria-hidden="true" />
-            <div>
-              <h2 id="delivery-record-title" className="font-bold text-emerald-900">Entrega registrada</h2>
-              <p className="mt-1 text-sm text-emerald-800">Acta de cierre confirmada el {formatDateTime(workOrder.delivery.deliveredAt)}.</p>
+          <div className="flex flex-col gap-4 border-b border-emerald-100 bg-emerald-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <PackageCheck className="mt-0.5 h-5 w-5 text-emerald-700" aria-hidden="true" />
+              <div><h2 id="delivery-record-title" className="font-bold text-emerald-900">Entrega registrada</h2><p className="mt-1 text-sm text-emerald-800">Acta de cierre confirmada el {formatDateTime(workOrder.delivery.deliveredAt)}.</p></div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setShowDeliveryReceipt(true)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"><FileCheck2 className="h-4 w-4" aria-hidden="true" />Imprimir acta</button>
+              {canCreate && <button type="button" onClick={() => setShowReentryModal(true)} className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-blue px-3 text-sm font-semibold text-white hover:bg-brand-dark"><RotateCcw className="h-4 w-4" aria-hidden="true" />Garantía / reingreso</button>}
             </div>
           </div>
           <div className="grid divide-y divide-slate-200 md:grid-cols-4 md:divide-x md:divide-y-0">
@@ -460,6 +473,16 @@ export const WorkOrderDetailPage = () => {
             <div className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">Firma de conformidad</p><p className="mt-2 font-medium italic text-slate-900">{workOrder.delivery.firmaRecepcion}</p><p className="mt-1 text-sm text-emerald-700">Conformidad aceptada</p></div>
           </div>
           {workOrder.delivery.observaciones && <p className="border-t border-slate-200 px-5 py-4 text-sm text-slate-600"><strong className="text-slate-800">Observaciones:</strong> {workOrder.delivery.observaciones}</p>}
+        </section>
+      )}
+
+      {(workOrder.sourceWorkOrder || (workOrder.relatedWorkOrders?.length ?? 0) > 0) && (
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-labelledby="history-title">
+          <div className="flex items-start gap-3 border-b border-slate-200 px-5 py-4"><History className="mt-0.5 h-5 w-5 text-brand-blue" aria-hidden="true" /><div><h2 id="history-title" className="font-bold text-brand-blue">Historial relacionado</h2><p className="mt-1 text-sm text-slate-500">Cadena de órdenes asociadas al mismo caso.</p></div></div>
+          <div className="divide-y divide-slate-100">
+            {workOrder.sourceWorkOrder && <Link to={`/work-orders/${workOrder.sourceWorkOrder.id}`} className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><History className="h-4 w-4" aria-hidden="true" /></span><div><p className="text-xs font-semibold uppercase text-slate-500">Orden de origen</p><p className="mt-1 font-mono font-bold text-brand-blue">{workOrder.sourceWorkOrder.codigo}</p></div></div><WorkOrderStatusBadge status={workOrder.sourceWorkOrder.estado} /></Link>}
+            {workOrder.relatedWorkOrders?.map((related) => <Link key={related.id} to={`/work-orders/${related.id}`} className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50"><div className="flex items-center gap-3"><span className={`flex h-9 w-9 items-center justify-center rounded-lg ${related.tipoIngreso === 'garantia' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>{related.tipoIngreso === 'garantia' ? <ShieldCheck className="h-4 w-4" aria-hidden="true" /> : <RotateCcw className="h-4 w-4" aria-hidden="true" />}</span><div><p className="text-xs font-semibold uppercase text-slate-500">{related.tipoIngreso === 'garantia' ? 'Garantía' : 'Reingreso'}{related.coberturaGarantia ? ' cubierta' : ''}</p><p className="mt-1 font-mono font-bold text-brand-blue">{related.codigo}</p></div></div><WorkOrderStatusBadge status={related.estado} /></Link>)}
+          </div>
         </section>
       )}
 
@@ -497,6 +520,8 @@ export const WorkOrderDetailPage = () => {
       {showReceptionModal && <WorkOrderReceptionInspectionModal workOrder={workOrder} onClose={() => setShowReceptionModal(false)} />}
       {showItemsModal && <WorkOrderItemsModal workOrder={workOrder} onClose={() => setShowItemsModal(false)} />}
       {showDeliveryModal && <WorkOrderDeliveryModal workOrder={workOrder} onClose={() => setShowDeliveryModal(false)} />}
+      {showDeliveryReceipt && <WorkOrderDeliveryReceiptModal workOrder={workOrder} onClose={() => setShowDeliveryReceipt(false)} />}
+      {showReentryModal && <WorkOrderReentryModal workOrder={workOrder} onClose={() => setShowReentryModal(false)} />}
       {showPdfModal && (
         <PdfPreviewModal
           type="work-order"

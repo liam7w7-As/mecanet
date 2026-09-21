@@ -2,6 +2,7 @@ import {
   changeWorkOrderStatusSchema,
   deliverWorkOrderSchema,
   createWorkOrderSchema,
+  createWorkOrderReentrySchema,
   updateWorkOrderSchema,
   workOrderQuerySchema,
   WORK_ORDER_INSPECTION_PHOTO_SLOTS,
@@ -11,6 +12,7 @@ import { z } from 'zod';
 
 import {
   createWorkOrderHandler,
+  createWorkOrderReentryHandler,
   changeWorkOrderStatusHandler,
   deleteWorkOrderHandler,
   deliverWorkOrderHandler,
@@ -109,6 +111,13 @@ workOrderRouter.post(
   authorize('taller', 'update'),
   validate({ params: idParamSchema, body: deliverWorkOrderSchema }),
   deliverWorkOrderHandler,
+);
+
+workOrderRouter.post(
+  '/:id/reentry',
+  authorize('taller', 'create'),
+  validate({ params: idParamSchema, body: createWorkOrderReentrySchema }),
+  createWorkOrderReentryHandler,
 );
 
 workOrderRouter.patch(

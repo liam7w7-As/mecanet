@@ -7,6 +7,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 import type {
   CreateWorkOrderInput,
+  CreateWorkOrderReentryInput,
   UpdateWorkOrderInput,
   ChangeWorkOrderStatusInput,
   DeliverWorkOrderInput,
@@ -154,6 +155,17 @@ export const deliverWorkOrderHandler = asyncHandler(
       getCurrentUserId(req),
     );
     res.status(200).json({ workOrder });
+  },
+);
+
+export const createWorkOrderReentryHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const workOrder = await workOrderService.createWorkOrderReentry(
+      getParamId(req),
+      req.body as CreateWorkOrderReentryInput,
+      getCurrentUserId(req),
+    );
+    res.status(201).json({ workOrder });
   },
 );
 

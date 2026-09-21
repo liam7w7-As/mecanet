@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { paginationSchema } from './pagination.schema.js';
 import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
 import { WORK_ORDER_DELIVERY_CHECKLIST } from '../constants/work-order-delivery.js';
+import { WORK_ORDER_ENTRY_TYPES } from '../constants/work-order-entry-type.js';
 import {
   FUEL_LEVELS,
   TIRE_CONDITIONS,
@@ -147,6 +148,18 @@ export const deliverWorkOrderSchema = z.object({
   observaciones: optionalText(2000),
 });
 
+export const createWorkOrderReentrySchema = z.object({
+  tipoIngreso: z.enum([WORK_ORDER_ENTRY_TYPES[1], WORK_ORDER_ENTRY_TYPES[2]]),
+  motivo: z.string().trim().min(2, 'Debe indicar el motivo del reingreso').max(2000),
+  kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),
+  fechaIngreso: z
+    .string()
+    .datetime({ message: 'fechaIngreso debe ser una fecha ISO 8601 válida' })
+    .optional(),
+  copiarItems: z.coerce.boolean().default(false),
+  coberturaGarantia: z.coerce.boolean().optional(),
+});
+
 export type WorkOrderItemInput = z.infer<typeof workOrderItemInputSchema>;
 export type WorkOrderInspectionInput = z.infer<typeof workOrderInspectionSchema>;
 export type UpdateWorkOrderInspectionInput = z.infer<typeof updateWorkOrderInspectionSchema>;
@@ -155,3 +168,4 @@ export type UpdateWorkOrderInput = z.infer<typeof updateWorkOrderSchema>;
 export type WorkOrderQueryInput = z.infer<typeof workOrderQuerySchema>;
 export type ChangeWorkOrderStatusInput = z.infer<typeof changeWorkOrderStatusSchema>;
 export type DeliverWorkOrderInput = z.infer<typeof deliverWorkOrderSchema>;
+export type CreateWorkOrderReentryInput = z.infer<typeof createWorkOrderReentrySchema>;

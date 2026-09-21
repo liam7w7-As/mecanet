@@ -36,8 +36,10 @@ import type {
   VehicleInventoryItem,
   WorkOrderInspectionPhotoSlot,
   CatalogType,
+  CreateWorkOrderReentryInput,
   DeliverWorkOrderInput,
   WorkOrderDeliveryChecklistItem,
+  WorkOrderEntryType,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
 
@@ -148,9 +150,21 @@ interface WorkOrderDeliveryPublic {
   deliverer?: { id: number; nombre: string } | null;
 }
 
+interface WorkOrderRelationPublic {
+  id: number;
+  codigo: string;
+  tipoIngreso: WorkOrderEntryType;
+  estado: WorkOrderStatus;
+  coberturaGarantia: boolean;
+  fechaIngreso: Date | null;
+}
+
 export interface WorkOrderPublic {
   id: number;
   codigo: string;
+  tipoIngreso: WorkOrderEntryType;
+  sourceWorkOrderId: number | null;
+  coberturaGarantia: boolean;
   clientId: number | null;
   contactClientId: number | null;
   billingClientId: number | null;
@@ -172,6 +186,8 @@ export interface WorkOrderPublic {
   billing: WorkOrderBillingPublic | null;
   inspection?: WorkOrderInspectionPublic | null;
   delivery?: WorkOrderDeliveryPublic | null;
+  sourceWorkOrder?: WorkOrderRelationPublic | null;
+  relatedWorkOrders?: WorkOrderRelationPublic[];
 }
 
 export interface ListWorkOrdersResult {
@@ -281,6 +297,28 @@ const deliveryInclude = {
   ],
 };
 
+const relationAttributes = [
+  'id',
+  'codigo',
+  'tipoIngreso',
+  'estado',
+  'coberturaGarantia',
+  'fechaIngreso',
+  'createdAt',
+];
+
+const sourceWorkOrderInclude = {
+  model: WorkOrder,
+  as: 'sourceWorkOrder',
+  attributes: relationAttributes,
+};
+
+const relatedWorkOrdersInclude = {
+  model: WorkOrder,
+  as: 'relatedWorkOrders',
+  attributes: relationAttributes,
+};
+
 const toNumber = (value: number | string): number => Number(value);
 
 const parseInventory = (value: unknown): VehicleInventoryItem[] => {
@@ -338,6 +376,9 @@ const toDateOrNull = (value: string | null | undefined): Date | null => {
 const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
   id: workOrder.id,
   codigo: workOrder.codigo,
+  tipoIngreso: workOrder.tipoIngreso,
+  sourceWorkOrderId: workOrder.sourceWorkOrderId,
+  coberturaGarantia: workOrder.coberturaGarantia,
   clientId: workOrder.clientId,
   contactClientId: workOrder.contactClientId,
   billingClientId: workOrder.billingClientId,
@@ -499,6 +540,29 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
     : workOrder.delivery === null
       ? null
       : undefined,
+  sourceWorkOrder: workOrder.sourceWorkOrder
+    ? {
+        id: workOrder.sourceWorkOrder.id,
+        codigo: workOrder.sourceWorkOrder.codigo,
+        tipoIngreso: workOrder.sourceWorkOrder.tipoIngreso,
+        estado: workOrder.sourceWorkOrder.estado,
+        coberturaGarantia: workOrder.sourceWorkOrder.coberturaGarantia,
+        fechaIngreso: workOrder.sourceWorkOrder.fechaIngreso,
+      }
+    : workOrder.sourceWorkOrderId === null
+      ? null
+      : undefined,
+  relatedWorkOrders: workOrder.relatedWorkOrders
+    ?.slice()
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+    .map((related) => ({
+      id: related.id,
+      codigo: related.codigo,
+      tipoIngreso: related.tipoIngreso,
+      estado: related.estado,
+      coberturaGarantia: related.coberturaGarantia,
+      fechaIngreso: related.fechaIngreso,
+    })),
 });
 
 const buildItemsPayload = (
@@ -872,6 +936,8 @@ const getCompleteWorkOrder = async (
       inspectionInclude,
       quotationInclude,
       deliveryInclude,
+      sourceWorkOrderInclude,
+      relatedWorkOrdersInclude,
     ],
     transaction,
   });
@@ -1296,6 +1362,128 @@ export const deliverWorkOrder = async (
   });
 
   return getWorkOrderById(workOrderId);
+};
+
+export const createWorkOrderReentry = async (
+  sourceId: number,
+  data: CreateWorkOrderReentryInput,
+  userId: number,
+): Promise<WorkOrderPublic> => {
+  const newWorkOrderId = await sequelize.transaction(async (transaction) => {
+    const source = await WorkOrder.findByPk(sourceId, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+
+    if (!source) {
+      throw ApiError.notFound('Orden de trabajo no encontrada');
+    }
+    if (source.estado !== 'entregada') {
+      throw ApiError.badRequest('Solo una orden entregada puede originar una garantía o reingreso');
+    }
+
+    if (source.clientId !== null) {
+      await assertClientExists(
+        source.clientId,
+        transaction,
+        'El cliente de la orden original ya no se encuentra activo',
+      );
+    }
+
+    let vehicle: Vehicle | null = null;
+    if (source.vehicleId !== null) {
+      vehicle = await assertVehicleExists(source.vehicleId, transaction);
+    }
+
+    const sourceDelivery = await WorkOrderDelivery.findOne({
+      where: { workOrderId: source.id },
+      transaction,
+    });
+    const kilometrajeReferencia =
+      sourceDelivery?.kilometrajeSalida ?? vehicle?.kilometraje ?? source.kilometrajeIngreso;
+    const kilometrajeIngreso = data.kilometrajeIngreso ?? kilometrajeReferencia ?? null;
+
+    if (
+      kilometrajeReferencia !== null &&
+      kilometrajeIngreso !== null &&
+      kilometrajeIngreso < kilometrajeReferencia
+    ) {
+      throw ApiError.badRequest(
+        `El kilometraje del reingreso no puede ser menor al último registrado (${kilometrajeReferencia})`,
+      );
+    }
+
+    const coberturaGarantia =
+      data.tipoIngreso === 'garantia' ? (data.coberturaGarantia ?? true) : false;
+    const sourceItems = data.copiarItems
+      ? await WorkOrderItem.findAll({
+          where: { workOrderId: source.id, estadoOperativo: { [Op.ne]: 'omitido' } },
+          order: [['id', 'ASC']],
+          transaction,
+        })
+      : [];
+    const copiedItems: WorkOrderItemInput[] = sourceItems.map((item) => ({
+      catalogItemId: item.catalogItemId,
+      descripcion: item.descripcion,
+      cantidad: toNumber(item.cantidad),
+      precioUnitario: coberturaGarantia ? 0 : toNumber(item.precioUnitario),
+      estadoOperativo: 'pendiente',
+      notasOperativas: `Referencia de ${source.codigo}${item.notasOperativas ? `: ${item.notasOperativas}` : ''}`,
+    }));
+
+    const codigo = await generateWorkOrderCode(transaction);
+    const label = data.tipoIngreso === 'garantia' ? 'GARANTÍA' : 'REINGRESO';
+    const workOrder = await WorkOrder.create(
+      {
+        codigo,
+        tipoIngreso: data.tipoIngreso,
+        sourceWorkOrderId: source.id,
+        coberturaGarantia,
+        clientId: source.clientId,
+        contactClientId: source.contactClientId,
+        billingClientId: source.billingClientId,
+        contactName: source.contactName,
+        contactRut: source.contactRut,
+        contactPhone: source.contactPhone,
+        contactEmail: source.contactEmail,
+        billingName: source.billingName,
+        billingRut: source.billingRut,
+        billingType: source.billingType,
+        billingPhone: source.billingPhone,
+        billingEmail: source.billingEmail,
+        billingAddress: source.billingAddress,
+        billingRegion: source.billingRegion,
+        billingComuna: source.billingComuna,
+        vehicleId: source.vehicleId,
+        estado: 'borrador',
+        descripcion: `[${label} de ${source.codigo}] ${data.motivo}`,
+        kilometrajeIngreso,
+        fechaIngreso: data.fechaIngreso ? new Date(data.fechaIngreso) : new Date(),
+        fechaEntrega: null,
+        createdBy: userId,
+      },
+      { transaction },
+    );
+
+    if (copiedItems.length > 0) {
+      await WorkOrderItem.bulkCreate(buildItemsPayload(workOrder.id, copiedItems), {
+        transaction,
+      });
+    }
+    await createMirrorQuotation(workOrder, copiedItems, userId, transaction);
+
+    if (
+      vehicle &&
+      kilometrajeIngreso !== null &&
+      (vehicle.kilometraje === null || kilometrajeIngreso > vehicle.kilometraje)
+    ) {
+      await vehicle.update({ kilometraje: kilometrajeIngreso }, { transaction });
+    }
+
+    return workOrder.id;
+  });
+
+  return getWorkOrderById(newWorkOrderId);
 };
 
 export const deleteWorkOrder = async (id: number): Promise<void> => {

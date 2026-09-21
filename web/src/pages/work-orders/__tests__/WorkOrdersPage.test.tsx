@@ -300,6 +300,100 @@ describe('WorkOrdersPage', () => {
     });
   });
 
+  it('crea una garantía desde una orden entregada y conserva el vínculo de origen', async () => {
+    const deliveredOrder: WorkOrder = {
+      ...workOrder,
+      estado: 'entregada',
+      delivery: {
+        id: 5,
+        kilometrajeSalida: 84600,
+        receptorNombre: 'Juan Recepción',
+        receptorRut: '111111111',
+        receptorTelefono: '+56911111111',
+        checklist: ['trabajos_explicados', 'vehiculo_revisado'],
+        observaciones: 'Entrega conforme',
+        conformidad: true,
+        firmaRecepcion: 'Juan Recepción',
+        deliveredBy: 1,
+        deliveredAt: '2026-09-20T15:00:00.000Z',
+        deliverer: { id: 1, nombre: 'Desarrollador UNITHOR' },
+      },
+    };
+    const reentryOrder: WorkOrder = {
+      ...workOrder,
+      id: 88,
+      codigo: 'OT-2026-0088',
+      tipoIngreso: 'garantia',
+      sourceWorkOrderId: workOrder.id,
+      coberturaGarantia: true,
+    };
+    vi.mocked(api.get).mockResolvedValue({
+      data: { workOrder: deliveredOrder },
+    } as AxiosResponse<{ workOrder: WorkOrder }>);
+    vi.mocked(api.post).mockResolvedValue({
+      data: { workOrder: reentryOrder },
+    } as AxiosResponse<{ workOrder: WorkOrder }>);
+
+    createWrapper(
+      <Routes>
+        <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
+      </Routes>,
+      `/work-orders/${workOrder.id}`,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /Garantía \/ reingreso/i }));
+    expect(screen.getByRole('heading', { name: /Crear garantía o reingreso/i })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Motivo y falla reportada/i), {
+      target: { value: 'Persiste el ruido luego de la reparación' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear nueva OT' }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/work-orders/12/reentry', expect.objectContaining({
+        tipoIngreso: 'garantia',
+        motivo: 'Persiste el ruido luego de la reparación',
+        kilometrajeIngreso: 84600,
+        copiarItems: true,
+        coberturaGarantia: true,
+      }));
+    });
+  });
+
+  it('muestra el acta de entrega imprimible para una orden entregada', async () => {
+    const deliveredOrder: WorkOrder = {
+      ...workOrder,
+      estado: 'entregada',
+      delivery: {
+        id: 5,
+        kilometrajeSalida: 84600,
+        receptorNombre: 'Juan Recepción',
+        receptorRut: '111111111',
+        receptorTelefono: '+56911111111',
+        checklist: ['trabajos_explicados'],
+        observaciones: 'Entrega conforme',
+        conformidad: true,
+        firmaRecepcion: 'Juan Recepción',
+        deliveredBy: 1,
+        deliveredAt: '2026-09-20T15:00:00.000Z',
+        deliverer: { id: 1, nombre: 'Desarrollador UNITHOR' },
+      },
+    };
+    vi.mocked(api.get).mockResolvedValue({
+      data: { workOrder: deliveredOrder },
+    } as AxiosResponse<{ workOrder: WorkOrder }>);
+
+    createWrapper(
+      <Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>,
+      `/work-orders/${workOrder.id}`,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /Imprimir acta/i }));
+    expect(screen.getByRole('heading', { name: /Comprobante de entrega/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/ACTA DE ENTREGA DE VEHÍCULO/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Juan Recepción').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('84.600 km').length).toBeGreaterThanOrEqual(1);
+  });
+
   it('abre la vista previa PDF con el mismo diseño al pulsar descargar en la lista', async () => {
     vi.mocked(api.get).mockImplementation((url) => {
       if (url === `/work-orders/${workOrder.id}`) {

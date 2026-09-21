@@ -11,6 +11,7 @@ import type {
 } from '../types/entities';
 import type {
   ChangeWorkOrderStatusInput,
+  CreateWorkOrderReentryInput,
   DeliverWorkOrderInput,
   CreateWorkOrderInput,
   UpdateWorkOrderInput,
@@ -115,6 +116,24 @@ export const useDeliverWorkOrderMutation = () => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+};
+
+export const useCreateWorkOrderReentryMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: CreateWorkOrderReentryInput }) => {
+      const response = await api.post<WorkOrderResponse>(`/work-orders/${id}/reentry`, data);
+      return response.data.workOrder;
+    },
+    onSuccess: (workOrder, variables) => {
+      queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
+      void queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(variables.id) });
+      void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });

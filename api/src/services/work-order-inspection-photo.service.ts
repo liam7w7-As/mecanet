@@ -97,6 +97,18 @@ const resolveStoragePath = (storageKey: string): string => {
   return resolved;
 };
 
+export const readInspectionPhotoBytes = async (storageKey: string): Promise<Buffer> => {
+  try {
+    return await readFile(resolveStoragePath(storageKey));
+  } catch (error: unknown) {
+    const fileError = error as NodeJS.ErrnoException;
+    if (fileError.code === 'ENOENT') {
+      throw ApiError.notFound('Archivo de inspección no encontrado');
+    }
+    throw error;
+  }
+};
+
 const removeStoredFile = async (storageKey: string): Promise<void> => {
   try {
     await unlink(resolveStoragePath(storageKey));
@@ -261,7 +273,7 @@ export const getInspectionPhoto = async (
   try {
     return {
       photo: toPublic(photo, workOrderId),
-      bytes: await readFile(resolveStoragePath(photo.storageKey)),
+      bytes: await readInspectionPhotoBytes(photo.storageKey),
     };
   } catch (error: unknown) {
     const fileError = error as NodeJS.ErrnoException;

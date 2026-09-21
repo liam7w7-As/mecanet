@@ -1,8 +1,13 @@
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
+import { PDFDocument } from 'pdf-lib';
 import { Op } from 'sequelize';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { sequelize } from '../../config/database.js';
+import { env } from '../../config/env.js';
 import { app } from '../../main.js';
 import { Client } from '../../models/Client.js';
 import { Permission } from '../../models/Permission.js';
@@ -12,6 +17,8 @@ import { RolePermission } from '../../models/RolePermission.js';
 import { User } from '../../models/User.js';
 import { Vehicle } from '../../models/Vehicle.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
+import { WorkOrderInspection } from '../../models/WorkOrderInspection.js';
+import { WorkOrderInspectionPhoto } from '../../models/WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from '../../models/WorkOrderItem.js';
 import { invalidatePermissionCache } from '../../services/permission.service.js';
 import { hashPassword } from '../../utils/password.js';
@@ -23,6 +30,10 @@ const TEST_EMAIL_PREFIX = 'phase43-';
 const TEST_PLATE_PREFIX = 'PH43';
 const TEST_YEAR = new Date().getFullYear();
 const TEST_CODE_PREFIX = `OT-${TEST_YEAR}-43`;
+const PNG_BYTES = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
 
 interface LoginCookies {
   accessToken: string;
@@ -187,6 +198,20 @@ describe('Work Order PDF Routes (E2E)', () => {
     const workOrderWithItems = await WorkOrder.create({
       codigo: `${TEST_CODE_PREFIX}01`,
       clientId,
+      contactClientId: clientId,
+      billingClientId: clientId,
+      contactName: 'Marcela Recepción PDF',
+      contactRut: '17654321K',
+      contactPhone: '+56 9 8765 4321',
+      contactEmail: 'recepcion.pdf@unithor.local',
+      billingName: 'Transportes PDF SpA',
+      billingRut: '76999001K',
+      billingType: 'empresa',
+      billingPhone: '+56 2 2345 6789',
+      billingEmail: 'facturacion.pdf@unithor.local',
+      billingAddress: 'Av. Facturación 456',
+      billingRegion: 'Metropolitana',
+      billingComuna: 'Santiago',
       vehicleId,
       estado: 'en_progreso',
       descripcion: 'Vibración al frenar y mantenimiento preventivo.',
@@ -202,6 +227,11 @@ describe('Work Order PDF Routes (E2E)', () => {
         cantidad: 1,
         precioUnitario: 45000,
         subtotal: 45000,
+        estadoOperativo: 'completado',
+        notasOperativas: 'Torque verificado según fabricante.',
+        stockConsumido: true,
+        stockConsumidoCantidad: 1,
+        stockConsumidoAt: new Date('2026-01-10T16:00:00.000Z'),
       },
       {
         workOrderId: workOrderWithItemsId,
@@ -209,8 +239,39 @@ describe('Work Order PDF Routes (E2E)', () => {
         cantidad: 2,
         precioUnitario: 18000,
         subtotal: 36000,
+        estadoOperativo: 'en_proceso',
       },
     ]);
+
+    const inspection = await WorkOrderInspection.create({
+      workOrderId: workOrderWithItemsId,
+      nivelCombustible: 'medio',
+      llantaDelanteraIzquierda: 'bueno',
+      llantaDelanteraDerecha: 'regular',
+      llantaTraseraIzquierda: 'bueno',
+      llantaTraseraDerecha: 'baja_presion',
+      inventario: ['botiquin', 'chaleco_reflectante', 'rueda_repuesto', 'gata'],
+      objetosValor: 'Lentes de sol en guantera.',
+      observaciones: 'Rayón superficial en puerta trasera derecha.',
+      inspectedBy: devUserId,
+    });
+    const photoStorageKey = path.posix.join(
+      'work-orders',
+      String(workOrderWithItemsId),
+      'frontal-phase849.png',
+    );
+    const photoPath = path.resolve(env.UPLOAD_DIR, ...photoStorageKey.split('/'));
+    await mkdir(path.dirname(photoPath), { recursive: true });
+    await writeFile(photoPath, PNG_BYTES);
+    await WorkOrderInspectionPhoto.create({
+      inspectionId: inspection.id,
+      slot: 'frontal',
+      storageKey: photoStorageKey,
+      mimeType: 'image/png',
+      sizeBytes: PNG_BYTES.length,
+      sha256: 'a'.repeat(64),
+      uploadedBy: devUserId,
+    });
 
     const emptyWorkOrder = await WorkOrder.create({
       codigo: `${TEST_CODE_PREFIX}02`,
@@ -238,6 +299,10 @@ describe('Work Order PDF Routes (E2E)', () => {
       await WorkOrderItem.destroy({ where: { workOrderId: testWorkOrderIds } });
       await WorkOrder.destroy({ where: { id: testWorkOrderIds }, force: true });
     }
+    await rm(path.resolve(env.UPLOAD_DIR, 'work-orders', String(workOrderWithItemsId)), {
+      recursive: true,
+      force: true,
+    });
 
     const testVehicles = await Vehicle.findAll({
       where: { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
@@ -303,6 +368,10 @@ describe('Work Order PDF Routes (E2E)', () => {
     expect(response.headers['content-type']).toContain('application/pdf');
     expect(response.headers['content-disposition']).toContain(`${TEST_CODE_PREFIX}01.pdf`);
     expect(body.subarray(0, 5).toString('utf8')).toBe('%PDF-');
+    const document = await PDFDocument.load(body);
+    expect(document.getTitle()).toBe(`Orden de Trabajo ${TEST_CODE_PREFIX}01`);
+    expect(document.getPageCount()).toBeGreaterThanOrEqual(4);
+    expect(body.length).toBeGreaterThan(5000);
   });
 
   it('genera un PDF válido para orden sin items', async () => {

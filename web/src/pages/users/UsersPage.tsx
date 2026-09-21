@@ -37,8 +37,10 @@ const roleStyles: Record<AdminUser['role']['nombre'], string> = {
   desarrollador: 'bg-violet-100 text-violet-800',
   admin: 'bg-blue-100 text-brand-blue',
   jefe: 'bg-cyan-100 text-cyan-900',
+  mecanico: 'bg-sky-100 text-sky-800',
   vendedor: 'bg-emerald-100 text-emerald-800',
   bodeguero: 'bg-amber-100 text-amber-800',
+  finanzas: 'bg-fuchsia-100 text-fuchsia-800',
 };
 
 const UsersSkeleton = () => (

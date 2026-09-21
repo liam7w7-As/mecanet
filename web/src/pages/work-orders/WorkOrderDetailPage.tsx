@@ -39,6 +39,7 @@ import PhotoSlotInput from '../../components/work-orders/PhotoSlotInput';
 import WorkOrderDeliveryModal from '../../components/work-orders/WorkOrderDeliveryModal';
 import WorkOrderDeliveryReceiptModal from '../../components/work-orders/WorkOrderDeliveryReceiptModal';
 import WorkOrderItemsModal from '../../components/work-orders/WorkOrderItemsModal';
+import WorkOrderMechanicPanel from '../../components/work-orders/WorkOrderMechanicPanel';
 import WorkOrderReceptionInspectionModal from '../../components/work-orders/WorkOrderReceptionInspectionModal';
 import WorkOrderReentryModal from '../../components/work-orders/WorkOrderReentryModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
@@ -79,6 +80,10 @@ const WORK_ORDER_EVENT_LABELS: Record<WorkOrderEventType, string> = {
   entrega: 'Entrega',
   garantia_creada: 'Garantía',
   reingreso_creado: 'Reingreso',
+  asignacion_mecanico: 'Asignación',
+  reporte_avance: 'Avance técnico',
+  solicitud_creada: 'Solicitud',
+  solicitud_revisada: 'Revisión',
   eliminacion: 'Eliminación',
 };
 
@@ -152,6 +157,7 @@ export const WorkOrderDetailPage = () => {
   const [uploadProgress, setUploadProgress] = useState<Partial<Record<WorkOrderInspectionPhotoSlot, number>>>({});
   const user = useAuthStore((state) => state.user);
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
+  const canManage = Boolean(canUpdate && user?.role !== 'mecanico');
   const canCreate = Boolean(user && hasUserPermission(user, 'taller', 'create'));
   const workOrder = workOrderQuery.data;
   const validTransitions = useMemo(
@@ -160,7 +166,7 @@ export const WorkOrderDetailPage = () => {
   );
   const total = workOrder?.items?.reduce((sum, item) => sum + Number(item.subtotal), 0) ?? 0;
   const canEditInspection = Boolean(
-    workOrder && canUpdate && workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada',
+    workOrder && canManage && workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada',
   );
   const itemProgress = useMemo(() => {
     const items = workOrder?.items ?? [];
@@ -301,7 +307,7 @@ export const WorkOrderDetailPage = () => {
         <div className="grid divide-y divide-slate-200 md:grid-cols-3 md:divide-x md:divide-y-0">
           <div className="p-5"><div className="flex items-center gap-2 text-sm font-semibold text-slate-500"><Wrench className="h-4 w-4" aria-hidden="true" />Vehículo</div><p className="mt-3 font-mono text-xl font-bold text-brand-blue">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</p><p className="mt-1 text-sm text-slate-600">{[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos técnicos'}</p><p className="mt-2 flex items-center gap-1 text-xs text-slate-500"><Gauge className="h-3.5 w-3.5" aria-hidden="true" />{workOrder.kilometrajeIngreso === null ? 'Kilometraje no registrado' : `${workOrder.kilometrajeIngreso.toLocaleString('es-CL')} km`}</p></div>
           <div className="p-5"><div className="flex items-center gap-2 text-sm font-semibold text-slate-500"><UserRound className="h-4 w-4" aria-hidden="true" />Cliente</div><p className="mt-3 font-semibold text-slate-900">{workOrder.client?.nombre ?? 'Sin cliente asignado'}</p><p className="mt-1 text-sm text-slate-600">{workOrder.client?.rut ?? 'Sin identificación'}</p><p className="mt-2 text-xs text-slate-500">{workOrder.client?.telefono ?? 'Sin teléfono'}</p></div>
-          <div className="p-5"><p className="text-sm font-semibold text-slate-500">Registro</p><dl className="mt-3 space-y-2 text-sm"><div className="flex justify-between gap-3"><dt className="text-slate-500">Ingreso</dt><dd className="text-right font-medium text-slate-800">{formatDateTime(workOrder.fechaIngreso)}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Entrega</dt><dd className="text-right font-medium text-slate-800">{formatDateTime(workOrder.fechaEntrega)}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Creada por</dt><dd className="text-right font-medium text-slate-800">{workOrder.creator?.nombre ?? 'Sin registro'}</dd></div></dl></div>
+          <div className="p-5"><p className="text-sm font-semibold text-slate-500">Registro</p><dl className="mt-3 space-y-2 text-sm"><div className="flex justify-between gap-3"><dt className="text-slate-500">Ingreso</dt><dd className="text-right font-medium text-slate-800">{formatDateTime(workOrder.fechaIngreso)}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Entrega</dt><dd className="text-right font-medium text-slate-800">{formatDateTime(workOrder.fechaEntrega)}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Creada por</dt><dd className="text-right font-medium text-slate-800">{workOrder.creator?.nombre ?? 'Sin registro'}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Mecánico</dt><dd className="text-right font-medium text-slate-800">{workOrder.assignedMechanic?.nombre ?? 'Sin asignar'}</dd></div></dl></div>
         </div>
         <div className="border-t border-slate-200 px-5 py-4"><p className="text-xs font-semibold uppercase text-slate-500">Motivo de ingreso / diagnóstico</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{workOrder.descripcion ?? 'Sin observaciones registradas.'}</p></div>
       </section>
@@ -457,13 +463,15 @@ export const WorkOrderDetailPage = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div><p className="text-xs font-semibold uppercase text-slate-500">Control operativo</p><h2 id="status-control-title" className="mt-1 text-lg font-bold text-brand-blue">Cambiar estado</h2><p className="mt-1 text-sm text-slate-500">Estado actual: {WORK_ORDER_STATUS_LABELS[workOrder.estado]}</p></div>
           <div className="flex flex-wrap gap-2">
-            {canUpdate && validTransitions.map((nextStatus) => (
+            {canManage && validTransitions.map((nextStatus) => (
               <button key={nextStatus} type="button" className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition disabled:opacity-60 ${nextStatus === 'cancelada' ? 'border border-red-300 bg-white text-red-700 hover:bg-red-50' : 'bg-brand-blue text-white hover:bg-brand-dark'}`} onClick={() => changeStatus(nextStatus)} disabled={statusMutation.isPending}>{statusMutation.isPending && statusMutation.variables?.data.nuevoEstado === nextStatus ? 'Actualizando...' : WORK_ORDER_STATUS_LABELS[nextStatus]}</button>
             ))}
-            {validTransitions.length === 0 && <p className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-600">Esta orden está en un estado terminal.</p>}
+            {(!canManage || validTransitions.length === 0) && <p className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-600">{canManage ? 'Esta orden está en un estado terminal.' : 'El jefe de taller administra los cambios de estado.'}</p>}
           </div>
         </div>
       </section>
+
+      <WorkOrderMechanicPanel workOrder={workOrder} />
 
       {workOrder.delivery && (
         <section className="overflow-hidden rounded-lg border border-emerald-200 bg-white" aria-labelledby="delivery-record-title">
@@ -549,7 +557,7 @@ export const WorkOrderDetailPage = () => {
       </section>
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-labelledby="work-order-items-title">
-        <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 id="work-order-items-title" className="font-bold text-brand-blue">Trabajos y repuestos</h2><p className="mt-1 text-sm text-slate-500">Checklist operativo y detalle económico registrado en la orden.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-brand-light px-3 py-1.5 text-xs font-bold text-brand-blue">{itemProgress.completed}/{itemProgress.total} completados</span>{itemProgress.active > 0 && <span className="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">{itemProgress.active} en proceso</span>}{canEditInspection ? <button type="button" className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-blue bg-white px-3 text-sm font-semibold text-brand-blue hover:bg-brand-light" onClick={() => setShowItemsModal(true)}><Pencil className="h-4 w-4" aria-hidden="true" />Editar trabajos</button> : <Printer className="h-5 w-5 text-slate-400" aria-hidden="true" />}</div></div>
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 id="work-order-items-title" className="font-bold text-brand-blue">Trabajos y repuestos</h2><p className="mt-1 text-sm text-slate-500">Checklist operativo y detalle económico registrado en la orden.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-brand-light px-3 py-1.5 text-xs font-bold text-brand-blue">{itemProgress.completed}/{itemProgress.total} completados</span>{itemProgress.active > 0 && <span className="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">{itemProgress.active} en proceso</span>}{canManage && workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada' ? <button type="button" className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-blue bg-white px-3 text-sm font-semibold text-brand-blue hover:bg-brand-light" onClick={() => setShowItemsModal(true)}><Pencil className="h-4 w-4" aria-hidden="true" />Editar trabajos y precios</button> : <Printer className="h-5 w-5 text-slate-400" aria-hidden="true" />}</div></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[1060px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3 font-semibold">Descripción</th><th className="px-4 py-3 font-semibold">Avance</th><th className="px-4 py-3 font-semibold">Stock</th><th className="px-4 py-3 font-semibold">Nota</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th><th className="px-4 py-3 text-right font-semibold">Precio unitario</th><th className="px-4 py-3 text-right font-semibold">Subtotal</th></tr></thead><tbody>{workOrder.items?.map((item) => <tr key={item.id} className="border-t border-slate-100"><td className="px-4 py-3 font-medium text-slate-800"><span>{item.descripcion}</span>{item.catalogItem?.codigo && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-500">{item.catalogItem.codigo}</span>}</td><td className="px-4 py-3"><span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">{ITEM_OPERATIONAL_STATUS_LABELS[item.estadoOperativo] ?? item.estadoOperativo}</span></td><td className="px-4 py-3">{item.catalogItem?.tipo === 'parte' ? <div className="flex flex-col gap-1"><span className={`w-fit rounded-md px-2 py-1 text-xs font-bold ${item.stockConsumido ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{item.stockConsumido ? `Consumido: ${item.stockConsumidoCantidad}` : 'Pendiente consumo'}</span><span className="text-xs text-slate-500">Disponible: {item.catalogItem.stock ?? 0}</span></div> : <span className="text-slate-400">-</span>}</td><td className="max-w-64 px-4 py-3 text-slate-600">{item.notasOperativas ?? '-'}</td><td className="px-4 py-3 text-right text-slate-600">{item.cantidad}</td><td className="px-4 py-3 text-right text-slate-600">{formatClp(item.precioUnitario)}</td><td className="px-4 py-3 text-right font-semibold text-brand-blue">{formatClp(item.subtotal)}</td></tr>)}</tbody></table></div>
         {workOrder.items?.length === 0 && <p className="px-5 py-8 text-center text-sm text-slate-500">Diagnóstico inicial, sin trabajos o repuestos cargados.</p>}
         <div className="flex justify-end border-t border-slate-200 bg-slate-50 px-5 py-4"><div className="text-right"><p className="text-xs font-semibold uppercase text-slate-500">Total estimado</p><p className="mt-1 text-2xl font-bold text-brand-blue">{formatClp(total)}</p></div></div>

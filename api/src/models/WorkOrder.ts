@@ -26,6 +26,8 @@ import { WorkOrderDelivery } from './WorkOrderDelivery.js';
 import { WorkOrderEvent } from './WorkOrderEvent.js';
 import { WorkOrderInspection } from './WorkOrderInspection.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
+import { WorkOrderProgressReport } from './WorkOrderProgressReport.js';
+import { WorkOrderRequest } from './WorkOrderRequest.js';
 
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 
@@ -187,6 +189,10 @@ export class WorkOrder extends Model<
   })
   declare createdBy: number | null;
 
+  @ForeignKey(() => User)
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare assignedMechanicId: number | null;
+
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;
 
@@ -211,6 +217,9 @@ export class WorkOrder extends Model<
   @BelongsTo(() => User, 'createdBy')
   declare creator?: User;
 
+  @BelongsTo(() => User, 'assignedMechanicId')
+  declare assignedMechanic?: User;
+
   @BelongsTo(() => WorkOrder, 'sourceWorkOrderId')
   declare sourceWorkOrder?: WorkOrder;
 
@@ -222,6 +231,12 @@ export class WorkOrder extends Model<
 
   @HasMany(() => WorkOrderEvent)
   declare events?: WorkOrderEvent[];
+
+  @HasMany(() => WorkOrderProgressReport)
+  declare progressReports?: WorkOrderProgressReport[];
+
+  @HasMany(() => WorkOrderRequest)
+  declare requests?: WorkOrderRequest[];
 
   @HasOne(() => WorkOrderInspection)
   declare inspection?: WorkOrderInspection;

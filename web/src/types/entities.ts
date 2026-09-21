@@ -215,6 +215,34 @@ export interface WorkOrderEvent {
   actor?: { id: number; nombre: string } | null;
 }
 
+export interface WorkOrderProgressReport {
+  id: number;
+  porcentaje: number;
+  comentario: string;
+  bloqueos: string | null;
+  createdAt: string;
+  mechanic?: { id: number; nombre: string } | null;
+}
+
+export interface WorkOrderRequest {
+  id: number;
+  workOrderItemId: number | null;
+  catalogItemId: number | null;
+  tipo: import('@unithor/shared').WorkOrderRequestType;
+  estado: import('@unithor/shared').WorkOrderRequestStatus;
+  motivo: string;
+  cantidad: number | null;
+  precioSugerido: number | null;
+  precioAprobado: number | null;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  catalogItem?: { id: number; codigo: string | null; nombre: string; precio: number } | null;
+  workOrderItem?: { id: number; descripcion: string; precioUnitario: number } | null;
+  requester?: { id: number; nombre: string } | null;
+  reviewer?: { id: number; nombre: string } | null;
+}
+
 export interface WorkOrder {
   id: number;
   codigo: string;
@@ -231,6 +259,7 @@ export interface WorkOrder {
   fechaIngreso: string | null;
   fechaEntrega: string | null;
   createdBy: number | null;
+  assignedMechanicId?: number | null;
   createdAt: string;
   updatedAt: string;
   client?: WorkOrderClient | null;
@@ -238,6 +267,7 @@ export interface WorkOrder {
   billingClient?: WorkOrderClient | null;
   vehicle?: WorkOrderVehicle | null;
   creator?: WorkOrderCreator | null;
+  assignedMechanic?: WorkOrderCreator | null;
   items?: WorkOrderItem[];
   quotation?: WorkOrderQuotationSummary | null;
   contact?: WorkOrderContact | null;
@@ -247,6 +277,8 @@ export interface WorkOrder {
   sourceWorkOrder?: WorkOrderRelation | null;
   relatedWorkOrders?: WorkOrderRelation[];
   events?: WorkOrderEvent[];
+  progressReports?: WorkOrderProgressReport[];
+  requests?: WorkOrderRequest[];
 }
 
 export interface QuotationClient {

@@ -6,6 +6,10 @@ import {
   updateWorkOrderSchema,
   workOrderQuerySchema,
   WORK_ORDER_INSPECTION_PHOTO_SLOTS,
+  assignWorkOrderMechanicSchema,
+  createWorkOrderRequestSchema,
+  reviewWorkOrderRequestSchema,
+  updateWorkOrderExecutionSchema,
 } from '@unithor/shared';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -24,6 +28,11 @@ import {
   getWorkOrdersHandler,
   updateWorkOrderHandler,
   uploadWorkOrderInspectionPhotoHandler,
+  assignWorkOrderMechanicHandler,
+  createWorkOrderRequestHandler,
+  getMechanicsHandler,
+  reviewWorkOrderRequestHandler,
+  updateWorkOrderExecutionHandler,
 } from '../controllers/work-order.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorize } from '../middlewares/authorize.js';
@@ -40,6 +49,10 @@ const inspectionPhotoParamSchema = idParamSchema.extend({
   slot: z.enum(WORK_ORDER_INSPECTION_PHOTO_SLOTS),
 });
 
+const requestParamSchema = idParamSchema.extend({
+  requestId: z.coerce.number().int().positive('ID de solicitud inválido'),
+});
+
 workOrderRouter.use(authenticate);
 
 workOrderRouter.get(
@@ -48,6 +61,8 @@ workOrderRouter.get(
   validate({ query: workOrderQuerySchema }),
   getWorkOrdersHandler,
 );
+
+workOrderRouter.get('/mechanics', authorize('taller', 'update'), getMechanicsHandler);
 
 workOrderRouter.get(
   '/:id/inspection/photos/:slot',
@@ -104,6 +119,34 @@ workOrderRouter.patch(
   authorize('taller', 'update'),
   validate({ params: idParamSchema, body: changeWorkOrderStatusSchema }),
   changeWorkOrderStatusHandler,
+);
+
+workOrderRouter.patch(
+  '/:id/assignment',
+  authorize('taller', 'update'),
+  validate({ params: idParamSchema, body: assignWorkOrderMechanicSchema }),
+  assignWorkOrderMechanicHandler,
+);
+
+workOrderRouter.patch(
+  '/:id/execution',
+  authorize('taller', 'update'),
+  validate({ params: idParamSchema, body: updateWorkOrderExecutionSchema }),
+  updateWorkOrderExecutionHandler,
+);
+
+workOrderRouter.post(
+  '/:id/requests',
+  authorize('taller', 'update'),
+  validate({ params: idParamSchema, body: createWorkOrderRequestSchema }),
+  createWorkOrderRequestHandler,
+);
+
+workOrderRouter.patch(
+  '/:id/requests/:requestId',
+  authorize('taller', 'update'),
+  validate({ params: requestParamSchema, body: reviewWorkOrderRequestSchema }),
+  reviewWorkOrderRequestHandler,
 );
 
 workOrderRouter.post(

@@ -1,6 +1,6 @@
 import type { QueryInterface } from 'sequelize';
 
-const MODULES = ['taller', 'comercial', 'flota', 'admin'] as const;
+const MODULES = ['taller', 'comercial', 'finanzas', 'flota', 'admin'] as const;
 type Module = (typeof MODULES)[number];
 
 const ACTIONS = ['read', 'create', 'update', 'delete', 'export', 'import'] as const;
@@ -9,7 +9,7 @@ type Action = (typeof ACTIONS)[number];
 export async function up(queryInterface: QueryInterface): Promise<void> {
   const now = new Date();
 
-  // Generar los 24 pares de permisos
+  // Generar los pares módulo/acción del catálogo RBAC.
   const allPermissions: { modulo: Module; accion: Action }[] = [];
   for (const modulo of MODULES) {
     for (const accion of ACTIONS) {

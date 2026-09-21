@@ -17,10 +17,20 @@ import type {
   UpdateWorkOrderInput,
   WorkOrderQueryInput,
   WorkOrderInspectionPhotoSlot,
+  AssignWorkOrderMechanicInput,
+  CreateWorkOrderRequestInput,
+  ReviewWorkOrderRequestInput,
+  UpdateWorkOrderExecutionInput,
 } from '@unithor/shared';
 
 interface WorkOrderResponse {
   workOrder: WorkOrder;
+}
+
+export interface WorkOrderMechanic {
+  id: number;
+  nombre: string;
+  email: string;
 }
 
 export type WorkOrderQueryParams = Partial<WorkOrderQueryInput>;
@@ -54,6 +64,83 @@ export const useWorkOrder = (id: number) =>
     },
     enabled: Number.isInteger(id) && id > 0,
   });
+
+export const useMechanics = (enabled = true) =>
+  useQuery({
+    queryKey: [...workOrderKeys.all, 'mechanics'],
+    queryFn: async () => {
+      const response = await api.get<{ mechanics: WorkOrderMechanic[] }>('/work-orders/mechanics');
+      return response.data.mechanics ?? [];
+    },
+    enabled,
+    staleTime: 60_000,
+  });
+
+const updateWorkOrderCaches = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  workOrder: WorkOrder,
+): void => {
+  queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
+  void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+  void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+  void queryClient.invalidateQueries({ queryKey: ['catalog'] });
+  void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+};
+
+export const useAssignWorkOrderMechanicMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: AssignWorkOrderMechanicInput }) => {
+      const response = await api.patch<WorkOrderResponse>(`/work-orders/${id}/assignment`, data);
+      return response.data.workOrder;
+    },
+    onSuccess: (workOrder) => updateWorkOrderCaches(queryClient, workOrder),
+  });
+};
+
+export const useUpdateWorkOrderExecutionMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: UpdateWorkOrderExecutionInput }) => {
+      const response = await api.patch<WorkOrderResponse>(`/work-orders/${id}/execution`, data);
+      return response.data.workOrder;
+    },
+    onSuccess: (workOrder) => updateWorkOrderCaches(queryClient, workOrder),
+  });
+};
+
+export const useCreateWorkOrderRequestMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: CreateWorkOrderRequestInput }) => {
+      const response = await api.post<WorkOrderResponse>(`/work-orders/${id}/requests`, data);
+      return response.data.workOrder;
+    },
+    onSuccess: (workOrder) => updateWorkOrderCaches(queryClient, workOrder),
+  });
+};
+
+export const useReviewWorkOrderRequestMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      requestId,
+      data,
+    }: {
+      id: number;
+      requestId: number;
+      data: ReviewWorkOrderRequestInput;
+    }) => {
+      const response = await api.patch<WorkOrderResponse>(
+        `/work-orders/${id}/requests/${requestId}`,
+        data,
+      );
+      return response.data.workOrder;
+    },
+    onSuccess: (workOrder) => updateWorkOrderCaches(queryClient, workOrder),
+  });
+};
 
 export const useCreateWorkOrderMutation = () => {
   const queryClient = useQueryClient();

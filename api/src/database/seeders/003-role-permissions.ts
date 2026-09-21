@@ -1,7 +1,7 @@
 import type { QueryInterface } from 'sequelize';
 
-type Role = 'desarrollador' | 'admin' | 'jefe' | 'vendedor' | 'bodeguero';
-type Module = 'taller' | 'comercial' | 'flota' | 'admin';
+type Role = 'desarrollador' | 'admin' | 'jefe' | 'mecanico' | 'vendedor' | 'bodeguero' | 'finanzas';
+type Module = 'taller' | 'comercial' | 'finanzas' | 'flota' | 'admin';
 type Action = 'read' | 'create' | 'update' | 'delete' | 'export' | 'import';
 
 type PermissionMap = Partial<Record<Module, readonly Action[]>>;
@@ -10,12 +10,14 @@ const ROLE_PERMISSIONS_MATRIX: Record<Role, PermissionMap> = {
   desarrollador: {
     taller: ['read', 'create', 'update', 'delete', 'export', 'import'],
     comercial: ['read', 'create', 'update', 'delete', 'export', 'import'],
+    finanzas: ['read', 'create', 'update', 'delete', 'export', 'import'],
     flota: ['read', 'create', 'update', 'delete', 'export', 'import'],
     admin: ['read', 'create', 'update', 'delete', 'export', 'import'],
   },
   admin: {
     taller: ['read', 'create', 'update', 'delete', 'export', 'import'],
     comercial: ['read', 'create', 'update', 'delete', 'export', 'import'],
+    finanzas: ['read', 'create', 'update', 'delete', 'export', 'import'],
     flota: ['read', 'create', 'update', 'delete', 'export', 'import'],
     admin: ['read', 'create', 'update', 'delete', 'export', 'import'],
   },
@@ -24,6 +26,9 @@ const ROLE_PERMISSIONS_MATRIX: Record<Role, PermissionMap> = {
     comercial: ['read', 'create', 'update', 'delete', 'export'],
     flota: ['read'],
     admin: ['read'],
+  },
+  mecanico: {
+    taller: ['read', 'update'],
   },
   vendedor: {
     taller: ['read', 'create', 'update'],
@@ -34,6 +39,10 @@ const ROLE_PERMISSIONS_MATRIX: Record<Role, PermissionMap> = {
     taller: ['read', 'update'],
     comercial: ['read'],
     flota: ['read'],
+  },
+  finanzas: {
+    comercial: ['read'],
+    finanzas: ['read', 'create', 'update', 'delete', 'export'],
   },
 };
 

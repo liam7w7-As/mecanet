@@ -14,12 +14,20 @@ const ROLES_SEED = [
     descripcion: 'Jefe de taller / supervisor',
   },
   {
+    nombre: 'mecanico',
+    descripcion: 'Mecánico con acceso restringido a órdenes asignadas',
+  },
+  {
     nombre: 'vendedor',
     descripcion: 'Vendedor / asesor comercial',
   },
   {
     nombre: 'bodeguero',
     descripcion: 'Encargado de bodega y repuestos',
+  },
+  {
+    nombre: 'finanzas',
+    descripcion: 'Finanzas y contabilidad',
   },
 ];
 

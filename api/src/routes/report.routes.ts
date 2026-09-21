@@ -3,7 +3,7 @@ import { Router } from 'express';
 
 import { getCommercialReportExcelHandler } from '../controllers/report.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
-import { authorize } from '../middlewares/authorize.js';
+import { authorizeAny } from '../middlewares/authorize-any.js';
 import { validate } from '../middlewares/validate.js';
 
 export const reportRouter = Router();
@@ -12,7 +12,7 @@ reportRouter.use(authenticate);
 
 reportRouter.get(
   '/commercial/excel',
-  authorize('comercial', 'export'),
+  authorizeAny([{ modulo: 'comercial', accion: 'export' }, { modulo: 'finanzas', accion: 'export' }]),
   validate({ query: commercialReportQuerySchema }),
   getCommercialReportExcelHandler,
 );

@@ -4,6 +4,8 @@ import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
 import { Payment } from '../models/Payment.js';
 import { Quotation } from '../models/Quotation.js';
+import { Role } from '../models/Role.js';
+import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 
@@ -13,7 +15,7 @@ const pendingQuotationStatuses: QuotationStatus[] = ['por_pagar', 'parcial'];
 
 const toIsoString = (value: Date | null): string | null => value?.toISOString() ?? null;
 
-export const getDashboardSummary = async (): Promise<DashboardSummary> => {
+export const getDashboardSummary = async (userId: number): Promise<DashboardSummary> => {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const pendingQuotationWhere = {
@@ -23,6 +25,12 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
     tipo: 'parte' as const,
     stock: { [Op.between]: [0, 5] },
   };
+  const user = await User.findByPk(userId, {
+    attributes: ['id'],
+    include: [{ model: Role, as: 'role', attributes: ['nombre'] }],
+  });
+  const isMechanic = user?.role?.nombre === 'mecanico';
+  const workOrderScope = isMechanic ? { assignedMechanicId: userId } : {};
 
   const [
     activeWorkOrders,
@@ -38,16 +46,17 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
     unlinkedQuotations,
   ] = await Promise.all([
     WorkOrder.count({
-      where: { estado: { [Op.in]: ['en_progreso', 'esperando_repuesto'] } },
+      where: { ...workOrderScope, estado: { [Op.in]: ['en_progreso', 'esperando_repuesto'] } },
     }),
-    WorkOrder.count({ where: { estado: 'esperando_repuesto' } }),
-    Quotation.count({ where: pendingQuotationWhere }),
-    Quotation.sum('total', { where: pendingQuotationWhere }),
-    Quotation.sum('pagado', { where: pendingQuotationWhere }),
-    Payment.sum('monto', { where: { fecha: { [Op.gte]: monthStart } } }),
+    WorkOrder.count({ where: { ...workOrderScope, estado: 'esperando_repuesto' } }),
+    isMechanic ? Promise.resolve(0) : Quotation.count({ where: pendingQuotationWhere }),
+    isMechanic ? Promise.resolve(0) : Quotation.sum('total', { where: pendingQuotationWhere }),
+    isMechanic ? Promise.resolve(0) : Quotation.sum('pagado', { where: pendingQuotationWhere }),
+    isMechanic ? Promise.resolve(0) : Payment.sum('monto', { where: { fecha: { [Op.gte]: monthStart } } }),
     CatalogItem.count({ where: criticalStockWhere }),
-    Quotation.count({ where: { workOrderId: null } }),
+    isMechanic ? Promise.resolve(0) : Quotation.count({ where: { workOrderId: null } }),
     WorkOrder.findAll({
+      where: workOrderScope,
       attributes: ['id', 'codigo', 'estado', 'fechaIngreso', 'updatedAt'],
       include: [
         { model: Client, as: 'client', attributes: ['id', 'nombre'] },
@@ -65,7 +74,7 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
       ],
       limit: 5,
     }),
-    Quotation.findAll({
+    isMechanic ? Promise.resolve([]) : Quotation.findAll({
       where: { workOrderId: null },
       attributes: ['id', 'codigo', 'total', 'estadoPago'],
       include: [{ model: Client, attributes: ['id', 'nombre'] }],

@@ -85,6 +85,7 @@ export const WorkOrdersPage = () => {
   const previewQuery = useWorkOrder(previewWorkOrderId ?? 0);
   const canCreate = Boolean(user && hasUserPermission(user, 'taller', 'create'));
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
+  const canManage = Boolean(canUpdate && user?.role !== 'mecanico');
 
   useEffect(() => setPage(1), [debouncedSearch, status]);
 
@@ -103,7 +104,7 @@ export const WorkOrdersPage = () => {
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">Operación de taller</p>
-          <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Taller - Órdenes de Trabajo</h1>
+          <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">{user?.role === 'mecanico' ? 'Mis órdenes asignadas' : 'Taller - Órdenes de Trabajo'}</h1>
         </div>
         {canCreate && (
           <Link to="/work-orders/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark shadow-sm transition-all hover:bg-yellow-400 hover:shadow-md">
@@ -180,7 +181,7 @@ export const WorkOrdersPage = () => {
                           <Eye className="h-4 w-4" aria-hidden="true" />
                         </AnimateIcon>
                       </Link>
-                      {canUpdate && (
+                      {canManage && (
                         <select
                           aria-label={`Cambiar estado de ${workOrder.codigo}`}
                           className="h-9 max-w-36 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-600"
@@ -193,7 +194,7 @@ export const WorkOrdersPage = () => {
                             .map((candidate) => <option key={candidate} value={candidate}>{WORK_ORDER_STATUS_LABELS[candidate]}</option>)}
                         </select>
                       )}
-                      {canUpdate && workOrder.estado === 'finalizada' && (
+                      {canManage && workOrder.estado === 'finalizada' && (
                         <Link to={`/work-orders/${workOrder.id}`} className="group flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100" aria-label={`Registrar entrega de ${workOrder.codigo}`} title="Registrar entrega">
                           <PackageCheck className="h-4 w-4" aria-hidden="true" />
                         </Link>

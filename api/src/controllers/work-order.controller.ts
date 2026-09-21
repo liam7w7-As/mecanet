@@ -13,6 +13,10 @@ import type {
   DeliverWorkOrderInput,
   WorkOrderQueryInput,
   WorkOrderInspectionPhotoSlot,
+  AssignWorkOrderMechanicInput,
+  CreateWorkOrderRequestInput,
+  ReviewWorkOrderRequestInput,
+  UpdateWorkOrderExecutionInput,
 } from '@unithor/shared';
 import type { Request, Response } from 'express';
 
@@ -30,16 +34,19 @@ const getCurrentUserId = (req: Request): number => {
 };
 
 export const getWorkOrdersHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     const query = res.locals.validatedQuery as WorkOrderQueryInput;
-    const result = await workOrderService.listWorkOrders(query);
+    const result = await workOrderService.listWorkOrders(query, getCurrentUserId(req));
     res.status(200).json(result);
   },
 );
 
 export const getWorkOrderByIdHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const workOrder = await workOrderService.getWorkOrderById(getParamId(req));
+    const workOrder = await workOrderService.getWorkOrderById(
+      getParamId(req),
+      getCurrentUserId(req),
+    );
     res.status(200).json({ workOrder });
   },
 );
@@ -47,6 +54,7 @@ export const getWorkOrderByIdHandler = asyncHandler(
 export const getWorkOrderPdfHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const id = getParamId(req);
+    await workOrderService.assertWorkOrderAccess(id, getCurrentUserId(req));
     const [workOrder, pdfBytes] = await Promise.all([
       workOrderService.getWorkOrderById(id),
       generateWorkOrderPdf(id),
@@ -61,6 +69,7 @@ export const getWorkOrderPdfHandler = asyncHandler(
 export const getWorkOrderReceptionPdfHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const id = getParamId(req);
+    await workOrderService.assertWorkOrderAccess(id, getCurrentUserId(req));
     const [workOrder, pdfBytes] = await Promise.all([
       workOrderService.getWorkOrderById(id),
       generateWorkOrderReceptionPdf(id),
@@ -91,6 +100,11 @@ export const uploadWorkOrderInspectionPhotoHandler = asyncHandler(
       throw ApiError.badRequest('Debe adjuntar una foto en el campo photo');
     }
 
+    await workOrderService.assertWorkOrderManagementAccess(
+      getParamId(req),
+      getCurrentUserId(req),
+    );
+
     const photo = await inspectionPhotoService.saveInspectionPhoto(
       getParamId(req),
       getPhotoSlot(req),
@@ -103,6 +117,7 @@ export const uploadWorkOrderInspectionPhotoHandler = asyncHandler(
 
 export const getWorkOrderInspectionPhotoHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
+    await workOrderService.assertWorkOrderAccess(getParamId(req), getCurrentUserId(req));
     const { photo, bytes } = await inspectionPhotoService.getInspectionPhoto(
       getParamId(req),
       getPhotoSlot(req),
@@ -118,6 +133,10 @@ export const getWorkOrderInspectionPhotoHandler = asyncHandler(
 
 export const deleteWorkOrderInspectionPhotoHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
+    await workOrderService.assertWorkOrderManagementAccess(
+      getParamId(req),
+      getCurrentUserId(req),
+    );
     await inspectionPhotoService.deleteInspectionPhoto(getParamId(req), getPhotoSlot(req));
     res.status(204).send();
   },
@@ -173,5 +192,58 @@ export const deleteWorkOrderHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     await workOrderService.deleteWorkOrder(getParamId(req), getCurrentUserId(req));
     res.status(204).send();
+  },
+);
+
+export const getMechanicsHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const mechanics = await workOrderService.listMechanics(getCurrentUserId(req));
+    res.status(200).json({ mechanics });
+  },
+);
+
+export const assignWorkOrderMechanicHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { mechanicId } = req.body as AssignWorkOrderMechanicInput;
+    const workOrder = await workOrderService.assignMechanic(
+      getParamId(req),
+      mechanicId,
+      getCurrentUserId(req),
+    );
+    res.status(200).json({ workOrder });
+  },
+);
+
+export const updateWorkOrderExecutionHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const workOrder = await workOrderService.updateWorkOrderExecution(
+      getParamId(req),
+      req.body as UpdateWorkOrderExecutionInput,
+      getCurrentUserId(req),
+    );
+    res.status(200).json({ workOrder });
+  },
+);
+
+export const createWorkOrderRequestHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const workOrder = await workOrderService.createWorkOrderRequest(
+      getParamId(req),
+      req.body as CreateWorkOrderRequestInput,
+      getCurrentUserId(req),
+    );
+    res.status(201).json({ workOrder });
+  },
+);
+
+export const reviewWorkOrderRequestHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const workOrder = await workOrderService.reviewWorkOrderRequest(
+      getParamId(req),
+      Number(req.params.requestId),
+      req.body as ReviewWorkOrderRequestInput,
+      getCurrentUserId(req),
+    );
+    res.status(200).json({ workOrder });
   },
 );

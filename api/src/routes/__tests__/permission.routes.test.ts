@@ -208,7 +208,7 @@ describe('Permission Matrix Routes (E2E)', () => {
       .get('/api/permissions')
       .set('Cookie', [`access_token=${adminCookies.accessToken}`]);
     expect(permissionsResponse.status).toBe(200);
-    expect(permissionsResponse.body.permissions).toHaveLength(24);
+    expect(permissionsResponse.body.permissions).toHaveLength(30);
     expect(permissionsResponse.body.permissions[0]).toHaveProperty('modulo');
     expect(permissionsResponse.body.permissions[0]).toHaveProperty('accion');
   });

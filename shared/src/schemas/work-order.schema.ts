@@ -160,6 +160,57 @@ export const createWorkOrderReentrySchema = z.object({
   coberturaGarantia: z.coerce.boolean().optional(),
 });
 
+export const assignWorkOrderMechanicSchema = z.object({
+  mechanicId: z.coerce.number().int().positive().nullable(),
+});
+
+export const workOrderProgressReportSchema = z.object({
+  porcentaje: z.coerce.number().int().min(0).max(100),
+  comentario: z.string().trim().min(2).max(2000),
+  bloqueos: optionalText(2000),
+});
+
+export const updateWorkOrderExecutionSchema = z
+  .object({
+    items: z
+      .array(
+        z.object({
+          id: z.coerce.number().int().positive(),
+          estadoOperativo: z.enum(ITEM_OPERATIONAL_STATUS),
+          notasOperativas: optionalText(1000),
+        }),
+      )
+      .max(200)
+      .optional(),
+    reporte: workOrderProgressReportSchema.optional(),
+  })
+  .refine((data) => data.items !== undefined || data.reporte !== undefined, {
+    message: 'Debe actualizar trabajos o registrar un reporte de avance',
+  });
+
+const requestReason = z.string().trim().min(2, 'Debe indicar el motivo').max(2000);
+
+export const createWorkOrderRequestSchema = z.discriminatedUnion('tipo', [
+  z.object({
+    tipo: z.literal('repuesto'),
+    catalogItemId: z.coerce.number().int().positive(),
+    cantidad: z.coerce.number().int().positive().max(9999),
+    motivo: requestReason,
+  }),
+  z.object({
+    tipo: z.literal('aumento_precio'),
+    workOrderItemId: z.coerce.number().int().positive(),
+    precioSugerido: z.coerce.number().positive().max(999999999),
+    motivo: requestReason,
+  }),
+]);
+
+export const reviewWorkOrderRequestSchema = z.object({
+  decision: z.enum(['aprobar', 'rechazar']),
+  precioAprobado: z.coerce.number().min(0).max(999999999).optional(),
+  comentario: optionalText(2000),
+});
+
 export type WorkOrderItemInput = z.infer<typeof workOrderItemInputSchema>;
 export type WorkOrderInspectionInput = z.infer<typeof workOrderInspectionSchema>;
 export type UpdateWorkOrderInspectionInput = z.infer<typeof updateWorkOrderInspectionSchema>;
@@ -169,3 +220,8 @@ export type WorkOrderQueryInput = z.infer<typeof workOrderQuerySchema>;
 export type ChangeWorkOrderStatusInput = z.infer<typeof changeWorkOrderStatusSchema>;
 export type DeliverWorkOrderInput = z.infer<typeof deliverWorkOrderSchema>;
 export type CreateWorkOrderReentryInput = z.infer<typeof createWorkOrderReentrySchema>;
+export type AssignWorkOrderMechanicInput = z.infer<typeof assignWorkOrderMechanicSchema>;
+export type WorkOrderProgressReportInput = z.infer<typeof workOrderProgressReportSchema>;
+export type UpdateWorkOrderExecutionInput = z.infer<typeof updateWorkOrderExecutionSchema>;
+export type CreateWorkOrderRequestInput = z.infer<typeof createWorkOrderRequestSchema>;
+export type ReviewWorkOrderRequestInput = z.infer<typeof reviewWorkOrderRequestSchema>;

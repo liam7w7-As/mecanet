@@ -1,4 +1,4 @@
-export const MODULES = ['taller', 'comercial', 'flota', 'admin'] as const;
+export const MODULES = ['taller', 'comercial', 'finanzas', 'flota', 'admin'] as const;
 export type Module = (typeof MODULES)[number];
 
 export const ACTIONS = ['read', 'create', 'update', 'delete', 'export', 'import'] as const;

@@ -129,8 +129,8 @@ describe('Database Base Seeders (isolated schema)', () => {
     await seederAdminUser.up(qi);
     await seederCatalogItems.up(qi);
 
-    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM roles;')).toBe(5);
-    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM permissions;')).toBe(24);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM roles;')).toBe(7);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM permissions;')).toBe(30);
     expect(
       await queryCount(
         testSequelize,
@@ -139,7 +139,7 @@ describe('Database Base Seeders (isolated schema)', () => {
          JOIN roles r ON r.id = rp.role_id
          WHERE r.nombre = 'desarrollador';`,
       ),
-    ).toBe(24);
+    ).toBe(30);
     expect(
       await queryCount(
         testSequelize,
@@ -190,9 +190,9 @@ describe('Database Base Seeders (isolated schema)', () => {
     await seederAdminUser.up(qi);
     await seederCatalogItems.up(qi);
 
-    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM roles;')).toBe(5);
-    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM permissions;')).toBe(24);
-    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM role_permissions;')).toBe(72);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM roles;')).toBe(7);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM permissions;')).toBe(30);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM role_permissions;')).toBe(92);
     expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM users;')).toBe(1);
     expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM catalog_items;')).toBe(14);
   });

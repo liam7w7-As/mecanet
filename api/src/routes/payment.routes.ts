@@ -8,7 +8,7 @@ import {
   getPaymentsHandler,
 } from '../controllers/payment.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
-import { authorize } from '../middlewares/authorize.js';
+import { authorizeAny } from '../middlewares/authorize-any.js';
 import { validate } from '../middlewares/validate.js';
 
 export const paymentRouter = Router();
@@ -21,21 +21,21 @@ paymentRouter.use(authenticate);
 
 paymentRouter.get(
   '/',
-  authorize('comercial', 'read'),
+  authorizeAny([{ modulo: 'comercial', accion: 'read' }, { modulo: 'finanzas', accion: 'read' }]),
   validate({ query: paymentQuerySchema }),
   getPaymentsHandler,
 );
 
 paymentRouter.post(
   '/',
-  authorize('comercial', 'create'),
+  authorizeAny([{ modulo: 'comercial', accion: 'create' }, { modulo: 'finanzas', accion: 'create' }]),
   validate({ body: createPaymentSchema }),
   createPaymentHandler,
 );
 
 paymentRouter.delete(
   '/:id',
-  authorize('comercial', 'delete'),
+  authorizeAny([{ modulo: 'comercial', accion: 'delete' }, { modulo: 'finanzas', accion: 'delete' }]),
   validate({ params: idParamSchema }),
   deletePaymentHandler,
 );

@@ -20,6 +20,8 @@ import {
   WorkOrderInspection,
   WorkOrderInspectionPhoto,
   WorkOrderItem,
+  WorkOrderProgressReport,
+  WorkOrderRequest,
   initModels,
   models,
 } from '../index.js';
@@ -74,6 +76,8 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     await WorkOrderInspectionPhoto.destroy({ where: {}, force: true });
     await WorkOrderDelivery.destroy({ where: {}, force: true });
     await WorkOrderEvent.destroy({ where: {}, force: true });
+    await WorkOrderRequest.destroy({ where: {}, force: true });
+    await WorkOrderProgressReport.destroy({ where: {}, force: true });
     await WorkOrderItem.destroy({ where: {}, force: true });
     await WorkOrderInspection.destroy({ where: {}, force: true });
     await WorkOrder.destroy({ where: {}, force: true });
@@ -87,8 +91,8 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     await Role.destroy({ where: {}, force: true });
   });
 
-  it('verifica que los 17 modelos se registran correctamente en la instancia Sequelize', () => {
-    expect(models.length).toBe(17);
+  it('verifica que los 19 modelos se registran correctamente en la instancia Sequelize', () => {
+    expect(models.length).toBe(19);
 
     const registeredModelNames = Object.keys(testSequelize.models);
     expect(registeredModelNames).toContain('Role');
@@ -105,6 +109,8 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     expect(registeredModelNames).toContain('WorkOrderInspectionPhoto');
     expect(registeredModelNames).toContain('WorkOrderDelivery');
     expect(registeredModelNames).toContain('WorkOrderEvent');
+    expect(registeredModelNames).toContain('WorkOrderProgressReport');
+    expect(registeredModelNames).toContain('WorkOrderRequest');
     expect(registeredModelNames).toContain('Quotation');
     expect(registeredModelNames).toContain('QuotationItem');
     expect(registeredModelNames).toContain('Payment');

@@ -9,8 +9,10 @@ export const ROLE_LABELS: Record<Role, string> = {
   desarrollador: 'Desarrollador',
   admin: 'Administrador',
   jefe: 'Jefe de Taller',
+  mecanico: 'Mecánico',
   vendedor: 'Vendedor',
   bodeguero: 'Bodeguero',
+  finanzas: 'Finanzas / Contabilidad',
 };
 
 export const ACTION_LABELS: Record<Action, string> = {
@@ -25,6 +27,7 @@ export const ACTION_LABELS: Record<Action, string> = {
 export const MODULE_LABELS: Record<Module, string> = {
   taller: 'Taller',
   comercial: 'Comercial',
+  finanzas: 'Finanzas',
   flota: 'Flota',
   admin: 'Administración',
 };
@@ -35,12 +38,14 @@ export const ROLE_PERMISSIONS: RolePermissionMap = {
   desarrollador: {
     taller: ALL_ACTIONS,
     comercial: ALL_ACTIONS,
+    finanzas: ALL_ACTIONS,
     flota: ALL_ACTIONS,
     admin: ALL_ACTIONS,
   },
   admin: {
     taller: ALL_ACTIONS,
     comercial: ALL_ACTIONS,
+    finanzas: ALL_ACTIONS,
     flota: ALL_ACTIONS,
     admin: ALL_ACTIONS,
   },
@@ -49,6 +54,9 @@ export const ROLE_PERMISSIONS: RolePermissionMap = {
     comercial: ['read', 'create', 'update', 'delete', 'export'],
     flota: ['read'],
     admin: ['read'],
+  },
+  mecanico: {
+    taller: ['read', 'update'],
   },
   vendedor: {
     taller: ['read', 'create', 'update'],
@@ -59,6 +67,10 @@ export const ROLE_PERMISSIONS: RolePermissionMap = {
     taller: ['read', 'update'],
     comercial: ['read'],
     flota: ['read'],
+  },
+  finanzas: {
+    comercial: ['read'],
+    finanzas: ['read', 'create', 'update', 'delete', 'export'],
   },
 };
 
@@ -73,6 +85,13 @@ export const hasUserPermission = (
   action: Action,
 ): boolean => {
   if (user.role === 'desarrollador') return true;
+  if (user.role === 'finanzas' && module === 'comercial' && action === 'export') {
+    return user.permissions
+      ? user.permissions.some(
+          (permission) => permission.modulo === 'finanzas' && permission.accion === 'export',
+        )
+      : hasRolePermission(user.role, 'finanzas', 'export');
+  }
   if (!user.permissions) return hasRolePermission(user.role, module, action);
   return user.permissions.some(
     (permission) => permission.modulo === module && permission.accion === action,

@@ -15,6 +15,8 @@ import { WorkOrderEvent } from './WorkOrderEvent.js';
 import { WorkOrderInspection } from './WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from './WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
+import { WorkOrderProgressReport } from './WorkOrderProgressReport.js';
+import { WorkOrderRequest } from './WorkOrderRequest.js';
 
 import type { Sequelize } from 'sequelize-typescript';
 
@@ -31,6 +33,8 @@ export const models = [
   WorkOrderDelivery,
   WorkOrderEvent,
   WorkOrderItem,
+  WorkOrderProgressReport,
+  WorkOrderRequest,
   WorkOrderInspection,
   WorkOrderInspectionPhoto,
   Quotation,
@@ -55,6 +59,8 @@ export {
   WorkOrderDelivery,
   WorkOrderEvent,
   WorkOrderItem,
+  WorkOrderProgressReport,
+  WorkOrderRequest,
   WorkOrderInspection,
   WorkOrderInspectionPhoto,
   Quotation,

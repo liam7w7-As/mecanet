@@ -4,8 +4,11 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import type { Request, Response } from 'express';
 
 export const getDashboardSummaryHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
-    const summary = await getDashboardSummary();
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) {
+      throw new Error('getDashboardSummaryHandler requiere authenticate previo');
+    }
+    const summary = await getDashboardSummary(req.user.id);
     res.status(200).json(summary);
   },
 );

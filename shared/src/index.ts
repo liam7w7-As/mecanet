@@ -6,6 +6,7 @@ export * from './constants/work-order-inspection.js';
 export * from './constants/work-order-delivery.js';
 export * from './constants/work-order-entry-type.js';
 export * from './constants/work-order-event-types.js';
+export * from './constants/work-order-requests.js';
 export * from './constants/quotation-status.js';
 export * from './constants/catalog-types.js';
 export * from './constants/item-operational-status.js';

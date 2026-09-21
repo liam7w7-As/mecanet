@@ -10,6 +10,7 @@ import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
 import { Quotation } from '../models/Quotation.js';
 import { QuotationItem } from '../models/QuotationItem.js';
+import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
@@ -18,6 +19,8 @@ import { WorkOrderEvent } from '../models/WorkOrderEvent.js';
 import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
+import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
+import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
 import { generateQuotationCode, generateWorkOrderCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
@@ -42,6 +45,12 @@ import type {
   WorkOrderDeliveryChecklistItem,
   WorkOrderEntryType,
   WorkOrderEventType,
+  CreateWorkOrderRequestInput,
+  ReviewWorkOrderRequestInput,
+  Role as RoleName,
+  UpdateWorkOrderExecutionInput,
+  WorkOrderRequestStatus,
+  WorkOrderRequestType,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
 
@@ -170,6 +179,40 @@ interface WorkOrderEventPublic {
   actor?: { id: number; nombre: string } | null;
 }
 
+interface WorkOrderProgressReportPublic {
+  id: number;
+  porcentaje: number;
+  comentario: string;
+  bloqueos: string | null;
+  createdAt: Date;
+  mechanic?: { id: number; nombre: string } | null;
+}
+
+interface WorkOrderRequestPublic {
+  id: number;
+  workOrderItemId: number | null;
+  catalogItemId: number | null;
+  tipo: WorkOrderRequestType;
+  estado: WorkOrderRequestStatus;
+  motivo: string;
+  cantidad: number | null;
+  precioSugerido: number | null;
+  precioAprobado: number | null;
+  reviewNote: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  catalogItem?: { id: number; codigo: string | null; nombre: string; precio: number } | null;
+  workOrderItem?: { id: number; descripcion: string; precioUnitario: number } | null;
+  requester?: { id: number; nombre: string } | null;
+  reviewer?: { id: number; nombre: string } | null;
+}
+
+export interface WorkOrderMechanicPublic {
+  id: number;
+  nombre: string;
+  email: string;
+}
+
 export interface WorkOrderPublic {
   id: number;
   codigo: string;
@@ -186,11 +229,13 @@ export interface WorkOrderPublic {
   fechaIngreso: Date | null;
   fechaEntrega: Date | null;
   createdBy: number | null;
+  assignedMechanicId: number | null;
   createdAt: Date;
   updatedAt: Date;
   client?: WorkOrderClientPublic | null;
   vehicle?: WorkOrderVehiclePublic | null;
   creator?: WorkOrderCreatorPublic | null;
+  assignedMechanic?: WorkOrderMechanicPublic | null;
   items?: WorkOrderItemPublic[];
   quotation?: WorkOrderQuotationPublic | null;
   contact: WorkOrderContactPublic | null;
@@ -200,6 +245,8 @@ export interface WorkOrderPublic {
   sourceWorkOrder?: WorkOrderRelationPublic | null;
   relatedWorkOrders?: WorkOrderRelationPublic[];
   events?: WorkOrderEventPublic[];
+  progressReports?: WorkOrderProgressReportPublic[];
+  requests?: WorkOrderRequestPublic[];
 }
 
 export interface ListWorkOrdersResult {
@@ -229,6 +276,12 @@ const vehicleInclude = {
 const creatorInclude = {
   model: User,
   as: 'creator',
+  attributes: ['id', 'nombre', 'email'],
+};
+
+const assignedMechanicInclude = {
+  model: User,
+  as: 'assignedMechanic',
   attributes: ['id', 'nombre', 'email'],
 };
 
@@ -343,6 +396,45 @@ const eventsInclude = {
   ],
 };
 
+const progressReportsInclude = {
+  model: WorkOrderProgressReport,
+  as: 'progressReports',
+  include: [
+    {
+      model: User,
+      as: 'mechanic',
+      attributes: ['id', 'nombre'],
+    },
+  ],
+};
+
+const requestsInclude = {
+  model: WorkOrderRequest,
+  as: 'requests',
+  include: [
+    {
+      model: CatalogItem,
+      as: 'catalogItem',
+      attributes: ['id', 'codigo', 'nombre', 'precio'],
+    },
+    {
+      model: WorkOrderItem,
+      as: 'workOrderItem',
+      attributes: ['id', 'descripcion', 'precioUnitario'],
+    },
+    {
+      model: User,
+      as: 'requester',
+      attributes: ['id', 'nombre'],
+    },
+    {
+      model: User,
+      as: 'reviewer',
+      attributes: ['id', 'nombre'],
+    },
+  ],
+};
+
 const toNumber = (value: number | string): number => Number(value);
 
 const parseInventory = (value: unknown): VehicleInventoryItem[] => {
@@ -430,6 +522,7 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
   fechaIngreso: workOrder.fechaIngreso,
   fechaEntrega: workOrder.fechaEntrega,
   createdBy: workOrder.createdBy,
+  assignedMechanicId: workOrder.assignedMechanicId,
   createdAt: workOrder.createdAt,
   updatedAt: workOrder.updatedAt,
   contact: workOrder.contactName
@@ -481,6 +574,15 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
         email: workOrder.creator.email,
       }
     : workOrder.createdBy === null
+      ? null
+      : undefined,
+  assignedMechanic: workOrder.assignedMechanic
+    ? {
+        id: workOrder.assignedMechanic.id,
+        nombre: workOrder.assignedMechanic.nombre,
+        email: workOrder.assignedMechanic.email,
+      }
+    : workOrder.assignedMechanicId === null
       ? null
       : undefined,
   items: workOrder.items
@@ -619,6 +721,69 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
           ? null
           : undefined,
     })),
+  progressReports: workOrder.progressReports
+    ?.slice()
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+    .map((report) => ({
+      id: report.id,
+      porcentaje: report.porcentaje,
+      comentario: report.comentario,
+      bloqueos: report.bloqueos,
+      createdAt: report.createdAt,
+      mechanic: report.mechanic
+        ? { id: report.mechanic.id, nombre: report.mechanic.nombre }
+        : report.mechanicId === null
+          ? null
+          : undefined,
+    })),
+  requests: workOrder.requests
+    ?.slice()
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+    .map((request) => ({
+      id: request.id,
+      workOrderItemId: request.workOrderItemId,
+      catalogItemId: request.catalogItemId,
+      tipo: request.tipo,
+      estado: request.estado,
+      motivo: request.motivo,
+      cantidad: request.cantidad === null ? null : toNumber(request.cantidad),
+      precioSugerido:
+        request.precioSugerido === null ? null : toNumber(request.precioSugerido),
+      precioAprobado:
+        request.precioAprobado === null ? null : toNumber(request.precioAprobado),
+      reviewNote: request.reviewNote,
+      reviewedAt: request.reviewedAt,
+      createdAt: request.createdAt,
+      catalogItem: request.catalogItem
+        ? {
+            id: request.catalogItem.id,
+            codigo: request.catalogItem.codigo,
+            nombre: request.catalogItem.nombre,
+            precio: toNumber(request.catalogItem.precio),
+          }
+        : request.catalogItemId === null
+          ? null
+          : undefined,
+      workOrderItem: request.workOrderItem
+        ? {
+            id: request.workOrderItem.id,
+            descripcion: request.workOrderItem.descripcion,
+            precioUnitario: toNumber(request.workOrderItem.precioUnitario),
+          }
+        : request.workOrderItemId === null
+          ? null
+          : undefined,
+      requester: request.requester
+        ? { id: request.requester.id, nombre: request.requester.nombre }
+        : request.requestedBy === null
+          ? null
+          : undefined,
+      reviewer: request.reviewer
+        ? { id: request.reviewer.id, nombre: request.reviewer.nombre }
+        : request.reviewedBy === null
+          ? null
+          : undefined,
+    })),
 });
 
 const recordWorkOrderEvent = async (
@@ -725,7 +890,11 @@ const consumeCompletedPartStock = async (
   transaction: Transaction,
 ): Promise<void> => {
   for (const item of items) {
-    if (item.estadoOperativo !== 'completado' || item.catalogItemId === null) {
+    if (
+      item.estadoOperativo !== 'completado' ||
+      item.catalogItemId === null ||
+      item.stockConsumido
+    ) {
       continue;
     }
 
@@ -993,6 +1162,68 @@ const assertCatalogItemsExist = async (
   }
 };
 
+const SUPERVISOR_ROLES: RoleName[] = ['desarrollador', 'admin', 'jefe'];
+
+const getActorRole = async (
+  userId: number,
+  transaction?: Transaction,
+): Promise<RoleName> => {
+  const user = await User.findByPk(userId, {
+    attributes: ['id'],
+    include: [{ model: Role, as: 'role', attributes: ['nombre'] }],
+    transaction,
+  });
+
+  if (!user?.role) {
+    throw ApiError.forbidden('El usuario no tiene un rol activo');
+  }
+
+  return user.role.nombre;
+};
+
+const assertSupervisor = async (userId: number, transaction?: Transaction): Promise<void> => {
+  const role = await getActorRole(userId, transaction);
+  if (!SUPERVISOR_ROLES.includes(role)) {
+    throw ApiError.forbidden('Esta acción requiere autorización del jefe de taller');
+  }
+};
+
+const assertManagementActionAllowed = async (
+  userId: number,
+  transaction?: Transaction,
+): Promise<void> => {
+  if ((await getActorRole(userId, transaction)) === 'mecanico') {
+    throw ApiError.forbidden(
+      'El mecánico solo puede actualizar la ejecución y registrar solicitudes en sus órdenes asignadas',
+    );
+  }
+};
+
+export const assertWorkOrderAccess = async (
+  id: number,
+  userId: number,
+  transaction?: Transaction,
+): Promise<void> => {
+  const role = await getActorRole(userId, transaction);
+  if (role !== 'mecanico') return;
+
+  const assigned = await WorkOrder.count({
+    where: { id, assignedMechanicId: userId },
+    transaction,
+  });
+  if (assigned === 0) {
+    throw ApiError.notFound('Orden de trabajo no encontrada');
+  }
+};
+
+export const assertWorkOrderManagementAccess = async (
+  id: number,
+  userId: number,
+): Promise<void> => {
+  await assertWorkOrderAccess(id, userId);
+  await assertManagementActionAllowed(userId);
+};
+
 const getCompleteWorkOrder = async (
   id: number,
   transaction?: Transaction,
@@ -1002,6 +1233,7 @@ const getCompleteWorkOrder = async (
       clientInclude,
       vehicleInclude,
       creatorInclude,
+      assignedMechanicInclude,
       itemsInclude,
       inspectionInclude,
       quotationInclude,
@@ -1009,6 +1241,8 @@ const getCompleteWorkOrder = async (
       sourceWorkOrderInclude,
       relatedWorkOrdersInclude,
       eventsInclude,
+      progressReportsInclude,
+      requestsInclude,
     ],
     transaction,
   });
@@ -1022,9 +1256,14 @@ const getCompleteWorkOrder = async (
 
 export const listWorkOrders = async (
   query: WorkOrderQueryInput,
+  userId: number,
 ): Promise<ListWorkOrdersResult> => {
   const pagination = getPagination(query);
   const where: WorkOrderWhere = {};
+
+  if ((await getActorRole(userId)) === 'mecanico') {
+    where.assignedMechanicId = userId;
+  }
 
   if (query.search) {
     const searchPattern = `%${query.search}%`;
@@ -1062,7 +1301,7 @@ export const listWorkOrders = async (
 
   const { rows, count } = await WorkOrder.findAndCountAll({
     where,
-    include: [clientInclude, vehicleInclude],
+    include: [clientInclude, vehicleInclude, assignedMechanicInclude],
     limit: pagination.limit,
     offset: pagination.offset,
     order: [['createdAt', 'DESC']],
@@ -1077,7 +1316,13 @@ export const listWorkOrders = async (
   };
 };
 
-export const getWorkOrderById = async (id: number): Promise<WorkOrderPublic> => {
+export const getWorkOrderById = async (
+  id: number,
+  userId?: number,
+): Promise<WorkOrderPublic> => {
+  if (userId !== undefined) {
+    await assertWorkOrderAccess(id, userId);
+  }
   const workOrder = await getCompleteWorkOrder(id);
   return toWorkOrderPublic(workOrder);
 };
@@ -1181,6 +1426,7 @@ export const updateWorkOrder = async (
   userId: number,
 ): Promise<WorkOrderPublic> => {
   const workOrderId = await sequelize.transaction(async (transaction) => {
+    await assertManagementActionAllowed(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, { transaction });
     if (!workOrder) {
       throw ApiError.notFound('Orden de trabajo no encontrada');
@@ -1318,6 +1564,7 @@ export const changeStatus = async (
   motivo?: string | null,
 ): Promise<WorkOrderPublic> => {
   const workOrderId = await sequelize.transaction(async (transaction) => {
+    await assertManagementActionAllowed(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
       lock: Transaction.LOCK.UPDATE,
@@ -1378,6 +1625,7 @@ export const deliverWorkOrder = async (
   userId: number,
 ): Promise<WorkOrderPublic> => {
   const workOrderId = await sequelize.transaction(async (transaction) => {
+    await assertManagementActionAllowed(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
       lock: Transaction.LOCK.UPDATE,
@@ -1478,6 +1726,7 @@ export const createWorkOrderReentry = async (
   userId: number,
 ): Promise<WorkOrderPublic> => {
   const newWorkOrderId = await sequelize.transaction(async (transaction) => {
+    await assertManagementActionAllowed(userId, transaction);
     const source = await WorkOrder.findByPk(sourceId, {
       transaction,
       lock: Transaction.LOCK.UPDATE,
@@ -1613,8 +1862,418 @@ export const createWorkOrderReentry = async (
   return getWorkOrderById(newWorkOrderId);
 };
 
+export const listMechanics = async (userId: number): Promise<WorkOrderMechanicPublic[]> => {
+  await assertSupervisor(userId);
+
+  const mechanics = await User.findAll({
+    attributes: ['id', 'nombre', 'email'],
+    include: [
+      {
+        model: Role,
+        as: 'role',
+        attributes: [],
+        where: { nombre: 'mecanico' },
+      },
+    ],
+    where: { activo: true },
+    order: [['nombre', 'ASC']],
+  });
+
+  return mechanics.map((mechanic) => ({
+    id: mechanic.id,
+    nombre: mechanic.nombre,
+    email: mechanic.email,
+  }));
+};
+
+export const assignMechanic = async (
+  id: number,
+  mechanicId: number | null,
+  userId: number,
+): Promise<WorkOrderPublic> => {
+  await sequelize.transaction(async (transaction) => {
+    await assertSupervisor(userId, transaction);
+    const workOrder = await WorkOrder.findByPk(id, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    if (!workOrder) {
+      throw ApiError.notFound('Orden de trabajo no encontrada');
+    }
+
+    let mechanic: User | null = null;
+    if (mechanicId !== null) {
+      mechanic = await User.findOne({
+        where: { id: mechanicId, activo: true },
+        include: [
+          {
+            model: Role,
+            as: 'role',
+            attributes: ['nombre'],
+            where: { nombre: 'mecanico' },
+          },
+        ],
+        transaction,
+      });
+      if (!mechanic) {
+        throw ApiError.badRequest('El usuario seleccionado no es un mecánico activo');
+      }
+    }
+
+    const previousMechanicId = workOrder.assignedMechanicId;
+    await workOrder.update({ assignedMechanicId: mechanicId }, { transaction });
+    await recordWorkOrderEvent(
+      id,
+      userId,
+      'asignacion_mecanico',
+      mechanic ? `Orden asignada a ${mechanic.nombre}` : 'Asignación de mecánico retirada',
+      { previousMechanicId, mechanicId },
+      transaction,
+    );
+  });
+
+  return getWorkOrderById(id);
+};
+
+const assertExecutionAccess = async (
+  workOrder: WorkOrder,
+  userId: number,
+  transaction: Transaction,
+): Promise<RoleName> => {
+  const role = await getActorRole(userId, transaction);
+  if (role === 'mecanico') {
+    if (workOrder.assignedMechanicId !== userId) {
+      throw ApiError.notFound('Orden de trabajo no encontrada');
+    }
+    return role;
+  }
+  if (!SUPERVISOR_ROLES.includes(role)) {
+    throw ApiError.forbidden('No tienes permiso para ejecutar trabajos en esta orden');
+  }
+  return role;
+};
+
+export const updateWorkOrderExecution = async (
+  id: number,
+  data: UpdateWorkOrderExecutionInput,
+  userId: number,
+): Promise<WorkOrderPublic> => {
+  await sequelize.transaction(async (transaction) => {
+    const workOrder = await WorkOrder.findByPk(id, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    if (!workOrder) {
+      throw ApiError.notFound('Orden de trabajo no encontrada');
+    }
+    await assertExecutionAccess(workOrder, userId, transaction);
+
+    if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') {
+      throw ApiError.badRequest('No se puede registrar ejecución en una orden cerrada');
+    }
+
+    const itemUpdates = data.items ?? [];
+    if (new Set(itemUpdates.map((item) => item.id)).size !== itemUpdates.length) {
+      throw ApiError.badRequest('No se puede actualizar el mismo trabajo más de una vez');
+    }
+
+    for (const itemUpdate of itemUpdates) {
+      const item = await WorkOrderItem.findOne({
+        where: { id: itemUpdate.id, workOrderId: id },
+        transaction,
+        lock: Transaction.LOCK.UPDATE,
+      });
+      if (!item) {
+        throw ApiError.badRequest('Uno o más trabajos no pertenecen a esta orden');
+      }
+      if (item.stockConsumido && itemUpdate.estadoOperativo !== 'completado') {
+        throw ApiError.badRequest(
+          `El repuesto "${item.descripcion}" ya fue consumido y no puede volver a un estado anterior`,
+        );
+      }
+
+      await item.update(
+        {
+          estadoOperativo: itemUpdate.estadoOperativo,
+          notasOperativas:
+            itemUpdate.notasOperativas === undefined
+              ? item.notasOperativas
+              : itemUpdate.notasOperativas,
+        },
+        { transaction },
+      );
+      await consumeCompletedPartStock([item], transaction);
+    }
+
+    if (data.reporte) {
+      await WorkOrderProgressReport.create(
+        {
+          workOrderId: id,
+          mechanicId: userId,
+          porcentaje: data.reporte.porcentaje,
+          comentario: data.reporte.comentario,
+          bloqueos: data.reporte.bloqueos ?? null,
+        },
+        { transaction },
+      );
+    }
+
+    await recordWorkOrderEvent(
+      id,
+      userId,
+      'reporte_avance',
+      data.reporte
+        ? `Avance reportado: ${data.reporte.porcentaje}%`
+        : 'Checklist de trabajos actualizado',
+      {
+        porcentaje: data.reporte?.porcentaje ?? null,
+        itemIds: itemUpdates.map((item) => item.id),
+      },
+      transaction,
+    );
+  });
+
+  return getWorkOrderById(id, userId);
+};
+
+export const createWorkOrderRequest = async (
+  id: number,
+  data: CreateWorkOrderRequestInput,
+  userId: number,
+): Promise<WorkOrderPublic> => {
+  await sequelize.transaction(async (transaction) => {
+    const workOrder = await WorkOrder.findByPk(id, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    if (!workOrder) {
+      throw ApiError.notFound('Orden de trabajo no encontrada');
+    }
+    await assertExecutionAccess(workOrder, userId, transaction);
+    if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') {
+      throw ApiError.badRequest('No se pueden crear solicitudes en una orden cerrada');
+    }
+
+    let catalogItemId: number | null = null;
+    let workOrderItemId: number | null = null;
+    let cantidad: number | null = null;
+    let precioSugerido: number | null = null;
+    let description: string;
+
+    if (data.tipo === 'repuesto') {
+      const catalogItem = await CatalogItem.findByPk(data.catalogItemId, { transaction });
+      if (!catalogItem || catalogItem.tipo !== 'parte') {
+        throw ApiError.badRequest('El repuesto solicitado no existe o no maneja inventario');
+      }
+      catalogItemId = catalogItem.id;
+      cantidad = data.cantidad;
+      description = `Solicitud de ${data.cantidad} unidad(es) de ${catalogItem.nombre}`;
+    } else {
+      const item = await WorkOrderItem.findOne({
+        where: { id: data.workOrderItemId, workOrderId: id },
+        transaction,
+      });
+      if (!item) {
+        throw ApiError.badRequest('El servicio indicado no pertenece a esta orden');
+      }
+      if (data.precioSugerido <= toNumber(item.precioUnitario)) {
+        throw ApiError.badRequest('El precio sugerido debe ser mayor al precio actual');
+      }
+      workOrderItemId = item.id;
+      precioSugerido = data.precioSugerido;
+      description = `Sugerencia de aumento para ${item.descripcion}`;
+    }
+
+    await WorkOrderRequest.create(
+      {
+        workOrderId: id,
+        workOrderItemId,
+        catalogItemId,
+        requestedBy: userId,
+        tipo: data.tipo,
+        estado: 'pendiente',
+        motivo: data.motivo,
+        cantidad,
+        precioSugerido,
+        precioAprobado: null,
+        reviewedBy: null,
+        reviewNote: null,
+        reviewedAt: null,
+      },
+      { transaction },
+    );
+    await recordWorkOrderEvent(
+      id,
+      userId,
+      'solicitud_creada',
+      description,
+      { tipo: data.tipo, catalogItemId, workOrderItemId, cantidad, precioSugerido },
+      transaction,
+    );
+  });
+
+  return getWorkOrderById(id, userId);
+};
+
+const recalculateMirrorQuotation = async (
+  quotation: Quotation,
+  transaction: Transaction,
+): Promise<void> => {
+  const items = await QuotationItem.findAll({
+    where: { quotationId: quotation.id },
+    transaction,
+  });
+  const total = items.reduce((sum, item) => sum + toNumber(item.subtotal), 0);
+  const paid = toNumber(quotation.pagado);
+  const estadoPago: QuotationStatus =
+    paid <= 0 ? 'por_pagar' : paid >= total ? 'total' : 'parcial';
+  await quotation.update({ subtotal: total, total, estadoPago }, { transaction });
+};
+
+export const reviewWorkOrderRequest = async (
+  id: number,
+  requestId: number,
+  data: ReviewWorkOrderRequestInput,
+  userId: number,
+): Promise<WorkOrderPublic> => {
+  await sequelize.transaction(async (transaction) => {
+    await assertSupervisor(userId, transaction);
+    const request = await WorkOrderRequest.findOne({
+      where: { id: requestId, workOrderId: id },
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    if (!request) {
+      throw ApiError.notFound('Solicitud de taller no encontrada');
+    }
+    if (request.estado !== 'pendiente') {
+      throw ApiError.badRequest('Esta solicitud ya fue revisada');
+    }
+
+    let approvedPrice: number | null = null;
+    if (data.decision === 'aprobar') {
+      const quotation = await Quotation.findOne({
+        where: { workOrderId: id },
+        transaction,
+        lock: Transaction.LOCK.UPDATE,
+      });
+
+      if (request.tipo === 'repuesto') {
+        if (request.catalogItemId === null || request.cantidad === null) {
+          throw ApiError.badRequest('La solicitud de repuesto está incompleta');
+        }
+        const catalogItem = await CatalogItem.findByPk(request.catalogItemId, { transaction });
+        if (!catalogItem || catalogItem.tipo !== 'parte') {
+          throw ApiError.badRequest('El repuesto solicitado ya no está disponible');
+        }
+        approvedPrice = data.precioAprobado ?? toNumber(catalogItem.precio);
+        const quantity = toNumber(request.cantidad);
+        await WorkOrderItem.create(
+          {
+            workOrderId: id,
+            catalogItemId: catalogItem.id,
+            descripcion: catalogItem.nombre,
+            cantidad: quantity,
+            precioUnitario: approvedPrice,
+            subtotal: quantity * approvedPrice,
+            estadoOperativo: 'pendiente',
+            notasOperativas: `Agregado por solicitud #${request.id}`,
+            stockConsumido: false,
+            stockConsumidoCantidad: 0,
+            stockConsumidoAt: null,
+          },
+          { transaction },
+        );
+        if (quotation) {
+          await QuotationItem.create(
+            {
+              quotationId: quotation.id,
+              catalogItemId: catalogItem.id,
+              descripcion: catalogItem.nombre,
+              cantidad: quantity,
+              precioUnitario: approvedPrice,
+              subtotal: quantity * approvedPrice,
+              estadoOperativo: 'pendiente',
+              notasOperativas: `Agregado por solicitud de taller #${request.id}`,
+            },
+            { transaction },
+          );
+          await recalculateMirrorQuotation(quotation, transaction);
+        }
+      } else {
+        if (request.workOrderItemId === null || request.precioSugerido === null) {
+          throw ApiError.badRequest('La solicitud de aumento está incompleta');
+        }
+        const item = await WorkOrderItem.findOne({
+          where: { id: request.workOrderItemId, workOrderId: id },
+          transaction,
+          lock: Transaction.LOCK.UPDATE,
+        });
+        if (!item) {
+          throw ApiError.badRequest('El servicio solicitado ya no existe');
+        }
+        approvedPrice = data.precioAprobado ?? toNumber(request.precioSugerido);
+        if (approvedPrice <= toNumber(item.precioUnitario)) {
+          throw ApiError.badRequest('El precio aprobado debe ser mayor al precio actual');
+        }
+        await item.update(
+          {
+            precioUnitario: approvedPrice,
+            subtotal: toNumber(item.cantidad) * approvedPrice,
+          },
+          { transaction },
+        );
+        if (quotation) {
+          const quotationItem = await QuotationItem.findOne({
+            where: {
+              quotationId: quotation.id,
+              descripcion: item.descripcion,
+              ...(item.catalogItemId === null ? {} : { catalogItemId: item.catalogItemId }),
+            },
+            order: [['id', 'ASC']],
+            transaction,
+            lock: Transaction.LOCK.UPDATE,
+          });
+          if (quotationItem) {
+            await quotationItem.update(
+              {
+                precioUnitario: approvedPrice,
+                subtotal: toNumber(quotationItem.cantidad) * approvedPrice,
+              },
+              { transaction },
+            );
+          }
+          await recalculateMirrorQuotation(quotation, transaction);
+        }
+      }
+    }
+
+    await request.update(
+      {
+        estado: data.decision === 'aprobar' ? 'aprobada' : 'rechazada',
+        precioAprobado: approvedPrice,
+        reviewedBy: userId,
+        reviewNote: data.comentario ?? null,
+        reviewedAt: new Date(),
+      },
+      { transaction },
+    );
+    await recordWorkOrderEvent(
+      id,
+      userId,
+      'solicitud_revisada',
+      `Solicitud #${request.id} ${data.decision === 'aprobar' ? 'aprobada' : 'rechazada'}`,
+      { requestId: request.id, decision: data.decision, approvedPrice },
+      transaction,
+    );
+  });
+
+  return getWorkOrderById(id);
+};
+
 export const deleteWorkOrder = async (id: number, userId: number): Promise<void> => {
   await sequelize.transaction(async (transaction) => {
+    await assertManagementActionAllowed(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
       lock: Transaction.LOCK.UPDATE,

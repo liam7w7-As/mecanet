@@ -49,8 +49,8 @@ export const QuotationDetailPage = () => {
   const total = summary?.total ?? quotation?.total ?? 0;
   const paid = summary?.pagado ?? quotation?.pagado ?? 0;
   const balance = summary?.saldoPendiente ?? Math.max(0, total - paid);
-  const canCreatePayment = Boolean(user && hasUserPermission(user, 'comercial', 'create'));
-  const canDeletePayment = Boolean(user && hasUserPermission(user, 'comercial', 'delete'));
+  const canCreatePayment = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
+  const canDeletePayment = Boolean(user && (hasUserPermission(user, 'comercial', 'delete') || hasUserPermission(user, 'finanzas', 'delete')));
   const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
   const canConvert = Boolean(user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'create')));
 

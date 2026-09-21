@@ -89,6 +89,26 @@ export class WorkOrderItem extends Model<
   })
   declare notasOperativas: string | null;
 
+  @Column({
+    type: DataType.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  })
+  declare stockConsumido: CreationOptional<boolean>;
+
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+  })
+  declare stockConsumidoCantidad: CreationOptional<number>;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+  })
+  declare stockConsumidoAt: Date | null;
+
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;
 

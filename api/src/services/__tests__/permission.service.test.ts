@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sequelize } from '../../config/database.js';
 import { Role } from '../../models/Role.js';
 import { User } from '../../models/User.js';
+import { hashPassword } from '../../utils/password.js';
 import {
   getPermissionsForRole,
   hasPermission,
@@ -17,14 +18,22 @@ describe('permission.service', () => {
   beforeAll(async () => {
     await sequelize.authenticate();
 
-    // Obtener usuario desarrollador existente
-    const devUser = await User.findOne({
+    let devUser = await User.findOne({
       where: { email: 'dev@unithor.local' },
     });
     if (!devUser) {
-      throw new Error(
-        'El usuario desarrollador base no existe en unithor_test. Ejecuta npm run db:seed.',
-      );
+      const developerRole = await Role.findOne({ where: { nombre: 'desarrollador' } });
+      if (!developerRole) {
+        throw new Error('El rol desarrollador no existe en la base de datos');
+      }
+      devUser = await User.create({
+        nombre: 'Desarrollador UNITHOR',
+        email: 'dev@unithor.local',
+        username: 'dev',
+        passwordHash: await hashPassword('Desarrollador2026!'),
+        roleId: developerRole.id,
+        activo: true,
+      });
     }
     devUserId = devUser.id;
 

@@ -30,6 +30,7 @@ import type {
   TireCondition,
   VehicleInventoryItem,
   WorkOrderInspectionPhotoSlot,
+  CatalogType,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
 
@@ -62,6 +63,18 @@ interface WorkOrderItemPublic {
   subtotal: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
+  stockConsumido: boolean;
+  stockConsumidoCantidad: number;
+  stockConsumidoAt: Date | null;
+  catalogItem?: WorkOrderItemCatalogPublic | null;
+}
+
+interface WorkOrderItemCatalogPublic {
+  id: number;
+  tipo: CatalogType;
+  codigo: string | null;
+  nombre: string;
+  stock: number;
 }
 
 interface WorkOrderQuotationPublic {
@@ -180,6 +193,16 @@ const itemsInclude = {
     'subtotal',
     'estadoOperativo',
     'notasOperativas',
+    'stockConsumido',
+    'stockConsumidoCantidad',
+    'stockConsumidoAt',
+  ],
+  include: [
+    {
+      model: CatalogItem,
+      as: 'catalogItem',
+      attributes: ['id', 'tipo', 'codigo', 'nombre', 'stock'],
+    },
   ],
 };
 
@@ -333,6 +356,20 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
       subtotal: toNumber(item.subtotal),
       estadoOperativo: item.estadoOperativo,
       notasOperativas: item.notasOperativas,
+      stockConsumido: item.stockConsumido,
+      stockConsumidoCantidad: item.stockConsumidoCantidad,
+      stockConsumidoAt: item.stockConsumidoAt,
+      catalogItem: item.catalogItem
+        ? {
+            id: item.catalogItem.id,
+            tipo: item.catalogItem.tipo,
+            codigo: item.catalogItem.codigo,
+            nombre: item.catalogItem.nombre,
+            stock: item.catalogItem.stock,
+          }
+        : item.catalogItem === null
+          ? null
+          : undefined,
     })),
   quotation: workOrder.quotation
     ? {
@@ -394,6 +431,9 @@ const buildItemsPayload = (
   subtotal: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
+  stockConsumido: boolean;
+  stockConsumidoCantidad: number;
+  stockConsumidoAt: null;
 }> => {
   return items.map((item) => {
     const cantidad = Number(item.cantidad);
@@ -408,8 +448,93 @@ const buildItemsPayload = (
       subtotal: cantidad * precioUnitario,
       estadoOperativo: item.estadoOperativo ?? 'pendiente',
       notasOperativas: item.notasOperativas ?? null,
+      stockConsumido: false,
+      stockConsumidoCantidad: 0,
+      stockConsumidoAt: null,
     };
   });
+};
+
+const getPartUnitsToConsume = (item: WorkOrderItem): number => {
+  const units = toNumber(item.cantidad);
+
+  if (!Number.isInteger(units)) {
+    throw ApiError.badRequest(
+      `La cantidad del repuesto "${item.descripcion}" debe ser un número entero para descontar stock`,
+    );
+  }
+
+  return units;
+};
+
+const lockCatalogItem = async (
+  catalogItemId: number,
+  transaction: Transaction,
+): Promise<CatalogItem> => {
+  const catalogItem = await CatalogItem.findByPk(catalogItemId, {
+    transaction,
+    lock: Transaction.LOCK.UPDATE,
+  });
+
+  if (!catalogItem) {
+    throw ApiError.badRequest('Uno o más ítems de catálogo no existen');
+  }
+
+  return catalogItem;
+};
+
+const restoreConsumedStock = async (
+  items: WorkOrderItem[],
+  transaction: Transaction,
+): Promise<void> => {
+  for (const item of items) {
+    if (!item.stockConsumido || item.catalogItemId === null || item.stockConsumidoCantidad <= 0) {
+      continue;
+    }
+
+    const catalogItem = await lockCatalogItem(item.catalogItemId, transaction);
+    if (catalogItem.tipo !== 'parte') {
+      continue;
+    }
+
+    await catalogItem.update(
+      { stock: Number(catalogItem.stock) + item.stockConsumidoCantidad },
+      { transaction },
+    );
+  }
+};
+
+const consumeCompletedPartStock = async (
+  items: WorkOrderItem[],
+  transaction: Transaction,
+): Promise<void> => {
+  for (const item of items) {
+    if (item.estadoOperativo !== 'completado' || item.catalogItemId === null) {
+      continue;
+    }
+
+    const catalogItem = await lockCatalogItem(item.catalogItemId, transaction);
+    if (catalogItem.tipo !== 'parte') {
+      continue;
+    }
+
+    const units = getPartUnitsToConsume(item);
+    if (Number(catalogItem.stock) < units) {
+      throw ApiError.badRequest(
+        `Stock insuficiente para ${catalogItem.nombre}. Stock actual: ${catalogItem.stock}, requerido: ${units}`,
+      );
+    }
+
+    await catalogItem.update({ stock: Number(catalogItem.stock) - units }, { transaction });
+    await item.update(
+      {
+        stockConsumido: true,
+        stockConsumidoCantidad: units,
+        stockConsumidoAt: new Date(),
+      },
+      { transaction },
+    );
+  }
 };
 
 const createMirrorQuotation = async (
@@ -443,9 +568,15 @@ const createMirrorQuotation = async (
 
   if (items.length > 0) {
     await QuotationItem.bulkCreate(
-      buildItemsPayload(quotation.id, items).map(({ workOrderId: _workOrderId, ...item }) => ({
+      buildItemsPayload(quotation.id, items).map((item) => ({
         quotationId: quotation.id,
-        ...item,
+        catalogItemId: item.catalogItemId,
+        descripcion: item.descripcion,
+        cantidad: item.cantidad,
+        precioUnitario: item.precioUnitario,
+        subtotal: item.subtotal,
+        estadoOperativo: item.estadoOperativo,
+        notasOperativas: item.notasOperativas,
       })),
       { transaction },
     );
@@ -797,9 +928,10 @@ export const createWorkOrder = async (
     );
 
     if (data.items.length > 0) {
-      await WorkOrderItem.bulkCreate(buildItemsPayload(workOrder.id, data.items), {
+      const createdItems = await WorkOrderItem.bulkCreate(buildItemsPayload(workOrder.id, data.items), {
         transaction,
       });
+      await consumeCompletedPartStock(createdItems, transaction);
     }
 
     await createMirrorQuotation(workOrder, data.items, userId, transaction);
@@ -852,10 +984,19 @@ export const updateWorkOrder = async (
 
     if (data.items !== undefined) {
       await assertCatalogItemsExist(data.items, transaction);
+      const existingItems = await WorkOrderItem.findAll({
+        where: { workOrderId: id },
+        transaction,
+        lock: Transaction.LOCK.UPDATE,
+      });
+      await restoreConsumedStock(existingItems, transaction);
       await WorkOrderItem.destroy({ where: { workOrderId: id }, transaction });
 
       if (data.items.length > 0) {
-        await WorkOrderItem.bulkCreate(buildItemsPayload(id, data.items), { transaction });
+        const createdItems = await WorkOrderItem.bulkCreate(buildItemsPayload(id, data.items), {
+          transaction,
+        });
+        await consumeCompletedPartStock(createdItems, transaction);
       }
     }
 

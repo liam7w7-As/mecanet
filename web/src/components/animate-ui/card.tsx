@@ -1,9 +1,9 @@
 import { motion } from 'motion/react';
-import React from 'react';
 
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { HTMLMotionProps } from 'motion/react';
+import type { ReactNode } from 'react';
 
-export interface AnimatedCardProps extends HTMLAttributes<HTMLDivElement> {
+export interface AnimatedCardProps extends HTMLMotionProps<'div'> {
   children: ReactNode;
   className?: string;
   hoverLift?: number;
@@ -32,7 +32,7 @@ export const AnimatedCard = ({
             }
           : undefined
       }
-      {...(props as any)}
+      {...props}
     >
       {children}
     </motion.div>

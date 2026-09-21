@@ -29,7 +29,7 @@ export const AnimatedCounter = ({
       return;
     }
 
-    let start = 0;
+    const start = 0;
     const startTime = performance.now();
 
     const update = (now: number) => {

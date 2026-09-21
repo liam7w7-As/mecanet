@@ -1,10 +1,10 @@
 import { motion } from 'motion/react';
-import React from 'react';
 
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { HTMLMotionProps } from 'motion/react';
+import type { ReactNode } from 'react';
 
 export interface AnimatedTableRowProps
-  extends HTMLAttributes<HTMLTableRowElement> {
+  extends HTMLMotionProps<'tr'> {
   children: ReactNode;
   className?: string;
   delay?: number;
@@ -39,7 +39,7 @@ export const AnimatedTableRow = ({
             }
           : undefined
       }
-      {...(props as any)}
+      {...props}
     >
       {children}
     </motion.tr>

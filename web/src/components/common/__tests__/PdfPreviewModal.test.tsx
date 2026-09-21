@@ -81,6 +81,9 @@ const mockWorkOrder: WorkOrder = {
       subtotal: 65000,
       estadoOperativo: 'completado',
       notasOperativas: null,
+      stockConsumido: false,
+      stockConsumidoCantidad: 0,
+      stockConsumidoAt: null,
     },
     {
       id: 2,
@@ -91,6 +94,9 @@ const mockWorkOrder: WorkOrder = {
       subtotal: 15000,
       estadoOperativo: 'completado',
       notasOperativas: null,
+      stockConsumido: true,
+      stockConsumidoCantidad: 1,
+      stockConsumidoAt: '2026-09-16T10:00:00.000Z',
     },
   ],
 };

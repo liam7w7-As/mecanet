@@ -72,6 +72,9 @@ const workOrder: WorkOrder = {
       subtotal: 50000,
       estadoOperativo: 'pendiente',
       notasOperativas: null,
+      stockConsumido: false,
+      stockConsumidoCantidad: 0,
+      stockConsumidoAt: null,
     },
   ],
   quotation: {

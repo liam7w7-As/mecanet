@@ -1,21 +1,88 @@
-import { Sequelize } from 'sequelize-typescript';
+import { QueryTypes, Sequelize } from 'sequelize';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import {
-  CatalogItem,
-  Permission,
-  Role,
-  RolePermission,
-  User,
-  initModels,
-} from '../../models/index.js';
 import * as seederRoles from '../seeders/001-roles.js';
 import * as seederPermissions from '../seeders/002-permissions.js';
 import * as seederRolePermissions from '../seeders/003-role-permissions.js';
 import * as seederAdminUser from '../seeders/004-admin-user.js';
 import * as seederCatalogItems from '../seeders/005-catalog-items.js';
 
-describe('Database Base Seeders (unithor_test)', () => {
+interface UserRoleRow {
+  username: string;
+  email: string;
+  passwordHash: string;
+  roleName: string;
+}
+
+const queryCount = async (sequelize: Sequelize, sql: string): Promise<number> => {
+  const [row] = await sequelize.query<{ total: number }>(sql, {
+    type: QueryTypes.SELECT,
+  });
+  return Number(row?.total ?? 0);
+};
+
+const createSeederTables = async (sequelize: Sequelize): Promise<void> => {
+  await sequelize.query(`
+    CREATE TABLE roles (
+      id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      nombre VARCHAR(80) NOT NULL UNIQUE,
+      descripcion TEXT NULL,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+  await sequelize.query(`
+    CREATE TABLE permissions (
+      id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      modulo VARCHAR(50) NOT NULL,
+      accion VARCHAR(50) NOT NULL,
+      descripcion TEXT NULL,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      UNIQUE KEY permissions_modulo_accion_unique (modulo, accion)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+  await sequelize.query(`
+    CREATE TABLE role_permissions (
+      role_id INTEGER NOT NULL,
+      permission_id INTEGER NOT NULL,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      PRIMARY KEY (role_id, permission_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+  await sequelize.query(`
+    CREATE TABLE users (
+      id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      nombre VARCHAR(120) NOT NULL,
+      username VARCHAR(80) NULL,
+      email VARCHAR(160) NOT NULL UNIQUE,
+      password_hash VARCHAR(255) NOT NULL,
+      role_id INTEGER NOT NULL,
+      activo TINYINT(1) NOT NULL DEFAULT 1,
+      deleted_at DATETIME NULL,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+  await sequelize.query(`
+    CREATE TABLE catalog_items (
+      id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tipo ENUM('parte', 'estandar', 'especifico') NOT NULL,
+      codigo VARCHAR(50) NULL,
+      nombre VARCHAR(180) NOT NULL,
+      descripcion TEXT NULL,
+      precio DECIMAL(12, 2) NOT NULL DEFAULT 0,
+      stock INTEGER NOT NULL DEFAULT 0,
+      deleted_at DATETIME NULL,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+};
+
+describe('Database Base Seeders (isolated schema)', () => {
+  const seedersDatabaseName = 'unithor_seeders_test';
   let testSequelize: Sequelize;
 
   beforeAll(async () => {
@@ -24,31 +91,33 @@ describe('Database Base Seeders (unithor_test)', () => {
     process.env.SEED_ADMIN_PASSWORD = 'Desarrollador2026!';
     process.env.SEED_ADMIN_NAME = 'Desarrollador UNITHOR';
 
-    testSequelize = new Sequelize('mysql://root:@localhost:3306/unithor_test', {
+    const adminSequelize = new Sequelize('mysql://root:@localhost:3306/mysql', {
       dialect: 'mysql',
       logging: false,
-      define: {
-        charset: 'utf8mb4',
-        collate: 'utf8mb4_unicode_ci',
-        timestamps: true,
-        underscored: true,
-      },
+    });
+    await adminSequelize.query(`DROP DATABASE IF EXISTS \`${seedersDatabaseName}\`;`);
+    await adminSequelize.query(
+      `CREATE DATABASE \`${seedersDatabaseName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`,
+    );
+    await adminSequelize.close();
+
+    testSequelize = new Sequelize(`mysql://root:@localhost:3306/${seedersDatabaseName}`, {
+      dialect: 'mysql',
+      logging: false,
     });
 
-    initModels(testSequelize);
     await testSequelize.authenticate();
-
-    // Limpiar tablas antes de la suite
-    const qi = testSequelize.getQueryInterface();
-    await seederCatalogItems.down(qi);
-    await seederAdminUser.down(qi);
-    await seederRolePermissions.down(qi);
-    await seederPermissions.down(qi);
-    await seederRoles.down(qi);
+    await createSeederTables(testSequelize);
   });
 
   afterAll(async () => {
     await testSequelize.close();
+    const adminSequelize = new Sequelize('mysql://root:@localhost:3306/mysql', {
+      dialect: 'mysql',
+      logging: false,
+    });
+    await adminSequelize.query(`DROP DATABASE IF EXISTS \`${seedersDatabaseName}\`;`);
+    await adminSequelize.close();
   });
 
   it('ejecuta los seeders y verifica los registros iniciales creados', async () => {
@@ -60,44 +129,51 @@ describe('Database Base Seeders (unithor_test)', () => {
     await seederAdminUser.up(qi);
     await seederCatalogItems.up(qi);
 
-    // 1. Verificar 5 roles
-    const rolesCount = await Role.count();
-    expect(rolesCount).toBe(5);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM roles;')).toBe(5);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM permissions;')).toBe(24);
+    expect(
+      await queryCount(
+        testSequelize,
+        `SELECT COUNT(*) AS total
+         FROM role_permissions rp
+         JOIN roles r ON r.id = rp.role_id
+         WHERE r.nombre = 'desarrollador';`,
+      ),
+    ).toBe(24);
+    expect(
+      await queryCount(
+        testSequelize,
+        `SELECT COUNT(*) AS total
+         FROM role_permissions rp
+         JOIN roles r ON r.id = rp.role_id
+         WHERE r.nombre = 'bodeguero';`,
+      ),
+    ).toBe(4);
 
-    // 2. Verificar 24 permisos
-    const permissionsCount = await Permission.count();
-    expect(permissionsCount).toBe(24);
-
-    // 3. Verificar que desarrollador tiene 24 permisos asignados
-    const devRole = await Role.findOne({
-      where: { nombre: 'desarrollador' },
-      include: [{ model: Permission }],
-    });
-    expect(devRole).not.toBeNull();
-    expect(devRole?.permissions?.length).toBe(24);
-
-    // 4. Verificar que bodeguero tiene exactamente 4 permisos
-    const bodegueroRole = await Role.findOne({
-      where: { nombre: 'bodeguero' },
-      include: [{ model: Permission }],
-    });
-    expect(bodegueroRole).not.toBeNull();
-    expect(bodegueroRole?.permissions?.length).toBe(4);
-
-    // 5. Verificar que existe 1 usuario con rol desarrollador y password_hash empieza con $2b$
-    const users = await User.findAll({
-      include: [{ model: Role }],
-    });
-    expect(users.length).toBe(1);
+    const users = await testSequelize.query<UserRoleRow>(
+      `SELECT u.username, u.email, u.password_hash AS passwordHash, r.nombre AS roleName
+       FROM users u
+       JOIN roles r ON r.id = u.role_id;`,
+      { type: QueryTypes.SELECT },
+    );
+    expect(users).toHaveLength(1);
     expect(users[0].username).toBe('dev');
     expect(users[0].email).toBe('dev@unithor.local');
-    expect(users[0].role?.nombre).toBe('desarrollador');
+    expect(users[0].roleName).toBe('desarrollador');
     expect(users[0].passwordHash.startsWith('$2b$')).toBe(true);
 
-    // 6. Verificar 6 items estandar, 5 parte y 3 especifico
-    const estandarCount = await CatalogItem.count({ where: { tipo: 'estandar' } });
-    const parteCount = await CatalogItem.count({ where: { tipo: 'parte' } });
-    const especificoCount = await CatalogItem.count({ where: { tipo: 'especifico' } });
+    const estandarCount = await queryCount(
+      testSequelize,
+      "SELECT COUNT(*) AS total FROM catalog_items WHERE tipo = 'estandar';",
+    );
+    const parteCount = await queryCount(
+      testSequelize,
+      "SELECT COUNT(*) AS total FROM catalog_items WHERE tipo = 'parte';",
+    );
+    const especificoCount = await queryCount(
+      testSequelize,
+      "SELECT COUNT(*) AS total FROM catalog_items WHERE tipo = 'especifico';",
+    );
 
     expect(estandarCount).toBe(6);
     expect(parteCount).toBe(5);
@@ -108,18 +184,17 @@ describe('Database Base Seeders (unithor_test)', () => {
   it('ejecuta los seeders una segunda vez y verifica que los conteos NO cambian (idempotencia)', async () => {
     const qi = testSequelize.getQueryInterface();
 
-    // Segunda ejecución consecutiva
     await seederRoles.up(qi);
     await seederPermissions.up(qi);
     await seederRolePermissions.up(qi);
     await seederAdminUser.up(qi);
     await seederCatalogItems.up(qi);
 
-    expect(await Role.count()).toBe(5);
-    expect(await Permission.count()).toBe(24);
-    expect(await RolePermission.count()).toBe(72);
-    expect(await User.count()).toBe(1);
-    expect(await CatalogItem.count()).toBe(14);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM roles;')).toBe(5);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM permissions;')).toBe(24);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM role_permissions;')).toBe(72);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM users;')).toBe(1);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM catalog_items;')).toBe(14);
   });
 
   it('ejecuta down de todos los seeders y verifica que las tablas quedan vacías', async () => {
@@ -131,10 +206,10 @@ describe('Database Base Seeders (unithor_test)', () => {
     await seederPermissions.down(qi);
     await seederRoles.down(qi);
 
-    expect(await CatalogItem.count()).toBe(0);
-    expect(await User.count()).toBe(0);
-    expect(await RolePermission.count()).toBe(0);
-    expect(await Permission.count()).toBe(0);
-    expect(await Role.count()).toBe(0);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM catalog_items;')).toBe(0);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM users;')).toBe(0);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM role_permissions;')).toBe(0);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM permissions;')).toBe(0);
+    expect(await queryCount(testSequelize, 'SELECT COUNT(*) AS total FROM roles;')).toBe(0);
   });
 });

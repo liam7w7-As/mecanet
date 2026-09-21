@@ -19,6 +19,8 @@ const toEditableItems = (workOrder: WorkOrder): EditableWorkOrderItem[] =>
   workOrder.items?.map((item) => ({
     ...createEmptyWorkOrderItem(),
     catalogItemId: item.catalogItemId,
+    catalogTipo: item.catalogItem?.tipo ?? null,
+    catalogStock: item.catalogItem?.stock ?? null,
     descripcion: item.descripcion,
     cantidad: String(item.cantidad),
     precioUnitario: String(item.precioUnitario),

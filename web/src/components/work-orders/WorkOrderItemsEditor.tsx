@@ -14,6 +14,8 @@ let itemSequence = 0;
 export interface EditableWorkOrderItem {
   key: string;
   catalogItemId: number | null;
+  catalogTipo: CatalogItem['tipo'] | null;
+  catalogStock: number | null;
   descripcion: string;
   cantidad: string;
   precioUnitario: string;
@@ -24,6 +26,8 @@ export interface EditableWorkOrderItem {
 export const createEmptyWorkOrderItem = (): EditableWorkOrderItem => ({
   key: `work-item-${itemSequence += 1}`,
   catalogItemId: null,
+  catalogTipo: null,
+  catalogStock: null,
   descripcion: '',
   cantidad: '1',
   precioUnitario: '0',
@@ -60,6 +64,8 @@ const CATALOG_TYPE_LABELS: Record<string, string> = {
 const toCatalogRow = (catalogItem: CatalogItem): EditableWorkOrderItem => ({
   key: `work-item-${(itemSequence += 1)}`,
   catalogItemId: catalogItem.id,
+  catalogTipo: catalogItem.tipo,
+  catalogStock: catalogItem.stock,
   descripcion: catalogItem.nombre,
   cantidad: '1',
   precioUnitario: String(catalogItem.precio),
@@ -81,6 +87,8 @@ const CatalogPicker = ({ index, item, onChange }: CatalogPickerProps) => {
   const selectCatalogItem = (catalogItem: CatalogItem): void => {
     onChange({
       catalogItemId: catalogItem.id,
+      catalogTipo: catalogItem.tipo,
+      catalogStock: catalogItem.stock,
       descripcion: catalogItem.nombre,
       precioUnitario: String(catalogItem.precio),
     });
@@ -92,7 +100,12 @@ const CatalogPicker = ({ index, item, onChange }: CatalogPickerProps) => {
       <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
       <input
         value={item.descripcion}
-        onChange={(event) => onChange({ descripcion: event.target.value, catalogItemId: null })}
+        onChange={(event) => onChange({
+          descripcion: event.target.value,
+          catalogItemId: null,
+          catalogTipo: null,
+          catalogStock: null,
+        })}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         className="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-9 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
@@ -259,11 +272,36 @@ export const WorkOrderItemsEditor = ({
     const emptyIndex = items.findIndex((item) => item.descripcion.trim() === '' && item.catalogItemId === null);
     if (emptyIndex >= 0) {
       onChange(items.map((item, itemIndex) => itemIndex === emptyIndex
-        ? { ...item, catalogItemId: catalogItem.id, descripcion: catalogItem.nombre, precioUnitario: String(catalogItem.precio) }
+        ? {
+            ...item,
+            catalogItemId: catalogItem.id,
+            catalogTipo: catalogItem.tipo,
+            catalogStock: catalogItem.stock,
+            descripcion: catalogItem.nombre,
+            precioUnitario: String(catalogItem.precio),
+          }
         : item));
       return;
     }
     onChange([...items, toCatalogRow(catalogItem)]);
+  };
+
+  const getStockMessage = (item: EditableWorkOrderItem): string | null => {
+    if (item.catalogTipo !== 'parte') {
+      return null;
+    }
+
+    const stock = item.catalogStock ?? 0;
+    const cantidad = Number(item.cantidad) || 0;
+
+    if (item.estadoOperativo === 'completado' && cantidad > stock) {
+      return `Stock insuficiente: disponible ${stock}, requerido ${cantidad}`;
+    }
+    if (item.estadoOperativo === 'completado') {
+      return `Se descontarán ${cantidad} unidad(es). Disponible: ${stock}`;
+    }
+
+    return `Repuesto pendiente de consumo. Disponible: ${stock}`;
   };
 
   return (
@@ -291,11 +329,18 @@ export const WorkOrderItemsEditor = ({
               <tr><th className="px-3 py-3 font-semibold">Descripción</th><th className="w-28 px-3 py-3 font-semibold">Cantidad</th><th className="w-44 px-3 py-3 font-semibold">Precio unitario</th><th className="w-40 px-3 py-3 font-semibold">Avance</th><th className="w-56 px-3 py-3 font-semibold">Nota operativa</th><th className="w-36 px-3 py-3 text-right font-semibold">Subtotal</th><th className="w-14 px-3 py-3"><span className="sr-only">Eliminar</span></th></tr>
             </thead>
             <tbody>
-              {items.map((item, index) => (
+              {items.map((item, index) => {
+                const stockMessage = getStockMessage(item);
+                return (
                 <tr key={item.key} className="border-t border-slate-100 align-top">
                   <td className="px-3 py-3">
                     <CatalogPicker index={index} item={item} onChange={(patch) => updateItem(index, patch)} />
                     {errors[`items.${index}.descripcion`] && <p className="mt-1 text-xs text-red-700">{errors[`items.${index}.descripcion`]}</p>}
+                    {stockMessage && (
+                      <p className={`mt-1 text-xs font-semibold ${stockMessage.startsWith('Stock insuficiente') ? 'text-red-700' : 'text-slate-500'}`}>
+                        {stockMessage}
+                      </p>
+                    )}
                   </td>
                   <td className="px-3 py-3"><input type="number" min="0.01" step="0.01" value={item.cantidad} onChange={(event) => updateItem(index, { cantidad: event.target.value })} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue" aria-label={`Cantidad ${index + 1}`} /></td>
                   <td className="px-3 py-3"><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-slate-400">$</span><input type="number" min="0" step="1" value={item.precioUnitario} onChange={(event) => updateItem(index, { precioUnitario: event.target.value })} className="h-10 w-full rounded-lg border border-slate-300 pl-7 pr-3 text-sm outline-none focus:border-brand-blue" aria-label={`Precio unitario ${index + 1}`} /></div></td>
@@ -304,7 +349,7 @@ export const WorkOrderItemsEditor = ({
                   <td className="px-3 py-5 text-right font-semibold text-brand-blue" data-testid={`item-subtotal-${index}`}>{formatClp(getWorkOrderItemSubtotal(item))}</td>
                   <td className="px-3 py-3"><button type="button" className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-700" onClick={() => removeItem(index)} aria-label={`Eliminar ítem ${index + 1}`} title="Eliminar ítem"><Trash2 className="h-4 w-4" aria-hidden="true" /></button></td>
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         </div>

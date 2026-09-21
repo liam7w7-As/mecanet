@@ -80,6 +80,7 @@ export const useUpdateWorkOrderMutation = () => {
     onSuccess: (workOrder) => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ['catalog'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });

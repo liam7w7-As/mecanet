@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
+import { CatalogItem } from '../../models/CatalogItem.js';
 import { Client } from '../../models/Client.js';
 import { Quotation } from '../../models/Quotation.js';
 import { QuotationItem } from '../../models/QuotationItem.js';
@@ -19,6 +20,7 @@ import { hashPassword } from '../../utils/password.js';
 const TEST_PASSWORD = 'Desarrollador2026!';
 const TEST_EMAIL_PREFIX = 'phase41-';
 const TEST_PLATE_PREFIX = 'PH41';
+const TEST_CATALOG_PREFIX = 'PH41-';
 const TEST_YEAR = new Date().getFullYear();
 
 interface LoginCookies {
@@ -118,6 +120,15 @@ describe('Work Order Routes (E2E)', () => {
       force: true,
     });
 
+    const existingCatalogItems = await CatalogItem.findAll({
+      where: { codigo: { [Op.like]: `${TEST_CATALOG_PREFIX}%` } },
+      paranoid: false,
+    });
+    await CatalogItem.destroy({
+      where: { id: existingCatalogItems.map((item) => item.id) },
+      force: true,
+    });
+
     const testUsers = await User.findAll({
       where: { email: { [Op.like]: `${TEST_EMAIL_PREFIX}%` } },
       paranoid: false,
@@ -201,6 +212,15 @@ describe('Work Order Routes (E2E)', () => {
     });
     await Client.destroy({
       where: { id: testClients.map((client) => client.id) },
+      force: true,
+    });
+
+    const testCatalogItems = await CatalogItem.findAll({
+      where: { codigo: { [Op.like]: `${TEST_CATALOG_PREFIX}%` } },
+      paranoid: false,
+    });
+    await CatalogItem.destroy({
+      where: { id: testCatalogItems.map((item) => item.id) },
       force: true,
     });
 
@@ -542,6 +562,137 @@ describe('Work Order Routes (E2E)', () => {
 
     const storedItems = await WorkOrderItem.findAll({ where: { workOrderId } });
     expect(storedItems).toHaveLength(2);
+  });
+
+  it('descuenta stock de repuestos completados sin duplicar consumos y restaura al volver a pendiente', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const part = await CatalogItem.create({
+      tipo: 'parte',
+      codigo: `${TEST_CATALOG_PREFIX}STOCK-01`,
+      nombre: 'Pastillas de freno fase 41',
+      precio: 12000,
+      stock: 3,
+    });
+
+    const createResponse = await request(app)
+      .post('/api/work-orders')
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({
+        clientId,
+        vehicleId,
+        descripcion: 'OT stock fase 41',
+        items: [
+          {
+            catalogItemId: part.id,
+            descripcion: part.nombre,
+            cantidad: 2,
+            precioUnitario: 12000,
+          },
+        ],
+      });
+    expect(createResponse.status).toBe(201);
+    await part.reload();
+    expect(part.stock).toBe(3);
+
+    const workOrderId = createResponse.body.workOrder.id as number;
+    const completedResponse = await request(app)
+      .patch(`/api/work-orders/${workOrderId}`)
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({
+        items: [
+          {
+            catalogItemId: part.id,
+            descripcion: part.nombre,
+            cantidad: 2,
+            precioUnitario: 12000,
+            estadoOperativo: 'completado',
+          },
+        ],
+      });
+
+    expect(completedResponse.status).toBe(200);
+    expect(completedResponse.body.workOrder.items[0]).toMatchObject({
+      stockConsumido: true,
+      stockConsumidoCantidad: 2,
+      catalogItem: expect.objectContaining({ id: part.id, tipo: 'parte', stock: 1 }),
+    });
+    await part.reload();
+    expect(part.stock).toBe(1);
+
+    const repeatedResponse = await request(app)
+      .patch(`/api/work-orders/${workOrderId}`)
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({
+        items: [
+          {
+            catalogItemId: part.id,
+            descripcion: part.nombre,
+            cantidad: 2,
+            precioUnitario: 12000,
+            estadoOperativo: 'completado',
+          },
+        ],
+      });
+    expect(repeatedResponse.status).toBe(200);
+    await part.reload();
+    expect(part.stock).toBe(1);
+
+    const pendingResponse = await request(app)
+      .patch(`/api/work-orders/${workOrderId}`)
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({
+        items: [
+          {
+            catalogItemId: part.id,
+            descripcion: part.nombre,
+            cantidad: 2,
+            precioUnitario: 12000,
+            estadoOperativo: 'pendiente',
+          },
+        ],
+      });
+    expect(pendingResponse.status).toBe(200);
+    await part.reload();
+    expect(part.stock).toBe(3);
+  });
+
+  it('rechaza completar repuestos si el stock disponible no alcanza', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const part = await CatalogItem.create({
+      tipo: 'parte',
+      codigo: `${TEST_CATALOG_PREFIX}STOCK-02`,
+      nombre: 'Filtro fase 41',
+      precio: 9000,
+      stock: 1,
+    });
+
+    const response = await request(app)
+      .post('/api/work-orders')
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({
+        clientId,
+        vehicleId,
+        descripcion: 'OT sin stock fase 41',
+        items: [
+          {
+            catalogItemId: part.id,
+            descripcion: part.nombre,
+            cantidad: 2,
+            precioUnitario: 9000,
+            estadoOperativo: 'completado',
+          },
+        ],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toContain('Stock insuficiente');
+    await part.reload();
+    expect(part.stock).toBe(1);
   });
 
   it('rechaza modificar una OT entregada o cancelada', async () => {

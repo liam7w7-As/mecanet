@@ -1,10 +1,10 @@
 import { motion } from 'motion/react';
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 
-import type { ButtonHTMLAttributes } from 'react';
+import type { HTMLMotionProps } from 'motion/react';
 
 export interface AnimatedButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement> {
+  extends HTMLMotionProps<'button'> {
   scaleOnHover?: number;
   scaleOnTap?: number;
   liftOnHover?: number;
@@ -50,7 +50,7 @@ export const AnimatedButton = forwardRef<HTMLButtonElement, AnimatedButtonProps>
                 transition: { type: 'spring', stiffness: 500, damping: 20 },
               }
         }
-        {...(props as any)}
+        {...props}
       >
         {children}
       </motion.button>

@@ -140,6 +140,10 @@ export interface WorkOrderItem {
   subtotal: number;
   estadoOperativo: import('@unithor/shared').ItemOperationalStatus;
   notasOperativas: string | null;
+  stockConsumido: boolean;
+  stockConsumidoCantidad: number;
+  stockConsumidoAt: string | null;
+  catalogItem?: ItemCatalogInfo | null;
 }
 
 export interface WorkOrderQuotationSummary {
@@ -231,6 +235,14 @@ export interface QuotationWorkOrder {
   estado: string;
 }
 
+export interface ItemCatalogInfo {
+  id: number;
+  tipo: import('@unithor/shared').CatalogType;
+  codigo: string | null;
+  nombre: string;
+  stock?: number;
+}
+
 export interface QuotationItem {
   id: number;
   catalogItemId: number | null;
@@ -240,6 +252,7 @@ export interface QuotationItem {
   subtotal: number;
   estadoOperativo: import('@unithor/shared').ItemOperationalStatus;
   notasOperativas: string | null;
+  catalogItem?: ItemCatalogInfo | null;
 }
 
 export interface Quotation {

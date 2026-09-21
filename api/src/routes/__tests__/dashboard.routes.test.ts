@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
+import { Role } from '../../models/Role.js';
 import { User } from '../../models/User.js';
 import { hashPassword } from '../../utils/password.js';
 
@@ -26,15 +27,28 @@ describe('Dashboard Routes (E2E)', () => {
 
   beforeAll(async () => {
     await sequelize.authenticate();
-    const developer = await User.findOne({ where: { email: 'dev@unithor.local' } });
-    if (!developer) throw new Error('No se encontró el usuario desarrollador base');
+    let developer = await User.findOne({ where: { email: 'dev@unithor.local' } });
+    if (!developer) {
+      const developerRole = await Role.findOne({ where: { nombre: 'desarrollador' } });
+      if (!developerRole) throw new Error('No se encontró el rol desarrollador base');
+      developer = await User.create({
+        nombre: 'Desarrollador UNITHOR',
+        email: 'dev@unithor.local',
+        username: 'dev',
+        passwordHash: await hashPassword(TEST_PASSWORD),
+        roleId: developerRole.id,
+        activo: true,
+      });
+    }
 
     developerId = developer.id;
     await developer.update({ passwordHash: await hashPassword(TEST_PASSWORD), activo: true });
   });
 
   afterAll(async () => {
-    await RefreshToken.destroy({ where: { userId: developerId }, force: true });
+    if (developerId !== undefined) {
+      await RefreshToken.destroy({ where: { userId: developerId }, force: true });
+    }
   });
 
   it('requiere una sesión autenticada', async () => {

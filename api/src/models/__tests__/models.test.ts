@@ -1,6 +1,7 @@
 import { Sequelize } from 'sequelize-typescript';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { sequelize as appSequelize } from '../../config/database.js';
 import {
   CatalogItem,
   Client,
@@ -22,10 +23,21 @@ import {
 } from '../index.js';
 
 describe('Sequelize Models & Database Integration (unithor_test)', () => {
+  const modelsDatabaseName = 'unithor_models_test';
   let testSequelize: Sequelize;
 
   beforeAll(async () => {
-    testSequelize = new Sequelize('mysql://root:@localhost:3306/unithor_test', {
+    const adminSequelize = new Sequelize('mysql://root:@localhost:3306/mysql', {
+      dialect: 'mysql',
+      logging: false,
+    });
+    await adminSequelize.query(`DROP DATABASE IF EXISTS \`${modelsDatabaseName}\`;`);
+    await adminSequelize.query(
+      `CREATE DATABASE \`${modelsDatabaseName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`,
+    );
+    await adminSequelize.close();
+
+    testSequelize = new Sequelize(`mysql://root:@localhost:3306/${modelsDatabaseName}`, {
       dialect: 'mysql',
       logging: false,
       define: {
@@ -38,10 +50,18 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
 
     initModels(testSequelize);
     await testSequelize.authenticate();
+    await testSequelize.sync({ force: true });
   });
 
   afterAll(async () => {
     await testSequelize.close();
+    const adminSequelize = new Sequelize('mysql://root:@localhost:3306/mysql', {
+      dialect: 'mysql',
+      logging: false,
+    });
+    await adminSequelize.query(`DROP DATABASE IF EXISTS \`${modelsDatabaseName}\`;`);
+    await adminSequelize.close();
+    initModels(appSequelize);
   });
 
   beforeEach(async () => {

@@ -195,7 +195,7 @@ interface PdfRequest {
 
 const presentPdf = (
   blob: Blob,
-  codigo: string,
+  filename: string,
   mode: PdfMode,
   previewWindow?: Window | null,
 ): void => {
@@ -210,7 +210,7 @@ const presentPdf = (
   } else {
     const link = document.createElement('a');
     link.href = objectUrl;
-    link.download = `${codigo}.pdf`;
+    link.download = filename;
     link.click();
   }
 
@@ -223,10 +223,39 @@ export const useDownloadWorkOrderPdf = () => {
       const response = await api.get<Blob>(`/work-orders/${id}/pdf`, {
         responseType: 'blob',
       });
-      return { blob: response.data, codigo, mode, previewWindow };
+      return { blob: response.data, filename: `${codigo}.pdf`, mode, previewWindow };
     },
-    onSuccess: ({ blob, codigo, mode, previewWindow }) => {
-      presentPdf(blob, codigo, mode, previewWindow);
+    onSuccess: ({ blob, filename, mode, previewWindow }) => {
+      presentPdf(blob, filename, mode, previewWindow);
+    },
+    onError: (_error, request) => request.previewWindow?.close(),
+  });
+
+  return {
+    ...mutation,
+    downloadPdf: (id: number, codigo: string) => mutation.mutate({ id, codigo, mode: 'download' }),
+    openPdf: (id: number, codigo: string) => {
+      const previewWindow = window.open('', '_blank');
+      mutation.mutate({ id, codigo, mode: 'open', previewWindow });
+    },
+  };
+};
+
+export const useDownloadWorkOrderReceptionPdf = () => {
+  const mutation = useMutation({
+    mutationFn: async ({ id, codigo, mode, previewWindow }: PdfRequest) => {
+      const response = await api.get<Blob>(`/work-orders/${id}/reception-pdf`, {
+        responseType: 'blob',
+      });
+      return {
+        blob: response.data,
+        filename: `${codigo}-comprobante-recepcion.pdf`,
+        mode,
+        previewWindow,
+      };
+    },
+    onSuccess: ({ blob, filename, mode, previewWindow }) => {
+      presentPdf(blob, filename, mode, previewWindow);
     },
     onError: (_error, request) => request.previewWindow?.close(),
   });

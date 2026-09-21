@@ -369,6 +369,26 @@ describe('Work Order PDF Routes (E2E)', () => {
     expect(response.headers['content-disposition']).toContain(`${TEST_CODE_PREFIX}01.pdf`);
     expect(body.subarray(0, 5).toString('utf8')).toBe('%PDF-');
     const document = await PDFDocument.load(body);
+    expect(document.getPageCount()).toBeGreaterThanOrEqual(1);
+    expect(body.length).toBeGreaterThan(1000);
+  });
+
+  it('genera el comprobante de recepción enriquecido en un endpoint separado', async () => {
+    const devCookies = await loginAs('dev@unithor.local');
+    const response = await request(app)
+      .get(`/api/work-orders/${workOrderWithItemsId}/reception-pdf`)
+      .set('Cookie', [`access_token=${devCookies.accessToken}`])
+      .buffer(true)
+      .parse(pdfParser);
+
+    const body = response.body as Buffer;
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('application/pdf');
+    expect(response.headers['content-disposition']).toContain(
+      `${TEST_CODE_PREFIX}01-comprobante-recepcion.pdf`,
+    );
+    expect(body.subarray(0, 5).toString('utf8')).toBe('%PDF-');
+    const document = await PDFDocument.load(body);
     expect(document.getTitle()).toBe(`Orden de Trabajo ${TEST_CODE_PREFIX}01`);
     expect(document.getPageCount()).toBeGreaterThanOrEqual(4);
     expect(body.length).toBeGreaterThan(5000);

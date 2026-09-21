@@ -1,5 +1,6 @@
 import * as inspectionPhotoService from '../services/work-order-inspection-photo.service.js';
 import { generateWorkOrderPdf } from '../services/work-order-pdf.service.js';
+import { generateWorkOrderReceptionPdf } from '../services/work-order-reception-pdf.service.js';
 import * as workOrderService from '../services/work-order.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -51,6 +52,23 @@ export const getWorkOrderPdfHandler = asyncHandler(
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${workOrder.codigo}.pdf"`);
+    res.end(Buffer.from(pdfBytes));
+  },
+);
+
+export const getWorkOrderReceptionPdfHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const [workOrder, pdfBytes] = await Promise.all([
+      workOrderService.getWorkOrderById(id),
+      generateWorkOrderReceptionPdf(id),
+    ]);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${workOrder.codigo}-comprobante-recepcion.pdf"`,
+    );
     res.end(Buffer.from(pdfBytes));
   },
 );

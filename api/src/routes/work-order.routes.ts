@@ -15,6 +15,7 @@ import {
   deleteWorkOrderInspectionPhotoHandler,
   getWorkOrderByIdHandler,
   getWorkOrderPdfHandler,
+  getWorkOrderReceptionPdfHandler,
   getWorkOrderInspectionPhotoHandler,
   getWorkOrdersHandler,
   updateWorkOrderHandler,
@@ -64,6 +65,13 @@ workOrderRouter.delete(
   authorize('taller', 'update'),
   validate({ params: inspectionPhotoParamSchema }),
   deleteWorkOrderInspectionPhotoHandler,
+);
+
+workOrderRouter.get(
+  '/:id/reception-pdf',
+  authorize('taller', 'read'),
+  validate({ params: idParamSchema }),
+  getWorkOrderReceptionPdfHandler,
 );
 
 workOrderRouter.get(

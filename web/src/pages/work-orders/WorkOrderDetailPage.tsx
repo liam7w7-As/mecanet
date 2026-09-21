@@ -10,6 +10,7 @@ import {
   Building2,
   Camera,
   ClipboardCheck,
+  Download,
   Eye,
   Gauge,
   LoaderCircle,
@@ -37,6 +38,7 @@ import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components
 import {
   useChangeWorkOrderStatusMutation,
   useDeleteWorkOrderInspectionPhotoMutation,
+  useDownloadWorkOrderReceptionPdf,
   useUploadWorkOrderInspectionPhotosMutation,
   useWorkOrder,
 } from '../../hooks/useWorkOrders';
@@ -120,6 +122,7 @@ export const WorkOrderDetailPage = () => {
   const statusMutation = useChangeWorkOrderStatusMutation();
   const uploadPhotosMutation = useUploadWorkOrderInspectionPhotosMutation();
   const deletePhotoMutation = useDeleteWorkOrderInspectionPhotoMutation();
+  const receptionPdfMutation = useDownloadWorkOrderReceptionPdf();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReceptionModal, setShowReceptionModal] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
@@ -244,16 +247,26 @@ export const WorkOrderDetailPage = () => {
               Editar ficha
             </button>
           )}
+          <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-blue bg-white px-4 text-sm font-semibold text-brand-blue shadow-sm transition-all hover:bg-brand-light hover:shadow" onClick={() => receptionPdfMutation.downloadPdf(workOrder.id, workOrder.codigo)} disabled={receptionPdfMutation.isPending}>
+            {receptionPdfMutation.isPending ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <AnimateIcon variant="bounce" animateOnHover>
+                <Download className="h-4 w-4" aria-hidden="true" />
+              </AnimateIcon>
+            )}
+            Comprobante de recepción
+          </button>
           <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-dark hover:shadow" onClick={() => setShowPdfModal(true)}>
             <AnimateIcon variant="bounce" animateOnHover>
               <Eye className="h-4 w-4" aria-hidden="true" />
             </AnimateIcon>
-            Ver PDF / Imprimir / Descargar
+            OT oficial / Imprimir
           </button>
         </div>
       </header>
 
-      {(statusMutation.isError || uploadPhotosMutation.isError || deletePhotoMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(statusMutation.error ?? uploadPhotosMutation.error ?? deletePhotoMutation.error)}</div>}
+      {(statusMutation.isError || uploadPhotosMutation.isError || deletePhotoMutation.isError || receptionPdfMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(statusMutation.error ?? uploadPhotosMutation.error ?? deletePhotoMutation.error ?? receptionPdfMutation.error)}</div>}
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-labelledby="work-order-summary-title">
         <div className="border-b border-slate-200 px-5 py-4"><h2 id="work-order-summary-title" className="font-bold text-brand-blue">Resumen de la orden</h2></div>

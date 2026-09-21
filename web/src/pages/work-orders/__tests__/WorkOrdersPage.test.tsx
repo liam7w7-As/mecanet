@@ -278,6 +278,44 @@ describe('WorkOrdersPage', () => {
     expect(screen.getAllByText(/INSPECCIÓN DE INGRESO/i).length).toBeGreaterThanOrEqual(1);
   });
 
+  it('separa la OT oficial del comprobante de recepción', async () => {
+    const anchorClick = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:reception-pdf'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === `/work-orders/${workOrder.id}`) {
+        return Promise.resolve({ data: { workOrder } } as AxiosResponse<{ workOrder: WorkOrder }>);
+      }
+      if (url === `/work-orders/${workOrder.id}/reception-pdf`) {
+        return Promise.resolve({ data: new Blob(['%PDF-']) } as AxiosResponse<Blob>);
+      }
+      return Promise.resolve({ data: listResponse } as AxiosResponse<PaginatedResponse<WorkOrder>>);
+    });
+
+    createWrapper(
+      <Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>,
+      `/work-orders/${workOrder.id}`,
+    );
+
+    expect(await screen.findByRole('button', { name: 'OT oficial / Imprimir' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobante de recepción' }));
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith('/work-orders/12/reception-pdf', {
+        responseType: 'blob',
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'OT oficial / Imprimir' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    anchorClick.mockRestore();
+  });
+
   it('muestra recepción, facturación e inspección y permite reemplazar o eliminar fotos', async () => {
     vi.mocked(api.post).mockResolvedValue({
       data: {

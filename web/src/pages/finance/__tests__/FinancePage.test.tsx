@@ -23,6 +23,9 @@ const summary: FinanceSummary = {
   metrics: {
     revenueToday: 125000,
     revenueMonth: 1450000,
+    expensesToday: 15000,
+    expensesMonth: 95000,
+    netCashToday: 110000,
     receivableTotal: 320000,
     receivableCount: 3,
     pendingTransferCount: 1,
@@ -59,12 +62,32 @@ const dailySummary: DailyCashSummary = {
   isClosed: false,
   totals: {
     confirmedTotal: 125000,
+    manualIncomeTotal: 20000,
+    expenseTotal: 15000,
+    netTotal: 130000,
+    expectedCash: 55000,
     pendingTransferCount: 0,
     pendingTransferAmount: 0,
     byMethod: {
       efectivo: 50000,
       transferencia: 25000,
       tarjeta_debito: 50000,
+      tarjeta_credito: 0,
+      cheque: 0,
+      otro: 0,
+    },
+    manualIncomeByMethod: {
+      efectivo: 20000,
+      transferencia: 0,
+      tarjeta_debito: 0,
+      tarjeta_credito: 0,
+      cheque: 0,
+      otro: 0,
+    },
+    expenseByMethod: {
+      efectivo: 15000,
+      transferencia: 0,
+      tarjeta_debito: 0,
       tarjeta_credito: 0,
       cheque: 0,
       otro: 0,
@@ -86,7 +109,7 @@ describe('FinancePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.get).mockImplementation((url) => Promise.resolve({
-      data: url === '/finance/day' ? dailySummary : summary,
+      data: url === '/finance/day' ? dailySummary : url === '/finance/movements' ? { items: [] } : summary,
     } as AxiosResponse));
     vi.mocked(api.patch).mockResolvedValue({
       data: {
@@ -94,8 +117,26 @@ describe('FinancePage', () => {
         quotation: { id: 31, codigo: 'COT-2026-0031', total: 150000, pagado: 75000, saldoPendiente: 75000, estadoPago: 'parcial' },
       },
     } as AxiosResponse);
-    vi.mocked(api.post).mockResolvedValue({
-      data: {
+    vi.mocked(api.post).mockImplementation((url) => Promise.resolve({
+      data: url === '/finance/movements' ? {
+        movement: {
+          id: 10,
+          tipo: 'egreso',
+          categoria: 'gasto_operativo',
+          monto: 5000,
+          metodo: 'efectivo',
+          descripcion: 'Compra de útiles',
+          referencia: null,
+          fecha: '2026-09-22T12:00:00.000Z',
+          createdBy: 1,
+          voidedAt: null,
+          voidedBy: null,
+          voidReason: null,
+          createdAt: '2026-09-22T12:00:00.000Z',
+          creator: { id: 1, nombre: 'Finanzas Demo' },
+          voider: null,
+        },
+      } : {
         ...dailySummary,
         isClosed: true,
         closure: {
@@ -103,8 +144,11 @@ describe('FinancePage', () => {
           fecha: dailySummary.fecha,
           totalesPorMetodo: dailySummary.totals.byMethod,
           totalConfirmado: 125000,
-          efectivoEsperado: 50000,
-          efectivoDeclarado: 50000,
+          totalIngresosManuales: 20000,
+          totalEgresos: 15000,
+          totalNeto: 130000,
+          efectivoEsperado: 55000,
+          efectivoDeclarado: 55000,
           diferenciaEfectivo: 0,
           observaciones: null,
           closedBy: 1,
@@ -112,7 +156,7 @@ describe('FinancePage', () => {
           closer: { id: 1, nombre: 'Finanzas Demo' },
         },
       },
-    } as AxiosResponse);
+    } as AxiosResponse));
   });
 
   it('renderiza métricas y transferencias pendientes', async () => {
@@ -145,8 +189,29 @@ describe('FinancePage', () => {
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/finance/cash-closures', {
       fecha: dailySummary.fecha,
-      efectivoDeclarado: 50000,
+      efectivoDeclarado: 55000,
       observaciones: undefined,
     }));
+  });
+
+  it('registra un egreso manual desde el libro diario', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Nuevo movimiento' }));
+    fireEvent.change(screen.getByLabelText('Monto'), { target: { value: '5000' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), {
+      target: { value: 'Compra de útiles' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar movimiento' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+      '/finance/movements',
+      expect.objectContaining({
+        tipo: 'egreso',
+        categoria: 'gasto_operativo',
+        monto: 5000,
+        metodo: 'efectivo',
+        descripcion: 'Compra de útiles',
+      }),
+    ));
   });
 });

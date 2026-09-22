@@ -3,6 +3,7 @@ import { fn, col, Op, Transaction } from 'sequelize';
 
 import { sequelize } from '../config/database.js';
 import { CashClosure } from '../models/CashClosure.js';
+import { CashMovement } from '../models/CashMovement.js';
 import { Payment } from '../models/Payment.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -16,11 +17,18 @@ interface MethodAggregate {
   total: string | number | null;
 }
 
+interface MovementAggregate extends MethodAggregate {
+  tipo: string;
+}
+
 export interface CashClosurePublic {
   id: number;
   fecha: string;
   totalesPorMetodo: PaymentMethodTotals;
   totalConfirmado: number;
+  totalIngresosManuales: number;
+  totalEgresos: number;
+  totalNeto: number;
   efectivoEsperado: number;
   efectivoDeclarado: number;
   diferenciaEfectivo: number;
@@ -35,9 +43,15 @@ export interface DailyCashSummary {
   isClosed: boolean;
   totals: {
     confirmedTotal: number;
+    manualIncomeTotal: number;
+    expenseTotal: number;
+    netTotal: number;
+    expectedCash: number;
     pendingTransferCount: number;
     pendingTransferAmount: number;
     byMethod: PaymentMethodTotals;
+    manualIncomeByMethod: PaymentMethodTotals;
+    expenseByMethod: PaymentMethodTotals;
   };
   closure: CashClosurePublic | null;
 }
@@ -71,6 +85,9 @@ const toClosurePublic = (closure: CashClosure): CashClosurePublic => ({
   fecha: closure.fecha,
   totalesPorMetodo: closure.totalesPorMetodo,
   totalConfirmado: Number(closure.totalConfirmado),
+  totalIngresosManuales: Number(closure.totalIngresosManuales),
+  totalEgresos: Number(closure.totalEgresos),
+  totalNeto: Number(closure.totalNeto),
   efectivoEsperado: Number(closure.efectivoEsperado),
   efectivoDeclarado: Number(closure.efectivoDeclarado),
   diferenciaEfectivo: Number(closure.diferenciaEfectivo),
@@ -87,7 +104,7 @@ const getAggregates = async (
   transaction?: SequelizeTransaction,
 ): Promise<DailyCashSummary['totals']> => {
   const { start, end } = getDateRange(fecha);
-  const [methodRows, pendingTransferCount, pendingTransferAmount] = await Promise.all([
+  const [methodRows, movementRows, pendingTransferCount, pendingTransferAmount] = await Promise.all([
     Payment.findAll({
       attributes: ['metodo', [fn('SUM', col('monto')), 'total']],
       where: { estado: 'confirmado', fecha: { [Op.between]: [start, end] } },
@@ -95,6 +112,13 @@ const getAggregates = async (
       raw: true,
       transaction,
     }) as unknown as Promise<MethodAggregate[]>,
+    CashMovement.findAll({
+      attributes: ['tipo', 'metodo', [fn('SUM', col('monto')), 'total']],
+      where: { voidedAt: null, fecha: { [Op.between]: [start, end] } },
+      group: ['tipo', 'metodo'],
+      raw: true,
+      transaction,
+    }) as unknown as Promise<MovementAggregate[]>,
     Payment.count({
       where: {
         estado: 'por_verificar',
@@ -114,19 +138,43 @@ const getAggregates = async (
   ]);
 
   const byMethod = emptyMethodTotals();
+  const manualIncomeByMethod = emptyMethodTotals();
+  const expenseByMethod = emptyMethodTotals();
   for (const row of methodRows) {
     if (row.metodo && PAYMENT_METHODS.includes(row.metodo as PaymentMethod)) {
       byMethod[row.metodo as PaymentMethod] = moneyValue(Number(row.total ?? 0));
     }
   }
 
+  for (const row of movementRows) {
+    if (!row.metodo || !PAYMENT_METHODS.includes(row.metodo as PaymentMethod)) continue;
+    const totals = row.tipo === 'ingreso' ? manualIncomeByMethod : expenseByMethod;
+    totals[row.metodo as PaymentMethod] = moneyValue(Number(row.total ?? 0));
+  }
+
+  const confirmedTotal = moneyValue(
+    Object.values(byMethod).reduce((total, amount) => total + amount, 0),
+  );
+  const manualIncomeTotal = moneyValue(
+    Object.values(manualIncomeByMethod).reduce((total, amount) => total + amount, 0),
+  );
+  const expenseTotal = moneyValue(
+    Object.values(expenseByMethod).reduce((total, amount) => total + amount, 0),
+  );
+
   return {
-    confirmedTotal: moneyValue(
-      Object.values(byMethod).reduce((total, amount) => total + amount, 0),
+    confirmedTotal,
+    manualIncomeTotal,
+    expenseTotal,
+    netTotal: moneyValue(confirmedTotal + manualIncomeTotal - expenseTotal),
+    expectedCash: moneyValue(
+      byMethod.efectivo + manualIncomeByMethod.efectivo - expenseByMethod.efectivo,
     ),
     pendingTransferCount,
     pendingTransferAmount: moneyValue(Number(pendingTransferAmount ?? 0)),
     byMethod,
+    manualIncomeByMethod,
+    expenseByMethod,
   };
 };
 
@@ -177,12 +225,15 @@ export const closeCashDay = async (
       }
 
       const efectivoDeclarado = moneyValue(Number(data.efectivoDeclarado));
-      const efectivoEsperado = totals.byMethod.efectivo;
+      const efectivoEsperado = totals.expectedCash;
       await CashClosure.create(
         {
           fecha: data.fecha,
           totalesPorMetodo: totals.byMethod,
           totalConfirmado: totals.confirmedTotal,
+          totalIngresosManuales: totals.manualIncomeTotal,
+          totalEgresos: totals.expenseTotal,
+          totalNeto: totals.netTotal,
           efectivoEsperado,
           efectivoDeclarado,
           diferenciaEfectivo: moneyValue(efectivoDeclarado - efectivoEsperado),

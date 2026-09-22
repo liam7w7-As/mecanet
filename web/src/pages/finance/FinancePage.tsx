@@ -1,5 +1,7 @@
 import {
   AlertCircle,
+  ArrowDownCircle,
+  ArrowUpCircle,
   Banknote,
   CalendarDays,
   Check,
@@ -8,6 +10,7 @@ import {
   Landmark,
   LoaderCircle,
   LockKeyhole,
+  Plus,
   ReceiptText,
   Scale,
   WalletCards,
@@ -17,17 +20,22 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
+  useCashMovements,
   useCloseCashDayMutation,
+  useCreateCashMovementMutation,
   useDailyCashSummary,
   useFinanceSummary,
   useVerifyPaymentMutation,
+  useVoidCashMovementMutation,
 } from '../../hooks/useFinance';
 import { useDownloadCommercialExcel } from '../../hooks/usePayments';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
+import type { CashMovement } from '../../hooks/useFinance';
 import type { Payment } from '../../types/entities';
+import type { CashMovementCategory, CashMovementType, PaymentMethod } from '@unithor/shared';
 import type { LucideIcon } from 'lucide-react';
 
 const methodLabels: Record<string, string> = {
@@ -38,6 +46,27 @@ const methodLabels: Record<string, string> = {
   cheque: 'Cheque',
   otro: 'Otro',
 };
+
+const categoryLabels: Record<CashMovementCategory, string> = {
+  apertura_caja: 'Apertura de caja',
+  gasto_operativo: 'Gasto operativo',
+  compra_repuesto: 'Compra de repuesto',
+  pago_proveedor: 'Pago a proveedor',
+  devolucion: 'Devolución',
+  retiro: 'Retiro de caja',
+  ajuste: 'Ajuste contable',
+  otro: 'Otro',
+};
+
+const defaultMovementForm = (fecha: string) => ({
+  tipo: 'egreso' as CashMovementType,
+  categoria: 'gasto_operativo' as CashMovementCategory,
+  monto: '',
+  metodo: 'efectivo' as PaymentMethod,
+  descripcion: '',
+  referencia: '',
+  fecha: `${fecha}T12:00`,
+});
 
 const statusStyles = {
   confirmado: 'bg-emerald-100 text-emerald-800',
@@ -92,14 +121,21 @@ export const FinancePage = () => {
   const summaryQuery = useFinanceSummary();
   const verifyMutation = useVerifyPaymentMutation();
   const closeDayMutation = useCloseCashDayMutation();
+  const createMovementMutation = useCreateCashMovementMutation();
+  const voidMovementMutation = useVoidCashMovementMutation();
   const downloadMutation = useDownloadCommercialExcel();
   const [selectedDate, setSelectedDate] = useState(todayIso());
   const dailyQuery = useDailyCashSummary(selectedDate);
+  const movementsQuery = useCashMovements(selectedDate);
   const [review, setReview] = useState<ReviewState | null>(null);
   const [comment, setComment] = useState('');
   const [showClosure, setShowClosure] = useState(false);
   const [declaredCash, setDeclaredCash] = useState('');
   const [closureNotes, setClosureNotes] = useState('');
+  const [showMovement, setShowMovement] = useState(false);
+  const [movementForm, setMovementForm] = useState(() => defaultMovementForm(todayIso()));
+  const [voidTarget, setVoidTarget] = useState<CashMovement | null>(null);
+  const [voidReason, setVoidReason] = useState('');
   const summary = summaryQuery.data;
   const daily = dailyQuery.data;
 
@@ -130,9 +166,50 @@ export const FinancePage = () => {
   };
 
   const openClosure = (): void => {
-    setDeclaredCash(String(daily?.totals.byMethod.efectivo ?? 0));
+    setDeclaredCash(String(daily?.totals.expectedCash ?? 0));
     setClosureNotes('');
     setShowClosure(true);
+  };
+
+  const openMovement = (): void => {
+    setMovementForm(defaultMovementForm(selectedDate));
+    setShowMovement(true);
+  };
+
+  const submitMovement = (): void => {
+    createMovementMutation.mutate(
+      {
+        tipo: movementForm.tipo,
+        categoria: movementForm.categoria,
+        monto: Number(movementForm.monto),
+        metodo: movementForm.metodo,
+        descripcion: movementForm.descripcion.trim(),
+        referencia: movementForm.referencia.trim() || undefined,
+        fecha: new Date(movementForm.fecha).toISOString(),
+      },
+      {
+        onSuccess: () => {
+          notifySuccess('Movimiento registrado correctamente.');
+          setShowMovement(false);
+        },
+        onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo registrar el movimiento.')),
+      },
+    );
+  };
+
+  const submitVoidMovement = (): void => {
+    if (!voidTarget) return;
+    voidMovementMutation.mutate(
+      { id: voidTarget.id, data: { motivo: voidReason.trim() } },
+      {
+        onSuccess: () => {
+          notifySuccess('Movimiento anulado y saldo recalculado.');
+          setVoidTarget(null);
+          setVoidReason('');
+        },
+        onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo anular el movimiento.')),
+      },
+    );
   };
 
   const submitClosure = (): void => {
@@ -171,10 +248,10 @@ export const FinancePage = () => {
         </button>
       </header>
 
-      {(summaryQuery.isError || dailyQuery.isError || downloadMutation.isError) && (
+      {(summaryQuery.isError || dailyQuery.isError || movementsQuery.isError || downloadMutation.isError) && (
         <div className="flex items-center gap-2 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {getApiErrorMessage(summaryQuery.error ?? dailyQuery.error ?? downloadMutation.error, 'No fue posible cargar el panel financiero.')}
+          {getApiErrorMessage(summaryQuery.error ?? dailyQuery.error ?? movementsQuery.error ?? downloadMutation.error, 'No fue posible cargar el panel financiero.')}
         </div>
       )}
 
@@ -186,9 +263,11 @@ export const FinancePage = () => {
 
       {summary && (
         <>
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores financieros">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Indicadores financieros">
             <Metric label="Recaudación de hoy" value={formatClp(summary.metrics.revenueToday)} detail="Pagos confirmados durante la jornada" icon={Banknote} tone="bg-emerald-100 text-emerald-700" />
             <Metric label="Recaudación del mes" value={formatClp(summary.metrics.revenueMonth)} detail="Pagos confirmados desde el día 1" icon={WalletCards} tone="bg-yellow-100 text-yellow-800" />
+            <Metric label="Egresos de hoy" value={formatClp(summary.metrics.expensesToday)} detail={`${formatClp(summary.metrics.expensesMonth)} acumulados en el mes`} icon={ArrowDownCircle} tone="bg-red-100 text-red-700" />
+            <Metric label="Neto de caja hoy" value={formatClp(summary.metrics.netCashToday)} detail="Ingresos confirmados y manuales menos egresos" icon={Scale} tone="bg-cyan-100 text-cyan-800" />
             <Metric label="Saldo por cobrar" value={formatClp(summary.metrics.receivableTotal)} detail={`${summary.metrics.receivableCount} cotización(es) con saldo`} icon={ReceiptText} tone="bg-blue-100 text-brand-blue" />
             <Metric label="Transferencias pendientes" value={String(summary.metrics.pendingTransferCount)} detail={`${formatClp(summary.metrics.pendingTransferAmount)} por verificar`} icon={Clock3} tone="bg-amber-100 text-amber-800" />
           </section>
@@ -199,11 +278,14 @@ export const FinancePage = () => {
                 <h2 id="cash-count-title" className="font-bold text-brand-blue">Arqueo y cierre diario</h2>
                 <p className="mt-1 text-sm text-slate-500">Totales confirmados agrupados por método de pago.</p>
               </div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <CalendarDays className="h-4 w-4 text-brand-blue" aria-hidden="true" />
-                <span className="sr-only">Fecha del arqueo</span>
-                <input type="date" value={selectedDate} max={todayIso()} onChange={(event) => setSelectedDate(event.target.value)} className="h-10 rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue" aria-label="Fecha del arqueo" />
-              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <CalendarDays className="h-4 w-4 text-brand-blue" aria-hidden="true" />
+                  <span className="sr-only">Fecha del arqueo</span>
+                  <input type="date" value={selectedDate} max={todayIso()} onChange={(event) => setSelectedDate(event.target.value)} className="h-10 rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue" aria-label="Fecha del arqueo" />
+                </label>
+                <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-3 text-sm font-semibold text-white disabled:opacity-50" onClick={openMovement} disabled={daily?.isClosed}><Plus className="h-4 w-4" aria-hidden="true" />Nuevo movimiento</button>
+              </div>
             </div>
             {dailyQuery.isPending ? (
               <div className="flex min-h-36 items-center justify-center"><LoaderCircle className="h-6 w-6 animate-spin text-brand-blue" aria-label="Cargando arqueo" /></div>
@@ -213,10 +295,42 @@ export const FinancePage = () => {
                   {Object.entries(daily.totals.byMethod).map(([method, amount]) => <div key={method} className="border-b border-r border-slate-100 p-4 last:border-r-0"><p className="text-xs font-semibold uppercase text-slate-500">{methodLabels[method] ?? method}</p><p className="mt-2 text-lg font-bold text-slate-800">{formatClp(amount)}</p></div>)}
                 </div>
                 <div className="p-5">
-                  <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase text-slate-500">Total confirmado</p><p className="mt-2 text-2xl font-bold text-brand-blue">{formatClp(daily.totals.confirmedTotal)}</p></div><span className={`rounded px-2 py-1 text-xs font-bold ${daily.isClosed ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-brand-blue'}`}>{daily.isClosed ? 'Caja cerrada' : 'Caja abierta'}</span></div>
+                  <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase text-slate-500">Resultado neto</p><p className="mt-2 text-2xl font-bold text-brand-blue">{formatClp(daily.totals.netTotal)}</p></div><span className={`rounded px-2 py-1 text-xs font-bold ${daily.isClosed ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-brand-blue'}`}>{daily.isClosed ? 'Caja cerrada' : 'Caja abierta'}</span></div>
+                  <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm"><div className="flex justify-between"><span className="text-slate-500">Pagos confirmados</span><strong>{formatClp(daily.totals.confirmedTotal)}</strong></div><div className="flex justify-between"><span className="text-slate-500">Ingresos manuales</span><strong className="text-emerald-700">+ {formatClp(daily.totals.manualIncomeTotal)}</strong></div><div className="flex justify-between"><span className="text-slate-500">Egresos</span><strong className="text-red-700">- {formatClp(daily.totals.expenseTotal)}</strong></div><div className="flex justify-between border-t border-slate-100 pt-2"><span className="font-semibold text-slate-600">Efectivo esperado</span><strong>{formatClp(daily.totals.expectedCash)}</strong></div></div>
                   {daily.totals.pendingTransferCount > 0 && <div className="mt-4 border-l-4 border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-900"><strong>{daily.totals.pendingTransferCount}</strong> transferencia(s) por {formatClp(daily.totals.pendingTransferAmount)} impiden cerrar la jornada.</div>}
-                  {daily.closure ? <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm"><div className="flex justify-between"><span className="text-slate-500">Efectivo esperado</span><strong>{formatClp(daily.closure.efectivoEsperado)}</strong></div><div className="flex justify-between"><span className="text-slate-500">Efectivo declarado</span><strong>{formatClp(daily.closure.efectivoDeclarado)}</strong></div><div className="flex justify-between"><span className="text-slate-500">Diferencia</span><strong className={daily.closure.diferenciaEfectivo === 0 ? 'text-emerald-700' : 'text-red-700'}>{formatClp(daily.closure.diferenciaEfectivo)}</strong></div><p className="pt-2 text-xs text-slate-500">Cerrada por {daily.closure.closer?.nombre ?? 'usuario eliminado'} · {formatDateTime(daily.closure.closedAt)}</p></div> : <button type="button" className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark disabled:cursor-not-allowed disabled:opacity-50" disabled={daily.totals.pendingTransferCount > 0} onClick={openClosure}><LockKeyhole className="h-4 w-4" aria-hidden="true" />Cerrar caja del día</button>}
+                  {daily.closure ? <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm"><div className="flex justify-between"><span className="text-slate-500">Efectivo declarado</span><strong>{formatClp(daily.closure.efectivoDeclarado)}</strong></div><div className="flex justify-between"><span className="text-slate-500">Diferencia</span><strong className={daily.closure.diferenciaEfectivo === 0 ? 'text-emerald-700' : 'text-red-700'}>{formatClp(daily.closure.diferenciaEfectivo)}</strong></div><p className="pt-2 text-xs text-slate-500">Cerrada por {daily.closure.closer?.nombre ?? 'usuario eliminado'} · {formatDateTime(daily.closure.closedAt)}</p></div> : <button type="button" className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark disabled:cursor-not-allowed disabled:opacity-50" disabled={daily.totals.pendingTransferCount > 0} onClick={openClosure}><LockKeyhole className="h-4 w-4" aria-hidden="true" />Cerrar caja del día</button>}
                 </div>
+              </div>
+            )}
+          </section>
+
+          <section className="overflow-hidden border border-slate-200 bg-white shadow-sm" aria-labelledby="cash-movements-title">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-5">
+              <div>
+                <h2 id="cash-movements-title" className="font-bold text-brand-blue">Ingresos y egresos manuales</h2>
+                <p className="mt-1 text-sm text-slate-500">Libro auditable de movimientos ajenos a pagos de cotizaciones.</p>
+              </div>
+              <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">{movementsQuery.data?.length ?? 0} movimiento(s)</span>
+            </div>
+            {movementsQuery.isPending ? (
+              <div className="flex min-h-28 items-center justify-center"><LoaderCircle className="h-6 w-6 animate-spin text-brand-blue" aria-label="Cargando movimientos" /></div>
+            ) : !movementsQuery.data?.length ? (
+              <p className="px-5 py-10 text-center text-sm text-slate-500">No hay movimientos manuales registrados para esta fecha.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3 font-semibold">Tipo</th><th className="px-4 py-3 font-semibold">Detalle</th><th className="px-4 py-3 font-semibold">Método</th><th className="px-4 py-3 font-semibold">Responsable</th><th className="px-4 py-3 text-right font-semibold">Monto</th><th className="px-4 py-3 text-right font-semibold">Acción</th></tr></thead>
+                  <tbody>{movementsQuery.data.map((movement) => (
+                    <tr key={movement.id} className={`border-t border-slate-100 ${movement.voidedAt ? 'bg-slate-50 opacity-60' : ''}`}>
+                      <td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-bold ${movement.tipo === 'ingreso' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>{movement.tipo === 'ingreso' ? <ArrowUpCircle className="h-3.5 w-3.5" aria-hidden="true" /> : <ArrowDownCircle className="h-3.5 w-3.5" aria-hidden="true" />}{movement.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}</span></td>
+                      <td className="px-4 py-3"><p className={`font-semibold text-slate-800 ${movement.voidedAt ? 'line-through' : ''}`}>{movement.descripcion}</p><p className="mt-0.5 text-xs text-slate-500">{categoryLabels[movement.categoria]}{movement.referencia ? ` · ${movement.referencia}` : ''}</p>{movement.voidedAt && <p className="mt-1 text-xs font-medium text-red-700">Anulado: {movement.voidReason}</p>}</td>
+                      <td className="px-4 py-3 text-slate-600">{methodLabels[movement.metodo]}</td>
+                      <td className="px-4 py-3 text-slate-600">{movement.creator?.nombre ?? 'Usuario eliminado'}<span className="block text-xs text-slate-400">{formatDateTime(movement.fecha)}</span></td>
+                      <td className={`px-4 py-3 text-right font-bold ${movement.tipo === 'ingreso' ? 'text-emerald-700' : 'text-red-700'}`}>{movement.tipo === 'ingreso' ? '+' : '-'} {formatClp(movement.monto)}</td>
+                      <td className="px-4 py-3 text-right">{!movement.voidedAt && !daily?.isClosed && <button type="button" className="h-8 rounded border border-red-200 px-3 text-xs font-semibold text-red-700 hover:bg-red-50" onClick={() => { setVoidReason(''); setVoidTarget(movement); }}>Anular</button>}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
               </div>
             )}
           </section>
@@ -274,6 +388,41 @@ export const FinancePage = () => {
         </>
       )}
 
+      {showMovement && daily && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6">
+          <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar movimiento" onClick={() => setShowMovement(false)} />
+          <section className="relative w-full max-w-lg rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="cash-movement-title">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-yellow text-brand-dark"><Plus className="h-5 w-5" aria-hidden="true" /></div>
+            <h2 id="cash-movement-title" className="mt-4 text-xl font-bold text-brand-blue">Registrar movimiento de caja</h2>
+            <div className="mt-5 grid grid-cols-2 gap-2" aria-label="Tipo de movimiento">
+              {(['ingreso', 'egreso'] as const).map((tipo) => <button key={tipo} type="button" className={`flex h-11 items-center justify-center gap-2 rounded-lg border text-sm font-bold ${movementForm.tipo === tipo ? 'border-brand-blue bg-brand-blue text-white' : 'border-slate-300 text-slate-700'}`} onClick={() => setMovementForm((current) => ({ ...current, tipo, categoria: tipo === 'ingreso' ? 'apertura_caja' : 'gasto_operativo' }))}>{tipo === 'ingreso' ? <ArrowUpCircle className="h-4 w-4" aria-hidden="true" /> : <ArrowDownCircle className="h-4 w-4" aria-hidden="true" />}{tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}</button>)}
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="text-sm font-semibold text-slate-700">Categoría<select value={movementForm.categoria} onChange={(event) => setMovementForm((current) => ({ ...current, categoria: event.target.value as CashMovementCategory }))} className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue">{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+              <label className="text-sm font-semibold text-slate-700">Método<select value={movementForm.metodo} onChange={(event) => setMovementForm((current) => ({ ...current, metodo: event.target.value as PaymentMethod }))} className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue">{Object.entries(methodLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+              <label className="text-sm font-semibold text-slate-700">Monto<input type="number" min="1" step="1" value={movementForm.monto} onChange={(event) => setMovementForm((current) => ({ ...current, monto: event.target.value }))} className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue" /></label>
+              <label className="text-sm font-semibold text-slate-700">Fecha y hora<input type="datetime-local" value={movementForm.fecha} max={`${todayIso()}T23:59`} onChange={(event) => setMovementForm((current) => ({ ...current, fecha: event.target.value }))} className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue" /></label>
+            </div>
+            <label className="mt-4 block text-sm font-semibold text-slate-700">Descripción<input value={movementForm.descripcion} maxLength={255} onChange={(event) => setMovementForm((current) => ({ ...current, descripcion: event.target.value }))} className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue" placeholder="Ej. Compra urgente de insumos" /></label>
+            <label className="mt-4 block text-sm font-semibold text-slate-700">Referencia opcional<input value={movementForm.referencia} maxLength={120} onChange={(event) => setMovementForm((current) => ({ ...current, referencia: event.target.value }))} className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue" placeholder="N.º documento, proveedor o comprobante" /></label>
+            <div className="mt-6 flex justify-end gap-2"><button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700" onClick={() => setShowMovement(false)}>Cancelar</button><button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white disabled:opacity-50" onClick={submitMovement} disabled={createMovementMutation.isPending || Number(movementForm.monto) <= 0 || movementForm.descripcion.trim().length < 2 || !movementForm.fecha}>{createMovementMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}Registrar movimiento</button></div>
+          </section>
+        </div>
+      )}
+
+      {voidTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar anulación" onClick={() => setVoidTarget(null)} />
+          <section className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="void-movement-title">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-700"><X className="h-5 w-5" aria-hidden="true" /></div>
+            <h2 id="void-movement-title" className="mt-4 text-xl font-bold text-brand-blue">Anular movimiento</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Se anulará {voidTarget.descripcion} por {formatClp(voidTarget.monto)}. El registro permanecerá visible para auditoría.</p>
+            <label className="mt-4 block text-sm font-semibold text-slate-700">Motivo de anulación<textarea value={voidReason} onChange={(event) => setVoidReason(event.target.value)} maxLength={500} rows={3} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-brand-blue" autoFocus /></label>
+            <div className="mt-6 flex justify-end gap-2"><button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700" onClick={() => setVoidTarget(null)}>Cancelar</button><button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-red-700 px-4 text-sm font-semibold text-white disabled:opacity-50" onClick={submitVoidMovement} disabled={voidMovementMutation.isPending || voidReason.trim().length < 2}>{voidMovementMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}Confirmar anulación</button></div>
+          </section>
+        </div>
+      )}
+
       {review && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar revisión" onClick={() => setReview(null)} />
@@ -293,9 +442,9 @@ export const FinancePage = () => {
           <section className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="close-cash-title">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-yellow text-brand-dark"><Scale className="h-5 w-5" aria-hidden="true" /></div>
             <h2 id="close-cash-title" className="mt-4 text-xl font-bold text-brand-blue">Cerrar caja del {selectedDate}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">El sistema espera {formatClp(daily.totals.byMethod.efectivo)} en efectivo. Una vez cerrado el día no aceptará movimientos con esta fecha.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">El sistema espera {formatClp(daily.totals.expectedCash)} en efectivo después de sumar ingresos y restar egresos. Una vez cerrado el día no aceptará movimientos con esta fecha.</p>
             <label className="mt-4 block text-sm font-semibold text-slate-700">Efectivo contado<input type="number" min="0" step="1" value={declaredCash} onChange={(event) => setDeclaredCash(event.target.value)} className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue" autoFocus /></label>
-            <div className="mt-3 flex items-center justify-between bg-slate-50 px-3 py-2 text-sm"><span className="text-slate-600">Diferencia proyectada</span><strong className={Number(declaredCash) === daily.totals.byMethod.efectivo ? 'text-emerald-700' : 'text-red-700'}>{formatClp(Number(declaredCash || 0) - daily.totals.byMethod.efectivo)}</strong></div>
+            <div className="mt-3 flex items-center justify-between bg-slate-50 px-3 py-2 text-sm"><span className="text-slate-600">Diferencia proyectada</span><strong className={Number(declaredCash) === daily.totals.expectedCash ? 'text-emerald-700' : 'text-red-700'}>{formatClp(Number(declaredCash || 0) - daily.totals.expectedCash)}</strong></div>
             <label className="mt-4 block text-sm font-semibold text-slate-700">Observaciones<textarea value={closureNotes} onChange={(event) => setClosureNotes(event.target.value)} maxLength={1000} rows={3} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-brand-blue" placeholder="Diferencias, depósitos o notas del arqueo" /></label>
             <div className="mt-6 flex justify-end gap-2"><button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700" onClick={() => setShowClosure(false)}>Cancelar</button><button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white disabled:opacity-60" onClick={submitClosure} disabled={closeDayMutation.isPending || declaredCash === ''}>{closeDayMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}Confirmar cierre</button></div>
           </section>

@@ -1,10 +1,18 @@
-import { closeCashDaySchema, financeDayQuerySchema } from '@unithor/shared';
+import {
+  closeCashDaySchema,
+  createCashMovementSchema,
+  financeDayQuerySchema,
+  voidCashMovementSchema,
+} from '@unithor/shared';
 import { Router } from 'express';
 
 import {
   closeCashDayHandler,
+  createCashMovementHandler,
+  getCashMovementsHandler,
   getDailyCashSummaryHandler,
   getFinanceSummaryHandler,
+  voidCashMovementHandler,
 } from '../controllers/finance.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorize } from '../middlewares/authorize.js';
@@ -25,4 +33,22 @@ financeRouter.post(
   authorize('finanzas', 'create'),
   validate({ body: closeCashDaySchema }),
   closeCashDayHandler,
+);
+financeRouter.get(
+  '/movements',
+  authorize('finanzas', 'read'),
+  validate({ query: financeDayQuerySchema }),
+  getCashMovementsHandler,
+);
+financeRouter.post(
+  '/movements',
+  authorize('finanzas', 'create'),
+  validate({ body: createCashMovementSchema }),
+  createCashMovementHandler,
+);
+financeRouter.patch(
+  '/movements/:id/void',
+  authorize('finanzas', 'delete'),
+  validate({ body: voidCashMovementSchema }),
+  voidCashMovementHandler,
 );

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { CashClosure } from '../../models/CashClosure.js';
+import { CashMovement } from '../../models/CashMovement.js';
 import { Client } from '../../models/Client.js';
 import { Payment } from '../../models/Payment.js';
 import { Quotation } from '../../models/Quotation.js';
@@ -56,6 +57,7 @@ describe('Finance Routes (E2E)', () => {
 
   it('requiere autenticación y permiso de lectura de finanzas', async () => {
     expect((await request(app).get('/api/finance/summary')).status).toBe(401);
+    expect((await request(app).get('/api/finance/movements?fecha=2000-01-01')).status).toBe(401);
 
     const login = await request(app)
       .post('/api/auth/login')
@@ -64,6 +66,10 @@ describe('Finance Routes (E2E)', () => {
       .get('/api/finance/summary')
       .set('Cookie', cookiesFrom(login));
     expect(response.status).toBe(403);
+    const movementsResponse = await request(app)
+      .get('/api/finance/movements?fecha=2000-01-01')
+      .set('Cookie', cookiesFrom(login));
+    expect(movementsResponse.status).toBe(403);
   });
 
   it('retorna el resumen financiero para desarrollador', async () => {
@@ -79,6 +85,9 @@ describe('Finance Routes (E2E)', () => {
       metrics: {
         revenueToday: expect.any(Number),
         revenueMonth: expect.any(Number),
+        expensesToday: expect.any(Number),
+        expensesMonth: expect.any(Number),
+        netCashToday: expect.any(Number),
         receivableTotal: expect.any(Number),
         receivableCount: expect.any(Number),
         pendingTransferCount: expect.any(Number),
@@ -88,6 +97,128 @@ describe('Finance Routes (E2E)', () => {
       recentPayments: expect.any(Array),
       pendingQuotations: expect.any(Array),
     });
+  });
+
+  it('registra, concilia y anula movimientos manuales con trazabilidad', async () => {
+    const accountingDate = '2000-02-15';
+    await CashClosure.destroy({ where: { fecha: accountingDate } });
+    await CashMovement.destroy({ where: {} });
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'dev@unithor.local', password: TEST_PASSWORD });
+    const cookies = cookiesFrom(login);
+    const csrfToken = cookies.find((cookie) => cookie.startsWith('csrf_token='))?.split('=')[1];
+
+    try {
+      const openingResponse = await request(app)
+        .post('/api/finance/movements')
+        .set('Cookie', cookies)
+        .set('X-CSRF-Token', csrfToken ?? '')
+        .send({
+          tipo: 'ingreso',
+          categoria: 'apertura_caja',
+          monto: 20000,
+          metodo: 'efectivo',
+          descripcion: 'Fondo inicial de caja',
+          fecha: `${accountingDate}T09:00:00.000Z`,
+        });
+      expect(openingResponse.status).toBe(201);
+
+      const expenseResponse = await request(app)
+        .post('/api/finance/movements')
+        .set('Cookie', cookies)
+        .set('X-CSRF-Token', csrfToken ?? '')
+        .send({
+          tipo: 'egreso',
+          categoria: 'gasto_operativo',
+          monto: 8000,
+          metodo: 'efectivo',
+          descripcion: 'Compra de insumos de oficina',
+          referencia: 'BOL-8613',
+          fecha: `${accountingDate}T10:00:00.000Z`,
+        });
+      expect(expenseResponse.status).toBe(201);
+
+      const insufficientResponse = await request(app)
+        .post('/api/finance/movements')
+        .set('Cookie', cookies)
+        .set('X-CSRF-Token', csrfToken ?? '')
+        .send({
+          tipo: 'egreso',
+          categoria: 'retiro',
+          monto: 13000,
+          metodo: 'efectivo',
+          descripcion: 'Retiro superior al efectivo disponible',
+          fecha: `${accountingDate}T11:00:00.000Z`,
+        });
+      expect(insufficientResponse.status).toBe(400);
+      expect(insufficientResponse.body.error.message).toContain('Efectivo insuficiente');
+
+      const listResponse = await request(app)
+        .get(`/api/finance/movements?fecha=${accountingDate}`)
+        .set('Cookie', cookies);
+      expect(listResponse.status).toBe(200);
+      expect(listResponse.body.items).toHaveLength(2);
+
+      const firstDayResponse = await request(app)
+        .get(`/api/finance/day?fecha=${accountingDate}`)
+        .set('Cookie', cookies);
+      expect(firstDayResponse.body.totals).toMatchObject({
+        manualIncomeTotal: 20000,
+        expenseTotal: 8000,
+        netTotal: 12000,
+        expectedCash: 12000,
+      });
+
+      const voidResponse = await request(app)
+        .patch(`/api/finance/movements/${expenseResponse.body.movement.id as number}/void`)
+        .set('Cookie', cookies)
+        .set('X-CSRF-Token', csrfToken ?? '')
+        .send({ motivo: 'Comprobante duplicado' });
+      expect(voidResponse.status).toBe(200);
+      expect(voidResponse.body.movement).toMatchObject({
+        voidReason: 'Comprobante duplicado',
+        voidedBy: expect.any(Number),
+      });
+
+      const bankExpenseResponse = await request(app)
+        .post('/api/finance/movements')
+        .set('Cookie', cookies)
+        .set('X-CSRF-Token', csrfToken ?? '')
+        .send({
+          tipo: 'egreso',
+          categoria: 'pago_proveedor',
+          monto: 5000,
+          metodo: 'transferencia',
+          descripcion: 'Pago de proveedor',
+          fecha: `${accountingDate}T13:00:00.000Z`,
+        });
+      expect(bankExpenseResponse.status).toBe(201);
+
+      const closeResponse = await request(app)
+        .post('/api/finance/cash-closures')
+        .set('Cookie', cookies)
+        .set('X-CSRF-Token', csrfToken ?? '')
+        .send({ fecha: accountingDate, efectivoDeclarado: 20000 });
+      expect(closeResponse.status).toBe(201);
+      expect(closeResponse.body.closure).toMatchObject({
+        totalIngresosManuales: 20000,
+        totalEgresos: 5000,
+        totalNeto: 15000,
+        efectivoEsperado: 20000,
+      });
+
+      const lateVoidResponse = await request(app)
+        .patch(`/api/finance/movements/${bankExpenseResponse.body.movement.id as number}/void`)
+        .set('Cookie', cookies)
+        .set('X-CSRF-Token', csrfToken ?? '')
+        .send({ motivo: 'Intento posterior al cierre' });
+      expect(lateVoidResponse.status).toBe(400);
+      expect(lateVoidResponse.body.error.message).toContain('ya está cerrada');
+    } finally {
+      await CashClosure.destroy({ where: { fecha: accountingDate } });
+      await CashMovement.destroy({ where: {} });
+    }
   });
 
   it('cierra la jornada por método y bloquea movimientos retroactivos', async () => {

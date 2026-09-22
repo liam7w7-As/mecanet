@@ -43,6 +43,15 @@ export class CashClosure extends Model<
   @Column({ type: DataType.DECIMAL(12, 2), allowNull: false })
   declare totalConfirmado: number;
 
+  @Column({ type: DataType.DECIMAL(12, 2), allowNull: false, defaultValue: 0 })
+  declare totalIngresosManuales: CreationOptional<number>;
+
+  @Column({ type: DataType.DECIMAL(12, 2), allowNull: false, defaultValue: 0 })
+  declare totalEgresos: CreationOptional<number>;
+
+  @Column({ type: DataType.DECIMAL(12, 2), allowNull: false, defaultValue: 0 })
+  declare totalNeto: CreationOptional<number>;
+
   @Column({ type: DataType.DECIMAL(12, 2), allowNull: false })
   declare efectivoEsperado: number;
 

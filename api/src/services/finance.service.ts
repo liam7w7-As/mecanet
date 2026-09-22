@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 
 import { listPayments } from './payment.service.js';
+import { CashMovement } from '../models/CashMovement.js';
 import { Client } from '../models/Client.js';
 import { Payment } from '../models/Payment.js';
 import { Quotation } from '../models/Quotation.js';
@@ -22,6 +23,9 @@ export interface FinanceSummary {
   metrics: {
     revenueToday: number;
     revenueMonth: number;
+    expensesToday: number;
+    expensesMonth: number;
+    netCashToday: number;
     receivableTotal: number;
     receivableCount: number;
     pendingTransferCount: number;
@@ -47,6 +51,9 @@ export const getFinanceSummary = async (): Promise<FinanceSummary> => {
   const [
     revenueToday,
     revenueMonth,
+    expensesToday,
+    expensesMonth,
+    manualIncomeToday,
     pendingTransferCount,
     pendingTransferAmount,
     receivableCount,
@@ -61,6 +68,15 @@ export const getFinanceSummary = async (): Promise<FinanceSummary> => {
     }),
     Payment.sum('monto', {
       where: { estado: 'confirmado', fecha: { [Op.gte]: monthStart } },
+    }),
+    CashMovement.sum('monto', {
+      where: { tipo: 'egreso', voidedAt: null, fecha: { [Op.gte]: todayStart } },
+    }),
+    CashMovement.sum('monto', {
+      where: { tipo: 'egreso', voidedAt: null, fecha: { [Op.gte]: monthStart } },
+    }),
+    CashMovement.sum('monto', {
+      where: { tipo: 'ingreso', voidedAt: null, fecha: { [Op.gte]: todayStart } },
     }),
     Payment.count({ where: { estado: 'por_verificar' } }),
     Payment.sum('monto', { where: { estado: 'por_verificar' } }),
@@ -82,6 +98,12 @@ export const getFinanceSummary = async (): Promise<FinanceSummary> => {
     metrics: {
       revenueToday: Number(revenueToday ?? 0),
       revenueMonth: Number(revenueMonth ?? 0),
+      expensesToday: Number(expensesToday ?? 0),
+      expensesMonth: Number(expensesMonth ?? 0),
+      netCashToday:
+        Number(revenueToday ?? 0) +
+        Number(manualIncomeToday ?? 0) -
+        Number(expensesToday ?? 0),
       receivableTotal: Math.max(
         0,
         Number(receivableTotal ?? 0) - Number(receivablePaid ?? 0),

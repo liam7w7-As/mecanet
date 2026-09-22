@@ -3,6 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
+import { CashClosure } from '../../models/CashClosure.js';
+import { Client } from '../../models/Client.js';
+import { Payment } from '../../models/Payment.js';
+import { Quotation } from '../../models/Quotation.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
 import { User } from '../../models/User.js';
@@ -84,5 +88,104 @@ describe('Finance Routes (E2E)', () => {
       recentPayments: expect.any(Array),
       pendingQuotations: expect.any(Array),
     });
+  });
+
+  it('cierra la jornada por método y bloquea movimientos retroactivos', async () => {
+    const accountingDate = '2000-01-15';
+    await CashClosure.destroy({ where: { fecha: accountingDate } });
+    const client = await Client.create({
+      rut: '86120001',
+      nombre: 'Cliente Arqueo 8612',
+      tipo: 'cliente',
+      email: 'phase861-cash@unithor.local',
+    });
+    const quotation = await Quotation.create({
+      codigo: 'COT-2000-8612',
+      clientId: client.id,
+      estadoPago: 'parcial',
+      subtotal: 100000,
+      total: 100000,
+      pagado: 50000,
+      notas: 'Prueba de cierre diario',
+    });
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'dev@unithor.local', password: TEST_PASSWORD });
+    const cookies = cookiesFrom(login);
+    const csrfToken = cookies.find((cookie) => cookie.startsWith('csrf_token='))?.split('=')[1];
+
+    try {
+      await Payment.bulkCreate([
+        { quotationId: quotation.id, monto: 20000, metodo: 'efectivo', estado: 'confirmado', fecha: new Date(`${accountingDate}T10:00:00.000Z`), createdBy: null },
+        { quotationId: quotation.id, monto: 30000, metodo: 'tarjeta_debito', estado: 'confirmado', fecha: new Date(`${accountingDate}T11:00:00.000Z`), createdBy: null },
+        { quotationId: quotation.id, monto: 10000, metodo: 'transferencia', estado: 'por_verificar', fecha: new Date(`${accountingDate}T12:00:00.000Z`), createdBy: null },
+      ]);
+
+      const dayResponse = await request(app)
+        .get(`/api/finance/day?fecha=${accountingDate}`)
+        .set('Cookie', cookies);
+      expect(dayResponse.status).toBe(200);
+      expect(dayResponse.body).toMatchObject({
+        fecha: accountingDate,
+        isClosed: false,
+        totals: {
+          confirmedTotal: 50000,
+          pendingTransferCount: 1,
+          pendingTransferAmount: 10000,
+          byMethod: { efectivo: 20000, tarjeta_debito: 30000 },
+        },
+      });
+
+      const blockedClose = await request(app)
+        .post('/api/finance/cash-closures')
+        .set('Cookie', cookies)
+        .set('X-CSRF-Token', csrfToken ?? '')
+        .send({ fecha: accountingDate, efectivoDeclarado: 21000 });
+      expect(blockedClose.status).toBe(400);
+      expect(blockedClose.body.error.message).toContain('transferencia(s) pendientes');
+
+      await Payment.update(
+        { estado: 'rechazado' },
+        { where: { quotationId: quotation.id, estado: 'por_verificar' } },
+      );
+      const closeResponse = await request(app)
+        .post('/api/finance/cash-closures')
+        .set('Cookie', cookies)
+        .set('X-CSRF-Token', csrfToken ?? '')
+        .send({
+          fecha: accountingDate,
+          efectivoDeclarado: 21000,
+          observaciones: 'Diferencia documentada en caja',
+        });
+      expect(closeResponse.status).toBe(201);
+      expect(closeResponse.body).toMatchObject({
+        isClosed: true,
+        closure: {
+          fecha: accountingDate,
+          totalConfirmado: 50000,
+          efectivoEsperado: 20000,
+          efectivoDeclarado: 21000,
+          diferenciaEfectivo: 1000,
+        },
+      });
+
+      const retroactivePayment = await request(app)
+        .post('/api/payments')
+        .set('Cookie', cookies)
+        .set('X-CSRF-Token', csrfToken ?? '')
+        .send({
+          quotationId: quotation.id,
+          monto: 1000,
+          metodo: 'efectivo',
+          fecha: `${accountingDate}T15:00:00.000Z`,
+        });
+      expect(retroactivePayment.status).toBe(400);
+      expect(retroactivePayment.body.error.message).toContain('ya está cerrada');
+    } finally {
+      await CashClosure.destroy({ where: { fecha: accountingDate } });
+      await Payment.destroy({ where: { quotationId: quotation.id } });
+      await quotation.destroy({ force: true });
+      await client.destroy({ force: true });
+    }
   });
 });

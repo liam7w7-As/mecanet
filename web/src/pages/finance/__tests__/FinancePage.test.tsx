@@ -6,13 +6,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../../lib/api';
 import FinancePage from '../FinancePage';
 
-import type { FinanceSummary } from '../../../hooks/useFinance';
+import type { DailyCashSummary, FinanceSummary } from '../../../hooks/useFinance';
 import type { AxiosResponse } from 'axios';
 
 vi.mock('../../../lib/api', () => ({
   api: {
     get: vi.fn(),
     patch: vi.fn(),
+    post: vi.fn(),
   },
   getCookie: vi.fn(),
   setSessionExpiredHandler: vi.fn(),
@@ -53,6 +54,25 @@ const summary: FinanceSummary = {
   }],
 };
 
+const dailySummary: DailyCashSummary = {
+  fecha: new Date().toISOString().slice(0, 10),
+  isClosed: false,
+  totals: {
+    confirmedTotal: 125000,
+    pendingTransferCount: 0,
+    pendingTransferAmount: 0,
+    byMethod: {
+      efectivo: 50000,
+      transferencia: 25000,
+      tarjeta_debito: 50000,
+      tarjeta_credito: 0,
+      cheque: 0,
+      otro: 0,
+    },
+  },
+  closure: null,
+};
+
 const renderPage = () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -65,11 +85,32 @@ const renderPage = () => {
 describe('FinancePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.get).mockResolvedValue({ data: summary } as AxiosResponse<FinanceSummary>);
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({
+      data: url === '/finance/day' ? dailySummary : summary,
+    } as AxiosResponse));
     vi.mocked(api.patch).mockResolvedValue({
       data: {
         payment: { ...summary.pendingTransfers[0], estado: 'confirmado' },
         quotation: { id: 31, codigo: 'COT-2026-0031', total: 150000, pagado: 75000, saldoPendiente: 75000, estadoPago: 'parcial' },
+      },
+    } as AxiosResponse);
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        ...dailySummary,
+        isClosed: true,
+        closure: {
+          id: 1,
+          fecha: dailySummary.fecha,
+          totalesPorMetodo: dailySummary.totals.byMethod,
+          totalConfirmado: 125000,
+          efectivoEsperado: 50000,
+          efectivoDeclarado: 50000,
+          diferenciaEfectivo: 0,
+          observaciones: null,
+          closedBy: 1,
+          closedAt: '2026-09-22T18:00:00.000Z',
+          closer: { id: 1, nombre: 'Finanzas Demo' },
+        },
       },
     } as AxiosResponse);
   });
@@ -90,6 +131,22 @@ describe('FinancePage', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/payments/91/verify', {
       decision: 'aprobar',
       comentario: undefined,
+    }));
+  });
+
+  it('muestra el arqueo por método y permite cerrar una jornada conciliada', async () => {
+    renderPage();
+    expect(await screen.findByText('Arqueo y cierre diario')).toBeInTheDocument();
+    expect((await screen.findAllByText('$125.000')).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar caja del día' }));
+    expect(screen.getByRole('dialog', { name: /Cerrar caja/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar cierre' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/finance/cash-closures', {
+      fecha: dailySummary.fecha,
+      efectivoDeclarado: 50000,
+      observaciones: undefined,
     }));
   });
 });

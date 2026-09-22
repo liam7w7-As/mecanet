@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { sequelize as appSequelize } from '../../config/database.js';
 import {
   CatalogItem,
+  CashClosure,
   Client,
   Payment,
   Permission,
@@ -71,6 +72,7 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
   beforeEach(async () => {
     // Limpieza de tablas para aislar cada test
     await Payment.destroy({ where: {}, force: true });
+    await CashClosure.destroy({ where: {}, force: true });
     await QuotationItem.destroy({ where: {}, force: true });
     await Quotation.destroy({ where: {}, force: true });
     await WorkOrderInspectionPhoto.destroy({ where: {}, force: true });
@@ -91,8 +93,8 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     await Role.destroy({ where: {}, force: true });
   });
 
-  it('verifica que los 19 modelos se registran correctamente en la instancia Sequelize', () => {
-    expect(models.length).toBe(19);
+  it('verifica que los 20 modelos se registran correctamente en la instancia Sequelize', () => {
+    expect(models.length).toBe(20);
 
     const registeredModelNames = Object.keys(testSequelize.models);
     expect(registeredModelNames).toContain('Role');
@@ -103,6 +105,7 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     expect(registeredModelNames).toContain('Client');
     expect(registeredModelNames).toContain('Vehicle');
     expect(registeredModelNames).toContain('CatalogItem');
+    expect(registeredModelNames).toContain('CashClosure');
     expect(registeredModelNames).toContain('WorkOrder');
     expect(registeredModelNames).toContain('WorkOrderItem');
     expect(registeredModelNames).toContain('WorkOrderInspection');

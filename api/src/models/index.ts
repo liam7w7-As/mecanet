@@ -1,3 +1,4 @@
+import { CashClosure } from './CashClosure.js';
 import { CatalogItem } from './CatalogItem.js';
 import { Client } from './Client.js';
 import { Payment } from './Payment.js';
@@ -29,6 +30,7 @@ export const models = [
   Client,
   Vehicle,
   CatalogItem,
+  CashClosure,
   WorkOrder,
   WorkOrderDelivery,
   WorkOrderEvent,
@@ -55,6 +57,7 @@ export {
   Client,
   Vehicle,
   CatalogItem,
+  CashClosure,
   WorkOrder,
   WorkOrderDelivery,
   WorkOrderEvent,

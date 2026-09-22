@@ -1,5 +1,6 @@
 import { Op, Transaction } from 'sequelize';
 
+import { assertAccountingDateOpen } from './cash-closure.service.js';
 import { sequelize } from '../config/database.js';
 import { Client } from '../models/Client.js';
 import { Payment } from '../models/Payment.js';
@@ -255,11 +256,13 @@ export const createPayment = async (
   userId: number,
 ): Promise<CreatePaymentResult> => {
   const result = await sequelize.transaction(async (transaction) => {
+    const paymentDate = toDateOrNow(data.fecha);
     const quotation = await Quotation.findByPk(data.quotationId, {
       transaction,
       lock: Transaction.LOCK.UPDATE,
     });
     if (!quotation) throw ApiError.notFound('Cotización no encontrada');
+    await assertAccountingDateOpen(paymentDate, transaction);
 
     const total = numberValue(quotation.total);
     const pagado = numberValue(quotation.pagado);
@@ -286,7 +289,7 @@ export const createPayment = async (
         metodo: data.metodo satisfies PaymentMethod,
         estado,
         referencia: data.referencia || null,
-        fecha: toDateOrNow(data.fecha),
+        fecha: paymentDate,
         createdBy: userId,
       },
       { transaction },
@@ -323,6 +326,7 @@ export const verifyPayment = async (
   const result = await sequelize.transaction(async (transaction) => {
     const initialPayment = await Payment.findByPk(paymentId, { transaction });
     if (!initialPayment) throw ApiError.notFound('Pago no encontrado');
+    await assertAccountingDateOpen(initialPayment.fecha, transaction);
 
     const quotation = await Quotation.findByPk(initialPayment.quotationId, {
       transaction,
@@ -382,6 +386,7 @@ export const deletePayment = async (paymentId: number): Promise<DeletePaymentRes
   const summary = await sequelize.transaction(async (transaction) => {
     const initialPayment = await Payment.findByPk(paymentId, { transaction });
     if (!initialPayment) throw ApiError.notFound('Pago no encontrado');
+    await assertAccountingDateOpen(initialPayment.fecha, transaction);
 
     const quotation = await Quotation.findByPk(initialPayment.quotationId, {
       transaction,

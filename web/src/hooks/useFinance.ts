@@ -5,7 +5,12 @@ import { quotationKeys } from './useQuotations';
 import { api } from '../lib/api';
 
 import type { Payment, PaymentQuotationSummary } from '../types/entities';
-import type { QuotationStatus, VerifyPaymentInput } from '@unithor/shared';
+import type {
+  CloseCashDayInput,
+  PaymentMethod,
+  QuotationStatus,
+  VerifyPaymentInput,
+} from '@unithor/shared';
 
 export interface FinanceSummary {
   metrics: {
@@ -29,6 +34,32 @@ export interface FinanceSummary {
   }>;
 }
 
+export interface CashClosure {
+  id: number;
+  fecha: string;
+  totalesPorMetodo: Record<PaymentMethod, number>;
+  totalConfirmado: number;
+  efectivoEsperado: number;
+  efectivoDeclarado: number;
+  diferenciaEfectivo: number;
+  observaciones: string | null;
+  closedBy: number | null;
+  closedAt: string;
+  closer: { id: number; nombre: string } | null;
+}
+
+export interface DailyCashSummary {
+  fecha: string;
+  isClosed: boolean;
+  totals: {
+    confirmedTotal: number;
+    pendingTransferCount: number;
+    pendingTransferAmount: number;
+    byMethod: Record<PaymentMethod, number>;
+  };
+  closure: CashClosure | null;
+}
+
 interface VerifyPaymentResponse {
   payment: Payment;
   quotation: PaymentQuotationSummary;
@@ -37,6 +68,7 @@ interface VerifyPaymentResponse {
 export const financeKeys = {
   all: ['finance'] as const,
   summary: () => [...financeKeys.all, 'summary'] as const,
+  day: (fecha: string) => [...financeKeys.all, 'day', fecha] as const,
 };
 
 export const useFinanceSummary = () =>
@@ -49,6 +81,34 @@ export const useFinanceSummary = () =>
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
+
+export const useDailyCashSummary = (fecha: string) =>
+  useQuery({
+    queryKey: financeKeys.day(fecha),
+    queryFn: async () => {
+      const response = await api.get<DailyCashSummary>('/finance/day', {
+        params: { fecha },
+      });
+      return response.data;
+    },
+    enabled: /^\d{4}-\d{2}-\d{2}$/.test(fecha),
+    staleTime: 15_000,
+  });
+
+export const useCloseCashDayMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CloseCashDayInput) => {
+      const response = await api.post<DailyCashSummary>('/finance/cash-closures', data);
+      return response.data;
+    },
+    onSuccess: (result) => {
+      queryClient.setQueryData(financeKeys.day(result.fecha), result);
+      void queryClient.invalidateQueries({ queryKey: financeKeys.all });
+    },
+  });
+};
 
 export const useVerifyPaymentMutation = () => {
   const queryClient = useQueryClient();

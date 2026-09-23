@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
@@ -86,6 +87,13 @@ app.use(errorHandler);
 
 // Iniciar servidor y base de datos cuando no esté en modo test
 if (env.NODE_ENV !== 'test') {
+  // Asegurar que la carpeta de almacenamiento de subidas (fotos/inspecciones) exista
+  try {
+    await fs.mkdir(path.resolve(env.UPLOAD_DIR), { recursive: true });
+  } catch (err) {
+    logger.warn({ err }, 'Aviso: No se pudo verificar la carpeta de uploads');
+  }
+
   sequelize
     .authenticate()
     .then(async () => {

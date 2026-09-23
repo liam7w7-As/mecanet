@@ -13,6 +13,10 @@ const optionalText = (maxLength?: number) => {
 };
 
 const nullablePositiveId = z.coerce.number().int().positive().nullable().optional();
+const booleanQueryParam = z.union([
+  z.boolean(),
+  z.enum(['true', 'false']).transform((value) => value === 'true'),
+]);
 
 export const quotationItemInputSchema = z.object({
   catalogItemId: z.coerce.number().int().positive().nullable().optional(),
@@ -58,6 +62,7 @@ export const quotationQuerySchema = paginationSchema
     clientId: z.coerce.number().int().positive().optional(),
     vehicleId: z.coerce.number().int().positive().optional(),
     workOrderId: z.coerce.number().int().positive().optional(),
+    workOrderLinked: booleanQueryParam.optional(),
     fechaDesde: z.string().date('fechaDesde debe ser una fecha YYYY-MM-DD válida').optional(),
     fechaHasta: z.string().date('fechaHasta debe ser una fecha YYYY-MM-DD válida').optional(),
   })

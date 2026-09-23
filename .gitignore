@@ -11,5 +11,10 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 Thumbs.db
-api/storage/uploads/
-api/storage/test-uploads/
+api/storage/uploads/*
+!api/storage/uploads/.gitkeep
+api/storage/test-uploads/*
+!api/storage/test-uploads/.gitkeep
+storage/uploads/*
+!storage/uploads/.gitkeep
+

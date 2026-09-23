@@ -383,6 +383,8 @@ export const listQuotations = async (
   }
   if (query.workOrderId !== undefined) {
     where.workOrderId = query.workOrderId;
+  } else if (query.workOrderLinked !== undefined) {
+    where.workOrderId = query.workOrderLinked ? { [Op.not]: null } : { [Op.is]: null };
   }
 
   if (query.fechaDesde || query.fechaHasta) {

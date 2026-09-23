@@ -422,6 +422,47 @@ describe('Quotation Routes (E2E)', () => {
     expect(byClient.body.total).toBeGreaterThan(0);
   });
 
+  it('filtra cotizaciones con OT y sin OT', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const linked = await Quotation.create({
+      codigo: `COT-${TEST_YEAR}-9300`,
+      workOrderId,
+      clientId,
+      vehicleId,
+      estadoPago: 'por_pagar',
+      subtotal: 0,
+      total: 0,
+      pagado: 0,
+      notas: 'Filtro con OT fase 51',
+    });
+    const unlinked = await Quotation.create({
+      codigo: `COT-${TEST_YEAR}-9301`,
+      clientId,
+      vehicleId,
+      estadoPago: 'por_pagar',
+      subtotal: 0,
+      total: 0,
+      pagado: 0,
+      notas: 'Filtro sin OT fase 51',
+    });
+
+    const withWorkOrder = await request(app)
+      .get('/api/quotations')
+      .query({ search: 'Filtro', workOrderLinked: true })
+      .set('Cookie', authCookie(vendedorCookies));
+    const withoutWorkOrder = await request(app)
+      .get('/api/quotations')
+      .query({ search: 'Filtro', workOrderLinked: false })
+      .set('Cookie', authCookie(vendedorCookies));
+
+    expect(withWorkOrder.status).toBe(200);
+    expect(withWorkOrder.body.items.map((item: { id: number }) => item.id)).toContain(linked.id);
+    expect(withWorkOrder.body.items.map((item: { id: number }) => item.id)).not.toContain(unlinked.id);
+    expect(withoutWorkOrder.status).toBe(200);
+    expect(withoutWorkOrder.body.items.map((item: { id: number }) => item.id)).toContain(unlinked.id);
+    expect(withoutWorkOrder.body.items.map((item: { id: number }) => item.id)).not.toContain(linked.id);
+  });
+
   it('rechaza fechas invertidas y asociaciones cliente-vehículo incoherentes', async () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const invalidDates = await request(app)

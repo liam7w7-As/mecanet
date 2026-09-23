@@ -180,6 +180,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     clientId: z.ZodOptional<z.ZodNumber>;
     vehicleId: z.ZodOptional<z.ZodNumber>;
     workOrderId: z.ZodOptional<z.ZodNumber>;
+    workOrderLinked: z.ZodOptional<z.ZodUnion<[z.ZodBoolean, z.ZodEffects<z.ZodEnum<["true", "false"]>, boolean, "true" | "false">]>>;
     fechaDesde: z.ZodOptional<z.ZodString>;
     fechaHasta: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -192,6 +193,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
     workOrderId?: number | undefined;
+    workOrderLinked?: boolean | undefined;
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
@@ -202,6 +204,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
     workOrderId?: number | undefined;
+    workOrderLinked?: boolean | "true" | "false" | undefined;
 }>, {
     page: number;
     pageSize: number;
@@ -212,6 +215,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
     workOrderId?: number | undefined;
+    workOrderLinked?: boolean | undefined;
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
@@ -222,6 +226,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
     workOrderId?: number | undefined;
+    workOrderLinked?: boolean | "true" | "false" | undefined;
 }>;
 export declare const convertQuotationToWorkOrderSchema: z.ZodObject<{
     kilometrajeIngreso: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;

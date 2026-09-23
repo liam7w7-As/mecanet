@@ -143,6 +143,22 @@ describe('QuotationsPage', () => {
     expect(screen.getByText('OT-2026-0012')).toBeInTheDocument();
   });
 
+  it('muestra numeración y filtra cotizaciones sin OT', async () => {
+    renderWithProviders(<QuotationsPage />);
+
+    expect(await screen.findByText('COT-2026-0031')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'N°' })).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/quotations', {
+      params: expect.objectContaining({ workOrderLinked: true }),
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Sin OT' }));
+
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/quotations', {
+      params: expect.objectContaining({ workOrderLinked: false }),
+    }));
+  });
+
   it('muestra convertir a OT solamente para cotizaciones no vinculadas', async () => {
     renderWithProviders(<QuotationsPage />);
     await screen.findByText('COT-2026-0031');
@@ -154,6 +170,8 @@ describe('QuotationsPage', () => {
   it('abre el modal de abono directamente en la vista de cotizaciones sin redirigir', async () => {
     renderWithProviders(<QuotationsPage />);
     await screen.findByText('COT-2026-0031');
+
+    expect(screen.queryByRole('link', { name: 'Ver y registrar pago de COT-2026-0031' })).not.toBeInTheDocument();
 
     const payButton = screen.getByRole('button', { name: 'Abonar a COT-2026-0031' });
     fireEvent.click(payButton);

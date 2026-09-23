@@ -21,10 +21,11 @@ import { useAuthStore } from '../../stores/auth.store';
 import type { Quotation } from '../../types/entities';
 import type { QuotationStatus } from '@unithor/shared';
 
-type StatusFilter = QuotationStatus | 'all';
+type StatusFilter = QuotationStatus | 'all' | 'sin_ot';
 
 const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
-  { value: 'all', label: 'Todas' },
+  { value: 'all', label: 'Todas con OT' },
+  { value: 'sin_ot', label: 'Sin OT' },
   { value: 'por_pagar', label: 'Por pagar' },
   { value: 'parcial', label: 'Abono parcial' },
   { value: 'total', label: 'Pagadas total' },
@@ -39,7 +40,7 @@ const firstDayOfMonth = (): string => {
 };
 
 const QuotationSkeleton = () => (
-  <>{Array.from({ length: 6 }, (_, index) => <tr key={index} className="border-b border-slate-100">{Array.from({ length: 9 }, (_, cell) => <td key={cell} className="px-4 py-5"><div className="h-4 animate-pulse rounded bg-slate-100" /></td>)}</tr>)}</>
+  <>{Array.from({ length: 6 }, (_, index) => <tr key={index} className="border-b border-slate-100">{Array.from({ length: 11 }, (_, cell) => <td key={cell} className="px-4 py-5"><div className="h-4 animate-pulse rounded bg-slate-100" /></td>)}</tr>)}</>
 );
 
 export const QuotationsPage = () => {
@@ -59,7 +60,8 @@ export const QuotationsPage = () => {
     page,
     pageSize: 20,
     search: debouncedSearch || undefined,
-    estadoPago: status === 'all' ? undefined : status,
+    estadoPago: status === 'all' || status === 'sin_ot' ? undefined : status,
+    workOrderLinked: status === 'sin_ot' ? false : true,
     fechaDesde,
     fechaHasta,
   });
@@ -80,7 +82,7 @@ export const QuotationsPage = () => {
         <div><p className="text-sm font-medium text-slate-500">Gestión comercial</p><h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Comercial - Cotizaciones</h1></div>
         <div className="flex flex-wrap gap-2">
           {canExport && (
-            <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-blue bg-white px-4 text-sm font-semibold text-brand-blue shadow-sm transition-all hover:bg-brand-light hover:shadow disabled:opacity-60" onClick={() => excelMutation.mutate({ fechaDesde, fechaHasta, estadoPago: status === 'all' ? undefined : status })} disabled={excelMutation.isPending}>
+            <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-blue bg-white px-4 text-sm font-semibold text-brand-blue shadow-sm transition-all hover:bg-brand-light hover:shadow disabled:opacity-60" onClick={() => excelMutation.mutate({ fechaDesde, fechaHasta, estadoPago: status === 'all' || status === 'sin_ot' ? undefined : status })} disabled={excelMutation.isPending}>
               {excelMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon variant="bounce" animateOnHover><FileSpreadsheet className="h-4 w-4" aria-hidden="true" /></AnimateIcon>}
               Exportar Excel
             </button>
@@ -134,9 +136,10 @@ export const QuotationsPage = () => {
         {(quotationsQuery.isError || excelMutation.isError || previewQuery.isError) && <div className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{getApiErrorMessage(quotationsQuery.error ?? excelMutation.error ?? previewQuery.error, 'No fue posible completar la operación.')}</div>}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
+          <table className="w-full min-w-[1080px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
+                <th className="px-4 py-4 font-semibold">N°</th>
                 <th className="px-4 py-4 font-semibold">Código COT</th>
                 <th className="px-4 py-4 font-semibold">Cliente</th>
                 <th className="px-4 py-4 font-semibold">Vehículo</th>
@@ -152,8 +155,10 @@ export const QuotationsPage = () => {
             <tbody>
               {quotationsQuery.isPending ? <QuotationSkeleton /> : quotationsQuery.data?.items.map((quotation, index) => {
                 const balance = Math.max(0, Number(quotation.total) - Number(quotation.pagado));
+                const rowNumber = (page - 1) * (quotationsQuery.data?.pageSize ?? 20) + index + 1;
                 return (
                   <AnimatedTableRow key={quotation.id} delay={index * 0.02} className="border-b border-slate-100 last:border-0">
+                    <td className="px-4 py-5 font-mono text-sm font-bold text-slate-500">{rowNumber}</td>
                     <td className="px-4 py-5">
                       <Link to={`/quotations/${quotation.id}`} className="font-mono text-[15px] font-bold text-brand-blue hover:underline">{quotation.codigo}</Link>
                       {quotation.asesor?.nombre && <span className="block text-xs text-slate-400">{quotation.asesor.nombre}</span>}
@@ -171,21 +176,15 @@ export const QuotationsPage = () => {
                         <button
                           type="button"
                           onClick={() => setPaymentQuotation({ id: quotation.id, codigo: quotation.codigo, saldoPendiente: balance })}
-                          className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-emerald-50 px-2.5 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200 transition-all hover:bg-emerald-100 active:scale-95"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 transition-all hover:bg-emerald-100 active:scale-95"
                           aria-label={`Abonar a ${quotation.codigo}`}
                           title="Registrar abono"
                         >
                           <AnimateIcon variant="bounce" animateOnHover>
                             <WalletCards className="h-4 w-4" aria-hidden="true" />
                           </AnimateIcon>
-                          <span>Abonar</span>
                         </button>
                       )}
-                      <Link to={`/quotations/${quotation.id}?payment=true`} className="group flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-blue-50 hover:text-brand-blue" aria-label={`Ver y registrar pago de ${quotation.codigo}`} title="Ver detalle y pagos">
-                        <AnimateIcon variant="bounce" animateOnHover>
-                          <WalletCards className="h-4 w-4" aria-hidden="true" />
-                        </AnimateIcon>
-                      </Link>
                       {canEdit && (quotation.estadoPago === 'total' ? <button type="button" disabled className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-300" aria-label={`Editar ${quotation.codigo} deshabilitado`} title="Cotización pagada"><Pencil className="h-4 w-4" aria-hidden="true" /></button> : <Link to={`/quotations/${quotation.id}?edit=true`} className="group flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-amber-50 hover:text-amber-700" aria-label={`Editar ${quotation.codigo}`} title="Editar"><AnimateIcon variant="wiggle" animateOnHover><Pencil className="h-4 w-4" aria-hidden="true" /></AnimateIcon></Link>)}
                       {canConvert && quotation.workOrderId === null && <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-emerald-50 hover:text-emerald-700" onClick={() => setQuotationToConvert(quotation)} aria-label={`Convertir ${quotation.codigo} a OT`} title="Convertir a OT"><AnimateIcon variant="spin" animateOnHover><Wrench className="h-4 w-4" aria-hidden="true" /></AnimateIcon></button>}
                       <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50" onClick={() => setPreviewQuotationId(quotation.id)} disabled={previewQuery.isPending && previewQuotationId === quotation.id} aria-label={`Vista previa PDF de ${quotation.codigo}`} title="Vista previa / Descargar PDF (mismo diseño)">

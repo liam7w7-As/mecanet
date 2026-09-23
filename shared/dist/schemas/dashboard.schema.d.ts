@@ -83,16 +83,19 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         codigo: z.ZodNullable<z.ZodString>;
         nombre: z.ZodString;
         stock: z.ZodNumber;
+        stockMinimo: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
         nombre: string;
         id: number;
         codigo: string | null;
         stock: number;
+        stockMinimo: number;
     }, {
         nombre: string;
         id: number;
         codigo: string | null;
         stock: number;
+        stockMinimo?: number | undefined;
     }>, "many">;
     unlinkedQuotations: z.ZodArray<z.ZodObject<{
         id: z.ZodNumber;
@@ -158,6 +161,7 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         id: number;
         codigo: string | null;
         stock: number;
+        stockMinimo: number;
     }[];
     unlinkedQuotations: {
         total: number;
@@ -199,6 +203,7 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         id: number;
         codigo: string | null;
         stock: number;
+        stockMinimo?: number | undefined;
     }[];
     unlinkedQuotations: {
         total: number;

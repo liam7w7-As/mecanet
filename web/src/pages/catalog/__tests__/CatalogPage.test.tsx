@@ -30,6 +30,7 @@ const serviceItem: CatalogItem = {
   descripcion: 'Servicio preventivo',
   precio: 35000,
   stock: 0,
+  stockMinimo: 0,
   createdAt: '2026-09-15T10:00:00.000Z',
   updatedAt: '2026-09-15T10:00:00.000Z',
 };
@@ -42,6 +43,7 @@ const partItem: CatalogItem = {
   descripcion: 'Filtro de motor',
   precio: 12000,
   stock: 3,
+  stockMinimo: 2,
   createdAt: '2026-09-15T10:00:00.000Z',
   updatedAt: '2026-09-15T10:00:00.000Z',
 };
@@ -158,3 +160,4 @@ describe('CatalogPage', () => {
     expect(screen.queryByRole('dialog', { name: 'Ajustar stock' })).not.toBeInTheDocument();
   });
 });
+

@@ -12,3 +12,4 @@ export * from './report.schema.js';
 export * from './permission.schema.js';
 export * from './search.schema.js';
 export * from './finance.schema.js';
+export * from './warehouse.schema.js';

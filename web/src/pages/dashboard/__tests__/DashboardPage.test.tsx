@@ -43,7 +43,7 @@ const summary: DashboardSummary = {
   ],
   lowStockCount: 1,
   lowStockItems: [
-    { id: 5, codigo: 'FLT-001', nombre: 'Filtro de aceite', stock: 3 },
+    { id: 5, codigo: 'FLT-001', nombre: 'Filtro de aceite', stock: 3, stockMinimo: 5 },
   ],
   unlinkedQuotations: [
     {

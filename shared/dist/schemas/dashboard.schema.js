@@ -26,6 +26,7 @@ export const dashboardSummarySchema = z.object({
         codigo: nullableText,
         nombre: z.string(),
         stock: z.number().int().nonnegative(),
+        stockMinimo: z.number().int().nonnegative().optional().default(0),
     })),
     unlinkedQuotations: z.array(z.object({
         id: z.number().int().positive(),

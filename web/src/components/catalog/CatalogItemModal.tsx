@@ -25,6 +25,7 @@ interface CatalogFormState {
   descripcion: string;
   precio: string;
   stock: string;
+  stockMinimo: string;
 }
 
 const typeOptions = [
@@ -43,6 +44,7 @@ const getInitialState = (item?: CatalogItem | null): CatalogFormState => ({
   descripcion: item?.descripcion ?? '',
   precio: String(item?.precio ?? 0),
   stock: String(item?.stock ?? 0),
+  stockMinimo: String(item?.stockMinimo ?? 0),
 });
 
 export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
@@ -69,7 +71,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
     setForm((current) => ({
       ...current,
       [key]: value,
-      ...(key === 'tipo' && value !== 'parte' ? { stock: '0' } : {}),
+      ...(key === 'tipo' && value !== 'parte' ? { stock: '0', stockMinimo: '0' } : {}),
     }));
     setFieldErrors((current) => {
       const next = { ...current };
@@ -91,6 +93,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
       descripcion: form.descripcion,
       precio: form.precio,
       stock: form.tipo === 'parte' ? form.stock : '0',
+      stockMinimo: form.tipo === 'parte' ? form.stockMinimo : '0',
     };
     if (item) {
       const result = updateCatalogItemSchema.safeParse(payload);
@@ -184,6 +187,12 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
               <input className={inputClassName} type="number" min="0" step="1" value={form.stock} onChange={(event) => setValue('stock', event.target.value)} disabled={form.tipo !== 'parte'} aria-label="Stock inicial" aria-invalid={Boolean(fieldErrors.stock)} />
               {fieldErrors.stock && <span className="mt-1 block text-xs text-red-600">{fieldErrors.stock}</span>}
               {form.tipo !== 'parte' && <span className="mt-1 block text-xs text-slate-500">Los servicios no manejan inventario.</span>}
+            </label>
+            <label className="text-sm font-medium text-slate-700">
+              Stock mínimo
+              <input className={inputClassName} type="number" min="0" step="1" value={form.stockMinimo} onChange={(event) => setValue('stockMinimo', event.target.value)} disabled={form.tipo !== 'parte'} aria-label="Stock mínimo" aria-invalid={Boolean(fieldErrors.stockMinimo)} />
+              {fieldErrors.stockMinimo && <span className="mt-1 block text-xs text-red-600">{fieldErrors.stockMinimo}</span>}
+              {form.tipo === 'parte' && <span className="mt-1 block text-xs text-slate-500">Avisa en dashboard y almacén al llegar a este nivel.</span>}
             </label>
             <label className="text-sm font-medium text-slate-700 sm:col-span-2">
               Descripción

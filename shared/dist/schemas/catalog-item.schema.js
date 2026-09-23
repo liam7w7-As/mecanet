@@ -25,6 +25,7 @@ const catalogItemFields = {
     descripcion: optionalDescriptionSchema,
     precio: z.coerce.number().min(0, 'El precio no puede ser negativo').default(0),
     stock: z.coerce.number().int().min(0, 'El stock no puede ser negativo').default(0),
+    stockMinimo: z.coerce.number().int().min(0, 'El stock mínimo no puede ser negativo').default(0),
 };
 export const createCatalogItemSchema = z.object(catalogItemFields).transform((data) => ({
     ...data,
@@ -38,6 +39,7 @@ export const updateCatalogItemSchema = z
     descripcion: catalogItemFields.descripcion,
     precio: z.coerce.number().min(0, 'El precio no puede ser negativo').optional(),
     stock: z.coerce.number().int().min(0, 'El stock no puede ser negativo').optional(),
+    stockMinimo: z.coerce.number().int().min(0, 'El stock mínimo no puede ser negativo').optional(),
 })
     .refine((data) => Object.keys(data).length > 0, {
     message: 'Debe enviar al menos un campo para actualizar',

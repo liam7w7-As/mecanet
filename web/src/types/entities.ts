@@ -89,6 +89,7 @@ export interface CatalogItem {
   descripcion: string | null;
   precio: number;
   stock: number;
+  stockMinimo: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -143,6 +144,7 @@ export interface WorkOrderItem {
   stockConsumido: boolean;
   stockConsumidoCantidad: number;
   stockConsumidoAt: string | null;
+  stockConsumidoWarehouseId?: number | null;
   catalogItem?: ItemCatalogInfo | null;
 }
 
@@ -346,6 +348,44 @@ export interface Quotation {
   asesor?: QuotationAdvisor | null;
   workOrder?: QuotationWorkOrder | null;
   items?: QuotationItem[];
+}
+
+export interface Warehouse {
+  id: number;
+  codigo: string;
+  nombre: string;
+  direccion: string | null;
+  activo: boolean;
+  totalItems: number;
+  totalUnidades: number;
+}
+
+export interface StockBalance {
+  warehouseId: number;
+  catalogItemId: number;
+  cantidad: number;
+  codigo: string | null;
+  nombre: string;
+  precio: number;
+  stockMinimo: number;
+  bajoMinimo: boolean;
+}
+
+export interface StockMovement {
+  id: number;
+  catalogItemId: number;
+  warehouseId: number;
+  tipo: import('@unithor/shared').StockMovementType;
+  cantidad: number;
+  saldoResultante: number;
+  motivo: string;
+  referencia: string | null;
+  createdBy: number | null;
+  fecha: string;
+  codigo: string | null;
+  nombre: string;
+  warehouseCodigo: string;
+  warehouseNombre: string;
 }
 
 export interface PaymentCreator {

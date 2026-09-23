@@ -21,6 +21,7 @@ export interface CatalogItemPublic {
   descripcion: string | null;
   precio: number;
   stock: number;
+  stockMinimo: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +54,7 @@ const toCatalogItemPublic = (item: CatalogItem): CatalogItemPublic => ({
   descripcion: item.descripcion,
   precio: Number(item.precio),
   stock: Number(item.stock),
+  stockMinimo: Number(item.stockMinimo ?? 0),
   createdAt: item.createdAt,
   updatedAt: item.updatedAt,
 });
@@ -148,6 +150,7 @@ export const createCatalogItem = async (
     descripcion: data.descripcion ?? null,
     precio: data.precio,
     stock: data.tipo === 'parte' ? data.stock : 0,
+    stockMinimo: data.tipo === 'parte' ? data.stockMinimo : 0,
   });
 
   return toCatalogItemPublic(item);
@@ -164,7 +167,7 @@ export const updateCatalogItem = async (
 
   const nextType = data.tipo ?? item.tipo;
   const updatePayload: Partial<
-    Pick<CatalogItem, 'tipo' | 'codigo' | 'nombre' | 'descripcion' | 'precio' | 'stock'>
+    Pick<CatalogItem, 'tipo' | 'codigo' | 'nombre' | 'descripcion' | 'precio' | 'stock' | 'stockMinimo'>
   > = {};
 
   if (data.tipo !== undefined) {
@@ -193,8 +196,14 @@ export const updateCatalogItem = async (
 
   if (nextType !== 'parte') {
     updatePayload.stock = 0;
-  } else if (data.stock !== undefined) {
-    updatePayload.stock = data.stock;
+    updatePayload.stockMinimo = 0;
+  } else {
+    if (data.stock !== undefined) {
+      updatePayload.stock = data.stock;
+    }
+    if (data.stockMinimo !== undefined) {
+      updatePayload.stockMinimo = data.stockMinimo;
+    }
   }
 
   await item.update(updatePayload);

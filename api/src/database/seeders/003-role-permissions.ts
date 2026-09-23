@@ -1,7 +1,7 @@
 import type { QueryInterface } from 'sequelize';
 
 type Role = 'desarrollador' | 'admin' | 'jefe' | 'mecanico' | 'vendedor' | 'bodeguero' | 'finanzas';
-type Module = 'taller' | 'comercial' | 'finanzas' | 'flota' | 'admin';
+type Module = 'taller' | 'comercial' | 'finanzas' | 'flota' | 'almacen' | 'admin';
 type Action = 'read' | 'create' | 'update' | 'delete' | 'export' | 'import';
 
 type PermissionMap = Partial<Record<Module, readonly Action[]>>;
@@ -12,6 +12,7 @@ const ROLE_PERMISSIONS_MATRIX: Record<Role, PermissionMap> = {
     comercial: ['read', 'create', 'update', 'delete', 'export', 'import'],
     finanzas: ['read', 'create', 'update', 'delete', 'export', 'import'],
     flota: ['read', 'create', 'update', 'delete', 'export', 'import'],
+    almacen: ['read', 'create', 'update', 'delete', 'export', 'import'],
     admin: ['read', 'create', 'update', 'delete', 'export', 'import'],
   },
   admin: {
@@ -19,11 +20,13 @@ const ROLE_PERMISSIONS_MATRIX: Record<Role, PermissionMap> = {
     comercial: ['read', 'create', 'update', 'delete', 'export', 'import'],
     finanzas: ['read', 'create', 'update', 'delete', 'export', 'import'],
     flota: ['read', 'create', 'update', 'delete', 'export', 'import'],
+    almacen: ['read', 'create', 'update', 'delete', 'export', 'import'],
     admin: ['read', 'create', 'update', 'delete', 'export', 'import'],
   },
   jefe: {
     taller: ['read', 'create', 'update', 'delete', 'export'],
     comercial: ['read', 'create', 'update', 'delete', 'export'],
+    almacen: ['read', 'create', 'update', 'export'],
     flota: ['read'],
     admin: ['read'],
   },
@@ -33,12 +36,14 @@ const ROLE_PERMISSIONS_MATRIX: Record<Role, PermissionMap> = {
   vendedor: {
     taller: ['read', 'create', 'update'],
     comercial: ['read', 'create', 'update', 'export'],
+    almacen: ['read'],
     flota: ['read'],
   },
   bodeguero: {
     taller: ['read', 'update'],
     comercial: ['read'],
     flota: ['read'],
+    almacen: ['read', 'create', 'update', 'export'],
   },
   finanzas: {
     comercial: ['read'],

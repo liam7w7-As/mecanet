@@ -16,7 +16,7 @@ const ROLES_SEED = [
   { nombre: 'finanzas', descripcion: 'Finanzas y contabilidad' },
 ] as const;
 
-const MODULES = ['taller', 'comercial', 'finanzas', 'flota', 'admin'] as const;
+const MODULES = ['taller', 'comercial', 'finanzas', 'flota', 'almacen', 'admin'] as const;
 const ACTIONS = ['read', 'create', 'update', 'delete', 'export', 'import'] as const;
 
 type RoleName = (typeof ROLES_SEED)[number]['nombre'];
@@ -29,6 +29,7 @@ const ROLE_PERMISSIONS_MATRIX: Record<RoleName, Partial<Record<Module, readonly 
     comercial: ACTIONS,
     finanzas: ACTIONS,
     flota: ACTIONS,
+    almacen: ACTIONS,
     admin: ACTIONS,
   },
   admin: {
@@ -36,11 +37,13 @@ const ROLE_PERMISSIONS_MATRIX: Record<RoleName, Partial<Record<Module, readonly 
     comercial: ACTIONS,
     finanzas: ACTIONS,
     flota: ACTIONS,
+    almacen: ACTIONS,
     admin: ACTIONS,
   },
   jefe: {
     taller: ['read', 'create', 'update', 'delete', 'export'],
     comercial: ['read', 'create', 'update', 'delete', 'export'],
+    almacen: ['read', 'create', 'update', 'export'],
     flota: ['read'],
     admin: ['read'],
   },
@@ -50,11 +53,13 @@ const ROLE_PERMISSIONS_MATRIX: Record<RoleName, Partial<Record<Module, readonly 
   vendedor: {
     taller: ['read', 'create', 'update'],
     comercial: ['read', 'create', 'update', 'export'],
+    almacen: ['read'],
     flota: ['read'],
   },
   bodeguero: {
     taller: ['read', 'update'],
     comercial: ['read'],
+    almacen: ['read', 'create', 'update', 'export'],
     flota: ['read'],
   },
   finanzas: {

@@ -73,6 +73,13 @@ export class CatalogItem extends Model<
   })
   declare stock: CreationOptional<number>;
 
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+  })
+  declare stockMinimo: CreationOptional<number>;
+
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;
 

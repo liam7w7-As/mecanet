@@ -6,10 +6,12 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     descripcion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     precio: z.ZodDefault<z.ZodNumber>;
     stock: z.ZodDefault<z.ZodNumber>;
+    stockMinimo: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     nombre: string;
     tipo: "parte" | "estandar" | "especifico";
     stock: number;
+    stockMinimo: number;
     precio: number;
     codigo?: string | null | undefined;
     descripcion?: string | null | undefined;
@@ -18,12 +20,14 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     tipo: "parte" | "estandar" | "especifico";
     codigo?: string | null | undefined;
     stock?: number | undefined;
+    stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
     precio?: number | undefined;
 }>, {
     stock: number;
     nombre: string;
     tipo: "parte" | "estandar" | "especifico";
+    stockMinimo: number;
     precio: number;
     codigo?: string | null | undefined;
     descripcion?: string | null | undefined;
@@ -32,6 +36,7 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     tipo: "parte" | "estandar" | "especifico";
     codigo?: string | null | undefined;
     stock?: number | undefined;
+    stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
     precio?: number | undefined;
 }>;
@@ -42,11 +47,13 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     descripcion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     precio: z.ZodOptional<z.ZodNumber>;
     stock: z.ZodOptional<z.ZodNumber>;
+    stockMinimo: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     nombre?: string | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
     codigo?: string | null | undefined;
     stock?: number | undefined;
+    stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
     precio?: number | undefined;
 }, {
@@ -54,6 +61,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     tipo?: "parte" | "estandar" | "especifico" | undefined;
     codigo?: string | null | undefined;
     stock?: number | undefined;
+    stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
     precio?: number | undefined;
 }>, {
@@ -61,6 +69,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     tipo?: "parte" | "estandar" | "especifico" | undefined;
     codigo?: string | null | undefined;
     stock?: number | undefined;
+    stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
     precio?: number | undefined;
 }, {
@@ -68,6 +77,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     tipo?: "parte" | "estandar" | "especifico" | undefined;
     codigo?: string | null | undefined;
     stock?: number | undefined;
+    stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
     precio?: number | undefined;
 }>;

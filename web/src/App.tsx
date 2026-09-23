@@ -15,6 +15,7 @@ import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
 import UsersPage from './pages/users/UsersPage';
 import VehiclesPage from './pages/vehicles/VehiclesPage';
+import WarehousesPage from './pages/warehouses/WarehousesPage';
 import WorkOrderCreatePage from './pages/work-orders/WorkOrderCreatePage';
 import WorkOrderDetailPage from './pages/work-orders/WorkOrderDetailPage';
 import WorkOrdersPage from './pages/work-orders/WorkOrdersPage';
@@ -39,6 +40,7 @@ export const App = () => (
         <Route path="/clients" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }]}><ClientsPage /></ProtectedRoute>} />
         <Route path="/vehicles" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }]}><VehiclesPage /></ProtectedRoute>} />
         <Route path="/catalog" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }]}><CatalogPage /></ProtectedRoute>} />
+        <Route path="/warehouses" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'almacen', accion: 'read' }]}><WarehousesPage /></ProtectedRoute>} />
         <Route
           path="/users"
           element={

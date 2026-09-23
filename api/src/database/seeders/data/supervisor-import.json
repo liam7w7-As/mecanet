@@ -1,0 +1,4678 @@
+{
+ "catalog": [
+  {
+   "tipo": "parte",
+   "codigo": "UNT101",
+   "nombre": "Actualizacion de Hilux 2016-2020 a 2024 HILUX GR SPORT BODY KIT",
+   "descripcion": "Actualizacion de Hilux 2016-2020 a 2024 HILUX GR SPORT BODY KIT",
+   "precio": 0,
+   "stock": 2
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT102",
+   "nombre": "Actualizacion de Hilux 2016-2020 a 2024 Z Model Body Kit",
+   "descripcion": "Actualizacion de Hilux 2016-2020 a 2024 Z Model Body Kit",
+   "precio": 0,
+   "stock": 10
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT103",
+   "nombre": "ACTUALIZACION 2016- 2019 HILUX A 2023 HILUX GR ADVENTURE BODY KIT",
+   "descripcion": "ACTUALIZACION 2016- 2019 HILUX A 2023 HILUX GR ADVENTURE BODY KIT",
+   "precio": 0,
+   "stock": 5
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT104",
+   "nombre": "ACTUALIZACION 2016- 2019 HILUX A 2022 HILUX TUNDRA BODY KIT",
+   "descripcion": "ACTUALIZACION 2016- 2019 HILUX A 2022 HILUX TUNDRA BODY KIT",
+   "precio": 0,
+   "stock": 2
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT105",
+   "nombre": "ACTUALIZACION 2016-2019 HILUX A 2024 HILUX SRV",
+   "descripcion": "ACTUALIZACION 2016-2019 HILUX A 2024 HILUX SRV",
+   "precio": 0,
+   "stock": 4
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT106",
+   "nombre": "KIT HILUX LAND CRUISER INCLUYE CAPO Y OPTICOS DELANTEROS LED NEW STYLE",
+   "descripcion": "KIT HILUX LAND CRUISER INCLUYE CAPO Y OPTICOS DELANTEROS LED NEW STYLE",
+   "precio": 0,
+   "stock": 5
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT107",
+   "nombre": "ACTUALIZACION FORTUNER GR BODY KIT",
+   "descripcion": "ACTUALIZACION FORTUNER GR BODY KIT",
+   "precio": 0,
+   "stock": 2
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT108",
+   "nombre": "ACTUALIZACION 2016-2019 A NAVARA2024",
+   "descripcion": "ACTUALIZACION 2016-2019 A NAVARA2024",
+   "precio": 0,
+   "stock": 2
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT201",
+   "nombre": "PARRILA DELANTERA HILUX GR SPORT + EMBELLECEDOR DE NEBLINEROS",
+   "descripcion": "PARRILA DELANTERA HILUX GR SPORT + EMBELLECEDOR DE NEBLINEROS",
+   "precio": 0,
+   "stock": 5
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT202",
+   "nombre": "PARRILA DELANTERA HILUX GR SPORT CON LUZ LED",
+   "descripcion": "PARRILA DELANTERA HILUX GR SPORT CON LUZ LED",
+   "precio": 0,
+   "stock": 9
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT203",
+   "nombre": "REJILLA CROMADA HILUX SRV",
+   "descripcion": "REJILLA CROMADA HILUX SRV",
+   "precio": 0,
+   "stock": 3
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT204",
+   "nombre": "MOLDURA DE CAPO CROMADO PARA HILUX SRV",
+   "descripcion": "MOLDURA DE CAPO CROMADO PARA HILUX SRV",
+   "precio": 0,
+   "stock": 4
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT205",
+   "nombre": "PARACHOQUE HILUX SR/SRV 2022-2024",
+   "descripcion": "PARACHOQUE HILUX SR/SRV 2022-2024",
+   "precio": 0,
+   "stock": 5
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT206",
+   "nombre": "HILUX SR/SRV 2022-2024 + REJILLA INFERIOR DERECHA ( R)",
+   "descripcion": "HILUX SR/SRV 2022-2024 + REJILLA INFERIOR DERECHA ( R)",
+   "precio": 0,
+   "stock": 6
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT207",
+   "nombre": "HILUX SR/SRV 2022-2024 + REJILLA INFERIOR IZQUIERDA (L)",
+   "descripcion": "HILUX SR/SRV 2022-2024 + REJILLA INFERIOR IZQUIERDA (L)",
+   "precio": 0,
+   "stock": 6
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT208",
+   "nombre": "TAPABARRO HILUX SR/SRV 2016-2024 DERECHO ( R)",
+   "descripcion": "TAPABARRO HILUX SR/SRV 2016-2024 DERECHO ( R)",
+   "precio": 0,
+   "stock": 19
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT209",
+   "nombre": "TAPABARRO HILUX SR/SRV 2016-2024 IZQUIERDO (L)",
+   "descripcion": "TAPABARRO HILUX SR/SRV 2016-2024 IZQUIERDO (L)",
+   "precio": 0,
+   "stock": 19
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT210",
+   "nombre": "MENSULAS HILUX SR/SRV 2016-2024",
+   "descripcion": "MENSULAS HILUX SR/SRV 2016-2024",
+   "precio": 0,
+   "stock": 14
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT211",
+   "nombre": "GUARDAFANGO DELANTERO HILUX SR/SRV 2016-2024 DERECHO ( R)",
+   "descripcion": "GUARDAFANGO DELANTERO HILUX SR/SRV 2016-2024 DERECHO ( R)",
+   "precio": 0,
+   "stock": 16
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT212",
+   "nombre": "GUARDAFANGO DELANTERO HILUX SR/SRV 2016-2024 IZQUIERDO (L)",
+   "descripcion": "GUARDAFANGO DELANTERO HILUX SR/SRV 2016-2024 IZQUIERDO (L)",
+   "precio": 0,
+   "stock": 17
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT213",
+   "nombre": "BARRA DEPORTIVA HILUX GR SPORT",
+   "descripcion": "BARRA DEPORTIVA HILUX GR SPORT",
+   "precio": 0,
+   "stock": 9
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT251",
+   "nombre": "BARRA DEPORTIVA HILUX ADVENTURE",
+   "descripcion": "BARRA DEPORTIVA HILUX ADVENTURE",
+   "precio": 0,
+   "stock": 1
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT252",
+   "nombre": "PROTECTOR DE PARACHOQUE DELANTERO HILUX 2021",
+   "descripcion": "PROTECTOR DE PARACHOQUE DELANTERO HILUX 2021",
+   "precio": 0,
+   "stock": 4
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT253",
+   "nombre": "LOGO GR",
+   "descripcion": "LOGO GR",
+   "precio": 0,
+   "stock": 8
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT214",
+   "nombre": "PROTECTOR INFERIOR DE MOTOR HILUX GR 2016-2024",
+   "descripcion": "PROTECTOR INFERIOR DE MOTOR HILUX GR 2016-2024",
+   "precio": 0,
+   "stock": 7
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT215",
+   "nombre": "GUARDAFANGO COLGANTE HILUX SR/SRV",
+   "descripcion": "GUARDAFANGO COLGANTE HILUX SR/SRV",
+   "precio": 0,
+   "stock": 10
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT216",
+   "nombre": "ENSANCHE HILUX SR/SRV",
+   "descripcion": "ENSANCHE HILUX SR/SRV",
+   "precio": 0,
+   "stock": 8
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT217",
+   "nombre": "PISADERAS HILUX SRV 2016-2024",
+   "descripcion": "PISADERAS HILUX SRV 2016-2024",
+   "precio": 0,
+   "stock": 33
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT218",
+   "nombre": "PISADERAS HILUX TRD 2016-2024",
+   "descripcion": "PISADERAS HILUX TRD 2016-2024",
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT219",
+   "nombre": "PARACHOQUE TRASERO CROMADO HILUX 2016-2024",
+   "descripcion": "PARACHOQUE TRASERO CROMADO HILUX 2016-2024",
+   "precio": 0,
+   "stock": 5
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT220",
+   "nombre": "Manilla de portalon CROMADO Con camara HILUX 2016-2024",
+   "descripcion": "Manilla de portalon CROMADO Con camara HILUX 2016-2024",
+   "precio": 0,
+   "stock": 21
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT221",
+   "nombre": "Manilla de portalon Negro SIN CAMARA HILUX 2016-2024",
+   "descripcion": "Manilla de portalon Negro SIN CAMARA HILUX 2016-2024",
+   "precio": 0,
+   "stock": 17
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT222",
+   "nombre": "SNORKEL ESTILO OJO DE AGUILA HILUX 2016-2024",
+   "descripcion": "SNORKEL ESTILO OJO DE AGUILA HILUX 2016-2024",
+   "precio": 0,
+   "stock": 49
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT223",
+   "nombre": "SNORKEL ESTILO SAFARI HILUX 2026-2024",
+   "descripcion": "SNORKEL ESTILO SAFARI HILUX 2026-2024",
+   "precio": 0,
+   "stock": 7
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT224",
+   "nombre": "RACK DE TECHO ALUMINIO PARA FORTUNER 2018-2023",
+   "descripcion": "RACK DE TECHO ALUMINIO PARA FORTUNER 2018-2023",
+   "precio": 0,
+   "stock": 2
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT225",
+   "nombre": "OPTICO DELANTERO LED HILUX GRIS DERECHO ( R)",
+   "descripcion": "OPTICO DELANTERO LED HILUX GRIS DERECHO ( R)",
+   "precio": 0,
+   "stock": 25
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT226",
+   "nombre": "OPTICO DELANTERO LED HILUX GRIS IZQUIERDO (L)",
+   "descripcion": "OPTICO DELANTERO LED HILUX GRIS IZQUIERDO (L)",
+   "precio": 0,
+   "stock": 24
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT227",
+   "nombre": "OPTICO DELANTERO LED HILUX SPORT (L-R)",
+   "descripcion": "OPTICO DELANTERO LED HILUX SPORT (L-R)",
+   "precio": 0,
+   "stock": 10
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT228",
+   "nombre": "OPTICO DELANTERO LED 3 LENTES HILUX SPORT (L-R)",
+   "descripcion": "OPTICO DELANTERO LED 3 LENTES HILUX SPORT (L-R)",
+   "precio": 0,
+   "stock": 9
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT229",
+   "nombre": "OPTICO TRASERO LED HILUX SRV DERECHO (R )",
+   "descripcion": "OPTICO TRASERO LED HILUX SRV DERECHO (R )",
+   "precio": 0,
+   "stock": 35
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT230",
+   "nombre": "OPTICO TRASERO LED HILUX SRV IZQUIERDO (L)",
+   "descripcion": "OPTICO TRASERO LED HILUX SRV IZQUIERDO (L)",
+   "precio": 0,
+   "stock": 35
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT231",
+   "nombre": "OPTICO TRASERO LED HILUX NEGRO SPORT DERECHO (R )",
+   "descripcion": "OPTICO TRASERO LED HILUX NEGRO SPORT DERECHO (R )",
+   "precio": 0,
+   "stock": 7
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT232",
+   "nombre": "OPTICO TRASERO LED HILUX NEGRO SPORT IZQUIERDO (L)",
+   "descripcion": "OPTICO TRASERO LED HILUX NEGRO SPORT IZQUIERDO (L)",
+   "precio": 0,
+   "stock": 7
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT233",
+   "nombre": "OPTICO TRASERO AMPOLLETA HILUX 2016-2019 DERECHO (R )",
+   "descripcion": "OPTICO TRASERO AMPOLLETA HILUX 2016-2019 DERECHO (R )",
+   "precio": 0,
+   "stock": 14
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT234",
+   "nombre": "OPTICO TRASERO AMPOLLETA HILUX 2016-2019 IZQUIERDO (L)",
+   "descripcion": "OPTICO TRASERO AMPOLLETA HILUX 2016-2019 IZQUIERDO (L)",
+   "precio": 0,
+   "stock": 16
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT235",
+   "nombre": "NEBLINERO CON TAPAS 2021 HILUX SRV",
+   "descripcion": "NEBLINERO CON TAPAS 2021 HILUX SRV",
+   "precio": 0,
+   "stock": 9
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT236",
+   "nombre": "TAPAS LED DE NEBLINERO 2021 HILUX",
+   "descripcion": "TAPAS LED DE NEBLINERO 2021 HILUX",
+   "precio": 0,
+   "stock": 10
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT237",
+   "nombre": "KIT DE LEVANTE TRASERO CONFORT 2.4\" HILUX 2016-2024",
+   "descripcion": "KIT DE LEVANTE TRASERO CONFORT 2.4\" HILUX 2016-2024",
+   "precio": 0,
+   "stock": 9
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT238",
+   "nombre": "KIT DE LEVANTE TRASERO CONFORT 2.5\" HILUX 2016-2024",
+   "descripcion": "KIT DE LEVANTE TRASERO CONFORT 2.5\" HILUX 2016-2024",
+   "precio": 0,
+   "stock": 5
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT239",
+   "nombre": "KIT DE LEVANTE REGULABLE 10 POSICIONES CON VASTAGO DE 21MM IGUAL A LA FOTO",
+   "descripcion": "KIT DE LEVANTE REGULABLE 10 POSICIONES CON VASTAGO DE 21MM IGUAL A LA FOTO",
+   "precio": 0,
+   "stock": 2
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT240",
+   "nombre": "BANDEJA SUPERIOR DE ALUMINIO HILUX VIGO REVO, FORTUNER, FJCRUISER, PRADO, 4RUNNER",
+   "descripcion": "BANDEJA SUPERIOR DE ALUMINIO HILUX VIGO REVO, FORTUNER, FJCRUISER, PRADO, 4RUNNER",
+   "precio": 0,
+   "stock": 1
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT241",
+   "nombre": "BANDEJA SUPERIOR HILUX 2005-2021",
+   "descripcion": "BANDEJA SUPERIOR HILUX 2005-2021",
+   "precio": 0,
+   "stock": 1
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT242",
+   "nombre": "KIT DE LEVANTE DELANTERO 32MM HILUX VIGO/REVO",
+   "descripcion": "KIT DE LEVANTE DELANTERO 32MM HILUX VIGO/REVO",
+   "precio": 0,
+   "stock": 4
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT243",
+   "nombre": "VOLANTE HILUX GR",
+   "descripcion": "VOLANTE HILUX GR",
+   "precio": 0,
+   "stock": 3
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT244",
+   "nombre": "MOLDURA DE VOLANTE HILUX GR PARA 2016-2024",
+   "descripcion": "MOLDURA DE VOLANTE HILUX GR PARA 2016-2024",
+   "precio": 0,
+   "stock": 19
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT245",
+   "nombre": "KIT DE PANEL INTERIOR ESTILO GR PARA HILUX 2016-2023 CON LUZ",
+   "descripcion": "KIT DE PANEL INTERIOR ESTILO GR PARA HILUX 2016-2023 CON LUZ",
+   "precio": 0,
+   "stock": 10
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT246",
+   "nombre": "KIT DE PANEL INTERIOR NEGRO PIANO HILUX 2016-2023 CON LUZ",
+   "descripcion": "KIT DE PANEL INTERIOR NEGRO PIANO HILUX 2016-2023 CON LUZ",
+   "precio": 0,
+   "stock": 4
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT247",
+   "nombre": "KIT DE PANEL INTERIOR CON CROMADOS HILUX SRV 2016-2023 CON LUZ",
+   "descripcion": "KIT DE PANEL INTERIOR CON CROMADOS HILUX SRV 2016-2023 CON LUZ",
+   "precio": 0,
+   "stock": 5
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT248",
+   "nombre": "PISOS 5D HILUX 2016-2024",
+   "descripcion": "PISOS 5D HILUX 2016-2024",
+   "precio": 0,
+   "stock": 25
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT249",
+   "nombre": "KIT DE PISTONES PORTALON PICK UP HILUX 2016-2024",
+   "descripcion": "KIT DE PISTONES PORTALON PICK UP HILUX 2016-2024",
+   "precio": 0,
+   "stock": 7
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT250",
+   "nombre": "KIT DE PISTONES PARA CAPO HILUX 2016-2024",
+   "descripcion": "KIT DE PISTONES PARA CAPO HILUX 2016-2024",
+   "precio": 0,
+   "stock": 8
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT254",
+   "nombre": "BOTA AGUAS HILUX",
+   "descripcion": "BOTA AGUAS HILUX",
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT301",
+   "nombre": "BICOLOR ARO: 17*7.5 APERNADURA: 6*139.7 ET: +25",
+   "descripcion": "BICOLOR ARO: 17*7.5 APERNADURA: 6*139.7 ET: +25",
+   "precio": 0,
+   "stock": 12
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT302",
+   "nombre": "BICOLOR ARO: 17*7.5 APERNADURA: 6*139.7 ET: +25",
+   "descripcion": "BICOLOR ARO: 17*7.5 APERNADURA: 6*139.7 ET: +25",
+   "precio": 0,
+   "stock": 11
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT303",
+   "nombre": "BICOLOR ARO: 17*7.5 APERNADURA: 6*139.7 ET: +25",
+   "descripcion": "BICOLOR ARO: 17*7.5 APERNADURA: 6*139.7 ET: +25",
+   "precio": 0,
+   "stock": 12
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT304",
+   "nombre": "NEGRO MATTE ARO: 17*9.0 APERNADURA: 6*139.7 ET: -12",
+   "descripcion": "NEGRO MATTE ARO: 17*9.0 APERNADURA: 6*139.7 ET: -12",
+   "precio": 0,
+   "stock": 11
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT305",
+   "nombre": "NEGRO MATTE ARO: 17*9.0 APERNADURA: 6*139.7 ET: -12",
+   "descripcion": "NEGRO MATTE ARO: 17*9.0 APERNADURA: 6*139.7 ET: -12",
+   "precio": 0,
+   "stock": 12
+  },
+  {
+   "tipo": "parte",
+   "codigo": "UNT306",
+   "nombre": "BRONCE MATTE ARO: 17*9.0 APERNADURA: 6*139.7 ET: -12",
+   "descripcion": "BRONCE MATTE ARO: 17*9.0 APERNADURA: 6*139.7 ET: -12",
+   "precio": 0,
+   "stock": 12
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PERTIGA DE 12 PIES LED VERDE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO DE KIT DE EMBRAGUE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Pintura completa camioneta a puerta cerrada",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Pintura a puerta cerrada Hilux",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Instalación productos",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Mantencion Hilux (filtro aire, aceite, polen, pretroleo) Aceite 5w30 Liqui Moly",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA ENSANCHE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "SERVICIO INSTALACION ENSANCHE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "SERVICIO INSTALACION BOTA AGUA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Up Grade de focos 2 lupas (kit GR sport)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "producto nuevo",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Actualización de kit gr",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT GR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PISADERAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "AROS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOTAAGUAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT LEVANTE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PARACHOQUE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CAMARA REVERSA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PANELES INTERIORES",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "VOLANTE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Espatula plastica",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Triangulo de emergencia",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "espatula plastica.1",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Triangulo d emergencia.01",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCIÓN DE CHEVROLER DIMAX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACIÓN DE ALTERNADOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REVISION GENERAL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION CHEVROLET DIMAX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACION DE ALTERNADOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION CHEVROLET DMAX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION POR KILOMETRAJE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA CAMIONETA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA COMPLETA CAMIONETA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN VOLANTE GR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION DE FORD RANGER 30MIL KM",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Baliza estroboscopoca ambar mas instalacion",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Grabado de patente en vidrios",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Renovación de revisión técnica",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Limpieza de chasis",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Regeneración de DPF",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION DE 3 EXTINTORES DE10 KILOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION DE EXTINTOR DE 10 KILOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACION DE 1 NEUMATICO DE CAMION",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "FOCO FAENERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION Y CAMBIO DE MANOMETRO DE EXTINTOR DE 10 KILOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CANDADO DE EXTINTOR DE 10 KILOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR DE CUÑAS DE CAMION",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT ORIGINAL DE HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT HILUX ORIGINAL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "BODY KIT ACTUALIZACION HILUX DX A SRV",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN CON PINTURA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "jhvkugyfk",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PARABRISAS DELANTERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION Y CAMBIO DE MANOMETRO DE EXTINTOR DE 10KL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CANDADO DE EXTINTOR DE 10KL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "JUEGO DE CUÑAS DE CAMION",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PARABRISAS DELANTERO DE TOYOTA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Bota aguas",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "bota agua negro para hilux",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "foco delantero usado",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "SENSOR DE POS CIGUEÑAL HY",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Sensor de cigüeñal",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Mano de obra H/H",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "DIAGNOSTICO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Sensor de Cigueñal",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Mano de obra en H/H",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Perno de bandeja",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN CON PINTURA DE PARACHOQUE KIT GR SPORT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CUBRE PICK UP",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "cubierta pick up",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ACEITE 5W20 LIQUI MOLY",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION TAMBORES TRASEROS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ACEITE 5W20 LIQUI MOLY 8 LITROS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ACEITE DE MOTOR 5W20 8LITROS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION DE TAMBORES TRASEROS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO DE ACEITE DE DIFERENCIAL MAS MANO DE OBRA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "FLUSH MOTOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "AMPOLLETAS LED HB3 Y H11",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION POR KILOMETRAJE SHHY-43",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO PASTILLAS DELANTERAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "RECTIFICADO DISCOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCIÓN POR KILOMETRAJE LZPX-39",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalacion con pintura dx-modelo Z",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Actualizacion de Hilux 2016-2020 a 2024 Z Model Body Kit s/pintura",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalacion body kit Z model pintura",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "descuento",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instacion body kit pintura",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOTA AGUAS PARA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PRODUCTOS PARA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Instalación productos HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalación cámara",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "instlación manilla crm",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "SERVICIO DE INSTALACIÓN PRODUCTOS AD",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalacion pisaderas",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOTA AGUAS PARA HILUX 2016-2024",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION MANILLA CROMADA PORTALON",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PISADERAS PARA HIUX 2016-2024",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PARACHOQUE TRASERO CROMADO PARA HILUX 2016-2024",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalacion de pisaderas",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN DE PROTECTOR INFERIOR DE MOTOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA DE CAPOT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE 4 DESPLAZADORES",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA Y DESABOLLADURA DE CAPOT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PISADERAS PLASTICAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PARACOQUE TRACERO CROMADO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Par de focos traseros",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Desabolladura y Pintura costado trasero derecho de pick up",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Pintado de parachoques delantero",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "limpieza de tapiz",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Limpieza de tapiz interior y chasis",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Foco Faenero led",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "pintado de costado derecho de parachoque trasero",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Pintado y desabollado de techo exterior",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Foco trasero izquierdo",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR DE GUANTES DE CABRITILLA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR DE GUATES DE CABRITILLA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "SACO DE YUTE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "JGO DE ALICATE DE 3 PIESAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE ATORNILLADORES CRUZ Y PALETA 6 PIEZAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "LINTERNA LED A PILAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAQUETE DE FOSFOROS ESTANDAR 10 CAJAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAQUETE DE VELAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PALA PLEGABLE METALICA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MANTA POLAR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ESLINGA 4 TONELADS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "GRILLETE 5/8",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAQUETE DE SAL GRUESA 2KILOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ESCOBILLA PARA NIEVE CON RASPADOR PLASTICO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ESPATULA PLASTICA.01",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOTIQUIN 105 PIESAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ALINEAMIENTO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "SERVICIO DE GRUA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACION POR PROBLEMAS DE ENCENDIDO UNIDAD TVVB-29",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACIÓN POR PROBLEMAS DE ENCENDIDO UNIDAD TVVB-29",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "LAVADO DE TAPIZ COMPLETO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Actualización Hilux DX 2016 - 2020 a 2024 Z MODEL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Z MODEL BODU KIT 2016 - 2020 a 2024",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Actualizacion HILUX DX a BODY KIT Z MODEL 2024",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION Z MODEL C/ PINTURA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ACTUALIZACION HILUX DX a HILUX SRV body kit",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION body kit SRV 2024",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "KIT ACTUALIZACIÓN DX 2016-2024 Z MODEL BODY KIT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA DE PARACHOQUE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN SNORKEL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN BARRA DEPORTIVA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN Y PINTURA KIT DE ACTUALIZACIÓN",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "VIDRIO TRASERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "INTERCOOLER",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACIÓN DE CODO DE PLASTICO DEL INTERCOOLER",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO DE BOMBA DE AGUA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO DE AMPOLLETAS DELANTERAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "LIMPIEZA Y MANTENCION DE BALATAS TRASERAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANO DE OBRA MANTENCION",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ACEITE LIQUI MOLY 5W20",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ACEITE DEDIFERENCIAL TRASERO 75W90 VALVOLINE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "TAPA DE RADIADOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "REFRIGERANTE DE MOTOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "TRABAJO DE TORNERIA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MENTENCIÓN POR KILOMETRAJE FORTUNER",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE ELEVANTE COMPLETO TOYOTA FORTUNER",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BARRA ANTI VUELCO EXTERNA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BARRA ANTI VUELCO INTERNA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "REJILLA MALLA CUBRE LUNETA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PERTIGA 10 PIES LED ROJO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CINTA REFLECTANTE VERDE LIMON",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "TRIANGULOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN KIT DE ELEVANTE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CUÑAS POLIURETANO 5TON",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PORTA CUÑAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CABLE ACERADO PARA CUÑAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BALIZA AZUL O AMBAR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOCINA DE REVERSA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "DISPOSITIVO TERCER OJO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CHECK POINT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION TERCER OJO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "INTALACION ELECTRICA BALIZA PERTIGA FOCO FAENERO Y BOCINA DE REVERSA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CHALECO REFLECTANTE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "REJILLA MALA CUBRE LUNETA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CUÑAS POLIURETANO 5 TON",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR DE DISCOS DE FRENO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PASTILLAS DELANTERAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCIÓN DE CHEVROLET",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalacion pisaderas hilux srv",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalacion parachoque cromado para hilux",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalacion manilla con camara",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCIÓN POR KILOMETRAJE TGJW-90",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalacion camara para hilux",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "RODAMIENTO DE MASATRASERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "TAPABARRO DELANTERO IZQUIERDO MAXUS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION POR KILOMETRAJE FORTUNER",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION POR KILOMETRAJE PHSX-59",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MANTENCION POR KILOMETRAJE TGJW-48",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CUBRE BALIZA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MALLA ELASTICA CUBRE PICK UP",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "1 CUÑA MAS PIOLA Y SEGURO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "1 BOTIQUIN",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "1 PAR DE GUANTES DE CABRITILLA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ADBLUE 1/4",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA Y REPARACION DE TECHO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA Y REPARACION EN TECHO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ADBLUE 5/8",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MALLA ELASTICA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "3 CANDADO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BANDERIN DE PERTIGA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "LUZ DE PERTIGA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PITADO DE COSTADO TRASERO PICK UP",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTADO EN PORTALON TRASERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ADBLUE 1/5",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACION DE ACIENTO QUEMADO CON CIGARRO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "1REPARACION DE COSTADO IZQUIERDO MAS DESABOLLADO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BANDERIN DE PERTIGA1",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "LIMPIEZA DE TAPIZ INTERIOR Y EXTERIOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACION DE CSTADO DERECHO DE PICK UP",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MALLACUBRE PICK UP ELASTICA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "1BOTIQUIN",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CUBRE BALIZA 1",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PARACHOQUE DELANTERO MAS PINTURA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MANILLA DE PORTALON TRASERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "KIT DE ACTUALIZACIÓN DX A HILUX SRV 2024",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA PARACHOQUE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA DE CAPOT DELANTERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION DE MASCARA DELANTERA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "DESABOLLADO DE CAPOT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "DESABOLLADO DE CAPOT DELANTERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALAICON DE MASCARA DELANTERA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "OPTICO TRASERO LED HILUX SRV IZQUIERDO (L)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "OPTICO TRASERO LED HILUX SRV IZQUIERDO (R)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ACTUALIZACION DX A SRV Z MODEL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION BODY KIT DX A SRV",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "DESABOLLADURA TRASERO LADO DERECHO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACION DE PINTURA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN DE PARACHOQUE TRASERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PILUDO CAMIONETA COMPLETA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACIÓN PINTURA TAPABARRO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACIÓN DE NEUMATICO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACION DE NEUMATICO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACION DE NEUMATICO ( OBS)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION FAROLES",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PERTIGA 12PIES",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "kit bota agua",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA PUERTA ABIERTA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "INTALACION KIT GR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PARA CHOQUE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PISADERA TRD",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION KIT DE LEVANTE REGULABLE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PANEL INTERIOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PROTECTOR INFERIOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO DE INMOVILIZADOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BODY KIT Z MODEL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION BODY KIT Z MODEL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION KIT LEVANTE DELANTERO/TRASERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION BOTA AGUA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PARACHOQUE TRASERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION BARRA DEPORTIVA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION VOLANTE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PISADERAS TRD",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION KIT DE LEVANTE REGULABLE 10P",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION KIT PANEL INTERIOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION KIT GR SPORT BODY KIT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ACTUALIZACION BODY KIT DX A SRV 2024",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Seguro de rueda pit bull",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Cortador de cinturon de seguridad",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOTA AGUAS . PARA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION PARRILLA DELANTERA HILUX GR SPORT COL LUZ LED",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "perno x",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PERTIGA 6 PIES LED ROJO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "Cambio de 4 neumaticos MT 245/70R17",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOTA AGUAS PARA HILUX REVO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalación manilla cromada srv",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "Llanta R17 para ARO NEGRO MATE 17*90",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ARO TOYOTA: ET 25 17*7,5",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "RETEN DE CAJA DE TRANSFERENCIA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CRUCETA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BANDEJA INFERIOR IZQUERDA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BANDEJA INFERIOR DERECHA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PASTILLAS DELANTERAS GTX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BALATAS TRASERAS GTX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ACEITE DE CAJA DE TRANSFERENCIA 1 litro",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "RETEN CAJA DE TRANSFERENCIA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "JUEGO DE BANDEJA INFERIOR (IZQ - DER)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ACEITE DE CAJA DE TRANSFERENCIA 1 Lts",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BALIZA AMBAR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "parachoque cromado hilux",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PERTIGA CON LED ROJO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PERTIGA CON LED LUZ ROJA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CABLE PARA CUÑAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PERTIGA LUZ LED COLOR ROJO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN ACTUALIZACIÓN",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN PISADERA SRV",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MONTAJE ARO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "alineamiento para aro",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA COMPLETA A PUERTA ABIERTA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "SERVICIO DE PINTURA A PUERTA ABIERTA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "SERVCIO DE PINTURA A PUERTA CERRADA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA A PUERTA ABIERTA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "EXTINTOR 10 KILOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PORTA EXTINTOR DE 10 KILOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "TUERCAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "TRABA TUERCAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "NEUMATICO 245/70/R17 MT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ARO DE ALUMINIO N° 17",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BARRA ANTIVUELCO INTERNA (i)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BARRA ANTIVUELO EXTERNA (e)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "LAMINAS ANTIEXPLOSIVAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "FOCO FAENERO (f)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MALLA CUBRE LUNETA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CUÑAS STON",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "SUGESIÓN Y SEGURO DE CUÑAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "JUEGO DE LLAVES",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "GATA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOTIQUÍN 105 PIEZAS (epp)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "NEUMATICO 245/65/ R17",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ARO METALICO N° 17",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "HILUX DX 2016-2020 A HILUX SRV 2024 BODY KIT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ACTUALIZACIÓN DX 2016 A 2024 Z MODEL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ACTUALIZACION DX 2016 A 2024 SRV",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ASIENTOS DELANTEROS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ASIENTOS PASAJEROS TRASERO HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ASIENTO DELANTERO PARA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ASIENTO TRASERO PARA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOTA AGUA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "NEUMATICOS WESTLAKE 265/60R18",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ALINEACION",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "NEUMATICOS WESTLAKE 265/60R18 MT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "JUEGO DE BANDEJAS INFERIOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PASTILLAS DELANTERAS GTX HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ACEITE CAJA TRANSFERENCIA (1LT)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PARACHOQUE TRASERO ORIGINAL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BARRA ANTIVUELCO DEPORTIVA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BARRA ANTIVUELCO DEPORTIVA HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BARRA ANTIVUELCO HILUX SPORT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ACTUALIZACION DX A SRV BODY KIT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION KITACTUALIZACION",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MANILLA CROMADA PARA PORTALON HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "FILTRO DE POLEN",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "TAPAS NEBLIENROS -SRV (set)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PASTILLAS DELANTERAS GTR HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BALATA GTX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "kit de embrague EXDY con rodamiento MRK",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE EMBRAGUE RFC",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "NEUMATICO WEST LAKE 265/65R17",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ARO NEGRO MATTE 17\" ET -12",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "NEUMATICO WEST LAKE 265/65R17 (x4)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ARO NEGRO MATE 17\" ET-12",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "NEUMATICO WEST LAKE 265/65R17 /x4/",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CORREA DE ACC X1 FILTRO DE POLEN X2 SENSOR DE ARBOL DE LEVASX2 FILTRO DE AIRE X3 SENSOR DE CIGUEÑALX1 FILTRO DE ACEITE X1",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CORREA DE DISTRIBUCIONX1 VALVULA VVTI ADMX1 VALVULA VVTI ESC X1",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ACEITE LIQUI MOLY 5W30 DIAGNOSTISCO MANO DE OBRA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "pintura y desabolladora de puertas",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "DESABOLLADURA Y PINTURA DE PUERTAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PORTA FILTRO DE COMBUSTIBLE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MANGUERA TUBO REFRIGERANTE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "prueba",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "H.H DIAGNOSTICO,INSTALACIÓN,RADIO,PARLANTES Y SUB WOOFER",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACIÓN CIERRE CENTRALIZADO (CONTROL)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "AMORTIGUADORES",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOMBA HIDRAULICXA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "LIQUIDO HIDRAULICO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "H.H",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE LEVANTE TRASERO PENDIENTE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE LEVANTE DELANTERO PENDIENTE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ALINEAMIENTO PENDIENTE COT 468",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "BODY KIT ACTUALIZACION HILUX XD A SRV 2024",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "KIT DE ACTUALIZACION XD A SRV 2024",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "KIT ACTUALIZACION MODELO Z",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PICKUP",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "FENDERS SRV",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN KIT MODELO Z",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN SNORKEL OJO AGUILA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN PISADERAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN FENDERS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "MONTAJE PICKUP",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA PIEZAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ACTUALIZACION MODELO Z",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN MODELO Z",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACI´PN SNORKEL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACIÓN ASIENTO DE CHOFER",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "REPARACION DE PISADERAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA DE TAPABARRO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PEGADO DE FENDERS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO DE COMPRESOR DE AIRE ACONDICIONADO MANO DE OBRA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ENVIO DE COMPRESOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ACTUALIZACION 2016- 2019 HILUX A 2022 HILUX TUNDRA BODY KIT(CON FOCOS NEGROS)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PULIDO COMPLETO DE HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "FUELLE DE HOMOCINETICA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "GRASA PARA HOMOCINETICA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "RECTIFICADO VOLANTE DE INERSIA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BATERIA HANKOOK 55D23L",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO KIT DE EMBREAGUE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTAR PARACHOQUE Y LADO IZQUIERDO DEL PICKUP",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION DE KIT PANEL INTERIOR GR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CAMARA DE SOMNOLENCIA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MOTOR VIBRADOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION DE EQUIPOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "GPS AVL TELTONIKA FMC125",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION DE EQUIPO GPS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PARABRISAS DELANTERO DE CMAION JAC N50",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "LAMINADO DE PARABRISAS LAMINAS 7 MICRAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "LAMINADO DE VIDRIOS DE PUERTAS IZQ Y DER DE 4 MICRAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "BALIZA AMBAR INSTALADO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR DE CUÑAS 5TON",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR DE PORTA CUÑAS METALICAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PIOLA DE PORTA CUÑAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CINTA REFLECTANTE DE COLOR VERDE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "FRAZADAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PALA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CAJA DE INVIERNO PLASTICA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ZACO YUTE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "LINTERNA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR CUÑAS DE MADERA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ESTROBO 5/8",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR DE GRILLETES 5/8",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MEDIDOR D EPRECION DE NEUMATICOS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR REFLECTANTE DE CINTURON",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "MARTILLO DE SEGURIDAD",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "DESTORNILLADOR DE CRUZ",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "DESTORNILLADOR DE PALETA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ALICATE UNIVERSAL",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOTIQUIN. 105 .PIESAS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "3 UNIDADES DE CADENAS DOBLE RODADO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "6 UN DE TENSOR O PULPO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN DE VOLANTE GR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN INFERIOR DE MOTOR HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN MANILLA NEGRO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "0INSTALACIÓN KIT DE PANEL INTERIOR ESTILO GR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN DE PROTECTOR INFERIOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN DE PISADERAS SRV",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PARACHOQUE TRASERO ORIGINAL HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "LOGOS GR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO DE PERTIGA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE SEGURIDAD METALICO ECU DE MOTOR Y OBD2",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE SEGURIDAD METALICO DE ECU MOTORO Y OBD2",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE SEGURIDAD DE ECU MOTOR Y OBD2",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE SEGURIDAD METALICO DE ECU MOTOR Y OBD2",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PIEZA DE PINTURA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT SRV",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "FENDERS DE PARACHOQUE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ENDEREZADO PARTE TRASERO DEL PICKUP LADO DERECHO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "OPTICO TRASERO AMPOLLETA HILUX 2016-2019 DERECHO (R )",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "AMORTIGUADORES DELANTEROS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BOMBA HIDRAULICA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO DE MUELLE TRASERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE LEVANTE TRASERO PENDIENTE OT 468",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE LEVANTE DELANTERO PENDIEWNETE OT 468",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "ALINEAMIENTO PENDIENTE 468",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "BIELETA BARRA ESTABILIZADORA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "RETROVISOR LADO PILOTO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "OPTICO TRASERO AMPOLLETA HILUX 2016",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PISADERAS SRV",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN DEL KIT PINTURA FENDER Y PARACHOQUE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PICKUP TRASERO HILUX SR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN DE PICKUP TRASERO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION DE CUBRE PICK UP",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "CUBRE PIK UP",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA TAPABARROS R/L",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA TAPABARROS R/L (1.5 PIEZA POR TAPABARRO)",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "KIT DE ACTUALIZACION DX A MODELO Z",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN DE KIT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "CAMBIO DE 4 NEUMATICOS WESTLAKE 245/75R16 MT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "REVICION DE AIRE ACONDICIONADO Y RECARGA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PULPOS DE 4 PUNTAS TRENSADO",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "AGUA SIN GAS 3 LITROS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACIÓN DE UN INMOVILIZADOR O BLOQUEO DE MOTOR",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "KIT DE ACTUALIZACION MODELO Z",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "INSTALACION DE KIT",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "instalacion del kit",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "FILTRO DE AIRE",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR DE RAMAL DE FOCOS DELANTEROS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "PAR DE RAMALES FOCOS DELANTEROS",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "KIT DE ACTUALIZACIÓN SRV",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "SNORKEL ESTILO OJO SAFARI HILUX",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "especifico",
+   "codigo": null,
+   "nombre": "PINTURA COMPLETA APUERTA CERRADA",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "KIT DE EMBRAGUEE EXEDY CON RODAMIENTO MRK",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  },
+  {
+   "tipo": "estandar",
+   "codigo": null,
+   "nombre": "ENSANCHE HILUX SRV",
+   "descripcion": null,
+   "precio": 0,
+   "stock": 0
+  }
+ ],
+ "vehicles": [
+  {
+   "patente": "PFBG-56",
+   "marca": "Toyota",
+   "propietario": "CARLOS RAMIREZ"
+  },
+  {
+   "patente": "VHXZ-70",
+   "marca": "Toyota",
+   "propietario": "TRICONOS MINEROS S.A."
+  },
+  {
+   "patente": "VHXZ-71",
+   "marca": "Toyota",
+   "propietario": "TRICONOS MINEROS S.A."
+  },
+  {
+   "patente": "PHWJ-39",
+   "marca": "Toyota",
+   "propietario": "Cristian Ramos"
+  },
+  {
+   "patente": "HPWJ-39",
+   "marca": "Toyota",
+   "propietario": "Cristian Ramos"
+  },
+  {
+   "patente": "SHRC-83",
+   "marca": "Ford",
+   "propietario": "FUNDACION EDUCACIONAL ESCONDIDA CEIM"
+  },
+  {
+   "patente": "PHXL-68",
+   "marca": "Toyota",
+   "propietario": "RAUL ALEJANDRO MAMANI ANZA"
+  },
+  {
+   "patente": "SJHG-13",
+   "marca": "Ford",
+   "propietario": "VANESSA JOHANA W ACHTENDORFF RIVEROS"
+  },
+  {
+   "patente": "SHHY-43",
+   "marca": "Nissan",
+   "propietario": "coseducam Patricio Reyes"
+  },
+  {
+   "patente": "SHHY-83",
+   "marca": "Nissan",
+   "propietario": "coseducam Patricio Reyes"
+  },
+  {
+   "patente": "LZPX-39",
+   "marca": "Nissan",
+   "propietario": "coseducam Patricio Reyes"
+  },
+  {
+   "patente": "SHHY-44",
+   "marca": "Nissan",
+   "propietario": "coseducam Patricio Reyes"
+  },
+  {
+   "patente": "PJLH-59",
+   "marca": "Toyota",
+   "propietario": "Gonzalo Silver Urrelo Cayo"
+  },
+  {
+   "patente": "JPHJ-33",
+   "marca": "Ford",
+   "propietario": "CRISTIAN ALFONSO REINOSO IBACHE"
+  },
+  {
+   "patente": "SHDY-98",
+   "marca": "Honda",
+   "propietario": "CRISTIAN ALFONSO REINOSO IBACHE"
+  },
+  {
+   "patente": "LCDD-75",
+   "marca": "Toyota",
+   "propietario": "YANDIRA PACHECO"
+  },
+  {
+   "patente": "STHT-30",
+   "marca": "Maxus",
+   "propietario": "ASOC.GREMIAL CALICHE A.G."
+  },
+  {
+   "patente": "SXHD-29",
+   "marca": "Volkswagen",
+   "propietario": "Antonio García"
+  },
+  {
+   "patente": "JHDR-95",
+   "marca": "Toyota",
+   "propietario": "ERICK MUÑOZ"
+  },
+  {
+   "patente": "KPGX-17",
+   "marca": "Toyota",
+   "propietario": "OCTAVIO BUGUEÑO"
+  },
+  {
+   "patente": "TFKK-81",
+   "marca": "Toyota",
+   "propietario": "max alfaro araya"
+  },
+  {
+   "patente": "RSXY-31",
+   "marca": "Toyota",
+   "propietario": "ALEJANDRO TOLEDO"
+  },
+  {
+   "patente": "TGLT-14",
+   "marca": "Chevrolet",
+   "propietario": "LEONIDAS ANTONIO CARRASCO DIAZ"
+  },
+  {
+   "patente": "AH-405-EG",
+   "marca": "Toyota",
+   "propietario": "nicolas campos"
+  },
+  {
+   "patente": "LKRG-77",
+   "marca": "Toyota",
+   "propietario": "MATIAS QUISPE URRELO"
+  },
+  {
+   "patente": "JFCV-54",
+   "marca": "Toyota",
+   "propietario": "SERVICIOS Y MAQUINARIAS PEDRO IBACACHE CHAVEZ E.I.R.L"
+  },
+  {
+   "patente": "PSHV-13",
+   "marca": "Toyota",
+   "propietario": "GABRIEL MEZA"
+  },
+  {
+   "patente": "SHPP-44",
+   "marca": "Toyota",
+   "propietario": "GABRIEL MEZA"
+  },
+  {
+   "patente": "SZLB-28",
+   "marca": "Kia",
+   "propietario": "FRANCISCA REYES RIVERA"
+  },
+  {
+   "patente": "AD 446SL",
+   "marca": "Toyota",
+   "propietario": "MARCELO MUZIO"
+  },
+  {
+   "patente": "BSCP-61",
+   "marca": "Ford",
+   "propietario": "PATRICIO ANTONIO REYES MONCADA"
+  },
+  {
+   "patente": "PBTT-23",
+   "marca": "Toyota",
+   "propietario": "alvaro leiva"
+  },
+  {
+   "patente": "LVVS-93",
+   "marca": "Toyota",
+   "propietario": "Yeison Adan Challapa Gomez"
+  },
+  {
+   "patente": "TCLR-87",
+   "marca": "Toyota",
+   "propietario": "CONSTRUCTORA J&C SPA o"
+  },
+  {
+   "patente": "RYXK-68",
+   "marca": "Kia",
+   "propietario": "Luis Andres Muñoz Valencia"
+  },
+  {
+   "patente": "SJYD-57",
+   "marca": "Toyota",
+   "propietario": "gilberto angel"
+  },
+  {
+   "patente": "PHYF-51",
+   "marca": "Toyota",
+   "propietario": "maikel castro"
+  },
+  {
+   "patente": "GZRG-48",
+   "marca": "Ford",
+   "propietario": "CARLOS MARTIN VARGAS ROMERO"
+  },
+  {
+   "patente": "GZRG-48.",
+   "marca": "Ford",
+   "propietario": "CARLOS MARTIN VARGAS ROMERO"
+  },
+  {
+   "patente": "GZRG-48...",
+   "marca": "Ford",
+   "propietario": "CARLOS MARTIN VARGAS ROMERO"
+  },
+  {
+   "patente": "HWGJ-55",
+   "marca": "Volkswagen",
+   "propietario": "ESTIF ROJAS ALVAREZ"
+  },
+  {
+   "patente": "PYWW-75",
+   "marca": "Hyundai",
+   "propietario": "NILDA EDUVIGIL GARRIDO SANQUEA"
+  },
+  {
+   "patente": "RYXK-89",
+   "marca": "Toyota",
+   "propietario": "BASTIAN RICARDO TORRES ORELLANA"
+  },
+  {
+   "patente": "RPHH-49",
+   "marca": "Maxus",
+   "propietario": "PABLO HUMBERTO VALDES VERGARA"
+  },
+  {
+   "patente": "PRVK-64",
+   "marca": "Maxus",
+   "propietario": "PABLO HUMBERTO VALDES VERGARA"
+  },
+  {
+   "patente": "KHKP-95",
+   "marca": "Toyota",
+   "propietario": "ALVARO MAMANI"
+  },
+  {
+   "patente": "FTWB81-9",
+   "marca": "Kia",
+   "propietario": "BRUNO OETTINGER"
+  },
+  {
+   "patente": "RGWG-33",
+   "marca": "Maxus",
+   "propietario": "PAULINA DE LOS ANGELES SILVA VASQUEZ"
+  },
+  {
+   "patente": "LKPT-10",
+   "marca": "Toyota",
+   "propietario": "MARCO CALLE ANAYA"
+  },
+  {
+   "patente": "RDDS-20",
+   "marca": "Toyota",
+   "propietario": "JOEL COLQUE"
+  },
+  {
+   "patente": "TSVC-67",
+   "marca": "Toyota",
+   "propietario": "GEOVERDE SPA"
+  },
+  {
+   "patente": "SWDK-98",
+   "marca": "Toyota",
+   "propietario": "GEOVERDE SPA"
+  },
+  {
+   "patente": "PRYL-98",
+   "marca": "Toyota",
+   "propietario": "NATALIA PAULINA ARAYA CHACAMA"
+  },
+  {
+   "patente": "RZHJ-66",
+   "marca": "Toyota",
+   "propietario": "FERNANDO CORDERO MARTINI"
+  },
+  {
+   "patente": "HPXD-84",
+   "marca": "Toyota",
+   "propietario": "FERNANDO CORDERO MARTINI"
+  },
+  {
+   "patente": "RPYS-14",
+   "marca": "Toyota",
+   "propietario": "VALENTIN ESTEBAN CHACANA MUÑOZ"
+  },
+  {
+   "patente": "TVLV-84",
+   "marca": "Volkswagen",
+   "propietario": "LEANDRO ZARATE"
+  },
+  {
+   "patente": "LVCY-61",
+   "marca": "Chevrolet",
+   "propietario": "VERONICA MARCELA LEYTON GALVEZ"
+  },
+  {
+   "patente": "KXSR-20",
+   "marca": "Volkswagen",
+   "propietario": "FERRETERIA INDUSTRIAL SPA"
+  },
+  {
+   "patente": "PKJH-95",
+   "marca": "Toyota",
+   "propietario": "ASOCIACION INDIGENA AYMARA GANADERA Y CULTURAL QUE -"
+  },
+  {
+   "patente": "LRZG-70",
+   "marca": "Toyota",
+   "propietario": "DAVID CAYO"
+  },
+  {
+   "patente": "PTJB-83",
+   "marca": "Toyota",
+   "propietario": "Ramón Vásquez Quispe"
+  },
+  {
+   "patente": "VFDY-21",
+   "marca": "Toyota",
+   "propietario": "ROLANDO VILLCA HUARACHI"
+  },
+  {
+   "patente": "PDWH-28",
+   "marca": "Toyota",
+   "propietario": "PAULO ANDRES STRANGE OLIVARES"
+  }
+ ]
+}

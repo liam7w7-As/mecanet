@@ -11,6 +11,7 @@ import {
 } from 'sequelize-typescript';
 
 import { CatalogItem } from './CatalogItem.js';
+import { Warehouse } from './Warehouse.js';
 import { WorkOrder } from './WorkOrder.js';
 
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
@@ -109,6 +110,15 @@ export class WorkOrderItem extends Model<
   })
   declare stockConsumidoAt: Date | null;
 
+  @ForeignKey(() => Warehouse)
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  declare stockConsumidoWarehouseId: number | null;
+
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;
 
@@ -120,4 +130,7 @@ export class WorkOrderItem extends Model<
 
   @BelongsTo(() => CatalogItem)
   declare catalogItem?: CatalogItem;
+
+  @BelongsTo(() => Warehouse)
+  declare consumedWarehouse?: Warehouse;
 }

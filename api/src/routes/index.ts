@@ -13,6 +13,7 @@ import { reportRouter } from './report.routes.js';
 import { searchRouter } from './search.routes.js';
 import { userRouter } from './user.routes.js';
 import { vehicleRouter } from './vehicle.routes.js';
+import { warehouseRouter } from './warehouse.routes.js';
 import { workOrderRouter } from './work-order.routes.js';
 
 export const apiRouter = Router();
@@ -58,3 +59,6 @@ apiRouter.use('/reports', reportRouter);
 
 // Catálogo unificado de taller (/api/catalog)
 apiRouter.use('/catalog', catalogRouter);
+
+// Almacenes y movimientos de stock (/api/warehouses)
+apiRouter.use('/warehouses', warehouseRouter);

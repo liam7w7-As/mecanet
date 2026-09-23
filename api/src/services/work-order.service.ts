@@ -22,6 +22,7 @@ import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
+import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { generateQuotationCode, generateWorkOrderCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
 
@@ -86,6 +87,7 @@ interface WorkOrderItemPublic {
   stockConsumido: boolean;
   stockConsumidoCantidad: number;
   stockConsumidoAt: Date | null;
+  stockConsumidoWarehouseId: number | null;
   catalogItem?: WorkOrderItemCatalogPublic | null;
 }
 
@@ -300,6 +302,7 @@ const itemsInclude = {
     'stockConsumido',
     'stockConsumidoCantidad',
     'stockConsumidoAt',
+    'stockConsumidoWarehouseId',
   ],
   include: [
     {
@@ -600,6 +603,7 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
       stockConsumido: item.stockConsumido,
       stockConsumidoCantidad: item.stockConsumidoCantidad,
       stockConsumidoAt: item.stockConsumidoAt,
+      stockConsumidoWarehouseId: item.stockConsumidoWarehouseId,
       catalogItem: item.catalogItem
         ? {
             id: item.catalogItem.id,
@@ -864,23 +868,31 @@ const lockCatalogItem = async (
   return catalogItem;
 };
 
+interface StockConsumptionContext {
+  userId: number;
+  referencia: string;
+}
+
 const restoreConsumedStock = async (
   items: WorkOrderItem[],
   transaction: Transaction,
+  ctx: StockConsumptionContext,
 ): Promise<void> => {
   for (const item of items) {
     if (!item.stockConsumido || item.catalogItemId === null || item.stockConsumidoCantidad <= 0) {
       continue;
     }
 
-    const catalogItem = await lockCatalogItem(item.catalogItemId, transaction);
-    if (catalogItem.tipo !== 'parte') {
-      continue;
-    }
-
-    await catalogItem.update(
-      { stock: Number(catalogItem.stock) + item.stockConsumidoCantidad },
-      { transaction },
+    await restoreForWorkOrder(
+      {
+        catalogItemId: item.catalogItemId,
+        cantidad: item.stockConsumidoCantidad,
+        warehouseId: item.stockConsumidoWarehouseId ?? null,
+        referencia: ctx.referencia,
+        motivo: `Devolución por reedición de ${ctx.referencia}`,
+        userId: ctx.userId,
+      },
+      transaction,
     );
   }
 };
@@ -888,6 +900,7 @@ const restoreConsumedStock = async (
 const consumeCompletedPartStock = async (
   items: WorkOrderItem[],
   transaction: Transaction,
+  ctx: StockConsumptionContext,
 ): Promise<void> => {
   for (const item of items) {
     if (
@@ -904,18 +917,22 @@ const consumeCompletedPartStock = async (
     }
 
     const units = getPartUnitsToConsume(item);
-    if (Number(catalogItem.stock) < units) {
-      throw ApiError.badRequest(
-        `Stock insuficiente para ${catalogItem.nombre}. Stock actual: ${catalogItem.stock}, requerido: ${units}`,
-      );
-    }
-
-    await catalogItem.update({ stock: Number(catalogItem.stock) - units }, { transaction });
+    const consumption = await consumeForWorkOrder(
+      {
+        catalogItemId: catalogItem.id,
+        cantidad: units,
+        referencia: ctx.referencia,
+        motivo: `Consumo en ${ctx.referencia} - ${item.descripcion}`.slice(0, 255),
+        userId: ctx.userId,
+      },
+      transaction,
+    );
     await item.update(
       {
         stockConsumido: true,
         stockConsumidoCantidad: units,
         stockConsumidoAt: new Date(),
+        stockConsumidoWarehouseId: consumption.warehouseId,
       },
       { transaction },
     );
@@ -1404,7 +1421,10 @@ export const createWorkOrder = async (
       const createdItems = await WorkOrderItem.bulkCreate(buildItemsPayload(workOrder.id, data.items), {
         transaction,
       });
-      await consumeCompletedPartStock(createdItems, transaction);
+      await consumeCompletedPartStock(createdItems, transaction, {
+        userId,
+        referencia: workOrder.codigo,
+      });
     }
 
     await createMirrorQuotation(workOrder, data.items, userId, transaction);
@@ -1472,14 +1492,20 @@ export const updateWorkOrder = async (
         transaction,
         lock: Transaction.LOCK.UPDATE,
       });
-      await restoreConsumedStock(existingItems, transaction);
+      await restoreConsumedStock(existingItems, transaction, {
+        userId,
+        referencia: workOrder.codigo,
+      });
       await WorkOrderItem.destroy({ where: { workOrderId: id }, transaction });
 
       if (data.items.length > 0) {
         const createdItems = await WorkOrderItem.bulkCreate(buildItemsPayload(id, data.items), {
           transaction,
         });
-        await consumeCompletedPartStock(createdItems, transaction);
+        await consumeCompletedPartStock(createdItems, transaction, {
+          userId,
+          referencia: workOrder.codigo,
+        });
       }
     }
 
@@ -2010,7 +2036,10 @@ export const updateWorkOrderExecution = async (
         },
         { transaction },
       );
-      await consumeCompletedPartStock([item], transaction);
+      await consumeCompletedPartStock([item], transaction, {
+        userId,
+        referencia: workOrder.codigo,
+      });
     }
 
     if (data.reporte) {

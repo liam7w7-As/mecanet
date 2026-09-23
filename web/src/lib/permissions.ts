@@ -29,6 +29,7 @@ export const MODULE_LABELS: Record<Module, string> = {
   comercial: 'Comercial',
   finanzas: 'Finanzas',
   flota: 'Flota',
+  almacen: 'Almacén',
   admin: 'Administración',
 };
 
@@ -40,6 +41,7 @@ export const ROLE_PERMISSIONS: RolePermissionMap = {
     comercial: ALL_ACTIONS,
     finanzas: ALL_ACTIONS,
     flota: ALL_ACTIONS,
+    almacen: ALL_ACTIONS,
     admin: ALL_ACTIONS,
   },
   admin: {
@@ -47,11 +49,13 @@ export const ROLE_PERMISSIONS: RolePermissionMap = {
     comercial: ALL_ACTIONS,
     finanzas: ALL_ACTIONS,
     flota: ALL_ACTIONS,
+    almacen: ALL_ACTIONS,
     admin: ALL_ACTIONS,
   },
   jefe: {
     taller: ['read', 'create', 'update', 'delete', 'export'],
     comercial: ['read', 'create', 'update', 'delete', 'export'],
+    almacen: ['read', 'create', 'update', 'export'],
     flota: ['read'],
     admin: ['read'],
   },
@@ -61,11 +65,13 @@ export const ROLE_PERMISSIONS: RolePermissionMap = {
   vendedor: {
     taller: ['read', 'create', 'update'],
     comercial: ['read', 'create', 'update', 'export'],
+    almacen: ['read'],
     flota: ['read'],
   },
   bodeguero: {
     taller: ['read', 'update'],
     comercial: ['read'],
+    almacen: ['read', 'create', 'update', 'export'],
     flota: ['read'],
   },
   finanzas: {

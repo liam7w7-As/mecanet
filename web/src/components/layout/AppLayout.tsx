@@ -8,6 +8,7 @@ import {
   ReceiptText,
   UserCog,
   Users,
+  Warehouse,
   Wrench,
   X,
 } from 'lucide-react';
@@ -43,6 +44,7 @@ const navigationItems: NavigationItem[] = [
   { label: 'Clientes', path: '/clients', icon: Users, variant: 'hover-lift', permissions: [{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }] },
   { label: 'Vehículos', path: '/vehicles', icon: Car, variant: 'slide-right', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
   { label: 'Catálogo', path: '/catalog', icon: BookOpen, variant: 'wiggle', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
+  { label: 'Almacenes', path: '/warehouses', icon: Warehouse, variant: 'bounce', permissions: [{ modulo: 'almacen', accion: 'read' }] },
   { label: 'Usuarios', path: '/users', icon: UserCog, variant: 'spin', permissions: [{ modulo: 'admin', accion: 'read' }] },
 ];
 

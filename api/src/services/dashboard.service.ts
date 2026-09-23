@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+import { Op, col } from 'sequelize';
 
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -21,9 +21,13 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
   const pendingQuotationWhere = {
     estadoPago: { [Op.in]: pendingQuotationStatuses },
   };
+  // Crítico: bajo el mínimo configurado, o (sin mínimo) entre 0 y 5.
   const criticalStockWhere = {
     tipo: 'parte' as const,
-    stock: { [Op.between]: [0, 5] },
+    [Op.or]: [
+      { stockMinimo: { [Op.gt]: 0 }, stock: { [Op.lte]: col('stock_minimo') } },
+      { stockMinimo: 0, stock: { [Op.between]: [0, 5] } },
+    ],
   };
   const user = await User.findByPk(userId, {
     attributes: ['id'],
@@ -69,7 +73,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     }),
     CatalogItem.findAll({
       where: criticalStockWhere,
-      attributes: ['id', 'codigo', 'nombre', 'stock'],
+      attributes: ['id', 'codigo', 'nombre', 'stock', 'stockMinimo'],
       order: [
         ['stock', 'ASC'],
         ['nombre', 'ASC'],
@@ -113,6 +117,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
       codigo: item.codigo,
       nombre: item.nombre,
       stock: Number(item.stock),
+      stockMinimo: Number(item.stockMinimo ?? 0),
     })),
     unlinkedQuotations: unlinkedQuotations.map((quotation) => ({
       id: quotation.id,

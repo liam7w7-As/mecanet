@@ -34,7 +34,7 @@ export declare const createCashMovementSchema: z.ZodObject<{
     descripcion: string;
     monto: number;
     metodo: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro";
-    categoria: "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro" | "ajuste";
+    categoria: "ajuste" | "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro";
     referencia?: string | undefined;
     fecha?: string | undefined;
 }, {
@@ -42,7 +42,7 @@ export declare const createCashMovementSchema: z.ZodObject<{
     descripcion: string;
     monto: number;
     metodo: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro";
-    categoria: "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro" | "ajuste";
+    categoria: "ajuste" | "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro";
     referencia?: string | undefined;
     fecha?: string | undefined;
 }>;

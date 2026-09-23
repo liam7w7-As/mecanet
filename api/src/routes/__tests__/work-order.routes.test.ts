@@ -10,8 +10,11 @@ import { Quotation } from '../../models/Quotation.js';
 import { QuotationItem } from '../../models/QuotationItem.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
+import { StockBalance } from '../../models/StockBalance.js';
+import { StockMovement } from '../../models/StockMovement.js';
 import { User } from '../../models/User.js';
 import { Vehicle } from '../../models/Vehicle.js';
+import { Warehouse } from '../../models/Warehouse.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
 import { WorkOrderInspection } from '../../models/WorkOrderInspection.js';
 import { WorkOrderItem } from '../../models/WorkOrderItem.js';
@@ -69,6 +72,18 @@ const authCookie = (cookies: LoginCookies): string[] => [
   `csrf_token=${cookies.csrfToken}`,
 ];
 
+const deletePrefixStockData = async (): Promise<void> => {
+  const prefixItems = await CatalogItem.findAll({
+    where: { codigo: { [Op.like]: `${TEST_CATALOG_PREFIX}%` } },
+    paranoid: false,
+  });
+  const itemIds = prefixItems.map((item) => item.id);
+  if (itemIds.length > 0) {
+    await StockMovement.destroy({ where: { catalogItemId: itemIds }, force: true });
+    await StockBalance.destroy({ where: { catalogItemId: itemIds }, force: true });
+  }
+};
+
 const deleteCurrentYearWorkOrders = async (): Promise<void> => {
   const workOrders = await WorkOrder.findAll({
     where: { codigo: { [Op.like]: `OT-${TEST_YEAR}-%` } },
@@ -101,6 +116,7 @@ describe('Work Order Routes (E2E)', () => {
   beforeAll(async () => {
     await sequelize.authenticate();
     await deleteCurrentYearWorkOrders();
+    await deletePrefixStockData();
 
     const existingVehicles = await Vehicle.findAll({
       where: { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
@@ -196,6 +212,7 @@ describe('Work Order Routes (E2E)', () => {
 
   afterAll(async () => {
     await deleteCurrentYearWorkOrders();
+    await deletePrefixStockData();
 
     const testVehicles = await Vehicle.findAll({
       where: { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
@@ -573,6 +590,13 @@ describe('Work Order Routes (E2E)', () => {
       precio: 12000,
       stock: 3,
     });
+    const central = await Warehouse.findOne({ where: { codigo: 'CENTRAL' } });
+    expect(central).not.toBeNull();
+    await StockBalance.create({
+      warehouseId: central!.id,
+      catalogItemId: part.id,
+      cantidad: 3,
+    });
 
     const createResponse = await request(app)
       .post('/api/work-orders')
@@ -616,10 +640,18 @@ describe('Work Order Routes (E2E)', () => {
     expect(completedResponse.body.workOrder.items[0]).toMatchObject({
       stockConsumido: true,
       stockConsumidoCantidad: 2,
+      stockConsumidoWarehouseId: central!.id,
       catalogItem: expect.objectContaining({ id: part.id, tipo: 'parte', stock: 1 }),
     });
     await part.reload();
     expect(part.stock).toBe(1);
+
+    const consumo = await StockMovement.findOne({
+      where: { catalogItemId: part.id, tipo: 'consumo_ot', warehouseId: central!.id },
+    });
+    expect(consumo).not.toBeNull();
+    expect(consumo?.saldoResultante).toBe(1);
+    expect(consumo?.referencia).toContain('OT-');
 
     const repeatedResponse = await request(app)
       .patch(`/api/work-orders/${workOrderId}`)

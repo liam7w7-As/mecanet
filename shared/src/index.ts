@@ -10,6 +10,7 @@ export * from './constants/work-order-requests.js';
 export * from './constants/quotation-status.js';
 export * from './constants/catalog-types.js';
 export * from './constants/item-operational-status.js';
+export * from './constants/stock-movement-types.js';
 export * from './schemas/index.js';
 export * from './schemas/dashboard.schema.js';
 export * from './types/index.js';

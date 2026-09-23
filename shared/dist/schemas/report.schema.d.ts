@@ -49,7 +49,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     asesorId?: number | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;
     movimientoTipo?: "ingreso" | "egreso" | undefined;
-    movimientoCategoria?: "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro" | "ajuste" | undefined;
+    movimientoCategoria?: "ajuste" | "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro" | undefined;
 }, {
     estadoPago?: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado" | undefined;
     clientId?: number | undefined;
@@ -60,7 +60,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     agruparPor?: "dia" | "semana" | "mes" | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;
     movimientoTipo?: "ingreso" | "egreso" | undefined;
-    movimientoCategoria?: "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro" | "ajuste" | undefined;
+    movimientoCategoria?: "ajuste" | "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro" | undefined;
     comparar?: boolean | "true" | "false" | undefined;
 }>, {
     fechaDesde: string;
@@ -73,7 +73,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     asesorId?: number | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;
     movimientoTipo?: "ingreso" | "egreso" | undefined;
-    movimientoCategoria?: "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro" | "ajuste" | undefined;
+    movimientoCategoria?: "ajuste" | "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro" | undefined;
 }, {
     estadoPago?: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado" | undefined;
     clientId?: number | undefined;
@@ -84,7 +84,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     agruparPor?: "dia" | "semana" | "mes" | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;
     movimientoTipo?: "ingreso" | "egreso" | undefined;
-    movimientoCategoria?: "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro" | "ajuste" | undefined;
+    movimientoCategoria?: "ajuste" | "otro" | "apertura_caja" | "gasto_operativo" | "compra_repuesto" | "pago_proveedor" | "devolucion" | "retiro" | undefined;
     comparar?: boolean | "true" | "false" | undefined;
 }>;
 export type FinancialReportFilters = z.infer<typeof financialReportQuerySchema>;

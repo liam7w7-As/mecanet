@@ -6,7 +6,6 @@ import {
   CalendarDays,
   Check,
   Clock3,
-  Download,
   Landmark,
   LoaderCircle,
   LockKeyhole,
@@ -19,6 +18,7 @@ import {
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import FinanceAnalyticsDashboard from '../../components/finance/FinanceAnalyticsDashboard';
 import {
   useCashMovements,
   useCloseCashDayMutation,
@@ -28,7 +28,6 @@ import {
   useVerifyPaymentMutation,
   useVoidCashMovementMutation,
 } from '../../hooks/useFinance';
-import { useDownloadCommercialExcel } from '../../hooks/usePayments';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
@@ -106,14 +105,6 @@ interface ReviewState {
   decision: 'aprobar' | 'rechazar';
 }
 
-const reportRange = (): { fechaDesde: string; fechaHasta: string } => {
-  const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  return {
-    fechaDesde: start.toISOString().slice(0, 10),
-    fechaHasta: now.toISOString().slice(0, 10),
-  };
-};
 
 const todayIso = (): string => new Date().toISOString().slice(0, 10);
 
@@ -123,7 +114,6 @@ export const FinancePage = () => {
   const closeDayMutation = useCloseCashDayMutation();
   const createMovementMutation = useCreateCashMovementMutation();
   const voidMovementMutation = useVoidCashMovementMutation();
-  const downloadMutation = useDownloadCommercialExcel();
   const [selectedDate, setSelectedDate] = useState(todayIso());
   const dailyQuery = useDailyCashSummary(selectedDate);
   const movementsQuery = useCashMovements(selectedDate);
@@ -237,21 +227,14 @@ export const FinancePage = () => {
           <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Finanzas / Contabilidad</h1>
           <p className="mt-1 text-sm text-slate-500">Confirma transferencias, revisa recaudación y controla saldos pendientes.</p>
         </div>
-        <button
-          type="button"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white disabled:opacity-60"
-          onClick={() => downloadMutation.mutate(reportRange())}
-          disabled={downloadMutation.isPending}
-        >
-          {downloadMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
-          Exportar mes a Excel
-        </button>
       </header>
+      <FinanceAnalyticsDashboard />
 
-      {(summaryQuery.isError || dailyQuery.isError || movementsQuery.isError || downloadMutation.isError) && (
+
+      {(summaryQuery.isError || dailyQuery.isError || movementsQuery.isError) && (
         <div className="flex items-center gap-2 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {getApiErrorMessage(summaryQuery.error ?? dailyQuery.error ?? movementsQuery.error ?? downloadMutation.error, 'No fue posible cargar el panel financiero.')}
+          {getApiErrorMessage(summaryQuery.error ?? dailyQuery.error ?? movementsQuery.error, 'No fue posible cargar el panel financiero.')}
         </div>
       )}
 

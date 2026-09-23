@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../../lib/api';
 import FinancePage from '../FinancePage';
 
-import type { DailyCashSummary, FinanceSummary } from '../../../hooks/useFinance';
+import type { DailyCashSummary, FinanceSummary, FinancialAnalytics } from '../../../hooks/useFinance';
 import type { AxiosResponse } from 'axios';
 
 vi.mock('../../../lib/api', () => ({
@@ -57,6 +57,82 @@ const summary: FinanceSummary = {
   }],
 };
 
+const analytics: FinancialAnalytics = {
+  period: {
+    fechaDesde: '2026-09-01',
+    fechaHasta: '2026-09-23',
+    previousFechaDesde: '2026-08-09',
+    previousFechaHasta: '2026-08-31',
+    days: 23,
+    agruparPor: 'dia',
+  },
+  kpis: {
+    grossSales: 2400000,
+    collected: 1450000,
+    manualIncome: 20000,
+    expenses: 95000,
+    netCash: 1375000,
+    receivable: 950000,
+    averageTicket: 600000,
+    quotationCount: 4,
+    paidQuotationCount: 2,
+    workOrderConversionCount: 3,
+    collectionRate: 0.6042,
+    conversionRate: 0.75,
+  },
+  comparison: {
+    grossSales: { previous: 2000000, variationPercent: 20 },
+    collected: { previous: 1200000, variationPercent: 20.83 },
+    expenses: { previous: 100000, variationPercent: -5 },
+    netCash: { previous: 1100000, variationPercent: 25 },
+  },
+  topSellers: [{
+    id: 7,
+    nombre: 'Ana Vendedora',
+    quotationCount: 4,
+    grossSales: 2400000,
+    collected: 1450000,
+    averageTicket: 600000,
+  }],
+  topItems: [{
+    catalogItemId: 5,
+    codigo: 'REP-001',
+    nombre: 'Pastillas de freno',
+    tipo: 'parte',
+    quantity: 8,
+    revenue: 320000,
+  }],
+  topClients: [{
+    id: 8,
+    nombre: 'Cliente Demo',
+    rut: '76543210K',
+    quotationCount: 4,
+    grossSales: 2400000,
+    collected: 1450000,
+    receivable: 950000,
+  }],
+  paymentMethods: [{ metodo: 'transferencia', count: 3, amount: 1450000, share: 1 }],
+  quotationStatuses: [{ estado: 'parcial', count: 4, amount: 2400000, share: 1 }],
+  movementCategories: [{
+    categoria: 'gasto_operativo',
+    tipo: 'egreso',
+    count: 2,
+    amount: 95000,
+  }],
+  trend: [{
+    key: '2026-09-23',
+    label: '23 sep',
+    grossSales: 2400000,
+    collected: 1450000,
+    manualIncome: 20000,
+    expenses: 95000,
+    netCash: 1375000,
+  }],
+  filterOptions: {
+    advisors: [{ id: 7, nombre: 'Ana Vendedora' }],
+    clients: [{ id: 8, nombre: 'Cliente Demo', rut: '76543210K' }],
+  },
+};
 const dailySummary: DailyCashSummary = {
   fecha: new Date().toISOString().slice(0, 10),
   isClosed: false,
@@ -109,7 +185,13 @@ describe('FinancePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.get).mockImplementation((url) => Promise.resolve({
-      data: url === '/finance/day' ? dailySummary : url === '/finance/movements' ? { items: [] } : summary,
+      data: url === '/finance/day'
+        ? dailySummary
+        : url === '/finance/movements'
+          ? { items: [] }
+          : url === '/finance/analytics'
+            ? analytics
+            : summary,
     } as AxiosResponse));
     vi.mocked(api.patch).mockResolvedValue({
       data: {
@@ -162,7 +244,7 @@ describe('FinancePage', () => {
   it('renderiza métricas y transferencias pendientes', async () => {
     renderPage();
     expect(await screen.findByText('Finanzas / Contabilidad')).toBeInTheDocument();
-    expect(await screen.findByText('$1.450.000')).toBeInTheDocument();
+    expect((await screen.findAllByText('$1.450.000')).length).toBeGreaterThan(0);
     expect(screen.getByText('TRX-0091')).toBeInTheDocument();
     expect(screen.getAllByText('COT-2026-0031').length).toBeGreaterThan(0);
   });
@@ -211,6 +293,24 @@ describe('FinancePage', () => {
         monto: 5000,
         metodo: 'efectivo',
         descripcion: 'Compra de útiles',
+      }),
+    ));
+  });
+  it('muestra rankings ejecutivos y aplica filtros al análisis', async () => {
+    renderPage();
+
+    expect((await screen.findAllByText('Ana Vendedora')).length).toBeGreaterThan(0);
+    expect(screen.getByText('Pastillas de freno')).toBeInTheDocument();
+    expect(screen.getByText('Productos y servicios con mayor salida')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Filtrar por vendedor'), {
+      target: { value: '7' },
+    });
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(
+      '/finance/analytics',
+      expect.objectContaining({
+        params: expect.objectContaining({ asesorId: 7 }),
       }),
     ));
   });

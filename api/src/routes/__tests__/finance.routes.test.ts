@@ -56,6 +56,7 @@ describe('Finance Routes (E2E)', () => {
   });
 
   it('requiere autenticación y permiso de lectura de finanzas', async () => {
+    expect((await request(app).get('/api/finance/analytics')).status).toBe(401);
     expect((await request(app).get('/api/finance/summary')).status).toBe(401);
     expect((await request(app).get('/api/finance/movements?fecha=2000-01-01')).status).toBe(401);
 
@@ -70,6 +71,10 @@ describe('Finance Routes (E2E)', () => {
       .get('/api/finance/movements?fecha=2000-01-01')
       .set('Cookie', cookiesFrom(login));
     expect(movementsResponse.status).toBe(403);
+    const analyticsResponse = await request(app)
+      .get('/api/finance/analytics')
+      .set('Cookie', cookiesFrom(login));
+    expect(analyticsResponse.status).toBe(403);
   });
 
   it('retorna el resumen financiero para desarrollador', async () => {
@@ -99,6 +104,51 @@ describe('Finance Routes (E2E)', () => {
     });
   });
 
+  it('retorna métricas, rankings y tendencia para el período solicitado', async () => {
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'dev@unithor.local', password: TEST_PASSWORD });
+    const response = await request(app)
+      .get('/api/finance/analytics')
+      .query({
+        fechaDesde: '2026-09-01',
+        fechaHasta: '2026-09-30',
+        agruparPor: 'dia',
+        comparar: 'true',
+      })
+      .set('Cookie', cookiesFrom(login));
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      period: {
+        fechaDesde: '2026-09-01',
+        fechaHasta: '2026-09-30',
+        agruparPor: 'dia',
+      },
+      kpis: {
+        grossSales: expect.any(Number),
+        collected: expect.any(Number),
+        expenses: expect.any(Number),
+        netCash: expect.any(Number),
+        receivable: expect.any(Number),
+        averageTicket: expect.any(Number),
+        collectionRate: expect.any(Number),
+        conversionRate: expect.any(Number),
+      },
+      topSellers: expect.any(Array),
+      topItems: expect.any(Array),
+      topClients: expect.any(Array),
+      paymentMethods: expect.any(Array),
+      quotationStatuses: expect.any(Array),
+      movementCategories: expect.any(Array),
+      trend: expect.any(Array),
+      filterOptions: {
+        advisors: expect.any(Array),
+        clients: expect.any(Array),
+      },
+    });
+    expect(response.body.trend).toHaveLength(30);
+  });
   it('registra, concilia y anula movimientos manuales con trazabilidad', async () => {
     const accountingDate = '2000-02-15';
     await CashClosure.destroy({ where: { fecha: accountingDate } });

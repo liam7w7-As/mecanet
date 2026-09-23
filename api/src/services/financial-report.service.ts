@@ -8,12 +8,9 @@ import type { FinancialReportFilters } from '@unithor/shared';
 import type { PDFFont, PDFPage } from 'pdf-lib';
 
 const PRIMARY = 'FF0E2B4E';
-const ACCENT = 'FFFFD600';
 const WHITE = 'FFFFFFFF';
 const BORDER = 'FFD9E1EA';
 const SOFT = 'FFF4F6F9';
-const GREEN = 'FF0F766E';
-const RED = 'FFB42318';
 const CURRENCY = '"$"#,##0';
 const PERCENT = '0.0%';
 const DATE_FORMAT = 'dd-mm-yyyy';

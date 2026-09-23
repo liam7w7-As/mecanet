@@ -1301,7 +1301,9 @@ export const listWorkOrders = async (
 
   const { rows, count } = await WorkOrder.findAndCountAll({
     where,
-    include: [clientInclude, vehicleInclude, assignedMechanicInclude],
+    // itemsInclude alimenta las cards del taller (progreso por tareas + total).
+    // Son pocas filas por OT; toWorkOrderPublic ya las mapea si vienen incluidas.
+    include: [clientInclude, vehicleInclude, assignedMechanicInclude, itemsInclude],
     limit: pagination.limit,
     offset: pagination.offset,
     order: [['createdAt', 'DESC']],

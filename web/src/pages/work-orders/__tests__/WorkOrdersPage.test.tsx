@@ -215,13 +215,41 @@ describe('WorkOrdersPage', () => {
     });
   });
 
-  it('renderiza la tabla de órdenes de trabajo con datos', async () => {
+  it('renderiza las cards de órdenes de trabajo con datos', async () => {
     createWrapper(<WorkOrdersPage />);
 
     expect(await screen.findByText('OT-2026-0012')).toBeInTheDocument();
     expect(screen.getByText('ABCD12')).toBeInTheDocument();
     expect(screen.getByText('Cliente Demo')).toBeInTheDocument();
     expect(screen.getAllByText('Borrador')).toHaveLength(2);
+  });
+
+  it('muestra el reloj de taller y el avance por tareas en la card', async () => {
+    createWrapper(<WorkOrdersPage />);
+
+    await screen.findByText('OT-2026-0012');
+    // 1 tarea pendiente -> 0% -> Sin iniciar + reloj corriendo
+    expect(screen.getByText('Sin iniciar')).toBeInTheDocument();
+    expect(screen.getByText(/En taller/)).toBeInTheDocument();
+    expect(screen.getByText('Cambio de pastillas')).toBeInTheDocument();
+    expect(screen.getByText('Pendiente')).toBeInTheDocument();
+  });
+
+  it('pinta la card en verde cuando las tareas están completadas', async () => {
+    const doneOrder: WorkOrder = {
+      ...workOrder,
+      items: workOrder.items?.map((item) => ({ ...item, estadoOperativo: 'completado' as const })),
+    };
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === `/work-orders/${workOrder.id}`) {
+        return Promise.resolve({ data: { workOrder: doneOrder } } as AxiosResponse<{ workOrder: WorkOrder }>);
+      }
+      return Promise.resolve({ data: { ...listResponse, items: [doneOrder] } } as AxiosResponse<PaginatedResponse<WorkOrder>>);
+    });
+    createWrapper(<WorkOrdersPage />);
+
+    await screen.findByText('OT-2026-0012');
+    expect(screen.getByText(/Finalizado/)).toBeInTheDocument();
   });
 
   it('muestra la bitácora de actividad con actor y fecha', async () => {

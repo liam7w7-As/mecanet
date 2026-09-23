@@ -1,7 +1,23 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const apiRootDir = path.resolve(__dirname, '../../');
+
+const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+if (isTest) {
+  const testEnvPath = path.resolve(apiRootDir, '.env.test');
+  if (fs.existsSync(testEnvPath)) {
+    dotenv.config({ path: testEnvPath, override: true });
+  } else {
+    dotenv.config({ path: path.resolve(apiRootDir, '.env') });
+  }
+} else {
+  dotenv.config({ path: path.resolve(apiRootDir, '.env') });
+}
 
 const envSchema = z
   .object({

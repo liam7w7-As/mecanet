@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Application } from 'express';
@@ -65,7 +67,19 @@ app.use((req, res, next) => {
 // 5. Montar rutas API
 app.use('/api', apiRouter);
 
-// 6. Manejo de 404 y errores globales
+// 6. Servir frontend React en producción
+if (env.NODE_ENV === 'production') {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const webDistPath = path.join(__dirname, '../../web/dist');
+
+  app.use(express.static(webDistPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(webDistPath, 'index.html'));
+  });
+}
+
+// 7. Manejo de 404 y errores globales
 app.use(notFoundHandler);
 app.use(errorHandler);
 

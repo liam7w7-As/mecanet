@@ -52,6 +52,13 @@ interface QuotationWorkOrderPublic {
   estado: string;
 }
 
+interface QuotationItemCatalogPublic {
+  id: number;
+  tipo: import('@unithor/shared').CatalogType;
+  codigo: string | null;
+  nombre: string;
+}
+
 interface QuotationItemPublic {
   id: number;
   catalogItemId: number | null;
@@ -61,6 +68,7 @@ interface QuotationItemPublic {
   subtotal: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
+  catalogItem?: QuotationItemCatalogPublic | null;
 }
 
 export interface QuotationPublic {
@@ -133,6 +141,12 @@ const itemsInclude = {
     'subtotal',
     'estadoOperativo',
     'notasOperativas',
+  ],
+  include: [
+    {
+      model: CatalogItem,
+      attributes: ['id', 'tipo', 'codigo', 'nombre'],
+    },
   ],
 };
 
@@ -222,6 +236,14 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
       subtotal: numberValue(item.subtotal),
       estadoOperativo: item.estadoOperativo,
       notasOperativas: item.notasOperativas,
+      catalogItem: item.catalogItem
+        ? {
+            id: item.catalogItem.id,
+            tipo: item.catalogItem.tipo,
+            codigo: item.catalogItem.codigo,
+            nombre: item.catalogItem.nombre,
+          }
+        : null,
     })),
 });
 
@@ -502,6 +524,19 @@ export const updateQuotation = async (
       await QuotationItem.destroy({ where: { quotationId: id }, transaction });
       if (data.items.length > 0) {
         await QuotationItem.bulkCreate(buildItemsPayload(id, data.items), { transaction });
+      }
+
+      if (quotation.workOrderId !== null) {
+        await WorkOrderItem.destroy({ where: { workOrderId: quotation.workOrderId }, transaction });
+        if (data.items.length > 0) {
+          await WorkOrderItem.bulkCreate(
+            buildItemsPayload(id, data.items).map(({ quotationId: _qid, ...item }) => ({
+              workOrderId: quotation.workOrderId!,
+              ...item,
+            })),
+            { transaction },
+          );
+        }
       }
 
       updatePayload.subtotal = total;

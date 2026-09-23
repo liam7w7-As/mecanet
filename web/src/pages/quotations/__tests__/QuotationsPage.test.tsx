@@ -151,6 +151,18 @@ describe('QuotationsPage', () => {
     expect(screen.queryByRole('button', { name: 'Convertir COT-2026-0032 a OT' })).not.toBeInTheDocument();
   });
 
+  it('abre el modal de abono directamente en la vista de cotizaciones sin redirigir', async () => {
+    renderWithProviders(<QuotationsPage />);
+    await screen.findByText('COT-2026-0031');
+
+    const payButton = screen.getByRole('button', { name: 'Abonar a COT-2026-0031' });
+    fireEvent.click(payButton);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText('COT-2026-0031')).toBeInTheDocument();
+  });
+
   it('actualiza el saldo mostrado después de registrar un abono', async () => {
     const newPayment: Payment = { ...initialPayment, id: 6, monto: 15000 };
     vi.mocked(api.post).mockImplementation((url) => {

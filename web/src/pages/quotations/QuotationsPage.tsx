@@ -191,11 +191,11 @@ export const QuotationsPage = () => {
                       <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50" onClick={() => setPreviewQuotationId(quotation.id)} disabled={previewQuery.isPending && previewQuotationId === quotation.id} aria-label={`Vista previa PDF de ${quotation.codigo}`} title="Vista previa / Descargar PDF (mismo diseño)">
                         {previewQuery.isPending && previewQuotationId === quotation.id ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon variant="bounce" animateOnHover><Download className="h-4 w-4" aria-hidden="true" /></AnimateIcon>}
                       </button>
-                      <Link to={`/quotations/${quotation.id}`} className="group flex h-10 w-10 items-center justify-center rounded-xl bg-brand-blue/5 text-brand-blue hover:bg-brand-blue hover:text-white" aria-label={`Ver detalle de ${quotation.codigo}`} title="Ver detalle">
+                      <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl bg-brand-blue/5 text-brand-blue hover:bg-brand-blue hover:text-white" onClick={() => setDetailQuotationId(quotation.id)} aria-label={`Ver detalle de ${quotation.codigo}`} title="Ver detalle">
                         <AnimateIcon variant="hover-lift" animateOnHover>
                           <FileText className="h-4 w-4" aria-hidden="true" />
                         </AnimateIcon>
-                      </Link>
+                      </button>
                     </div></td>
                   </AnimatedTableRow>
                 );
@@ -209,6 +209,23 @@ export const QuotationsPage = () => {
       </section>
 
       {quotationToConvert && <ConvertQuotationModal quotationId={quotationToConvert.id} codigo={quotationToConvert.codigo} notas={quotationToConvert.notas} onClose={() => setQuotationToConvert(null)} onConverted={(workOrderId) => navigate(`/work-orders/${workOrderId}`)} />}
+
+      {paymentQuotation && (
+        <PaymentFormModal
+          quotationId={paymentQuotation.id}
+          codigo={paymentQuotation.codigo}
+          saldoPendiente={paymentQuotation.saldoPendiente}
+          onClose={() => setPaymentQuotation(null)}
+        />
+      )}
+
+      {detailQuotationId !== null && (
+        <QuotationDetailModal
+          quotationId={detailQuotationId}
+          onClose={() => setDetailQuotationId(null)}
+          onConverted={(workOrderId) => navigate(`/work-orders/${workOrderId}`)}
+        />
+      )}
 
       {previewQuotationId !== null && previewQuery.data && (
         <PdfPreviewModal

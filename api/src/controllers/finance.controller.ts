@@ -5,6 +5,7 @@ import {
   voidCashMovement,
 } from '../services/cash-movement.service.js';
 import { getFinanceSummary } from '../services/finance.service.js';
+import { getFinancialAnalytics } from '../services/financial-analytics.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -12,6 +13,7 @@ import type {
   CloseCashDayInput,
   CreateCashMovementInput,
   FinanceDayQueryInput,
+  FinancialReportFilters,
   VoidCashMovementInput,
 } from '@unithor/shared';
 import type { Request, Response } from 'express';
@@ -19,6 +21,13 @@ import type { Request, Response } from 'express';
 export const getFinanceSummaryHandler = asyncHandler(
   async (_req: Request, res: Response): Promise<void> => {
     res.status(200).json(await getFinanceSummary());
+  },
+);
+
+export const getFinancialAnalyticsHandler = asyncHandler(
+  async (_req: Request, res: Response): Promise<void> => {
+    const filters = res.locals.validatedQuery as FinancialReportFilters;
+    res.status(200).json(await getFinancialAnalytics(filters));
   },
 );
 

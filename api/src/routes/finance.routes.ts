@@ -2,6 +2,7 @@ import {
   closeCashDaySchema,
   createCashMovementSchema,
   financeDayQuerySchema,
+  financialReportQuerySchema,
   voidCashMovementSchema,
 } from '@unithor/shared';
 import { Router } from 'express';
@@ -11,6 +12,7 @@ import {
   createCashMovementHandler,
   getCashMovementsHandler,
   getDailyCashSummaryHandler,
+  getFinancialAnalyticsHandler,
   getFinanceSummaryHandler,
   voidCashMovementHandler,
 } from '../controllers/finance.controller.js';
@@ -22,6 +24,12 @@ export const financeRouter = Router();
 
 financeRouter.use(authenticate);
 financeRouter.get('/summary', authorize('finanzas', 'read'), getFinanceSummaryHandler);
+financeRouter.get(
+  '/analytics',
+  authorize('finanzas', 'read'),
+  validate({ query: financialReportQuerySchema }),
+  getFinancialAnalyticsHandler,
+);
 financeRouter.get(
   '/day',
   authorize('finanzas', 'read'),

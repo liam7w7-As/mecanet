@@ -229,7 +229,7 @@ describe('WorkOrdersPage', () => {
 
     await screen.findByText('OT-2026-0012');
     // 1 tarea pendiente -> 0% -> Sin iniciar + reloj corriendo
-    expect(screen.getByText('Sin iniciar')).toBeInTheDocument();
+    expect(screen.getByText(/Sin iniciar/)).toBeInTheDocument();
     expect(screen.getByText(/En taller/)).toBeInTheDocument();
     expect(screen.getByText('Cambio de pastillas')).toBeInTheDocument();
     expect(screen.getByText('Pendiente')).toBeInTheDocument();

@@ -12,6 +12,7 @@ import { csrfProtection } from './middlewares/csrf-protection.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
 import { requestIdMiddleware } from './middlewares/request-id.js';
+import { ensureDatabaseBootstrapped } from './database/bootstrap.js';
 import { apiRouter } from './routes/index.js';
 import { logger } from './utils/logger.js';
 
@@ -89,10 +90,9 @@ if (env.NODE_ENV !== 'test') {
     .authenticate()
     .then(async () => {
       logger.info('Conexión a base de datos MySQL establecida correctamente.');
-      if (env.NODE_ENV === 'development') {
-        await sequelize.sync({ alter: false });
-        logger.info('Modelos sincronizados con la base de datos (alter: false).');
-      }
+      await sequelize.sync({ alter: false });
+      logger.info('Modelos sincronizados con la base de datos (alter: false).');
+      await ensureDatabaseBootstrapped();
     })
     .catch((err: unknown) => {
       logger.warn(

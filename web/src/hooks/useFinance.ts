@@ -5,12 +5,15 @@ import { quotationKeys } from './useQuotations';
 import { api } from '../lib/api';
 
 import type { Payment, PaymentQuotationSummary } from '../types/entities';
+import { notifySuccess } from '../stores/toast.store';
 import type {
   CashMovementCategory,
   CashMovementType,
+  CatalogType,
   CloseCashDayInput,
   CreateCashMovementInput,
   PaymentMethod,
+  FinancialReportFilters,
   QuotationStatus,
   VerifyPaymentInput,
   VoidCashMovementInput,
@@ -41,6 +44,92 @@ export interface FinanceSummary {
   }>;
 }
 
+export interface FinancialAnalytics {
+  period: {
+    fechaDesde: string;
+    fechaHasta: string;
+    previousFechaDesde: string | null;
+    previousFechaHasta: string | null;
+    days: number;
+    agruparPor: FinancialReportFilters['agruparPor'];
+  };
+  kpis: {
+    grossSales: number;
+    collected: number;
+    manualIncome: number;
+    expenses: number;
+    netCash: number;
+    receivable: number;
+    averageTicket: number;
+    quotationCount: number;
+    paidQuotationCount: number;
+    workOrderConversionCount: number;
+    collectionRate: number;
+    conversionRate: number;
+  };
+  comparison: {
+    grossSales: { previous: number; variationPercent: number | null };
+    collected: { previous: number; variationPercent: number | null };
+    expenses: { previous: number; variationPercent: number | null };
+    netCash: { previous: number; variationPercent: number | null };
+  } | null;
+  topSellers: Array<{
+    id: number | null;
+    nombre: string;
+    quotationCount: number;
+    grossSales: number;
+    collected: number;
+    averageTicket: number;
+  }>;
+  topItems: Array<{
+    catalogItemId: number | null;
+    codigo: string | null;
+    nombre: string;
+    tipo: CatalogType | 'libre';
+    quantity: number;
+    revenue: number;
+  }>;
+  topClients: Array<{
+    id: number | null;
+    nombre: string;
+    rut: string | null;
+    quotationCount: number;
+    grossSales: number;
+    collected: number;
+    receivable: number;
+  }>;
+  paymentMethods: Array<{
+    metodo: PaymentMethod | 'sin_metodo';
+    count: number;
+    amount: number;
+    share: number;
+  }>;
+  quotationStatuses: Array<{
+    estado: QuotationStatus;
+    count: number;
+    amount: number;
+    share: number;
+  }>;
+  movementCategories: Array<{
+    categoria: CashMovementCategory;
+    tipo: CashMovementType;
+    count: number;
+    amount: number;
+  }>;
+  trend: Array<{
+    key: string;
+    label: string;
+    grossSales: number;
+    collected: number;
+    manualIncome: number;
+    expenses: number;
+    netCash: number;
+  }>;
+  filterOptions: {
+    advisors: Array<{ id: number; nombre: string }>;
+    clients: Array<{ id: number; nombre: string; rut: string | null }>;
+  };
+}
 export interface CashClosure {
   id: number;
   fecha: string;
@@ -102,6 +191,7 @@ interface VerifyPaymentResponse {
 export const financeKeys = {
   all: ['finance'] as const,
   summary: () => [...financeKeys.all, 'summary'] as const,
+  analytics: (filters: FinancialReportFilters) => [...financeKeys.all, 'analytics', filters] as const,
   day: (fecha: string) => [...financeKeys.all, 'day', fecha] as const,
   movements: (fecha: string) => [...financeKeys.all, 'movements', fecha] as const,
 };
@@ -114,6 +204,18 @@ export const useFinanceSummary = () =>
       return response.data;
     },
     staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+export const useFinancialAnalytics = (filters: FinancialReportFilters) =>
+  useQuery({
+    queryKey: financeKeys.analytics(filters),
+    queryFn: async () => {
+      const response = await api.get<FinancialAnalytics>('/finance/analytics', {
+        params: filters,
+      });
+      return response.data;
+    },
+    staleTime: 60_000,
     refetchOnWindowFocus: true,
   });
 
@@ -214,3 +316,32 @@ export const useVerifyPaymentMutation = () => {
     },
   });
 };
+export type FinancialReportFormat = 'pdf' | 'excel';
+
+export const useDownloadFinancialReport = () =>
+  useMutation({
+    mutationFn: async ({
+      format,
+      filters,
+    }: {
+      format: FinancialReportFormat;
+      filters: FinancialReportFilters;
+    }) => {
+      const response = await api.get<Blob>(`/reports/finance/${format}`, {
+        params: filters,
+        responseType: 'blob',
+      });
+      const extension = format === 'excel' ? 'xlsx' : 'pdf';
+      const filename =
+        `Informe_Financiero_UNITHOR_${filters.fechaDesde}_${filters.fechaHasta}.${extension}`;
+      const href = URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = href;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(href);
+      notifySuccess(`Reporte ${extension.toUpperCase()} generado correctamente.`);
+    },
+  });

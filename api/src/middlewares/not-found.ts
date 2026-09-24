@@ -4,7 +4,7 @@ export const notFoundHandler = (req: Request, res: Response): void => {
   res.status(404).json({
     error: {
       code: 'NOT_FOUND',
-      message: `Ruta no encontrada: ${req.method} ${req.originalUrl}`,
+      message: `Ruta no encontrada: ${req.method} ${req.path}`,
     },
   });
 };

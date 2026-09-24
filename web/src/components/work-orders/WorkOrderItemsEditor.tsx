@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { useCatalogItems } from '../../hooks/useWorkOrders';
 import { formatClp } from '../../lib/formatters';
+import CurrencyInput from '../common/CurrencyInput';
 
 import type { CatalogPickerType } from '../../hooks/useWorkOrders';
 import type { CatalogItem } from '../../types/entities';
@@ -343,7 +344,7 @@ export const WorkOrderItemsEditor = ({
                     )}
                   </td>
                   <td className="px-3 py-3"><input type="number" min="0.01" step="0.01" value={item.cantidad} onChange={(event) => updateItem(index, { cantidad: event.target.value })} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue" aria-label={`Cantidad ${index + 1}`} /></td>
-                  <td className="px-3 py-3"><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-slate-400">$</span><input type="number" min="0" step="1" value={item.precioUnitario} onChange={(event) => updateItem(index, { precioUnitario: event.target.value })} className="h-10 w-full rounded-lg border border-slate-300 pl-7 pr-3 text-sm outline-none focus:border-brand-blue" aria-label={`Precio unitario ${index + 1}`} /></div></td>
+                   <td className="px-3 py-3"><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-slate-400">$</span><CurrencyInput value={item.precioUnitario} onChange={(value) => updateItem(index, { precioUnitario: value })} className="h-10 w-full rounded-lg border border-slate-300 pl-7 pr-3 text-sm outline-none focus:border-brand-blue" aria-label={`Precio unitario ${index + 1}`} /></div></td>
                   <td className="px-3 py-3"><select value={item.estadoOperativo} onChange={(event) => updateItem(index, { estadoOperativo: event.target.value as ItemOperationalStatus })} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue" aria-label={`Avance ${index + 1}`}>{ITEM_OPERATIONAL_STATUS.map((status) => <option key={status} value={status}>{ITEM_OPERATIONAL_STATUS_LABELS[status]}</option>)}</select></td>
                   <td className="px-3 py-3"><input type="text" value={item.notasOperativas} onChange={(event) => updateItem(index, { notasOperativas: event.target.value })} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue" placeholder="Checklist, detalle o repuesto usado" aria-label={`Nota operativa ${index + 1}`} /></td>
                   <td className="px-3 py-5 text-right font-semibold text-brand-blue" data-testid={`item-subtotal-${index}`}>{formatClp(getWorkOrderItemSubtotal(item))}</td>

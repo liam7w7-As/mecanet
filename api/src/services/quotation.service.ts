@@ -297,12 +297,6 @@ const assertVehicleExists = async (vehicleId: number, transaction: Transaction):
   return vehicle;
 };
 
-const assertClientMatchesVehicle = (clientId: number | null, vehicle: Vehicle | null): void => {
-  if (clientId !== null && vehicle !== null && vehicle.clientId !== null && vehicle.clientId !== clientId) {
-    throw ApiError.badRequest('El vehículo pertenece a un cliente distinto al seleccionado');
-  }
-};
-
 const assertCatalogItemsExist = async (
   items: QuotationItemInput[],
   transaction: Transaction,
@@ -461,11 +455,9 @@ export const createQuotation = async (
     if (clientId !== null) {
       await assertClientExists(clientId, transaction);
     }
-    let vehicle: Vehicle | null = null;
     if (vehicleId !== null) {
-      vehicle = await assertVehicleExists(vehicleId, transaction);
+      await assertVehicleExists(vehicleId, transaction);
     }
-    assertClientMatchesVehicle(clientId, vehicle);
     await assertCatalogItemsExist(items, transaction);
 
     const total = calculateTotal(items);
@@ -611,15 +603,20 @@ export const convertQuotationToWorkOrder = async (
     const vehicle = quotation.vehicleId === null
       ? null
       : await assertVehicleExists(quotation.vehicleId, transaction);
-    assertClientMatchesVehicle(quotation.clientId, vehicle);
+    const vehicleOwner = vehicle?.clientId
+      ? await Client.findByPk(vehicle.clientId, { transaction })
+      : null;
 
     const codigo = await generateWorkOrderCode(transaction);
     const workOrder = await WorkOrder.create(
       {
         codigo,
         clientId: quotation.clientId,
-        vehicleId: quotation.vehicleId,
-        estado: 'borrador',
+         vehicleId: quotation.vehicleId,
+         vehicleOwnerClientId: vehicle?.clientId ?? null,
+         vehicleOwnerName: vehicleOwner?.nombre ?? null,
+         vehicleOwnerRut: vehicleOwner?.rut ?? null,
+         estado: 'borrador',
         descripcion:
           data.descripcion ??
           quotation.notas ??

@@ -32,7 +32,6 @@ import { AnimateIcon } from '../animate-ui';
 import ConvertQuotationModal from './ConvertQuotationModal';
 import PaymentFormModal from './PaymentFormModal';
 import QuotationStatusBadge from './QuotationStatusBadge';
-import PdfPreviewModal from '../common/PdfPreviewModal';
 import { useCatalogItems } from '../../hooks/useCatalog';
 import { useQuotationPayments } from '../../hooks/usePayments';
 import { useQuotation, useUpdateQuotationMutation } from '../../hooks/useQuotations';
@@ -41,6 +40,8 @@ import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
+import CurrencyInput from '../common/CurrencyInput';
+import PdfPreviewModal from '../common/PdfPreviewModal';
 
 import type { CatalogItem, Quotation, QuotationItem } from '../../types/entities';
 import type { CatalogType, ItemOperationalStatus, QuotationItemInput } from '@unithor/shared';
@@ -765,15 +766,13 @@ export const QuotationDetailModal = ({
 
                         <div>
                           <label className="block text-[11px] font-bold uppercase text-slate-600">Precio Unitario</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={suggestedPrecio}
-                            onChange={(e) => setSuggestedPrecio(e.target.value)}
-                            placeholder="0"
-                            className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-xs outline-none focus:border-brand-blue"
-                          />
+                           <CurrencyInput
+                             value={suggestedPrecio}
+                             onChange={setSuggestedPrecio}
+                             placeholder="0"
+                             className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-xs outline-none focus:border-brand-blue"
+                             aria-label="Precio unitario"
+                           />
                         </div>
 
                         <div className="sm:col-span-3">
@@ -811,7 +810,7 @@ export const QuotationDetailModal = ({
                 </AnimatePresence>
 
                 {/* Items Table */}
-                <div className="overflow-x-auto">
+                <div className="max-w-full overflow-x-auto overscroll-x-contain">
                   <table className="w-full min-w-[720px] text-left text-xs">
                     <thead className="bg-slate-50 text-[11px] uppercase font-bold text-slate-500 border-b border-slate-200">
                       <tr>
@@ -975,14 +974,13 @@ export const QuotationDetailModal = ({
                               <td className="px-3.5 py-3 text-right">
                                 {isEditingPrice ? (
                                   <div className="flex items-center justify-end gap-1">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={newPriceValue}
-                                      onChange={(e) => setNewPriceValue(e.target.value)}
-                                      className="h-7 w-24 rounded border border-brand-blue px-1.5 text-right font-mono text-xs font-bold outline-none"
-                                      autoFocus
-                                    />
+                                     <CurrencyInput
+                                       value={newPriceValue}
+                                       onChange={setNewPriceValue}
+                                       className="h-7 w-24 rounded border border-brand-blue px-1.5 text-right font-mono text-xs font-bold outline-none"
+                                       autoFocus
+                                       aria-label={`Nuevo precio unitario ${item.originalIndex + 1}`}
+                                     />
                                     <button
                                       type="button"
                                       onClick={() => handleSavePrice(item.originalIndex)}

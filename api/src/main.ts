@@ -52,16 +52,18 @@ app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    const log = (res.locals.logger as Logger) ?? logger;
-    log.info(
-      {
-        method: req.method,
-        url: req.originalUrl,
-        statusCode: res.statusCode,
-        duration: `${duration}ms`,
-      },
-      `${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`,
-    );
+     const log = (res.locals.logger as Logger) ?? logger;
+     const requestPath = req.path;
+     log.info(
+       {
+         requestId: res.locals.requestId,
+         method: req.method,
+         path: requestPath,
+         statusCode: res.statusCode,
+         duration: `${duration}ms`,
+       },
+       `${req.method} ${requestPath} ${res.statusCode} - ${duration}ms`,
+     );
   });
   next();
 });
@@ -87,30 +89,27 @@ app.use(errorHandler);
 
 // Iniciar servidor y base de datos cuando no esté en modo test
 if (env.NODE_ENV !== 'test') {
-  // Asegurar que la carpeta de almacenamiento de subidas (fotos/inspecciones) exista
-  try {
-    await fs.mkdir(path.resolve(env.UPLOAD_DIR), { recursive: true });
-  } catch (err) {
-    logger.warn({ err }, 'Aviso: No se pudo verificar la carpeta de uploads');
-  }
+  const startServer = async (): Promise<void> => {
+    try {
+      await fs.mkdir(path.resolve(env.UPLOAD_DIR), { recursive: true });
+    } catch (err) {
+      logger.warn({ err }, 'Aviso: No se pudo verificar la carpeta de uploads');
+    }
 
-  sequelize
-    .authenticate()
-    .then(async () => {
-      logger.info('Conexión a base de datos MySQL establecida correctamente.');
-      await sequelize.sync({ alter: false });
-      logger.info('Modelos sincronizados con la base de datos (alter: false).');
-      await ensureDatabaseBootstrapped();
-    })
-    .catch((err: unknown) => {
-      logger.warn(
-        { err },
-        'Aviso: No se pudo conectar a la base de datos MySQL (el servidor iniciará en modo desacoplado)',
-      );
+    await sequelize.authenticate();
+    logger.info('Conexión a base de datos MySQL establecida correctamente.');
+    await sequelize.sync({ alter: false });
+    logger.info('Modelos sincronizados con la base de datos (alter: false).');
+    await ensureDatabaseBootstrapped();
+
+    app.listen(env.PORT, () => {
+      logger.info(`Servidor API UNITHOR escuchando en http://localhost:${env.PORT}`);
     });
+  };
 
-  app.listen(env.PORT, () => {
-    logger.info(`Servidor API UNITHOR escuchando en http://localhost:${env.PORT}`);
+  void startServer().catch((err: unknown) => {
+    logger.error({ err }, 'No se pudo iniciar el servidor de forma segura');
+    process.exitCode = 1;
   });
 }
 

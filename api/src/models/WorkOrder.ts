@@ -148,6 +148,15 @@ export class WorkOrder extends Model<
   })
   declare vehicleId: number | null;
 
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare vehicleOwnerClientId: number | null;
+
+  @Column({ type: DataType.STRING(180), allowNull: true })
+  declare vehicleOwnerName: string | null;
+
+  @Column({ type: DataType.STRING(20), allowNull: true })
+  declare vehicleOwnerRut: string | null;
+
   @Index
   @Column({
     type: DataType.ENUM(...WORK_ORDER_STATUS),

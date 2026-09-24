@@ -31,14 +31,24 @@ describe('Shared Package Constants & Schemas', () => {
       rut: '12.345.678-5',
       tipo: 'empresa',
       email: 'contacto@central.cl',
+      telefono: '+56 9 1234 5678',
     });
     expect(validClient.success).toBe(true);
+    if (validClient.success) {
+      expect(validClient.data.telefono).toBe('+56912345678');
+    }
 
     const invalidRutClient = createClientSchema.safeParse({
       nombre: 'Juan Perez',
-      rut: 'rut-invalido-123',
+      rut: '12.345.678-4',
     });
     expect(invalidRutClient.success).toBe(false);
+
+    const invalidPhoneClient = createClientSchema.safeParse({
+      nombre: 'Juan Perez',
+      telefono: '12345',
+    });
+    expect(invalidPhoneClient.success).toBe(false);
 
     const emptyNameClient = createClientSchema.safeParse({
       nombre: '   ',
@@ -94,9 +104,14 @@ describe('Shared Package Constants & Schemas', () => {
     expect(duplicatedInventoryOT.success).toBe(false);
   });
 
-  it('valida que createVehicleSchema normalice la patente', () => {
-    const res = createVehicleSchema.parse({ patente: 'ab-cd-12' });
-    expect(res.patente).toBe('ABCD12');
+  it('valida que createVehicleSchema normalice la patente chilena', () => {
+    const newFormat = createVehicleSchema.parse({ patente: 'ab-cd-12' });
+    const oldFormat = createVehicleSchema.parse({ patente: 'AB 12 34' });
+    const invalidFormat = createVehicleSchema.safeParse({ patente: '1234AB' });
+
+    expect(newFormat.patente).toBe('ABCD12');
+    expect(oldFormat.patente).toBe('AB1234');
+    expect(invalidFormat.success).toBe(false);
   });
 
   it('valida loginSchema', () => {

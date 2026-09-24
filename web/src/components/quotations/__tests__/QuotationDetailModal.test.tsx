@@ -178,7 +178,7 @@ describe('QuotationDetailModal', () => {
     fireEvent.click(editPriceButtons[0]);
 
     // Input appears
-    const priceInput = screen.getByDisplayValue('80000');
+    const priceInput = screen.getByDisplayValue('80.000');
     fireEvent.change(priceInput, { target: { value: '95000' } });
 
     // Save

@@ -5,7 +5,6 @@ import {
   Column,
   DataType,
   ForeignKey,
-  Index,
   Model,
   PrimaryKey,
   Table,
@@ -36,13 +35,23 @@ export class StockMovement extends Model<
   declare id: CreationOptional<number>;
 
   @ForeignKey(() => CatalogItem)
-  @Index
-  @Column({ type: DataType.INTEGER, allowNull: false, onDelete: 'RESTRICT', onUpdate: 'CASCADE' })
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    field: 'catalog_item_id',
+    onDelete: 'RESTRICT',
+    onUpdate: 'CASCADE',
+  })
   declare catalogItemId: number;
 
   @ForeignKey(() => Warehouse)
-  @Index
-  @Column({ type: DataType.INTEGER, allowNull: false, onDelete: 'RESTRICT', onUpdate: 'CASCADE' })
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    field: 'warehouse_id',
+    onDelete: 'RESTRICT',
+    onUpdate: 'CASCADE',
+  })
   declare warehouseId: number;
 
   @Column({ type: DataType.ENUM(...STOCK_MOVEMENT_TYPES), allowNull: false })

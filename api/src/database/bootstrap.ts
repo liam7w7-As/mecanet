@@ -1,4 +1,6 @@
 import bcrypt from 'bcrypt';
+
+import { env } from '../config/env.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Permission } from '../models/Permission.js';
 import { Role } from '../models/Role.js';
@@ -139,21 +141,27 @@ export async function ensureDatabaseBootstrapped(): Promise<void> {
       logger.info('Inicializando usuario administrador principal...');
       const devRole = await Role.findOne({ where: { nombre: 'desarrollador' } });
       if (devRole) {
-        const email = (process.env.SEED_ADMIN_EMAIL || 'admin@unithor.cl').trim().toLowerCase();
-        const username = (process.env.SEED_ADMIN_USERNAME || 'admin').trim().toLowerCase();
-        const rawPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin123456!';
-        const nombre = process.env.SEED_ADMIN_NAME || 'Administrador UNITHOR';
+        const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+        const username = process.env.SEED_ADMIN_USERNAME?.trim().toLowerCase();
+        const rawPassword = process.env.SEED_ADMIN_PASSWORD;
+        const nombre = process.env.SEED_ADMIN_NAME?.trim() || 'Administrador UNITHOR';
 
-        const passwordHash = await bcrypt.hash(rawPassword, 10);
+        if (env.NODE_ENV === 'production' && (!email || !username || !rawPassword || rawPassword.length < 12)) {
+          throw new Error(
+            'Producción requiere SEED_ADMIN_EMAIL, SEED_ADMIN_USERNAME y SEED_ADMIN_PASSWORD de al menos 12 caracteres',
+          );
+        }
+
+        const passwordHash = await bcrypt.hash(rawPassword || 'Admin123456!', 10);
         await User.create({
           nombre,
-          username,
-          email,
+          username: username || 'admin',
+          email: email || 'admin@unithor.cl',
           passwordHash,
           roleId: devRole.id,
           activo: true,
         });
-        logger.info(`Usuario admin creado: ${username} (${email})`);
+        logger.info(`Usuario administrador inicial creado: ${username || 'admin'}`);
       }
     }
 
@@ -169,5 +177,6 @@ export async function ensureDatabaseBootstrapped(): Promise<void> {
     logger.info('Base de datos inicializada y verificada exitosamente.');
   } catch (err) {
     logger.error({ err }, 'Error durante la inicialización de la base de datos');
+    throw err;
   }
 }

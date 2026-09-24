@@ -68,20 +68,22 @@ export const errorHandler = (
   if (statusCode >= 500) {
     log.error(
       {
-        err,
-        method: req.method,
-        url: req.originalUrl,
-        statusCode,
+         err,
+         requestId: res.locals.requestId,
+         method: req.method,
+         path: req.path,
+         statusCode,
       },
       message,
     );
   } else {
     log.warn(
       {
-        method: req.method,
-        url: req.originalUrl,
-        statusCode,
-        code,
+         requestId: res.locals.requestId,
+         method: req.method,
+         path: req.path,
+         statusCode,
+         code,
       },
       message,
     );

@@ -1,3 +1,4 @@
+import { isValidChilePatente, normalizeChilePatente } from '@unithor/shared';
 import { Car, LoaderCircle, Plus, Search, UserRound } from 'lucide-react';
 import { useState } from 'react';
 
@@ -13,7 +14,7 @@ interface QuickVehicleSearchProps {
   suggestedClient?: Pick<QuickSearchClient, 'id' | 'nombre' | 'rut'> | null;
 }
 
-const normalizePlate = (value: string): string => value.replace(/[\s-]/g, '').toUpperCase();
+const normalizePlate = (value: string): string => normalizeChilePatente(value);
 
 const toQuickVehicle = (vehicle: Vehicle): QuickSearchVehicle => ({
   id: vehicle.id,
@@ -40,7 +41,7 @@ export const QuickVehicleSearch = ({
   const hasExactPlate = searchQuery.data?.vehicles.some(
     (vehicle) => vehicle.patente === normalizedTerm,
   );
-  const canRegisterPlate = /^[A-Z0-9]{4,15}$/.test(normalizedTerm) && !hasExactPlate;
+  const canRegisterPlate = isValidChilePatente(normalizedTerm) && !hasExactPlate;
   const showResults = isFocused && term.trim().length >= 2;
 
   const selectVehicle = (vehicle: QuickSearchVehicle): void => {

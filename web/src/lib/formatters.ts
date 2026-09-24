@@ -1,3 +1,12 @@
+const currencyInputFormatter = new Intl.NumberFormat('es-CL', {
+  maximumFractionDigits: 0,
+});
+
+export const formatCurrencyInput = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  return digits === '' ? '' : currencyInputFormatter.format(Number(digits));
+};
+
 export const formatClp = (value: number): string =>
   new Intl.NumberFormat('es-CL', {
     style: 'currency',

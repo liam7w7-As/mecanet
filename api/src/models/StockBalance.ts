@@ -4,7 +4,6 @@ import {
   Column,
   DataType,
   ForeignKey,
-  Index,
   Model,
   PrimaryKey,
   Table,
@@ -39,13 +38,23 @@ export class StockBalance extends Model<
   declare id: CreationOptional<number>;
 
   @ForeignKey(() => Warehouse)
-  @Index
-  @Column({ type: DataType.INTEGER, allowNull: false, onDelete: 'CASCADE', onUpdate: 'CASCADE' })
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    field: 'warehouse_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
   declare warehouseId: number;
 
   @ForeignKey(() => CatalogItem)
-  @Index
-  @Column({ type: DataType.INTEGER, allowNull: false, onDelete: 'CASCADE', onUpdate: 'CASCADE' })
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    field: 'catalog_item_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
   declare catalogItemId: number;
 
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })

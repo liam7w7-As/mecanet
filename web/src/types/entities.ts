@@ -111,6 +111,12 @@ export interface WorkOrderVehicle {
   ano?: number | null;
 }
 
+export interface WorkOrderVehicleOwner {
+  clientId: number | null;
+  nombre: string | null;
+  rut: string | null;
+}
+
 export interface WorkOrderCreator {
   id: number;
   nombre: string;
@@ -268,6 +274,7 @@ export interface WorkOrder {
   contactClient?: WorkOrderClient | null;
   billingClient?: WorkOrderClient | null;
   vehicle?: WorkOrderVehicle | null;
+  vehicleOwner?: WorkOrderVehicleOwner | null;
   creator?: WorkOrderCreator | null;
   assignedMechanic?: WorkOrderCreator | null;
   items?: WorkOrderItem[];
@@ -407,6 +414,9 @@ export interface Payment {
   metodo: string | null;
   estado?: import('@unithor/shared').PaymentStatus;
   referencia?: string | null;
+  bancoOrigen?: string | null;
+  numeroTransaccion?: string | null;
+  comprobantePago?: string | null;
   fecha: string;
   createdBy: number | null;
   reviewedBy?: number | null;

@@ -500,7 +500,7 @@ describe('Work Order Routes (E2E)', () => {
     expect(byClient.body.items.every((item: { clientId: number | null }) => item.clientId === clientId)).toBe(true);
   });
 
-  it('rechaza combinar un vehículo con un cliente distinto a su dueño', async () => {
+  it('permite combinar un vehículo con un responsable distinto a su propietario', async () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const otherClient = await Client.create({
       rut: '76410002',
@@ -515,10 +515,11 @@ describe('Work Order Routes (E2E)', () => {
       .set('X-CSRF-Token', vendedorCookies.csrfToken)
       .send({ clientId: otherClient.id, vehicleId });
 
-    expect(response.status).toBe(400);
-    expect(response.body.error.message).toBe(
-      'El vehículo pertenece a un cliente distinto al seleccionado',
-    );
+    expect(response.status).toBe(201);
+    expect(response.body.workOrder.vehicleOwner).toMatchObject({
+      clientId,
+      nombre: 'Cliente OT Fase 41',
+    });
 
     const validOrder = await request(app)
       .post('/api/work-orders')
@@ -527,15 +528,14 @@ describe('Work Order Routes (E2E)', () => {
       .send({ clientId, vehicleId });
     expect(validOrder.status).toBe(201);
 
-    const invalidUpdate = await request(app)
+    const updatedOrder = await request(app)
       .patch(`/api/work-orders/${validOrder.body.workOrder.id as number}`)
       .set('Cookie', authCookie(vendedorCookies))
       .set('X-CSRF-Token', vendedorCookies.csrfToken)
       .send({ clientId: otherClient.id });
-    expect(invalidUpdate.status).toBe(400);
-    expect(invalidUpdate.body.error.message).toBe(
-      'El vehículo pertenece a un cliente distinto al seleccionado',
-    );
+    expect(updatedOrder.status).toBe(200);
+    expect(updatedOrder.body.workOrder.clientId).toBe(otherClient.id);
+    expect(updatedOrder.body.workOrder.vehicleOwner.clientId).toBe(clientId);
   });
 
   it('modifica cabecera y reemplaza items atómicamente', async () => {

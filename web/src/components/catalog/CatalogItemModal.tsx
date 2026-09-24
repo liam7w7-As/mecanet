@@ -9,6 +9,7 @@ import {
 import { getApiErrorMessage, isApiConflict } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp } from '../../lib/formatters';
+import CurrencyInput from '../common/CurrencyInput';
 
 import type { CatalogItem } from '../../types/entities';
 import type { CatalogType } from '@unithor/shared';
@@ -117,7 +118,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
         className="absolute inset-0 bg-slate-950/55"
@@ -178,7 +179,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
             </label>
             <label className="text-sm font-medium text-slate-700">
               Precio
-              <input className={inputClassName} type="number" min="0" step="1" value={form.precio} onChange={(event) => setValue('precio', event.target.value)} aria-invalid={Boolean(fieldErrors.precio)} />
+               <CurrencyInput value={form.precio} onChange={(value) => setValue('precio', value)} className={inputClassName} aria-label="Precio" aria-invalid={Boolean(fieldErrors.precio)} />
               {fieldErrors.precio && <span className="mt-1 block text-xs text-red-600">{fieldErrors.precio}</span>}
               <span className="mt-1 block text-xs font-semibold text-brand-blue">{Number.isFinite(pricePreview) ? formatClp(pricePreview) : formatClp(0)}</span>
             </label>

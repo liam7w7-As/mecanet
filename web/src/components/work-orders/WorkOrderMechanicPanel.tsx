@@ -14,6 +14,7 @@ import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
+import CurrencyInput from '../common/CurrencyInput';
 
 import type { WorkOrder } from '../../types/entities';
 import type { ItemOperationalStatus } from '@unithor/shared';
@@ -257,7 +258,7 @@ export const WorkOrderMechanicPanel = ({ workOrder }: Props) => {
             ) : (
               <div className="mt-3 grid gap-3">
                 <label className="grid gap-1 text-xs font-semibold text-slate-500">Servicio<select className="h-10 rounded-lg border border-slate-300 px-3 text-sm" value={workOrderItemId} onChange={(event) => { const item = workOrder.items?.find((candidate) => candidate.id === Number(event.target.value)); setWorkOrderItemId(event.target.value); setSuggestedPrice(item ? String(Number(item.precioUnitario) + 1) : ''); }}><option value="">Seleccionar trabajo</option>{workOrder.items?.filter((item) => item.catalogItem?.tipo !== 'parte').map((item) => <option key={item.id} value={item.id}>{item.descripcion} · actual {formatClp(item.precioUnitario)}</option>)}</select></label>
-                <label className="grid gap-1 text-xs font-semibold text-slate-500">Precio sugerido<input type="number" min="1" className="h-10 rounded-lg border border-slate-300 px-3 text-sm" value={suggestedPrice} onChange={(event) => setSuggestedPrice(event.target.value)} /></label>
+                 <label className="grid gap-1 text-xs font-semibold text-slate-500">Precio sugerido<CurrencyInput value={suggestedPrice} onChange={setSuggestedPrice} className="h-10 rounded-lg border border-slate-300 px-3 text-sm" aria-label="Precio sugerido" /></label>
               </div>
             )}
             <label className="mt-3 grid gap-1 text-xs font-semibold text-slate-500">Justificación<textarea className="min-h-24 rounded-lg border border-slate-300 p-3 text-sm" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Explique la necesidad o complejidad encontrada" /></label>

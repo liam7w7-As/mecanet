@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { chilePhoneSchema, rutSchema } from './client.schema.js';
 import { paginationSchema } from './pagination.schema.js';
 import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
 import { WORK_ORDER_DELIVERY_CHECKLIST } from '../constants/work-order-delivery.js';
@@ -138,8 +139,8 @@ const deliveryChecklistSchema = z
 export const deliverWorkOrderSchema = z.object({
   kilometrajeSalida: z.coerce.number().int().min(0),
   receptorNombre: z.string().trim().min(2).max(180),
-  receptorRut: optionalText(20),
-  receptorTelefono: optionalText(30),
+  receptorRut: rutSchema,
+  receptorTelefono: chilePhoneSchema,
   checklist: deliveryChecklistSchema,
   conformidad: z.literal(true, {
     errorMap: () => ({ message: 'El receptor debe aceptar la conformidad de entrega' }),

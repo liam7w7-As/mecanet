@@ -13,12 +13,21 @@ const optionalString = (maxLength: number) =>
     .nullable()
     .optional();
 
+export const normalizeChilePatente = (value: string): string =>
+  value.replace(/[\s-]/g, '').toUpperCase();
+
+export const isValidChilePatente = (value: string): boolean =>
+  /^[A-Z]{2}(?:\d{4}|[A-Z]{2}\d{2})$/.test(normalizeChilePatente(value));
+
 const patenteSchema = z
   .string()
   .trim()
   .min(1, 'La patente es requerida')
-  .max(15)
-  .transform((value) => value.replace(/[\s-]/g, '').toUpperCase());
+  .max(8, 'La patente chilena debe tener 6 caracteres')
+  .refine(isValidChilePatente, {
+    message: 'Patente chilena inválida (ej: AB1234 o ABCD12)',
+  })
+  .transform(normalizeChilePatente);
 
 const vinChasisSchema = z
   .string()

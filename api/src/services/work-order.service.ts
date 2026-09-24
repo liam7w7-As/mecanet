@@ -69,6 +69,12 @@ interface WorkOrderVehiclePublic {
   modelo: string | null;
 }
 
+interface WorkOrderVehicleOwnerPublic {
+  clientId: number | null;
+  nombre: string | null;
+  rut: string | null;
+}
+
 interface WorkOrderCreatorPublic {
   id: number;
   nombre: string;
@@ -225,6 +231,9 @@ export interface WorkOrderPublic {
   contactClientId: number | null;
   billingClientId: number | null;
   vehicleId: number | null;
+  vehicleOwnerClientId: number | null;
+  vehicleOwnerName: string | null;
+  vehicleOwnerRut: string | null;
   estado: WorkOrderStatus;
   descripcion: string | null;
   kilometrajeIngreso: number | null;
@@ -236,6 +245,7 @@ export interface WorkOrderPublic {
   updatedAt: Date;
   client?: WorkOrderClientPublic | null;
   vehicle?: WorkOrderVehiclePublic | null;
+  vehicleOwner: WorkOrderVehicleOwnerPublic | null;
   creator?: WorkOrderCreatorPublic | null;
   assignedMechanic?: WorkOrderMechanicPublic | null;
   items?: WorkOrderItemPublic[];
@@ -519,6 +529,9 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
   contactClientId: workOrder.contactClientId,
   billingClientId: workOrder.billingClientId,
   vehicleId: workOrder.vehicleId,
+  vehicleOwnerClientId: workOrder.vehicleOwnerClientId,
+  vehicleOwnerName: workOrder.vehicleOwnerName,
+  vehicleOwnerRut: workOrder.vehicleOwnerRut,
   estado: workOrder.estado,
   descripcion: workOrder.descripcion,
   kilometrajeIngreso: workOrder.kilometrajeIngreso,
@@ -570,6 +583,19 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
     : workOrder.vehicleId === null
       ? null
       : undefined,
+  vehicleOwner: workOrder.vehicleOwnerName
+    ? {
+        clientId: workOrder.vehicleOwnerClientId,
+        nombre: workOrder.vehicleOwnerName,
+        rut: workOrder.vehicleOwnerRut,
+      }
+    : workOrder.vehicleOwnerClientId !== null
+      ? {
+          clientId: workOrder.vehicleOwnerClientId,
+          nombre: null,
+          rut: workOrder.vehicleOwnerRut,
+        }
+      : null,
   creator: workOrder.creator
     ? {
         id: workOrder.creator.id,
@@ -1147,10 +1173,20 @@ const assertVehicleExists = async (
   return vehicle;
 };
 
-const assertClientMatchesVehicle = (clientId: number | null, vehicle: Vehicle | null): void => {
-  if (clientId !== null && vehicle !== null && vehicle.clientId !== null && vehicle.clientId !== clientId) {
-    throw ApiError.badRequest('El vehículo pertenece a un cliente distinto al seleccionado');
+const getVehicleOwnerSnapshot = async (
+  vehicle: Vehicle | null,
+  transaction: Transaction,
+): Promise<WorkOrderVehicleOwnerPublic> => {
+  if (!vehicle || vehicle.clientId === null) {
+    return { clientId: null, nombre: null, rut: null };
   }
+
+  const owner = await Client.findByPk(vehicle.clientId, { transaction });
+  return {
+    clientId: vehicle.clientId,
+    nombre: owner?.nombre ?? null,
+    rut: owner?.rut ?? null,
+  };
 };
 
 const assertCatalogItemsExist = async (
@@ -1394,8 +1430,9 @@ export const createWorkOrder = async (
         await vehicle.update({ kilometraje: data.kilometrajeIngreso }, { transaction });
       }
     }
-
-    assertClientMatchesVehicle(clientId, vehicle);
+    const vehicleOwner = await getVehicleOwnerSnapshot(vehicle, transaction);
+    const vehicleOwnerMismatch =
+      clientId !== null && vehicleOwner.clientId !== null && vehicleOwner.clientId !== clientId;
 
     await assertCatalogItemsExist(data.items, transaction);
 
@@ -1407,6 +1444,9 @@ export const createWorkOrder = async (
         ...buildContactSnapshot(contactClient),
         ...buildBillingSnapshot(billingClient),
         vehicleId,
+        vehicleOwnerClientId: vehicleOwner.clientId,
+        vehicleOwnerName: vehicleOwner.nombre,
+        vehicleOwnerRut: vehicleOwner.rut,
         estado: 'borrador',
         descripcion: data.descripcion ?? null,
         kilometrajeIngreso: data.kilometrajeIngreso ?? null,
@@ -1437,8 +1477,16 @@ export const createWorkOrder = async (
       workOrder.id,
       userId,
       'creacion',
-      'Orden de trabajo creada',
-      { clientId, vehicleId, itemsCount: data.items.length },
+      vehicleOwnerMismatch
+        ? 'Orden de trabajo creada con propietario del vehículo diferente al responsable'
+        : 'Orden de trabajo creada',
+      {
+        clientId,
+        vehicleId,
+        itemsCount: data.items.length,
+         vehicleOwnerClientId: vehicleOwner.clientId,
+         vehicleOwnerMismatch,
+      },
       transaction,
     );
 
@@ -1483,7 +1531,15 @@ export const updateWorkOrder = async (
       }
     }
 
-    assertClientMatchesVehicle(nextClientId, vehicle);
+    const shouldRefreshVehicleOwner =
+      data.vehicleId !== undefined || workOrder.vehicleOwnerName === null;
+    const nextVehicleOwner = shouldRefreshVehicleOwner
+      ? await getVehicleOwnerSnapshot(vehicle, transaction)
+      : {
+          clientId: workOrder.vehicleOwnerClientId,
+          nombre: workOrder.vehicleOwnerName,
+          rut: workOrder.vehicleOwnerRut,
+        };
 
     if (data.items !== undefined) {
       await assertCatalogItemsExist(data.items, transaction);
@@ -1532,6 +1588,9 @@ export const updateWorkOrder = async (
         | 'billingRegion'
         | 'billingComuna'
         | 'vehicleId'
+        | 'vehicleOwnerClientId'
+        | 'vehicleOwnerName'
+        | 'vehicleOwnerRut'
         | 'descripcion'
         | 'kilometrajeIngreso'
         | 'fechaIngreso'
@@ -1560,6 +1619,11 @@ export const updateWorkOrder = async (
     }
     if (data.vehicleId !== undefined) {
       updatePayload.vehicleId = data.vehicleId;
+    }
+    if (shouldRefreshVehicleOwner) {
+      updatePayload.vehicleOwnerClientId = nextVehicleOwner.clientId;
+      updatePayload.vehicleOwnerName = nextVehicleOwner.nombre;
+      updatePayload.vehicleOwnerRut = nextVehicleOwner.rut;
     }
     if (data.descripcion !== undefined) {
       updatePayload.descripcion = data.descripcion;
@@ -1598,7 +1662,7 @@ export const changeStatus = async (
   motivo?: string | null,
 ): Promise<WorkOrderPublic> => {
   const workOrderId = await sequelize.transaction(async (transaction) => {
-    await assertManagementActionAllowed(userId, transaction);
+    await assertSupervisor(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
       lock: Transaction.LOCK.UPDATE,
@@ -1659,7 +1723,7 @@ export const deliverWorkOrder = async (
   userId: number,
 ): Promise<WorkOrderPublic> => {
   const workOrderId = await sequelize.transaction(async (transaction) => {
-    await assertManagementActionAllowed(userId, transaction);
+    await assertSupervisor(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
       lock: Transaction.LOCK.UPDATE,
@@ -1845,8 +1909,11 @@ export const createWorkOrderReentry = async (
         billingAddress: source.billingAddress,
         billingRegion: source.billingRegion,
         billingComuna: source.billingComuna,
-        vehicleId: source.vehicleId,
-        estado: 'borrador',
+         vehicleId: source.vehicleId,
+         vehicleOwnerClientId: source.vehicleOwnerClientId,
+         vehicleOwnerName: source.vehicleOwnerName,
+         vehicleOwnerRut: source.vehicleOwnerRut,
+         estado: 'borrador',
         descripcion: `[${label} de ${source.codigo}] ${data.motivo}`,
         kilometrajeIngreso,
         fechaIngreso: data.fechaIngreso ? new Date(data.fechaIngreso) : new Date(),
@@ -2310,7 +2377,7 @@ export const reviewWorkOrderRequest = async (
 
 export const deleteWorkOrder = async (id: number, userId: number): Promise<void> => {
   await sequelize.transaction(async (transaction) => {
-    await assertManagementActionAllowed(userId, transaction);
+    await assertSupervisor(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
       lock: Transaction.LOCK.UPDATE,

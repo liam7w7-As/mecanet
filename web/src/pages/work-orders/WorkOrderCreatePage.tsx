@@ -78,7 +78,7 @@ interface InspectionPhotoDraft {
 }
 
 const steps: Array<{ id: StepIndex; title: string; shortTitle: string; description: string }> = [
-  { id: 0, title: 'Cliente', shortTitle: 'Cliente', description: 'Quién deja el vehículo' },
+  { id: 0, title: 'Responsable', shortTitle: 'Responsable', description: 'Quién entrega y asume la OT' },
   { id: 1, title: 'Facturación', shortTitle: 'Facturación', description: 'Contacto y factura' },
   { id: 2, title: 'Vehículo', shortTitle: 'Vehículo', description: 'Auto que ingresa' },
   { id: 3, title: 'Inspección', shortTitle: 'Inspección', description: 'Estado de recepción' },
@@ -324,7 +324,7 @@ export const WorkOrderCreatePage = () => {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const isSubmitting = createMutation.isPending || uploadPhotosMutation.isPending;
-  const vehicleOwnerMismatch = Boolean(
+  const vehicleOwnerIsDifferent = Boolean(
     client && vehicle?.client && vehicle.client.id !== client.id,
   );
 
@@ -408,7 +408,7 @@ export const WorkOrderCreatePage = () => {
 
   const validateStep = (step: StepIndex): boolean => {
     if (step === 0 && !client) {
-      setErrors({ clientId: 'Seleccione o cree el cliente que deja el vehículo.' });
+      setErrors({ clientId: 'Seleccione o cree el responsable que entrega el vehículo.' });
       return false;
     }
     if (step === 1 && (!contactClient || !billingClient)) {
@@ -417,10 +417,6 @@ export const WorkOrderCreatePage = () => {
     }
     if (step === 2 && !vehicle) {
       setErrors({ vehicleId: 'Seleccione o cree el vehículo que ingresa al taller.' });
-      return false;
-    }
-    if (step === 2 && vehicleOwnerMismatch) {
-      setErrors({ vehicleId: 'El vehículo pertenece a otro cliente. Seleccione el cliente dueño o cree un vehículo para este cliente.' });
       return false;
     }
     setErrors({});
@@ -489,7 +485,7 @@ export const WorkOrderCreatePage = () => {
     if (!validateStep(0) || !validateStep(1) || !validateStep(2)) {
       if (!client) setActiveStep(0);
       else if (!contactClient || !billingClient) setActiveStep(1);
-      else if (!vehicle || vehicleOwnerMismatch) setActiveStep(2);
+      else if (!vehicle) setActiveStep(2);
       return;
     }
     const result = buildPayload();
@@ -538,7 +534,7 @@ export const WorkOrderCreatePage = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-3">
           <Link
@@ -680,9 +676,9 @@ export const WorkOrderCreatePage = () => {
         >
           {activeStep === 0 && (
             <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-              <SelectedClientCard title="Cliente seleccionado" client={client} onClear={() => setClient(null)} />
+              <SelectedClientCard title="Responsable del ingreso" client={client} onClear={() => setClient(null)} />
               <ClientSearchPicker
-                label="Buscar cliente"
+                label="Buscar responsable"
                 selectedClient={client}
                 onSelect={setPrimaryClient}
                 onCreate={() => setClientModalTarget('primary')}
@@ -694,7 +690,7 @@ export const WorkOrderCreatePage = () => {
           {activeStep === 1 && (
             <div className="space-y-5">
               <div className="grid gap-4 lg:grid-cols-3">
-                <SelectedClientCard title="Cliente de recepción" client={client} />
+                <SelectedClientCard title="Responsable de recepción" client={client} />
                 <SelectedClientCard title="Contacto en taller" client={contactClient} onClear={() => setContactClient(null)} />
                 <SelectedClientCard title="Facturación" client={billingClient} onClear={() => setBillingClient(null)} />
               </div>
@@ -753,7 +749,7 @@ export const WorkOrderCreatePage = () => {
                           {[vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' ') || 'Sin datos técnicos'}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
-                          {vehicle.client ? `Dueño: ${vehicle.client.nombre}` : 'Sin dueño asignado'}
+                          {vehicle.client ? `Propietario registrado: ${vehicle.client.nombre}` : 'Sin propietario registrado'}
                         </p>
                       </div>
                     </div>
@@ -775,7 +771,7 @@ export const WorkOrderCreatePage = () => {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="font-bold text-brand-blue">Buscar vehículo</h3>
-                    <p className="mt-1 text-sm text-slate-500">La patente se asociará al cliente seleccionado cuando registre un vehículo nuevo.</p>
+                    <p className="mt-1 text-sm text-slate-500">Los vehículos existentes conservan su propietario registrado; la OT puede quedar a nombre de otra persona que los entrega.</p>
                   </div>
                   <button
                     type="button"
@@ -792,10 +788,13 @@ export const WorkOrderCreatePage = () => {
                     placeholder="Buscar por patente, marca o dueño"
                   />
                 </div>
-                {vehicleOwnerMismatch && (
-                  <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {vehicleOwnerIsDifferent && (
+                  <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                    El vehículo seleccionado pertenece a otro cliente. Cambie el cliente principal o registre el auto para este ingreso.
+                    <div>
+                      <p className="font-semibold">El propietario del vehículo es diferente al responsable de la OT.</p>
+                      <p className="mt-1 text-xs">Se guardarían ambos datos para mantener la trazabilidad: {vehicle?.client?.nombre} como propietario y {client?.nombre} como responsable de ingreso.</p>
+                    </div>
                   </div>
                 )}
                 {errors.vehicleId && <p className="mt-3 text-sm text-red-700">{errors.vehicleId}</p>}
@@ -1104,7 +1103,7 @@ export const WorkOrderCreatePage = () => {
       )}
 
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
           <button
             type="button"
             className="absolute inset-0 bg-slate-950/55"
@@ -1130,8 +1129,8 @@ export const WorkOrderCreatePage = () => {
 
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <div className="rounded-lg border border-slate-200 p-3">
-                <p className="text-xs font-bold uppercase text-slate-500">Cliente / Contacto</p>
-                <p className="mt-1 font-semibold text-slate-900">{client?.nombre ?? 'Sin cliente'}</p>
+                <p className="text-xs font-bold uppercase text-slate-500">Responsable / Contacto</p>
+                <p className="mt-1 font-semibold text-slate-900">{client?.nombre ?? 'Sin responsable'}</p>
                 <p className="text-xs text-slate-500">{contactClient?.nombre ?? client?.nombre ?? '-'}</p>
                 <p className="mt-1 text-xs text-slate-500">Facturación: {billingClient?.nombre ?? '-'}</p>
               </div>
@@ -1140,6 +1139,9 @@ export const WorkOrderCreatePage = () => {
                 <p className="mt-1 font-mono font-bold text-brand-blue">{vehicle?.patente ?? 'Sin vehículo'}</p>
                 <p className="text-xs text-slate-500">
                   {[vehicle?.marca, vehicle?.modelo, vehicle?.ano].filter(Boolean).join(' ') || 'Sin datos'}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Propietario: {vehicle?.client?.nombre ?? 'Sin propietario registrado'}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Km: {kilometrajeIngreso === '' ? 'No registrado' : Number(kilometrajeIngreso).toLocaleString('es-CL')} ·

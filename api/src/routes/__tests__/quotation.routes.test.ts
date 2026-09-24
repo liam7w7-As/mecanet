@@ -463,7 +463,7 @@ describe('Quotation Routes (E2E)', () => {
     expect(withoutWorkOrder.body.items.map((item: { id: number }) => item.id)).not.toContain(linked.id);
   });
 
-  it('rechaza fechas invertidas y asociaciones cliente-vehículo incoherentes', async () => {
+  it('rechaza fechas invertidas y permite asociar un vehículo con otro responsable', async () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const invalidDates = await request(app)
       .get('/api/quotations')
@@ -483,10 +483,8 @@ describe('Quotation Routes (E2E)', () => {
       .set('X-CSRF-Token', vendedorCookies.csrfToken)
       .send({ clientId: otherClient.id, vehicleId });
 
-    expect(mismatch.status).toBe(400);
-    expect(mismatch.body.error.message).toBe(
-      'El vehículo pertenece a un cliente distinto al seleccionado',
-    );
+    expect(mismatch.status).toBe(201);
+    expect(mismatch.body.quotation.clientId).toBe(otherClient.id);
   });
 
   it('impide asignar un estado financiero incompatible con los montos', async () => {

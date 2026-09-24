@@ -207,7 +207,7 @@ describe('Client Routes (E2E)', () => {
       .set('Cookie', authCookie(vendedorCookies))
       .set('X-CSRF-Token', vendedorCookies.csrfToken)
       .send({
-        rut: `${TEST_RUT_PREFIX}3-3`,
+        rut: `${TEST_RUT_PREFIX}3-0`,
         nombre: 'Empresa Fase 31 Spa',
         tipo: 'empresa',
         email: `${TEST_EMAIL_PREFIX}empresa@unithor.local`,

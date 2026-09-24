@@ -437,8 +437,8 @@ export declare const changeWorkOrderStatusSchema: z.ZodObject<{
 export declare const deliverWorkOrderSchema: z.ZodObject<{
     kilometrajeSalida: z.ZodNumber;
     receptorNombre: z.ZodString;
-    receptorRut: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
-    receptorTelefono: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    receptorRut: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string | null, string>>>;
+    receptorTelefono: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string | null, string>>>;
     checklist: z.ZodEffects<z.ZodEffects<z.ZodArray<z.ZodEnum<["trabajos_explicados", "vehiculo_revisado", "pertenencias_entregadas", "documentos_entregados"]>, "many">, ("trabajos_explicados" | "vehiculo_revisado" | "pertenencias_entregadas" | "documentos_entregados")[], ("trabajos_explicados" | "vehiculo_revisado" | "pertenencias_entregadas" | "documentos_entregados")[]>, ("trabajos_explicados" | "vehiculo_revisado" | "pertenencias_entregadas" | "documentos_entregados")[], ("trabajos_explicados" | "vehiculo_revisado" | "pertenencias_entregadas" | "documentos_entregados")[]>;
     conformidad: z.ZodLiteral<true>;
     firmaRecepcion: z.ZodString;

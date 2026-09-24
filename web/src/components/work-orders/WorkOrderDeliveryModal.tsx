@@ -119,10 +119,12 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
                 {errors.receptorNombre && <span className="mt-1 block text-xs text-red-700">{errors.receptorNombre}</span>}
               </label>
               <label className="text-sm font-semibold text-slate-700">RUT / Identificación
-                <input value={receptorRut} onChange={(event) => setReceptorRut(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" />
+                <input value={receptorRut} onChange={(event) => setReceptorRut(event.target.value)} aria-invalid={Boolean(errors.receptorRut)} placeholder="12.345.678-5" className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" />
+                {errors.receptorRut && <span className="mt-1 block text-xs text-red-700">{errors.receptorRut}</span>}
               </label>
               <label className="text-sm font-semibold text-slate-700">Teléfono de contacto
-                <input value={receptorTelefono} onChange={(event) => setReceptorTelefono(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" />
+                <input value={receptorTelefono} onChange={(event) => setReceptorTelefono(event.target.value)} aria-invalid={Boolean(errors.receptorTelefono)} placeholder="+56 9 1234 5678" className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" />
+                {errors.receptorTelefono && <span className="mt-1 block text-xs text-red-700">{errors.receptorTelefono}</span>}
               </label>
             </div>
 

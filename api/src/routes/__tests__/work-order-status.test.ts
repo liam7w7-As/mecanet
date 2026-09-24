@@ -257,7 +257,7 @@ describe('Work Order State Machine Routes (E2E)', () => {
       .send({
         kilometrajeSalida: 125000,
         receptorNombre: 'Cliente de Prueba',
-        receptorRut: '12345678-9',
+         receptorRut: '12345678-5',
         receptorTelefono: '+56912345678',
         checklist: [
           'trabajos_explicados',

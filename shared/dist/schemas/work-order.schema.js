@@ -5,6 +5,7 @@ import { WORK_ORDER_DELIVERY_CHECKLIST } from '../constants/work-order-delivery.
 import { WORK_ORDER_ENTRY_TYPES } from '../constants/work-order-entry-type.js';
 import { FUEL_LEVELS, TIRE_CONDITIONS, VEHICLE_INVENTORY_ITEMS, } from '../constants/work-order-inspection.js';
 import { WORK_ORDER_STATUS } from '../constants/work-order-status.js';
+import { chilePhoneSchema, rutSchema } from './client.schema.js';
 const optionalText = (maxLength) => {
     const schema = z.string().trim();
     return (maxLength ? schema.max(maxLength) : schema)
@@ -114,8 +115,8 @@ const deliveryChecklistSchema = z
 export const deliverWorkOrderSchema = z.object({
     kilometrajeSalida: z.coerce.number().int().min(0),
     receptorNombre: z.string().trim().min(2).max(180),
-    receptorRut: optionalText(20),
-    receptorTelefono: optionalText(30),
+    receptorRut: rutSchema,
+    receptorTelefono: chilePhoneSchema,
     checklist: deliveryChecklistSchema,
     conformidad: z.literal(true, {
         errorMap: () => ({ message: 'El receptor debe aceptar la conformidad de entrega' }),

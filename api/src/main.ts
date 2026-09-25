@@ -99,8 +99,13 @@ if (env.NODE_ENV !== 'test') {
     .authenticate()
     .then(async () => {
       logger.info('Conexión a base de datos MySQL establecida correctamente.');
-      await sequelize.sync({ alter: false });
-      logger.info('Modelos sincronizados con la base de datos (alter: false).');
+      try {
+        await sequelize.sync({ alter: true });
+        logger.info('Modelos sincronizados con la base de datos (alter: true).');
+      } catch (syncErr) {
+        logger.warn({ syncErr }, 'Aviso: sync alter parcial, asegurando tablas base');
+        await sequelize.sync({ alter: false });
+      }
       await ensureDatabaseBootstrapped();
     })
     .catch((err: unknown) => {

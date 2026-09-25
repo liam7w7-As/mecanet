@@ -1,5 +1,7 @@
 import bcrypt from 'bcrypt';
+import { DataTypes } from 'sequelize';
 
+import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Permission } from '../models/Permission.js';
@@ -82,8 +84,83 @@ const CATALOG_ITEMS_SEED = [
   { tipo: 'parte' as const, codigo: 'BUJ-IRID-001', nombre: 'Bujía de Iridio NGK', descripcion: 'Bujía de alto rendimiento con electrodo de iridio', precio: 12500, stock: 40 },
 ];
 
+async function ensureSchemaUpToDate(): Promise<void> {
+  const qi = sequelize.getQueryInterface();
+  try {
+    const woCols = await qi.describeTable('work_orders');
+    if (!woCols.vehicle_owner_client_id) {
+      await qi.addColumn('work_orders', 'vehicle_owner_client_id', {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      });
+      logger.info('Columna vehicle_owner_client_id añadida a work_orders');
+    }
+    if (!woCols.vehicle_owner_name) {
+      await qi.addColumn('work_orders', 'vehicle_owner_name', {
+        type: DataTypes.STRING(180),
+        allowNull: true,
+      });
+      logger.info('Columna vehicle_owner_name añadida a work_orders');
+    }
+    if (!woCols.vehicle_owner_rut) {
+      await qi.addColumn('work_orders', 'vehicle_owner_rut', {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+      });
+      logger.info('Columna vehicle_owner_rut añadida a work_orders');
+    }
+    if (!woCols.cobertura_garantia) {
+      await qi.addColumn('work_orders', 'cobertura_garantia', {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      });
+      logger.info('Columna cobertura_garantia añadida a work_orders');
+    }
+    if (!woCols.assigned_mechanic_id) {
+      await qi.addColumn('work_orders', 'assigned_mechanic_id', {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      });
+      logger.info('Columna assigned_mechanic_id añadida a work_orders');
+    }
+  } catch (e) {
+    logger.warn({ err: e }, 'No se pudo verificar columnas en work_orders');
+  }
+
+  try {
+    const payCols = await qi.describeTable('payments');
+    if (!payCols.banco_origen) {
+      await qi.addColumn('payments', 'banco_origen', {
+        type: DataTypes.STRING(80),
+        allowNull: true,
+      });
+      logger.info('Columna banco_origen añadida a payments');
+    }
+    if (!payCols.numero_transaccion) {
+      await qi.addColumn('payments', 'numero_transaccion', {
+        type: DataTypes.STRING(80),
+        allowNull: true,
+      });
+      logger.info('Columna numero_transaccion añadida a payments');
+    }
+    if (!payCols.comprobante_pago) {
+      await qi.addColumn('payments', 'comprobante_pago', {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      });
+      logger.info('Columna comprobante_pago añadida a payments');
+    }
+  } catch (e) {
+    logger.warn({ err: e }, 'No se pudo verificar columnas en payments');
+  }
+}
+
 export async function ensureDatabaseBootstrapped(): Promise<void> {
   try {
+    // 0. Asegurar columnas de esquema recientes
+    await ensureSchemaUpToDate();
+
     // 1. Roles
     const roleCount = await Role.count();
     if (roleCount === 0) {

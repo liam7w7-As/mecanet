@@ -94,7 +94,7 @@ export const QuotationCreatePage = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <header className="flex items-start gap-3">
         <Link to="/quotations" className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:bg-slate-50" aria-label="Volver a cotizaciones">
           <AnimateIcon variant="slide-left" animateOnHover>

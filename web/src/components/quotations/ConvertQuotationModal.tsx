@@ -43,7 +43,7 @@ export const ConvertQuotationModal = ({ quotationId, codigo, notas, onClose, onC
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar conversión" onClick={onClose} />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}

@@ -52,7 +52,7 @@ export const VehiclesPage = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="text-sm font-medium text-slate-500">Parque vehicular</p><h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Vehículos</h1></div>
         {canCreate && (
@@ -73,7 +73,7 @@ export const VehiclesPage = () => {
 
       <section className="overflow-hidden border border-slate-200 bg-white" aria-label="Listado de vehículos">
         {(vehiclesQuery.isError || deleteMutation.isError) && <div className="flex items-start gap-2 border-b border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(vehiclesQuery.error ?? deleteMutation.error, 'No fue posible completar la operación')}</div>}
-        <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-brand-blue text-xs uppercase text-white"><tr><th className="px-4 py-3 font-semibold">Patente</th><th className="px-4 py-3 font-semibold">Marca / Modelo</th><th className="px-4 py-3 font-semibold">Año</th><th className="px-4 py-3 font-semibold">Dueño</th><th className="px-4 py-3 font-semibold">Kilometraje</th><th className="px-4 py-3 font-semibold">Combustible</th><th className="px-4 py-3 text-right font-semibold">Acciones</th></tr></thead><tbody>
+        <div className="max-w-full overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-brand-blue text-xs uppercase text-white"><tr><th className="px-4 py-3 font-semibold">Patente</th><th className="px-4 py-3 font-semibold">Marca / Modelo</th><th className="px-4 py-3 font-semibold">Año</th><th className="px-4 py-3 font-semibold">Dueño</th><th className="px-4 py-3 font-semibold">Kilometraje</th><th className="px-4 py-3 font-semibold">Combustible</th><th className="px-4 py-3 text-right font-semibold">Acciones</th></tr></thead><tbody>
           {vehiclesQuery.isPending ? <VehicleSkeleton /> : vehiclesQuery.data?.items.map((vehicle, index) => (
             <AnimatedTableRow key={vehicle.id} index={index} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 transition-colors">
               <td className="px-4 py-3"><span className="rounded bg-brand-yellow px-2.5 py-1 font-mono font-bold text-brand-dark shadow-xs">{vehicle.patente}</span></td>
@@ -122,7 +122,7 @@ export const VehiclesPage = () => {
       {formVehicle !== undefined && <VehicleFormModal vehicle={formVehicle} onClose={() => setFormVehicle(undefined)} />}
       <AnimatePresence>
         {deleteVehicle && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
             <motion.button
               type="button"
               initial={{ opacity: 0 }}

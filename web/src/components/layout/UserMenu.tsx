@@ -52,7 +52,7 @@ export const UserMenu = () => {
 
   return (
     <>
-      <div className="relative" ref={menuRef}>
+      <div className="relative min-w-0" ref={menuRef}>
         <button
           type="button"
           className="flex h-12 items-center gap-2 rounded-lg px-1.5 text-left transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-yellow sm:gap-3 sm:px-2"
@@ -83,7 +83,7 @@ export const UserMenu = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -6 }}
               transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-              className="absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-xl shadow-slate-900/10"
+              className="absolute right-0 top-full z-30 mt-2 w-[min(16rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-xl shadow-slate-900/10"
               role="menu"
             >
               <div className="border-b border-slate-100 px-4 pb-3 pt-2 sm:hidden">

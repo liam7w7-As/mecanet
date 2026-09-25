@@ -64,6 +64,24 @@ export class Payment extends Model<InferAttributes<Payment>, InferCreationAttrib
   declare referencia: CreationOptional<string | null>;
 
   @Column({
+    type: DataType.STRING(80),
+    allowNull: true,
+  })
+  declare bancoOrigen: CreationOptional<string | null>;
+
+  @Column({
+    type: DataType.STRING(80),
+    allowNull: true,
+  })
+  declare numeroTransaccion: CreationOptional<string | null>;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+  })
+  declare comprobantePago: CreationOptional<string | null>;
+
+  @Column({
     type: DataType.DATE,
     allowNull: false,
   })

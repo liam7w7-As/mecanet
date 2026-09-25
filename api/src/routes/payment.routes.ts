@@ -5,12 +5,14 @@ import { z } from 'zod';
 import {
   createPaymentHandler,
   deletePaymentHandler,
+  getPaymentReceiptHandler,
   getPaymentsHandler,
   verifyPaymentHandler,
 } from '../controllers/payment.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorizeAny } from '../middlewares/authorize-any.js';
 import { authorize } from '../middlewares/authorize.js';
+import { paymentReceiptUpload } from '../middlewares/payment-receipt-upload.js';
 import { validate } from '../middlewares/validate.js';
 
 export const paymentRouter = Router();
@@ -23,16 +25,33 @@ paymentRouter.use(authenticate);
 
 paymentRouter.get(
   '/',
-  authorizeAny([{ modulo: 'comercial', accion: 'read' }, { modulo: 'finanzas', accion: 'read' }]),
+  authorizeAny([
+    { modulo: 'comercial', accion: 'read' },
+    { modulo: 'finanzas', accion: 'read' },
+  ]),
   validate({ query: paymentQuerySchema }),
   getPaymentsHandler,
 );
 
 paymentRouter.post(
   '/',
-  authorizeAny([{ modulo: 'comercial', accion: 'create' }, { modulo: 'finanzas', accion: 'create' }]),
+  authorizeAny([
+    { modulo: 'comercial', accion: 'create' },
+    { modulo: 'finanzas', accion: 'create' },
+  ]),
+  paymentReceiptUpload,
   validate({ body: createPaymentSchema }),
   createPaymentHandler,
+);
+
+paymentRouter.get(
+  '/:id/receipt',
+  authorizeAny([
+    { modulo: 'comercial', accion: 'read' },
+    { modulo: 'finanzas', accion: 'read' },
+  ]),
+  validate({ params: idParamSchema }),
+  getPaymentReceiptHandler,
 );
 
 paymentRouter.patch(
@@ -44,7 +63,10 @@ paymentRouter.patch(
 
 paymentRouter.delete(
   '/:id',
-  authorizeAny([{ modulo: 'comercial', accion: 'delete' }, { modulo: 'finanzas', accion: 'delete' }]),
+  authorizeAny([
+    { modulo: 'comercial', accion: 'delete' },
+    { modulo: 'finanzas', accion: 'delete' },
+  ]),
   validate({ params: idParamSchema }),
   deletePaymentHandler,
 );

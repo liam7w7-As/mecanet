@@ -1,4 +1,4 @@
-import { createVehicleSchema } from '@unithor/shared';
+import { createVehicleSchema, normalizeChilePatente } from '@unithor/shared';
 import { AlertCircle, Check, LoaderCircle, Search, UserRound, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
@@ -33,8 +33,7 @@ interface VehicleFormState {
   transmision: string;
 }
 
-const normalizePlateInput = (value: string): string =>
-  value.replace(/[\s-]/g, '').toUpperCase().slice(0, 15);
+const normalizePlateInput = (value: string): string => normalizeChilePatente(value).slice(0, 8);
 
 const getInitialState = (vehicle?: Vehicle | null, initialPatente = ''): VehicleFormState => ({
   patente: vehicle?.patente ?? normalizePlateInput(initialPatente),
@@ -145,7 +144,7 @@ export const VehicleFormModal = ({
   const mutationError = activeMutation.error;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar formulario de vehículo" onClick={onClose} />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
@@ -177,7 +176,7 @@ export const VehicleFormModal = ({
                 value={form.patente}
                 onChange={(event) => setValue('patente', normalizePlateInput(event.target.value))}
                 aria-invalid={Boolean(fieldErrors.patente)}
-                placeholder="ABCD12"
+                placeholder="AB1234 o ABCD12"
               />
               {fieldErrors.patente && <span className="mt-1 block text-xs text-red-600">{fieldErrors.patente}</span>}
             </label>

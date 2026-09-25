@@ -88,7 +88,7 @@ export const DashboardPage = () => {
   const summary = dashboardQuery.data;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">Panel operativo</p>
@@ -156,7 +156,7 @@ export const DashboardPage = () => {
                 </Link>
               </div>
               {summary.recentWorkOrders.length === 0 ? <p className="px-5 py-12 text-center text-sm text-slate-500">Aún no hay órdenes de trabajo registradas.</p> : (
-                <div className="overflow-x-auto">
+                <div className="max-w-full overflow-x-auto overscroll-x-contain">
                   <table className="w-full min-w-[660px] text-left text-sm">
                     <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3 font-semibold">Orden</th><th className="px-4 py-3 font-semibold">Patente</th><th className="px-4 py-3 font-semibold">Cliente</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold">Ingreso</th><th className="px-4 py-3 text-right font-semibold">Detalle</th></tr></thead>
                     <tbody>

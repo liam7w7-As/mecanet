@@ -114,7 +114,7 @@ export const AppLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-brand-light text-slate-900">
+    <div className="min-h-screen overflow-x-hidden bg-brand-light text-slate-900">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-brand-blue lg:flex">
         <SidebarContent />
       </aside>
@@ -155,9 +155,9 @@ export const AppLayout = () => {
         )}
       </AnimatePresence>
 
-      <div className="lg:pl-64">
+      <div className="min-w-0 lg:pl-64">
         <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
+          <div className="min-w-0 flex items-center gap-3">
             <button
               type="button"
               className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-brand-blue hover:bg-slate-50 lg:hidden"
@@ -176,7 +176,7 @@ export const AppLayout = () => {
           <UserMenu />
         </header>
 
-        <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <main className="mx-auto min-w-0 w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <PageTransition routeKey={pathname}>
             <Outlet />
           </PageTransition>

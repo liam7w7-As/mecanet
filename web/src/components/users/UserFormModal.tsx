@@ -67,7 +67,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
   const inputClass = 'mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar formulario de usuario" onClick={onClose} />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}

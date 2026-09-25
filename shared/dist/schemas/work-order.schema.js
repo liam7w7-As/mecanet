@@ -1,11 +1,11 @@
 import { z } from 'zod';
+import { chilePhoneSchema, rutSchema } from './client.schema.js';
 import { paginationSchema } from './pagination.schema.js';
 import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
 import { WORK_ORDER_DELIVERY_CHECKLIST } from '../constants/work-order-delivery.js';
 import { WORK_ORDER_ENTRY_TYPES } from '../constants/work-order-entry-type.js';
 import { FUEL_LEVELS, TIRE_CONDITIONS, VEHICLE_INVENTORY_ITEMS, } from '../constants/work-order-inspection.js';
 import { WORK_ORDER_STATUS } from '../constants/work-order-status.js';
-import { chilePhoneSchema, rutSchema } from './client.schema.js';
 const optionalText = (maxLength) => {
     const schema = z.string().trim();
     return (maxLength ? schema.max(maxLength) : schema)

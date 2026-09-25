@@ -98,7 +98,7 @@ export const CatalogPage = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">Operación de taller y bodega</p>
@@ -159,7 +159,7 @@ export const CatalogPage = () => {
 
         {(catalogQuery.isError || deleteMutation.isError) && <div className="flex items-start gap-2 border-b border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(catalogQuery.error ?? deleteMutation.error)}</div>}
 
-        <div className="overflow-x-auto">
+        <div className="max-w-full overflow-x-auto overscroll-x-contain">
           <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="bg-brand-blue text-xs uppercase text-white"><tr><th className="px-4 py-3 font-semibold">Código</th><th className="px-4 py-3 font-semibold">Nombre</th><th className="px-4 py-3 font-semibold">Tipo</th><th className="px-4 py-3 text-right font-semibold">Precio</th><th className="px-4 py-3 text-center font-semibold">Stock</th><th className="px-4 py-3 font-semibold">Disponibilidad</th><th className="px-4 py-3 text-right font-semibold">Acciones</th></tr></thead>
             <tbody>
@@ -207,7 +207,7 @@ export const CatalogPage = () => {
       {formItem !== undefined && <CatalogItemModal item={formItem} onClose={() => setFormItem(undefined)} />}
       {stockItem && <StockAdjustmentModal item={stockItem} onClose={() => setStockItem(null)} />}
       {deleteItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
           <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cancelar eliminación" onClick={() => setDeleteItem(null)} />
           <section className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="delete-catalog-title">
             <h2 id="delete-catalog-title" className="text-lg font-semibold text-brand-blue">Eliminar {deleteItem.nombre}</h2>

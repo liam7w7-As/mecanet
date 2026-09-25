@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
@@ -89,27 +89,29 @@ app.use(errorHandler);
 
 // Iniciar servidor y base de datos cuando no esté en modo test
 if (env.NODE_ENV !== 'test') {
-  const startServer = async (): Promise<void> => {
-    try {
-      await fs.mkdir(path.resolve(env.UPLOAD_DIR), { recursive: true });
-    } catch (err) {
-      logger.warn({ err }, 'Aviso: No se pudo verificar la carpeta de uploads');
-    }
+  try {
+    fs.mkdirSync(path.resolve(env.UPLOAD_DIR), { recursive: true });
+  } catch (err) {
+    logger.warn({ err }, 'Aviso: No se pudo verificar la carpeta de uploads');
+  }
 
-    await sequelize.authenticate();
-    logger.info('Conexión a base de datos MySQL establecida correctamente.');
-    await sequelize.sync({ alter: false });
-    logger.info('Modelos sincronizados con la base de datos (alter: false).');
-    await ensureDatabaseBootstrapped();
-
-    app.listen(env.PORT, () => {
-      logger.info(`Servidor API UNITHOR escuchando en http://localhost:${env.PORT}`);
+  sequelize
+    .authenticate()
+    .then(async () => {
+      logger.info('Conexión a base de datos MySQL establecida correctamente.');
+      await sequelize.sync({ alter: false });
+      logger.info('Modelos sincronizados con la base de datos (alter: false).');
+      await ensureDatabaseBootstrapped();
+    })
+    .catch((err: unknown) => {
+      logger.warn(
+        { err },
+        'Aviso: No se pudo conectar a la base de datos MySQL (el servidor iniciará en modo desacoplado)',
+      );
     });
-  };
 
-  void startServer().catch((err: unknown) => {
-    logger.error({ err }, 'No se pudo iniciar el servidor de forma segura');
-    process.exitCode = 1;
+  app.listen(env.PORT, () => {
+    logger.info(`Servidor API UNITHOR escuchando en http://localhost:${env.PORT}`);
   });
 }
 

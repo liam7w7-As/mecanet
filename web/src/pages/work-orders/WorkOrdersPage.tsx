@@ -271,7 +271,7 @@ export const WorkOrdersPage = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">Operación de taller</p>

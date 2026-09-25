@@ -37,9 +37,7 @@ const extractCookies = (res: request.Response): Record<string, string> => {
       return cookies;
     }
 
-    cookies[pair.slice(0, separatorIndex).trim()] = pair
-      .slice(separatorIndex + 1)
-      .trim();
+    cookies[pair.slice(0, separatorIndex).trim()] = pair.slice(separatorIndex + 1).trim();
     return cookies;
   }, {});
 };
@@ -391,27 +389,44 @@ describe('Payment Routes (E2E)', () => {
     const bodegueroCookies = await loginAs(`${TEST_EMAIL_PREFIX}bodeguero@unithor.local`);
     const quotation = await createQuotationFixture('06', clientId, 100000);
 
+    const receiptBytes = Buffer.from('%PDF-1.4\n% comprobante test\n');
     const createResponse = await request(app)
       .post('/api/payments')
       .set('Cookie', authCookie(devCookies))
       .set('X-CSRF-Token', devCookies.csrfToken)
-      .send({
-        quotationId: quotation.id,
-        monto: 40000,
-        metodo: 'transferencia',
-        referencia: 'TRX-53006',
+      .field('quotationId', String(quotation.id))
+      .field('monto', '40000')
+      .field('metodo', 'transferencia')
+      .field('bancoOrigen', 'Banco Santander')
+      .field('numeroTransaccion', 'TRX-53006')
+      .field('referencia', 'Cartola inicial')
+      .attach('comprobantePago', receiptBytes, {
+        filename: 'comprobante-53006.pdf',
+        contentType: 'application/pdf',
       });
 
     expect(createResponse.status).toBe(201);
     expect(createResponse.body.payment).toMatchObject({
       estado: 'por_verificar',
-      referencia: 'TRX-53006',
+      referencia: 'Cartola inicial',
+      bancoOrigen: 'Banco Santander',
+      numeroTransaccion: 'TRX-53006',
     });
+    expect(createResponse.body.payment.comprobantePago).toMatch(
+      /^payment-receipts\/\d{4}\/\d{2}\/[0-9a-f-]+\.pdf$/,
+    );
     expect(createResponse.body.quotation).toMatchObject({
       pagado: 0,
       saldoPendiente: 100000,
       estadoPago: 'por_verificar',
     });
+
+    const receiptResponse = await request(app)
+      .get(`/api/payments/${createResponse.body.payment.id as number}/receipt`)
+      .set('Cookie', authCookie(devCookies));
+    expect(receiptResponse.status).toBe(200);
+    expect(receiptResponse.headers['content-type']).toContain('application/pdf');
+    expect(receiptResponse.body.subarray(0, 5).toString('ascii')).toBe('%PDF-');
 
     const forbiddenResponse = await request(app)
       .patch(`/api/payments/${createResponse.body.payment.id as number}/verify`)
@@ -445,6 +460,9 @@ describe('Payment Routes (E2E)', () => {
         quotationId: quotation.id,
         monto: 20000,
         metodo: 'transferencia',
+        bancoOrigen: 'Banco Estado',
+        numeroTransaccion: 'TRX-53007',
+        comprobantePago: 'comprobante-rechazo.pdf',
       });
     const rejectResponse = await request(app)
       .patch(`/api/payments/${rejectedCreateResponse.body.payment.id as number}/verify`)

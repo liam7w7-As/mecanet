@@ -77,8 +77,8 @@ const analytics: FinancialAnalytics = {
     quotationCount: 4,
     paidQuotationCount: 2,
     workOrderConversionCount: 3,
-    collectionRate: 0.6042,
-    conversionRate: 0.75,
+    collectionRate: 60.42,
+    conversionRate: 75,
   },
   comparison: {
     grossSales: { previous: 2000000, variationPercent: 20 },
@@ -111,8 +111,8 @@ const analytics: FinancialAnalytics = {
     collected: 1450000,
     receivable: 950000,
   }],
-  paymentMethods: [{ metodo: 'transferencia', count: 3, amount: 1450000, share: 1 }],
-  quotationStatuses: [{ estado: 'parcial', count: 4, amount: 2400000, share: 1 }],
+  paymentMethods: [{ metodo: 'transferencia', count: 3, amount: 1450000, share: 100 }],
+  quotationStatuses: [{ estado: 'parcial', count: 4, amount: 2400000, share: 100 }],
   movementCategories: [{
     categoria: 'gasto_operativo',
     tipo: 'egreso',
@@ -247,6 +247,8 @@ describe('FinancePage', () => {
     expect((await screen.findAllByText('$1.450.000')).length).toBeGreaterThan(0);
     expect(screen.getByText('TRX-0091')).toBeInTheDocument();
     expect(screen.getAllByText('COT-2026-0031').length).toBeGreaterThan(0);
+    expect(screen.getByText('3 operaciones · 100,0%')).toBeInTheDocument();
+    expect(screen.getByTestId('payment-share-transferencia')).toHaveStyle({ width: '100%' });
   });
 
   it('permite confirmar una transferencia pendiente', async () => {

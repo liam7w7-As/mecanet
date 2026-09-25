@@ -71,7 +71,7 @@ export const ClientsPage = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">Gestión comercial</p>
@@ -128,7 +128,7 @@ export const ClientsPage = () => {
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> {getApiErrorMessage(clientsQuery.error, 'No fue posible cargar los clientes')}
           </div>
         )}
-        <div className="overflow-x-auto">
+        <div className="max-w-full overflow-x-auto overscroll-x-contain">
           <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="bg-brand-blue text-xs uppercase text-white">
               <tr>

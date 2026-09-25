@@ -15,7 +15,7 @@ export const Pagination = ({ page, totalPages, total, onPageChange }: Pagination
       <p className="text-sm text-slate-500">
         {total} {total === 1 ? 'registro' : 'registros'}
       </p>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2 self-start sm:self-auto">
         <button
           type="button"
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
@@ -26,7 +26,7 @@ export const Pagination = ({ page, totalPages, total, onPageChange }: Pagination
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </button>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
           Página
           <select
             className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm font-semibold text-brand-blue"
@@ -38,7 +38,7 @@ export const Pagination = ({ page, totalPages, total, onPageChange }: Pagination
               <option key={pageNumber} value={pageNumber}>{pageNumber}</option>
             ))}
           </select>
-          de {Math.max(totalPages, 1)}
+          <span className="whitespace-nowrap">de {Math.max(totalPages, 1)}</span>
         </label>
         <button
           type="button"

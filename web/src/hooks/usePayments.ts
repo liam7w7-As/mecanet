@@ -3,11 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { quotationKeys } from './useQuotations';
 import { api } from '../lib/api';
 
-import type {
-  Payment,
-  PaymentQuotationSummary,
-  QuotationPaymentSummary,
-} from '../types/entities';
+import type { Payment, PaymentQuotationSummary, QuotationPaymentSummary } from '../types/entities';
 import type { CommercialReportFilters, CreatePaymentInput } from '@unithor/shared';
 
 interface CreatePaymentResponse {
@@ -29,7 +25,9 @@ export const useQuotationPayments = (quotationId: number) =>
   useQuery({
     queryKey: paymentKeys.quotation(quotationId),
     queryFn: async () => {
-      const response = await api.get<QuotationPaymentSummary>(`/quotations/${quotationId}/payments`);
+      const response = await api.get<QuotationPaymentSummary>(
+        `/quotations/${quotationId}/payments`,
+      );
       return response.data;
     },
     enabled: Number.isInteger(quotationId) && quotationId > 0,
@@ -52,14 +50,15 @@ export const useCreatePaymentMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: CreatePaymentInput) => {
+    mutationFn: async (data: CreatePaymentInput | FormData) => {
       const response = await api.post<CreatePaymentResponse>('/payments', data);
       return response.data;
     },
     onSuccess: ({ payment, quotation }) => {
       queryClient.setQueryData<QuotationPaymentSummary>(
         paymentKeys.quotation(quotation.id),
-        (current) => updatePaymentSummary(current, quotation, [payment, ...(current?.payments ?? [])]),
+        (current) =>
+          updatePaymentSummary(current, quotation, [payment, ...(current?.payments ?? [])]),
       );
       void queryClient.invalidateQueries({ queryKey: quotationKeys.all });
       void queryClient.invalidateQueries({ queryKey: paymentKeys.quotation(quotation.id) });
@@ -79,11 +78,12 @@ export const useDeletePaymentMutation = () => {
     onSuccess: ({ quotation, paymentId, quotationId }) => {
       queryClient.setQueryData<QuotationPaymentSummary>(
         paymentKeys.quotation(quotationId),
-        (current) => updatePaymentSummary(
-          current,
-          quotation,
-          current?.payments.filter((payment) => payment.id !== paymentId),
-        ),
+        (current) =>
+          updatePaymentSummary(
+            current,
+            quotation,
+            current?.payments.filter((payment) => payment.id !== paymentId),
+          ),
       );
       void queryClient.invalidateQueries({ queryKey: quotationKeys.all });
       void queryClient.invalidateQueries({ queryKey: paymentKeys.quotation(quotationId) });

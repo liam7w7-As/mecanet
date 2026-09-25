@@ -35,8 +35,21 @@ export const createPaymentHandler = asyncHandler(
     const result = await paymentService.createPayment(
       req.body as CreatePaymentInput,
       getCurrentUserId(req),
+      req.file,
     );
     res.status(201).json(result);
+  },
+);
+
+export const getPaymentReceiptHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { bytes, filename, mimeType } = await paymentService.getPaymentReceipt(getParamId(req));
+
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', String(bytes.length));
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.end(bytes);
   },
 );
 

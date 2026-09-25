@@ -106,7 +106,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
   const mutationError = activeMutation.error;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
         className="absolute inset-0 bg-slate-950/55"

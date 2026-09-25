@@ -77,7 +77,7 @@ export const QuotationsPage = () => {
   useEffect(() => setPage(1), [debouncedSearch, fechaDesde, fechaHasta, status]);
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div><p className="text-sm font-medium text-slate-500">Gestión comercial</p><h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Comercial - Cotizaciones</h1></div>
         <div className="flex flex-wrap gap-2">
@@ -135,7 +135,7 @@ export const QuotationsPage = () => {
 
         {(quotationsQuery.isError || excelMutation.isError || previewQuery.isError) && <div className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{getApiErrorMessage(quotationsQuery.error ?? excelMutation.error ?? previewQuery.error, 'No fue posible completar la operación.')}</div>}
 
-        <div className="overflow-x-auto">
+        <div className="max-w-full overflow-x-auto overscroll-x-contain">
           <table className="w-full min-w-[1080px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>

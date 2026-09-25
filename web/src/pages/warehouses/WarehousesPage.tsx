@@ -153,7 +153,7 @@ export const WarehousesPage = () => {
   }, [balancesQuery.data, balanceSearch]);
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">Inventario por bodega</p>
@@ -297,7 +297,7 @@ export const WarehousesPage = () => {
               />
             </label>
           </div>
-          <div className="overflow-x-auto">
+          <div className="max-w-full overflow-x-auto overscroll-x-contain">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr><th className="px-4 py-3 font-semibold">Código</th><th className="px-4 py-3 font-semibold">Repuesto</th><th className="px-4 py-3 text-right font-semibold">Precio</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th></tr>
@@ -330,7 +330,7 @@ export const WarehousesPage = () => {
           <label className="text-xs font-semibold uppercase text-slate-500">Fecha hasta<input type="date" value={fechaHasta} min={fechaDesde} onChange={(event) => setFechaHasta(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal text-slate-700" aria-label="Fecha hasta" /></label>
           <div className="flex items-end gap-2 text-sm text-slate-500"><History className="mb-2.5 h-4 w-4" aria-hidden="true" /><p className="pb-2">Kardex: cada ingreso, salida y ajuste con su saldo resultante.</p></div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="max-w-full overflow-x-auto overscroll-x-contain">
           <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr><th className="px-4 py-3 font-semibold">Fecha</th><th className="px-4 py-3 font-semibold">Tipo</th><th className="px-4 py-3 font-semibold">Repuesto</th><th className="px-4 py-3 font-semibold">Almacén</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th><th className="px-4 py-3 text-right font-semibold">Saldo</th><th className="px-4 py-3 font-semibold">Motivo</th></tr>
@@ -433,7 +433,7 @@ const WarehouseFormModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar almacén" onClick={onClose} />
       <section className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="warehouse-modal-title">
         <h2 id="warehouse-modal-title" className="text-xl font-bold text-brand-blue">
@@ -504,7 +504,7 @@ const StockMovementModal = ({ warehouse, onClose }: { warehouse: Warehouse; onCl
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar movimiento" onClick={onClose} />
       <section className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="movement-modal-title">
         <h2 id="movement-modal-title" className="text-xl font-bold text-brand-blue">Movimiento · {warehouse.codigo}</h2>
@@ -608,7 +608,7 @@ const StockTransferModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar traslado" onClick={onClose} />
       <section className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="transfer-modal-title">
         <h2 id="transfer-modal-title" className="text-xl font-bold text-brand-blue">Trasladar stock</h2>

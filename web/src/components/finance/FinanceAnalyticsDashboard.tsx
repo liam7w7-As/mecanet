@@ -46,11 +46,10 @@ const humanize = (value: string): string =>
     .join(' ');
 
 const percent = (value: number): string =>
-  new Intl.NumberFormat('es-CL', {
-    style: 'percent',
+  `${new Intl.NumberFormat('es-CL', {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
-  }).format(value);
+  }).format(value)}%`;
 
 interface ComparisonProps {
   value: number | null;
@@ -88,11 +87,11 @@ const ExecutiveMetric = ({
   comparison,
   inverseComparison,
 }: ExecutiveMetricProps) => (
-  <article className="min-h-36 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-    <div className="flex items-start justify-between gap-3">
+  <article className="min-h-36 min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
       <div>
         <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-        <p className="mt-2 text-2xl font-bold text-brand-blue">{value}</p>
+        <p className="mt-2 break-words text-xl font-bold text-brand-blue sm:text-2xl">{value}</p>
       </div>
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand-blue">
         <Icon className="h-5 w-5" aria-hidden="true" />
@@ -137,7 +136,7 @@ const movementCategories = [
 
 const AnalyticsSkeleton = () => (
   <div className="space-y-5" aria-label="Cargando analítica financiera">
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {Array.from({ length: 8 }, (_, index) => (
         <div key={index} className="h-36 animate-pulse rounded-lg bg-slate-200" />
       ))}
@@ -178,7 +177,7 @@ export const FinanceAnalyticsDashboard = () => {
   };
 
   return (
-    <section className="space-y-5" aria-labelledby="financial-analytics-title">
+    <section className="min-w-0 space-y-5" aria-labelledby="financial-analytics-title">
       <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold text-slate-500">Análisis ejecutivo</p>
@@ -186,12 +185,12 @@ export const FinanceAnalyticsDashboard = () => {
             Rendimiento financiero y comercial
           </h2>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <button
             type="button"
             onClick={() => exportReport('pdf')}
             disabled={downloadMutation.isPending}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-blue px-4 text-sm font-bold text-brand-blue hover:bg-brand-light disabled:opacity-50"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-brand-blue px-4 text-sm font-bold text-brand-blue hover:bg-brand-light disabled:opacity-50 sm:w-auto"
           >
             {downloadMutation.isPending ? (
               <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -204,7 +203,7 @@ export const FinanceAnalyticsDashboard = () => {
             type="button"
             onClick={() => exportReport('excel')}
             disabled={downloadMutation.isPending}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-bold text-white hover:bg-brand-dark disabled:opacity-50"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-bold text-white hover:bg-brand-dark disabled:opacity-50 sm:w-auto"
           >
             <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
             Excel detallado
@@ -217,8 +216,8 @@ export const FinanceAnalyticsDashboard = () => {
           <Filter className="h-4 w-4" aria-hidden="true" />
           Filtros del análisis y reportes
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-          <label className="text-xs font-bold text-slate-600">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+          <label className="min-w-0 text-xs font-bold text-slate-600">
             Desde
             <input
               aria-label="Fecha desde"
@@ -229,7 +228,7 @@ export const FinanceAnalyticsDashboard = () => {
               className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
             />
           </label>
-          <label className="text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-slate-600">
             Hasta
             <input
               aria-label="Fecha hasta"
@@ -241,7 +240,7 @@ export const FinanceAnalyticsDashboard = () => {
               className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
             />
           </label>
-          <label className="text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-slate-600">
             Agrupar
             <select
               aria-label="Agrupar tendencia"
@@ -256,7 +255,7 @@ export const FinanceAnalyticsDashboard = () => {
               <option value="mes">Por mes</option>
             </select>
           </label>
-          <label className="text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-slate-600">
             Vendedor
             <select
               aria-label="Filtrar por vendedor"
@@ -272,7 +271,7 @@ export const FinanceAnalyticsDashboard = () => {
               ))}
             </select>
           </label>
-          <label className="text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-slate-600">
             Cliente
             <select
               aria-label="Filtrar por cliente"
@@ -290,7 +289,7 @@ export const FinanceAnalyticsDashboard = () => {
               ))}
             </select>
           </label>
-          <label className="text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-slate-600">
             Estado de pago
             <select
               aria-label="Filtrar por estado de pago"
@@ -309,7 +308,7 @@ export const FinanceAnalyticsDashboard = () => {
               ))}
             </select>
           </label>
-          <label className="text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-slate-600">
             Método de pago
             <select
               aria-label="Filtrar por método de pago"
@@ -328,7 +327,7 @@ export const FinanceAnalyticsDashboard = () => {
               ))}
             </select>
           </label>
-          <label className="text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-slate-600">
             Tipo de ítem
             <select
               aria-label="Filtrar por tipo de catálogo"
@@ -347,7 +346,7 @@ export const FinanceAnalyticsDashboard = () => {
               <option value="especifico">Servicios específicos</option>
             </select>
           </label>
-          <label className="text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-slate-600">
             Tipo de movimiento
             <select
               aria-label="Filtrar por tipo de movimiento"
@@ -365,7 +364,7 @@ export const FinanceAnalyticsDashboard = () => {
               <option value="egreso">Egreso</option>
             </select>
           </label>
-          <label className="text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-slate-600">
             Categoría de caja
             <select
               aria-label="Filtrar por categoría de caja"
@@ -384,7 +383,7 @@ export const FinanceAnalyticsDashboard = () => {
               ))}
             </select>
           </label>
-          <label className="flex h-10 items-center gap-2 self-end text-sm font-semibold text-slate-700">
+          <label className="flex min-w-0 h-10 items-center gap-2 self-end text-sm font-semibold text-slate-700">
             <input
               type="checkbox"
               checked={filters.comparar}
@@ -413,7 +412,7 @@ export const FinanceAnalyticsDashboard = () => {
 
       {data && (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <ExecutiveMetric
               label="Ventas emitidas"
               value={formatClp(data.kpis.grossSales)}
@@ -469,8 +468,8 @@ export const FinanceAnalyticsDashboard = () => {
             />
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-            <section className="rounded-lg border border-slate-200 bg-white">
+          <div className="grid min-w-0 gap-5 xl:grid-cols-[1.4fr_1fr]">
+            <section className="min-w-0 rounded-lg border border-slate-200 bg-white">
               <div className="border-b border-slate-200 px-5 py-4">
                 <h3 className="font-bold text-brand-blue">Evolución del período</h3>
                 <p className="mt-1 text-xs text-slate-500">Ventas, cobros y egresos por {filters.agruparPor}.</p>
@@ -481,7 +480,7 @@ export const FinanceAnalyticsDashboard = () => {
                 ) : (
                   <div className="space-y-4">
                     {data.trend.map((point) => (
-                      <div key={point.key} className="grid grid-cols-[5.5rem_1fr] gap-3">
+                      <div key={point.key} className="grid min-w-0 gap-3 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
                         <div>
                           <p className="text-xs font-bold text-slate-700">{point.label}</p>
                           <p className={`mt-1 text-xs font-semibold ${
@@ -491,20 +490,20 @@ export const FinanceAnalyticsDashboard = () => {
                           </p>
                         </div>
                         <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="w-14 text-right text-[11px] text-slate-500">Ventas</span>
-                            <span className="h-2 min-w-1 bg-brand-blue" style={{ width: `${Math.max(2, (point.grossSales / maxTrendValue) * 100)}%` }} />
-                            <span className="text-[11px] font-semibold text-slate-600">{formatClp(point.grossSales)}</span>
+                          <div className="grid min-w-0 grid-cols-[3.5rem_minmax(2rem,1fr)_auto] items-center gap-2">
+                            <span className="text-right text-[11px] text-slate-500">Ventas</span>
+                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-brand-blue" style={{ width: `${Math.max(2, (point.grossSales / maxTrendValue) * 100)}%` }} />
+                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-slate-600">{formatClp(point.grossSales)}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="w-14 text-right text-[11px] text-slate-500">Cobros</span>
-                            <span className="h-2 min-w-1 bg-emerald-600" style={{ width: `${Math.max(2, (point.collected / maxTrendValue) * 100)}%` }} />
-                            <span className="text-[11px] font-semibold text-slate-600">{formatClp(point.collected)}</span>
+                          <div className="grid min-w-0 grid-cols-[3.5rem_minmax(2rem,1fr)_auto] items-center gap-2">
+                            <span className="text-right text-[11px] text-slate-500">Cobros</span>
+                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-emerald-600" style={{ width: `${Math.max(2, (point.collected / maxTrendValue) * 100)}%` }} />
+                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-slate-600">{formatClp(point.collected)}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="w-14 text-right text-[11px] text-slate-500">Egresos</span>
-                            <span className="h-2 min-w-1 bg-red-500" style={{ width: `${Math.max(2, (point.expenses / maxTrendValue) * 100)}%` }} />
-                            <span className="text-[11px] font-semibold text-slate-600">{formatClp(point.expenses)}</span>
+                          <div className="grid min-w-0 grid-cols-[3.5rem_minmax(2rem,1fr)_auto] items-center gap-2">
+                            <span className="text-right text-[11px] text-slate-500">Egresos</span>
+                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-red-500" style={{ width: `${Math.max(2, (point.expenses / maxTrendValue) * 100)}%` }} />
+                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-slate-600">{formatClp(point.expenses)}</span>
                           </div>
                         </div>
                       </div>
@@ -514,7 +513,7 @@ export const FinanceAnalyticsDashboard = () => {
               </div>
             </section>
 
-            <section className="rounded-lg border border-slate-200 bg-white">
+            <section className="min-w-0 rounded-lg border border-slate-200 bg-white">
               <div className="border-b border-slate-200 px-5 py-4">
                 <h3 className="font-bold text-brand-blue">Quién vendió más</h3>
                 <p className="mt-1 text-xs text-slate-500">Ranking por venta bruta emitida.</p>
@@ -523,7 +522,7 @@ export const FinanceAnalyticsDashboard = () => {
                 {data.topSellers.length === 0 ? (
                   <EmptyRows label="No hay vendedores para este filtro." />
                 ) : data.topSellers.slice(0, 8).map((seller, index) => (
-                  <div key={seller.id ?? seller.nombre} className="grid grid-cols-[2rem_1fr_auto] items-center gap-3 px-5 py-3">
+                  <div key={seller.id ?? seller.nombre} className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5">
                     <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
                       index === 0 ? 'bg-brand-yellow text-brand-dark' : 'bg-slate-100 text-slate-600'
                     }`}>{index + 1}</span>
@@ -538,12 +537,12 @@ export const FinanceAnalyticsDashboard = () => {
             </section>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
-            <section className="rounded-lg border border-slate-200 bg-white">
+          <div className="grid min-w-0 gap-5 lg:grid-cols-2 xl:grid-cols-3">
+            <section className="min-w-0 rounded-lg border border-slate-200 bg-white">
               <div className="border-b border-slate-200 px-5 py-4">
                 <h3 className="font-bold text-brand-blue">Productos y servicios con mayor salida</h3>
               </div>
-              <div className="overflow-x-auto">
+              <div className="max-w-full overflow-x-auto overscroll-x-contain">
                 {data.topItems.length === 0 ? <EmptyRows label="No hay ítems vendidos." /> : (
                   <table className="w-full min-w-[28rem] text-left text-sm">
                     <thead className="bg-slate-50 text-xs uppercase text-slate-500">
@@ -563,16 +562,16 @@ export const FinanceAnalyticsDashboard = () => {
               </div>
             </section>
 
-            <section className="rounded-lg border border-slate-200 bg-white">
+            <section className="min-w-0 rounded-lg border border-slate-200 bg-white">
               <div className="border-b border-slate-200 px-5 py-4">
                 <h3 className="font-bold text-brand-blue">Clientes principales</h3>
               </div>
               <div className="divide-y divide-slate-100">
                 {data.topClients.length === 0 ? <EmptyRows label="No hay clientes para este filtro." /> : data.topClients.slice(0, 8).map((client) => (
                   <div key={client.id ?? client.nombre} className="px-5 py-3">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{client.nombre}</p><p className="text-xs text-slate-500">{client.rut ?? 'Sin identificación'} · {client.quotationCount} COT</p></div>
-                      <strong className="text-sm text-brand-blue">{formatClp(client.grossSales)}</strong>
+                      <strong className="shrink-0 whitespace-nowrap text-sm text-brand-blue">{formatClp(client.grossSales)}</strong>
                     </div>
                     <p className="mt-1 text-xs text-slate-500">Por cobrar: <span className="font-semibold text-amber-700">{formatClp(client.receivable)}</span></p>
                   </div>
@@ -580,7 +579,7 @@ export const FinanceAnalyticsDashboard = () => {
               </div>
             </section>
 
-            <section className="rounded-lg border border-slate-200 bg-white">
+            <section className="min-w-0 rounded-lg border border-slate-200 bg-white">
               <div className="border-b border-slate-200 px-5 py-4">
                 <h3 className="font-bold text-brand-blue">Composición de cobros</h3>
               </div>
@@ -591,7 +590,7 @@ export const FinanceAnalyticsDashboard = () => {
                       <span className="font-semibold text-slate-700">{humanize(method.metodo)}</span>
                       <strong className="text-brand-blue">{formatClp(method.amount)}</strong>
                     </div>
-                    <div className="mt-2 h-1.5 bg-slate-100"><div className="h-full bg-brand-yellow" style={{ width: `${method.share * 100}%` }} /></div>
+                    <div className="mt-2 h-1.5 overflow-hidden bg-slate-100"><div data-testid={`payment-share-${method.metodo}`} className="h-full max-w-full bg-brand-yellow" style={{ width: `${Math.min(100, Math.max(0, method.share))}%` }} /></div>
                     <p className="mt-1 text-xs text-slate-500">{method.count} operaciones · {percent(method.share)}</p>
                   </div>
                 ))}
@@ -599,12 +598,12 @@ export const FinanceAnalyticsDashboard = () => {
             </section>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid min-w-0 gap-5 lg:grid-cols-2">
             <section className="rounded-lg border border-slate-200 bg-white p-5">
               <div className="flex items-center gap-2"><Users className="h-5 w-5 text-brand-blue" aria-hidden="true" /><h3 className="font-bold text-brand-blue">Estado de cotizaciones</h3></div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 {data.quotationStatuses.map((status) => (
-                  <div key={status.estado} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm">
+                  <div key={status.estado} className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-2 text-sm">
                     <span className="text-slate-600">{humanize(status.estado)} ({status.count})</span>
                     <strong className="text-slate-800">{formatClp(status.amount)}</strong>
                   </div>
@@ -615,7 +614,7 @@ export const FinanceAnalyticsDashboard = () => {
               <div className="flex items-center gap-2"><Download className="h-5 w-5 text-brand-blue" aria-hidden="true" /><h3 className="font-bold text-brand-blue">Egresos e ingresos por categoría</h3></div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 {data.movementCategories.length === 0 ? <EmptyRows label="No hay movimientos manuales." /> : data.movementCategories.map((movement) => (
-                  <div key={`${movement.tipo}-${movement.categoria}`} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm">
+                  <div key={`${movement.tipo}-${movement.categoria}`} className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-2 text-sm">
                     <span className="text-slate-600">{humanize(movement.categoria)} ({movement.count})</span>
                     <strong className={movement.tipo === 'ingreso' ? 'text-emerald-700' : 'text-red-700'}>{formatClp(movement.amount)}</strong>
                   </div>

@@ -99,7 +99,7 @@ export const UsersPage = () => {
   const actionError = statusMutation.error ?? deleteMutation.error;
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">Seguridad y acceso</p>
@@ -188,7 +188,7 @@ export const UsersPage = () => {
             </div>
           )}
 
-          <div className="overflow-x-auto">
+          <div className="max-w-full overflow-x-auto overscroll-x-contain">
             <table className="w-full min-w-[820px] text-left text-sm">
               <thead className="bg-brand-blue text-xs uppercase text-white"><tr><th className="px-4 py-3 font-semibold">Usuario</th><th className="px-4 py-3 font-semibold">Rol</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold">Creado</th><th className="px-4 py-3 text-right font-semibold">Acciones</th></tr></thead>
               <tbody>
@@ -263,7 +263,7 @@ export const UsersPage = () => {
 
       <AnimatePresence>
         {statusTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
             <motion.button
               type="button"
               initial={{ opacity: 0 }}
@@ -297,7 +297,7 @@ export const UsersPage = () => {
 
       <AnimatePresence>
         {deleteTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
             <motion.button
               type="button"
               initial={{ opacity: 0 }}

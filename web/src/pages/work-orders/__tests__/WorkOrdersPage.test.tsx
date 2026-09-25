@@ -273,6 +273,35 @@ describe('WorkOrdersPage', () => {
     expect(screen.getAllByText(/50\.000/).length).toBeGreaterThanOrEqual(1);
   });
 
+  it.each([false, true])('precarga el cliente desde su ficha conservando el propietario real (vehículo: %s)', async (includeVehicle) => {
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/clients/7') return Promise.resolve({ data: {client: clientsResponse.items[0]} } as AxiosResponse);
+      if (url === '/vehicles/4') return Promise.resolve({data: {vehicle: {
+        id: 4, patente: 'ABCD12', marca: 'Toyota', modelo: 'Corolla', ano: 2020,
+        kilometraje: 42000, clientId: 99, client: {id: 99, nombre: 'Propietario original', rut: null},
+      }}} as AxiosResponse);
+      if (url === '/clients') return Promise.resolve({data: clientsResponse} as AxiosResponse);
+      if (url === '/work-orders/mechanics') return Promise.resolve({data: {mechanics: []}} as AxiosResponse);
+      if (url === '/catalog') return Promise.resolve({data: emptyCatalog} as AxiosResponse);
+      return Promise.reject(new Error(`Ruta no simulada: ${url}`));
+    });
+    createWrapper(<WorkOrderCreatePage />, `/work-orders/new?clientId=7${includeVehicle ? '&vehicleId=4' : ''}`);
+    expect(await screen.findByRole('button', {name: 'Quitar responsable del ingreso'})).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/clients/7', {params: {includeVehicles: false}});
+    fireEvent.click(screen.getByRole('button', {name: /siguiente/i}));
+    expect(await screen.findByRole('button', {name: 'Quitar facturación'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Quitar contacto en taller'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', {name: /siguiente/i}));
+    if (includeVehicle) {
+      expect(await screen.findByText('ABCD12')).toBeInTheDocument();
+      expect(screen.getByText('Propietario registrado: Propietario original')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', {name: /siguiente/i}));
+      expect(await screen.findByLabelText('Kilometraje de entrada')).toHaveValue(42000);
+    } else {
+      expect(await screen.findByText('Seleccione o registre el vehículo que ingresa.')).toBeInTheDocument();
+    }
+  });
+
   it('pinta la card en verde cuando las tareas están completadas', async () => {
     const doneOrder: WorkOrder = {
       ...workOrder,

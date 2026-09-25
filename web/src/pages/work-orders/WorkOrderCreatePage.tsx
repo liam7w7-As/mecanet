@@ -317,6 +317,9 @@ export const WorkOrderCreatePage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requestedVehicleId = Number(searchParams.get('vehicleId'));
+  const requestedClientId = Number(searchParams.get('clientId'));
+  const preselectedClientId =
+    Number.isInteger(requestedClientId) && requestedClientId > 0 ? requestedClientId : null;
   const preselectedVehicleId =
     Number.isInteger(requestedVehicleId) && requestedVehicleId > 0 ? requestedVehicleId : null;
   const createMutation = useCreateWorkOrderMutation();
@@ -353,7 +356,8 @@ export const WorkOrderCreatePage = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const prefillApplied = useRef(false);
   const preselectedVehicleQuery = useVehicle(preselectedVehicleId);
-  const preselectedClientQuery = useClient(preselectedVehicleQuery.data?.clientId ?? null);
+  const initialClientId = preselectedClientId ?? preselectedVehicleQuery.data?.clientId ?? null;
+  const preselectedClientQuery = useClient(initialClientId);
 
   const isSubmitting = createMutation.isPending || uploadPhotosMutation.isPending;
   const vehicleOwnerIsDifferent = Boolean(
@@ -378,24 +382,36 @@ export const WorkOrderCreatePage = () => {
   };
 
   useEffect(() => {
+    if (prefillApplied.current || (preselectedClientId === null && preselectedVehicleId === null))
+      return;
+    if (preselectedVehicleId !== null && preselectedVehicleQuery.isPending) return;
+    if (initialClientId !== null && preselectedClientQuery.isPending) return;
     const selectedVehicle = preselectedVehicleQuery.data;
-    if (!selectedVehicle || prefillApplied.current) return;
-    if (selectedVehicle.clientId !== null && preselectedClientQuery.isPending) return;
 
-    const selectedOwner = preselectedClientQuery.data
+    const selectedResponsible = preselectedClientQuery.data
       ? toClientOption(preselectedClientQuery.data)
       : null;
-    if (selectedOwner) {
-      setClient(selectedOwner);
-      setContactClient(selectedOwner);
-      setBillingClient(selectedOwner);
+    if (selectedResponsible) {
+      setClient(selectedResponsible);
+      setContactClient(selectedResponsible);
+      setBillingClient(selectedResponsible);
     }
-    setVehicle(toQuickVehicle(selectedVehicle, selectedOwner));
-    if (selectedVehicle.kilometraje !== null) {
-      setKilometrajeIngreso(String(selectedVehicle.kilometraje));
+    if (selectedVehicle) {
+      setVehicle(toQuickVehicle(selectedVehicle, null));
+      if (selectedVehicle.kilometraje !== null) {
+        setKilometrajeIngreso(String(selectedVehicle.kilometraje));
+      }
     }
     prefillApplied.current = true;
-  }, [preselectedClientQuery.data, preselectedClientQuery.isPending, preselectedVehicleQuery.data]);
+  }, [
+    initialClientId,
+    preselectedClientId,
+    preselectedVehicleId,
+    preselectedClientQuery.data,
+    preselectedClientQuery.isPending,
+    preselectedVehicleQuery.data,
+    preselectedVehicleQuery.isPending,
+  ]);
 
   const handleClientSaved = (savedClient: Client): void => {
     const selectedClient = toClientOption(savedClient);

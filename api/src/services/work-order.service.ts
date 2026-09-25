@@ -1009,11 +1009,11 @@ const createMirrorQuotation = async (
     await QuotationItem.bulkCreate(
       buildItemsPayload(quotation.id, items).map((item) => ({
         quotationId: quotation.id,
-         catalogItemId: item.catalogItemId,
-         descripcion: item.descripcion,
-         tipoLinea: item.tipoLinea,
-         unidadMedida: item.unidadMedida,
-         cantidad: item.cantidad,
+        catalogItemId: item.catalogItemId,
+        descripcion: item.descripcion,
+        tipoLinea: item.tipoLinea,
+        unidadMedida: item.unidadMedida,
+        cantidad: item.cantidad,
         precioUnitario: item.precioUnitario,
         subtotal: item.subtotal,
         estadoOperativo: item.estadoOperativo,

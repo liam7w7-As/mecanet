@@ -202,6 +202,12 @@ describe('QuotationsPage', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText('COT-2026-0031')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Número de transacción')).toBeVisible();
+    expect(within(dialog).getByLabelText('Comprobante de pago')).toBeVisible();
+    expect(dialog.querySelector('input[type="datetime-local"]')).toBeNull();
+    const date = dialog.querySelector('time')?.getAttribute('datetime');
+    expect(date).toBeTruthy();
+    expect(Math.abs(new Date(date ?? '').getTime() - Date.now())).toBeLessThan(60_000);
   });
 
   it('actualiza el saldo mostrado después de registrar un abono', async () => {
@@ -238,6 +244,105 @@ describe('QuotationsPage', () => {
       '/payments',
       expect.objectContaining({ quotationId: 31, monto: 15000 }),
     );
+    const payload = vi.mocked(api.post).mock.calls.at(-1)?.[1] as { fecha: string };
+    expect(Math.abs(new Date(payload.fecha).getTime() - Date.now())).toBeLessThan(60_000);
+  });
+
+  it('envía el número y una foto del comprobante para un abono con tarjeta', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: {
+      payment: { ...initialPayment, metodo: 'tarjeta_debito' },
+      quotation: { id: quotation.id, codigo: quotation.codigo, total: 50000, pagado: 22000, saldoPendiente: 28000, estadoPago: 'parcial' },
+    } });
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    fireEvent.change(within(dialog).getByLabelText('Monto del abono'), { target: { value: '12000' } });
+    fireEvent.change(within(dialog).getByLabelText('Método de pago'), { target: { value: 'tarjeta_debito' } });
+    fireEvent.change(within(dialog).getByLabelText('Número de transacción'), { target: { value: 'TARJETA-001' } });
+    const file = new File(['image'], 'comprobante.jpg', { type: 'image/jpeg' });
+    fireEvent.change(within(dialog).getByLabelText('Comprobante de pago'), { target: { files: [file] } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Registrar abono' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/payments', expect.any(FormData)));
+    const payload = vi.mocked(api.post).mock.calls.at(-1)?.[1] as FormData;
+    expect(payload.get('numeroTransaccion')).toBe('TARJETA-001');
+    expect(payload.get('comprobantePago')).toBe(file);
+    expect(payload.get('metodo')).toBe('tarjeta_debito');
+    expect(payload.has('bancoOrigen')).toBe(false);
+  });
+
+  it('distingue los trabajos terminados de los pendientes y calcula el saldo del nuevo abono', async () => {
+    const detailed: Quotation = { ...quotation, items: [
+      { ...quotation.items![0], id: 101, descripcion: 'Servicio terminado', subtotal: 20000, precioUnitario: 20000, estadoOperativo: 'completado' },
+      { ...quotation.items![0], id: 102, descripcion: 'Repuesto instalado', tipoLinea: 'parte', subtotal: 10000, precioUnitario: 10000, estadoOperativo: 'completado' },
+      { ...quotation.items![0], id: 103, descripcion: 'Trabajo en espera', subtotal: 20000, precioUnitario: 20000, estadoOperativo: 'pendiente' },
+    ] };
+    const originalGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, config) => url === `/quotations/${quotation.id}`
+      ? Promise.resolve({ data: { quotation: detailed } }) : originalGet(url, config));
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    const completed = await within(dialog).findByRole('list', { name: 'Trabajos completados' });
+    expect(within(completed).getByText('Servicio terminado')).toBeVisible();
+    expect(within(completed).getByText('Repuesto instalado')).toBeVisible();
+    expect(within(completed).queryByText('Trabajo en espera')).not.toBeInTheDocument();
+    expect(within(dialog).getByTestId('payment-completed-total')).toHaveTextContent('30.000');
+    expect(within(dialog).getByTestId('payment-confirmed')).toHaveTextContent('10.000');
+    fireEvent.change(within(dialog).getByLabelText('Monto del abono'), { target: { value: '15000' } });
+    expect(within(dialog).getByTestId('payment-projected-balance')).toHaveTextContent('25.000');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Completar saldo' }));
+    expect(within(dialog).getByLabelText('Monto del abono')).toHaveValue('40.000');
+    expect(within(dialog).getByTestId('payment-projected-balance')).toHaveTextContent('$0');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('descuenta los abonos en verificación del disponible sin contarlos como pagos confirmados', async () => {
+    paymentSummary = createPaymentSummary(10000, [initialPayment, { ...initialPayment, id: 18, monto: 12000, metodo: 'transferencia', estado: 'por_verificar' }]);
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    await within(dialog).findByText('Abonos en verificación');
+    expect(within(dialog).getByTestId('payment-confirmed')).toHaveTextContent('10.000');
+    expect(within(dialog).getByTestId('payment-available-balance')).toHaveTextContent('28.000');
+    expect(within(dialog).getByText('Aún no hay trabajos marcados como terminados.')).toBeVisible();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Completar saldo' }));
+    expect(within(dialog).getByLabelText('Monto del abono')).toHaveValue('28.000');
+    expect(within(dialog).getByTestId('payment-projected-balance')).toHaveTextContent('12.000');
+    fireEvent.change(within(dialog).getByLabelText('Método de pago'), { target: { value: 'transferencia' } });
+    expect(within(dialog).getByText('Saldo al confirmar esta transferencia')).toBeVisible();
+    fireEvent.change(within(dialog).getByLabelText('Monto del abono'), { target: { value: '30000' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Registrar abono' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('28.000');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('impide registrar el abono cuando no se pudo obtener el saldo actualizado', async () => {
+    const originalGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, config) => url === `/quotations/${quotation.id}/payments`
+      ? Promise.reject(new Error('Sin conexión')) : originalGet(url, config));
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('saldo actualizado');
+    expect(within(dialog).getByRole('button', { name: 'Registrar abono' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Reintentar' })).toBeVisible();
+  });
+
+  it('permite cambiar la fecha precargada cuando el abono corresponde a otro momento', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: {
+      payment: initialPayment,
+      quotation: { id: quotation.id, codigo: quotation.codigo, total: 50000, pagado: 20000, saldoPendiente: 30000, estadoPago: 'parcial' },
+    } });
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cambiar fecha del abono' }));
+    fireEvent.change(within(dialog).getByLabelText('Fecha del abono'), { target: { value: '2026-09-18T11:30' } });
+    fireEvent.change(within(dialog).getByLabelText('Monto del abono'), { target: { value: '10000' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Registrar abono' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/payments', expect.objectContaining({
+      fecha: new Date('2026-09-18T11:30').toISOString(),
+    })));
   });
 
   it('envía datos de transferencia con banco, número y comprobante', async () => {

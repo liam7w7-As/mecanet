@@ -18,9 +18,10 @@ import {
   X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import WorkOrderMechanicPanel from './WorkOrderMechanicPanel';
 import WorkOrderStatusBadge from './WorkOrderStatusBadge';
 import { useWorkOrder } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -31,6 +32,7 @@ import {
   getElapsedInfo,
   getWorkOrderProgress,
 } from '../../lib/work-order-progress';
+import { useAuthStore } from '../../stores/auth.store';
 
 import type { WorkOrder } from '../../types/entities';
 import type { CatalogType, ItemOperationalStatus } from '@unithor/shared';
@@ -60,6 +62,7 @@ interface WorkOrderQuickDetailModalProps {
   workOrderId: number;
   onClose: () => void;
   onPreviewPdf: (workOrder: WorkOrder) => void;
+  initialView?: 'summary' | 'execution';
 }
 
 const SummaryRow = ({
@@ -102,9 +105,27 @@ export const WorkOrderQuickDetailModal = ({
   workOrderId,
   onClose,
   onPreviewPdf,
+  initialView = 'summary',
 }: WorkOrderQuickDetailModalProps) => {
+  const [view, setView] = useState<'summary' | 'execution' | 'requests'>(initialView);
+  const user = useAuthStore((state) => state.user);
+  const dialogRef = useRef<HTMLElement>(null);
   const workOrderQuery = useWorkOrder(workOrderId);
   const workOrder = workOrderQuery.data;
+  const canOperate = Boolean(user && workOrder && (
+    ['desarrollador', 'admin', 'jefe'].includes(user.role)
+    || (user.role === 'mecanico' && workOrder.assignedMechanicId === user.id)
+  ));
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+    };
+  }, []);
   const now = Date.now();
 
   const grouped = useMemo(() => {
@@ -129,7 +150,22 @@ export const WorkOrderQuickDetailModal = ({
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative max-h-full w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+        ref={dialogRef}
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
+          if (event.key !== 'Tab') return;
+          const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'))
+            .filter((element) => !element.closest('[hidden]'));
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+            event.preventDefault(); last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault(); first?.focus();
+          }
+        }}
+        className="relative max-h-full w-full max-w-5xl overflow-y-auto rounded-lg bg-white shadow-2xl outline-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="work-order-quick-detail-title"
@@ -143,6 +179,7 @@ export const WorkOrderQuickDetailModal = ({
               </h2>
             </>
           )}
+          {!workOrder && <button type="button" onClick={onClose} aria-label="Cerrar" className="absolute right-4 top-4 rounded-lg p-2 text-slate-500"><X className="h-4 w-4" aria-hidden="true" /></button>}
           {workOrder && (
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
@@ -171,7 +208,22 @@ export const WorkOrderQuickDetailModal = ({
               </div>
             </div>
           )}
+          {workOrder && canOperate && (
+            <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Vista de la orden">
+              {([{ value: 'summary', label: 'Resumen' }, { value: 'execution', label: 'Avances' }, { value: 'requests', label: 'Solicitudes' }] as const).map((option) => (
+                <button key={option.value} type="button" aria-pressed={view === option.value} onClick={() => setView(option.value)}
+                  className={`inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold ${view === option.value ? 'bg-brand-blue text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                  {option.label}
+                  {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span className="rounded bg-brand-yellow px-1.5 text-xs text-brand-dark">{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </header>
+
+        {workOrder && canOperate && view !== 'summary' && (
+          <div className="p-4 sm:p-6"><WorkOrderMechanicPanel workOrder={workOrder} section={view} /></div>
+        )}
 
         {workOrderQuery.isPending && (
           <div className="flex min-h-72 items-center justify-center text-brand-blue" role="status">
@@ -187,7 +239,7 @@ export const WorkOrderQuickDetailModal = ({
           </div>
         )}
 
-        {workOrder && progress && tier && elapsed && (
+        {workOrder && progress && tier && elapsed && (view === 'summary' || !canOperate) && (
           <div className="space-y-5 p-5 sm:p-6">
             {workOrder.descripcion && (
               <p className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700">
@@ -212,7 +264,7 @@ export const WorkOrderQuickDetailModal = ({
                 icon={<UserCog className="h-4 w-4" aria-hidden="true" />}
                 label="Mecánico responsable"
                 value={workOrder.assignedMechanic?.nombre ?? 'Sin asignar'}
-                hint={workOrder.assignedMechanic ? 'Ejecución técnica a su cargo' : 'Asignar desde el detalle completo'}
+                hint={workOrder.assignedMechanic ? 'Ejecución técnica a su cargo' : null}
               />
               <SummaryRow
                 icon={<Building2 className="h-4 w-4" aria-hidden="true" />}

@@ -1,6 +1,6 @@
 import { ITEM_OPERATIONAL_STATUS, UNIT_MEASURES, UNIT_MEASURE_LABELS } from '@unithor/shared';
-import { Check, LoaderCircle, Plus, Search, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Check, ChevronLeft, ChevronRight, LoaderCircle, Minus, Plus, Search, Trash2, Undo2 } from 'lucide-react';
+import { useId, useState } from 'react';
 
 import { useCatalogItems } from '../../hooks/useWorkOrders';
 import { formatClp } from '../../lib/formatters';
@@ -45,177 +45,11 @@ export const getWorkOrderItemSubtotal = (item: EditableWorkOrderItem): number =>
 export const calculateItemsTotal = (items: EditableWorkOrderItem[]): number =>
   items.reduce((total, item) => total + getWorkOrderItemSubtotal(item), 0);
 
-const ITEM_OPERATIONAL_STATUS_LABELS: Record<ItemOperationalStatus, string> = {
-  pendiente: 'Pendiente',
-  en_proceso: 'En proceso',
-  completado: 'Completado',
-  omitido: 'Omitido',
+const STATUS_LABELS: Record<ItemOperationalStatus, string> = {
+  pendiente: 'Pendiente', en_proceso: 'En proceso', completado: 'Completado', omitido: 'Omitido',
 };
-
-const CATALOG_TYPE_LABELS: Record<string, string> = {
-  parte: 'Repuesto',
-  estandar: 'Estándar',
-  especifico: 'Específico',
-};
-
-const toCatalogRow = (catalogItem: CatalogItem): EditableWorkOrderItem => ({
-  key: `work-item-${(itemSequence += 1)}`,
-  catalogItemId: catalogItem.id,
-  catalogTipo: catalogItem.tipo,
-  catalogStock: catalogItem.stock,
-  descripcion: catalogItem.nombre,
-  tipoLinea: catalogItem.tipo,
-  unidadMedida: catalogItem.unidadMedida,
-  cantidad: '1',
-  precioUnitario: String(catalogItem.precio),
-  estadoOperativo: 'pendiente',
-  notasOperativas: '',
-});
-
-interface CatalogPickerProps {
-  index: number;
-  item: EditableWorkOrderItem;
-  type: CatalogItem['tipo'];
-  onChange: (patch: Partial<EditableWorkOrderItem>) => void;
-}
-
-const CatalogPicker = ({ index, item, type, onChange }: CatalogPickerProps) => {
-  const [isFocused, setFocused] = useState(false);
-  const catalogQuery = useCatalogItems(item.descripcion, type);
-
-  const selectCatalogItem = (catalogItem: CatalogItem): void => {
-    onChange({
-      catalogItemId: catalogItem.id,
-      catalogTipo: catalogItem.tipo,
-       catalogStock: catalogItem.stock,
-       descripcion: catalogItem.nombre,
-       tipoLinea: catalogItem.tipo,
-       unidadMedida: catalogItem.unidadMedida,
-       precioUnitario: String(catalogItem.precio),
-    });
-    setFocused(false);
-  };
-
-  return (
-    <div className="relative min-w-52">
-      <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
-      <input
-        value={item.descripcion}
-        onChange={(event) => onChange({
-          descripcion: event.target.value,
-          catalogItemId: null,
-          catalogTipo: null,
-          catalogStock: null,
-        })}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        className="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-9 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
-        placeholder="Servicio, repuesto o trabajo libre"
-        aria-label={`Descripción ${index + 1}`}
-        autoComplete="off"
-      />
-      {catalogQuery.isFetching && <LoaderCircle className="absolute right-3 top-3 h-4 w-4 animate-spin text-brand-blue" aria-hidden="true" />}
-      {isFocused && catalogQuery.data && (
-         <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl">
-          {catalogQuery.data.items.length > 0 ? catalogQuery.data.items.map((catalogItem) => (
-            <button
-              key={catalogItem.id}
-              type="button"
-              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => selectCatalogItem(catalogItem)}
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-slate-800">{catalogItem.nombre}</span>
-                <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-500">
-                  <span className="rounded bg-brand-light px-1.5 py-0.5 font-bold text-brand-blue">
-                    {CATALOG_TYPE_LABELS[catalogItem.tipo] ?? catalogItem.tipo}
-                  </span>
-                  {catalogItem.codigo && <span className="font-mono">{catalogItem.codigo}</span>}
-                  {catalogItem.tipo === 'parte' && (
-                    <span className={catalogItem.stock > 0 ? 'text-emerald-700' : 'text-red-600'}>
-                      Stock: {catalogItem.stock}
-                    </span>
-                  )}
-                </span>
-              </span>
-              <span className="whitespace-nowrap text-sm font-semibold text-brand-blue">{formatClp(catalogItem.precio)}</span>
-            </button>
-          )) : <p className="px-3 py-3 text-sm text-slate-500">Sin coincidencias. Puede usar una descripción libre.</p>}
-        </div>
-      )}
-    </div>
-  );
-};
-
-interface CatalogQuickAddProps {
-  items: EditableWorkOrderItem[];
-  type: CatalogItem['tipo'];
-  onAdd: (catalogItem: CatalogItem) => void;
-}
-
-const CatalogQuickAdd = ({ items, type, onAdd }: CatalogQuickAddProps) => {
-  const [search, setSearch] = useState('');
-  const catalogQuery = useCatalogItems(search, type);
-
-  return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3" aria-label="Agregar desde catálogo">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-brand-blue"
-            placeholder="Buscar en catálogo: repuesto, servicio estándar o específico"
-            aria-label="Buscar en catálogo por nombre o código"
-            autoComplete="off"
-          />
-        </div>
-         <div className="flex flex-wrap gap-1" role="group" aria-label="Tipo de catálogo seleccionado">
-           <span className="inline-flex items-center rounded-md bg-brand-blue px-2.5 py-1.5 text-xs font-bold text-white">
-             {CATALOG_TYPE_LABELS[type]}
-           </span>
-         </div>
-      </div>
-
-      <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white">
-        {catalogQuery.isPending && <p className="px-3 py-3 text-sm text-slate-500">Buscando en catálogo...</p>}
-        {!catalogQuery.isPending && (catalogQuery.data?.items.length ?? 0) === 0 && (
-          <p className="px-3 py-3 text-sm text-slate-500">Sin resultados. Ajuste la búsqueda o el tipo.</p>
-        )}
-        {catalogQuery.data?.items.map((catalogItem) => {
-          const alreadyAdded = items.some((item) => item.catalogItemId === catalogItem.id);
-          return (
-            <div key={catalogItem.id} className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 last:border-0">
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-slate-800">{catalogItem.nombre}</span>
-                <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-500">
-                  <span className="rounded bg-brand-light px-1.5 py-0.5 font-bold text-brand-blue">
-                    {CATALOG_TYPE_LABELS[catalogItem.tipo] ?? catalogItem.tipo}
-                  </span>
-                  {catalogItem.codigo && <span className="font-mono">{catalogItem.codigo}</span>}
-                  {catalogItem.tipo === 'parte' && <span>Stock: {catalogItem.stock}</span>}
-                  <span className="font-semibold text-brand-blue">{formatClp(catalogItem.precio)}</span>
-                </span>
-              </span>
-              <button
-                type="button"
-                disabled={alreadyAdded}
-                onClick={() => onAdd(catalogItem)}
-                className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-brand-blue px-2.5 text-xs font-bold text-brand-blue hover:bg-brand-blue hover:text-white disabled:opacity-50"
-                aria-label={alreadyAdded ? `${catalogItem.nombre} ya agregado` : `Agregar ${catalogItem.nombre}`}
-              >
-                {alreadyAdded ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Plus className="h-3.5 w-3.5" aria-hidden="true" />}
-                {alreadyAdded ? 'Agregado' : 'Agregar'}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
+const TYPE_LABELS = { estandar: 'Estándar', especifico: 'Específicos', parte: 'Repuestos' } as const;
+const inputClass = 'h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15';
 
 interface WorkOrderItemsEditorProps {
   items: EditableWorkOrderItem[];
@@ -226,143 +60,180 @@ interface WorkOrderItemsEditorProps {
   emptyMessage?: string;
   totalLabel?: string;
   totalTestId?: string;
+  showExecution?: boolean;
 }
 
 export const WorkOrderItemsEditor = ({
-  items,
-  onChange,
-  errors = {},
-  title = 'Trabajos y repuestos',
-  description = 'Busque en el catálogo o escriba un trabajo particular.',
-  emptyMessage = 'La orden puede guardarse sin ítems para realizar un diagnóstico inicial.',
-  totalLabel = 'Total estimado',
-  totalTestId = 'work-order-total',
+  items, onChange, errors = {}, title = 'Trabajos y repuestos',
+  emptyMessage = 'Sin servicios ni repuestos seleccionados.',
+  totalLabel = 'Total estimado', totalTestId = 'work-order-total', showExecution = true,
 }: WorkOrderItemsEditorProps) => {
-  const [activeType, setActiveType] = useState<CatalogItem['tipo']>(() => items[0]?.tipoLinea ?? 'estandar');
-  const updateItem = (index: number, patch: Partial<EditableWorkOrderItem>): void => {
-    onChange(items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  const headingId = useId();
+  const [activeType, setActiveType] = useState<CatalogItem['tipo']>('estandar');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [removed, setRemoved] = useState<{ item: EditableWorkOrderItem; index: number } | null>(null);
+  const catalogQuery = useCatalogItems(search, activeType, page);
+
+  const updateItem = (key: string, patch: Partial<EditableWorkOrderItem>): void => {
+    onChange(items.map((item) => item.key === key ? { ...item, ...patch } : item));
   };
-
-  const removeItem = (index: number): void => {
-    onChange(items.filter((_, itemIndex) => itemIndex !== index));
+  const removeItem = (key: string): void => {
+    const index = items.findIndex((item) => item.key === key);
+    if (index < 0) return;
+    setRemoved({ item: items[index], index });
+    onChange(items.filter((item) => item.key !== key));
   };
-
-  const handleQuickAdd = (catalogItem: CatalogItem): void => {
-    if (items.some((item) => item.catalogItemId === catalogItem.id)) {
-      return;
-    }
-    const emptyIndex = items.findIndex((item) => item.descripcion.trim() === '' && item.catalogItemId === null);
-    if (emptyIndex >= 0) {
-      onChange(items.map((item, itemIndex) => itemIndex === emptyIndex
-        ? {
-            ...item,
-            catalogItemId: catalogItem.id,
-            catalogTipo: catalogItem.tipo,
-            catalogStock: catalogItem.stock,
-            descripcion: catalogItem.nombre,
-            tipoLinea: catalogItem.tipo,
-            unidadMedida: catalogItem.unidadMedida,
-            precioUnitario: String(catalogItem.precio),
-          }
-        : item));
-      return;
-    }
-    onChange([...items, toCatalogRow(catalogItem)]);
+  const addCatalogItem = (catalogItem: CatalogItem): void => {
+    if (items.some((item) => item.catalogItemId === catalogItem.id)) return;
+    const row: EditableWorkOrderItem = {
+      ...createEmptyWorkOrderItem(), catalogItemId: catalogItem.id, catalogTipo: catalogItem.tipo,
+      catalogStock: catalogItem.stock, descripcion: catalogItem.nombre, tipoLinea: catalogItem.tipo,
+      unidadMedida: catalogItem.unidadMedida, precioUnitario: String(catalogItem.precio),
+    };
+    // Only replace an untouched placeholder; a partially edited row is a user draft.
+    const emptyIndex = items.findIndex((item) => !item.descripcion && item.catalogItemId === null
+      && item.cantidad === '1' && item.precioUnitario === '0' && !item.notasOperativas
+      && item.estadoOperativo === 'pendiente' && item.unidadMedida === 'unidad');
+    onChange(emptyIndex < 0 ? [...items, row] : items.map((item, index) => index === emptyIndex ? row : item));
+    setRemoved(null);
   };
-
-  const getStockMessage = (item: EditableWorkOrderItem): string | null => {
-    if (item.tipoLinea !== 'parte') {
-      return null;
+  const undoRemoval = (): void => {
+    if (!removed) return;
+    if (!items.some((item) => item.key === removed.item.key
+      || (removed.item.catalogItemId !== null && item.catalogItemId === removed.item.catalogItemId))) {
+      const next = [...items];
+      next.splice(removed.index, 0, removed.item);
+      onChange(next);
     }
-
-    const stock = item.catalogStock ?? 0;
-    const cantidad = Number(item.cantidad) || 0;
-
-    if (item.estadoOperativo === 'completado' && cantidad > stock) {
-      return `Stock insuficiente: disponible ${stock}, requerido ${cantidad}`;
-    }
-    if (item.estadoOperativo === 'completado') {
-      return `Se descontarán ${cantidad} unidad(es). Disponible: ${stock}`;
-    }
-
-    return `Repuesto pendiente de consumo. Disponible: ${stock}`;
+    setRemoved(null);
   };
 
   return (
-    <section className="border-t border-slate-200 pt-6" aria-labelledby="work-items-title">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 id="work-items-title" className="text-lg font-bold text-brand-blue">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
+    <section className="min-w-0 space-y-4" aria-labelledby={headingId}>
+      <h2 id={headingId} className="text-lg font-bold text-brand-blue">{title}</h2>
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)]">
+        <div className="min-w-0">
+          <h3 className="mb-3 text-sm font-bold text-slate-700">Catálogo</h3>
+          <div className="flex flex-wrap gap-1 border-b border-slate-200" role="group" aria-label="Tipo de catálogo">
+            {(['estandar', 'especifico', 'parte'] as const).map((type) => (
+              <button key={type} type="button" aria-pressed={activeType === type}
+                onClick={() => { setActiveType(type); setSearch(''); setPage(1); }}
+                className={`border-b-2 px-3 py-2 text-sm font-semibold ${activeType === type ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                {TYPE_LABELS[type]}
+              </button>
+            ))}
+          </div>
+          <div className="relative my-3">
+            <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
+            <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+              className={`${inputClass} pl-9 pr-9`} placeholder="Nombre o código"
+              aria-label="Buscar en catálogo por nombre o código" autoComplete="off" />
+            {catalogQuery.isFetching && <LoaderCircle className="absolute right-3 top-3 h-4 w-4 animate-spin text-brand-blue" aria-hidden="true" />}
+          </div>
+          <div className="max-h-64 divide-y divide-slate-100 overflow-y-auto border-y border-slate-200 xl:max-h-[28rem]" aria-label="Resultados del catálogo">
+            {catalogQuery.isPending && <p className="py-4 text-sm text-slate-500" role="status">Cargando catálogo...</p>}
+            {catalogQuery.isError && <div className="py-4 text-sm text-red-700" role="alert">No se pudo cargar el catálogo. <button type="button" className="underline" onClick={() => void catalogQuery.refetch()}>Reintentar</button></div>}
+            {catalogQuery.data?.items.length === 0 && <p className="py-4 text-sm text-slate-500">No se encontraron ítems.</p>}
+            {catalogQuery.data?.items.map((catalogItem) => {
+              const selected = items.find((item) => item.catalogItemId === catalogItem.id);
+              return (
+                <button key={catalogItem.id} type="button" aria-pressed={Boolean(selected)}
+                  aria-label={`${selected ? 'Quitar' : 'Agregar'} ${catalogItem.nombre}`}
+                  onClick={() => selected ? removeItem(selected.key) : addCatalogItem(catalogItem)}
+                  className={`flex w-full items-center gap-3 px-2 py-3 text-left transition-colors focus-visible:outline-brand-blue ${selected ? 'bg-emerald-50 hover:bg-emerald-100' : 'hover:bg-slate-50'}`}>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded border ${selected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 text-brand-blue'}`}>
+                    {selected ? <Check className="h-4 w-4" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block break-words text-sm font-semibold text-slate-800">{catalogItem.nombre}</span>
+                    <span className="mt-1 block text-xs text-slate-500">{catalogItem.codigo}{catalogItem.tipo === 'parte' ? ` · Stock: ${catalogItem.stock}` : ''}</span>
+                  </span>
+                  <span className="shrink-0 text-right text-xs font-bold text-brand-blue">{formatClp(catalogItem.precio)}{selected && <span className="mt-1 block text-emerald-700">Seleccionado</span>}</span>
+                </button>
+              );
+            })}
+          </div>
+          {(catalogQuery.data?.totalPages ?? 0) > 1 && <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
+            <span>{catalogQuery.data?.total} ítems · Página {page} de {catalogQuery.data?.totalPages}</span>
+            <div className="flex gap-1">
+              <button type="button" title="Página anterior del catálogo" aria-label="Página anterior del catálogo" disabled={page === 1 || catalogQuery.isFetching}
+                className="rounded-lg border border-slate-200 p-2 text-brand-blue hover:bg-slate-50 disabled:opacity-30" onClick={() => setPage((current) => current - 1)}><ChevronLeft className="h-4 w-4" aria-hidden="true" /></button>
+              <button type="button" title="Página siguiente del catálogo" aria-label="Página siguiente del catálogo" disabled={page >= (catalogQuery.data?.totalPages ?? 1) || catalogQuery.isFetching}
+                className="rounded-lg border border-slate-200 p-2 text-brand-blue hover:bg-slate-50 disabled:opacity-30" onClick={() => setPage((current) => current + 1)}><ChevronRight className="h-4 w-4" aria-hidden="true" /></button>
+            </div>
+          </div>}
         </div>
-        <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-blue px-4 text-sm font-semibold text-brand-blue hover:bg-brand-blue hover:text-white" onClick={() => onChange([...items, { ...createEmptyWorkOrderItem(), tipoLinea: activeType, unidadMedida: activeType === 'parte' ? 'unidad' : 'servicio' }])}>
-          <Plus className="h-4 w-4" aria-hidden="true" /> Añadir {CATALOG_TYPE_LABELS[activeType].toLowerCase()}
-        </button>
-      </div>
-
-      <div className="mt-4 flex gap-2 overflow-x-auto border-b border-slate-200" role="tablist" aria-label="Tipos de trabajos y repuestos">
-        {(['parte', 'estandar', 'especifico'] as const).map((type) => {
-          const count = items.filter((item) => item.tipoLinea === type).length;
-          return (
-            <button
-              key={type}
-              type="button"
-              role="tab"
-              aria-selected={activeType === type}
-              onClick={() => setActiveType(type)}
-              className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-semibold transition ${activeType === type ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              {CATALOG_TYPE_LABELS[type]}
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${activeType === type ? 'bg-brand-light text-brand-blue' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+            <h3 className="text-sm font-bold text-slate-700">Selección ({items.length})</h3>
+            <button type="button" className="inline-flex h-9 items-center gap-1 rounded-lg border border-brand-blue px-3 text-sm font-semibold text-brand-blue hover:bg-brand-light"
+              onClick={() => onChange([...items, { ...createEmptyWorkOrderItem(), tipoLinea: activeType }])}>
+              <Plus className="h-4 w-4" aria-hidden="true" /> Ítem libre
             </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-4">
-        <CatalogQuickAdd items={items} type={activeType} onAdd={handleQuickAdd} />
-      </div>
-
-      {items.filter((item) => item.tipoLinea === activeType).length === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
-          {items.length === 0 ? emptyMessage : `No hay ${CATALOG_TYPE_LABELS[activeType].toLowerCase()} agregados.`}
-        </div>
-      ) : (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full min-w-[1180px] text-left">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-              <tr><th className="px-3 py-3 font-semibold">Descripción</th><th className="w-40 px-3 py-3 font-semibold">Tipo</th><th className="w-32 px-3 py-3 font-semibold">Cantidad</th><th className="w-32 px-3 py-3 font-semibold">Unidad</th><th className="w-44 px-3 py-3 font-semibold">Precio unitario</th><th className="w-40 px-3 py-3 font-semibold">Avance</th><th className="w-56 px-3 py-3 font-semibold">Nota operativa</th><th className="w-36 px-3 py-3 text-right font-semibold">Subtotal</th><th className="w-14 px-3 py-3"><span className="sr-only">Eliminar</span></th></tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => {
-                if (item.tipoLinea !== activeType) return null;
-                const stockMessage = getStockMessage(item);
-                return (
-                <tr key={item.key} className="border-t border-slate-100 align-top">
-                  <td className="px-3 py-3">
-                    <CatalogPicker index={index} item={item} type={activeType} onChange={(patch) => updateItem(index, patch)} />
-                    {errors[`items.${index}.descripcion`] && <p className="mt-1 text-xs text-red-700">{errors[`items.${index}.descripcion`]}</p>}
-                    {stockMessage && <p className={`mt-1 text-xs font-semibold ${stockMessage.startsWith('Stock insuficiente') ? 'text-red-700' : 'text-slate-500'}`}>{stockMessage}</p>}
-                  </td>
-                  <td className="px-3 py-3"><span className="inline-flex rounded-full bg-brand-light px-2 py-1 text-xs font-semibold text-brand-blue">{CATALOG_TYPE_LABELS[item.tipoLinea]}</span></td>
-                  <td className="px-3 py-3"><input type="number" min="1" step="1" value={item.cantidad} onChange={(event) => updateItem(index, { cantidad: event.target.value.replace(/\D/g, '') })} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue" aria-label={`Cantidad ${index + 1}`} /></td>
-                  <td className="px-3 py-3"><select value={item.unidadMedida} onChange={(event) => updateItem(index, { unidadMedida: event.target.value as UnitMeasure })} className="h-10 w-full rounded-lg border border-slate-300 px-2 text-sm outline-none focus:border-brand-blue" aria-label={`Unidad del ítem ${index + 1}`}>{UNIT_MEASURES.map((unit) => <option key={unit} value={unit}>{UNIT_MEASURE_LABELS[unit]}</option>)}</select></td>
-                  <td className="px-3 py-3"><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-slate-400">$</span><CurrencyInput value={item.precioUnitario} onChange={(value) => updateItem(index, { precioUnitario: value })} className="h-10 w-full rounded-lg border border-slate-300 pl-7 pr-3 text-sm outline-none focus:border-brand-blue" aria-label={`Precio unitario ${index + 1}`} /></div></td>
-                  <td className="px-3 py-3"><select value={item.estadoOperativo} onChange={(event) => updateItem(index, { estadoOperativo: event.target.value as ItemOperationalStatus })} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue" aria-label={`Avance ${index + 1}`}>{ITEM_OPERATIONAL_STATUS.map((status) => <option key={status} value={status}>{ITEM_OPERATIONAL_STATUS_LABELS[status]}</option>)}</select></td>
-                  <td className="px-3 py-3"><input type="text" value={item.notasOperativas} onChange={(event) => updateItem(index, { notasOperativas: event.target.value })} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-blue" placeholder="Detalle operativo" aria-label={`Nota operativa ${index + 1}`} /></td>
-                  <td className="px-3 py-5 text-right font-semibold text-brand-blue" data-testid={`item-subtotal-${index}`}>{formatClp(getWorkOrderItemSubtotal(item))}</td>
-                  <td className="px-3 py-3"><button type="button" className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-700" onClick={() => removeItem(index)} aria-label={`Eliminar ítem ${index + 1}`} title="Eliminar ítem"><Trash2 className="h-4 w-4" aria-hidden="true" /></button></td>
-                </tr>
-              );})}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <div className="mt-4 flex justify-end">
-        <div className="w-full max-w-sm border-t-2 border-brand-blue pt-3 text-right">
-          <p className="text-xs font-semibold uppercase text-slate-500">{totalLabel}</p>
-          <p className="mt-1 text-2xl font-bold text-brand-blue" data-testid={totalTestId}>{formatClp(calculateItemsTotal(items))}</p>
+          </div>
+          {removed && <div className="flex items-center justify-between gap-2 border-b border-slate-200 py-2 text-sm" role="status">
+            <span className="truncate text-slate-600">Quitado: {removed.item.descripcion || 'Ítem libre'}</span>
+            <button type="button" onClick={undoRemoval} className="inline-flex shrink-0 items-center gap-1 font-semibold text-brand-blue"><Undo2 className="h-4 w-4" aria-hidden="true" />Deshacer</button>
+          </div>}
+          {items.length === 0 && <p className="py-10 text-center text-sm text-slate-500">{emptyMessage}</p>}
+          <div className="divide-y divide-slate-200">
+            {items.map((item, index) => (
+              <div key={item.key} className="min-w-0 space-y-3 py-4">
+                <div className="flex items-start gap-2">
+                  <label className="grid min-w-0 flex-1 gap-1 text-xs font-semibold text-slate-600">
+                    <span>{index + 1}. {TYPE_LABELS[item.tipoLinea]}</span>
+                    <input className={inputClass} value={item.descripcion} maxLength={255}
+                      aria-label={`Descripción ${index + 1}`} placeholder="Descripción del trabajo"
+                      onChange={(event) => updateItem(item.key, { descripcion: event.target.value })} />
+                  </label>
+                  <button type="button" className="mt-5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => removeItem(item.key)} aria-label={`Eliminar ítem ${index + 1}`} title="Quitar ítem"><Trash2 className="h-4 w-4" aria-hidden="true" /></button>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="grid gap-1 text-xs font-semibold text-slate-600"><span>Cantidad</span>
+                    <div className="flex h-10 min-w-0 rounded-lg border border-slate-300">
+                      <button type="button" className="w-8 shrink-0 text-slate-600 hover:bg-slate-100 disabled:opacity-30" disabled={Number(item.cantidad) <= 1}
+                        aria-label={`Reducir cantidad ${index + 1}`} title="Reducir cantidad" onClick={() => updateItem(item.key, { cantidad: String(Math.max(1, Number(item.cantidad) - 1)) })}><Minus className="mx-auto h-3 w-3" aria-hidden="true" /></button>
+                      <input type="number" min="1" step="1" value={item.cantidad} aria-label={`Cantidad ${index + 1}`}
+                        className="w-full min-w-0 bg-transparent text-center text-sm text-slate-800 outline-brand-blue [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        onChange={(event) => updateItem(item.key, { cantidad: event.target.value })} />
+                      <button type="button" className="w-8 shrink-0 text-slate-600 hover:bg-slate-100" aria-label={`Aumentar cantidad ${index + 1}`} title="Aumentar cantidad"
+                        onClick={() => updateItem(item.key, { cantidad: String(Math.max(1, Math.floor(Number(item.cantidad) || 0) + 1)) })}><Plus className="mx-auto h-3 w-3" aria-hidden="true" /></button>
+                    </div>
+                  </div>
+                  <label className="grid gap-1 text-xs font-semibold text-slate-600">Unidad
+                    <select value={item.unidadMedida} onChange={(event) => updateItem(item.key, { unidadMedida: event.target.value as UnitMeasure })} className={inputClass} aria-label={`Unidad del ítem ${index + 1}`}>
+                      {UNIT_MEASURES.map((unit) => <option key={unit} value={unit}>{UNIT_MEASURE_LABELS[unit]}</option>)}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs font-semibold text-slate-600">Precio unitario
+                    <CurrencyInput value={item.precioUnitario} onChange={(value) => updateItem(item.key, { precioUnitario: value })} className={inputClass} aria-label={`Precio unitario ${index + 1}`} />
+                  </label>
+                </div>
+                {Object.entries(errors).filter(([path]) => path.startsWith(`items.${index}.`)).map(([path, message]) => <p key={path} className="text-xs text-red-700" role="alert">{message}</p>)}
+                {showExecution && <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1 text-xs font-semibold text-slate-600">Avance
+                    <select value={item.estadoOperativo} onChange={(event) => updateItem(item.key, { estadoOperativo: event.target.value as ItemOperationalStatus })} className={inputClass} aria-label={`Avance ${index + 1}`}>
+                      {ITEM_OPERATIONAL_STATUS.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs font-semibold text-slate-600">Nota operativa
+                    <input value={item.notasOperativas} onChange={(event) => updateItem(item.key, { notasOperativas: event.target.value })} className={inputClass} maxLength={1000} aria-label={`Nota operativa ${index + 1}`} />
+                  </label>
+                </div>}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-slate-500">{item.tipoLinea === 'parte' && item.catalogStock !== null ? `Stock disponible: ${item.catalogStock}` : item.catalogItemId ? 'Del catálogo' : 'Ítem libre'}</span>
+                  <span className="text-sm font-bold text-brand-blue" data-testid={`item-subtotal-${index}`}>{formatClp(getWorkOrderItemSubtotal(item))}</span>
+                </div>
+                {showExecution && item.catalogStock !== null && item.tipoLinea === 'parte' && item.estadoOperativo === 'completado' && Number(item.cantidad) > item.catalogStock && <p className="text-xs text-amber-700">La cantidad supera el stock disponible. Se verificará el consumo al guardar.</p>}
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-brand-blue bg-slate-50 px-3 py-4">
+            <p className="text-sm font-semibold text-slate-600">{totalLabel}</p>
+            <p className="text-xl font-bold text-brand-blue" data-testid={totalTestId}>{formatClp(calculateItemsTotal(items))}</p>
+          </div>
         </div>
       </div>
     </section>

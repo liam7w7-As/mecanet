@@ -31,7 +31,7 @@ import { AnimateIcon } from '../../components/animate-ui';
 import ClientFormModal from '../../components/clients/ClientFormModal';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
-import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
+import WorkOrderItemsEditor from '../../components/work-orders/WorkOrderItemsEditor';
 import { useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
@@ -314,7 +314,7 @@ export const WorkOrderCreatePage = () => {
   const [descripcion, setDescripcion] = useState('');
   const [fechaIngreso, setFechaIngreso] = useState(toLocalDateTime(new Date()));
   const [fechaEntrega, setFechaEntrega] = useState('');
-  const [items, setItems] = useState<EditableWorkOrderItem[]>([createEmptyWorkOrderItem()]);
+  const [items, setItems] = useState<EditableWorkOrderItem[]>([]);
   const [inspection, setInspection] = useState<InspectionDraft>({
     nivelCombustible: '',
     llantaDelanteraIzquierda: 'no_revisado',
@@ -1041,7 +1041,7 @@ export const WorkOrderCreatePage = () => {
                   Agregue los trabajos a realizar y repuestos necesarios. Puede dejar esta sección vacía si el diagnóstico está pendiente.
                 </p>
               </div>
-              <WorkOrderItemsEditor items={items} onChange={setItems} errors={errors} />
+              <WorkOrderItemsEditor items={items} onChange={setItems} errors={errors} showExecution={false} />
             </div>
           )}
         </motion.div>

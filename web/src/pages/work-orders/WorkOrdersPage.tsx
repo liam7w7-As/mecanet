@@ -97,6 +97,7 @@ const WorkOrderCard = ({
   onChangeStatus,
   onOpenDetail,
   onPreviewPdf,
+  onOpenExecution,
 }: {
   workOrder: WorkOrder;
   now: number;
@@ -105,6 +106,7 @@ const WorkOrderCard = ({
   onChangeStatus: (workOrder: WorkOrder, nuevoEstado: WorkOrderStatus) => void;
   onOpenDetail: () => void;
   onPreviewPdf: () => void;
+  onOpenExecution?: () => void;
 }) => {
   const progress = getWorkOrderProgress(workOrder);
   const tier = PROGRESS_TIER_STYLES[progress.tier];
@@ -274,13 +276,19 @@ const WorkOrderCard = ({
         </div>
 
         <div className="mt-auto flex items-center gap-1.5 border-t border-slate-100 px-3.5 py-2.5">
+          {onOpenExecution && <button type="button" onClick={onOpenExecution}
+            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-blue px-2 py-1 text-xs font-bold text-white hover:bg-brand-dark">
+            <ListChecks className="h-4 w-4 shrink-0" aria-hidden="true" />Gestionar trabajo
+          </button>}
           <button
             type="button"
             onClick={onOpenDetail}
-            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-blue px-3 text-xs font-bold text-white transition-colors hover:bg-brand-dark"
+            aria-label="Ver detalle"
+            title="Ver detalle"
+            className={onOpenExecution ? 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-brand-blue hover:bg-slate-50' : 'inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-blue px-3 text-xs font-bold text-white hover:bg-brand-dark'}
           >
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-            Ver detalle
+            {!onOpenExecution && 'Ver detalle'}
           </button>
           <button
             type="button"
@@ -319,6 +327,7 @@ export const WorkOrdersPage = () => {
   const [page, setPage] = useState(1);
   const [pendingCancellation, setPendingCancellation] = useState<PendingCancellation | null>(null);
   const [detailWorkOrderId, setDetailWorkOrderId] = useState<number | null>(null);
+  const [detailView, setDetailView] = useState<'summary' | 'execution'>('summary');
   const [previewWorkOrderId, setPreviewWorkOrderId] = useState<number | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
   const user = useAuthStore((state) => state.user);
@@ -428,7 +437,10 @@ export const WorkOrdersPage = () => {
                     canManage={canManage}
                     statusPending={statusMutation.isPending}
                     onChangeStatus={changeStatus}
-                    onOpenDetail={() => setDetailWorkOrderId(workOrder.id)}
+                    onOpenDetail={() => { setDetailView('summary'); setDetailWorkOrderId(workOrder.id); }}
+                    onOpenExecution={user && (['desarrollador', 'admin', 'jefe'].includes(user.role) || (user.role === 'mecanico' && workOrder.assignedMechanicId === user.id))
+                      ? () => { setDetailView('execution'); setDetailWorkOrderId(workOrder.id); }
+                      : undefined}
                     onPreviewPdf={() => setPreviewWorkOrderId(workOrder.id)}
                   />
                 </StaggerItem>
@@ -455,6 +467,7 @@ export const WorkOrdersPage = () => {
 
       {detailWorkOrderId !== null && (
         <WorkOrderQuickDetailModal
+          initialView={detailView}
           workOrderId={detailWorkOrderId}
           onClose={() => setDetailWorkOrderId(null)}
           onPreviewPdf={(workOrder) => {

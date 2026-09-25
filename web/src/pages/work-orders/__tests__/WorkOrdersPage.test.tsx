@@ -330,6 +330,135 @@ describe('WorkOrdersPage', () => {
     expect(screen.getByTestId('work-order-total')).toHaveTextContent('30.000');
   });
 
+  it('agrega, quita y restaura un servicio conservando cantidad y precio', async () => {
+    const service: CatalogItem = {
+      id: 80, tipo: 'estandar', codigo: 'SRV-80', nombre: 'Cambio de aceite',
+      descripcion: null, unidadMedida: 'unidad', precio: 15000, stock: 0, stockMinimo: 0,
+      createdAt: workOrder.createdAt, updatedAt: workOrder.updatedAt,
+    };
+    vi.mocked(api.get).mockResolvedValue({ data: { ...emptyCatalog, items: [service], total: 1, totalPages: 1 } });
+    const Harness = () => {
+      const [items, setItems] = useState<EditableWorkOrderItem[]>([]);
+      return <WorkOrderItemsEditor items={items} onChange={setItems} showExecution={false} />;
+    };
+    createWrapper(<Harness />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar Cambio de aceite' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aumentar cantidad 1' }));
+    fireEvent.change(screen.getByLabelText('Precio unitario 1'), { target: { value: '18000' } });
+    expect(screen.getByTestId('work-order-total')).toHaveTextContent('36.000');
+    expect(screen.queryByLabelText('Avance 1')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar Cambio de aceite' }));
+    expect(screen.queryByLabelText('Descripción 1')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }));
+    expect(screen.getByLabelText('Cantidad 1')).toHaveValue(2);
+    expect(screen.getByTestId('work-order-total')).toHaveTextContent('36.000');
+    expect(screen.getByRole('button', { name: 'Quitar Cambio de aceite' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Repuestos' }));
+    expect(screen.getByLabelText('Descripción 1')).toHaveValue('Cambio de aceite');
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar ítem 1' }));
+    expect(await screen.findByRole('button', { name: 'Agregar Cambio de aceite' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('conserva un borrador libre al seleccionar un ítem del catálogo', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { ...emptyCatalog, items: [{
+      id: 80, tipo: 'estandar', codigo: null, nombre: 'Servicio del catálogo', unidadMedida: 'unidad', precio: 9000, stock: 0,
+    }] } });
+    const Harness = () => {
+      const [items, setItems] = useState<EditableWorkOrderItem[]>([{ ...createEmptyWorkOrderItem(), cantidad: '3', precioUnitario: '100' }]);
+      return <WorkOrderItemsEditor items={items} onChange={setItems} />;
+    };
+    createWrapper(<Harness />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar Servicio del catálogo' }));
+    expect(screen.getByLabelText('Cantidad 1')).toHaveValue(3);
+    expect(screen.getByLabelText('Descripción 2')).toHaveValue('Servicio del catálogo');
+  });
+
+  it('permite recorrer el catálogo sin perder los ítems seleccionados', async () => {
+    vi.mocked(api.get).mockImplementation((_url, config) => {
+      const page = (config?.params as { page: number } | undefined)?.page ?? 1;
+      return Promise.resolve({ data: { ...emptyCatalog, page, totalPages: 2, total: 13, items: [{
+        id: page, tipo: 'estandar', nombre: `Servicio página ${page}`, unidadMedida: 'unidad', precio: 9000, stock: 0,
+      }] } });
+    });
+    const Harness = () => {
+      const [items, setItems] = useState<EditableWorkOrderItem[]>([]);
+      return <WorkOrderItemsEditor items={items} onChange={setItems} />;
+    };
+    createWrapper(<Harness />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar Servicio página 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Página siguiente del catálogo' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar Servicio página 2' }));
+    expect(screen.getByLabelText('Descripción 1')).toHaveValue('Servicio página 1');
+    expect(screen.getByLabelText('Descripción 2')).toHaveValue('Servicio página 2');
+    fireEvent.click(screen.getByRole('button', { name: 'Página anterior del catálogo' }));
+    expect(await screen.findByRole('button', { name: 'Quitar Servicio página 1' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('registra un avance desde la tarjeta y conserva el tablero al cerrar', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { workOrder } });
+    createWrapper(<WorkOrdersPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Gestionar trabajo' }));
+    await screen.findByRole('heading', { name: 'Reportar avance' });
+    fireEvent.change(screen.getByLabelText('Avance %'), { target: { value: '120' } });
+    fireEvent.change(screen.getByLabelText('Comentario'), { target: { value: 'Diagnóstico completado' } });
+    expect(screen.getByRole('button', { name: 'Registrar avance' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Avance %'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar avance' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/work-orders/12/execution', {
+      reporte: { porcentaje: 0, comentario: 'Diagnóstico completado', bloqueos: null },
+    }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Taller - Órdenes de Trabajo' })).toBeInTheDocument();
+  });
+
+  it('el mecánico asignado solicita un repuesto sin acceder al detalle completo ni aprobarlo', async () => {
+    useAuthStore.setState({ user: { id: 9, nombre: 'Mecánico', email: 'mecanico@demo.cl', role: 'mecanico' } });
+    const assigned = { ...workOrder, assignedMechanicId: 9 };
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data:
+      url === '/catalog' ? { ...emptyCatalog, items: [{ id: 80, nombre: 'Filtro', tipo: 'parte', stock: 5 }] }
+        : url === '/work-orders/12' ? { workOrder: assigned }
+          : { ...listResponse, items: [assigned] },
+    }));
+    vi.mocked(api.post).mockResolvedValue({ data: { workOrder: assigned } });
+    createWrapper(<WorkOrdersPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Gestionar trabajo' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Solicitudes' }));
+    await screen.findByRole('option', { name: 'Filtro (5)' });
+    fireEvent.change(screen.getByLabelText('Repuesto', { exact: true }), { target: { value: '80' } });
+    fireEvent.change(screen.getByLabelText('Cantidad', { exact: true }), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Justificación'), { target: { value: 'Filtro dañado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/work-orders/12/requests', {
+      tipo: 'repuesto', catalogItemId: 80, cantidad: 2, motivo: 'Filtro dañado',
+    }));
+    expect(screen.queryByRole('button', { name: 'Aprobar' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('no ofrece gestión de una OT a un mecánico no asignado', async () => {
+    useAuthStore.setState({ user: { id: 9, nombre: 'Mecánico', email: 'mecanico@demo.cl', role: 'mecanico' } });
+    createWrapper(<WorkOrdersPage />);
+    await screen.findByText(workOrder.codigo);
+    expect(screen.queryByRole('button', { name: 'Gestionar trabajo' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }));
+    await screen.findByRole('dialog');
+    expect(screen.queryByRole('button', { name: 'Solicitudes' })).not.toBeInTheDocument();
+  });
+
+  it('mantiene las órdenes cerradas en consulta sin permitir nuevas solicitudes', async () => {
+    const closed = { ...workOrder, estado: 'entregada' as const };
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data:
+      url === '/work-orders/12' ? { workOrder: closed }
+        : url === '/catalog' ? emptyCatalog : { ...listResponse, items: [closed] },
+    }));
+    createWrapper(<WorkOrdersPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Gestionar trabajo' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Solicitudes' }));
+    expect(screen.getByText(/Orden cerrada/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Enviar solicitud' })).not.toBeInTheDocument();
+  });
+
   it('no muestra transiciones para una orden entregada', async () => {
     const deliveredOrder: WorkOrder = { ...workOrder, estado: 'entregada' };
     vi.mocked(api.get).mockResolvedValue({ data: { workOrder: deliveredOrder } } as AxiosResponse<{ workOrder: WorkOrder }>);

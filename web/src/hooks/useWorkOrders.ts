@@ -288,15 +288,15 @@ export const useDeleteWorkOrderInspectionPhotoMutation = () => {
 
 export type CatalogPickerType = 'parte' | 'estandar' | 'especifico' | 'all';
 
-export const useCatalogItems = (term: string, tipo: CatalogPickerType = 'all') => {
+export const useCatalogItems = (term: string, tipo: CatalogPickerType = 'all', page = 1) => {
   const debouncedTerm = useDebouncedValue(term.trim(), 250);
 
   return useQuery({
-    queryKey: ['catalog', 'picker', debouncedTerm, tipo],
+    queryKey: ['catalog', 'picker', debouncedTerm, tipo, page],
     queryFn: async () => {
       const response = await api.get<PaginatedResponse<CatalogItem>>('/catalog', {
         params: {
-          page: 1,
+          page,
           pageSize: 12,
           search: debouncedTerm || undefined,
           tipo: tipo === 'all' ? undefined : tipo,

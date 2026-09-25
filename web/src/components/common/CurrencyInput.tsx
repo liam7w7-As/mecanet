@@ -24,13 +24,9 @@ export const CurrencyInput = ({
   'aria-invalid': ariaInvalid,
 }: CurrencyInputProps) => {
   const [displayValue, setDisplayValue] = useState(() => formatCurrencyInput(value));
-  const [isFocused, setIsFocused] = useState(false);
-
   useEffect(() => {
-    if (!isFocused) {
-      setDisplayValue(formatCurrencyInput(value));
-    }
-  }, [isFocused, value]);
+    setDisplayValue(formatCurrencyInput(value));
+  }, [value]);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const numericValue = event.target.value.replace(/\D/g, '');
@@ -39,12 +35,10 @@ export const CurrencyInput = ({
   };
 
   const handleFocus = (): void => {
-    setIsFocused(true);
     setDisplayValue(value);
   };
 
   const handleBlur = (): void => {
-    setIsFocused(false);
     setDisplayValue(formatCurrencyInput(value));
   };
 

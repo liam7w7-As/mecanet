@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination.schema.js';
 import { CATALOG_TYPES } from '../constants/catalog-types.js';
+import { UNIT_MEASURES } from '../constants/unit-measures.js';
 const optionalCodeSchema = z
     .string()
     .trim()
@@ -23,6 +24,7 @@ const catalogItemFields = {
         .min(2, 'El nombre debe tener al menos 2 caracteres')
         .max(180),
     descripcion: optionalDescriptionSchema,
+    unidadMedida: z.enum(UNIT_MEASURES).default('unidad'),
     precio: z.coerce.number().min(0, 'El precio no puede ser negativo').default(0),
     stock: z.coerce.number().int().min(0, 'El stock no puede ser negativo').default(0),
     stockMinimo: z.coerce.number().int().min(0, 'El stock mínimo no puede ser negativo').default(0),
@@ -37,6 +39,7 @@ export const updateCatalogItemSchema = z
     codigo: catalogItemFields.codigo,
     nombre: catalogItemFields.nombre.optional(),
     descripcion: catalogItemFields.descripcion,
+    unidadMedida: catalogItemFields.unidadMedida.optional(),
     precio: z.coerce.number().min(0, 'El precio no puede ser negativo').optional(),
     stock: z.coerce.number().int().min(0, 'El stock no puede ser negativo').optional(),
     stockMinimo: z.coerce.number().int().min(0, 'El stock mínimo no puede ser negativo').optional(),

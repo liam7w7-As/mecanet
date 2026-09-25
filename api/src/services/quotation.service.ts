@@ -1,5 +1,6 @@
 import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
+import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getWorkOrderById, type WorkOrderPublic } from './work-order.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -17,6 +18,8 @@ import { getPagination } from '../utils/paginate.js';
 
 import type {
   ConvertQuotationInput,
+  CatalogType,
+  UnitMeasure,
   CreateQuotationInput,
   ItemOperationalStatus,
   QuotationItemInput,
@@ -63,6 +66,8 @@ interface QuotationItemPublic {
   id: number;
   catalogItemId: number | null;
   descripcion: string;
+  tipoLinea: CatalogType;
+  unidadMedida: UnitMeasure;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
@@ -136,6 +141,8 @@ const itemsInclude = {
     'id',
     'catalogItemId',
     'descripcion',
+    'tipoLinea',
+    'unidadMedida',
     'cantidad',
     'precioUnitario',
     'subtotal',
@@ -231,6 +238,8 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
       id: item.id,
       catalogItemId: item.catalogItemId,
       descripcion: item.descripcion,
+      tipoLinea: item.tipoLinea,
+      unidadMedida: item.unidadMedida,
       cantidad: numberValue(item.cantidad),
       precioUnitario: numberValue(item.precioUnitario),
       subtotal: numberValue(item.subtotal),
@@ -254,6 +263,8 @@ const buildItemsPayload = (
   quotationId: number;
   catalogItemId: number | null;
   descripcion: string;
+  tipoLinea: CatalogType;
+  unidadMedida: UnitMeasure;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
@@ -268,6 +279,8 @@ const buildItemsPayload = (
       quotationId,
       catalogItemId: item.catalogItemId ?? null,
       descripcion: item.descripcion,
+      tipoLinea: item.tipoLinea,
+      unidadMedida: item.unidadMedida,
       cantidad,
       precioUnitario,
       subtotal: cantidad * precioUnitario,
@@ -279,6 +292,161 @@ const buildItemsPayload = (
 
 const calculateTotal = (items: QuotationItemInput[]): number => {
   return items.reduce((total, item) => total + Number(item.cantidad) * Number(item.precioUnitario), 0);
+};
+
+const buildWorkOrderItemsPayload = (
+  workOrderId: number,
+  items: QuotationItemInput[],
+): Array<{
+  workOrderId: number;
+  catalogItemId: number | null;
+  descripcion: string;
+  tipoLinea: CatalogType;
+  unidadMedida: UnitMeasure;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+  estadoOperativo: ItemOperationalStatus;
+  notasOperativas: string | null;
+  stockConsumido: boolean;
+  stockConsumidoCantidad: number;
+  stockConsumidoAt: null;
+}> =>
+  items.map((item) => {
+    const cantidad = Number(item.cantidad);
+    const precioUnitario = Number(item.precioUnitario);
+
+    return {
+      workOrderId,
+      catalogItemId: item.catalogItemId ?? null,
+      descripcion: item.descripcion,
+      tipoLinea: item.tipoLinea,
+      unidadMedida: item.unidadMedida,
+      cantidad,
+      precioUnitario,
+      subtotal: cantidad * precioUnitario,
+      estadoOperativo: item.estadoOperativo ?? 'pendiente',
+      notasOperativas: item.notasOperativas ?? null,
+      stockConsumido: false,
+      stockConsumidoCantidad: 0,
+      stockConsumidoAt: null,
+    };
+  });
+
+const restoreConsumedWorkOrderStock = async (
+  items: WorkOrderItem[],
+  transaction: Transaction,
+  userId: number,
+  referencia: string,
+): Promise<void> => {
+  for (const item of items) {
+    if (!item.stockConsumido || item.catalogItemId === null || item.stockConsumidoCantidad <= 0) {
+      continue;
+    }
+
+    await restoreForWorkOrder(
+      {
+        catalogItemId: item.catalogItemId,
+        cantidad: item.stockConsumidoCantidad,
+        warehouseId: item.stockConsumidoWarehouseId ?? null,
+        referencia,
+        motivo: `Devolución por sincronización comercial de ${referencia}`,
+        userId,
+      },
+      transaction,
+    );
+  }
+};
+
+const consumeCompletedWorkOrderPartStock = async (
+  items: WorkOrderItem[],
+  transaction: Transaction,
+  userId: number,
+  referencia: string,
+): Promise<void> => {
+  for (const item of items) {
+    if (
+      item.estadoOperativo !== 'completado' ||
+      item.catalogItemId === null ||
+      item.stockConsumido
+    ) {
+      continue;
+    }
+
+    const catalogItem = await CatalogItem.findByPk(item.catalogItemId, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    if (!catalogItem || catalogItem.tipo !== 'parte') {
+      continue;
+    }
+
+    const units = Number(item.cantidad);
+    if (!Number.isInteger(units)) {
+      throw ApiError.badRequest(
+        `La cantidad del repuesto "${item.descripcion}" debe ser un número entero para descontar stock`,
+      );
+    }
+
+    const consumption = await consumeForWorkOrder(
+      {
+        catalogItemId: catalogItem.id,
+        cantidad: units,
+        referencia,
+        motivo: `Consumo en ${referencia} - ${item.descripcion}`.slice(0, 255),
+        userId,
+      },
+      transaction,
+    );
+
+    await item.update(
+      {
+        stockConsumido: true,
+        stockConsumidoCantidad: units,
+        stockConsumidoAt: new Date(),
+        stockConsumidoWarehouseId: consumption.warehouseId,
+      },
+      { transaction },
+    );
+  }
+};
+
+const syncLinkedWorkOrderFromQuotation = async (
+  quotation: Quotation,
+  items: QuotationItemInput[],
+  userId: number,
+  transaction: Transaction,
+): Promise<void> => {
+  if (quotation.workOrderId === null) {
+    return;
+  }
+
+  const workOrder = await WorkOrder.findByPk(quotation.workOrderId, {
+    transaction,
+    lock: Transaction.LOCK.UPDATE,
+  });
+  if (!workOrder) {
+    throw ApiError.badRequest('La orden de trabajo vinculada ya no existe');
+  }
+  if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') {
+    throw ApiError.badRequest('No se puede sincronizar una orden entregada o cancelada');
+  }
+
+  const existingItems = await WorkOrderItem.findAll({
+    where: { workOrderId: workOrder.id },
+    transaction,
+    lock: Transaction.LOCK.UPDATE,
+  });
+  await restoreConsumedWorkOrderStock(existingItems, transaction, userId, workOrder.codigo);
+  await WorkOrderItem.destroy({ where: { workOrderId: workOrder.id }, transaction });
+
+  if (items.length > 0) {
+    const createdItems = await WorkOrderItem.bulkCreate(
+      buildWorkOrderItemsPayload(workOrder.id, items),
+      { transaction },
+    );
+    await consumeCompletedWorkOrderPartStock(createdItems, transaction, userId, workOrder.codigo);
+  }
 };
 
 const assertClientExists = async (clientId: number, transaction: Transaction): Promise<void> => {
@@ -342,6 +510,8 @@ const copyWorkOrderItems = (items: WorkOrderItem[]): QuotationItemInput[] => {
   return items.map((item) => ({
     catalogItemId: item.catalogItemId,
     descripcion: item.descripcion,
+    tipoLinea: item.tipoLinea,
+    unidadMedida: item.unidadMedida,
     cantidad: numberValue(item.cantidad),
     precioUnitario: numberValue(item.precioUnitario),
     estadoOperativo: item.estadoOperativo,
@@ -491,6 +661,7 @@ export const createQuotation = async (
 export const updateQuotation = async (
   id: number,
   data: UpdateQuotationInput,
+  userId: number,
 ): Promise<QuotationPublic> => {
   const quotationId = await sequelize.transaction(async (transaction) => {
     const quotation = await Quotation.findByPk(id, { transaction });
@@ -519,19 +690,7 @@ export const updateQuotation = async (
       if (data.items.length > 0) {
         await QuotationItem.bulkCreate(buildItemsPayload(id, data.items), { transaction });
       }
-
-      if (quotation.workOrderId !== null) {
-        await WorkOrderItem.destroy({ where: { workOrderId: quotation.workOrderId }, transaction });
-        if (data.items.length > 0) {
-          await WorkOrderItem.bulkCreate(
-            buildItemsPayload(id, data.items).map(({ quotationId: _qid, ...item }) => ({
-              workOrderId: quotation.workOrderId!,
-              ...item,
-            })),
-            { transaction },
-          );
-        }
-      }
+      await syncLinkedWorkOrderFromQuotation(quotation, data.items, userId, transaction);
 
       updatePayload.subtotal = total;
       updatePayload.total = total;
@@ -636,6 +795,8 @@ export const convertQuotationToWorkOrder = async (
           workOrderId: workOrder.id,
           catalogItemId: item.catalogItemId,
           descripcion: item.descripcion,
+          tipoLinea: item.tipoLinea,
+          unidadMedida: item.unidadMedida,
           cantidad: numberValue(item.cantidad),
           precioUnitario: numberValue(item.precioUnitario),
           subtotal: numberValue(item.subtotal),

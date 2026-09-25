@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { chilePhoneSchema, rutSchema } from './client.schema.js';
 import { paginationSchema } from './pagination.schema.js';
+import { CATALOG_TYPES } from '../constants/catalog-types.js';
 import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
+import { UNIT_MEASURES } from '../constants/unit-measures.js';
 import { WORK_ORDER_DELIVERY_CHECKLIST } from '../constants/work-order-delivery.js';
 import { WORK_ORDER_ENTRY_TYPES } from '../constants/work-order-entry-type.js';
 import { FUEL_LEVELS, TIRE_CONDITIONS, VEHICLE_INVENTORY_ITEMS, } from '../constants/work-order-inspection.js';
@@ -43,8 +45,10 @@ export const updateWorkOrderInspectionSchema = z
 });
 export const workOrderItemInputSchema = z.object({
     catalogItemId: z.coerce.number().int().positive().nullable().optional(),
+    tipoLinea: z.enum(CATALOG_TYPES).default('estandar'),
     descripcion: z.string().trim().min(2, 'La descripción debe tener al menos 2 caracteres').max(255),
-    cantidad: z.coerce.number().positive('La cantidad debe ser mayor a 0').default(1),
+    cantidad: z.coerce.number().int().min(1, 'La cantidad debe ser un número entero mayor a 0').default(1),
+    unidadMedida: z.enum(UNIT_MEASURES).default('unidad'),
     precioUnitario: z.coerce.number().min(0, 'El precio no puede ser negativo').default(0),
     estadoOperativo: z.enum(ITEM_OPERATIONAL_STATUS).default('pendiente'),
     notasOperativas: optionalText(1000),
@@ -54,6 +58,7 @@ export const createWorkOrderSchema = z.object({
     contactClientId: nullablePositiveId,
     billingClientId: nullablePositiveId,
     vehicleId: nullablePositiveId,
+    assignedMechanicId: nullablePositiveId,
     kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),
     descripcion: optionalText(),
     fechaIngreso: z

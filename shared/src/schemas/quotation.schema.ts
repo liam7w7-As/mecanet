@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
 import { paginationSchema } from './pagination.schema.js';
+import { CATALOG_TYPES } from '../constants/catalog-types.js';
 import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
 import { QUOTATION_STATUS } from '../constants/quotation-status.js';
+import { UNIT_MEASURES } from '../constants/unit-measures.js';
 
 const optionalText = (maxLength?: number) => {
   const schema = z.string().trim();
@@ -20,8 +22,10 @@ const booleanQueryParam = z.union([
 
 export const quotationItemInputSchema = z.object({
   catalogItemId: z.coerce.number().int().positive().nullable().optional(),
+  tipoLinea: z.enum(CATALOG_TYPES).default('estandar'),
   descripcion: z.string().trim().min(2, 'La descripción debe tener al menos 2 caracteres').max(255),
-  cantidad: z.coerce.number().positive('La cantidad debe ser mayor a 0').default(1),
+  cantidad: z.coerce.number().int().min(1, 'La cantidad debe ser un número entero mayor a 0').default(1),
+  unidadMedida: z.enum(UNIT_MEASURES).default('unidad'),
   precioUnitario: z.coerce.number().min(0, 'El precio no puede ser negativo').default(0),
   estadoOperativo: z.enum(ITEM_OPERATIONAL_STATUS).default('pendiente'),
   notasOperativas: optionalText(1000),

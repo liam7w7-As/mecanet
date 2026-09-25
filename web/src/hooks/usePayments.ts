@@ -62,6 +62,7 @@ export const useCreatePaymentMutation = () => {
       );
       void queryClient.invalidateQueries({ queryKey: quotationKeys.all });
       void queryClient.invalidateQueries({ queryKey: paymentKeys.quotation(quotation.id) });
+      void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -87,6 +88,7 @@ export const useDeletePaymentMutation = () => {
       );
       void queryClient.invalidateQueries({ queryKey: quotationKeys.all });
       void queryClient.invalidateQueries({ queryKey: paymentKeys.quotation(quotationId) });
+      void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });

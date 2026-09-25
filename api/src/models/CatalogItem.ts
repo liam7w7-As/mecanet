@@ -1,4 +1,4 @@
-import { CATALOG_TYPES, type CatalogType } from '@unithor/shared';
+import { CATALOG_TYPES, type CatalogType, type UnitMeasure } from '@unithor/shared';
 import {
   AutoIncrement,
   Column,
@@ -58,6 +58,13 @@ export class CatalogItem extends Model<
     allowNull: true,
   })
   declare descripcion: string | null;
+
+  @Column({
+    type: DataType.STRING(20),
+    allowNull: false,
+    defaultValue: 'unidad',
+  })
+  declare unidadMedida: CreationOptional<UnitMeasure>;
 
   @Column({
     type: DataType.DECIMAL(12, 2),

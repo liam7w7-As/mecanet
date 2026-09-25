@@ -9,6 +9,7 @@ export * from './constants/work-order-event-types.js';
 export * from './constants/work-order-requests.js';
 export * from './constants/quotation-status.js';
 export * from './constants/catalog-types.js';
+export * from './constants/unit-measures.js';
 export * from './constants/item-operational-status.js';
 export * from './constants/stock-movement-types.js';
 export * from './schemas/index.js';

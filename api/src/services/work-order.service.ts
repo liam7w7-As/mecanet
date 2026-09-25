@@ -5,6 +5,7 @@ import {
 } from '@unithor/shared';
 import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
+import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -22,7 +23,6 @@ import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
-import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { generateQuotationCode, generateWorkOrderCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
 
@@ -42,6 +42,7 @@ import type {
   WorkOrderInspectionPhotoSlot,
   CatalogType,
   CreateWorkOrderReentryInput,
+  UnitMeasure,
   DeliverWorkOrderInput,
   WorkOrderDeliveryChecklistItem,
   WorkOrderEntryType,
@@ -85,6 +86,8 @@ interface WorkOrderItemPublic {
   id: number;
   catalogItemId: number | null;
   descripcion: string;
+  tipoLinea: import('@unithor/shared').CatalogType;
+  unidadMedida: import('@unithor/shared').UnitMeasure;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
@@ -304,6 +307,8 @@ const itemsInclude = {
     'id',
     'catalogItemId',
     'descripcion',
+    'tipoLinea',
+    'unidadMedida',
     'cantidad',
     'precioUnitario',
     'subtotal',
@@ -621,6 +626,8 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
       id: item.id,
       catalogItemId: item.catalogItemId,
       descripcion: item.descripcion,
+      tipoLinea: item.tipoLinea,
+      unidadMedida: item.unidadMedida,
       cantidad: toNumber(item.cantidad),
       precioUnitario: toNumber(item.precioUnitario),
       subtotal: toNumber(item.subtotal),
@@ -837,6 +844,8 @@ const buildItemsPayload = (
   workOrderId: number;
   catalogItemId: number | null;
   descripcion: string;
+  tipoLinea: CatalogType;
+  unidadMedida: UnitMeasure;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
@@ -852,9 +861,11 @@ const buildItemsPayload = (
 
     return {
       workOrderId,
-      catalogItemId: item.catalogItemId ?? null,
-      descripcion: item.descripcion,
-      cantidad,
+       catalogItemId: item.catalogItemId ?? null,
+       descripcion: item.descripcion,
+       tipoLinea: item.tipoLinea,
+       unidadMedida: item.unidadMedida,
+       cantidad,
       precioUnitario,
       subtotal: cantidad * precioUnitario,
       estadoOperativo: item.estadoOperativo ?? 'pendiente',
@@ -998,9 +1009,11 @@ const createMirrorQuotation = async (
     await QuotationItem.bulkCreate(
       buildItemsPayload(quotation.id, items).map((item) => ({
         quotationId: quotation.id,
-        catalogItemId: item.catalogItemId,
-        descripcion: item.descripcion,
-        cantidad: item.cantidad,
+         catalogItemId: item.catalogItemId,
+         descripcion: item.descripcion,
+         tipoLinea: item.tipoLinea,
+         unidadMedida: item.unidadMedida,
+         cantidad: item.cantidad,
         precioUnitario: item.precioUnitario,
         subtotal: item.subtotal,
         estadoOperativo: item.estadoOperativo,
@@ -1009,6 +1022,62 @@ const createMirrorQuotation = async (
       { transaction },
     );
   }
+};
+
+const syncMirrorQuotationFromWorkOrder = async (
+  workOrderId: number,
+  transaction: Transaction,
+): Promise<void> => {
+  const quotation = await Quotation.findOne({ where: { workOrderId }, transaction });
+  if (!quotation) {
+    return;
+  }
+  if (quotation.estadoPago === 'total') {
+    throw ApiError.badRequest(
+      'No se pueden modificar los trabajos de una orden con cotización pagada en su totalidad',
+    );
+  }
+
+  const workOrderItems = await WorkOrderItem.findAll({
+    where: { workOrderId },
+    order: [['id', 'ASC']],
+    transaction,
+  });
+  const total = workOrderItems.reduce((sum, item) => sum + toNumber(item.subtotal), 0);
+  const paid = toNumber(quotation.pagado);
+  if (total < paid) {
+    throw ApiError.badRequest(
+      'El nuevo total de la orden no puede ser inferior al monto ya pagado en la cotización',
+    );
+  }
+
+  await QuotationItem.destroy({ where: { quotationId: quotation.id }, transaction });
+  if (workOrderItems.length > 0) {
+    await QuotationItem.bulkCreate(
+      workOrderItems.map((item) => ({
+        quotationId: quotation.id,
+        catalogItemId: item.catalogItemId,
+        descripcion: item.descripcion,
+        tipoLinea: item.tipoLinea,
+        unidadMedida: item.unidadMedida,
+        cantidad: toNumber(item.cantidad),
+        precioUnitario: toNumber(item.precioUnitario),
+        subtotal: toNumber(item.subtotal),
+        estadoOperativo: item.estadoOperativo,
+        notasOperativas: item.notasOperativas,
+      })),
+      { transaction },
+    );
+  }
+
+  await quotation.update(
+    {
+      subtotal: total,
+      total,
+      estadoPago: paid <= 0 ? 'por_pagar' : 'parcial',
+    },
+    { transaction },
+  );
 };
 
 const assertClientExists = async (
@@ -1361,6 +1430,7 @@ export const listWorkOrders = async (
       clientInclude,
       vehicleInclude,
       assignedMechanicInclude,
+      quotationInclude,
       { ...itemsInclude, separate: true },
     ],
     limit: pagination.limit,
@@ -1397,6 +1467,7 @@ export const createWorkOrder = async (
     const contactClientId = data.contactClientId === undefined ? clientId : data.contactClientId;
     const billingClientId = data.billingClientId === undefined ? clientId : data.billingClientId;
     const vehicleId = data.vehicleId ?? null;
+    const assignedMechanicId = data.assignedMechanicId ?? null;
 
     const client =
       clientId === null ? null : await assertClientExists(clientId, transaction);
@@ -1413,11 +1484,22 @@ export const createWorkOrder = async (
         ? client
         : billingClientId === contactClientId
           ? contactClient
-          : await resolveSnapshotClient(
-              billingClientId,
-              'El cliente de facturación especificado no existe',
-              transaction,
-            );
+           : await resolveSnapshotClient(
+               billingClientId,
+               'El cliente de facturación especificado no existe',
+               transaction,
+             );
+
+    if (assignedMechanicId !== null) {
+      const mechanic = await User.findOne({
+        where: { id: assignedMechanicId, activo: true },
+        include: [{ model: Role, as: 'role', attributes: ['nombre'], where: { nombre: 'mecanico' } }],
+        transaction,
+      });
+      if (!mechanic) {
+        throw ApiError.badRequest('El mecánico seleccionado no existe o no está activo');
+      }
+    }
 
     let vehicle: Vehicle | null = null;
     if (data.vehicleId !== undefined && data.vehicleId !== null) {
@@ -1443,8 +1525,9 @@ export const createWorkOrder = async (
         clientId,
         ...buildContactSnapshot(contactClient),
         ...buildBillingSnapshot(billingClient),
-        vehicleId,
-        vehicleOwnerClientId: vehicleOwner.clientId,
+         vehicleId,
+         assignedMechanicId,
+         vehicleOwnerClientId: vehicleOwner.clientId,
         vehicleOwnerName: vehicleOwner.nombre,
         vehicleOwnerRut: vehicleOwner.rut,
         estado: 'borrador',
@@ -1639,6 +1722,9 @@ export const updateWorkOrder = async (
     }
 
     await workOrder.update(updatePayload, { transaction });
+    if (data.items !== undefined) {
+      await syncMirrorQuotationFromWorkOrder(id, transaction);
+    }
 
     await recordWorkOrderEvent(
       workOrder.id,
@@ -1880,6 +1966,8 @@ export const createWorkOrderReentry = async (
     const copiedItems: WorkOrderItemInput[] = sourceItems.map((item) => ({
       catalogItemId: item.catalogItemId,
       descripcion: item.descripcion,
+      tipoLinea: item.tipoLinea,
+      unidadMedida: item.unidadMedida,
       cantidad: toNumber(item.cantidad),
       precioUnitario: coberturaGarantia ? 0 : toNumber(item.precioUnitario),
       estadoOperativo: 'pendiente',
@@ -2109,6 +2197,10 @@ export const updateWorkOrderExecution = async (
       });
     }
 
+    if (itemUpdates.length > 0) {
+      await syncMirrorQuotationFromWorkOrder(id, transaction);
+    }
+
     if (data.reporte) {
       await WorkOrderProgressReport.create(
         {
@@ -2275,9 +2367,11 @@ export const reviewWorkOrderRequest = async (
         await WorkOrderItem.create(
           {
             workOrderId: id,
-            catalogItemId: catalogItem.id,
-            descripcion: catalogItem.nombre,
-            cantidad: quantity,
+             catalogItemId: catalogItem.id,
+             descripcion: catalogItem.nombre,
+             tipoLinea: catalogItem.tipo,
+             unidadMedida: catalogItem.unidadMedida,
+             cantidad: quantity,
             precioUnitario: approvedPrice,
             subtotal: quantity * approvedPrice,
             estadoOperativo: 'pendiente',

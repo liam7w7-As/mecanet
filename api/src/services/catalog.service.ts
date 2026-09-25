@@ -9,6 +9,7 @@ import type {
   CatalogItemQueryInput,
   CatalogType,
   CreateCatalogItemInput,
+  UnitMeasure,
   UpdateCatalogItemInput,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
@@ -19,6 +20,7 @@ export interface CatalogItemPublic {
   codigo: string | null;
   nombre: string;
   descripcion: string | null;
+  unidadMedida: UnitMeasure;
   precio: number;
   stock: number;
   stockMinimo: number;
@@ -52,6 +54,7 @@ const toCatalogItemPublic = (item: CatalogItem): CatalogItemPublic => ({
   codigo: item.codigo,
   nombre: item.nombre,
   descripcion: item.descripcion,
+  unidadMedida: item.unidadMedida,
   precio: Number(item.precio),
   stock: Number(item.stock),
   stockMinimo: Number(item.stockMinimo ?? 0),
@@ -148,6 +151,7 @@ export const createCatalogItem = async (
     codigo,
     nombre: data.nombre,
     descripcion: data.descripcion ?? null,
+    unidadMedida: data.unidadMedida,
     precio: data.precio,
     stock: data.tipo === 'parte' ? data.stock : 0,
     stockMinimo: data.tipo === 'parte' ? data.stockMinimo : 0,
@@ -167,7 +171,7 @@ export const updateCatalogItem = async (
 
   const nextType = data.tipo ?? item.tipo;
   const updatePayload: Partial<
-    Pick<CatalogItem, 'tipo' | 'codigo' | 'nombre' | 'descripcion' | 'precio' | 'stock' | 'stockMinimo'>
+    Pick<CatalogItem, 'tipo' | 'codigo' | 'nombre' | 'descripcion' | 'unidadMedida' | 'precio' | 'stock' | 'stockMinimo'>
   > = {};
 
   if (data.tipo !== undefined) {
@@ -188,6 +192,10 @@ export const updateCatalogItem = async (
 
   if (data.descripcion !== undefined) {
     updatePayload.descripcion = data.descripcion;
+  }
+
+  if (data.unidadMedida !== undefined) {
+    updatePayload.unidadMedida = data.unidadMedida;
   }
 
   if (data.precio !== undefined) {

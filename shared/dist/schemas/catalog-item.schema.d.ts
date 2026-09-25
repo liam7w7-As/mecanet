@@ -4,6 +4,7 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     codigo: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     nombre: z.ZodString;
     descripcion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    unidadMedida: z.ZodDefault<z.ZodEnum<["unidad", "litro", "mililitro", "kilogramo", "juego", "servicio"]>>;
     precio: z.ZodDefault<z.ZodNumber>;
     stock: z.ZodDefault<z.ZodNumber>;
     stockMinimo: z.ZodDefault<z.ZodNumber>;
@@ -12,6 +13,7 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     tipo: "parte" | "estandar" | "especifico";
     stock: number;
     stockMinimo: number;
+    unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
     precio: number;
     codigo?: string | null | undefined;
     descripcion?: string | null | undefined;
@@ -22,12 +24,14 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     stock?: number | undefined;
     stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
 }>, {
     stock: number;
     nombre: string;
     tipo: "parte" | "estandar" | "especifico";
     stockMinimo: number;
+    unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
     precio: number;
     codigo?: string | null | undefined;
     descripcion?: string | null | undefined;
@@ -38,6 +42,7 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     stock?: number | undefined;
     stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
 }>;
 export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
@@ -45,6 +50,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     codigo: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     nombre: z.ZodOptional<z.ZodString>;
     descripcion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    unidadMedida: z.ZodOptional<z.ZodDefault<z.ZodEnum<["unidad", "litro", "mililitro", "kilogramo", "juego", "servicio"]>>>;
     precio: z.ZodOptional<z.ZodNumber>;
     stock: z.ZodOptional<z.ZodNumber>;
     stockMinimo: z.ZodOptional<z.ZodNumber>;
@@ -55,6 +61,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     stock?: number | undefined;
     stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
 }, {
     nombre?: string | undefined;
@@ -63,6 +70,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     stock?: number | undefined;
     stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
 }>, {
     nombre?: string | undefined;
@@ -71,6 +79,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     stock?: number | undefined;
     stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
 }, {
     nombre?: string | undefined;
@@ -79,6 +88,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     stock?: number | undefined;
     stockMinimo?: number | undefined;
     descripcion?: string | null | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
 }>;
 export declare const updateStockSchema: z.ZodObject<{

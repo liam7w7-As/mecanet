@@ -51,6 +51,8 @@ const quotation: Quotation = {
       id: 1,
       catalogItemId: null,
       descripcion: 'Cambio de aceite',
+      tipoLinea: 'estandar',
+      unidadMedida: 'unidad',
       cantidad: 1,
       precioUnitario: 50000,
       subtotal: 50000,

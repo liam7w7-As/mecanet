@@ -22,6 +22,8 @@ const toEditableItems = (workOrder: WorkOrder): EditableWorkOrderItem[] =>
     catalogTipo: item.catalogItem?.tipo ?? null,
     catalogStock: item.catalogItem?.stock ?? null,
     descripcion: item.descripcion,
+    tipoLinea: item.tipoLinea,
+    unidadMedida: item.unidadMedida,
     cantidad: String(item.cantidad),
     precioUnitario: String(item.precioUnitario),
     estadoOperativo: item.estadoOperativo,
@@ -43,6 +45,8 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
         .map((item) => ({
           catalogItemId: item.catalogItemId,
           descripcion: item.descripcion,
+          tipoLinea: item.tipoLinea,
+          unidadMedida: item.unidadMedida,
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
           estadoOperativo: item.estadoOperativo,

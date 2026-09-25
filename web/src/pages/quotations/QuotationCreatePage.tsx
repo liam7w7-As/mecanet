@@ -44,6 +44,8 @@ export const QuotationCreatePage = () => {
       ...createEmptyWorkOrderItem(),
       catalogItemId: item.catalogItemId,
       descripcion: item.descripcion,
+      tipoLinea: item.tipoLinea,
+      unidadMedida: item.unidadMedida,
       cantidad: String(item.cantidad),
       precioUnitario: String(item.precioUnitario),
       estadoOperativo: item.estadoOperativo,
@@ -77,6 +79,8 @@ export const QuotationCreatePage = () => {
       items: items.map((item) => ({
         catalogItemId: item.catalogItemId,
         descripcion: item.descripcion,
+        tipoLinea: item.tipoLinea,
+        unidadMedida: item.unidadMedida,
         cantidad: item.cantidad,
         precioUnitario: item.precioUnitario,
         estadoOperativo: item.estadoOperativo,

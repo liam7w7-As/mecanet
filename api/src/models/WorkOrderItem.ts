@@ -1,4 +1,4 @@
-import { ITEM_OPERATIONAL_STATUS, type ItemOperationalStatus } from '@unithor/shared';
+import { ITEM_OPERATIONAL_STATUS, type ItemOperationalStatus, type UnitMeasure, type CatalogType } from '@unithor/shared';
 import {
   AutoIncrement,
   BelongsTo,
@@ -49,6 +49,20 @@ export class WorkOrderItem extends Model<
     onUpdate: 'CASCADE',
   })
   declare catalogItemId: number | null;
+
+  @Column({
+    type: DataType.STRING(20),
+    allowNull: false,
+    defaultValue: 'estandar',
+  })
+  declare tipoLinea: CreationOptional<CatalogType>;
+
+  @Column({
+    type: DataType.STRING(20),
+    allowNull: false,
+    defaultValue: 'unidad',
+  })
+  declare unidadMedida: CreationOptional<UnitMeasure>;
 
   @Column({
     type: DataType.STRING(255),

@@ -210,6 +210,8 @@ export const QuotationDetailModal = ({
         ? {
             catalogItemId: item.catalogItemId,
             descripcion: item.descripcion,
+            tipoLinea: item.tipoLinea,
+            unidadMedida: item.unidadMedida,
             cantidad: Number(item.cantidad),
             precioUnitario: Number(item.precioUnitario),
             estadoOperativo: nextStatus,
@@ -218,6 +220,8 @@ export const QuotationDetailModal = ({
         : {
             catalogItemId: item.catalogItemId,
             descripcion: item.descripcion,
+            tipoLinea: item.tipoLinea,
+            unidadMedida: item.unidadMedida,
             cantidad: Number(item.cantidad),
             precioUnitario: Number(item.precioUnitario),
             estadoOperativo: item.estadoOperativo,
@@ -254,6 +258,8 @@ export const QuotationDetailModal = ({
         ? {
             catalogItemId: item.catalogItemId,
             descripcion: item.descripcion,
+            tipoLinea: item.tipoLinea,
+            unidadMedida: item.unidadMedida,
             cantidad: Number(item.cantidad),
             precioUnitario: numericPrice,
             estadoOperativo: item.estadoOperativo,
@@ -262,6 +268,8 @@ export const QuotationDetailModal = ({
         : {
             catalogItemId: item.catalogItemId,
             descripcion: item.descripcion,
+            tipoLinea: item.tipoLinea,
+            unidadMedida: item.unidadMedida,
             cantidad: Number(item.cantidad),
             precioUnitario: Number(item.precioUnitario),
             estadoOperativo: item.estadoOperativo,
@@ -298,6 +306,8 @@ export const QuotationDetailModal = ({
           ? {
               catalogItemId: item.catalogItemId,
               descripcion: item.descripcion,
+              tipoLinea: item.tipoLinea,
+              unidadMedida: item.unidadMedida,
               cantidad: Number(item.cantidad),
               precioUnitario: 0, // No cost applied
               estadoOperativo: 'omitido' as const,
@@ -306,6 +316,8 @@ export const QuotationDetailModal = ({
           : {
               catalogItemId: item.catalogItemId,
               descripcion: item.descripcion,
+              tipoLinea: item.tipoLinea,
+              unidadMedida: item.unidadMedida,
               cantidad: Number(item.cantidad),
               precioUnitario: Number(item.precioUnitario),
               estadoOperativo: item.estadoOperativo,
@@ -319,6 +331,8 @@ export const QuotationDetailModal = ({
           ? {
               catalogItemId: item.catalogItemId,
               descripcion: item.descripcion,
+              tipoLinea: item.tipoLinea,
+              unidadMedida: item.unidadMedida,
               cantidad: Number(item.cantidad),
               precioUnitario: Number(item.precioUnitario),
               estadoOperativo: item.estadoOperativo,
@@ -327,6 +341,8 @@ export const QuotationDetailModal = ({
           : {
               catalogItemId: item.catalogItemId,
               descripcion: item.descripcion,
+              tipoLinea: item.tipoLinea,
+              unidadMedida: item.unidadMedida,
               cantidad: Number(item.cantidad),
               precioUnitario: Number(item.precioUnitario),
               estadoOperativo: item.estadoOperativo,
@@ -361,7 +377,7 @@ export const QuotationDetailModal = ({
     }
     const qty = Number(suggestedCantidad);
     const price = Number(suggestedPrecio);
-    if (isNaN(qty) || qty <= 0) {
+    if (isNaN(qty) || !Number.isInteger(qty) || qty <= 0) {
       notifyError('La cantidad debe ser mayor a 0.');
       return;
     }
@@ -378,6 +394,8 @@ export const QuotationDetailModal = ({
     const newItem: QuotationItemInput = {
       catalogItemId: suggestedCatalogItemId,
       descripcion: suggestedDescripcion.trim(),
+      tipoLinea: 'especifico',
+      unidadMedida: 'unidad',
       cantidad: qty,
       precioUnitario: price,
       estadoOperativo: 'pendiente',
@@ -388,6 +406,8 @@ export const QuotationDetailModal = ({
       ...rawItems.map((item) => ({
         catalogItemId: item.catalogItemId,
         descripcion: item.descripcion,
+        tipoLinea: item.tipoLinea,
+        unidadMedida: item.unidadMedida,
         cantidad: Number(item.cantidad),
         precioUnitario: Number(item.precioUnitario),
         estadoOperativo: item.estadoOperativo,

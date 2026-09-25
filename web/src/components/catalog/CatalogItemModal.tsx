@@ -1,4 +1,4 @@
-import { createCatalogItemSchema, updateCatalogItemSchema } from '@unithor/shared';
+import { createCatalogItemSchema, updateCatalogItemSchema, UNIT_MEASURES, UNIT_MEASURE_LABELS } from '@unithor/shared';
 import { AlertCircle, Boxes, LoaderCircle, Package, Settings2, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -24,6 +24,7 @@ interface CatalogFormState {
   codigo: string;
   nombre: string;
   descripcion: string;
+  unidadMedida: CatalogItem['unidadMedida'];
   precio: string;
   stock: string;
   stockMinimo: string;
@@ -42,8 +43,9 @@ const getInitialState = (item?: CatalogItem | null): CatalogFormState => ({
   tipo: item?.tipo ?? 'estandar',
   codigo: item?.codigo ?? '',
   nombre: item?.nombre ?? '',
-  descripcion: item?.descripcion ?? '',
-  precio: String(item?.precio ?? 0),
+   descripcion: item?.descripcion ?? '',
+   unidadMedida: item?.unidadMedida ?? 'unidad',
+   precio: String(item?.precio ?? 0),
   stock: String(item?.stock ?? 0),
   stockMinimo: String(item?.stockMinimo ?? 0),
 });
@@ -91,8 +93,9 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
       tipo: form.tipo,
       codigo: form.codigo,
       nombre: form.nombre,
-      descripcion: form.descripcion,
-      precio: form.precio,
+       descripcion: form.descripcion,
+       unidadMedida: form.unidadMedida,
+       precio: form.precio,
       stock: form.tipo === 'parte' ? form.stock : '0',
       stockMinimo: form.tipo === 'parte' ? form.stockMinimo : '0',
     };
@@ -177,12 +180,19 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
               <input className={inputClassName} value={form.nombre} onChange={(event) => setValue('nombre', event.target.value)} aria-invalid={Boolean(fieldErrors.nombre)} placeholder="Nombre visible en órdenes y cotizaciones" />
               {fieldErrors.nombre && <span className="mt-1 block text-xs text-red-600">{fieldErrors.nombre}</span>}
             </label>
-            <label className="text-sm font-medium text-slate-700">
-              Precio
+             <label className="text-sm font-medium text-slate-700">
+               Precio
                <CurrencyInput value={form.precio} onChange={(value) => setValue('precio', value)} className={inputClassName} aria-label="Precio" aria-invalid={Boolean(fieldErrors.precio)} />
-              {fieldErrors.precio && <span className="mt-1 block text-xs text-red-600">{fieldErrors.precio}</span>}
-              <span className="mt-1 block text-xs font-semibold text-brand-blue">{Number.isFinite(pricePreview) ? formatClp(pricePreview) : formatClp(0)}</span>
-            </label>
+               {fieldErrors.precio && <span className="mt-1 block text-xs text-red-600">{fieldErrors.precio}</span>}
+               <span className="mt-1 block text-xs font-semibold text-brand-blue">{Number.isFinite(pricePreview) ? formatClp(pricePreview) : formatClp(0)}</span>
+             </label>
+             <label className="text-sm font-medium text-slate-700">
+               Unidad de medida
+               <select className={inputClassName} value={form.unidadMedida} onChange={(event) => setValue('unidadMedida', event.target.value as CatalogItem['unidadMedida'])} aria-label="Unidad de medida">
+                 {UNIT_MEASURES.map((unit) => <option key={unit} value={unit}>{UNIT_MEASURE_LABELS[unit]}</option>)}
+               </select>
+               {fieldErrors.unidadMedida && <span className="mt-1 block text-xs text-red-600">{fieldErrors.unidadMedida}</span>}
+             </label>
             <label className="text-sm font-medium text-slate-700">
               Stock inicial
               <input className={inputClassName} type="number" min="0" step="1" value={form.stock} onChange={(event) => setValue('stock', event.target.value)} disabled={form.tipo !== 'parte'} aria-label="Stock inicial" aria-invalid={Boolean(fieldErrors.stock)} />

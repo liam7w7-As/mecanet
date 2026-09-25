@@ -1,16 +1,14 @@
 import { WORK_ORDER_STATUS, isValidWorkOrderTransition } from '@unithor/shared';
 import {
   AlertCircle,
-  Car,
   ClipboardList,
   Download,
   Eye,
   ListChecks,
-  LoaderCircle,
-  PackageCheck,
   Plus,
+  ReceiptText,
   Search,
-  Timer,
+  UserCog,
   UserRound,
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -21,6 +19,7 @@ import { AnimateIcon, AnimatedCard, Stagger, StaggerItem } from '../../component
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
+import WorkOrderQuickDetailModal from '../../components/work-orders/WorkOrderQuickDetailModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
@@ -29,11 +28,10 @@ import {
   useWorkOrders,
 } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
+import { formatClp, formatDate } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import {
   PROGRESS_TIER_STYLES,
-  TASK_DOT_STYLES,
   getElapsedInfo,
   getWorkOrderProgress,
   useNow,
@@ -54,13 +52,6 @@ const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
   { value: 'entregada', label: 'Entregadas' },
 ];
 
-const TASK_STATUS_LABELS: Record<string, string> = {
-  pendiente: 'Pendiente',
-  en_proceso: 'En proceso',
-  completado: 'Completada',
-  omitido: 'Omitida',
-};
-
 const getEstimatedTotal = (workOrder: WorkOrder): number | null =>
   workOrder.items
     ? workOrder.items.reduce((total, item) => total + Number(item.subtotal), 0)
@@ -69,17 +60,25 @@ const getEstimatedTotal = (workOrder: WorkOrder): number | null =>
 const WorkOrdersSkeleton = () => (
   <>
     {Array.from({ length: 6 }, (_, index) => (
-      <div key={index} className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="h-5 w-32 animate-pulse rounded bg-slate-100" />
-          <div className="h-6 w-24 animate-pulse rounded-full bg-slate-100" />
+      <div key={index} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="h-1 w-full animate-pulse bg-slate-100" />
+        <div className="space-y-2.5 p-3.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="h-4 w-28 animate-pulse rounded bg-slate-100" />
+            <div className="h-4 w-16 animate-pulse rounded-full bg-slate-100" />
+          </div>
+          <div className="h-5 w-24 animate-pulse rounded bg-slate-100" />
+          <div className="h-3 w-32 animate-pulse rounded bg-slate-100" />
+          <div className="grid grid-cols-3 gap-px overflow-hidden rounded bg-slate-100">
+            {Array.from({ length: 3 }, (_, cell) => (
+              <div key={cell} className="bg-white py-1.5 pl-3">
+                <div className="h-2 w-10 rounded bg-slate-100" />
+                <div className="mt-1 h-3.5 w-12 rounded bg-slate-100" />
+              </div>
+            ))}
+          </div>
+          <div className="h-1.5 w-full animate-pulse rounded-full bg-slate-100" />
         </div>
-        <div className="mt-3 h-4 w-40 animate-pulse rounded bg-slate-100" />
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="h-12 animate-pulse rounded-lg bg-slate-100" />
-          <div className="h-12 animate-pulse rounded-lg bg-slate-100" />
-        </div>
-        <div className="mt-3 h-16 animate-pulse rounded-lg bg-slate-100" />
       </div>
     ))}
   </>
@@ -95,17 +94,17 @@ const WorkOrderCard = ({
   now,
   canManage,
   statusPending,
-  previewPending,
   onChangeStatus,
-  onPreview,
+  onOpenDetail,
+  onPreviewPdf,
 }: {
   workOrder: WorkOrder;
   now: number;
   canManage: boolean;
   statusPending: boolean;
-  previewPending: boolean;
   onChangeStatus: (workOrder: WorkOrder, nuevoEstado: WorkOrderStatus) => void;
-  onPreview: () => void;
+  onOpenDetail: () => void;
+  onPreviewPdf: () => void;
 }) => {
   const progress = getWorkOrderProgress(workOrder);
   const tier = PROGRESS_TIER_STYLES[progress.tier];
@@ -115,120 +114,199 @@ const WorkOrderCard = ({
     candidate !== 'entregada' &&
     isValidWorkOrderTransition(workOrder.estado, candidate),
   );
-  const previewTasks = (workOrder.items ?? []).slice(0, 3);
-  const remainingTasks = Math.max(0, (workOrder.items ?? []).length - previewTasks.length);
+  const vehicleLabel = [workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ');
+  const quotation = workOrder.quotation ?? null;
+  const paymentPercent = quotation && quotation.total > 0
+    ? Math.min(100, Math.round((quotation.pagado / quotation.total) * 100))
+    : 0;
+
+  const stats = [
+    {
+      key: 'tiempo',
+      label: 'En taller',
+      value: elapsed.running
+        ? elapsed.text.replace('En taller ', '')
+        : elapsed.text.replace('Duración total: ', ''),
+      tone: elapsed.overdue ? 'text-red-600' : 'text-slate-800',
+    },
+    {
+      key: 'avance',
+      label: 'Avance',
+      value: progress.total === 0 ? '—' : `${progress.percent}%`,
+      tone: progress.percent === 100 ? 'text-emerald-600' : 'text-brand-blue',
+    },
+    {
+      key: 'total',
+      label: 'Total est.',
+      value: estimatedTotal === null ? '—' : formatClp(estimatedTotal),
+      tone: 'text-brand-blue',
+    },
+  ];
 
   return (
-    <AnimatedCard className={`flex flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-shadow hover:shadow-md ring-1 ring-inset ${tier.ring}`}>
-      <div className={`h-1.5 w-full ${tier.bar}`} aria-hidden="true" />
-      <div className="flex flex-1 flex-col p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <Link to={`/work-orders/${workOrder.id}`} className="font-mono text-lg font-bold text-brand-blue hover:underline">
-              {workOrder.codigo}
-            </Link>
-            <p className="mt-0.5 text-xs text-slate-500">Ingreso {formatDate(workOrder.fechaIngreso)}</p>
+    <AnimatedCard
+      className={`group flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-within:shadow-md ring-1 ring-inset ${tier.ring}`}
+    >
+      <div className={`h-1 w-full ${tier.bar}`} aria-hidden="true" />
+
+      <div className="flex flex-1 flex-col">
+        <div className="bg-gradient-to-br from-white via-slate-50 to-slate-100/80 px-3.5 pb-3 pt-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <button
+                type="button"
+                onClick={onOpenDetail}
+                className="truncate font-mono text-sm font-black text-brand-blue underline-offset-4 hover:underline focus:outline-none focus-visible:underline"
+                aria-label={`Ver detalle de ${workOrder.codigo}`}
+              >
+                {workOrder.codigo}
+              </button>
+              <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                Ingreso {formatDate(workOrder.fechaIngreso)}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              {elapsed.overdue && (
+                <span className="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Vencida</span>
+              )}
+              <WorkOrderStatusBadge status={workOrder.estado} />
+            </div>
           </div>
-          <WorkOrderStatusBadge status={workOrder.estado} />
+
+          <div className="mt-3 flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate font-mono text-2xl font-black leading-none tracking-wide text-slate-950">
+                {workOrder.vehicle?.patente ?? 'SIN PATENTE'}
+              </p>
+              <p className="mt-1 truncate text-xs font-medium text-slate-500">
+                {vehicleLabel || 'Vehículo sin datos'}
+              </p>
+            </div>
+            {workOrder.coberturaGarantia && (
+              <span className="shrink-0 rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-black uppercase text-violet-800 ring-1 ring-violet-200">
+                Garantía
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white" title={workOrder.fechaEntrega ? `Entrega prometida: ${formatDateTime(workOrder.fechaEntrega)}` : 'Sin fecha de entrega prometida'}>
-            {elapsed.running && <span className="relative flex h-2 w-2" aria-hidden="true"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" /></span>}
-            <Timer className="h-3 w-3" aria-hidden="true" />
-            {elapsed.text}
-          </span>
-          {elapsed.overdue && (
-            <span className="rounded-full bg-red-600 px-2.5 py-1 text-[11px] font-bold text-white" title={`Entrega prometida: ${formatDateTime(workOrder.fechaEntrega)}`}>
-              Vencida
+        <div className="grid grid-cols-2 gap-x-3 border-y border-slate-100 px-3.5 py-2">
+          <p className="flex min-w-0 items-center gap-1.5 text-xs text-slate-600" title={workOrder.client?.nombre ?? undefined}>
+            <UserRound className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+            <span className="truncate font-semibold text-slate-700">{workOrder.client?.nombre ?? 'Sin cliente'}</span>
+          </p>
+          <p className="flex min-w-0 items-center gap-1.5 text-xs" title={workOrder.assignedMechanic?.nombre ?? undefined}>
+            <UserCog
+              className={`h-3.5 w-3.5 shrink-0 ${workOrder.assignedMechanic ? 'text-emerald-600' : 'text-amber-500'}`}
+              aria-hidden="true"
+            />
+            <span className={`truncate ${workOrder.assignedMechanic ? 'font-semibold text-slate-700' : 'text-slate-400'}`}>
+              {workOrder.assignedMechanic?.nombre ?? 'Sin mecánico'}
             </span>
-          )}
-          <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${tier.chip}`}>
-            {progress.total === 0 ? tier.label : `${tier.label} · ${progress.percent}%`}
-          </span>
+          </p>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-slate-50 p-2.5">
-            <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              <UserRound className="h-3 w-3" aria-hidden="true" /> Cliente
-            </p>
-            <p className="mt-1 truncate text-sm font-semibold text-slate-800">{workOrder.client?.nombre ?? 'Sin cliente'}</p>
-            <p className="text-xs text-slate-500">{workOrder.client?.rut ?? 'Sin identificación'}</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-2.5">
-            <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              <Car className="h-3 w-3" aria-hidden="true" /> Vehículo
-            </p>
-            <p className="mt-1 font-mono text-sm font-bold text-slate-800">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</p>
-            <p className="truncate text-xs text-slate-500">{[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos'}</p>
-          </div>
+        <div className="grid grid-cols-3 gap-px bg-slate-100">
+          {stats.map((stat) => (
+            <div key={stat.key} className="bg-white px-3.5 py-1.5">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{stat.label}</p>
+              <p className={`truncate text-sm font-bold leading-tight ${stat.tone}`}>{stat.value}</p>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-3 rounded-lg border border-slate-100 p-2.5">
+        <div className="px-3.5 pb-2.5 pt-2">
           <div className="flex items-center justify-between gap-2">
-            <p className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-500">
-              <ListChecks className="h-3 w-3" aria-hidden="true" /> Tareas {progress.completed}/{progress.total}
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-slate-600">
+              <ListChecks className="h-3 w-3" aria-hidden="true" />
+              Tareas {progress.completed}/{progress.total}
             </p>
-            {progress.inProgress > 0 && <span className="text-[11px] font-semibold text-amber-700">{progress.inProgress} en proceso</span>}
+            <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${tier.chip}`}>
+              {progress.total === 0 ? tier.label : tier.label}
+            </span>
           </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent} aria-label={`Avance de ${workOrder.codigo}`}>
+          <div
+            className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress.percent}
+            aria-label={`Avance de ${workOrder.codigo}`}
+          >
             <div className={`h-full rounded-full ${tier.bar}`} style={{ width: `${progress.percent}%` }} />
           </div>
-          {previewTasks.length > 0 ? (
-            <ul className="mt-2 space-y-1">
-              {previewTasks.map((item) => (
-                <li key={item.id} className="flex items-center gap-2 text-xs">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${TASK_DOT_STYLES[item.estadoOperativo] ?? 'bg-slate-300'}`} aria-hidden="true" />
-                  <span className="min-w-0 flex-1 truncate text-slate-700">{item.descripcion}</span>
-                  <span className="shrink-0 font-semibold text-slate-500">{TASK_STATUS_LABELS[item.estadoOperativo] ?? item.estadoOperativo}</span>
-                </li>
-              ))}
-              {remainingTasks > 0 && <li className="text-[11px] font-semibold text-slate-400">+{remainingTasks} tareas más</li>}
-            </ul>
+        </div>
+
+        <div className="border-t border-slate-100 px-3.5 py-2.5">
+          {quotation ? (
+            <div className="rounded-xl bg-slate-50 p-2.5 ring-1 ring-slate-200">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-blue/10 text-brand-blue">
+                    <ReceiptText className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-xs font-black text-brand-blue">{quotation.codigo}</p>
+                    <p className="text-[10px] font-semibold text-slate-500">
+                      Pagado {formatClp(quotation.pagado)} de {formatClp(quotation.total)}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-xs font-black ${quotation.saldoPendiente <= 0 ? 'text-emerald-600' : 'text-amber-700'}`}>
+                    {quotation.saldoPendiente <= 0 ? 'Pagada' : formatClp(quotation.saldoPendiente)}
+                  </p>
+                  <p className="text-[10px] text-slate-400">saldo</p>
+                </div>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className={`h-full rounded-full ${quotation.saldoPendiente <= 0 ? 'bg-emerald-500' : 'bg-brand-yellow'}`}
+                  style={{ width: `${paymentPercent}%` }}
+                />
+              </div>
+            </div>
           ) : (
-            <p className="mt-2 text-xs text-slate-400">Diagnóstico inicial, sin tareas cargadas.</p>
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+              Sin cotización vinculada
+            </div>
           )}
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase text-slate-500">Total estimado</p>
-            <p className="text-base font-bold text-brand-blue">{estimatedTotal === null ? 'Ver detalle' : formatClp(estimatedTotal)}</p>
-          </div>
-          <div className="flex items-center gap-1">
-            <Link to={`/work-orders/${workOrder.id}`} className="group flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-blue-50 hover:text-brand-blue" aria-label={`Ver ${workOrder.codigo}`} title="Ver detalle">
-              <AnimateIcon variant="hover-lift" animateOnHover>
-                <Eye className="h-4 w-4" aria-hidden="true" />
-              </AnimateIcon>
-            </Link>
-            {canManage && (
-              <select
-                aria-label={`Cambiar estado de ${workOrder.codigo}`}
-                className="h-9 max-w-32 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-600"
-                value=""
-                onChange={(event) => onChangeStatus(workOrder, event.target.value as WorkOrderStatus)}
-                disabled={statusPending || validTransitions.length === 0}
-              >
-                <option value="">{workOrder.estado === 'finalizada' ? 'Entrega en detalle' : validTransitions.length === 0 ? 'Estado terminal' : 'Estado'}</option>
-                {validTransitions.map((candidate) => <option key={candidate} value={candidate}>{WORK_ORDER_STATUS_LABELS[candidate]}</option>)}
-              </select>
-            )}
-            {canManage && workOrder.estado === 'finalizada' && (
-              <Link to={`/work-orders/${workOrder.id}`} className="group flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100" aria-label={`Registrar entrega de ${workOrder.codigo}`} title="Registrar entrega">
-                <PackageCheck className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            )}
-            <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50" onClick={onPreview} disabled={previewPending} aria-label={`Vista previa PDF de ${workOrder.codigo}`} title="Vista previa / Descargar PDF (mismo diseño)">
-              {previewPending ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <AnimateIcon variant="bounce" animateOnHover>
-                  <Download className="h-4 w-4" aria-hidden="true" />
-                </AnimateIcon>
-              )}
-            </button>
-          </div>
+        <div className="mt-auto flex items-center gap-1.5 border-t border-slate-100 px-3.5 py-2.5">
+          <button
+            type="button"
+            onClick={onOpenDetail}
+            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-blue px-3 text-xs font-bold text-white transition-colors hover:bg-brand-dark"
+          >
+            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+            Ver detalle
+          </button>
+          <button
+            type="button"
+            onClick={onPreviewPdf}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-brand-blue transition-colors hover:bg-slate-50"
+            aria-label={`Previsualizar PDF de ${workOrder.codigo}`}
+            title="PDF"
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+          </button>
+          {canManage && (
+            <select
+              aria-label={`Cambiar estado de ${workOrder.codigo}`}
+              className="h-9 max-w-28 rounded-lg border border-slate-300 bg-white px-1.5 text-[11px] font-bold text-slate-600"
+              value=""
+              onChange={(event) => onChangeStatus(workOrder, event.target.value as WorkOrderStatus)}
+              disabled={statusPending || validTransitions.length === 0}
+            >
+              <option value="">
+                {workOrder.estado === 'finalizada' ? 'Entrega' : validTransitions.length === 0 ? 'Terminal' : 'Estado'}
+              </option>
+              {validTransitions.map((candidate) => (
+                <option key={candidate} value={candidate}>{WORK_ORDER_STATUS_LABELS[candidate]}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
     </AnimatedCard>
@@ -240,6 +318,7 @@ export const WorkOrdersPage = () => {
   const [status, setStatus] = useState<StatusFilter>('all');
   const [page, setPage] = useState(1);
   const [pendingCancellation, setPendingCancellation] = useState<PendingCancellation | null>(null);
+  const [detailWorkOrderId, setDetailWorkOrderId] = useState<number | null>(null);
   const [previewWorkOrderId, setPreviewWorkOrderId] = useState<number | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
   const user = useAuthStore((state) => state.user);
@@ -348,9 +427,9 @@ export const WorkOrdersPage = () => {
                     now={now}
                     canManage={canManage}
                     statusPending={statusMutation.isPending}
-                    previewPending={previewQuery.isPending && previewWorkOrderId === workOrder.id}
                     onChangeStatus={changeStatus}
-                    onPreview={() => setPreviewWorkOrderId(workOrder.id)}
+                    onOpenDetail={() => setDetailWorkOrderId(workOrder.id)}
+                    onPreviewPdf={() => setPreviewWorkOrderId(workOrder.id)}
                   />
                 </StaggerItem>
               ))}
@@ -371,6 +450,17 @@ export const WorkOrdersPage = () => {
             { id: pendingCancellation.id, data: { nuevoEstado: 'cancelada', motivo } },
             { onSuccess: () => setPendingCancellation(null) },
           )}
+        />
+      )}
+
+      {detailWorkOrderId !== null && (
+        <WorkOrderQuickDetailModal
+          workOrderId={detailWorkOrderId}
+          onClose={() => setDetailWorkOrderId(null)}
+          onPreviewPdf={(workOrder) => {
+            setDetailWorkOrderId(null);
+            setPreviewWorkOrderId(workOrder.id);
+          }}
         />
       )}
 

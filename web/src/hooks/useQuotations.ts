@@ -77,6 +77,7 @@ export const useUpdateQuotationMutation = () => {
     onSuccess: (quotation) => {
       queryClient.setQueryData(quotationKeys.detail(quotation.id), quotation);
       void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });

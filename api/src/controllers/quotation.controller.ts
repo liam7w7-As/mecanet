@@ -50,6 +50,7 @@ export const updateQuotationHandler = asyncHandler(
     const quotation = await quotationService.updateQuotation(
       getParamId(req),
       req.body as UpdateQuotationInput,
+      getCurrentUserId(req),
     );
     res.status(200).json({ quotation });
   },

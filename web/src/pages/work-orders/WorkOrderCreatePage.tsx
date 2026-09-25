@@ -2,6 +2,7 @@ import {
   createWorkOrderSchema,
   FUEL_LEVELS,
   TIRE_CONDITIONS,
+  UNIT_MEASURE_LABELS,
   VEHICLE_INVENTORY_ITEMS,
   WORK_ORDER_INSPECTION_PHOTO_SLOTS,
 } from '@unithor/shared';
@@ -22,9 +23,11 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { AnimateIcon } from '../../components/animate-ui';
 import ClientFormModal from '../../components/clients/ClientFormModal';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
@@ -33,13 +36,13 @@ import { useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   useCreateWorkOrderMutation,
+  useMechanics,
   useUploadWorkOrderInspectionPhotosMutation,
 } from '../../hooks/useWorkOrders';
-import { motion } from 'motion/react';
-import { AnimateIcon } from '../../components/animate-ui';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { INSPECTION_PHOTO_ACCEPT, MAX_INSPECTION_PHOTO_MB, validateInspectionFile } from '../../lib/inspection-photos';
+import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
 import type { EditableWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
@@ -296,6 +299,10 @@ export const WorkOrderCreatePage = () => {
   const navigate = useNavigate();
   const createMutation = useCreateWorkOrderMutation();
   const uploadPhotosMutation = useUploadWorkOrderInspectionPhotosMutation();
+  const user = useAuthStore((state) => state.user);
+  const canAssignMechanic = Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role));
+  const mechanicsQuery = useMechanics(canAssignMechanic);
+  const [assignedMechanicId, setAssignedMechanicId] = useState<number | null>(null);
   const [activeStep, setActiveStep] = useState<StepIndex>(0);
   const [client, setClient] = useState<ClientOption | null>(null);
   const [contactClient, setContactClient] = useState<ClientOption | null>(null);
@@ -449,6 +456,8 @@ export const WorkOrderCreatePage = () => {
       contactClientId: contactClient.id,
       billingClientId: billingClient.id,
       vehicleId: vehicle.id,
+      assignedMechanicId,
+
       kilometrajeIngreso: kilometrajeIngreso === '' ? null : kilometrajeIngreso,
       descripcion,
       fechaIngreso: toIsoDateTime(fechaIngreso),
@@ -468,6 +477,8 @@ export const WorkOrderCreatePage = () => {
         .map((item) => ({
           catalogItemId: item.catalogItemId,
           descripcion: item.descripcion,
+          tipoLinea: item.tipoLinea,
+          unidadMedida: item.unidadMedida,
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
           estadoOperativo: item.estadoOperativo,
@@ -788,6 +799,20 @@ export const WorkOrderCreatePage = () => {
                     placeholder="Buscar por patente, marca o dueño"
                   />
                 </div>
+                {canAssignMechanic && (
+                  <label className="mt-4 block rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-700">
+                    Mecánico responsable
+                    <select
+                      value={assignedMechanicId ?? ''}
+                      onChange={(event) => setAssignedMechanicId(event.target.value ? Number(event.target.value) : null)}
+                      className="mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                    >
+                      <option value="">Sin asignar por ahora</option>
+                      {mechanicsQuery.data?.map((mechanic) => <option key={mechanic.id} value={mechanic.id}>{mechanic.nombre}</option>)}
+                    </select>
+                    <span className="mt-1 block text-xs font-normal text-slate-500">Podrás cambiarlo lateramente desde el detalle de la OT.</span>
+                  </label>
+                )}
                 {vehicleOwnerIsDifferent && (
                   <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -1170,7 +1195,7 @@ export const WorkOrderCreatePage = () => {
                       .filter((item) => item.descripcion.trim().length > 0)
                       .map((item, index) => (
                         <li key={index} className="flex justify-between gap-2">
-                          <span className="truncate">{item.descripcion} × {item.cantidad}</span>
+                          <span className="truncate">{item.descripcion} × {item.cantidad} {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ?? item.unidadMedida}</span>
                           <span className="font-semibold">${(Number(item.cantidad) * Number(item.precioUnitario)).toLocaleString('es-CL')}</span>
                         </li>
                       ))}

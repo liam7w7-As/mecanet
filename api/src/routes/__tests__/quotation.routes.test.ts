@@ -333,6 +333,86 @@ describe('Quotation Routes (E2E)', () => {
     ]);
   });
 
+  it('sincroniza cambios de items de una COT vinculada hacia su OT espejo', async () => {
+    const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const mirroredWorkOrder = await WorkOrder.create({
+      codigo: `${TEST_OT_PREFIX}88`,
+      clientId,
+      vehicleId,
+      estado: 'en_progreso',
+      descripcion: 'OT para sincronización inversa COT',
+      createdBy: devUserId,
+    });
+    await WorkOrderItem.bulkCreate([
+      {
+        workOrderId: mirroredWorkOrder.id,
+        descripcion: 'Servicio original',
+        cantidad: 1,
+        precioUnitario: 15000,
+        subtotal: 15000,
+        estadoOperativo: 'pendiente',
+      },
+      {
+        workOrderId: mirroredWorkOrder.id,
+        descripcion: 'Repuesto original',
+        cantidad: 1,
+        precioUnitario: 9000,
+        subtotal: 9000,
+        estadoOperativo: 'pendiente',
+      },
+    ]);
+
+    const createResponse = await request(app)
+      .post('/api/quotations')
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({ workOrderId: mirroredWorkOrder.id });
+    expect(createResponse.status).toBe(201);
+
+    const quotationId = createResponse.body.quotation.id as number;
+    const updateResponse = await request(app)
+      .patch(`/api/quotations/${quotationId}`)
+      .set('Cookie', authCookie(vendedorCookies))
+      .set('X-CSRF-Token', vendedorCookies.csrfToken)
+      .send({
+        items: [
+          {
+            descripcion: 'Servicio original',
+            cantidad: 1,
+            precioUnitario: 15000,
+            estadoOperativo: 'completado',
+            notasOperativas: 'Marcado desde cotización',
+          },
+          {
+            descripcion: 'Repuesto adicional aprobado',
+            cantidad: 2,
+            precioUnitario: 12000,
+            estadoOperativo: 'pendiente',
+          },
+        ],
+      });
+
+    expect(updateResponse.status).toBe(200);
+    expect(updateResponse.body.quotation.total).toBe(39000);
+
+    const syncedItems = await WorkOrderItem.findAll({
+      where: { workOrderId: mirroredWorkOrder.id },
+      order: [['id', 'ASC']],
+    });
+    expect(syncedItems).toHaveLength(2);
+    expect(syncedItems[0]).toMatchObject({
+      descripcion: 'Servicio original',
+      estadoOperativo: 'completado',
+      notasOperativas: 'Marcado desde cotización',
+    });
+    expect(Number(syncedItems[0]?.subtotal)).toBe(15000);
+    expect(syncedItems[1]).toMatchObject({
+      descripcion: 'Repuesto adicional aprobado',
+      estadoOperativo: 'pendiente',
+    });
+    expect(Number(syncedItems[1]?.subtotal)).toBe(24000);
+  });
+
   it('rechaza vincular una segunda COT a la misma OT', async () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
 

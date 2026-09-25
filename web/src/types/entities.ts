@@ -87,6 +87,7 @@ export interface CatalogItem {
   codigo: string | null;
   nombre: string;
   descripcion: string | null;
+  unidadMedida: import('@unithor/shared').UnitMeasure;
   precio: number;
   stock: number;
   stockMinimo: number;
@@ -142,6 +143,8 @@ export interface WorkOrderItem {
   id: number;
   catalogItemId: number | null;
   descripcion: string;
+  tipoLinea: import('@unithor/shared').CatalogType;
+  unidadMedida: import('@unithor/shared').UnitMeasure;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
@@ -328,6 +331,8 @@ export interface QuotationItem {
   id: number;
   catalogItemId: number | null;
   descripcion: string;
+  tipoLinea: import('@unithor/shared').CatalogType;
+  unidadMedida: import('@unithor/shared').UnitMeasure;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;

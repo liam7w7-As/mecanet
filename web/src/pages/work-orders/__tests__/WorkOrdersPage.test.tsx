@@ -67,6 +67,8 @@ const workOrder: WorkOrder = {
       id: 20,
       catalogItemId: null,
       descripcion: 'Cambio de pastillas',
+      tipoLinea: 'parte',
+      unidadMedida: 'unidad',
       cantidad: 2,
       precioUnitario: 25000,
       subtotal: 50000,
@@ -230,9 +232,45 @@ describe('WorkOrdersPage', () => {
     await screen.findByText('OT-2026-0012');
     // 1 tarea pendiente -> 0% -> Sin iniciar + reloj corriendo
     expect(screen.getByText(/Sin iniciar/)).toBeInTheDocument();
-    expect(screen.getByText(/En taller/)).toBeInTheDocument();
+    expect(screen.getByText('En taller')).toBeInTheDocument();
+    expect(screen.getByText('Avance')).toBeInTheDocument();
+    expect(screen.getByText('0%')).toBeInTheDocument();
+    expect(screen.getByText('Tareas 0/1')).toBeInTheDocument();
+  });
+
+  it('abre el detalle en un modal con los trabajos agrupados por tipo', async () => {
+    createWrapper(<WorkOrdersPage />);
+
+    await screen.findByText('OT-2026-0012');
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }));
+
+    expect(await screen.findByRole('dialog', { name: /OT-2026-0012/ })).toBeInTheDocument();
     expect(screen.getByText('Cambio de pastillas')).toBeInTheDocument();
     expect(screen.getByText('Pendiente')).toBeInTheDocument();
+    expect(screen.getByText(/Trabajos y repuestos \(1\)/)).toBeInTheDocument();
+    expect(screen.getAllByText('Repuestos').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('link', { name: /Abrir detalle completo/ })).toBeInTheDocument();
+  });
+
+  it('muestra el mecánico asignado y la cotización en la card', async () => {
+    const orderWithMechanic: WorkOrder = {
+      ...workOrder,
+      assignedMechanicId: 9,
+      assignedMechanic: { id: 9, nombre: 'Mecánico Turno', email: 'mecanico@unithor.local' },
+    };
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === `/work-orders/${workOrder.id}`) {
+        return Promise.resolve({ data: { workOrder: orderWithMechanic } } as AxiosResponse<{ workOrder: WorkOrder }>);
+      }
+      return Promise.resolve({ data: { ...listResponse, items: [orderWithMechanic] } } as AxiosResponse<PaginatedResponse<WorkOrder>>);
+    });
+    createWrapper(<WorkOrdersPage />);
+
+    await screen.findByText('OT-2026-0012');
+    expect(screen.getByText('Mecánico Turno')).toBeInTheDocument();
+    expect(screen.getByText('Total est.')).toBeInTheDocument();
+    expect(screen.getByText(/Pagado/)).toBeInTheDocument();
+    expect(screen.getAllByText(/50\.000/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('pinta la card en verde cuando las tareas están completadas', async () => {
@@ -443,7 +481,7 @@ describe('WorkOrdersPage', () => {
     expect(screen.getAllByText('84.600 km').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('abre la vista previa PDF con el mismo diseño al pulsar descargar en la lista', async () => {
+  it('abre la vista previa PDF con el mismo diseño desde el modal de detalle', async () => {
     vi.mocked(api.get).mockImplementation((url) => {
       if (url === `/work-orders/${workOrder.id}`) {
         return Promise.resolve({ data: { workOrder } } as AxiosResponse<{ workOrder: WorkOrder }>);
@@ -453,16 +491,16 @@ describe('WorkOrdersPage', () => {
     createWrapper(<WorkOrdersPage />);
 
     await screen.findByText('OT-2026-0012');
-    fireEvent.click(screen.getByRole('button', { name: 'Vista previa PDF de OT-2026-0012' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Vista previa PDF' }));
 
     await waitFor(() => {
       expect(api.get).toHaveBeenCalledWith('/work-orders/12');
     });
 
     // Mismo diseño de la vista previa (anverso OT con inspección)
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect((await screen.findAllByText(/INSPECCIÓN DE INGRESO/i)).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('OT-2026-0012').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/INSPECCIÓN DE INGRESO/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it('separa la OT oficial del comprobante de recepción', async () => {

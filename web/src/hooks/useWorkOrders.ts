@@ -43,7 +43,7 @@ export const workOrderKeys = {
   detail: (id: number) => [...workOrderKeys.details(), id] as const,
 };
 
-export const useWorkOrders = (queryParams: WorkOrderQueryParams) =>
+export const useWorkOrders = (queryParams: WorkOrderQueryParams, enabled = true) =>
   useQuery({
     queryKey: workOrderKeys.list(queryParams),
     queryFn: async () => {
@@ -52,6 +52,7 @@ export const useWorkOrders = (queryParams: WorkOrderQueryParams) =>
       });
       return response.data;
     },
+    enabled,
     placeholderData: keepPreviousData,
   });
 

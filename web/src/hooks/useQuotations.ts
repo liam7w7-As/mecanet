@@ -29,7 +29,7 @@ export const quotationKeys = {
   detail: (id: number) => [...quotationKeys.details(), id] as const,
 };
 
-export const useQuotations = (queryParams: QuotationQueryParams) =>
+export const useQuotations = (queryParams: QuotationQueryParams, enabled = true) =>
   useQuery({
     queryKey: quotationKeys.list(queryParams),
     queryFn: async () => {
@@ -38,6 +38,7 @@ export const useQuotations = (queryParams: QuotationQueryParams) =>
       });
       return response.data;
     },
+    enabled,
     placeholderData: keepPreviousData,
   });
 

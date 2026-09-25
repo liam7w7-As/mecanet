@@ -14,6 +14,7 @@ import QuotationCreatePage from './pages/quotations/QuotationCreatePage';
 import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
 import UsersPage from './pages/users/UsersPage';
+import VehicleDetailPage from './pages/vehicles/VehicleDetailPage';
 import VehiclesPage from './pages/vehicles/VehiclesPage';
 import WarehousesPage from './pages/warehouses/WarehousesPage';
 import WorkOrderCreatePage from './pages/work-orders/WorkOrderCreatePage';
@@ -29,18 +30,135 @@ export const App = () => (
     <Route element={<ProtectedRoute />}>
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }]}><DashboardPage /></ProtectedRoute>} />
-        <Route path="/work-orders" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}><WorkOrdersPage /></ProtectedRoute>} />
-        <Route path="/work-orders/new" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'create' }]}><WorkOrderCreatePage /></ProtectedRoute>} />
-        <Route path="/work-orders/:id" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}><WorkOrderDetailPage /></ProtectedRoute>} />
-        <Route path="/quotations" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }]}><QuotationsPage /></ProtectedRoute>} />
-        <Route path="/quotations/new" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'create' }]}><QuotationCreatePage /></ProtectedRoute>} />
-        <Route path="/quotations/:id" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }]}><QuotationDetailPage /></ProtectedRoute>} />
-        <Route path="/finance" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'finanzas', accion: 'read' }]}><FinancePage /></ProtectedRoute>} />
-        <Route path="/clients" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }]}><ClientsPage /></ProtectedRoute>} />
-        <Route path="/vehicles" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }]}><VehiclesPage /></ProtectedRoute>} />
-        <Route path="/catalog" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }]}><CatalogPage /></ProtectedRoute>} />
-        <Route path="/warehouses" element={<ProtectedRoute requiredAnyPermission={[{ modulo: 'almacen', accion: 'read' }]}><WarehousesPage /></ProtectedRoute>} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute
+              requiredAnyPermission={[
+                { modulo: 'taller', accion: 'read' },
+                { modulo: 'comercial', accion: 'read' },
+              ]}
+            >
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/work-orders"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}>
+              <WorkOrdersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/work-orders/new"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'create' }]}>
+              <WorkOrderCreatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/work-orders/:id"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}>
+              <WorkOrderDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quotations"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }]}>
+              <QuotationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quotations/new"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'create' }]}>
+              <QuotationCreatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quotations/:id"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }]}>
+              <QuotationDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/finance"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'finanzas', accion: 'read' }]}>
+              <FinancePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clients"
+          element={
+            <ProtectedRoute
+              requiredAnyPermission={[
+                { modulo: 'comercial', accion: 'read' },
+                { modulo: 'taller', accion: 'read' },
+              ]}
+            >
+              <ClientsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vehicles"
+          element={
+            <ProtectedRoute
+              requiredAnyPermission={[
+                { modulo: 'taller', accion: 'read' },
+                { modulo: 'comercial', accion: 'read' },
+              ]}
+            >
+              <VehiclesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vehicles/:id"
+          element={
+            <ProtectedRoute
+              requiredAnyPermission={[
+                { modulo: 'taller', accion: 'read' },
+                { modulo: 'comercial', accion: 'read' },
+              ]}
+            >
+              <VehicleDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/catalog"
+          element={
+            <ProtectedRoute
+              requiredAnyPermission={[
+                { modulo: 'taller', accion: 'read' },
+                { modulo: 'comercial', accion: 'read' },
+              ]}
+            >
+              <CatalogPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/warehouses"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'almacen', accion: 'read' }]}>
+              <WarehousesPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/users"
           element={

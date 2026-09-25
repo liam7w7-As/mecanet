@@ -24,16 +24,17 @@ import {
   X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { AnimateIcon } from '../../components/animate-ui';
 import ClientFormModal from '../../components/clients/ClientFormModal';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
 import WorkOrderItemsEditor from '../../components/work-orders/WorkOrderItemsEditor';
-import { useClients } from '../../hooks/useClients';
+import { useClient, useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useVehicle } from '../../hooks/useVehicles';
 import {
   useCreateWorkOrderMutation,
   useMechanics,
@@ -41,17 +42,16 @@ import {
 } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
-import { INSPECTION_PHOTO_ACCEPT, MAX_INSPECTION_PHOTO_MB, validateInspectionFile } from '../../lib/inspection-photos';
+import {
+  INSPECTION_PHOTO_ACCEPT,
+  MAX_INSPECTION_PHOTO_MB,
+  validateInspectionFile,
+} from '../../lib/inspection-photos';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
 import type { EditableWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
-import type {
-  Client,
-  QuickSearchClient,
-  QuickSearchVehicle,
-  Vehicle,
-} from '../../types/entities';
+import type { Client, QuickSearchClient, QuickSearchVehicle, Vehicle } from '../../types/entities';
 import type {
   FuelLevel,
   TireCondition,
@@ -60,7 +60,10 @@ import type {
 } from '@unithor/shared';
 
 type StepIndex = 0 | 1 | 2 | 3 | 4;
-type ClientOption = Pick<Client, 'id' | 'rut' | 'nombre' | 'tipo' | 'telefono' | 'email' | 'direccion'>;
+type ClientOption = Pick<
+  Client,
+  'id' | 'rut' | 'nombre' | 'tipo' | 'telefono' | 'email' | 'direccion'
+>;
 type ClientModalTarget = 'primary' | 'contact' | 'billing';
 
 interface InspectionDraft {
@@ -81,7 +84,12 @@ interface InspectionPhotoDraft {
 }
 
 const steps: Array<{ id: StepIndex; title: string; shortTitle: string; description: string }> = [
-  { id: 0, title: 'Responsable', shortTitle: 'Responsable', description: 'Quién entrega y asume la OT' },
+  {
+    id: 0,
+    title: 'Responsable',
+    shortTitle: 'Responsable',
+    description: 'Quién entrega y asume la OT',
+  },
   { id: 1, title: 'Facturación', shortTitle: 'Facturación', description: 'Contacto y factura' },
   { id: 2, title: 'Vehículo', shortTitle: 'Vehículo', description: 'Auto que ingresa' },
   { id: 3, title: 'Inspección', shortTitle: 'Inspección', description: 'Estado de recepción' },
@@ -145,7 +153,8 @@ const toLocalDateTime = (date: Date): string => {
   return localTime.toISOString().slice(0, 16);
 };
 
-const toIsoDateTime = (value: string): string | null => value ? new Date(value).toISOString() : null;
+const toIsoDateTime = (value: string): string | null =>
+  value ? new Date(value).toISOString() : null;
 
 const toClientOption = (client: Client | QuickSearchClient): ClientOption => ({
   id: client.id,
@@ -256,7 +265,10 @@ const ClientSearchPicker = ({
       </div>
 
       <div className="relative mt-4">
-        <Search className="pointer-events-none absolute left-3 top-5 h-4 w-4 text-slate-400" aria-hidden="true" />
+        <Search
+          className="pointer-events-none absolute left-3 top-5 h-4 w-4 text-slate-400"
+          aria-hidden="true"
+        />
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -267,7 +279,9 @@ const ClientSearchPicker = ({
       </div>
 
       <div className="mt-3 max-h-72 overflow-y-auto rounded-lg border border-slate-100">
-        {clientsQuery.isFetching && <p className="px-3 py-3 text-sm text-slate-500">Buscando clientes...</p>}
+        {clientsQuery.isFetching && (
+          <p className="px-3 py-3 text-sm text-slate-500">Buscando clientes...</p>
+        )}
         {!clientsQuery.isFetching && clientsQuery.data?.items.length === 0 && (
           <p className="px-3 py-5 text-center text-sm text-slate-500">No se encontraron clientes</p>
         )}
@@ -283,10 +297,14 @@ const ClientSearchPicker = ({
               onClick={() => onSelect(toClientOption(client))}
             >
               <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-slate-800">{client.nombre}</span>
+                <span className="block truncate text-sm font-semibold text-slate-800">
+                  {client.nombre}
+                </span>
                 <span className="block text-xs text-slate-500">{clientSubtitle(client)}</span>
               </span>
-              {selected && <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />}
+              {selected && (
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+              )}
             </button>
           );
         })}
@@ -297,6 +315,10 @@ const ClientSearchPicker = ({
 
 export const WorkOrderCreatePage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedVehicleId = Number(searchParams.get('vehicleId'));
+  const preselectedVehicleId =
+    Number.isInteger(requestedVehicleId) && requestedVehicleId > 0 ? requestedVehicleId : null;
   const createMutation = useCreateWorkOrderMutation();
   const uploadPhotosMutation = useUploadWorkOrderInspectionPhotosMutation();
   const user = useAuthStore((state) => state.user);
@@ -329,6 +351,9 @@ export const WorkOrderCreatePage = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const prefillApplied = useRef(false);
+  const preselectedVehicleQuery = useVehicle(preselectedVehicleId);
+  const preselectedClientQuery = useClient(preselectedVehicleQuery.data?.clientId ?? null);
 
   const isSubmitting = createMutation.isPending || uploadPhotosMutation.isPending;
   const vehicleOwnerIsDifferent = Boolean(
@@ -337,12 +362,12 @@ export const WorkOrderCreatePage = () => {
 
   const setPrimaryClient = (selectedClient: ClientOption): void => {
     setClient((previousClient) => {
-      setContactClient((current) => (
-        current === null || current.id === previousClient?.id ? selectedClient : current
-      ));
-      setBillingClient((current) => (
-        current === null || current.id === previousClient?.id ? selectedClient : current
-      ));
+      setContactClient((current) =>
+        current === null || current.id === previousClient?.id ? selectedClient : current,
+      );
+      setBillingClient((current) =>
+        current === null || current.id === previousClient?.id ? selectedClient : current,
+      );
       return selectedClient;
     });
     setErrors((current) => {
@@ -351,6 +376,26 @@ export const WorkOrderCreatePage = () => {
       return next;
     });
   };
+
+  useEffect(() => {
+    const selectedVehicle = preselectedVehicleQuery.data;
+    if (!selectedVehicle || prefillApplied.current) return;
+    if (selectedVehicle.clientId !== null && preselectedClientQuery.isPending) return;
+
+    const selectedOwner = preselectedClientQuery.data
+      ? toClientOption(preselectedClientQuery.data)
+      : null;
+    if (selectedOwner) {
+      setClient(selectedOwner);
+      setContactClient(selectedOwner);
+      setBillingClient(selectedOwner);
+    }
+    setVehicle(toQuickVehicle(selectedVehicle, selectedOwner));
+    if (selectedVehicle.kilometraje !== null) {
+      setKilometrajeIngreso(String(selectedVehicle.kilometraje));
+    }
+    prefillApplied.current = true;
+  }, [preselectedClientQuery.data, preselectedClientQuery.isPending, preselectedVehicleQuery.data]);
 
   const handleClientSaved = (savedClient: Client): void => {
     const selectedClient = toClientOption(savedClient);
@@ -374,7 +419,10 @@ export const WorkOrderCreatePage = () => {
     });
   };
 
-  const updateInspection = <K extends keyof InspectionDraft>(key: K, value: InspectionDraft[K]): void => {
+  const updateInspection = <K extends keyof InspectionDraft>(
+    key: K,
+    value: InspectionDraft[K],
+  ): void => {
     setInspection((current) => ({ ...current, [key]: value }));
   };
 
@@ -408,10 +456,7 @@ export const WorkOrderCreatePage = () => {
     });
   };
 
-  const photoMap = useMemo(
-    () => new Map(photos.map((photo) => [photo.slot, photo])),
-    [photos],
-  );
+  const photoMap = useMemo(() => new Map(photos.map((photo) => [photo.slot, photo])), [photos]);
 
   const validateStep = (step: StepIndex): boolean => {
     if (step === 0 && !client) {
@@ -560,7 +605,9 @@ export const WorkOrderCreatePage = () => {
           </Link>
           <div>
             <p className="text-sm font-medium text-slate-500">Recepción de taller</p>
-            <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Nueva Orden de Trabajo</h1>
+            <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">
+              Nueva Orden de Trabajo
+            </h1>
           </div>
         </div>
         <div className="rounded-lg border border-brand-yellow/60 bg-brand-yellow/10 px-4 py-3 text-sm text-brand-blue shadow-sm">
@@ -568,9 +615,15 @@ export const WorkOrderCreatePage = () => {
         </div>
       </header>
 
-      <form onSubmit={submit} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <form
+        onSubmit={submit}
+        className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+      >
         {/* Stepper Línea de Tiempo Continua (Estilo Unithor 1.0) */}
-        <nav className="border-b border-slate-200 bg-slate-50/80 px-4 py-6 sm:px-8" aria-label="Línea de tiempo de orden de trabajo">
+        <nav
+          className="border-b border-slate-200 bg-slate-50/80 px-4 py-6 sm:px-8"
+          aria-label="Línea de tiempo de orden de trabajo"
+        >
           {/* Vista Desktop / Tablet: Línea continua y nodos */}
           <div className="relative hidden md:block">
             {/* Barra base conectora */}
@@ -579,7 +632,16 @@ export const WorkOrderCreatePage = () => {
               <div
                 className="h-full rounded-full bg-brand-blue transition-all duration-500 ease-out"
                 style={{
-                  width: activeStep === 0 ? '0%' : activeStep === 1 ? '25%' : activeStep === 2 ? '50%' : activeStep === 3 ? '75%' : '100%',
+                  width:
+                    activeStep === 0
+                      ? '0%'
+                      : activeStep === 1
+                        ? '25%'
+                        : activeStep === 2
+                          ? '50%'
+                          : activeStep === 3
+                            ? '75%'
+                            : '100%',
                 }}
               />
             </div>
@@ -687,14 +749,20 @@ export const WorkOrderCreatePage = () => {
         >
           {activeStep === 0 && (
             <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-              <SelectedClientCard title="Responsable del ingreso" client={client} onClear={() => setClient(null)} />
+              <SelectedClientCard
+                title="Responsable del ingreso"
+                client={client}
+                onClear={() => setClient(null)}
+              />
               <ClientSearchPicker
                 label="Buscar responsable"
                 selectedClient={client}
                 onSelect={setPrimaryClient}
                 onCreate={() => setClientModalTarget('primary')}
               />
-              {errors.clientId && <p className="text-sm text-red-700 lg:col-span-2">{errors.clientId}</p>}
+              {errors.clientId && (
+                <p className="text-sm text-red-700 lg:col-span-2">{errors.clientId}</p>
+              )}
             </div>
           )}
 
@@ -702,8 +770,16 @@ export const WorkOrderCreatePage = () => {
             <div className="space-y-5">
               <div className="grid gap-4 lg:grid-cols-3">
                 <SelectedClientCard title="Responsable de recepción" client={client} />
-                <SelectedClientCard title="Contacto en taller" client={contactClient} onClear={() => setContactClient(null)} />
-                <SelectedClientCard title="Facturación" client={billingClient} onClear={() => setBillingClient(null)} />
+                <SelectedClientCard
+                  title="Contacto en taller"
+                  client={contactClient}
+                  onClear={() => setContactClient(null)}
+                />
+                <SelectedClientCard
+                  title="Facturación"
+                  client={billingClient}
+                  onClear={() => setBillingClient(null)}
+                />
               </div>
 
               <div className="grid gap-5 lg:grid-cols-2">
@@ -755,12 +831,17 @@ export const WorkOrderCreatePage = () => {
                         <Car className="h-5 w-5" aria-hidden="true" />
                       </span>
                       <div className="min-w-0">
-                        <p className="font-mono text-lg font-bold text-brand-blue">{vehicle.patente}</p>
+                        <p className="font-mono text-lg font-bold text-brand-blue">
+                          {vehicle.patente}
+                        </p>
                         <p className="text-sm text-slate-500">
-                          {[vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' ') || 'Sin datos técnicos'}
+                          {[vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' ') ||
+                            'Sin datos técnicos'}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
-                          {vehicle.client ? `Propietario registrado: ${vehicle.client.nombre}` : 'Sin propietario registrado'}
+                          {vehicle.client
+                            ? `Propietario registrado: ${vehicle.client.nombre}`
+                            : 'Sin propietario registrado'}
                         </p>
                       </div>
                     </div>
@@ -782,7 +863,10 @@ export const WorkOrderCreatePage = () => {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="font-bold text-brand-blue">Buscar vehículo</h3>
-                    <p className="mt-1 text-sm text-slate-500">Los vehículos existentes conservan su propietario registrado; la OT puede quedar a nombre de otra persona que los entrega.</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Los vehículos existentes conservan su propietario registrado; la OT puede
+                      quedar a nombre de otra persona que los entrega.
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -804,25 +888,43 @@ export const WorkOrderCreatePage = () => {
                     Mecánico responsable
                     <select
                       value={assignedMechanicId ?? ''}
-                      onChange={(event) => setAssignedMechanicId(event.target.value ? Number(event.target.value) : null)}
+                      onChange={(event) =>
+                        setAssignedMechanicId(
+                          event.target.value ? Number(event.target.value) : null,
+                        )
+                      }
                       className="mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
                     >
                       <option value="">Sin asignar por ahora</option>
-                      {mechanicsQuery.data?.map((mechanic) => <option key={mechanic.id} value={mechanic.id}>{mechanic.nombre}</option>)}
+                      {mechanicsQuery.data?.map((mechanic) => (
+                        <option key={mechanic.id} value={mechanic.id}>
+                          {mechanic.nombre}
+                        </option>
+                      ))}
                     </select>
-                    <span className="mt-1 block text-xs font-normal text-slate-500">Podrás cambiarlo lateramente desde el detalle de la OT.</span>
+                    <span className="mt-1 block text-xs font-normal text-slate-500">
+                      Podrás cambiarlo lateramente desde el detalle de la OT.
+                    </span>
                   </label>
                 )}
                 {vehicleOwnerIsDifferent && (
                   <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                     <div>
-                      <p className="font-semibold">El propietario del vehículo es diferente al responsable de la OT.</p>
-                      <p className="mt-1 text-xs">Se guardarían ambos datos para mantener la trazabilidad: {vehicle?.client?.nombre} como propietario y {client?.nombre} como responsable de ingreso.</p>
+                      <p className="font-semibold">
+                        El propietario del vehículo es diferente al responsable de la OT.
+                      </p>
+                      <p className="mt-1 text-xs">
+                        Se guardarían ambos datos para mantener la trazabilidad:{' '}
+                        {vehicle?.client?.nombre} como propietario y {client?.nombre} como
+                        responsable de ingreso.
+                      </p>
                     </div>
                   </div>
                 )}
-                {errors.vehicleId && <p className="mt-3 text-sm text-red-700">{errors.vehicleId}</p>}
+                {errors.vehicleId && (
+                  <p className="mt-3 text-sm text-red-700">{errors.vehicleId}</p>
+                )}
               </section>
             </div>
           )}
@@ -831,7 +933,9 @@ export const WorkOrderCreatePage = () => {
             <div className="space-y-6">
               {/* Fechas y motivo de ingreso */}
               <section className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
-                <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-brand-blue">Datos de la orden</h3>
+                <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-brand-blue">
+                  Datos de la orden
+                </h3>
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="text-sm font-semibold text-slate-700">
                     Fecha de ingreso
@@ -842,7 +946,11 @@ export const WorkOrderCreatePage = () => {
                       className={inputClassName}
                       aria-invalid={Boolean(errors.fechaIngreso)}
                     />
-                    {errors.fechaIngreso && <span className="mt-1 block text-xs font-normal text-red-700">{errors.fechaIngreso}</span>}
+                    {errors.fechaIngreso && (
+                      <span className="mt-1 block text-xs font-normal text-red-700">
+                        {errors.fechaIngreso}
+                      </span>
+                    )}
                   </label>
                   <label className="text-sm font-semibold text-slate-700">
                     Entrega prometida
@@ -880,41 +988,57 @@ export const WorkOrderCreatePage = () => {
                     placeholder="0"
                     aria-invalid={Boolean(errors.kilometrajeIngreso)}
                   />
-                  {errors.kilometrajeIngreso && <span className="mt-1 block text-xs font-normal text-red-700">{errors.kilometrajeIngreso}</span>}
+                  {errors.kilometrajeIngreso && (
+                    <span className="mt-1 block text-xs font-normal text-red-700">
+                      {errors.kilometrajeIngreso}
+                    </span>
+                  )}
                 </label>
                 <label className="text-sm font-semibold text-slate-700">
                   Nivel de combustible
                   <select
                     value={inspection.nivelCombustible}
-                    onChange={(event) => updateInspection('nivelCombustible', event.target.value as FuelLevel | '')}
+                    onChange={(event) =>
+                      updateInspection('nivelCombustible', event.target.value as FuelLevel | '')
+                    }
                     className={inputClassName}
                   >
                     <option value="">Sin registrar</option>
                     {FUEL_LEVELS.map((fuelLevel) => (
-                      <option key={fuelLevel} value={fuelLevel}>{fuelLabels[fuelLevel]}</option>
+                      <option key={fuelLevel} value={fuelLevel}>
+                        {fuelLabels[fuelLevel]}
+                      </option>
                     ))}
                   </select>
                 </label>
               </section>
 
               <section aria-labelledby="tires-title">
-                <h3 id="tires-title" className="font-bold text-brand-blue">Llantas</h3>
+                <h3 id="tires-title" className="font-bold text-brand-blue">
+                  Llantas
+                </h3>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {([
-                    ['llantaDelanteraIzquierda', 'Delantera izquierda'],
-                    ['llantaDelanteraDerecha', 'Delantera derecha'],
-                    ['llantaTraseraIzquierda', 'Trasera izquierda'],
-                    ['llantaTraseraDerecha', 'Trasera derecha'],
-                  ] as const).map(([key, label]) => (
+                  {(
+                    [
+                      ['llantaDelanteraIzquierda', 'Delantera izquierda'],
+                      ['llantaDelanteraDerecha', 'Delantera derecha'],
+                      ['llantaTraseraIzquierda', 'Trasera izquierda'],
+                      ['llantaTraseraDerecha', 'Trasera derecha'],
+                    ] as const
+                  ).map(([key, label]) => (
                     <label key={key} className="text-sm font-semibold text-slate-700">
                       {label}
                       <select
                         value={inspection[key]}
-                        onChange={(event) => updateInspection(key, event.target.value as TireCondition)}
+                        onChange={(event) =>
+                          updateInspection(key, event.target.value as TireCondition)
+                        }
                         className={inputClassName}
                       >
                         {TIRE_CONDITIONS.map((condition) => (
-                          <option key={condition} value={condition}>{tireLabels[condition]}</option>
+                          <option key={condition} value={condition}>
+                            {tireLabels[condition]}
+                          </option>
                         ))}
                       </select>
                     </label>
@@ -925,15 +1049,22 @@ export const WorkOrderCreatePage = () => {
               <section aria-labelledby="photos-title">
                 <div className="flex items-center gap-2">
                   <Camera className="h-5 w-5 text-brand-blue" aria-hidden="true" />
-                  <h3 id="photos-title" className="font-bold text-brand-blue">Registro fotográfico</h3>
+                  <h3 id="photos-title" className="font-bold text-brand-blue">
+                    Registro fotográfico
+                  </h3>
                 </div>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {WORK_ORDER_INSPECTION_PHOTO_SLOTS.map((slot) => {
                     const photo = photoMap.get(slot);
                     return (
-                      <div key={slot} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                      <div
+                        key={slot}
+                        className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+                      >
                         <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
-                          <p className="text-sm font-semibold text-slate-700">{photoSlotLabels[slot]}</p>
+                          <p className="text-sm font-semibold text-slate-700">
+                            {photoSlotLabels[slot]}
+                          </p>
                           {photo && (
                             <button
                               type="button"
@@ -947,7 +1078,11 @@ export const WorkOrderCreatePage = () => {
                           )}
                         </div>
                         {photo ? (
-                          <img src={photo.previewUrl} alt={photoSlotLabels[slot]} className="h-36 w-full object-cover" />
+                          <img
+                            src={photo.previewUrl}
+                            alt={photoSlotLabels[slot]}
+                            className="h-36 w-full object-cover"
+                          />
                         ) : (
                           <div className="flex h-36 flex-col items-center justify-center gap-1.5 bg-slate-50 px-3 text-center">
                             <ImagePlus className="h-7 w-7 text-slate-400" aria-hidden="true" />
@@ -993,10 +1128,15 @@ export const WorkOrderCreatePage = () => {
               </section>
 
               <section aria-labelledby="inventory-title">
-                <h3 id="inventory-title" className="font-bold text-brand-blue">Inventario interno</h3>
+                <h3 id="inventory-title" className="font-bold text-brand-blue">
+                  Inventario interno
+                </h3>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {VEHICLE_INVENTORY_ITEMS.map((item) => (
-                    <label key={item} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                    <label
+                      key={item}
+                      className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
                       <input
                         type="checkbox"
                         checked={inspection.inventario.includes(item)}
@@ -1038,29 +1178,45 @@ export const WorkOrderCreatePage = () => {
             <div className="space-y-4">
               <div className="rounded-lg border border-brand-blue/20 bg-brand-light/40 px-4 py-3">
                 <p className="text-sm font-semibold text-brand-blue">
-                  Agregue los trabajos a realizar y repuestos necesarios. Puede dejar esta sección vacía si el diagnóstico está pendiente.
+                  Agregue los trabajos a realizar y repuestos necesarios. Puede dejar esta sección
+                  vacía si el diagnóstico está pendiente.
                 </p>
               </div>
-              <WorkOrderItemsEditor items={items} onChange={setItems} errors={errors} showExecution={false} />
+              <WorkOrderItemsEditor
+                items={items}
+                onChange={setItems}
+                errors={errors}
+                showExecution={false}
+              />
             </div>
           )}
         </motion.div>
 
         {createMutation.isError && (
-          <div className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          <div
+            className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            role="alert"
+          >
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             {getApiErrorMessage(createMutation.error, 'No fue posible crear la orden.')}
           </div>
         )}
 
         {uploadPhotosMutation.isError && createdOrderId && (
-          <div className="mx-5 mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="alert">
-            La OT fue creada, pero una o más fotos no se pudieron subir. Puede abrir el detalle de la orden y continuar el seguimiento.
+          <div
+            className="mx-5 mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+            role="alert"
+          >
+            La OT fue creada, pero una o más fotos no se pudieron subir. Puede abrir el detalle de
+            la orden y continuar el seguimiento.
           </div>
         )}
 
         <footer className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <Link to="/work-orders" className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <Link
+            to="/work-orders"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
             Cancelar
           </Link>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -1110,10 +1266,7 @@ export const WorkOrderCreatePage = () => {
       </form>
 
       {clientModalTarget && (
-        <ClientFormModal
-          onClose={() => setClientModalTarget(null)}
-          onSaved={handleClientSaved}
-        />
+        <ClientFormModal onClose={() => setClientModalTarget(null)} onSaved={handleClientSaved} />
       )}
 
       {vehicleModalOpen && (
@@ -1155,53 +1308,88 @@ export const WorkOrderCreatePage = () => {
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <div className="rounded-lg border border-slate-200 p-3">
                 <p className="text-xs font-bold uppercase text-slate-500">Responsable / Contacto</p>
-                <p className="mt-1 font-semibold text-slate-900">{client?.nombre ?? 'Sin responsable'}</p>
-                <p className="text-xs text-slate-500">{contactClient?.nombre ?? client?.nombre ?? '-'}</p>
-                <p className="mt-1 text-xs text-slate-500">Facturación: {billingClient?.nombre ?? '-'}</p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {client?.nombre ?? 'Sin responsable'}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {contactClient?.nombre ?? client?.nombre ?? '-'}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Facturación: {billingClient?.nombre ?? '-'}
+                </p>
               </div>
               <div className="rounded-lg border border-slate-200 p-3">
                 <p className="text-xs font-bold uppercase text-slate-500">Vehículo</p>
-                <p className="mt-1 font-mono font-bold text-brand-blue">{vehicle?.patente ?? 'Sin vehículo'}</p>
+                <p className="mt-1 font-mono font-bold text-brand-blue">
+                  {vehicle?.patente ?? 'Sin vehículo'}
+                </p>
                 <p className="text-xs text-slate-500">
-                  {[vehicle?.marca, vehicle?.modelo, vehicle?.ano].filter(Boolean).join(' ') || 'Sin datos'}
+                  {[vehicle?.marca, vehicle?.modelo, vehicle?.ano].filter(Boolean).join(' ') ||
+                    'Sin datos'}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Propietario: {vehicle?.client?.nombre ?? 'Sin propietario registrado'}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  Km: {kilometrajeIngreso === '' ? 'No registrado' : Number(kilometrajeIngreso).toLocaleString('es-CL')} ·
-                  Combustible: {inspection.nivelCombustible ? fuelLabels[inspection.nivelCombustible] : 'Sin registrar'}
+                  Km:{' '}
+                  {kilometrajeIngreso === ''
+                    ? 'No registrado'
+                    : Number(kilometrajeIngreso).toLocaleString('es-CL')}{' '}
+                  · Combustible:{' '}
+                  {inspection.nivelCombustible
+                    ? fuelLabels[inspection.nivelCombustible]
+                    : 'Sin registrar'}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 p-3">
                 <p className="text-xs font-bold uppercase text-slate-500">Inspección</p>
                 <p className="mt-1 text-xs text-slate-700">
-                  Inventario: {inspection.inventario.length > 0 ? inspection.inventario.map((key) => inventoryLabels[key]).join(', ') : 'Sin elementos marcados'}
+                  Inventario:{' '}
+                  {inspection.inventario.length > 0
+                    ? inspection.inventario.map((key) => inventoryLabels[key]).join(', ')
+                    : 'Sin elementos marcados'}
                 </p>
                 <p className="mt-1 text-xs text-slate-700">
-                  Fotos: {photos.length > 0 ? photos.map((photo) => photoSlotLabels[photo.slot]).join(', ') : 'Sin fotos'}
+                  Fotos:{' '}
+                  {photos.length > 0
+                    ? photos.map((photo) => photoSlotLabels[photo.slot]).join(', ')
+                    : 'Sin fotos'}
                 </p>
                 <p className="mt-1 text-xs text-slate-700">
-                  Objetos: {inspection.objetosValor.trim() === '' ? 'Ninguno' : inspection.objetosValor}
+                  Objetos:{' '}
+                  {inspection.objetosValor.trim() === '' ? 'Ninguno' : inspection.objetosValor}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 p-3">
                 <p className="text-xs font-bold uppercase text-slate-500">Servicios</p>
                 {items.filter((item) => item.descripcion.trim().length > 0).length === 0 ? (
-                  <p className="mt-1 text-xs text-slate-500">Diagnóstico inicial, sin trabajos cargados.</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Diagnóstico inicial, sin trabajos cargados.
+                  </p>
                 ) : (
                   <ul className="mt-1 space-y-1 text-xs text-slate-700">
                     {items
                       .filter((item) => item.descripcion.trim().length > 0)
                       .map((item, index) => (
                         <li key={index} className="flex justify-between gap-2">
-                          <span className="truncate">{item.descripcion} × {item.cantidad} {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ?? item.unidadMedida}</span>
-                          <span className="font-semibold">${(Number(item.cantidad) * Number(item.precioUnitario)).toLocaleString('es-CL')}</span>
+                          <span className="truncate">
+                            {item.descripcion} × {item.cantidad}{' '}
+                            {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ??
+                              item.unidadMedida}
+                          </span>
+                          <span className="font-semibold">
+                            $
+                            {(Number(item.cantidad) * Number(item.precioUnitario)).toLocaleString(
+                              'es-CL',
+                            )}
+                          </span>
                         </li>
                       ))}
                   </ul>
                 )}
-                <p className="mt-1 text-xs text-slate-500">Motivo: {descripcion.trim() === '' ? 'Sin observaciones' : descripcion}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Motivo: {descripcion.trim() === '' ? 'Sin observaciones' : descripcion}
+                </p>
               </div>
             </div>
 

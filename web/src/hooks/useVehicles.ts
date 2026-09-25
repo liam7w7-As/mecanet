@@ -16,6 +16,8 @@ export const vehicleKeys = {
   all: ['vehicles'] as const,
   lists: () => [...vehicleKeys.all, 'list'] as const,
   list: (params: VehicleQueryParams) => [...vehicleKeys.lists(), params] as const,
+  details: () => [...vehicleKeys.all, 'detail'] as const,
+  detail: (id: number) => [...vehicleKeys.details(), id] as const,
   quickSearch: (term: string) => ['search', 'quick', term] as const,
 };
 
@@ -31,6 +33,16 @@ export const useVehicles = (queryParams: VehicleQueryParams) =>
     placeholderData: keepPreviousData,
   });
 
+export const useVehicle = (id: number | null) =>
+  useQuery({
+    queryKey: vehicleKeys.detail(id ?? 0),
+    queryFn: async () => {
+      const response = await api.get<VehicleResponse>(`/vehicles/${id}`);
+      return response.data.vehicle;
+    },
+    enabled: id !== null && Number.isInteger(id) && id > 0,
+  });
+
 export const useCreateVehicleMutation = () => {
   const queryClient = useQueryClient();
 
@@ -39,7 +51,8 @@ export const useCreateVehicleMutation = () => {
       const response = await api.post<VehicleResponse>('/vehicles', data);
       return response.data.vehicle;
     },
-    onSuccess: () => {
+    onSuccess: (vehicle) => {
+      queryClient.setQueryData(vehicleKeys.detail(vehicle.id), vehicle);
       void queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
       void queryClient.invalidateQueries({ queryKey: ['clients'] });
     },

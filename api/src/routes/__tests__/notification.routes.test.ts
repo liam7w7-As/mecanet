@@ -116,6 +116,7 @@ const cleanup = async (): Promise<void> => {
 describe('Notificaciones por rol (E2E)', () => {
   let jefeId: number;
   let mecanicoId: number;
+  let mecanico2Id: number;
   let vendedorId: number;
   let supervisorCookies: LoginCookies;
   let workOrderId: number;
@@ -142,7 +143,7 @@ describe('Notificaciones por rol (E2E)', () => {
 
     await devUser.update({ passwordHash, activo: true });
 
-    const [jefe, mecanico, vendedor, client] = await Promise.all([
+    const [jefe, mecanico, mecanico2, vendedor, client] = await Promise.all([
       User.create({
         nombre: 'Jefe Notif',
         email: `${TEST_EMAIL_PREFIX}jefe@unithor.local`,
@@ -153,6 +154,16 @@ describe('Notificaciones por rol (E2E)', () => {
       User.create({
         nombre: 'Mecanico Notif',
         email: `${TEST_EMAIL_PREFIX}mecanico@unithor.local`,
+        passwordHash,
+        roleId: mecanicoRole.id,
+        activo: true,
+      }),
+      // Segundo mecánico del mismo rol. Existe para poder comprobar que los
+      // avisos dirigidos no se reparten entre todo el rol: con un solo mecánico
+      // la aserción negativa sería imposible.
+      User.create({
+        nombre: 'Mecanico Dos Notif',
+        email: `${TEST_EMAIL_PREFIX}mecanico2@unithor.local`,
         passwordHash,
         roleId: mecanicoRole.id,
         activo: true,
@@ -175,6 +186,7 @@ describe('Notificaciones por rol (E2E)', () => {
 
     jefeId = jefe.id;
     mecanicoId = mecanico.id;
+    mecanico2Id = mecanico2.id;
     vendedorId = vendedor.id;
 
     const vehicle = await Vehicle.create({
@@ -320,7 +332,7 @@ describe('Notificaciones por rol (E2E)', () => {
     expect(response.status).toBe(400);
   });
 
-  it('notifica al mecánico solicitante cuando el jefe aprueba la solicitud', async () => {
+  it('solo notifica al mecánico solicitante cuando el jefe aprueba la solicitud', async () => {
     const review = await request(app)
       .patch(`/api/work-orders/${workOrderId}/requests/${requestId}`)
       .set('Cookie', authCookie(supervisorCookies))
@@ -340,6 +352,106 @@ describe('Notificaciones por rol (E2E)', () => {
     expect(item).toBeDefined();
     expect(item.workOrderId).toBe(workOrderId);
     expect(item.leida).toBe(false);
+
+    // El otro mecánico del mismo rol no solicitó nada: el aviso no es suyo.
+    // Esto no es una aserción vacía: el test de `ot_estado_cambiado` comprueba
+    // que mecanico2 sí recibe los avisos que son broadcast de rol, así que está
+    // activo, tiene el rol correcto y es alcanzable. Lo que se comprueba aquí es
+    // que los avisos dirigidos a una persona no se reparten por rol.
+    const otroCookies = await loginAs(`${TEST_EMAIL_PREFIX}mecanico2@unithor.local`);
+    const delOtro = await request(app)
+      .get('/api/notifications')
+      .set('Cookie', authCookie(otroCookies));
+    expect(delOtro.status).toBe(200);
+    expect(
+      delOtro.body.items.filter(
+        (candidate: { tipo: string }) => candidate.tipo === 'solicitud_aprobada',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('solo notifica al solicitante cuando el jefe rechaza la solicitud', async () => {
+    const mecanicoCookies = await loginAs(`${TEST_EMAIL_PREFIX}mecanico@unithor.local`);
+    const created = await request(app)
+      .post(`/api/work-orders/${workOrderId}/requests`)
+      .set('Cookie', authCookie(mecanicoCookies))
+      .set('X-CSRF-Token', mecanicoCookies.csrfToken)
+      .send({
+        tipo: 'aumento_precio',
+        workOrderItemId: serviceItemId,
+        precioSugerido: 42000,
+        motivo: 'Segundo pedido para probar el rechazo',
+      });
+    expect(created.status).toBe(201);
+    const rejectedRequestId = created.body.workOrder.requests.find(
+      (candidate: { tipo: string; estado: string }) =>
+        candidate.tipo === 'aumento_precio' && candidate.estado === 'pendiente',
+    )?.id;
+    expect(rejectedRequestId).toBeDefined();
+
+    const review = await request(app)
+      .patch(`/api/work-orders/${workOrderId}/requests/${rejectedRequestId}`)
+      .set('Cookie', authCookie(supervisorCookies))
+      .set('X-CSRF-Token', supervisorCookies.csrfToken)
+      .send({ decision: 'rechazar', comentario: 'No hay presupuesto' });
+    expect(review.status).toBe(200);
+
+    const delSolicitante = await request(app)
+      .get('/api/notifications')
+      .set('Cookie', authCookie(mecanicoCookies));
+    const item = delSolicitante.body.items.find(
+      (candidate: { tipo: string }) => candidate.tipo === 'solicitud_rechazada',
+    );
+    expect(item).toBeDefined();
+    expect(item.workOrderId).toBe(workOrderId);
+
+    const otroCookies = await loginAs(`${TEST_EMAIL_PREFIX}mecanico2@unithor.local`);
+    const delOtro = await request(app)
+      .get('/api/notifications')
+      .set('Cookie', authCookie(otroCookies));
+    expect(
+      delOtro.body.items.filter(
+        (candidate: { tipo: string }) => candidate.tipo === 'solicitud_rechazada',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('solo notifica al mecánico al que se le asigna la orden', async () => {
+    const assign = await request(app)
+      .patch(`/api/work-orders/${workOrderId}/assignment`)
+      .set('Cookie', authCookie(supervisorCookies))
+      .set('X-CSRF-Token', supervisorCookies.csrfToken)
+      .send({ mechanicId: mecanico2Id });
+    expect(assign.status).toBe(200);
+
+    const nuevoCookies = await loginAs(`${TEST_EMAIL_PREFIX}mecanico2@unithor.local`);
+    const delNuevo = await request(app)
+      .get('/api/notifications')
+      .set('Cookie', authCookie(nuevoCookies));
+    const asignacion = delNuevo.body.items.find(
+      (candidate: { tipo: string; titulo: string }) =>
+        candidate.tipo === 'mecanico_asignado' && candidate.titulo.startsWith('Te asignaron'),
+    );
+    expect(asignacion).toBeDefined();
+
+    // El mecánico anterior sí recibe aviso, pero del tipo "ya no está a tu cargo".
+    // Lo que no debe recibir es el "te asignaron" de una orden que no es suya.
+    const anteriorCookies = await loginAs(`${TEST_EMAIL_PREFIX}mecanico@unithor.local`);
+    const delAnterior = await request(app)
+      .get('/api/notifications')
+      .set('Cookie', authCookie(anteriorCookies));
+    expect(
+      delAnterior.body.items.filter(
+        (candidate: { tipo: string; titulo: string }) =>
+          candidate.tipo === 'mecanico_asignado' && candidate.titulo.startsWith('Te asignaron'),
+      ),
+    ).toHaveLength(0);
+    expect(
+      delAnterior.body.items.some(
+        (candidate: { tipo: string; titulo: string }) =>
+          candidate.tipo === 'mecanico_asignado' && candidate.titulo.includes('ya no está a tu cargo'),
+      ),
+    ).toBe(true);
   });
 
   it('notifica al mecánico y a ventas cuando cambia el estado de la orden', async () => {
@@ -352,6 +464,7 @@ describe('Notificaciones por rol (E2E)', () => {
 
     for (const email of [
       `${TEST_EMAIL_PREFIX}mecanico@unithor.local`,
+      `${TEST_EMAIL_PREFIX}mecanico2@unithor.local`,
       `${TEST_EMAIL_PREFIX}vendedor@unithor.local`,
     ]) {
       const cookies = await loginAs(email);

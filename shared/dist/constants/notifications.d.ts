@@ -2,5 +2,14 @@ export declare const NOTIFICATION_TYPES: readonly ["solicitud_creada", "solicitu
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 export declare const NOTIFICATION_LEVELS: readonly ["info", "warning", "critical"];
 export type NotificationLevel = (typeof NOTIFICATION_LEVELS)[number];
-/** Destinatarios por tipo. El backend resuelve los roles a usuarios concretos. */
+/**
+ * Destinatarios por tipo cuando el aviso es un broadcast por rol. El backend
+ * resuelve los roles a usuarios concretos.
+ *
+ * Los tipos dirigidos a una sola persona se dejan vacíos a propósito: su
+ * destinatario se calcula en el servicio (el solicitante, el mecánico
+ * asignado) y se envía con `notifyUsers`. Una lista vacía hace que un
+ * `notifyByType` accidental no notifique a nadie, en vez de repartir el aviso
+ * entre todo el rol.
+ */
 export declare const NOTIFICATION_RECIPIENT_ROLES: Record<NotificationType, readonly string[]>;

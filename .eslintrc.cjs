@@ -39,7 +39,13 @@ module.exports = {
   },
   overrides: [
     {
+      // Los `.cjs` son CommonJS. Sin esto heredan `sourceType: 'module'` de la
+      // config base y el parser de TypeScript los interpreta como ESM, lo que
+      // rompe los scripts de verificacion de web/designs/work.
       files: ['*.cjs'],
+      parserOptions: {
+        sourceType: 'script',
+      },
       rules: {
         '@typescript-eslint/no-var-requires': 'off',
       },

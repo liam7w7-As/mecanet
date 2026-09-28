@@ -37,13 +37,13 @@ const VehicleSkeleton = () => (
     {Array.from({ length: 6 }, (_, index) => (
       <div
         key={index}
-        className="flex h-[232px] animate-pulse flex-col rounded-lg border border-slate-200 bg-white p-4"
+        className="flex h-[232px] animate-pulse flex-col rounded-lg border border-brand-line bg-white p-4"
       >
-        <div className="h-5 w-16 rounded bg-slate-100" />
-        <div className="mt-3 h-10 w-40 rounded bg-slate-100" />
-        <div className="mt-3 h-4 w-44 rounded bg-slate-100" />
-        <div className="mt-3 h-4 w-36 rounded bg-slate-100" />
-        <div className="mt-auto h-9 rounded bg-slate-100" />
+        <div className="h-5 w-16 rounded bg-brand-pale" />
+        <div className="mt-3 h-10 w-40 rounded bg-brand-pale" />
+        <div className="mt-3 h-4 w-44 rounded bg-brand-pale" />
+        <div className="mt-3 h-4 w-36 rounded bg-brand-pale" />
+        <div className="mt-auto h-9 rounded bg-brand-pale" />
       </div>
     ))}
   </div>
@@ -132,25 +132,25 @@ export const VehiclesPage = () => {
 
   return (
     <div className="min-w-0 space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">Parque vehicular</p>
-          <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Vehículos</h1>
+      <header className="page-banner">
+        <div className="min-w-0">
+          <p className="text-sm text-brand-muted">Parque vehicular</p>
+          <h1 className="mt-1">Vehículos</h1>
         </div>
         {canCreate && (
           <button
             type="button"
-            className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark shadow-sm transition-all hover:bg-yellow-400 hover:shadow-md active:scale-95"
+            className="primary-button relative z-[1] ml-auto"
             onClick={() => setFormVehicle(null)}
           >
-            <AnimateIcon icon={Plus} animation="spin" size={16} /> Nuevo vehículo
+            <Plus className="h-4 w-4" aria-hidden="true" /> Nuevo vehículo
           </button>
         )}
       </header>
 
-      <section className="grid gap-4 border-y border-slate-200 bg-white px-4 py-4 lg:grid-cols-2">
+      <section className="grid gap-4 border-y border-brand-line bg-white px-4 py-4 lg:grid-cols-2">
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase text-slate-500">
+          <p className="mb-2 text-xs font-semibold uppercase text-brand-muted">
             Búsqueda rápida de recepción
           </p>
           <QuickVehicleSearch
@@ -159,16 +159,16 @@ export const VehiclesPage = () => {
           />
         </div>
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase text-slate-500">
+          <span className="mb-2 block text-xs font-semibold uppercase text-brand-muted">
             Filtrar listado
           </span>
           <span className="relative block">
             <Search
-              className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400"
+              className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted"
               aria-hidden="true"
             />
             <input
-              className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+              className="h-10 w-full rounded-lg border border-brand-line bg-white pl-9 pr-3 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Patente, marca, modelo o VIN"
@@ -180,7 +180,7 @@ export const VehiclesPage = () => {
       <section aria-label="Listado de vehículos">
         {(vehiclesQuery.isError || deleteMutation.isError) && (
           <div
-            className="mb-4 flex items-start gap-2 border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+            className="mb-4 flex items-start gap-2 border border-brand-coral/30 bg-brand-coralPale p-4 text-sm text-brand-coralInk"
             role="alert"
           >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -203,9 +203,14 @@ export const VehiclesPage = () => {
                 vehicle.combustible,
               ].filter((value) => value === null).length;
               return (
+                // Superficie oscura a proposito: es la card de vehículo del
+                // diseño previo y los acentos claros (dorado, ámbar, esmeralda)
+                // solo contrastan sobre un fondo oscuro. Sobre índigo `#255DFF`
+                // quedaban en 2.9-4.2:1. `surfaceDark` es el `--surface` del
+                // tema `body.dark` del propio Modernize.
                 <AnimatedCard
                   key={vehicle.id}
-                  className="group relative flex h-[232px] min-w-0 flex-col rounded-lg border border-brand-blue bg-brand-blue p-4 text-white shadow-sm transition-[border-color,box-shadow] hover:border-brand-yellow/60 hover:shadow-md focus-within:border-brand-yellow focus-within:ring-2 focus-within:ring-brand-yellow/30"
+                  className="group relative flex h-[232px] min-w-0 flex-col rounded-lg border border-brand-surfaceDark bg-brand-surfaceDark p-4 text-white shadow-sm transition-[border-color,box-shadow] hover:border-brand-gold focus-within:border-brand-gold focus-within:ring-2 focus-within:ring-brand-gold/30"
                 >
                   <button
                     type="button"
@@ -215,14 +220,14 @@ export const VehiclesPage = () => {
                   />
                   <div className="pointer-events-none relative z-[1] flex min-h-0 flex-1 flex-col">
                     <div className="flex h-5 items-center justify-between gap-2 text-[11px]">
-                      <span className="font-mono font-semibold tabular-nums text-slate-400">
+                      <span className="font-mono font-semibold tabular-nums text-brand-mutedOnDark">
                         #{number}
                       </span>
                       <span
-                        className={`inline-flex items-center gap-1.5 font-medium ${missingCount > 0 ? 'text-amber-200' : 'text-emerald-300'}`}
+                        className={`inline-flex items-center gap-1.5 font-medium ${missingCount > 0 ? 'text-brand-gold' : 'text-brand-mint'}`}
                       >
                         <span
-                          className={`h-1.5 w-1.5 rounded-full ${missingCount > 0 ? 'bg-amber-300' : 'bg-emerald-400'}`}
+                          className={`h-1.5 w-1.5 rounded-full ${missingCount > 0 ? 'bg-brand-gold' : 'bg-brand-mint'}`}
                           aria-hidden="true"
                         />
                         {missingCount > 0 ? `${missingCount} datos pendientes` : 'Ficha completa'}
@@ -230,7 +235,7 @@ export const VehiclesPage = () => {
                     </div>
 
                     <div className="mt-2 flex min-w-0 items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-brand-yellow transition-colors group-hover:bg-brand-yellow/10">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-brand-gold transition-colors group-hover:bg-brand-primaryInk/10">
                         <Car className="h-5 w-5" aria-hidden="true" />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -241,7 +246,7 @@ export const VehiclesPage = () => {
                           {vehicle.patente}
                         </h2>
                         <p
-                          className="truncate text-xs leading-5 text-slate-300"
+                          className="truncate text-xs leading-5 text-brand-line"
                           title={[vehicle.marca, vehicle.modelo, vehicle.ano]
                             .filter(Boolean)
                             .join(' ')}
@@ -253,12 +258,12 @@ export const VehiclesPage = () => {
                       </div>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-xs leading-5 text-slate-300">
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-xs leading-5 text-brand-line">
                       <p
                         className="flex min-w-0 items-center gap-2"
                         title={`Kilometraje: ${formatKilometres(vehicle.kilometraje)}`}
                       >
-                        <Gauge className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+                        <Gauge className="h-3.5 w-3.5 shrink-0 text-brand-mutedOnDark" aria-hidden="true" />
                         <span className="truncate tabular-nums">
                           {formatKilometres(vehicle.kilometraje)}
                         </span>
@@ -267,16 +272,16 @@ export const VehiclesPage = () => {
                         className="flex min-w-0 items-center gap-2"
                         title={`Combustible: ${vehicle.combustible ?? 'Sin registrar'}`}
                       >
-                        <Fuel className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+                        <Fuel className="h-3.5 w-3.5 shrink-0 text-brand-mutedOnDark" aria-hidden="true" />
                         <span className="truncate capitalize">
                           {vehicle.combustible ?? 'Sin registrar'}
                         </span>
                       </p>
                     </div>
 
-                    <div className="mt-2 flex min-w-0 items-center gap-2 text-xs leading-5 text-slate-300">
+                    <div className="mt-2 flex min-w-0 items-center gap-2 text-xs leading-5 text-brand-line">
                       <UserRound
-                        className="h-3.5 w-3.5 shrink-0 text-slate-400"
+                        className="h-3.5 w-3.5 shrink-0 text-brand-mutedOnDark"
                         aria-hidden="true"
                       />
                       <p
@@ -288,7 +293,7 @@ export const VehiclesPage = () => {
                     </div>
 
                     <div className="mt-auto flex items-center gap-2 border-t border-white/10 pt-3">
-                      <span className="flex h-8 min-w-0 flex-1 items-center justify-center gap-2 rounded-md bg-brand-yellow text-xs font-semibold text-brand-dark transition-colors group-hover:bg-yellow-300">
+                      <span className="flex h-8 min-w-0 flex-1 items-center justify-center gap-2 rounded-md bg-brand-primaryInk text-xs font-semibold text-white transition-colors group-hover:bg-brand-gold">
                         Ver ficha
                         <ChevronRight
                           className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
@@ -298,7 +303,7 @@ export const VehiclesPage = () => {
                       {canEdit && (
                         <button
                           type="button"
-                          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-slate-300 transition-colors hover:bg-white/10 hover:text-brand-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-yellow"
+                          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-brand-line transition-colors hover:bg-white/10 hover:text-brand-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-gold"
                           onClick={() => setFormVehicle(vehicle)}
                           aria-label={`Editar ${vehicle.patente}`}
                           title="Editar vehículo"
@@ -309,7 +314,7 @@ export const VehiclesPage = () => {
                       {canDelete && (
                         <button
                           type="button"
-                          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-slate-300 transition-colors hover:bg-red-400/10 hover:text-red-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-yellow"
+                          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-brand-line transition-colors hover:bg-brand-coral/15 hover:text-brand-coral focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-gold"
                           onClick={() => {
                             deleteMutation.reset();
                             setDeleteVehicle(vehicle);
@@ -328,10 +333,10 @@ export const VehiclesPage = () => {
           </div>
         )}
         {!vehiclesQuery.isPending && vehiclesQuery.data?.items.length === 0 && (
-          <div className="flex min-h-52 flex-col items-center justify-center border border-slate-200 bg-white px-4 text-center">
-            <AnimateIcon icon={Car} animation="bounce" size={36} className="text-slate-300" />
-            <p className="mt-3 font-semibold text-slate-700">No se encontraron vehículos</p>
-            <p className="mt-1 text-sm text-slate-500">Pruebe con otra patente, marca o modelo.</p>
+          <div className="flex min-h-52 flex-col items-center justify-center border border-brand-line bg-white px-4 text-center">
+            <AnimateIcon icon={Car} animation="bounce" size={36} className="text-brand-line" />
+            <p className="mt-3 font-semibold text-brand-ink">No se encontraron vehículos</p>
+            <p className="mt-1 text-sm text-brand-muted">Pruebe con otra patente, marca o modelo.</p>
           </div>
         )}
         <Pagination
@@ -396,17 +401,17 @@ export const VehiclesPage = () => {
               aria-modal="true"
               aria-labelledby="delete-vehicle-title"
             >
-              <h2 id="delete-vehicle-title" className="text-lg font-semibold text-brand-blue">
+              <h2 id="delete-vehicle-title" className="text-lg font-semibold text-brand-primaryInk">
                 Eliminar vehículo {deleteVehicle.patente}
               </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+              <p className="mt-2 text-sm leading-6 text-brand-muted">
                 El vehículo se ocultará del parque activo. No podrá eliminarse si mantiene órdenes
                 de trabajo abiertas.
               </p>
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   type="button"
-                  className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale transition-colors"
                   onClick={() => setDeleteVehicle(null)}
                 >
                   Cancelar

@@ -11,9 +11,9 @@ export const QUOTATION_STATUS_LABELS: Record<QuotationStatus, string> = {
 };
 
 const STATUS_STYLES: Record<QuotationStatus, string> = {
-  por_pagar: 'bg-amber-50 text-amber-800 ring-amber-200',
-  parcial: 'bg-blue-100 text-brand-blue ring-blue-200',
-  total: 'bg-emerald-100 text-emerald-900 ring-emerald-200',
+  por_pagar: 'bg-brand-goldPale text-brand-goldInk ring-amber-200',
+  parcial: 'bg-brand-pale text-brand-primaryInk ring-brand-line',
+  total: 'bg-brand-mintPale text-emerald-900 ring-emerald-200',
   por_verificar: 'bg-purple-100 text-purple-800 ring-purple-200',
   ot_finalizado: 'bg-slate-800 text-white ring-slate-700',
 };

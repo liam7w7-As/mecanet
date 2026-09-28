@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Coins,
   FilePlus2,
+  FileText,
   PackageX,
   ReceiptText,
   UserPlus,
@@ -11,15 +12,9 @@ import {
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { Stagger, StaggerItem } from '../../components/animate-ui';
 import StockAdjustmentModal from '../../components/catalog/StockAdjustmentModal';
 import ClientFormModal from '../../components/clients/ClientFormModal';
-import {
-  AnimateIcon,
-  AnimatedCard,
-  AnimatedTableRow,
-  Stagger,
-  StaggerItem,
-} from '../../components/animate-ui';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import OperationalInbox from '../../components/dashboard/OperationalInbox';
 import WorkOrderStatusBadge from '../../components/work-orders/WorkOrderStatusBadge';
@@ -27,6 +22,7 @@ import { useDashboardSummary } from '../../hooks/useDashboard';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
+import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { DashboardSummary } from '@unithor/shared';
@@ -37,31 +33,27 @@ interface KpiCardProps {
   value: string;
   detail: string;
   icon: LucideIcon;
-  iconClassName: string;
   testId: string;
 }
 
-const KpiCard = ({ title, value, detail, icon: Icon, iconClassName, testId }: KpiCardProps) => (
-  <AnimatedCard className="min-h-36 border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md" hoverLift={-3}>
-    <div className="flex items-start justify-between gap-3">
-      <p className="text-sm font-semibold text-slate-600">{title}</p>
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}>
-        <AnimateIcon variant="pulse" animateOnHover>
-          <Icon className="h-5 w-5" aria-hidden="true" />
-        </AnimateIcon>
-      </span>
-    </div>
-    <p className="mt-4 text-2xl font-bold text-brand-blue" data-testid={testId}>{value}</p>
-    <p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p>
-  </AnimatedCard>
+const KpiCard = ({ title, value, detail, icon: Icon, testId }: KpiCardProps) => (
+  <>
+    {/* El icono va a 50px como en la referencia y hereda el color de la tarjeta.
+        Lucide renderiza `<svg>`, así que la regla `.stat img` no lo alcanza y
+        el tamaño sale de las utilidades sin pelearse con el diseño. */}
+    <Icon className="mb-4 h-[50px] w-[50px] shrink-0" strokeWidth={1.4} aria-hidden="true" />
+    <p className="stat-label text-center">{title}</p>
+    <p className="stat-value text-center" data-testid={testId}>{value}</p>
+    <p className="stat-detail text-center text-brand-muted">{detail}</p>
+  </>
 );
 
 const DashboardSkeleton = () => (
   <div className="space-y-5" aria-label="Cargando resumen del dashboard">
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-      {Array.from({ length: 5 }, (_, index) => <div key={index} className="h-36 animate-pulse border border-slate-200 bg-white p-4"><div className="h-4 w-28 rounded bg-slate-100" /><div className="mt-8 h-7 w-20 rounded bg-slate-100" /><div className="mt-3 h-3 w-36 rounded bg-slate-100" /></div>)}
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      {Array.from({ length: 6 }, (_, index) => <div key={index} className="stat stat-auto animate-pulse"><div className="h-[50px] w-[50px] rounded-lg bg-white/60" /><div className="stat-label mt-4 h-4 w-28 rounded bg-white/60" /><div className="mt-2 h-6 w-20 rounded bg-white/60" /></div>)}
     </div>
-    <div className="grid gap-5 xl:grid-cols-[3fr_2fr]"><div className="h-80 animate-pulse border border-slate-200 bg-white" /><div className="h-80 animate-pulse border border-slate-200 bg-white" /></div>
+    <div className="grid gap-5 xl:grid-cols-[3fr_2fr]"><div className="h-80 animate-pulse rounded-lg border border-brand-line bg-white" /><div className="h-80 animate-pulse rounded-lg border border-brand-line bg-white" /></div>
   </div>
 );
 
@@ -90,90 +82,101 @@ export const DashboardPage = () => {
 
   return (
     <div className="min-w-0 space-y-6">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">Panel operativo</p>
-          <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Bienvenido de vuelta, {firstName}</h1>
+      <header className="page-banner">
+        <div className="min-w-0">
+          <p className="text-sm text-brand-muted">Panel operativo</p>
+          <h1 className="mt-1">Bienvenido de vuelta, {firstName}</h1>
         </div>
-        <p className="text-sm font-medium text-slate-500">{formatCurrentDate()}</p>
+        <p className="relative z-[1] ml-auto hidden self-end pb-1 text-sm text-brand-muted sm:block">{formatCurrentDate()}</p>
       </header>
 
-      <section className="border-y border-slate-200 bg-white px-4 py-4 shadow-sm" aria-labelledby="quick-actions-title">
-        <h2 id="quick-actions-title" className="mb-3 text-sm font-semibold uppercase text-slate-500">Acciones rápidas</h2>
-        <div className="grid gap-3 lg:grid-cols-[auto_auto_auto_minmax(260px,1fr)]">
+      <section className="view-panel mb-6" aria-labelledby="quick-actions-title">
+        <div className="view-panel-title">
+          <h2 id="quick-actions-title" className="text-sm font-semibold uppercase text-brand-muted">Acciones rápidas</h2>
+        </div>
+        <div className="view-panel-body flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
           {canCreateWorkOrder && (
-            <Link to="/work-orders/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white transition-all hover:bg-brand-dark hover:shadow-sm">
-              <AnimateIcon variant="spin" animateOnHover>
-                <Wrench className="h-4 w-4" aria-hidden="true" />
-              </AnimateIcon>
+            <Link to="/work-orders/new" className="primary-button">
+              <Wrench className="h-4 w-4" aria-hidden="true" />
               Ingresar vehículo / Nueva OT
             </Link>
           )}
           {canCreateQuotation && (
-            <Link to="/quotations/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark transition-all hover:bg-yellow-400 hover:shadow-sm">
-              <AnimateIcon variant="bounce" animateOnHover>
-                <FilePlus2 className="h-4 w-4" aria-hidden="true" />
-              </AnimateIcon>
+            <Link to="/quotations/new" className="primary-button">
+              <FilePlus2 className="h-4 w-4" aria-hidden="true" />
               Nueva cotización
             </Link>
           )}
           {canCreateClient && (
-            <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-brand-blue transition-all hover:bg-slate-50 hover:shadow-sm" onClick={() => setShowClientForm(true)}>
-              <AnimateIcon variant="hover-lift" animateOnHover>
-                <UserPlus className="h-4 w-4" aria-hidden="true" />
-              </AnimateIcon>
+            <button type="button" className="secondary-button inline-flex items-center gap-2 text-sm font-medium text-brand-ink transition-colors hover:border-brand-primary hover:text-brand-primaryInk" onClick={() => setShowClientForm(true)}>
+              <UserPlus className="h-4 w-4" aria-hidden="true" />
               Dar de alta cliente
             </button>
           )}
-          <QuickVehicleSearch
-            placeholder="Consultar patente, RUT o cliente"
-            onSelectVehicle={(vehicle) => navigate(`/vehicles?search=${encodeURIComponent(vehicle.patente)}`)}
-            onSelectClient={(client) => navigate(`/clients?search=${encodeURIComponent(client.rut ?? client.nombre)}`)}
-          />
+          <div className="min-w-[240px] flex-1">
+            <QuickVehicleSearch
+              placeholder="Consultar patente, RUT o cliente"
+              onSelectVehicle={(vehicle) => navigate(`/vehicles?search=${encodeURIComponent(vehicle.patente)}`)}
+              onSelectClient={(client) => navigate(`/clients?search=${encodeURIComponent(client.rut ?? client.nombre)}`)}
+            />
+          </div>
         </div>
       </section>
 
-      {dashboardQuery.isError && <div className="flex items-center justify-between gap-4 border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert"><span className="flex items-start gap-2"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(dashboardQuery.error, 'No fue posible cargar el resumen operativo')}</span><button type="button" className="shrink-0 font-semibold underline" onClick={() => void dashboardQuery.refetch()}>Reintentar</button></div>}
+      {dashboardQuery.isError && <div className="flex items-center justify-between gap-4 border border-brand-coral/30 bg-brand-coralPale p-4 text-sm text-brand-coralInk" role="alert"><span className="flex items-start gap-2"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(dashboardQuery.error, 'No fue posible cargar el resumen operativo')}</span><button type="button" className="shrink-0 font-semibold underline" onClick={() => void dashboardQuery.refetch()}>Reintentar</button></div>}
 
       {dashboardQuery.isPending ? <DashboardSkeleton /> : summary && (
         <>
-          <Stagger className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Indicadores principales">
-            <StaggerItem><KpiCard title="OTs en taller" value={String(summary.metrics.activeWorkOrders)} detail="En progreso o esperando repuesto" icon={Wrench} iconClassName="bg-blue-100 text-brand-blue" testId="active-work-orders" /></StaggerItem>
-            <StaggerItem><KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} iconClassName="bg-amber-100 text-amber-800" testId="waiting-for-parts" /></StaggerItem>
-            <StaggerItem><KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} iconClassName="bg-yellow-100 text-yellow-800" testId="monthly-revenue" /></StaggerItem>
-            <StaggerItem><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} iconClassName="bg-red-100 text-red-700" testId="pending-balance" /></StaggerItem>
-            <StaggerItem><KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} iconClassName={summary.lowStockCount > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} testId="low-stock-count" /></StaggerItem>
+          {/* Seis tarjetas en la grilla de 6 columnas de la referencia, una por
+              tinte. La sexta es "COT sin OT", que ya existed en los datos y
+              operaba en un encabezado de sección. */}
+          <Stagger className="stats mb-6" aria-label="Indicadores principales">
+            <StaggerItem className="stat stat-auto"><KpiCard title="OTs en taller" value={String(summary.metrics.activeWorkOrders)} detail="En progreso o esperando repuesto" icon={Wrench} testId="active-work-orders" /></StaggerItem>
+            <StaggerItem className="stat stat-auto gold"><KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} testId="waiting-for-parts" /></StaggerItem>
+            <StaggerItem className="stat stat-auto green"><KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} testId="monthly-revenue" /></StaggerItem>
+            <StaggerItem className="stat stat-auto sky"><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} testId="pending-balance" /></StaggerItem>
+            <StaggerItem className={cn('stat stat-auto', summary.lowStockCount > 0 ? 'coral' : 'green')}><KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} testId="low-stock-count" /></StaggerItem>
+            <StaggerItem className="stat stat-auto blue"><KpiCard title="COT sin OT" value={String(summary.metrics.quotationsWithoutWorkOrder)} detail="Pendientes de convertir a orden" icon={FileText} testId="quotations-without-work-order" /></StaggerItem>
           </Stagger>
 
           <OperationalInbox inbox={summary.operationalInbox} />
 
-          <section className="grid gap-5 xl:grid-cols-[3fr_2fr]">
-            <div className="overflow-hidden border border-slate-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
-                <div><h2 className="font-semibold text-brand-blue">Últimos trabajos en taller</h2><p className="mt-0.5 text-xs text-slate-500">Órdenes creadas o actualizadas recientemente</p></div>
-                <Link to="/work-orders" className="group inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:underline">
+          {/* Proporcion 2:1 como en la referencia (`.revenue` span 8 y
+              `.products` span 4). Con el 3:2 anterior la tabla de seis columnas
+              no entraba y la columna "Detalle" quedaba cortada. */}
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="view-panel">
+              <div className="view-panel-title flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-base font-semibold text-brand-ink">Últimos trabajos en taller</h2>
+                  <p className="mt-0.5 text-sm text-brand-muted">Órdenes creadas o actualizadas recientemente</p>
+                </div>
+                <Link to="/work-orders" className="group inline-flex items-center gap-1.5 text-sm font-semibold text-brand-primaryInk hover:underline">
                   Ver todas
-                  <AnimateIcon variant="slide-right" animateOnHover>
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </AnimateIcon>
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                 </Link>
               </div>
-              {summary.recentWorkOrders.length === 0 ? <p className="px-5 py-12 text-center text-sm text-slate-500">Aún no hay órdenes de trabajo registradas.</p> : (
-                <div className="max-w-full overflow-x-auto overscroll-x-contain">
-                  <table className="w-full min-w-[660px] text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3 font-semibold">Orden</th><th className="px-4 py-3 font-semibold">Patente</th><th className="px-4 py-3 font-semibold">Cliente</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold">Ingreso</th><th className="px-4 py-3 text-right font-semibold">Detalle</th></tr></thead>
+              {summary.recentWorkOrders.length === 0 ? <p className="empty-row">Aún no hay órdenes de trabajo registradas.</p> : (
+                <div className="data-scroll">
+                  <table className="data-table">
+                    <thead>
+                      <tr><th>Orden</th><th>Patente</th><th>Cliente</th><th>Estado</th><th>Ingreso</th><th className="text-right">Detalle</th></tr>
+                    </thead>
                     <tbody>
-                      {summary.recentWorkOrders.map((workOrder, index) => (
-                        <AnimatedTableRow key={workOrder.id} delay={index * 0.04} className="border-t border-slate-100">
-                          <td className="px-4 py-3 font-mono font-bold text-brand-blue">{workOrder.codigo}</td>
-                          <td className="px-4 py-3 font-mono font-semibold text-slate-700">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</td>
-                          <td className="max-w-44 px-4 py-3"><span className="block truncate text-slate-700">{workOrder.client?.nombre ?? 'Sin cliente'}</span></td>
-                          <td className="px-4 py-3"><WorkOrderStatusBadge status={workOrder.estado} /></td>
-                          <td className="whitespace-nowrap px-4 py-3 text-slate-500">{formatDate(workOrder.fechaIngreso)}</td>
-                          <td className="px-4 py-3 text-right">
-                            <Link to={`/work-orders/${workOrder.id}`} className="inline-flex h-8 items-center rounded-lg px-2 text-sm font-semibold text-brand-blue hover:bg-blue-50" aria-label={`Ver ${workOrder.codigo}`}>Ver</Link>
+                      {summary.recentWorkOrders.map((workOrder) => (
+                        <tr key={workOrder.id}>
+                          {/* Sin `.order-id`: fija la columna en 98px y "OT-2026-0003"
+                              se partía a la mitad. El nowrap del diseño deja que la
+                              columna mida su contenido. */}
+                          <td className="nowrap font-semibold text-brand-ink">{workOrder.codigo}</td>
+                          <td className="nowrap font-mono font-semibold text-brand-ink">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</td>
+                          <td className="max-w-44"><span className="block truncate text-brand-ink">{workOrder.client?.nombre ?? 'Sin cliente'}</span></td>
+                          <td><WorkOrderStatusBadge status={workOrder.estado} /></td>
+                          <td className="whitespace-nowrap text-brand-muted">{formatDate(workOrder.fechaIngreso)}</td>
+                          <td className="text-right">
+                            <Link to={`/work-orders/${workOrder.id}`} className="table-action" aria-label={`Ver ${workOrder.codigo}`}>Ver</Link>
                           </td>
-                        </AnimatedTableRow>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
@@ -181,27 +184,31 @@ export const DashboardPage = () => {
               )}
             </div>
 
-            <aside className="border border-slate-200 bg-white shadow-sm" aria-label="Alertas operativas">
-              <section className="p-4 sm:p-5">
-                <div className="flex items-center justify-between"><h2 className="font-semibold text-brand-blue">Inventario crítico</h2><span className={`rounded px-2 py-1 text-xs font-bold ${summary.lowStockCount > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>{summary.lowStockCount} alerta(s)</span></div>
-                <div className="mt-3 divide-y divide-slate-100">
-                  {summary.lowStockItems.length === 0 ? <p className="py-5 text-sm text-slate-500">No hay repuestos con stock crítico.</p> : summary.lowStockItems.map((item) => <div key={item.id} className="flex items-center gap-3 py-3 transition-colors hover:bg-slate-50/70"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${item.stock === 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>{item.stock}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-800">{item.nombre}</span><span className="block truncate font-mono text-xs text-slate-500">{item.codigo ?? 'Sin código'}</span></span>{canAdjustStock && <button type="button" className="h-8 rounded-lg px-2 text-xs font-semibold text-brand-blue hover:bg-blue-50" onClick={() => setStockItem(item)}>Ajustar</button>}</div>)}
+            <div className="view-panel" aria-label="Alertas operativas">
+              <section className="view-panel-body">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-base font-semibold text-brand-ink">Inventario crítico</h2>
+                  <span className={cn('status-chip round', summary.lowStockCount > 0 ? 'red' : 'green')}>{summary.lowStockCount} alerta(s)</span>
                 </div>
-                <Link to="/catalog" className="group mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:underline">
+                <div className="mt-3 divide-y divide-brand-line">
+                  {summary.lowStockItems.length === 0 ? <p className="py-5 text-sm text-brand-muted">No hay repuestos con stock crítico.</p> : summary.lowStockItems.map((item) => <div key={item.id} className="flex items-center gap-3 py-3 transition-colors hover:bg-brand-pale/60"><span className={cn('square-icon', item.stock === 0 ? 'coral' : 'gold')}><span className="text-sm font-semibold">{item.stock}</span></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-brand-ink">{item.nombre}</span><span className="block truncate font-mono text-xs text-brand-muted">{item.codigo ?? 'Sin código'}</span></span>{canAdjustStock && <button type="button" className="table-action" onClick={() => setStockItem(item)}>Ajustar</button>}</div>)}
+                </div>
+                <Link to="/catalog" className="group mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-primaryInk hover:underline">
                   Revisar inventario
-                  <AnimateIcon variant="slide-right" animateOnHover>
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </AnimateIcon>
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                 </Link>
               </section>
 
-              <section className="border-t border-slate-200 p-4 sm:p-5">
-                <div className="flex items-center justify-between"><h2 className="font-semibold text-brand-blue">COT sin OT</h2><span className="rounded bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">{summary.metrics.quotationsWithoutWorkOrder} pendiente(s)</span></div>
-                <div className="mt-3 divide-y divide-slate-100">
-                  {summary.unlinkedQuotations.length === 0 ? <p className="py-5 text-sm text-slate-500">No hay cotizaciones pendientes de vincular.</p> : summary.unlinkedQuotations.map((quotation) => <Link key={quotation.id} to={`/quotations/${quotation.id}`} className="flex items-center justify-between gap-3 py-3 hover:bg-slate-50"><span className="min-w-0"><span className="block font-mono text-sm font-bold text-brand-blue">{quotation.codigo}</span><span className="block truncate text-xs text-slate-500">{quotation.client?.nombre ?? 'Sin cliente asignado'}</span></span><span className="whitespace-nowrap text-sm font-semibold text-slate-700">{formatClp(quotation.total)}</span></Link>)}
+              <section className="view-panel-body border-t border-brand-line">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-base font-semibold text-brand-ink">COT sin OT</h2>
+                  <span className="status-chip round gold">{summary.metrics.quotationsWithoutWorkOrder} pendiente(s)</span>
+                </div>
+                <div className="mt-3 divide-y divide-brand-line">
+                  {summary.unlinkedQuotations.length === 0 ? <p className="py-5 text-sm text-brand-muted">No hay cotizaciones pendientes de vincular.</p> : summary.unlinkedQuotations.map((quotation) => <Link key={quotation.id} to={`/quotations/${quotation.id}`} className="flex items-center justify-between gap-3 py-3 transition-colors hover:bg-brand-pale/60"><span className="min-w-0"><span className="nowrap block text-sm font-semibold text-brand-ink">{quotation.codigo}</span><span className="block truncate text-xs text-brand-muted">{quotation.client?.nombre ?? 'Sin cliente asignado'}</span></span><span className="whitespace-nowrap text-sm font-semibold text-brand-ink">{formatClp(quotation.total)}</span></Link>)}
                 </div>
               </section>
-            </aside>
+            </div>
           </section>
         </>
       )}

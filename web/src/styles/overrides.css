@@ -1,0 +1,161 @@
+/**
+ * Desviaciones de la aplicacion respecto al diseño de referencia.
+ *
+ * Va al FINAL del orden de import a proposito, y no al final de shell.css como
+ * estaba antes: `modernize.css` se carga despues de `shell.css`, asi que una
+ * variante definida en shell.css no podia ganarle a `.status-chip` y a las
+ * demas clases de la tabla. Aqui ya no hay nada despues.
+ *
+ * Hay dos motivos para que una regla viva en este archivo y no en el CSS
+ * portado:
+ *
+ *  1. ACCESIBILIDAD. La referencia pinta valor, etiqueta y chip con el acento
+ *     claro sobre su pastel, y eso no llega al minimo de WCAG AA ni para texto
+ *     grande. Medido: valor de KPI 1.94-2.94:1, `.status-chip` 2.94:1, chip
+ *     gold 1.99:1, chip coral 2.08:1, blanco sobre `--primary` 3.29:1, blanco
+ *     sobre `--cyan` 2.08:1. Se exige 4.5:1 (3:1 solo para texto grande).
+ *     La identidad visual no se pierde: el fondo tenue y el icono de 50px
+ *     siguen llevando el color, y los acentos claros se conservan para bordes,
+ *     iconos y superficies sin texto.
+ *
+ *  2. CONTENIDO. Algunos componentes necesitan una caja que la referencia no
+ *     tiene, porque nuestro contenido no es el del template (por ejemplo, los
+ *     KPI llevan una linea de detalle extra).
+ *
+ * Para volver a la fidelidad estricta al template basta con borrar este
+ * archivo, menos los bloques de contenido, que son estructurales.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Superficies de marca que llevan TEXTO BLANCO.
+ * Los acentos claros de la referencia no llegan a 4.5:1 con blanco: primary
+ * 3.29:1, cyan 2.08:1, coral 2.3:1. Para texto sobre fondo de marca se usa la
+ * variante `Ink`, que es el mismo tono un paso mas profundo y llega a
+ * 5.0-5.8:1. Los acentos claros se siguen usando para bordes, iconos y
+ * superficies sin texto, que es donde el diseño los aprovecha.
+ * ------------------------------------------------------------------------- */
+:root {
+  --primary-ink: #255dff;
+  --cyan-ink: #0075b7;
+  --coral-ink: #cd3007;
+  --mint-ink: #0b826d;
+  --gold-ink: #9c6400;
+}
+
+.nav-item.active,
+.primary-button,
+.settings-trigger,
+.products {
+  background: var(--primary-ink);
+}
+
+.primary-button:hover,
+.settings-trigger:hover {
+  background: #1a4ae0;
+}
+
+.badge {
+  background: var(--cyan-ink);
+}
+
+.cart-count {
+  background: var(--coral-ink);
+}
+
+/* ---------------------------------------------------------------------------
+ * Chips de estado: el texto va a la variante Ink sobre su pastel.
+ * ------------------------------------------------------------------------- */
+.status-chip {
+  color: var(--primary-ink);
+}
+
+.status-chip.green {
+  color: var(--mint-ink);
+}
+
+.status-chip.gold {
+  color: var(--gold-ink);
+}
+
+.status-chip.red {
+  color: var(--coral-ink);
+}
+
+.status-chip.sky {
+  color: var(--cyan-ink);
+}
+
+.status-chip.gray {
+  color: var(--muted);
+}
+
+.status-chip.solid {
+  background: var(--mint-ink);
+}
+
+.status-chip.solid.red {
+  background: var(--coral-ink);
+}
+
+/* El cuadrado de stock usa los mismos tintes que `.stat`, que en la referencia
+ * solo existen para la tarjeta. */
+.square-icon.gold {
+  background: var(--gold-pale);
+  color: var(--gold-ink);
+}
+
+.square-icon.coral {
+  background: var(--coral-pale);
+  color: var(--coral-ink);
+}
+
+/* ---------------------------------------------------------------------------
+ * Adaptaciones de contenido.
+ * ------------------------------------------------------------------------- */
+
+/* Los KPI llevan una linea de detalle que la referencia no tiene, asi que no
+ * caben en los 161px fijos de `.stat` (el contenido de la referencia ya suma
+ * 115px contra 113px utiles). Se conserva todo lo demas -- radio, fondo tenue,
+ * color heredado al icono -- y se deja que la altura la marque el contenido,
+ * con 161px como minimo para que las tarjetas cortas no se vean flacas. */
+.stat-auto {
+  height: auto;
+  min-height: 161px;
+}
+
+.stat-detail {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.stat-value {
+  color: var(--ink);
+}
+
+.stat-label {
+  color: var(--muted);
+}
+
+/* El panel de notificaciones lleva encabezado y pie propios, asi que no puede
+ * heredar el `padding:18px` de `.popover`. Comparte la superficie (borde,
+ * radio, sombra, fondo) y solo ajusta el ancho que necesita la lista. Tampoco
+ * se resuelve con utilidades de Tailwind: los CSS portados se importan
+ * despues, asi que le ganarian por especificidad. */
+.popover-notifications {
+  width: 352px;
+  max-width: calc(100vw - 24px);
+  padding: 0;
+}
+
+@media (max-width: 600px) {
+  .popover-notifications {
+    width: min(352px, calc(100vw - 24px));
+  }
+}
+
+/* Mismo motivo que la anterior: el menu de usuario son solo filas, sin marco
+ * interior, asi que no usa el padding de 18px de `.popover`. */
+.popover-menu {
+  padding: 8px 0;
+}

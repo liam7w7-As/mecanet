@@ -1,0 +1,22 @@
+# Artefactos locales del trabajo de diseño. La raíz ya ignora
+# `web/designs/modernize.html`; esto cubre lo que se generó después.
+#
+# Se versiona: los scripts de verificación y migración, y el sistema de diseño
+# de referencia (`views.css`, `views.js`, `dashboard.template.html`), que es la
+# fuente de `web/src/styles/`.
+#
+# No se versiona:
+#   - *.png / *.jpg: capturas de los verificadores. Se regeneran corriendo los
+#     scripts, y son ~10 MB.
+#   - *.json: informes de verificación, también generados.
+#   - assets/: copia de los recursos del template comercial. Incluye el logo de
+#     AdminMart, que a propósito no se usa en la aplicación.
+#   - reference.html y *.csv: referencias y datos de muestra de terceros.
+
+*.png
+*.jpg
+*.jpeg
+*.json
+assets/
+reference.html
+*.csv

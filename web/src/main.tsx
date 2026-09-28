@@ -5,6 +5,16 @@ import { BrowserRouter } from 'react-router-dom';
 
 import App from './App';
 import './index.css';
+// Primitivas del diseño objetivo, en orden de precedencia:
+//   shell.css      -> barra lateral, topbar, tarjetas, KPIs (del HTML de ref.)
+//   modernize.css  -> tablas, formularios y chips (de views.css, iterados después)
+//   overrides.css  -> desviaciones propias, al final para ganarle a las dos
+// Se importan después de index.css para que ganen a las utilidades de Tailwind.
+import './styles/shell.css';
+import './styles/modernize.css';
+// Va último a propósito: `modernize.css` se carga después de `shell.css`, así
+// que una variante definida en shell.css no podría ganarle a `.status-chip`.
+import './styles/overrides.css';
 import { MotionProvider } from './components/animate-ui/motion-config';
 import { BrandingProvider } from './components/common/BrandingContext';
 import { queryClient } from './lib/query-client';

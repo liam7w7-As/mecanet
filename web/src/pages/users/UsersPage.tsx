@@ -34,21 +34,21 @@ type ViewTab = 'accounts' | 'permissions';
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 const roleStyles: Record<AdminUser['role']['nombre'], string> = {
-  desarrollador: 'bg-violet-100 text-violet-800',
-  admin: 'bg-blue-100 text-brand-blue',
+  desarrollador: 'bg-brand-pale text-brand-primaryInk',
+  admin: 'bg-brand-pale text-brand-primaryInk',
   jefe: 'bg-cyan-100 text-cyan-900',
   mecanico: 'bg-sky-100 text-sky-800',
-  vendedor: 'bg-emerald-100 text-emerald-800',
-  bodeguero: 'bg-amber-100 text-amber-800',
+  vendedor: 'bg-brand-mintPale text-brand-mintInk',
+  bodeguero: 'bg-brand-goldPale text-brand-goldInk',
   finanzas: 'bg-fuchsia-100 text-fuchsia-800',
 };
 
 const UsersSkeleton = () => (
   <>
     {Array.from({ length: 6 }, (_, row) => (
-      <tr key={row} className="border-b border-slate-100">
+      <tr key={row} className="border-b border-brand-line">
         {Array.from({ length: 5 }, (_, cell) => (
-          <td key={cell} className="px-4 py-4"><div className="h-4 animate-pulse rounded bg-slate-100" /></td>
+          <td key={cell} className="px-4 py-4"><div className="h-4 animate-pulse rounded bg-brand-pale" /></td>
         ))}
       </tr>
     ))}
@@ -100,37 +100,37 @@ export const UsersPage = () => {
 
   return (
     <div className="min-w-0 space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">Seguridad y acceso</p>
-          <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Usuarios y permisos</h1>
+      <header className="page-banner">
+        <div className="min-w-0">
+          <p className="text-sm text-brand-muted">Seguridad y acceso</p>
+          <h1 className="mt-1">Usuarios y permisos</h1>
         </div>
         {view === 'accounts' && canCreate && (
           <button
             type="button"
-            className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark shadow-sm transition-all hover:bg-yellow-400 hover:shadow-md active:scale-95 disabled:opacity-50"
+            className="primary-button relative z-[1] ml-auto disabled:opacity-50"
             onClick={() => setFormUser(null)}
             disabled={rolesQuery.isPending}
           >
-            <AnimateIcon icon={Plus} animation="spin" size={16} />Nuevo usuario
+            <Plus className="h-4 w-4" aria-hidden="true" />Nuevo usuario
           </button>
         )}
       </header>
 
-      <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1" role="tablist" aria-label="Administración de acceso">
+      <div className="inline-flex rounded-lg border border-brand-line bg-white p-1" role="tablist" aria-label="Administración de acceso">
         <button
           type="button"
           role="tab"
           aria-selected={view === 'accounts'}
           className={`relative inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors ${
-            view === 'accounts' ? 'text-white' : 'text-slate-600 hover:bg-slate-100'
+            view === 'accounts' ? 'text-white' : 'text-brand-muted hover:bg-brand-pale'
           }`}
           onClick={() => setView('accounts')}
         >
           {view === 'accounts' && (
             <motion.span
               layoutId="userViewIndicator"
-              className="absolute inset-0 rounded-md bg-brand-blue"
+              className="absolute inset-0 rounded-md bg-brand-primaryInk"
               transition={{ type: 'spring', stiffness: 500, damping: 35 }}
             />
           )}
@@ -143,14 +143,14 @@ export const UsersPage = () => {
           role="tab"
           aria-selected={view === 'permissions'}
           className={`relative inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors ${
-            view === 'permissions' ? 'text-white' : 'text-slate-600 hover:bg-slate-100'
+            view === 'permissions' ? 'text-white' : 'text-brand-muted hover:bg-brand-pale'
           }`}
           onClick={() => setView('permissions')}
         >
           {view === 'permissions' && (
             <motion.span
               layoutId="userViewIndicator"
-              className="absolute inset-0 rounded-md bg-brand-blue"
+              className="absolute inset-0 rounded-md bg-brand-primaryInk"
               transition={{ type: 'spring', stiffness: 500, damping: 35 }}
             />
           )}
@@ -161,20 +161,20 @@ export const UsersPage = () => {
       </div>
 
       {view === 'accounts' ? (
-        <section className="overflow-hidden border border-slate-200 bg-white" aria-label="Listado de usuarios">
-          <div className="grid gap-3 border-b border-slate-200 p-4 md:grid-cols-[minmax(240px,1fr)_220px_180px]">
+        <section className="overflow-hidden border border-brand-line bg-white" aria-label="Listado de usuarios">
+          <div className="grid gap-3 border-b border-brand-line p-4 md:grid-cols-[minmax(240px,1fr)_220px_180px]">
             <label className="relative block">
               <span className="sr-only">Buscar usuarios</span>
-              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
-              <input className="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, usuario o correo" aria-label="Buscar usuarios" />
+              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" />
+              <input className="h-10 w-full rounded-lg border border-brand-line pl-9 pr-3 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, usuario o correo" aria-label="Buscar usuarios" />
             </label>
             <label className="sr-only" htmlFor="user-role-filter">Filtrar por rol</label>
-            <select id="user-role-filter" className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700" value={roleId} onChange={(event) => setRoleId(event.target.value)}>
+            <select id="user-role-filter" className="h-10 rounded-lg border border-brand-line bg-white px-3 text-sm text-brand-ink" value={roleId} onChange={(event) => setRoleId(event.target.value)}>
               <option value="all">Todos los roles</option>
               {rolesQuery.data?.map((role) => <option key={role.id} value={role.id}>{getRoleLabel(role.nombre)}</option>)}
             </select>
             <label className="sr-only" htmlFor="user-status-filter">Filtrar por estado</label>
-            <select id="user-status-filter" className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700" value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)}>
+            <select id="user-status-filter" className="h-10 rounded-lg border border-brand-line bg-white px-3 text-sm text-brand-ink" value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)}>
               <option value="all">Todos los estados</option>
               <option value="active">Activos</option>
               <option value="inactive">Inactivos</option>
@@ -182,7 +182,7 @@ export const UsersPage = () => {
           </div>
 
           {(queryError || actionError) && (
-            <div className="flex items-start gap-2 border-b border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+            <div className="flex items-start gap-2 border-b border-brand-coral/30 bg-brand-coralPale p-4 text-sm text-brand-coralInk" role="alert">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               {getApiErrorMessage(queryError ?? actionError, 'No fue posible completar la operación.')}
             </div>
@@ -190,21 +190,21 @@ export const UsersPage = () => {
 
           <div className="max-w-full overflow-x-auto overscroll-x-contain">
             <table className="w-full min-w-[820px] text-left text-sm">
-              <thead className="bg-brand-blue text-xs uppercase text-white"><tr><th className="px-4 py-3 font-semibold">Usuario</th><th className="px-4 py-3 font-semibold">Rol</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold">Creado</th><th className="px-4 py-3 text-right font-semibold">Acciones</th></tr></thead>
+              <thead className="bg-brand-primaryInk text-xs uppercase text-white"><tr><th className="px-4 py-3 font-semibold">Usuario</th><th className="px-4 py-3 font-semibold">Rol</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold">Creado</th><th className="px-4 py-3 text-right font-semibold">Acciones</th></tr></thead>
               <tbody>
                 {usersQuery.isPending ? <UsersSkeleton /> : usersQuery.data?.data.map((user, index) => {
                   const isSelf = currentUser?.id === user.id;
                   return (
-                    <AnimatedTableRow key={user.id} index={index} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 transition-colors">
-                      <td className="px-4 py-3"><span className="block font-semibold text-slate-900">{user.nombre}{isSelf && <span className="ml-2 text-xs font-medium text-slate-400">Tu cuenta</span>}</span><span className="block text-xs text-slate-500">@{user.username} · {user.email}</span></td>
+                    <AnimatedTableRow key={user.id} index={index} className="border-b border-brand-line last:border-0 hover:bg-brand-pale/70 transition-colors">
+                      <td className="px-4 py-3"><span className="block font-semibold text-brand-ink">{user.nombre}{isSelf && <span className="ml-2 text-xs font-medium text-brand-muted">Tu cuenta</span>}</span><span className="block text-xs text-brand-muted">@{user.username} · {user.email}</span></td>
                       <td className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${roleStyles[user.role.nombre]}`}>{getRoleLabel(user.role.nombre)}</span></td>
-                      <td className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${user.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(user.createdAt)}</td>
+                      <td className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${user.activo ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-line text-brand-muted'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
+                      <td className="whitespace-nowrap px-4 py-3 text-brand-muted">{formatDate(user.createdAt)}</td>
                       <td className="px-4 py-3"><div className="flex justify-end gap-1">
                         {canUpdate && (
                           <button
                             type="button"
-                            className="group flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                            className="group flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-goldPale hover:text-brand-goldInk transition-colors"
                             onClick={() => setFormUser(user)}
                             aria-label={`Editar ${user.nombre}`}
                             title="Editar"
@@ -215,7 +215,7 @@ export const UsersPage = () => {
                         {canUpdate && (
                           <button
                             type="button"
-                            className="group flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-blue-50 hover:text-brand-blue transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+                            className="group flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk transition-colors disabled:cursor-not-allowed disabled:opacity-30"
                             onClick={() => { statusMutation.reset(); setStatusTarget(user); }}
                             disabled={isSelf && user.activo}
                             aria-label={`${user.activo ? 'Desactivar' : 'Activar'} ${user.nombre}`}
@@ -227,7 +227,7 @@ export const UsersPage = () => {
                         {canDelete && (
                           <button
                             type="button"
-                            className="group flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700 transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+                            className="group flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-coralPale hover:text-brand-coralInk transition-colors disabled:cursor-not-allowed disabled:opacity-30"
                             onClick={() => { deleteMutation.reset(); setDeleteTarget(user); }}
                             disabled={isSelf}
                             aria-label={`Eliminar ${user.nombre}`}
@@ -246,9 +246,9 @@ export const UsersPage = () => {
 
           {!usersQuery.isPending && usersQuery.data?.data.length === 0 && (
             <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center">
-              <AnimateIcon icon={UserCog} animation="bounce" size={40} className="text-slate-300" />
-              <p className="mt-3 font-semibold text-slate-700">No se encontraron usuarios</p>
-              <p className="mt-1 text-sm text-slate-500">Cambie los filtros o registre una nueva cuenta.</p>
+              <AnimateIcon icon={UserCog} animation="bounce" size={40} className="text-brand-line" />
+              <p className="mt-3 font-semibold text-brand-ink">No se encontraron usuarios</p>
+              <p className="mt-1 text-sm text-brand-muted">Cambie los filtros o registre una nueva cuenta.</p>
             </div>
           )}
           <Pagination page={page} totalPages={usersQuery.data?.meta.totalPages ?? 0} total={usersQuery.data?.meta.total ?? 0} onPageChange={setPage} />
@@ -256,7 +256,7 @@ export const UsersPage = () => {
       ) : rolesQuery.data && rolesQuery.data.length > 0 ? (
         <RolePermissionsPanel roles={rolesQuery.data} canUpdate={canUpdate} />
       ) : (
-        <div className="flex min-h-64 items-center justify-center border border-slate-200 bg-white text-sm text-slate-500">Cargando roles...</div>
+        <div className="flex min-h-64 items-center justify-center border border-brand-line bg-white text-sm text-brand-muted">Cargando roles...</div>
       )}
 
       {formUser !== undefined && rolesQuery.data && <UserFormModal user={formUser} roles={rolesQuery.data} onClose={() => setFormUser(undefined)} />}
@@ -283,12 +283,12 @@ export const UsersPage = () => {
               aria-modal="true"
               aria-labelledby="status-user-title"
             >
-              <h2 id="status-user-title" className="text-lg font-semibold text-brand-blue">{statusTarget.activo ? 'Desactivar' : 'Activar'} cuenta</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{statusTarget.activo ? `La sesión de ${statusTarget.nombre} se cerrará y no podrá ingresar hasta que la cuenta se reactive.` : `${statusTarget.nombre} recuperará el acceso con su rol actual.`}</p>
-              {statusMutation.error && <p className="mt-3 text-sm text-red-700" role="alert">{getApiErrorMessage(statusMutation.error)}</p>}
+              <h2 id="status-user-title" className="text-lg font-semibold text-brand-primaryInk">{statusTarget.activo ? 'Desactivar' : 'Activar'} cuenta</h2>
+              <p className="mt-2 text-sm leading-6 text-brand-muted">{statusTarget.activo ? `La sesión de ${statusTarget.nombre} se cerrará y no podrá ingresar hasta que la cuenta se reactive.` : `${statusTarget.nombre} recuperará el acceso con su rol actual.`}</p>
+              {statusMutation.error && <p className="mt-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(statusMutation.error)}</p>}
               <div className="mt-5 flex justify-end gap-2">
-                <button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors" onClick={() => setStatusTarget(null)}>Cancelar</button>
-                <button type="button" className={`h-10 rounded-lg px-4 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${statusTarget.activo ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-blue hover:bg-brand-dark'}`} onClick={changeStatus} disabled={statusMutation.isPending}>{statusMutation.isPending ? 'Guardando...' : statusTarget.activo ? 'Desactivar cuenta' : 'Activar cuenta'}</button>
+                <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale transition-colors" onClick={() => setStatusTarget(null)}>Cancelar</button>
+                <button type="button" className={`h-10 rounded-lg px-4 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${statusTarget.activo ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-primaryInk hover:bg-brand-primaryInk'}`} onClick={changeStatus} disabled={statusMutation.isPending}>{statusMutation.isPending ? 'Guardando...' : statusTarget.activo ? 'Desactivar cuenta' : 'Activar cuenta'}</button>
               </div>
             </motion.section>
           </div>
@@ -317,11 +317,11 @@ export const UsersPage = () => {
               aria-modal="true"
               aria-labelledby="delete-user-title"
             >
-              <h2 id="delete-user-title" className="text-lg font-semibold text-brand-blue">Eliminar usuario</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">La cuenta de {deleteTarget.nombre} quedará inactiva y se cerrarán todas sus sesiones. El registro se conservará para auditoría.</p>
-              {deleteMutation.error && <p className="mt-3 text-sm text-red-700" role="alert">{getApiErrorMessage(deleteMutation.error)}</p>}
+              <h2 id="delete-user-title" className="text-lg font-semibold text-brand-primaryInk">Eliminar usuario</h2>
+              <p className="mt-2 text-sm leading-6 text-brand-muted">La cuenta de {deleteTarget.nombre} quedará inactiva y se cerrarán todas sus sesiones. El registro se conservará para auditoría.</p>
+              {deleteMutation.error && <p className="mt-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(deleteMutation.error)}</p>}
               <div className="mt-5 flex justify-end gap-2">
-                <button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors" onClick={() => setDeleteTarget(null)}>Cancelar</button>
+                <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale transition-colors" onClick={() => setDeleteTarget(null)}>Cancelar</button>
                 <button type="button" className="h-10 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-60" onClick={deleteUser} disabled={deleteMutation.isPending}>{deleteMutation.isPending ? 'Eliminando...' : 'Eliminar usuario'}</button>
               </div>
             </motion.section>

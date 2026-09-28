@@ -2,10 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Plus Jakarta Sans (SIL Open Font License 1.1). Fuente variable, pesos 100-900.
+ * Empaquetada localmente: no depende de Google Fonts ni de red externa.
+ */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('/fonts/plus-jakarta-sans.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/**
+ * Tokens del diseño. Deben coincidir con `web/tailwind.config.ts`;
+ * el CSS existe para las primitivas de `modernize.css` y los SVG inline,
+ * que no pasan por clases de Tailwind.
+ */
 :root {
-  font-family: 'Outfit', sans-serif;
-  color: #0f172a;
-  background: #f4f6f9;
+  --ink: #2a3547;
+  --muted: #5a6a85;
+  --line: #ebf1f6;
+  --page: #ffffff;
+  --surface: #ffffff;
+  --primary: #5d87ff;
+  --primary-hover: #4576f6;
+  --pale: #ecf2ff;
+  --blue-pale: #e8f7ff;
+  --mint-pale: #e6fffa;
+  --coral-pale: #fdede8;
+  --gold-pale: #fef5e5;
+  --cyan: #49beff;
+  --mint: #13deb9;
+  --coral: #fa896b;
+  --gold: #ffae1f;
+  --shadow: 0 2px 6px -1px #afb6c917;
+  --sidebar: 270px;
+}
+
+:root {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--ink);
+  background: var(--page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -15,13 +56,20 @@
 html {
   min-width: 320px;
   min-height: 100%;
-  background: #f4f6f9;
+  background: var(--page);
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  color: var(--ink);
+  background: var(--page);
+  /*
+   * Red de seguridad durante la migración: las tablas densas actuales se
+   * desbordan a 320px. El diseño objetivo no tiene overflow (ver
+   * web/designs/work/verification.json), así que esto se quita en la fase final.
+   */
   overflow-x: hidden;
 }
 
@@ -58,6 +106,7 @@ a {
 }
 
 ::selection {
-  color: #081b31;
-  background: #ffd600;
+  color: #ffffff;
+  background: var(--primary);
 }
+

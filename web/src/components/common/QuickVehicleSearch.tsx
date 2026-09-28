@@ -53,13 +53,13 @@ export const QuickVehicleSearch = ({
   return (
     <div className="relative">
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
+        <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" />
         <input
           value={term}
           onChange={(event) => setTerm(event.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-10 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+          className="h-10 w-full rounded-lg border border-brand-line bg-white pl-9 pr-10 text-sm outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
           placeholder={placeholder}
           aria-label="Búsqueda rápida de vehículos y clientes"
           role="combobox"
@@ -67,21 +67,21 @@ export const QuickVehicleSearch = ({
           aria-controls="quick-search-results"
         />
         {searchQuery.isFetching && (
-          <LoaderCircle className="absolute right-3 top-3 h-4 w-4 animate-spin text-brand-blue" aria-hidden="true" />
+          <LoaderCircle className="absolute right-3 top-3 h-4 w-4 animate-spin text-brand-primaryInk" aria-hidden="true" />
         )}
       </div>
 
       {showResults && (
-        <div id="quick-search-results" className="absolute z-30 mt-2 max-h-96 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-2 shadow-xl shadow-slate-900/10">
+        <div id="quick-search-results" className="absolute z-30 mt-2 max-h-96 w-full overflow-y-auto rounded-lg border border-brand-line bg-white py-2 shadow-xl shadow-slate-900/10">
           {searchQuery.data?.vehicles.length ? (
             <section aria-labelledby="quick-vehicles-title">
-              <h3 id="quick-vehicles-title" className="px-3 pb-1 pt-1 text-xs font-semibold uppercase text-slate-500">Vehículos</h3>
+              <h3 id="quick-vehicles-title" className="px-3 pb-1 pt-1 text-xs font-semibold uppercase text-brand-muted">Vehículos</h3>
               {searchQuery.data.vehicles.map((vehicle) => (
-                <button key={vehicle.id} type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50" onMouseDown={(event) => event.preventDefault()} onClick={() => selectVehicle(vehicle)}>
-                  <Car className="h-4 w-4 shrink-0 text-brand-blue" aria-hidden="true" />
+                <button key={vehicle.id} type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-pale" onMouseDown={(event) => event.preventDefault()} onClick={() => selectVehicle(vehicle)}>
+                  <Car className="h-4 w-4 shrink-0 text-brand-primaryInk" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
-                    <span className="block font-mono text-sm font-bold text-brand-blue">{vehicle.patente}</span>
-                    <span className="block truncate text-xs text-slate-500">
+                    <span className="block font-mono text-sm font-bold text-brand-primaryInk">{vehicle.patente}</span>
+                    <span className="block truncate text-xs text-brand-muted">
                       {[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ') || 'Sin modelo'}
                       {vehicle.client ? ` · ${vehicle.client.nombre}` : ' · Sin dueño'}
                     </span>
@@ -92,14 +92,14 @@ export const QuickVehicleSearch = ({
           ) : null}
 
           {searchQuery.data?.clients.length ? (
-            <section className="mt-1 border-t border-slate-100 pt-1" aria-labelledby="quick-clients-title">
-              <h3 id="quick-clients-title" className="px-3 pb-1 pt-1 text-xs font-semibold uppercase text-slate-500">Clientes</h3>
+            <section className="mt-1 border-t border-brand-line pt-1" aria-labelledby="quick-clients-title">
+              <h3 id="quick-clients-title" className="px-3 pb-1 pt-1 text-xs font-semibold uppercase text-brand-muted">Clientes</h3>
               {searchQuery.data.clients.map((client) => (
-                <button key={client.id} type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50" onMouseDown={(event) => event.preventDefault()} onClick={() => { onSelectClient?.(client); setTerm(client.nombre); setFocused(false); }}>
-                  <UserRound className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                <button key={client.id} type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-pale" onMouseDown={(event) => event.preventDefault()} onClick={() => { onSelectClient?.(client); setTerm(client.nombre); setFocused(false); }}>
+                  <UserRound className="h-4 w-4 shrink-0 text-brand-muted" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-slate-800">{client.nombre}</span>
-                    <span className="block text-xs text-slate-500">{client.rut ?? 'Sin RUT'} · {client.vehiclesCount} vehículo(s)</span>
+                    <span className="block truncate text-sm font-medium text-brand-ink">{client.nombre}</span>
+                    <span className="block text-xs text-brand-muted">{client.rut ?? 'Sin RUT'} · {client.vehiclesCount} vehículo(s)</span>
                   </span>
                 </button>
               ))}
@@ -107,11 +107,11 @@ export const QuickVehicleSearch = ({
           ) : null}
 
           {!searchQuery.isFetching && searchQuery.data && searchQuery.data.clients.length === 0 && searchQuery.data.vehicles.length === 0 && (
-            <p className="px-3 py-4 text-center text-sm text-slate-500">No se encontraron coincidencias</p>
+            <p className="px-3 py-4 text-center text-sm text-brand-muted">No se encontraron coincidencias</p>
           )}
 
           {canRegisterPlate && (
-            <button type="button" className="mt-1 flex w-full items-center gap-2 border-t border-slate-100 px-3 py-3 text-left text-sm font-semibold text-brand-blue hover:bg-brand-light" onMouseDown={(event) => event.preventDefault()} onClick={() => { setNewVehiclePlate(normalizedTerm); setFocused(false); }}>
+            <button type="button" className="mt-1 flex w-full items-center gap-2 border-t border-brand-line px-3 py-3 text-left text-sm font-semibold text-brand-primaryInk hover:bg-brand-light" onMouseDown={(event) => event.preventDefault()} onClick={() => { setNewVehiclePlate(normalizedTerm); setFocused(false); }}>
               <Plus className="h-4 w-4" aria-hidden="true" /> Registrar nuevo vehículo con patente {normalizedTerm}
             </button>
           )}

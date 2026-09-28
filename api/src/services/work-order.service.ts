@@ -2189,16 +2189,20 @@ export const assignMechanic = async (
     const assigner = await User.findByPk(userId, { attributes: ['nombre'], transaction });
 
     if (mechanic) {
-      await notifyByType(
-        'mecanico_asignado',
+      // Destinatario concreto, no el rol: el mensaje va en segunda persona
+      // ("te asignaron"), así que enviarlo por roles se lo mostraba a todos
+      // los mecánicos del taller, no solo al responsable de esta orden.
+      await notifyUsers(
+        [mechanic.id],
         {
+          tipo: 'mecanico_asignado',
           titulo: `Te asignaron ${codigo}`,
           mensaje: `${assigner?.nombre ?? 'El taller'} te asignó esta orden como responsable técnico.`,
           href: `/work-orders/${id}`,
           workOrderId: id,
           actorId: userId,
         },
-        { transaction, excludeUserId: userId },
+        transaction,
       );
     }
 
@@ -2612,24 +2616,30 @@ export const reviewWorkOrderRequest = async (
 
     const reviewer = await User.findByPk(userId, { attributes: ['nombre'], transaction });
     const approved = data.decision === 'aprobar';
+    // La decisión es sobre la solicitud de un mecánico concreto: se le avisa
+    // solo a él. Por roles le llegaba a todos los mecánicos del taller, que
+    // además leían "aprobó tu solicitud" sin que la solicitud fuera suya.
+    const requesterId = request.requestedBy;
 
     if (approved) {
-      await notifyByType(
-        'solicitud_aprobada',
+      await notifyUsers(
+        [requesterId],
         {
+          tipo: 'solicitud_aprobada',
           titulo: `Solicitud aprobada en ${codigo}`,
-            mensaje: `${reviewer?.nombre ?? 'El jefe de taller'} aprobó tu solicitud.${approvedPrice !== null ? ` Precio aprobado: ${formatClpAmount(approvedPrice)}.` : ''}`,
+          mensaje: `${reviewer?.nombre ?? 'El jefe de taller'} aprobó tu solicitud.${approvedPrice !== null ? ` Precio aprobado: ${formatClpAmount(approvedPrice)}.` : ''}`,
           href: `/work-orders/${id}`,
           workOrderId: id,
           actorId: userId,
           dedupeKey: `request-review:${request.id}:approved`,
         },
-        { transaction, excludeUserId: userId },
+        transaction,
       );
     } else {
-      await notifyByType(
-        'solicitud_rechazada',
+      await notifyUsers(
+        [requesterId],
         {
+          tipo: 'solicitud_rechazada',
           titulo: `Solicitud rechazada en ${codigo}`,
           mensaje: `${reviewer?.nombre ?? 'El jefe de taller'} rechazó tu solicitud.${data.comentario ? ` Motivo: ${data.comentario}` : ''}`,
           href: `/work-orders/${id}`,
@@ -2637,7 +2647,7 @@ export const reviewWorkOrderRequest = async (
           actorId: userId,
           dedupeKey: `request-review:${request.id}:rejected`,
         },
-        { transaction, excludeUserId: userId },
+        transaction,
       );
     }
 

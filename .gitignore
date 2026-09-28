@@ -20,3 +20,9 @@ storage/uploads/*
 storage/test-uploads/*
 !storage/test-uploads/.gitkeep
 
+# Artefacto de trabajo: 3.3 MB de HTML autocontenido. Vive en disco para
+# referencia visual, no se versiona. El sistema de diseño que lo acompaña
+# (web/designs/work/views.css, views.js, el template y el arnés de Playwright)
+# sí está versionado a propósito.
+web/designs/modernize.html
+

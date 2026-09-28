@@ -103,15 +103,15 @@ export const ClientsPage = () => {
 
   return (
     <div className="min-w-0 space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">Gestión comercial</p>
-          <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Clientes</h1>
+      <header className="page-banner">
+        <div className="min-w-0">
+          <p className="text-sm text-brand-muted">Gestión comercial</p>
+          <h1 className="mt-1">Clientes</h1>
         </div>
         {canCreate && (
           <button
             type="button"
-            className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark shadow-sm transition-colors hover:bg-yellow-400"
+            className="primary-button relative z-[1] ml-auto shrink-0"
             onClick={() => setFormClient(null)}
           >
             <AnimateIcon icon={Plus} animation="spin" size={16} /> Nuevo cliente
@@ -119,7 +119,7 @@ export const ClientsPage = () => {
         )}
       </header>
 
-      <div className="flex flex-col gap-3 border-y border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-y border-brand-line bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-1" role="tablist" aria-label="Tipo de cliente">
           {tabs.map((item, index) => {
             const isActive = tab === item.value;
@@ -130,7 +130,7 @@ export const ClientsPage = () => {
                 role="tab"
                 aria-selected={isActive}
                 tabIndex={isActive ? 0 : -1}
-                className={`relative h-9 rounded-lg px-3 text-sm font-semibold transition-colors ${isActive ? 'text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`relative h-9 rounded-lg px-3 text-sm font-semibold transition-colors ${isActive ? 'text-white' : 'text-brand-muted hover:bg-brand-pale'}`}
                 onClick={() => changeTab(item.value)}
                 onKeyDown={(event) => {
                   let next: number;
@@ -150,7 +150,7 @@ export const ClientsPage = () => {
                 {isActive && (
                   <motion.span
                     layoutId="clientTabIndicator"
-                    className="absolute inset-0 rounded-lg bg-brand-blue"
+                    className="absolute inset-0 rounded-lg bg-brand-primaryInk"
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
                 )}
@@ -161,12 +161,12 @@ export const ClientsPage = () => {
         </div>
         <label className="relative block w-full sm:max-w-sm">
           <Search
-            className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400"
+            className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-brand-muted"
             aria-hidden="true"
           />
           <span className="sr-only">Buscar clientes</span>
           <input
-            className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+            className="h-9 w-full rounded-lg border border-brand-line bg-white pl-9 pr-3 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Nombre, RUT o email"
@@ -175,12 +175,12 @@ export const ClientsPage = () => {
       </div>
 
       <section
-        className="min-w-0 border-y border-slate-200 bg-white"
+        className="min-w-0 border-y border-brand-line bg-white"
         aria-label="Listado de clientes"
       >
         {clientsQuery.isError && (
           <div
-            className="flex items-start gap-2 border-b border-red-200 bg-red-50 p-4 text-sm text-red-700"
+            className="flex items-start gap-2 border-b border-brand-coral/30 bg-brand-coralPale p-4 text-sm text-brand-coralInk"
             role="alert"
           >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{' '}
@@ -188,7 +188,7 @@ export const ClientsPage = () => {
           </div>
         )}
         <div
-          className={`${rowClassName} border-b border-slate-200 bg-slate-50 py-3 text-[11px] font-semibold uppercase text-slate-500`}
+          className={`${rowClassName} border-b border-brand-line bg-brand-line/40 py-3 text-[11px] font-semibold uppercase text-brand-muted`}
           aria-hidden="true"
         >
           <span>N°</span>
@@ -198,63 +198,63 @@ export const ClientsPage = () => {
           <span className="text-right">Acciones</span>
         </div>
         {clientsQuery.isPending ? (
-          <div role="status" aria-label="Cargando clientes" className="divide-y divide-slate-100">
+          <div role="status" aria-label="Cargando clientes" className="divide-y divide-brand-line">
             {Array.from({ length: 6 }, (_, index) => (
               <div key={index} className="flex h-[84px] animate-pulse items-center gap-4 px-5">
-                <div className="h-9 w-9 rounded-lg bg-slate-100" />
-                <div className="h-4 w-1/2 rounded bg-slate-100" />
+                <div className="h-9 w-9 rounded-lg bg-brand-pale" />
+                <div className="h-4 w-1/2 rounded bg-brand-pale" />
               </div>
             ))}
           </div>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-brand-line">
             {clientsQuery.data?.items.map((client, index) => {
               const Icon = client.tipo === 'empresa' ? Building2 : UserRound;
               return (
                 <li
                   key={client.id}
-                  className={`${rowClassName} group relative min-h-[84px] py-3 transition-colors hover:bg-brand-blue/[0.03] focus-within:bg-brand-blue/[0.03]`}
+                  className={`${rowClassName} group relative min-h-[84px] py-3 transition-colors hover:bg-brand-pale/60 focus-within:bg-brand-pale/60`}
                 >
                   <button
                     type="button"
-                    className="absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-blue"
+                    className="absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-primary"
                     onClick={() => openDetail(client.id)}
                     aria-label={`Ver ${client.nombre}`}
                   />
-                  <span className="pointer-events-none relative font-mono text-xs tabular-nums text-slate-400">
+                  <span className="pointer-events-none relative font-mono text-xs tabular-nums text-brand-muted">
                     #{(page - 1) * 20 + index + 1}
                   </span>
                   <div className="pointer-events-none relative flex min-w-0 items-center gap-3">
                     <span
-                      className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:flex ${client.tipo === 'empresa' ? 'bg-amber-50 text-amber-700' : 'bg-brand-blue/5 text-brand-blue'}`}
+                      className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:flex ${client.tipo === 'empresa' ? 'bg-brand-goldPale text-brand-goldInk' : 'bg-brand-pale text-brand-primaryInk'}`}
                     >
                       <Icon className="h-4 w-4" aria-hidden="true" />
                     </span>
                     <div className="min-w-0">
-                      <p className="break-words text-sm font-semibold leading-5 text-brand-blue">
+                      <p className="break-words text-sm font-semibold leading-5 text-brand-primaryInk">
                         {client.nombre}
                       </p>
-                      <p className="mt-1 font-mono text-xs text-slate-500">
+                      <p className="mt-1 font-mono text-xs text-brand-muted">
                         {client.rut ?? 'Sin identificación'}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500 md:hidden">
+                      <p className="mt-1 text-xs text-brand-muted md:hidden">
                         {client.tipo === 'empresa' ? 'Empresa' : 'Persona'}
                         {client.telefono ? ` · ${client.telefono}` : ''}
                       </p>
                     </div>
                   </div>
-                  <div className="pointer-events-none relative hidden min-w-0 space-y-1.5 text-xs text-slate-600 md:block">
+                  <div className="pointer-events-none relative hidden min-w-0 space-y-1.5 text-xs text-brand-muted md:block">
                     <p className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+                      <Phone className="h-3.5 w-3.5 shrink-0 text-brand-muted" aria-hidden="true" />
                       <span className="truncate">{client.telefono ?? 'Sin teléfono'}</span>
                     </p>
                     <p className="flex items-center gap-2">
-                      <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+                      <Mail className="h-3.5 w-3.5 shrink-0 text-brand-muted" aria-hidden="true" />
                       <span className="truncate">{client.email ?? 'Sin email'}</span>
                     </p>
                   </div>
                   <span
-                    className={`pointer-events-none relative hidden justify-self-start rounded px-2 py-1 text-[11px] font-medium md:inline-flex ${client.tipo === 'empresa' ? 'bg-amber-50 text-amber-800' : 'bg-blue-50 text-brand-blue'}`}
+                    className={`pointer-events-none relative hidden justify-self-start rounded px-2 py-1 text-[11px] font-medium md:inline-flex ${client.tipo === 'empresa' ? 'bg-brand-goldPale text-brand-goldInk' : 'bg-brand-pale text-brand-primaryInk'}`}
                   >
                     {client.tipo === 'empresa' ? 'Empresa' : 'Persona'}
                   </span>
@@ -262,7 +262,7 @@ export const ClientsPage = () => {
                     {canEdit && (
                       <button
                         type="button"
-                        className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-700"
+                        className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md text-brand-muted transition-colors hover:bg-brand-goldPale hover:text-brand-goldInk"
                         onClick={() => setFormClient(client)}
                         aria-label={`Editar ${client.nombre}`}
                         title="Editar cliente"
@@ -270,7 +270,7 @@ export const ClientsPage = () => {
                         <Pencil className="h-4 w-4" aria-hidden="true" />
                       </button>
                     )}
-                    <span className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors group-hover:bg-brand-blue/5 group-hover:text-brand-blue">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-md text-brand-muted transition-colors group-hover:bg-brand-pale group-hover:text-brand-primaryInk">
                       <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                     </span>
                   </div>
@@ -281,9 +281,9 @@ export const ClientsPage = () => {
         )}
         {!clientsQuery.isPending && clientsQuery.data?.items.length === 0 && (
           <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center">
-            <Users className="h-9 w-9 text-slate-300" aria-hidden="true" />
-            <p className="mt-3 font-semibold text-slate-700">No se encontraron clientes</p>
-            <p className="mt-1 text-sm text-slate-500">
+            <Users className="h-9 w-9 text-brand-line" aria-hidden="true" />
+            <p className="mt-3 font-semibold text-brand-ink">No se encontraron clientes</p>
+            <p className="mt-1 text-sm text-brand-muted">
               Ajuste la búsqueda o el tipo seleccionado.
             </p>
           </div>

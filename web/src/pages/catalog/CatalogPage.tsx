@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { AnimateIcon } from '../../components/animate-ui';
 import CatalogItemDetailModal from '../../components/catalog/CatalogItemDetailModal';
 import CatalogItemModal from '../../components/catalog/CatalogItemModal';
 import StockAdjustmentModal from '../../components/catalog/StockAdjustmentModal';
@@ -43,54 +42,54 @@ const typeMeta: Record<CatalogType, { label: string; icon: typeof Package; class
   parte: {
     label: 'Repuesto',
     icon: Package,
-    className: 'bg-amber-100 text-amber-800',
+    className: 'bg-brand-goldPale text-brand-goldInk',
   },
   estandar: {
     label: 'Estándar',
     icon: Wrench,
-    className: 'bg-blue-100 text-brand-blue',
+    className: 'bg-brand-pale text-brand-primaryInk',
   },
   especifico: {
     label: 'Específico',
     icon: Settings2,
-    className: 'bg-violet-100 text-violet-800',
+    className: 'bg-brand-pale text-brand-primaryInk',
   },
 };
 
 const AvailabilityBadge = ({ item }: { item: CatalogItem }) => {
   if (item.tipo !== 'parte') {
-    return <span className="text-xs font-semibold text-slate-500">Sin inventario</span>;
+    return <span className="text-xs font-semibold text-brand-muted">Sin inventario</span>;
   }
   if (item.stock === 0) {
     return (
-      <span className="inline-flex rounded-md bg-red-100 px-2 py-1 text-xs font-bold text-red-700">
+      <span className="inline-flex rounded-md bg-brand-coralPale px-2 py-1 text-xs font-bold text-brand-coralInk">
         Sin stock
       </span>
     );
   }
   if (item.stock <= item.stockMinimo || item.stock <= 5) {
     return (
-      <span className="inline-flex rounded-md bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
+      <span className="inline-flex rounded-md bg-brand-goldPale px-2 py-1 text-xs font-bold text-brand-goldInk">
         Crítico · {item.stock}
       </span>
     );
   }
   return (
-    <span className="inline-flex rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">
+    <span className="inline-flex rounded-md bg-brand-mintPale px-2 py-1 text-xs font-bold text-brand-mintInk">
       {item.stock} unidades
     </span>
   );
 };
 
 const CatalogSkeleton = () => (
-  <div className="divide-y divide-slate-100">
+  <div className="divide-y divide-brand-line">
     {Array.from({ length: 7 }, (_, row) => (
       <div
         key={row}
         className="grid gap-3 px-4 py-4 md:grid-cols-[48px_minmax(0,1.5fr)_130px_130px_130px_110px] md:items-center"
       >
         {Array.from({ length: 6 }, (_, cell) => (
-          <div key={cell} className="h-4 animate-pulse rounded bg-slate-100" />
+          <div key={cell} className="h-4 animate-pulse rounded bg-brand-pale" />
         ))}
       </div>
     ))}
@@ -150,52 +149,50 @@ export const CatalogPage = () => {
 
   return (
     <div className="min-w-0 space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">Servicios, trabajos y repuestos</p>
-          <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">Catálogo</h1>
+      <header className="page-banner">
+        <div className="min-w-0">
+          <p className="text-sm text-brand-muted">Servicios, trabajos y repuestos</p>
+          <h1 className="mt-1">Catálogo</h1>
         </div>
         {canCreate && (
           <button
             type="button"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark shadow-sm hover:bg-yellow-400"
+            className="primary-button relative z-[1] ml-auto"
             onClick={() => setFormItem(null)}
           >
-            <AnimateIcon variant="spin" animateOnHover>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-            </AnimateIcon>
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Nuevo item
           </button>
         )}
       </header>
 
       <section
-        className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+        className="overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm"
         aria-label="Listado de catálogo"
       >
-        <div className="space-y-4 border-b border-slate-200 p-4 sm:p-5">
+        <div className="space-y-4 border-b border-brand-line p-4 sm:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <label className="relative block w-full max-w-xl">
               <span className="sr-only">Buscar en catálogo</span>
               <Search
-                className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400"
+                className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted"
                 aria-hidden="true"
               />
               <input
-                className="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                className="h-10 w-full rounded-lg border border-brand-line pl-9 pr-3 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Código, servicio o repuesto"
                 aria-label="Buscar en catálogo"
               />
             </label>
-            <p className="text-sm text-slate-500">
-              <strong className="text-slate-800">{catalogQuery.data?.total ?? 0}</strong> resultados
+            <p className="text-sm text-brand-muted">
+              <strong className="text-brand-ink">{catalogQuery.data?.total ?? 0}</strong> resultados
             </p>
           </div>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div
-              className="grid grid-cols-2 gap-1 sm:flex sm:overflow-x-auto sm:border-b sm:border-slate-200"
+              className="grid grid-cols-2 gap-1 sm:flex sm:overflow-x-auto sm:border-b sm:border-brand-line"
               role="tablist"
               aria-label="Filtrar catálogo por tipo"
             >
@@ -209,8 +206,8 @@ export const CatalogPage = () => {
                     aria-selected={isSelected}
                     className={`min-h-10 rounded-md px-2 text-xs font-semibold transition-colors sm:h-10 sm:shrink-0 sm:rounded-none sm:border-b-2 sm:px-3 sm:text-sm ${
                       isSelected
-                        ? 'bg-brand-blue text-white sm:border-brand-yellow sm:bg-transparent sm:text-brand-blue'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 sm:border-transparent sm:bg-transparent sm:text-slate-500 sm:hover:bg-transparent sm:hover:text-slate-800'
+                        ? 'bg-brand-primaryInk text-white sm:border-brand-primaryInk sm:bg-transparent sm:text-brand-primaryInk'
+                        : 'bg-brand-pale text-brand-muted hover:bg-brand-line sm:border-transparent sm:bg-transparent sm:text-brand-muted sm:hover:bg-transparent sm:hover:text-brand-ink'
                     }`}
                     onClick={() => selectTab(catalogTab.value)}
                   >
@@ -220,10 +217,10 @@ export const CatalogPage = () => {
               })}
             </div>
             {tab === 'parte' && (
-              <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+              <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-brand-ink">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 accent-[#0E2B4E]"
+                  className="h-4 w-4 rounded border-brand-line accent-[#0E2B4E]"
                   checked={onlyInStock}
                   onChange={(event) => setOnlyInStock(event.target.checked)}
                 />
@@ -235,7 +232,7 @@ export const CatalogPage = () => {
 
         {(catalogQuery.isError || deleteMutation.isError) && (
           <div
-            className="flex items-start gap-2 border-b border-red-200 bg-red-50 p-4 text-sm text-red-700"
+            className="flex items-start gap-2 border-b border-brand-coral/30 bg-brand-coralPale p-4 text-sm text-brand-coralInk"
             role="alert"
           >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -243,7 +240,7 @@ export const CatalogPage = () => {
           </div>
         )}
 
-        <div className="hidden grid-cols-[48px_minmax(0,1.5fr)_130px_130px_130px_110px] items-center gap-3 bg-brand-blue px-4 py-3 text-xs font-semibold uppercase text-white md:grid">
+        <div className="hidden grid-cols-[48px_minmax(0,1.5fr)_130px_130px_130px_110px] items-center gap-3 bg-brand-primaryInk px-4 py-3 text-xs font-semibold uppercase text-white md:grid">
           <span>Nº</span>
           <span>Item</span>
           <span>Tipo</span>
@@ -255,7 +252,7 @@ export const CatalogPage = () => {
         {catalogQuery.isPending ? (
           <CatalogSkeleton />
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-brand-line">
             {catalogQuery.data?.items.map((item, index) => {
               const meta = typeMeta[item.tipo];
               const TypeIcon = meta.icon;
@@ -265,7 +262,7 @@ export const CatalogPage = () => {
                   key={item.id}
                   role="button"
                   tabIndex={0}
-                  className="group grid cursor-pointer gap-3 px-4 py-4 outline-none transition-colors hover:bg-brand-light/70 focus-visible:bg-brand-light focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue md:grid-cols-[48px_minmax(0,1.5fr)_130px_130px_130px_110px] md:items-center"
+                  className="group grid cursor-pointer gap-3 px-4 py-4 outline-none transition-colors hover:bg-brand-line/40 focus-visible:bg-brand-pale focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary md:grid-cols-[48px_minmax(0,1.5fr)_130px_130px_130px_110px] md:items-center"
                   onClick={() => setDetailItem(item)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -276,11 +273,11 @@ export const CatalogPage = () => {
                   aria-label={`Ver detalle de ${item.nombre}`}
                 >
                   <div className="flex items-center justify-between md:block">
-                    <span className="flex h-8 min-w-8 items-center justify-center rounded-md bg-brand-blue px-2 text-xs font-bold text-white">
+                    <span className="flex h-8 min-w-8 items-center justify-center rounded-md bg-brand-primaryInk px-2 text-xs font-bold text-white">
                       {number}
                     </span>
                     <ChevronRight
-                      className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 md:hidden"
+                      className="h-4 w-4 text-brand-muted transition-transform group-hover:translate-x-0.5 md:hidden"
                       aria-hidden="true"
                     />
                   </div>
@@ -291,8 +288,8 @@ export const CatalogPage = () => {
                       <TypeIcon className="h-4 w-4" aria-hidden="true" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate font-bold text-slate-900">{item.nombre}</span>
-                      <span className="mt-0.5 block truncate text-xs text-slate-500">
+                      <span className="block truncate font-bold text-brand-ink">{item.nombre}</span>
+                      <span className="mt-0.5 block truncate text-xs text-brand-muted">
                         <span className="font-mono font-semibold">
                           {item.codigo ?? 'SIN CÓDIGO'}
                         </span>
@@ -301,7 +298,7 @@ export const CatalogPage = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between md:block">
-                    <span className="text-xs font-semibold text-slate-400 md:hidden">Tipo</span>
+                    <span className="text-xs font-semibold text-brand-muted md:hidden">Tipo</span>
                     <span
                       className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${meta.className}`}
                     >
@@ -309,26 +306,26 @@ export const CatalogPage = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between md:block md:text-right">
-                    <span className="text-xs font-semibold text-slate-400 md:hidden">Precio</span>
-                    <span className="font-bold text-brand-blue">{formatClp(item.precio)}</span>
+                    <span className="text-xs font-semibold text-brand-muted md:hidden">Precio</span>
+                    <span className="font-bold text-brand-primaryInk">{formatClp(item.precio)}</span>
                   </div>
                   <div
                     className="flex items-center justify-between md:block"
                     data-testid={`stock-${item.id}`}
                   >
-                    <span className="text-xs font-semibold text-slate-400 md:hidden">
+                    <span className="text-xs font-semibold text-brand-muted md:hidden">
                       Disponibilidad
                     </span>
                     <AvailabilityBadge item={item} />
                   </div>
                   <div
-                    className="flex justify-end gap-1 border-t border-slate-100 pt-3 md:border-0 md:pt-0"
+                    className="flex justify-end gap-1 border-t border-brand-line pt-3 md:border-0 md:pt-0"
                     onClick={(event) => event.stopPropagation()}
                   >
                     {canEdit && (
                       <button
                         type="button"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-700"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-goldPale hover:text-brand-goldInk"
                         onClick={() => setFormItem(item)}
                         aria-label={`Editar ${item.nombre}`}
                         title="Editar"
@@ -339,7 +336,7 @@ export const CatalogPage = () => {
                     {canAdjustStock && item.tipo === 'parte' && (
                       <button
                         type="button"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-blue-50 hover:text-brand-blue"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk"
                         onClick={() => setStockItem(item)}
                         aria-label={`Ajustar stock de ${item.nombre}`}
                         title="Registrar movimiento"
@@ -350,7 +347,7 @@ export const CatalogPage = () => {
                     {canDelete && (
                       <button
                         type="button"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-coralPale hover:text-brand-coralInk"
                         onClick={() => {
                           deleteMutation.reset();
                           setDeleteItem(item);
@@ -370,9 +367,9 @@ export const CatalogPage = () => {
 
         {!catalogQuery.isPending && catalogQuery.data?.items.length === 0 && (
           <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center">
-            <PackageOpen className="h-10 w-10 text-slate-300" aria-hidden="true" />
-            <p className="mt-3 font-semibold text-slate-700">No se encontraron items</p>
-            <p className="mt-1 text-sm text-slate-500">
+            <PackageOpen className="h-10 w-10 text-brand-line" aria-hidden="true" />
+            <p className="mt-3 font-semibold text-brand-ink">No se encontraron items</p>
+            <p className="mt-1 text-sm text-brand-muted">
               Cambie los filtros o registre un nuevo elemento.
             </p>
           </div>
@@ -420,7 +417,7 @@ export const CatalogPage = () => {
             aria-modal="true"
             aria-labelledby="delete-catalog-title"
           >
-            <div className="bg-brand-blue px-6 py-5 text-white">
+            <div className="bg-brand-primaryInk px-6 py-5 text-white">
               <h2 id="delete-catalog-title" className="text-lg font-bold">
                 Eliminar item
               </h2>
@@ -429,19 +426,19 @@ export const CatalogPage = () => {
               </p>
             </div>
             <div className="p-6">
-              <p className="text-sm leading-6 text-slate-600">
+              <p className="text-sm leading-6 text-brand-muted">
                 Dejará de estar disponible para nuevas órdenes y cotizaciones. El historial
                 existente se conservará.
               </p>
               {deleteMutation.error && (
-                <p className="mt-3 text-sm text-red-700" role="alert">
+                <p className="mt-3 text-sm text-brand-coralInk" role="alert">
                   {getApiErrorMessage(deleteMutation.error)}
                 </p>
               )}
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   type="button"
-                  className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700"
+                  className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink"
                   onClick={() => setDeleteItem(null)}
                 >
                   Cancelar

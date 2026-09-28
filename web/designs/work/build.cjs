@@ -1,0 +1,12 @@
+const fs=require('node:fs');
+const mime={logo:'image/svg+xml',flag:'image/svg+xml',employee:'image/svg+xml',clients:'image/svg+xml',projects:'image/svg+xml',events:'image/svg+xml',payroll:'image/svg+xml',reports:'image/svg+xml',product:'image/png',avatar1:'image/jpeg',avatar2:'image/jpeg',avatar3:'image/jpeg',avatar4:'image/jpeg',font:'font/woff2'};
+let html=fs.readFileSync('work/dashboard.template.html','utf8');
+const tableAssets={};
+for(const [name,info] of Object.entries(JSON.parse(fs.readFileSync('work/table-assets.json','utf8'))))tableAssets[name]='data:'+info.type+';base64,'+fs.readFileSync('work/assets/'+name).toString('base64');
+const viewsJs=fs.readFileSync('work/views.js','utf8').replace('{{tableAssets}}',()=>JSON.stringify(tableAssets)).replace('{{tableData}}',()=>fs.readFileSync('work/table-data.json','utf8'));
+html=html.replace('{{viewsCss}}',()=>fs.readFileSync('work/views.css','utf8')).replace('{{viewsJs}}',()=>viewsJs);
+for(const [name,type] of Object.entries(mime))html=html.replaceAll('{{'+name+'}}','data:'+type+';base64,'+fs.readFileSync('work/assets/'+name).toString('base64'));
+html=html.replace('{{lucide}}',()=>fs.readFileSync('work/assets/lucide','utf8').replaceAll('</script','<\\/script'));
+if(/\{\{\w+\}\}/.test(html))throw new Error('Unresolved asset placeholder');
+fs.mkdirSync('outputs',{recursive:true});fs.writeFileSync('outputs/modernize.html',html);
+console.log('Created outputs/modernize.html ('+Math.round(Buffer.byteLength(html)/1024)+' KB)');

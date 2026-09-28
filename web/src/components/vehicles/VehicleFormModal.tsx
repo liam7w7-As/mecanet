@@ -49,7 +49,7 @@ const getInitialState = (vehicle?: Vehicle | null, initialPatente = ''): Vehicle
 });
 
 const inputClassName =
-  'h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15 aria-[invalid=true]:border-red-500';
+  'h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk';
 
 export const VehicleFormModal = ({
   vehicle,
@@ -145,7 +145,7 @@ export const VehicleFormModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button type="button" className="absolute inset-0 bg-slate-950/55" aria-label="Cerrar formulario de vehículo" onClick={onClose} />
+      <button type="button" className="absolute inset-0 bg-brand-scrim/55" aria-label="Cerrar formulario de vehículo" onClick={onClose} />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -155,21 +155,21 @@ export const VehicleFormModal = ({
         aria-modal="true"
         aria-labelledby="vehicle-form-title"
       >
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-brand-line bg-white px-5 py-4 sm:px-6">
           <div>
-            <h2 id="vehicle-form-title" className="text-lg font-semibold text-brand-blue">
+            <h2 id="vehicle-form-title" className="text-lg font-semibold text-brand-primaryInk">
               {isEditing ? 'Editar vehículo' : 'Nuevo vehículo'}
             </h2>
-            <p className="mt-0.5 text-sm text-slate-500">Identificación, mecánica y propietario</p>
+            <p className="mt-0.5 text-sm text-brand-muted">Identificación, mecánica y propietario</p>
           </div>
-          <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar" title="Cerrar">
+          <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar" title="Cerrar">
             <AnimateIcon icon={X} animation="spin" size={18} />
           </button>
         </header>
 
         <form className="space-y-6 p-5 sm:p-6" noValidate onSubmit={handleSubmit}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Patente
               <input
                 className={`${inputClassName} font-mono font-bold uppercase`}
@@ -178,39 +178,39 @@ export const VehicleFormModal = ({
                 aria-invalid={Boolean(fieldErrors.patente)}
                 placeholder="AB1234 o ABCD12"
               />
-              {fieldErrors.patente && <span className="mt-1 block text-xs text-red-600">{fieldErrors.patente}</span>}
+              {fieldErrors.patente && <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.patente}</span>}
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Marca
               <input className={inputClassName} value={form.marca} onChange={(event) => setValue('marca', event.target.value)} aria-invalid={Boolean(fieldErrors.marca)} placeholder="Toyota" />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Modelo
               <input className={inputClassName} value={form.modelo} onChange={(event) => setValue('modelo', event.target.value)} aria-invalid={Boolean(fieldErrors.modelo)} placeholder="Corolla" />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Año
               <input className={inputClassName} type="number" inputMode="numeric" value={form.ano} onChange={(event) => setValue('ano', event.target.value)} aria-invalid={Boolean(fieldErrors.ano)} min="1950" />
-              {fieldErrors.ano && <span className="mt-1 block text-xs text-red-600">{fieldErrors.ano}</span>}
+              {fieldErrors.ano && <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.ano}</span>}
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Color
               <input className={inputClassName} value={form.color} onChange={(event) => setValue('color', event.target.value)} aria-invalid={Boolean(fieldErrors.color)} />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Kilometraje actual
               <input className={inputClassName} type="number" inputMode="numeric" value={form.kilometraje} onChange={(event) => setValue('kilometraje', event.target.value)} aria-invalid={Boolean(fieldErrors.kilometraje)} min="0" />
-              {fieldErrors.kilometraje && <span className="mt-1 block text-xs text-red-600">{fieldErrors.kilometraje}</span>}
+              {fieldErrors.kilometraje && <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.kilometraje}</span>}
             </label>
-            <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+            <label className="text-sm font-medium text-brand-ink sm:col-span-2">
               VIN / Chasis
               <input className={`${inputClassName} uppercase`} value={form.vinChasis} onChange={(event) => setValue('vinChasis', event.target.value.toUpperCase())} aria-invalid={Boolean(fieldErrors.vinChasis)} />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Motor
               <input className={inputClassName} value={form.motor} onChange={(event) => setValue('motor', event.target.value)} aria-invalid={Boolean(fieldErrors.motor)} />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Combustible
               <select className={inputClassName} value={form.combustible} onChange={(event) => setValue('combustible', event.target.value)}>
                 <option value="">Sin especificar</option>
@@ -221,7 +221,7 @@ export const VehicleFormModal = ({
                 <option value="gas">Gas</option>
               </select>
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Transmisión
               <select className={inputClassName} value={form.transmision} onChange={(event) => setValue('transmision', event.target.value)}>
                 <option value="">Sin especificar</option>
@@ -232,10 +232,10 @@ export const VehicleFormModal = ({
             </label>
           </div>
 
-          <fieldset className="border-t border-slate-100 pt-5">
+          <fieldset className="border-t border-brand-line pt-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <legend className="text-sm font-semibold text-brand-blue">Propietario</legend>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+              <legend className="text-sm font-semibold text-brand-primaryInk">Propietario</legend>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-brand-muted">
                 <input
                   type="checkbox"
                   checked={withoutOwner}
@@ -246,7 +246,7 @@ export const VehicleFormModal = ({
                       setOwnerSearch('');
                     }
                   }}
-                  className="h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-yellow"
+                  className="h-4 w-4 rounded border-brand-line text-brand-primaryInk focus:ring-brand-primary"
                 />
                 Sin dueño asignado por ahora
               </label>
@@ -255,7 +255,7 @@ export const VehicleFormModal = ({
             {!withoutOwner && (
               <div className="mt-3">
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
+                  <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" />
                   <input
                     className={`${inputClassName} pl-9`}
                     value={ownerSearch}
@@ -267,25 +267,25 @@ export const VehicleFormModal = ({
                     placeholder="Buscar cliente por nombre o RUT"
                   />
                 </div>
-                {fieldErrors.clientId && <p className="mt-1 text-xs text-red-600">{fieldErrors.clientId}</p>}
+                {fieldErrors.clientId && <p className="mt-1 text-xs text-brand-coralInk">{fieldErrors.clientId}</p>}
 
                 {selectedClient ? (
-                  <div className="mt-2 flex items-center gap-2 border-l-2 border-brand-yellow px-3 py-2 text-sm text-slate-700">
-                    <Check className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                  <div className="mt-2 flex items-center gap-2 border-l-2 border-brand-yellow px-3 py-2 text-sm text-brand-ink">
+                    <Check className="h-4 w-4 text-brand-mintInk" aria-hidden="true" />
                     <span className="font-semibold">{selectedClient.nombre}</span>
-                    <span className="text-slate-500">{selectedClient.rut ?? 'Sin RUT'}</span>
+                    <span className="text-brand-muted">{selectedClient.rut ?? 'Sin RUT'}</span>
                   </div>
                 ) : (
-                  <div className="mt-2 max-h-40 overflow-y-auto border-y border-slate-100">
-                    {clientsQuery.isFetching && <p className="px-3 py-3 text-sm text-slate-500">Buscando clientes...</p>}
+                  <div className="mt-2 max-h-40 overflow-y-auto border-y border-brand-line">
+                    {clientsQuery.isFetching && <p className="px-3 py-3 text-sm text-brand-muted">Buscando clientes...</p>}
                     {!clientsQuery.isFetching && clientsQuery.data?.items.length === 0 && (
-                      <p className="px-3 py-3 text-sm text-slate-500">No se encontraron clientes</p>
+                      <p className="px-3 py-3 text-sm text-brand-muted">No se encontraron clientes</p>
                     )}
                     {clientsQuery.data?.items.map((clientOption) => (
                       <button
                         key={clientOption.id}
                         type="button"
-                        className="flex w-full items-center gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-0 hover:bg-slate-50"
+                        className="flex w-full items-center gap-3 border-b border-brand-line px-3 py-2.5 text-left last:border-0 hover:bg-brand-pale"
                         onClick={() => {
                           setSelectedClient(clientOption);
                           setOwnerSearch(clientOption.nombre);
@@ -296,10 +296,10 @@ export const VehicleFormModal = ({
                           });
                         }}
                       >
-                        <UserRound className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                        <UserRound className="h-4 w-4 shrink-0 text-brand-muted" aria-hidden="true" />
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium text-slate-800">{clientOption.nombre}</span>
-                          <span className="block text-xs text-slate-500">{clientOption.rut ?? 'Sin RUT'}</span>
+                          <span className="block truncate text-sm font-medium text-brand-ink">{clientOption.nombre}</span>
+                          <span className="block text-xs text-brand-muted">{clientOption.rut ?? 'Sin RUT'}</span>
                         </span>
                       </button>
                     ))}
@@ -310,15 +310,15 @@ export const VehicleFormModal = ({
           </fieldset>
 
           {mutationError && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700" role="alert">
+            <div className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk" role="alert">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span>{isApiConflict(mutationError) ? 'Ya existe un vehículo con esa patente.' : getApiErrorMessage(mutationError)}</span>
             </div>
           )}
 
-          <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
-            <button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={onClose} disabled={activeMutation.isPending}>Cancelar</button>
-            <button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60" disabled={activeMutation.isPending}>
+          <footer className="flex flex-col-reverse gap-2 border-t border-brand-line pt-5 sm:flex-row sm:justify-end">
+            <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale" onClick={onClose} disabled={activeMutation.isPending}>Cancelar</button>
+            <button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:cursor-not-allowed disabled:opacity-60" disabled={activeMutation.isPending}>
               {activeMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
               {activeMutation.isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear vehículo'}
             </button>

@@ -128,20 +128,20 @@ const NOTIFICATION_PRESENTATION: Record<
   NotificationType,
   { label: string; dot: string; icon: 'bell' | 'wrench' | 'cash' | 'truck' | 'file' }
 > = {
-  solicitud_creada: { label: 'Solicitud de taller', dot: 'bg-amber-500', icon: 'wrench' },
-  solicitud_aprobada: { label: 'Solicitud aprobada', dot: 'bg-emerald-500', icon: 'wrench' },
-  solicitud_rechazada: { label: 'Solicitud rechazada', dot: 'bg-red-500', icon: 'wrench' },
-  repuesto_por_entregar: { label: 'Repuesto por entregar', dot: 'bg-amber-500', icon: 'truck' },
-  pago_por_verificar: { label: 'Pago por verificar', dot: 'bg-amber-500', icon: 'cash' },
-  pago_verificado: { label: 'Pago verificado', dot: 'bg-emerald-500', icon: 'cash' },
-  pago_rechazado: { label: 'Pago rechazado', dot: 'bg-red-500', icon: 'cash' },
+  solicitud_creada: { label: 'Solicitud de taller', dot: 'bg-brand-gold', icon: 'wrench' },
+  solicitud_aprobada: { label: 'Solicitud aprobada', dot: 'bg-brand-mint', icon: 'wrench' },
+  solicitud_rechazada: { label: 'Solicitud rechazada', dot: 'bg-brand-coral', icon: 'wrench' },
+  repuesto_por_entregar: { label: 'Repuesto por entregar', dot: 'bg-brand-gold', icon: 'truck' },
+  pago_por_verificar: { label: 'Pago por verificar', dot: 'bg-brand-gold', icon: 'cash' },
+  pago_verificado: { label: 'Pago verificado', dot: 'bg-brand-mint', icon: 'cash' },
+  pago_rechazado: { label: 'Pago rechazado', dot: 'bg-brand-coral', icon: 'cash' },
   ot_estado_cambiado: { label: 'Cambio de estado', dot: 'bg-blue-500', icon: 'bell' },
-  ot_entregada: { label: 'Orden entregada', dot: 'bg-emerald-500', icon: 'truck' },
+  ot_entregada: { label: 'Orden entregada', dot: 'bg-brand-mint', icon: 'truck' },
   mecanico_asignado: { label: 'Asignación', dot: 'bg-blue-500', icon: 'wrench' },
   reingreso_creado: { label: 'Reingreso creado', dot: 'bg-blue-500', icon: 'truck' },
-  fecha_entrega_vencida: { label: 'Entrega vencida', dot: 'bg-red-600', icon: 'bell' },
+  fecha_entrega_vencida: { label: 'Entrega vencida', dot: 'bg-brand-coralInk', icon: 'bell' },
   cotizacion_creada: { label: 'Cotización creada', dot: 'bg-blue-500', icon: 'file' },
-  cotizacion_convertida: { label: 'Cotización convertida', dot: 'bg-emerald-500', icon: 'file' },
+  cotizacion_convertida: { label: 'Cotización convertida', dot: 'bg-brand-mint', icon: 'file' },
 };
 
 export const getNotificationPresentation = (

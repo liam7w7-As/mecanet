@@ -89,20 +89,20 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
     : null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 px-4 py-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/60 px-4 py-6">
       <section className="relative mx-auto w-full max-w-3xl rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="delivery-title">
-        <header className="flex items-start justify-between border-b border-slate-200 p-5">
+        <header className="flex items-start justify-between border-b border-brand-line p-5">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-mintPale text-brand-mintInk">
               <PackageCheck className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="font-mono text-sm text-slate-500">{workOrder.codigo}</p>
-              <h2 id="delivery-title" className="mt-1 text-xl font-bold text-brand-blue">Cierre y entrega del vehículo</h2>
-              <p className="mt-1 text-sm text-slate-500">Este registro deja la orden en estado entregada y no podrá editarse.</p>
+              <p className="font-mono text-sm text-brand-muted">{workOrder.codigo}</p>
+              <h2 id="delivery-title" className="mt-1 text-xl font-bold text-brand-primaryInk">Cierre y entrega del vehículo</h2>
+              <p className="mt-1 text-sm text-brand-muted">Este registro deja la orden en estado entregada y no podrá editarse.</p>
             </div>
           </div>
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar">
+          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar">
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </header>
@@ -110,58 +110,58 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
         <form onSubmit={submit}>
           <div className="space-y-6 p-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-slate-700">Kilometraje de salida
-                <input type="number" min={workOrder.kilometrajeIngreso ?? 0} value={kilometrajeSalida} onChange={(event) => setKilometrajeSalida(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" />
-                {errors.kilometrajeSalida && <span className="mt-1 block text-xs text-red-700">{errors.kilometrajeSalida}</span>}
+              <label className="text-sm font-semibold text-brand-ink">Kilometraje de salida
+                <input type="number" min={workOrder.kilometrajeIngreso ?? 0} value={kilometrajeSalida} onChange={(event) => setKilometrajeSalida(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-brand-line px-3 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" />
+                {errors.kilometrajeSalida && <span className="mt-1 block text-xs text-brand-coralInk">{errors.kilometrajeSalida}</span>}
               </label>
-              <label className="text-sm font-semibold text-slate-700">Nombre de quien recibe
-                <input value={receptorNombre} onChange={(event) => setReceptorNombre(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" />
-                {errors.receptorNombre && <span className="mt-1 block text-xs text-red-700">{errors.receptorNombre}</span>}
+              <label className="text-sm font-semibold text-brand-ink">Nombre de quien recibe
+                <input value={receptorNombre} onChange={(event) => setReceptorNombre(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-brand-line px-3 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" />
+                {errors.receptorNombre && <span className="mt-1 block text-xs text-brand-coralInk">{errors.receptorNombre}</span>}
               </label>
-              <label className="text-sm font-semibold text-slate-700">RUT / Identificación
-                <input value={receptorRut} onChange={(event) => setReceptorRut(event.target.value)} aria-invalid={Boolean(errors.receptorRut)} placeholder="12.345.678-5" className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" />
-                {errors.receptorRut && <span className="mt-1 block text-xs text-red-700">{errors.receptorRut}</span>}
+              <label className="text-sm font-semibold text-brand-ink">RUT / Identificación
+                <input value={receptorRut} onChange={(event) => setReceptorRut(event.target.value)} aria-invalid={Boolean(errors.receptorRut)} placeholder="12.345.678-5" className="mt-2 h-11 w-full rounded-lg border border-brand-line px-3 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" />
+                {errors.receptorRut && <span className="mt-1 block text-xs text-brand-coralInk">{errors.receptorRut}</span>}
               </label>
-              <label className="text-sm font-semibold text-slate-700">Teléfono de contacto
-                <input value={receptorTelefono} onChange={(event) => setReceptorTelefono(event.target.value)} aria-invalid={Boolean(errors.receptorTelefono)} placeholder="+56 9 1234 5678" className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" />
-                {errors.receptorTelefono && <span className="mt-1 block text-xs text-red-700">{errors.receptorTelefono}</span>}
+              <label className="text-sm font-semibold text-brand-ink">Teléfono de contacto
+                <input value={receptorTelefono} onChange={(event) => setReceptorTelefono(event.target.value)} aria-invalid={Boolean(errors.receptorTelefono)} placeholder="+56 9 1234 5678" className="mt-2 h-11 w-full rounded-lg border border-brand-line px-3 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" />
+                {errors.receptorTelefono && <span className="mt-1 block text-xs text-brand-coralInk">{errors.receptorTelefono}</span>}
               </label>
             </div>
 
             <fieldset>
-              <legend className="text-sm font-bold text-brand-blue">Checklist final de entrega</legend>
+              <legend className="text-sm font-bold text-brand-primaryInk">Checklist final de entrega</legend>
               <div className="mt-3 grid gap-2">
                 {WORK_ORDER_DELIVERY_CHECKLIST.map((item) => (
-                  <label key={item} className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 text-sm text-slate-700 hover:bg-slate-50">
+                  <label key={item} className="flex cursor-pointer items-start gap-3 rounded-lg border border-brand-line p-3 text-sm text-brand-ink hover:bg-brand-pale">
                     <input type="checkbox" checked={checklist.includes(item)} onChange={() => toggleChecklist(item)} className="mt-0.5 h-4 w-4 accent-[#0E2B4E]" />
                     <span>{checklistLabels[item]}</span>
                   </label>
                 ))}
               </div>
-              {errors.checklist && <p className="mt-2 text-xs text-red-700">{errors.checklist}</p>}
+              {errors.checklist && <p className="mt-2 text-xs text-brand-coralInk">{errors.checklist}</p>}
             </fieldset>
 
-            <label className="block text-sm font-semibold text-slate-700">Observaciones de salida
-              <textarea value={observaciones} onChange={(event) => setObservaciones(event.target.value)} rows={3} maxLength={2000} className="mt-2 w-full resize-none rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" placeholder="Daños pendientes, recomendaciones o acuerdos de entrega" />
+            <label className="block text-sm font-semibold text-brand-ink">Observaciones de salida
+              <textarea value={observaciones} onChange={(event) => setObservaciones(event.target.value)} rows={3} maxLength={2000} className="mt-2 w-full resize-none rounded-lg border border-brand-line px-3 py-2 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" placeholder="Daños pendientes, recomendaciones o acuerdos de entrega" />
             </label>
 
-            <div className="border-t border-slate-200 pt-5">
-              <label className="block text-sm font-semibold text-slate-700">Firma nominativa del receptor
-                <input value={firmaRecepcion} onChange={(event) => setFirmaRecepcion(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 font-medium italic outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" placeholder="Escriba el nombre completo de quien recibe" />
-                {errors.firmaRecepcion && <span className="mt-1 block text-xs text-red-700">{errors.firmaRecepcion}</span>}
+            <div className="border-t border-brand-line pt-5">
+              <label className="block text-sm font-semibold text-brand-ink">Firma nominativa del receptor
+                <input value={firmaRecepcion} onChange={(event) => setFirmaRecepcion(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-brand-line px-3 font-medium italic outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" placeholder="Escriba el nombre completo de quien recibe" />
+                {errors.firmaRecepcion && <span className="mt-1 block text-xs text-brand-coralInk">{errors.firmaRecepcion}</span>}
               </label>
-              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg bg-brand-light p-4 text-sm text-brand-blue">
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg bg-brand-line/40 p-4 text-sm text-brand-primaryInk">
                 <input type="checkbox" checked={conformidad} onChange={(event) => setConformidad(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#0E2B4E]" />
                 <span>El receptor declara recibir el vehículo, sus pertenencias y la explicación de los trabajos en conformidad.</span>
               </label>
-              {errors.conformidad && <p className="mt-2 text-xs text-red-700">{errors.conformidad}</p>}
+              {errors.conformidad && <p className="mt-2 text-xs text-brand-coralInk">{errors.conformidad}</p>}
             </div>
 
-            {apiError && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{apiError}</p>}
+            {apiError && <p className="rounded-lg bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">{apiError}</p>}
           </div>
-          <footer className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 p-5">
-            <button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-white" onClick={onClose} disabled={deliveryMutation.isPending}>Volver</button>
-            <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60" disabled={deliveryMutation.isPending}>
+          <footer className="flex justify-end gap-2 border-t border-brand-line bg-brand-line/40 p-5">
+            <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-white" onClick={onClose} disabled={deliveryMutation.isPending}>Volver</button>
+            <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-60" disabled={deliveryMutation.isPending}>
               {deliveryMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
               Confirmar entrega
             </button>

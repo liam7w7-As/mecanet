@@ -31,6 +31,12 @@ const config: Config = {
            * tema `body.dark` del propio diseño.
            */
           mutedOnDark: '#A8B5C8',
+          /**
+           * Velo de los modales. Es el `.scrim` de la referencia
+           * (`background:#18273c55`), no un gris neutro: el `slate-950` que se
+           * usaba antes es mas frio y mas opaco.
+           */
+          scrim: '#18273C',
           /** Acento: CTA, estado activo, foco. Nunca para texto corrido. */
           primary: '#5D87FF',
           primaryHover: '#4576F6',
@@ -45,6 +51,8 @@ const config: Config = {
           mint: '#13DEB9',
           coral: '#FA896B',
           gold: '#FFAE1F',
+          /** Hover de `gold`. Un paso apenas más oscuro, como con `primaryInkHover`. */
+          goldHover: '#E09200',
           /**
            * Variantes accesibles de los acentos, para TEXTO sobre fondos
            * pastel. Los de arriba se quedan para superficies e iconos: como
@@ -55,6 +63,12 @@ const config: Config = {
            * cambiar el tono: 4.5-4.6:1 en los cinco.
            */
           primaryInk: '#255DFF',
+          /**
+           * Hover de `primaryInk`. Necesario porque `primaryHover` (#4576F6) es
+           * mas CLARO que `primaryInk`, y aplicarlo dejaba el hover mas claro
+           * que el estado normal.
+           */
+          primaryInkHover: '#1A4AE0',
           goldInk: '#9C6400',
           coralInk: '#CD3007',
           mintInk: '#0B826D',

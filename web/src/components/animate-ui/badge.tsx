@@ -22,10 +22,10 @@ export interface AnimatedBadgeProps {
 
 const colorMap: Record<BadgeVariant, { bg: string; text: string; dot: string; ping: string }> = {
   blue: {
-    bg: 'bg-blue-50 border-blue-200',
-    text: 'text-brand-blue',
-    dot: 'bg-brand-blue',
-    ping: 'bg-brand-blue/40',
+    bg: 'bg-brand-pale border-brand-line',
+    text: 'text-brand-primaryInk',
+    dot: 'bg-brand-primaryInk',
+    ping: 'bg-brand-primaryInk/40',
   },
   yellow: {
     bg: 'bg-yellow-50 border-yellow-200',
@@ -34,21 +34,21 @@ const colorMap: Record<BadgeVariant, { bg: string; text: string; dot: string; pi
     ping: 'bg-yellow-400/50',
   },
   emerald: {
-    bg: 'bg-emerald-50 border-emerald-200',
-    text: 'text-emerald-800',
-    dot: 'bg-emerald-500',
+    bg: 'bg-brand-mintPale border-brand-line',
+    text: 'text-brand-mintInk',
+    dot: 'bg-brand-mint',
     ping: 'bg-emerald-400/50',
   },
   red: {
-    bg: 'bg-red-50 border-red-200',
-    text: 'text-red-800',
-    dot: 'bg-red-500',
+    bg: 'bg-brand-coralPale border-brand-coral/30',
+    text: 'text-brand-coralInk',
+    dot: 'bg-brand-coral',
     ping: 'bg-red-400/50',
   },
   amber: {
-    bg: 'bg-amber-50 border-amber-200',
-    text: 'text-amber-800',
-    dot: 'bg-amber-500',
+    bg: 'bg-brand-goldPale border-brand-line',
+    text: 'text-brand-goldInk',
+    dot: 'bg-brand-gold',
     ping: 'bg-amber-400/50',
   },
   purple: {
@@ -58,10 +58,10 @@ const colorMap: Record<BadgeVariant, { bg: string; text: string; dot: string; pi
     ping: 'bg-purple-400/50',
   },
   slate: {
-    bg: 'bg-slate-100 border-slate-200',
-    text: 'text-slate-700',
+    bg: 'bg-brand-pale border-brand-line',
+    text: 'text-brand-ink',
     dot: 'bg-slate-400',
-    ping: 'bg-slate-300/50',
+    ping: 'bg-brand-line/50',
   },
 };
 

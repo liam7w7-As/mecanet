@@ -10,8 +10,15 @@
  *     `brand-dark`, `brand-light`) en el DOM de la página.
  *  3. Que no haya desbordamiento horizontal en cinco anchos.
  *
- * Requisitos: dev server de web en 5173 y API en 4000.
- * Uso:  node web/designs/work/verify-page.cjs /clients [/quotations ...]
+ * Requisitos: `npm run build --workspace=web` y la API en 4000.
+ *
+ * Uso:
+ *   node verify-page.cjs /clients [/quotations ...]
+ *   node verify-page.cjs /clients --abrir "Editar"
+ *
+ * `--abrir "<nombre accesible>"` hace clic en el primer elemento con ese nombre
+ * antes de auditar. Es lo que permite verificar los modales: no aparecen en la
+ * ruta, se abren tras una interacción, y sin esto habría que migrarlos a ciegas.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -163,9 +170,14 @@ const readEnvValue = (key) => {
 };
 
 (async () => {
-  const routes = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const openIndex = args.indexOf('--abrir');
+  const openName = openIndex >= 0 ? args[openIndex + 1] : null;
+  if (openIndex >= 0) args.splice(openIndex, 2);
+  const routes = args;
+
   if (routes.length === 0) {
-    console.error('Uso: node verify-page.cjs /ruta [/otra ...]');
+    console.error('Uso: node verify-page.cjs /ruta [/otra ...] [--abrir "Nombre accesible"]');
     process.exit(1);
   }
 
@@ -197,6 +209,31 @@ const readEnvValue = (key) => {
     await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(700);
+
+    // Apertura opcional de un modal, para auditarlo como a cualquier otra vista.
+    if (openName) {
+      const trigger = page.getByRole('button', { name: new RegExp(openName, 'i') }).first();
+      try {
+        await trigger.click({ timeout: 8000 });
+        // Los modales entran con animacion: sin esta espera el overlay se
+        // audita a medio fundido y las mediciones no sirven.
+        await page.waitForTimeout(800);
+        entry.opened = openName;
+      } catch (error) {
+        entry.opened = `FALLO al abrir "${openName}": ${error.message.split('\n')[0]}`;
+        entry.legacy.push(`no se pudo abrir el modal "${openName}"`);
+      }
+
+      // Sin esto, un disparador mal elegido (por ejemplo un boton "Cerrar")
+      // cerraba el modal y la auditoria corria sobre la pagina de fondo,
+      // reportando "limpio" sin haber mirado el modal nunca. Un fallo silencioso
+      // peor que no verificar.
+      const dialogs = await page.locator('[role="dialog"], dialog[open]').count();
+      if (dialogs === 0) {
+        entry.legacy.push(`"${openName}" no dejo ningun modal abierto: la auditoria no cubrio el dialogo`);
+      }
+      entry.dialogs = dialogs;
+    }
 
     entry.contrast = await page.evaluate(auditContrast);
 

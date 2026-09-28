@@ -146,7 +146,7 @@ const photoSlotLabels: Record<WorkOrderInspectionPhotoSlot, string> = {
 };
 
 const inputClassName =
-  'mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15 aria-[invalid=true]:border-red-500';
+  'mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm font-normal outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk';
 
 const toLocalDateTime = (date: Date): string => {
   const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -192,13 +192,13 @@ interface SelectedClientCardProps {
 }
 
 const SelectedClientCard = ({ title, client, onClear }: SelectedClientCardProps) => (
-  <div className="min-h-28 rounded-lg border border-slate-200 bg-white p-4">
+  <div className="min-h-28 rounded-lg border border-brand-line bg-white p-4">
     <div className="flex items-start justify-between gap-3">
-      <p className="text-xs font-bold uppercase text-slate-500">{title}</p>
+      <p className="text-xs font-bold uppercase text-brand-muted">{title}</p>
       {client && onClear && (
         <button
           type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-brand-blue"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk"
           onClick={onClear}
           aria-label={`Quitar ${title.toLowerCase()}`}
           title="Quitar"
@@ -209,18 +209,18 @@ const SelectedClientCard = ({ title, client, onClear }: SelectedClientCardProps)
     </div>
     {client ? (
       <div className="mt-3 flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand-blue">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-line/40 text-brand-primaryInk">
           <UserRound className="h-5 w-5" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="truncate font-bold text-brand-blue">{client.nombre}</p>
-          <p className="mt-1 text-sm text-slate-500">{clientSubtitle(client)}</p>
-          {client.email && <p className="mt-1 truncate text-xs text-slate-500">{client.email}</p>}
+          <p className="truncate font-bold text-brand-primaryInk">{client.nombre}</p>
+          <p className="mt-1 text-sm text-brand-muted">{clientSubtitle(client)}</p>
+          {client.email && <p className="mt-1 truncate text-xs text-brand-muted">{client.email}</p>}
         </div>
       </div>
     ) : (
-      <div className="mt-4 flex items-center gap-3 text-sm text-slate-500">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100">
+      <div className="mt-4 flex items-center gap-3 text-sm text-brand-muted">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-pale">
           <UserRound className="h-5 w-5" aria-hidden="true" />
         </span>
         Sin selección
@@ -249,15 +249,15 @@ const ClientSearchPicker = ({
   const clientsQuery = useClients({ page: 1, pageSize: 8, search: debouncedSearch || undefined });
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4" aria-label={label}>
+    <section className="rounded-lg border border-brand-line bg-white p-4" aria-label={label}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="font-bold text-brand-blue">{label}</h3>
-          {selectedClient && <p className="mt-1 text-sm text-slate-500">{selectedClient.nombre}</p>}
+          <h3 className="font-bold text-brand-primaryInk">{label}</h3>
+          {selectedClient && <p className="mt-1 text-sm text-brand-muted">{selectedClient.nombre}</p>}
         </div>
         <button
           type="button"
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-blue px-3 text-sm font-semibold text-brand-blue hover:bg-brand-blue hover:text-white"
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-primaryInk px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-primaryInkHover hover:text-white"
           onClick={onCreate}
         >
           <Plus className="h-4 w-4" aria-hidden="true" /> Crear cliente
@@ -266,7 +266,7 @@ const ClientSearchPicker = ({
 
       <div className="relative mt-4">
         <Search
-          className="pointer-events-none absolute left-3 top-5 h-4 w-4 text-slate-400"
+          className="pointer-events-none absolute left-3 top-5 h-4 w-4 text-brand-muted"
           aria-hidden="true"
         />
         <input
@@ -278,12 +278,12 @@ const ClientSearchPicker = ({
         />
       </div>
 
-      <div className="mt-3 max-h-72 overflow-y-auto rounded-lg border border-slate-100">
+      <div className="mt-3 max-h-72 overflow-y-auto rounded-lg border border-brand-line">
         {clientsQuery.isFetching && (
-          <p className="px-3 py-3 text-sm text-slate-500">Buscando clientes...</p>
+          <p className="px-3 py-3 text-sm text-brand-muted">Buscando clientes...</p>
         )}
         {!clientsQuery.isFetching && clientsQuery.data?.items.length === 0 && (
-          <p className="px-3 py-5 text-center text-sm text-slate-500">No se encontraron clientes</p>
+          <p className="px-3 py-5 text-center text-sm text-brand-muted">No se encontraron clientes</p>
         )}
         {clientsQuery.data?.items.map((client) => {
           const selected = selectedClient?.id === client.id;
@@ -291,19 +291,19 @@ const ClientSearchPicker = ({
             <button
               key={client.id}
               type="button"
-              className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 text-left last:border-0 hover:bg-slate-50 ${
-                selected ? 'bg-brand-light' : ''
+              className={`flex w-full items-center justify-between gap-3 border-b border-brand-line px-3 py-3 text-left last:border-0 hover:bg-brand-pale ${
+                selected ? 'bg-brand-line/40' : ''
               }`}
               onClick={() => onSelect(toClientOption(client))}
             >
               <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-slate-800">
+                <span className="block truncate text-sm font-semibold text-brand-ink">
                   {client.nombre}
                 </span>
-                <span className="block text-xs text-slate-500">{clientSubtitle(client)}</span>
+                <span className="block text-xs text-brand-muted">{clientSubtitle(client)}</span>
               </span>
               {selected && (
-                <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                <Check className="h-4 w-4 shrink-0 text-brand-mintInk" aria-hidden="true" />
               )}
             </button>
           );
@@ -611,7 +611,7 @@ export const WorkOrderCreatePage = () => {
         <div className="flex items-start gap-3">
           <Link
             to="/work-orders"
-            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:bg-slate-50"
+            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:bg-brand-pale"
             aria-label="Volver a órdenes"
             title="Volver"
           >
@@ -620,33 +620,36 @@ export const WorkOrderCreatePage = () => {
             </AnimateIcon>
           </Link>
           <div>
-            <p className="text-sm font-medium text-slate-500">Recepción de taller</p>
-            <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">
+            <p className="text-sm font-medium text-brand-muted">Recepción de taller</p>
+            <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">
               Nueva Orden de Trabajo
             </h1>
           </div>
         </div>
-        <div className="rounded-lg border border-brand-yellow/60 bg-brand-yellow/10 px-4 py-3 text-sm text-brand-blue shadow-sm">
+        {/* El texto va en tinta y no en `primaryInk`: sobre el teñido al 10% daba
+            4.46:1, apenas por debajo del 4.5:1 que exige AA. El fondo y el borde
+            siguen marcando el bloque como informativo. */}
+        <div className="rounded-lg border border-brand-primary/40 bg-brand-primaryInk/10 px-4 py-3 text-sm text-brand-ink shadow-sm">
           Flujo operativo: cliente, facturación, vehículo, inspección y servicios.
         </div>
       </header>
 
       <form
         onSubmit={submit}
-        className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+        className="overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm"
       >
         {/* Stepper Línea de Tiempo Continua (Estilo Unithor 1.0) */}
         <nav
-          className="border-b border-slate-200 bg-slate-50/80 px-4 py-6 sm:px-8"
+          className="border-b border-brand-line bg-brand-line/40/80 px-4 py-6 sm:px-8"
           aria-label="Línea de tiempo de orden de trabajo"
         >
           {/* Vista Desktop / Tablet: Línea continua y nodos */}
           <div className="relative hidden md:block">
             {/* Barra base conectora */}
-            <div className="absolute left-[10%] right-[10%] top-[18px] h-1 -translate-y-1/2 rounded-full bg-slate-200">
+            <div className="absolute left-[10%] right-[10%] top-[18px] h-1 -translate-y-1/2 rounded-full bg-brand-line">
               {/* Barra de progreso azul Unithor */}
               <div
-                className="h-full rounded-full bg-brand-blue transition-all duration-500 ease-out"
+                className="h-full rounded-full bg-brand-primaryInk transition-all duration-500 ease-out"
                 style={{
                   width:
                     activeStep === 0
@@ -680,10 +683,10 @@ export const WorkOrderCreatePage = () => {
                       <span
                         className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-black transition-all duration-300 ${
                           active
-                            ? 'scale-110 bg-brand-yellow text-brand-dark ring-4 ring-brand-yellow/30 shadow-md'
+                            ? 'scale-110 bg-brand-primaryInk text-white ring-4 ring-brand-primary/30 shadow-md'
                             : complete
-                              ? 'bg-brand-blue text-white shadow-sm ring-2 ring-brand-blue/30 group-hover:scale-105'
-                              : 'border-2 border-slate-300 bg-white text-slate-400 group-hover:border-slate-400 group-hover:text-slate-600'
+                              ? 'bg-brand-primaryInk text-white shadow-sm ring-2 ring-brand-primary/30 group-hover:scale-105'
+                              : 'border-2 border-brand-line bg-white text-brand-muted group-hover:border-brand-primary group-hover:text-brand-muted'
                         }`}
                       >
                         {complete ? (
@@ -700,15 +703,15 @@ export const WorkOrderCreatePage = () => {
                         <span
                           className={`text-xs uppercase tracking-wide transition-colors ${
                             active
-                              ? 'font-black text-brand-blue'
+                              ? 'font-black text-brand-primaryInk'
                               : complete
-                                ? 'font-bold text-slate-800 group-hover:text-brand-blue'
-                                : 'font-semibold text-slate-400'
+                                ? 'font-bold text-brand-ink group-hover:text-brand-primaryInk'
+                                : 'font-semibold text-brand-muted'
                           }`}
                         >
                           {step.shortTitle}
                         </span>
-                        <span className="mt-0.5 hidden max-w-[130px] truncate text-[11px] text-slate-500 lg:block">
+                        <span className="mt-0.5 hidden max-w-[130px] truncate text-[11px] text-brand-muted lg:block">
                           {step.description}
                         </span>
                       </span>
@@ -721,13 +724,13 @@ export const WorkOrderCreatePage = () => {
 
           {/* Vista Móvil: Selector compacto con indicador de avance */}
           <div className="space-y-3 md:hidden">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-              <span className="text-brand-blue">PASO {activeStep + 1} DE 5</span>
+            <div className="flex items-center justify-between text-xs font-bold text-brand-ink">
+              <span className="text-brand-primaryInk">PASO {activeStep + 1} DE 5</span>
               <span>{steps[activeStep].title}</span>
             </div>
-            <div className="h-1.5 w-full rounded-full bg-slate-200">
+            <div className="h-1.5 w-full rounded-full bg-brand-line">
               <div
-                className="h-full rounded-full bg-brand-blue transition-all duration-300"
+                className="h-full rounded-full bg-brand-primaryInk transition-all duration-300"
                 style={{ width: `${((activeStep + 1) / 5) * 100}%` }}
               />
             </div>
@@ -742,10 +745,10 @@ export const WorkOrderCreatePage = () => {
                     onClick={() => goToStep(step.id)}
                     className={`flex h-9 items-center justify-center rounded-lg text-xs font-bold transition ${
                       active
-                        ? 'bg-brand-yellow text-brand-dark shadow-sm'
+                        ? 'bg-brand-primaryInk text-white shadow-sm'
                         : complete
-                          ? 'bg-brand-blue text-white'
-                          : 'border border-slate-200 bg-white text-slate-400'
+                          ? 'bg-brand-primaryInk text-white'
+                          : 'border border-brand-line bg-white text-brand-muted'
                     }`}
                   >
                     {complete ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : step.id + 1}
@@ -777,7 +780,7 @@ export const WorkOrderCreatePage = () => {
                 onCreate={() => setClientModalTarget('primary')}
               />
               {errors.clientId && (
-                <p className="text-sm text-red-700 lg:col-span-2">{errors.clientId}</p>
+                <p className="text-sm text-brand-coralInk lg:col-span-2">{errors.clientId}</p>
               )}
             </div>
           )}
@@ -802,7 +805,7 @@ export const WorkOrderCreatePage = () => {
                 <div className="space-y-3">
                   <button
                     type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-blue px-3 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50"
+                    className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-primaryInk px-3 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-50"
                     onClick={() => client && setContactClient(client)}
                     disabled={!client}
                   >
@@ -818,7 +821,7 @@ export const WorkOrderCreatePage = () => {
                 <div className="space-y-3">
                   <button
                     type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-blue px-3 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50"
+                    className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-primaryInk px-3 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-50"
                     onClick={() => client && setBillingClient(client)}
                     disabled={!client}
                   >
@@ -832,29 +835,29 @@ export const WorkOrderCreatePage = () => {
                   />
                 </div>
               </div>
-              {errors.billing && <p className="text-sm text-red-700">{errors.billing}</p>}
+              {errors.billing && <p className="text-sm text-brand-coralInk">{errors.billing}</p>}
             </div>
           )}
 
           {activeStep === 2 && (
             <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <p className="text-xs font-bold uppercase text-slate-500">Vehículo seleccionado</p>
+              <div className="rounded-lg border border-brand-line bg-white p-4">
+                <p className="text-xs font-bold uppercase text-brand-muted">Vehículo seleccionado</p>
                 {vehicle ? (
                   <div className="mt-4 space-y-4">
                     <div className="flex items-start gap-3">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand-blue">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-line/40 text-brand-primaryInk">
                         <Car className="h-5 w-5" aria-hidden="true" />
                       </span>
                       <div className="min-w-0">
-                        <p className="font-mono text-lg font-bold text-brand-blue">
+                        <p className="font-mono text-lg font-bold text-brand-primaryInk">
                           {vehicle.patente}
                         </p>
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-brand-muted">
                           {[vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' ') ||
                             'Sin datos técnicos'}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-brand-muted">
                           {vehicle.client
                             ? `Propietario registrado: ${vehicle.client.nombre}`
                             : 'Sin propietario registrado'}
@@ -863,30 +866,30 @@ export const WorkOrderCreatePage = () => {
                     </div>
                     <button
                       type="button"
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-line px-3 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
                       onClick={() => setVehicle(null)}
                     >
                       <X className="h-4 w-4" aria-hidden="true" /> Quitar
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-4 rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+                  <div className="mt-4 rounded-lg border border-dashed border-brand-line px-4 py-8 text-center text-sm text-brand-muted">
                     Seleccione o registre el vehículo que ingresa.
                   </div>
                 )}
               </div>
-              <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <section className="rounded-lg border border-brand-line bg-white p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h3 className="font-bold text-brand-blue">Buscar vehículo</h3>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <h3 className="font-bold text-brand-primaryInk">Buscar vehículo</h3>
+                    <p className="mt-1 text-sm text-brand-muted">
                       Los vehículos existentes conservan su propietario registrado; la OT puede
                       quedar a nombre de otra persona que los entrega.
                     </p>
                   </div>
                   <button
                     type="button"
-                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-blue px-3 text-sm font-semibold text-brand-blue hover:bg-brand-blue hover:text-white"
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-primaryInk px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-primaryInkHover hover:text-white"
                     onClick={() => setVehicleModalOpen(true)}
                   >
                     <Plus className="h-4 w-4" aria-hidden="true" /> Crear vehículo
@@ -900,7 +903,7 @@ export const WorkOrderCreatePage = () => {
                   />
                 </div>
                 {canAssignMechanic && (
-                  <label className="mt-4 block rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-700">
+                  <label className="mt-4 block rounded-lg border border-brand-line bg-brand-line/40 p-3 text-sm font-semibold text-brand-ink">
                     Mecánico responsable
                     <select
                       value={assignedMechanicId ?? ''}
@@ -909,7 +912,7 @@ export const WorkOrderCreatePage = () => {
                           event.target.value ? Number(event.target.value) : null,
                         )
                       }
-                      className="mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                      className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
                     >
                       <option value="">Sin asignar por ahora</option>
                       {mechanicsQuery.data?.map((mechanic) => (
@@ -918,13 +921,13 @@ export const WorkOrderCreatePage = () => {
                         </option>
                       ))}
                     </select>
-                    <span className="mt-1 block text-xs font-normal text-slate-500">
+                    <span className="mt-1 block text-xs font-normal text-brand-muted">
                       Podrás cambiarlo lateramente desde el detalle de la OT.
                     </span>
                   </label>
                 )}
                 {vehicleOwnerIsDifferent && (
-                  <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+                  <div className="mt-4 flex items-start gap-2 rounded-lg border border-brand-line bg-brand-goldPale px-3 py-3 text-sm text-brand-goldInk">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                     <div>
                       <p className="font-semibold">
@@ -939,7 +942,7 @@ export const WorkOrderCreatePage = () => {
                   </div>
                 )}
                 {errors.vehicleId && (
-                  <p className="mt-3 text-sm text-red-700">{errors.vehicleId}</p>
+                  <p className="mt-3 text-sm text-brand-coralInk">{errors.vehicleId}</p>
                 )}
               </section>
             </div>
@@ -948,12 +951,12 @@ export const WorkOrderCreatePage = () => {
           {activeStep === 3 && (
             <div className="space-y-6">
               {/* Fechas y motivo de ingreso */}
-              <section className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
-                <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-brand-blue">
+              <section className="rounded-lg border border-brand-line bg-brand-line/40/60 p-4">
+                <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-brand-primaryInk">
                   Datos de la orden
                 </h3>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <label className="text-sm font-semibold text-slate-700">
+                  <label className="text-sm font-semibold text-brand-ink">
                     Fecha de ingreso
                     <input
                       type="datetime-local"
@@ -963,12 +966,12 @@ export const WorkOrderCreatePage = () => {
                       aria-invalid={Boolean(errors.fechaIngreso)}
                     />
                     {errors.fechaIngreso && (
-                      <span className="mt-1 block text-xs font-normal text-red-700">
+                      <span className="mt-1 block text-xs font-normal text-brand-coralInk">
                         {errors.fechaIngreso}
                       </span>
                     )}
                   </label>
-                  <label className="text-sm font-semibold text-slate-700">
+                  <label className="text-sm font-semibold text-brand-ink">
                     Entrega prometida
                     <input
                       type="datetime-local"
@@ -978,13 +981,13 @@ export const WorkOrderCreatePage = () => {
                     />
                   </label>
                 </div>
-                <label className="mt-3 block text-sm font-semibold text-slate-700">
+                <label className="mt-3 block text-sm font-semibold text-brand-ink">
                   Motivo de ingreso / diagnóstico preliminar
                   <textarea
                     value={descripcion}
                     onChange={(event) => setDescripcion(event.target.value)}
                     rows={3}
-                    className="mt-2 w-full resize-y rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                    className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
                     placeholder="Describa la falla reportada por el cliente"
                   />
                 </label>
@@ -992,7 +995,7 @@ export const WorkOrderCreatePage = () => {
 
               {/* Inspección de recepción */}
               <section className="grid gap-4 lg:grid-cols-2">
-                <label className="text-sm font-semibold text-slate-700">
+                <label className="text-sm font-semibold text-brand-ink">
                   Kilometraje de entrada
                   <input
                     type="number"
@@ -1005,12 +1008,12 @@ export const WorkOrderCreatePage = () => {
                     aria-invalid={Boolean(errors.kilometrajeIngreso)}
                   />
                   {errors.kilometrajeIngreso && (
-                    <span className="mt-1 block text-xs font-normal text-red-700">
+                    <span className="mt-1 block text-xs font-normal text-brand-coralInk">
                       {errors.kilometrajeIngreso}
                     </span>
                   )}
                 </label>
-                <label className="text-sm font-semibold text-slate-700">
+                <label className="text-sm font-semibold text-brand-ink">
                   Nivel de combustible
                   <select
                     value={inspection.nivelCombustible}
@@ -1030,7 +1033,7 @@ export const WorkOrderCreatePage = () => {
               </section>
 
               <section aria-labelledby="tires-title">
-                <h3 id="tires-title" className="font-bold text-brand-blue">
+                <h3 id="tires-title" className="font-bold text-brand-primaryInk">
                   Llantas
                 </h3>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -1042,7 +1045,7 @@ export const WorkOrderCreatePage = () => {
                       ['llantaTraseraDerecha', 'Trasera derecha'],
                     ] as const
                   ).map(([key, label]) => (
-                    <label key={key} className="text-sm font-semibold text-slate-700">
+                    <label key={key} className="text-sm font-semibold text-brand-ink">
                       {label}
                       <select
                         value={inspection[key]}
@@ -1064,8 +1067,8 @@ export const WorkOrderCreatePage = () => {
 
               <section aria-labelledby="photos-title">
                 <div className="flex items-center gap-2">
-                  <Camera className="h-5 w-5 text-brand-blue" aria-hidden="true" />
-                  <h3 id="photos-title" className="font-bold text-brand-blue">
+                  <Camera className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
+                  <h3 id="photos-title" className="font-bold text-brand-primaryInk">
                     Registro fotográfico
                   </h3>
                 </div>
@@ -1075,16 +1078,16 @@ export const WorkOrderCreatePage = () => {
                     return (
                       <div
                         key={slot}
-                        className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+                        className="overflow-hidden rounded-lg border border-brand-line bg-white"
                       >
-                        <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
-                          <p className="text-sm font-semibold text-slate-700">
+                        <div className="flex items-center justify-between gap-2 border-b border-brand-line px-3 py-2">
+                          <p className="text-sm font-semibold text-brand-ink">
                             {photoSlotLabels[slot]}
                           </p>
                           {photo && (
                             <button
                               type="button"
-                              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-700"
+                              className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-coralPale hover:text-brand-coralInk"
                               onClick={() => setInspectionPhoto(slot, null)}
                               aria-label={`Eliminar foto ${photoSlotLabels[slot]}`}
                               title="Eliminar foto"
@@ -1100,14 +1103,14 @@ export const WorkOrderCreatePage = () => {
                             className="h-36 w-full object-cover"
                           />
                         ) : (
-                          <div className="flex h-36 flex-col items-center justify-center gap-1.5 bg-slate-50 px-3 text-center">
-                            <ImagePlus className="h-7 w-7 text-slate-400" aria-hidden="true" />
-                            <span className="text-sm font-semibold text-slate-500">Subir foto</span>
-                            <span className="text-[11px] font-normal text-slate-400">
+                          <div className="flex h-36 flex-col items-center justify-center gap-1.5 bg-brand-line/40 px-3 text-center">
+                            <ImagePlus className="h-7 w-7 text-brand-muted" aria-hidden="true" />
+                            <span className="text-sm font-semibold text-brand-muted">Subir foto</span>
+                            <span className="text-[11px] font-normal text-brand-muted">
                               JPG, PNG o WebP · máx {MAX_INSPECTION_PHOTO_MB} MB
                             </span>
                             <span className="flex gap-2">
-                              <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-brand-blue bg-white px-3 text-xs font-bold text-brand-blue hover:bg-brand-light">
+                              <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-brand-primaryInk bg-white px-3 text-xs font-bold text-brand-primaryInk hover:bg-brand-line/40">
                                 Elegir archivo
                                 <input
                                   type="file"
@@ -1120,7 +1123,7 @@ export const WorkOrderCreatePage = () => {
                                   aria-label={`Subir foto ${photoSlotLabels[slot]}`}
                                 />
                               </label>
-                              <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-brand-blue px-3 text-xs font-bold text-white hover:bg-brand-dark">
+                              <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-brand-primaryInk px-3 text-xs font-bold text-white hover:bg-brand-primaryInkHover">
                                 Cámara
                                 <input
                                   type="file"
@@ -1144,20 +1147,20 @@ export const WorkOrderCreatePage = () => {
               </section>
 
               <section aria-labelledby="inventory-title">
-                <h3 id="inventory-title" className="font-bold text-brand-blue">
+                <h3 id="inventory-title" className="font-bold text-brand-primaryInk">
                   Inventario interno
                 </h3>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {VEHICLE_INVENTORY_ITEMS.map((item) => (
                     <label
                       key={item}
-                      className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-brand-line px-3 py-2 text-sm text-brand-ink hover:bg-brand-pale"
                     >
                       <input
                         type="checkbox"
                         checked={inspection.inventario.includes(item)}
                         onChange={() => toggleInventory(item)}
-                        className="h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-yellow"
+                        className="h-4 w-4 rounded border-brand-line text-brand-primaryInk focus:ring-brand-primary"
                       />
                       {inventoryLabels[item]}
                     </label>
@@ -1166,23 +1169,23 @@ export const WorkOrderCreatePage = () => {
               </section>
 
               <section className="grid gap-4 lg:grid-cols-2">
-                <label className="text-sm font-semibold text-slate-700">
+                <label className="text-sm font-semibold text-brand-ink">
                   Objetos de valor
                   <textarea
                     value={inspection.objetosValor}
                     onChange={(event) => updateInspection('objetosValor', event.target.value)}
                     rows={4}
-                    className="mt-2 w-full resize-y rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                    className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
                     placeholder="Documentos, herramientas, accesorios especiales"
                   />
                 </label>
-                <label className="text-sm font-semibold text-slate-700">
+                <label className="text-sm font-semibold text-brand-ink">
                   Observaciones de inspección
                   <textarea
                     value={inspection.observaciones}
                     onChange={(event) => updateInspection('observaciones', event.target.value)}
                     rows={4}
-                    className="mt-2 w-full resize-y rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                    className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
                     placeholder="Rayones, golpes, testigos encendidos, notas del asesor"
                   />
                 </label>
@@ -1192,8 +1195,8 @@ export const WorkOrderCreatePage = () => {
 
           {activeStep === 4 && (
             <div className="space-y-4">
-              <div className="rounded-lg border border-brand-blue/20 bg-brand-light/40 px-4 py-3">
-                <p className="text-sm font-semibold text-brand-blue">
+              <div className="rounded-lg border border-brand-primaryInk/20 bg-brand-line/40/40 px-4 py-3">
+                <p className="text-sm font-semibold text-brand-primaryInk">
                   Agregue los trabajos a realizar y repuestos necesarios. Puede dejar esta sección
                   vacía si el diagnóstico está pendiente.
                 </p>
@@ -1210,7 +1213,7 @@ export const WorkOrderCreatePage = () => {
 
         {createMutation.isError && (
           <div
-            className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk"
             role="alert"
           >
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -1220,7 +1223,7 @@ export const WorkOrderCreatePage = () => {
 
         {uploadPhotosMutation.isError && createdOrderId && (
           <div
-            className="mx-5 mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+            className="mx-5 mb-5 rounded-lg border border-brand-line bg-brand-goldPale px-4 py-3 text-sm text-brand-goldInk"
             role="alert"
           >
             La OT fue creada, pero una o más fotos no se pudieron subir. Puede abrir el detalle de
@@ -1228,10 +1231,10 @@ export const WorkOrderCreatePage = () => {
           </div>
         )}
 
-        <footer className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <footer className="flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Link
             to="/work-orders"
-            className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
           >
             Cancelar
           </Link>
@@ -1239,7 +1242,7 @@ export const WorkOrderCreatePage = () => {
             {activeStep > 0 && (
               <button
                 type="button"
-                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
+                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink shadow-sm transition-all hover:bg-brand-pale hover:shadow"
                 onClick={() => setActiveStep((activeStep - 1) as StepIndex)}
                 disabled={isSubmitting}
               >
@@ -1252,7 +1255,7 @@ export const WorkOrderCreatePage = () => {
             {activeStep < 4 ? (
               <button
                 type="button"
-                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-dark hover:shadow"
+                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow"
                 onClick={goNext}
               >
                 Siguiente
@@ -1263,7 +1266,7 @@ export const WorkOrderCreatePage = () => {
             ) : (
               <button
                 type="button"
-                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow disabled:opacity-60"
+                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-mintInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow disabled:opacity-60"
                 disabled={isSubmitting}
                 onClick={handleOpenConfirm}
               >
@@ -1300,7 +1303,7 @@ export const WorkOrderCreatePage = () => {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
           <button
             type="button"
-            className="absolute inset-0 bg-slate-950/55"
+            className="absolute inset-0 bg-brand-scrim/55"
             aria-label="Cerrar confirmación"
             onClick={() => setShowConfirm(false)}
             disabled={isSubmitting}
@@ -1314,39 +1317,39 @@ export const WorkOrderCreatePage = () => {
             aria-modal="true"
             aria-labelledby="confirm-ot-title"
           >
-            <h2 id="confirm-ot-title" className="text-xl font-bold text-brand-blue">
+            <h2 id="confirm-ot-title" className="text-xl font-bold text-brand-primaryInk">
               Confirmar recepción de OT
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-brand-muted">
               Pequeño resumen de lo que se recepciona antes de crear la orden.
             </p>
 
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 p-3">
-                <p className="text-xs font-bold uppercase text-slate-500">Responsable / Contacto</p>
-                <p className="mt-1 font-semibold text-slate-900">
+              <div className="rounded-lg border border-brand-line p-3">
+                <p className="text-xs font-bold uppercase text-brand-muted">Responsable / Contacto</p>
+                <p className="mt-1 font-semibold text-brand-ink">
                   {client?.nombre ?? 'Sin responsable'}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-brand-muted">
                   {contactClient?.nombre ?? client?.nombre ?? '-'}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-brand-muted">
                   Facturación: {billingClient?.nombre ?? '-'}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-200 p-3">
-                <p className="text-xs font-bold uppercase text-slate-500">Vehículo</p>
-                <p className="mt-1 font-mono font-bold text-brand-blue">
+              <div className="rounded-lg border border-brand-line p-3">
+                <p className="text-xs font-bold uppercase text-brand-muted">Vehículo</p>
+                <p className="mt-1 font-mono font-bold text-brand-primaryInk">
                   {vehicle?.patente ?? 'Sin vehículo'}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-brand-muted">
                   {[vehicle?.marca, vehicle?.modelo, vehicle?.ano].filter(Boolean).join(' ') ||
                     'Sin datos'}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-brand-muted">
                   Propietario: {vehicle?.client?.nombre ?? 'Sin propietario registrado'}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-brand-muted">
                   Km:{' '}
                   {kilometrajeIngreso === ''
                     ? 'No registrado'
@@ -1357,33 +1360,33 @@ export const WorkOrderCreatePage = () => {
                     : 'Sin registrar'}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-200 p-3">
-                <p className="text-xs font-bold uppercase text-slate-500">Inspección</p>
-                <p className="mt-1 text-xs text-slate-700">
+              <div className="rounded-lg border border-brand-line p-3">
+                <p className="text-xs font-bold uppercase text-brand-muted">Inspección</p>
+                <p className="mt-1 text-xs text-brand-ink">
                   Inventario:{' '}
                   {inspection.inventario.length > 0
                     ? inspection.inventario.map((key) => inventoryLabels[key]).join(', ')
                     : 'Sin elementos marcados'}
                 </p>
-                <p className="mt-1 text-xs text-slate-700">
+                <p className="mt-1 text-xs text-brand-ink">
                   Fotos:{' '}
                   {photos.length > 0
                     ? photos.map((photo) => photoSlotLabels[photo.slot]).join(', ')
                     : 'Sin fotos'}
                 </p>
-                <p className="mt-1 text-xs text-slate-700">
+                <p className="mt-1 text-xs text-brand-ink">
                   Objetos:{' '}
                   {inspection.objetosValor.trim() === '' ? 'Ninguno' : inspection.objetosValor}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-200 p-3">
-                <p className="text-xs font-bold uppercase text-slate-500">Servicios</p>
+              <div className="rounded-lg border border-brand-line p-3">
+                <p className="text-xs font-bold uppercase text-brand-muted">Servicios</p>
                 {items.filter((item) => item.descripcion.trim().length > 0).length === 0 ? (
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-brand-muted">
                     Diagnóstico inicial, sin trabajos cargados.
                   </p>
                 ) : (
-                  <ul className="mt-1 space-y-1 text-xs text-slate-700">
+                  <ul className="mt-1 space-y-1 text-xs text-brand-ink">
                     {items
                       .filter((item) => item.descripcion.trim().length > 0)
                       .map((item, index) => (
@@ -1403,14 +1406,14 @@ export const WorkOrderCreatePage = () => {
                       ))}
                   </ul>
                 )}
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-brand-muted">
                   Motivo: {descripcion.trim() === '' ? 'Sin observaciones' : descripcion}
                 </p>
               </div>
             </div>
 
             {createMutation.isError && (
-              <p className="mt-3 text-sm text-red-700" role="alert">
+              <p className="mt-3 text-sm text-brand-coralInk" role="alert">
                 {getApiErrorMessage(createMutation.error, 'No fue posible crear la orden.')}
               </p>
             )}
@@ -1418,7 +1421,7 @@ export const WorkOrderCreatePage = () => {
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
-                className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700"
+                className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink"
                 onClick={() => setShowConfirm(false)}
                 disabled={isSubmitting}
               >
@@ -1426,7 +1429,7 @@ export const WorkOrderCreatePage = () => {
               </button>
               <button
                 type="button"
-                className="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+                className="h-10 rounded-lg bg-brand-mintInk px-4 text-sm font-semibold text-white disabled:opacity-60"
                 onClick={handleConfirmCreate}
                 disabled={isSubmitting}
               >

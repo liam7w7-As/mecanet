@@ -60,24 +60,24 @@ const getEstimatedTotal = (workOrder: WorkOrder): number | null =>
 const WorkOrdersSkeleton = () => (
   <>
     {Array.from({ length: 6 }, (_, index) => (
-      <div key={index} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="h-1 w-full animate-pulse bg-slate-100" />
+      <div key={index} className="overflow-hidden rounded-xl border border-brand-line bg-white">
+        <div className="h-1 w-full animate-pulse bg-brand-pale" />
         <div className="space-y-2.5 p-3.5">
           <div className="flex items-center justify-between gap-3">
-            <div className="h-4 w-28 animate-pulse rounded bg-slate-100" />
-            <div className="h-4 w-16 animate-pulse rounded-full bg-slate-100" />
+            <div className="h-4 w-28 animate-pulse rounded bg-brand-pale" />
+            <div className="h-4 w-16 animate-pulse rounded-full bg-brand-pale" />
           </div>
-          <div className="h-5 w-24 animate-pulse rounded bg-slate-100" />
-          <div className="h-3 w-32 animate-pulse rounded bg-slate-100" />
-          <div className="grid grid-cols-3 gap-px overflow-hidden rounded bg-slate-100">
+          <div className="h-5 w-24 animate-pulse rounded bg-brand-pale" />
+          <div className="h-3 w-32 animate-pulse rounded bg-brand-pale" />
+          <div className="grid grid-cols-3 gap-px overflow-hidden rounded bg-brand-pale">
             {Array.from({ length: 3 }, (_, cell) => (
               <div key={cell} className="bg-white py-1.5 pl-3">
-                <div className="h-2 w-10 rounded bg-slate-100" />
-                <div className="mt-1 h-3.5 w-12 rounded bg-slate-100" />
+                <div className="h-2 w-10 rounded bg-brand-pale" />
+                <div className="mt-1 h-3.5 w-12 rounded bg-brand-pale" />
               </div>
             ))}
           </div>
-          <div className="h-1.5 w-full animate-pulse rounded-full bg-slate-100" />
+          <div className="h-1.5 w-full animate-pulse rounded-full bg-brand-pale" />
         </div>
       </div>
     ))}
@@ -129,19 +129,19 @@ const WorkOrderCard = ({
       value: elapsed.running
         ? elapsed.text.replace('En taller ', '')
         : elapsed.text.replace('Duración total: ', ''),
-      tone: elapsed.overdue ? 'text-red-600' : 'text-slate-800',
+      tone: elapsed.overdue ? 'text-brand-coralInk' : 'text-brand-ink',
     },
     {
       key: 'avance',
       label: 'Avance',
       value: progress.total === 0 ? '—' : `${progress.percent}%`,
-      tone: progress.percent === 100 ? 'text-emerald-600' : 'text-brand-blue',
+      tone: progress.percent === 100 ? 'text-brand-mintInk' : 'text-brand-primaryInk',
     },
     {
       key: 'total',
       label: 'Total est.',
       value: estimatedTotal === null ? '—' : formatClp(estimatedTotal),
-      tone: 'text-brand-blue',
+      tone: 'text-brand-primaryInk',
     },
   ];
 
@@ -152,24 +152,24 @@ const WorkOrderCard = ({
       <div className={`h-1 w-full ${tier.bar}`} aria-hidden="true" />
 
       <div className="flex flex-1 flex-col">
-        <div className="bg-gradient-to-br from-white via-slate-50 to-slate-100/80 px-3.5 pb-3 pt-3">
+        <div className="bg-gradient-to-br from-white via-brand-line/40 to-brand-line/60 px-3.5 pb-3 pt-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <button
                 type="button"
                 onClick={onOpenDetail}
-                className="truncate font-mono text-sm font-black text-brand-blue underline-offset-4 hover:underline focus:outline-none focus-visible:underline"
+                className="truncate font-mono text-sm font-black text-brand-primaryInk underline-offset-4 hover:underline focus:outline-none focus-visible:underline"
                 aria-label={`Ver detalle de ${workOrder.codigo}`}
               >
                 {workOrder.codigo}
               </button>
-              <p className="mt-1 text-[11px] font-semibold text-slate-500">
+              <p className="mt-1 text-[11px] font-semibold text-brand-muted">
                 Ingreso {formatDate(workOrder.fechaIngreso)}
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
               {elapsed.overdue && (
-                <span className="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Vencida</span>
+                <span className="rounded bg-brand-coralInk px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Vencida</span>
               )}
               <WorkOrderStatusBadge status={workOrder.estado} />
             </div>
@@ -177,41 +177,41 @@ const WorkOrderCard = ({
 
           <div className="mt-3 flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate font-mono text-2xl font-black leading-none tracking-wide text-slate-950">
+              <p className="truncate font-mono text-2xl font-black leading-none tracking-wide text-brand-ink">
                 {workOrder.vehicle?.patente ?? 'SIN PATENTE'}
               </p>
-              <p className="mt-1 truncate text-xs font-medium text-slate-500">
+              <p className="mt-1 truncate text-xs font-medium text-brand-muted">
                 {vehicleLabel || 'Vehículo sin datos'}
               </p>
             </div>
             {workOrder.coberturaGarantia && (
-              <span className="shrink-0 rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-black uppercase text-violet-800 ring-1 ring-violet-200">
+              <span className="shrink-0 rounded-full bg-brand-pale px-2.5 py-1 text-[10px] font-black uppercase text-brand-primaryInk ring-1 ring-brand-line">
                 Garantía
               </span>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-3 border-y border-slate-100 px-3.5 py-2">
-          <p className="flex min-w-0 items-center gap-1.5 text-xs text-slate-600" title={workOrder.client?.nombre ?? undefined}>
-            <UserRound className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
-            <span className="truncate font-semibold text-slate-700">{workOrder.client?.nombre ?? 'Sin cliente'}</span>
+        <div className="grid grid-cols-2 gap-x-3 border-y border-brand-line px-3.5 py-2">
+          <p className="flex min-w-0 items-center gap-1.5 text-xs text-brand-muted" title={workOrder.client?.nombre ?? undefined}>
+            <UserRound className="h-3.5 w-3.5 shrink-0 text-brand-muted" aria-hidden="true" />
+            <span className="truncate font-semibold text-brand-ink">{workOrder.client?.nombre ?? 'Sin cliente'}</span>
           </p>
           <p className="flex min-w-0 items-center gap-1.5 text-xs" title={workOrder.assignedMechanic?.nombre ?? undefined}>
             <UserCog
-              className={`h-3.5 w-3.5 shrink-0 ${workOrder.assignedMechanic ? 'text-emerald-600' : 'text-amber-500'}`}
+              className={`h-3.5 w-3.5 shrink-0 ${workOrder.assignedMechanic ? 'text-brand-mintInk' : 'text-brand-goldInk'}`}
               aria-hidden="true"
             />
-            <span className={`truncate ${workOrder.assignedMechanic ? 'font-semibold text-slate-700' : 'text-slate-400'}`}>
+            <span className={`truncate ${workOrder.assignedMechanic ? 'font-semibold text-brand-ink' : 'text-brand-muted'}`}>
               {workOrder.assignedMechanic?.nombre ?? 'Sin mecánico'}
             </span>
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-px bg-slate-100">
+        <div className="grid grid-cols-3 gap-px bg-brand-pale">
           {stats.map((stat) => (
             <div key={stat.key} className="bg-white px-3.5 py-1.5">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{stat.label}</p>
+              <p className="text-[9px] font-bold uppercase tracking-wide text-brand-muted">{stat.label}</p>
               <p className={`truncate text-sm font-bold leading-tight ${stat.tone}`}>{stat.value}</p>
             </div>
           ))}
@@ -219,7 +219,7 @@ const WorkOrderCard = ({
 
         <div className="px-3.5 pb-2.5 pt-2">
           <div className="flex items-center justify-between gap-2">
-            <p className="flex items-center gap-1 text-[11px] font-semibold text-slate-600">
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-brand-muted">
               <ListChecks className="h-3 w-3" aria-hidden="true" />
               Tareas {progress.completed}/{progress.total}
             </p>
@@ -228,7 +228,7 @@ const WorkOrderCard = ({
             </span>
           </div>
           <div
-            className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
+            className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-brand-pale"
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -239,45 +239,50 @@ const WorkOrderCard = ({
           </div>
         </div>
 
-        <div className="border-t border-slate-100 px-3.5 py-2.5">
+        <div className="border-t border-brand-line px-3.5 py-2.5">
           {quotation ? (
-            <div className="rounded-xl bg-slate-50 p-2.5 ring-1 ring-slate-200">
+            <div className="rounded-xl bg-brand-line/40 p-2.5 ring-1 ring-brand-line">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-blue/10 text-brand-blue">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-primaryInk/10 text-brand-primaryInk">
                     <ReceiptText className="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate font-mono text-xs font-black text-brand-blue">{quotation.codigo}</p>
-                    <p className="text-[10px] font-semibold text-slate-500">
+                    <p className="truncate font-mono text-xs font-black text-brand-primaryInk">{quotation.codigo}</p>
+                    <p className="text-[10px] font-semibold text-brand-muted">
                       Pagado {formatClp(quotation.pagado)} de {formatClp(quotation.total)}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-xs font-black ${quotation.saldoPendiente <= 0 ? 'text-emerald-600' : 'text-amber-700'}`}>
+                  <p className={`text-xs font-black ${quotation.saldoPendiente <= 0 ? 'text-brand-mintInk' : 'text-brand-goldInk'}`}>
                     {quotation.saldoPendiente <= 0 ? 'Pagada' : formatClp(quotation.saldoPendiente)}
                   </p>
-                  <p className="text-[10px] text-slate-400">saldo</p>
+                  <p className="text-[10px] text-brand-muted">saldo</p>
                 </div>
               </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-line">
+                {/* La barra codifica estado, no acción: verde cuando el saldo
+                    está cancelado y dorado cuando queda por cobrar. Aplanar
+                    ambos al índigo dejaba dos tonos de azul sin significado.
+                    Ojo: este comentario va en posicion de HIJOS. En la de
+                    atributos hay que usar `//` sobre el elemento. */}
                 <div
-                  className={`h-full rounded-full ${quotation.saldoPendiente <= 0 ? 'bg-emerald-500' : 'bg-brand-yellow'}`}
+                  className={`h-full rounded-full ${quotation.saldoPendiente <= 0 ? 'bg-brand-mintInk' : 'bg-brand-gold'}`}
                   style={{ width: `${paymentPercent}%` }}
                 />
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+            <div className="rounded-xl border border-dashed border-brand-line bg-brand-line/40 px-3 py-2 text-xs font-semibold text-brand-muted">
               Sin cotización vinculada
             </div>
           )}
         </div>
 
-        <div className="mt-auto flex items-center gap-1.5 border-t border-slate-100 px-3.5 py-2.5">
+        <div className="mt-auto flex items-center gap-1.5 border-t border-brand-line px-3.5 py-2.5">
           {onOpenExecution && <button type="button" onClick={onOpenExecution}
-            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-blue px-2 py-1 text-xs font-bold text-white hover:bg-brand-dark">
+            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-primaryInk px-2 py-1 text-xs font-bold text-white hover:bg-brand-primaryInkHover">
             <ListChecks className="h-4 w-4 shrink-0" aria-hidden="true" />Gestionar trabajo
           </button>}
           <button
@@ -285,7 +290,7 @@ const WorkOrderCard = ({
             onClick={onOpenDetail}
             aria-label="Ver detalle"
             title="Ver detalle"
-            className={onOpenExecution ? 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-brand-blue hover:bg-slate-50' : 'inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-blue px-3 text-xs font-bold text-white hover:bg-brand-dark'}
+            className={onOpenExecution ? 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-line text-brand-primaryInk hover:bg-brand-pale' : 'inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-primaryInk px-3 text-xs font-bold text-white hover:bg-brand-primaryInkHover'}
           >
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
             {!onOpenExecution && 'Ver detalle'}
@@ -293,7 +298,7 @@ const WorkOrderCard = ({
           <button
             type="button"
             onClick={onPreviewPdf}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-brand-blue transition-colors hover:bg-slate-50"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-primaryInk transition-colors hover:bg-brand-pale"
             aria-label={`Previsualizar PDF de ${workOrder.codigo}`}
             title="PDF"
           >
@@ -302,7 +307,7 @@ const WorkOrderCard = ({
           {canManage && (
             <select
               aria-label={`Cambiar estado de ${workOrder.codigo}`}
-              className="h-9 max-w-28 rounded-lg border border-slate-300 bg-white px-1.5 text-[11px] font-bold text-slate-600"
+              className="h-9 max-w-28 rounded-lg border border-brand-line bg-white px-1.5 text-[11px] font-bold text-brand-muted"
               value=""
               onChange={(event) => onChangeStatus(workOrder, event.target.value as WorkOrderStatus)}
               disabled={statusPending || validTransitions.length === 0}
@@ -362,11 +367,11 @@ export const WorkOrdersPage = () => {
     <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500">Operación de taller</p>
-          <h1 className="mt-1 text-2xl font-bold text-brand-blue sm:text-3xl">{user?.role === 'mecanico' ? 'Mis órdenes asignadas' : 'Taller - Órdenes de Trabajo'}</h1>
+          <p className="text-sm font-medium text-brand-muted">Operación de taller</p>
+          <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">{user?.role === 'mecanico' ? 'Mis órdenes asignadas' : 'Taller - Órdenes de Trabajo'}</h1>
         </div>
         {canCreate && (
-          <Link to="/work-orders/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark shadow-sm transition-all hover:bg-yellow-400 hover:shadow-md">
+          <Link to="/work-orders/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-primaryHover hover:shadow-md">
             <AnimateIcon variant="spin" animateOnHover>
               <Plus className="h-4 w-4" aria-hidden="true" />
             </AnimateIcon>
@@ -375,11 +380,11 @@ export const WorkOrdersPage = () => {
         )}
       </header>
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" aria-label="Listado de órdenes de trabajo">
-        <div className="border-b border-slate-200 p-4">
+      <section className="overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm" aria-label="Listado de órdenes de trabajo">
+        <div className="border-b border-brand-line p-4">
           <div className="relative max-w-xl">
-            <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm outline-none transition-shadow focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15" placeholder="Buscar código OT, patente o cliente" aria-label="Buscar órdenes de trabajo" />
+            <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-10 w-full rounded-lg border border-brand-line pl-9 pr-3 text-sm outline-none transition-shadow focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" placeholder="Buscar código OT, patente o cliente" aria-label="Buscar órdenes de trabajo" />
           </div>
           <div className="mt-4 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filtrar por estado">
             {STATUS_FILTERS.map((filter) => {
@@ -391,14 +396,14 @@ export const WorkOrdersPage = () => {
                   role="tab"
                   aria-selected={isSelected}
                   className={`relative min-h-9 whitespace-nowrap rounded-lg px-3 text-sm font-semibold transition-colors ${
-                    isSelected ? 'text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    isSelected ? 'text-white' : 'bg-brand-pale text-brand-muted hover:bg-brand-line'
                   }`}
                   onClick={() => setStatus(filter.value)}
                 >
                   {isSelected && (
                     <motion.span
                       layoutId="workOrdersStatusPill"
-                      className="absolute inset-0 rounded-lg bg-brand-blue"
+                      className="absolute inset-0 rounded-lg bg-brand-primaryInk"
                       transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                     />
                   )}
@@ -410,22 +415,22 @@ export const WorkOrdersPage = () => {
         </div>
 
         {(workOrdersQuery.isError || statusMutation.isError || previewQuery.isError) && (
-          <div className="flex items-center gap-2 border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          <div className="flex items-center gap-2 border-b border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             {getApiErrorMessage(workOrdersQuery.error ?? statusMutation.error ?? previewQuery.error, 'No fue posible completar la operación.')}
           </div>
         )}
 
-        <div className="bg-slate-50/60 p-4">
+        <div className="bg-brand-line/40/60 p-4">
           {workOrdersQuery.isPending ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <WorkOrdersSkeleton />
             </div>
           ) : (workOrdersQuery.data?.items.length ?? 0) === 0 ? (
             <div className="flex min-h-56 flex-col items-center justify-center px-4 text-center">
-              <ClipboardList className="h-10 w-10 text-slate-300" aria-hidden="true" />
-              <p className="mt-3 font-semibold text-slate-700">No se encontraron órdenes de trabajo</p>
-              <p className="mt-1 text-sm text-slate-500">Cambie los filtros o registre el primer ingreso del taller.</p>
+              <ClipboardList className="h-10 w-10 text-brand-line" aria-hidden="true" />
+              <p className="mt-3 font-semibold text-brand-ink">No se encontraron órdenes de trabajo</p>
+              <p className="mt-1 text-sm text-brand-muted">Cambie los filtros o registre el primer ingreso del taller.</p>
             </div>
           ) : (
             <Stagger className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" stagger={0.05}>

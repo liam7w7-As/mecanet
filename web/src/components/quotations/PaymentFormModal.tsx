@@ -134,7 +134,7 @@ export const PaymentFormModal = ({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
-        className="absolute inset-0 bg-slate-950/55"
+        className="absolute inset-0 bg-brand-scrim/55"
         aria-label="Cerrar registro de abono"
         onClick={onClose}
       />
@@ -147,37 +147,37 @@ export const PaymentFormModal = ({
         aria-modal="true"
         aria-labelledby="payment-modal-title"
       >
-        <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+        <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-brand-line bg-white px-5 py-4 sm:px-6">
           <button
             type="button"
-            className="group absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+            className="group absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale"
             onClick={onClose}
             aria-label="Cerrar"
           >
             <AnimateIcon icon={X} animation="spin" size={16} />
           </button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-yellow text-brand-dark">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primaryInk text-white">
             <AnimateIcon icon={Banknote} animation="bounce" size={20} />
           </div>
           <div className="min-w-0 pr-8">
-            <h2 id="payment-modal-title" className="text-xl font-bold text-brand-blue">
+            <h2 id="payment-modal-title" className="text-xl font-bold text-brand-primaryInk">
               Registrar abono
             </h2>
-            <p className="mt-1 font-mono text-xs text-slate-500">{codigo}</p>
+            <p className="mt-1 font-mono text-xs text-brand-muted">{codigo}</p>
           </div>
         </header>
 
         <div className="grid min-w-0 md:grid-cols-2">
-          <div className="min-w-0 border-b border-slate-200 bg-slate-50/60 p-5 sm:p-6 md:border-b-0 md:border-r">
+          <div className="min-w-0 border-b border-brand-line bg-brand-line/40/60 p-5 sm:p-6 md:border-b-0 md:border-r">
             {loadingSummary ? (
               <div role="status" className="min-h-48 animate-pulse space-y-4">
                 <span className="sr-only">Cargando trabajos y saldo</span>
-                <div className="h-5 w-2/3 rounded bg-slate-200" />
-                <div className="h-20 rounded bg-slate-200" />
-                <div className="h-24 rounded bg-slate-200" />
+                <div className="h-5 w-2/3 rounded bg-brand-line" />
+                <div className="h-20 rounded bg-brand-line" />
+                <div className="h-24 rounded bg-brand-line" />
               </div>
             ) : summaryError ? (
-              <div role="alert" className="text-sm text-red-700">
+              <div role="alert" className="text-sm text-brand-coralInk">
                 <p>No se pudieron cargar los trabajos y el saldo actualizado.</p>
                 <button
                   type="button"
@@ -203,11 +203,11 @@ export const PaymentFormModal = ({
           </div>
 
           <form onSubmit={submit} className="min-w-0 space-y-4 p-5 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-brand-yellow bg-brand-light px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-brand-yellow bg-brand-line/40 px-4 py-3">
               <div>
-                <p className="text-xs font-semibold text-slate-500">Disponible para abonar</p>
+                <p className="text-xs font-semibold text-brand-muted">Disponible para abonar</p>
                 <p
-                  className="mt-1 text-xl font-bold text-brand-blue"
+                  className="mt-1 text-xl font-bold text-brand-primaryInk"
                   data-testid="payment-available-balance"
                 >
                   {loadingSummary || summaryError ? '—' : formatClp(availableBalance)}
@@ -216,7 +216,7 @@ export const PaymentFormModal = ({
               <button
                 type="button"
                 disabled={loadingSummary || summaryError || availableBalance <= 0}
-                className="text-xs font-bold text-brand-blue underline underline-offset-4 disabled:opacity-40"
+                className="text-xs font-bold text-brand-primaryInk underline underline-offset-4 disabled:opacity-40"
                 onClick={() => {
                   setMonto(String(availableBalance));
                   setErrors({});
@@ -225,28 +225,28 @@ export const PaymentFormModal = ({
                 Completar saldo
               </button>
             </div>
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-sm font-semibold text-brand-ink">
               Monto del abono
               <CurrencyInput
                 value={monto}
                 onChange={setMonto}
-                className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
                 placeholder="0"
                 autoFocus
                 aria-invalid={Boolean(errors.monto)}
               />
               {errors.monto && (
-                <span className="mt-1 block text-xs font-normal text-red-700" role="alert">
+                <span className="mt-1 block text-xs font-normal text-brand-coralInk" role="alert">
                   {errors.monto}
                 </span>
               )}
             </label>
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-sm font-semibold text-brand-ink">
               Método de pago
               <select
                 value={metodo}
                 onChange={(event) => setMetodo(event.target.value as PaymentMethod)}
-                className="mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal outline-none focus:border-brand-blue"
+                className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 font-normal outline-none focus:border-brand-primary"
               >
                 {PAYMENT_METHODS.map((method) => (
                   <option key={method} value={method}>
@@ -257,16 +257,16 @@ export const PaymentFormModal = ({
             </label>
             {validAmount && summary && (
               <div
-                className="flex flex-wrap items-center justify-between gap-2 border-y border-slate-200 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 border-y border-brand-line py-3"
                 aria-live="polite"
               >
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-brand-muted">
                   {metodo === 'transferencia'
                     ? 'Saldo al confirmar esta transferencia'
                     : 'Saldo tras este abono'}
                 </span>
                 <strong
-                  className="text-base text-brand-blue"
+                  className="text-base text-brand-primaryInk"
                   data-testid="payment-projected-balance"
                 >
                   {formatClp(projectedBalance)}
@@ -274,16 +274,16 @@ export const PaymentFormModal = ({
               </div>
             )}
             {metodo === 'transferencia' && (
-              <div className="space-y-3 border-l-4 border-amber-400 bg-amber-50 px-4 py-3">
+              <div className="space-y-3 border-l-4 border-amber-400 bg-brand-goldPale px-4 py-3">
                 <p className="text-sm text-amber-900">
                   La transferencia quedará pendiente hasta que Finanzas confirme su recepción.
                 </p>
-                <label className="block text-sm font-semibold text-slate-700">
+                <label className="block text-sm font-semibold text-brand-ink">
                   Banco de origen
                   <select
                     value={bancoOrigen}
                     onChange={(event) => setBancoOrigen(event.target.value as PaymentBank)}
-                    className="mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal outline-none focus:border-brand-blue"
+                    className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 font-normal outline-none focus:border-brand-primary"
                   >
                     {PAYMENT_BANKS.map((bank) => (
                       <option key={bank} value={bank}>
@@ -292,31 +292,31 @@ export const PaymentFormModal = ({
                     ))}
                   </select>
                   {errors.bancoOrigen && (
-                    <span className="mt-1 block text-xs font-normal text-red-700" role="alert">
+                    <span className="mt-1 block text-xs font-normal text-brand-coralInk" role="alert">
                       {errors.bancoOrigen}
                     </span>
                   )}
                 </label>
               </div>
             )}
-            <div className="space-y-3 border-t border-slate-200 pt-4">
-              <label className="block text-sm font-semibold text-slate-700">
+            <div className="space-y-3 border-t border-brand-line pt-4">
+              <label className="block text-sm font-semibold text-brand-ink">
                 Número de transacción
                 <input
                   value={numeroTransaccion}
                   onChange={(event) => setNumeroTransaccion(event.target.value)}
                   maxLength={80}
                   aria-required={metodo === 'transferencia'}
-                  className="mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal outline-none focus:border-brand-blue"
+                  className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 font-normal outline-none focus:border-brand-primary"
                   placeholder="Ej. TRX-123456"
                 />
                 {errors.numeroTransaccion && (
-                  <span className="mt-1 block text-xs font-normal text-red-700" role="alert">
+                  <span className="mt-1 block text-xs font-normal text-brand-coralInk" role="alert">
                     {errors.numeroTransaccion}
                   </span>
                 )}
               </label>
-              <label className="block text-sm font-semibold text-slate-700">
+              <label className="block text-sm font-semibold text-brand-ink">
                 Comprobante de pago
                 <input
                   type="file"
@@ -327,39 +327,39 @@ export const PaymentFormModal = ({
                     setReceiptFile(file);
                     setComprobantePago(file?.name ?? '');
                   }}
-                  className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-brand-blue file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-dark"
+                  className="mt-2 block w-full rounded-lg border border-brand-line bg-white px-3 py-2 text-sm font-normal text-brand-ink file:mr-3 file:rounded-md file:border-0 file:bg-brand-primaryInk file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-primaryInk"
                 />
                 {comprobantePago && (
-                  <span className="mt-1 block text-xs font-normal text-slate-600">
+                  <span className="mt-1 block text-xs font-normal text-brand-muted">
                     {comprobantePago}
                   </span>
                 )}
                 {errors.comprobantePago && (
-                  <span className="mt-1 block text-xs font-normal text-red-700" role="alert">
+                  <span className="mt-1 block text-xs font-normal text-brand-coralInk" role="alert">
                     {errors.comprobantePago}
                   </span>
                 )}
               </label>
               {metodo !== 'transferencia' && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-brand-muted">
                   Número y comprobante opcionales para este método de pago.
                 </p>
               )}
             </div>
             {metodo === 'transferencia' && (
-              <label className="block text-sm font-semibold text-slate-700">
+              <label className="block text-sm font-semibold text-brand-ink">
                 Referencia interna opcional
                 <input
                   value={referencia}
                   onChange={(event) => setReferencia(event.target.value)}
                   maxLength={120}
-                  className="mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal outline-none focus:border-brand-blue"
+                  className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 font-normal outline-none focus:border-brand-primary"
                   placeholder="Observación corta para caja o finanzas"
                 />
               </label>
             )}
             {editingDate ? (
-              <label className="block text-sm font-semibold text-slate-700">
+              <label className="block text-sm font-semibold text-brand-ink">
                 Fecha del abono
                 <input
                   type="datetime-local"
@@ -367,19 +367,19 @@ export const PaymentFormModal = ({
                   onChange={(event) => setFecha(event.target.value)}
                   required
                   aria-invalid={Boolean(errors.fecha)}
-                  className="mt-2 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-brand-blue"
+                  className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
                 />
                 {errors.fecha && (
-                  <span className="mt-1 block text-xs text-red-700" role="alert">
+                  <span className="mt-1 block text-xs text-brand-coralInk" role="alert">
                     {errors.fecha}
                   </span>
                 )}
               </label>
             ) : (
-              <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-3">
+              <div className="flex items-center justify-between gap-3 border-t border-brand-line pt-3">
                 <div>
-                  <p className="text-xs font-semibold text-slate-500">Fecha del abono</p>
-                  <time dateTime={fecha} className="text-sm font-semibold text-slate-700">
+                  <p className="text-xs font-semibold text-brand-muted">Fecha del abono</p>
+                  <time dateTime={fecha} className="text-sm font-semibold text-brand-ink">
                     {formatDateTime(fecha)}
                   </time>
                 </div>
@@ -388,7 +388,7 @@ export const PaymentFormModal = ({
                   onClick={() => setEditingDate(true)}
                   title="Cambiar fecha del abono"
                   aria-label="Cambiar fecha del abono"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale"
                 >
                   <Pencil className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -396,7 +396,7 @@ export const PaymentFormModal = ({
             )}
             {createMutation.isError && (
               <div
-                className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                className="flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2 text-sm text-brand-coralInk"
                 role="alert"
               >
                 <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -406,14 +406,14 @@ export const PaymentFormModal = ({
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700"
+                className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink"
                 onClick={onClose}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white disabled:opacity-60"
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white disabled:opacity-60"
                 disabled={
                   createMutation.isPending ||
                   loadingSummary ||

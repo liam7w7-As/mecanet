@@ -57,12 +57,12 @@ interface ComparisonProps {
 }
 
 const Comparison = ({ value, inverse = false }: ComparisonProps) => {
-  if (value === null) return <span className="text-slate-400">Sin base comparable</span>;
+  if (value === null) return <span className="text-brand-muted">Sin base comparable</span>;
   const favorable = inverse ? value <= 0 : value >= 0;
   const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight;
   return (
     <span className={`inline-flex items-center gap-1 font-semibold ${
-      favorable ? 'text-emerald-700' : 'text-red-700'
+      favorable ? 'text-brand-mintInk' : 'text-brand-coralInk'
     }`}>
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {Math.abs(value).toFixed(1)}% vs. período anterior
@@ -87,17 +87,17 @@ const ExecutiveMetric = ({
   comparison,
   inverseComparison,
 }: ExecutiveMetricProps) => (
-  <article className="min-h-36 min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+  <article className="min-h-36 min-w-0 rounded-lg border border-brand-line bg-white p-4 shadow-sm">
     <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
       <div>
-        <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-        <p className="mt-2 break-words text-xl font-bold text-brand-blue sm:text-2xl">{value}</p>
+        <p className="text-xs font-bold uppercase text-brand-muted">{label}</p>
+        <p className="mt-2 break-words text-xl font-bold text-brand-primaryInk sm:text-2xl">{value}</p>
       </div>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand-blue">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-line/40 text-brand-primaryInk">
         <Icon className="h-5 w-5" aria-hidden="true" />
       </span>
     </div>
-    <p className="mt-3 text-xs text-slate-500">{detail}</p>
+    <p className="mt-3 text-xs text-brand-muted">{detail}</p>
     {comparison !== undefined && (
       <p className="mt-1 text-xs">
         <Comparison value={comparison} inverse={inverseComparison} />
@@ -138,15 +138,15 @@ const AnalyticsSkeleton = () => (
   <div className="space-y-5" aria-label="Cargando analítica financiera">
     <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {Array.from({ length: 8 }, (_, index) => (
-        <div key={index} className="h-36 animate-pulse rounded-lg bg-slate-200" />
+        <div key={index} className="h-36 animate-pulse rounded-lg bg-brand-line" />
       ))}
     </div>
-    <div className="h-72 animate-pulse rounded-lg bg-slate-200" />
+    <div className="h-72 animate-pulse rounded-lg bg-brand-line" />
   </div>
 );
 
 const EmptyRows = ({ label }: { label: string }) => (
-  <p className="py-8 text-center text-sm text-slate-500">{label}</p>
+  <p className="py-8 text-center text-sm text-brand-muted">{label}</p>
 );
 
 export const FinanceAnalyticsDashboard = () => {
@@ -178,10 +178,10 @@ export const FinanceAnalyticsDashboard = () => {
 
   return (
     <section className="min-w-0 space-y-5" aria-labelledby="financial-analytics-title">
-      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-3 border-b border-brand-line pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-500">Análisis ejecutivo</p>
-          <h2 id="financial-analytics-title" className="mt-1 text-xl font-bold text-brand-blue">
+          <p className="text-sm font-semibold text-brand-muted">Análisis ejecutivo</p>
+          <h2 id="financial-analytics-title" className="mt-1 text-xl font-bold text-brand-primaryInk">
             Rendimiento financiero y comercial
           </h2>
         </div>
@@ -190,7 +190,7 @@ export const FinanceAnalyticsDashboard = () => {
             type="button"
             onClick={() => exportReport('pdf')}
             disabled={downloadMutation.isPending}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-brand-blue px-4 text-sm font-bold text-brand-blue hover:bg-brand-light disabled:opacity-50 sm:w-auto"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-brand-primaryInk px-4 text-sm font-bold text-brand-primaryInk hover:bg-brand-line/40 disabled:opacity-50 sm:w-auto"
           >
             {downloadMutation.isPending ? (
               <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -203,7 +203,7 @@ export const FinanceAnalyticsDashboard = () => {
             type="button"
             onClick={() => exportReport('excel')}
             disabled={downloadMutation.isPending}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-bold text-white hover:bg-brand-dark disabled:opacity-50 sm:w-auto"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryInkHover disabled:opacity-50 sm:w-auto"
           >
             <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
             Excel detallado
@@ -211,13 +211,13 @@ export const FinanceAnalyticsDashboard = () => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <div className="mb-4 flex items-center gap-2 text-sm font-bold text-brand-blue">
+      <div className="rounded-lg border border-brand-line bg-white p-4">
+        <div className="mb-4 flex items-center gap-2 text-sm font-bold text-brand-primaryInk">
           <Filter className="h-4 w-4" aria-hidden="true" />
           Filtros del análisis y reportes
         </div>
         <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-          <label className="min-w-0 text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-brand-muted">
             Desde
             <input
               aria-label="Fecha desde"
@@ -225,10 +225,10 @@ export const FinanceAnalyticsDashboard = () => {
               value={filters.fechaDesde}
               max={filters.fechaHasta}
               onChange={(event) => setFilter('fechaDesde', event.target.value)}
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             />
           </label>
-          <label className="min-w-0 text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-brand-muted">
             Hasta
             <input
               aria-label="Fecha hasta"
@@ -237,10 +237,10 @@ export const FinanceAnalyticsDashboard = () => {
               min={filters.fechaDesde}
               max={todayIso()}
               onChange={(event) => setFilter('fechaHasta', event.target.value)}
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             />
           </label>
-          <label className="min-w-0 text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-brand-muted">
             Agrupar
             <select
               aria-label="Agrupar tendencia"
@@ -248,14 +248,14 @@ export const FinanceAnalyticsDashboard = () => {
               onChange={(event) =>
                 setFilter('agruparPor', event.target.value as FinancialReportFilters['agruparPor'])
               }
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             >
               <option value="dia">Por día</option>
               <option value="semana">Por semana</option>
               <option value="mes">Por mes</option>
             </select>
           </label>
-          <label className="min-w-0 text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-brand-muted">
             Vendedor
             <select
               aria-label="Filtrar por vendedor"
@@ -263,7 +263,7 @@ export const FinanceAnalyticsDashboard = () => {
               onChange={(event) =>
                 setFilter('asesorId', event.target.value ? Number(event.target.value) : undefined)
               }
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             >
               <option value="">Todos</option>
               {data?.filterOptions.advisors.map((advisor) => (
@@ -271,7 +271,7 @@ export const FinanceAnalyticsDashboard = () => {
               ))}
             </select>
           </label>
-          <label className="min-w-0 text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-brand-muted">
             Cliente
             <select
               aria-label="Filtrar por cliente"
@@ -279,7 +279,7 @@ export const FinanceAnalyticsDashboard = () => {
               onChange={(event) =>
                 setFilter('clientId', event.target.value ? Number(event.target.value) : undefined)
               }
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             >
               <option value="">Todos</option>
               {data?.filterOptions.clients.map((client) => (
@@ -289,7 +289,7 @@ export const FinanceAnalyticsDashboard = () => {
               ))}
             </select>
           </label>
-          <label className="min-w-0 text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-brand-muted">
             Estado de pago
             <select
               aria-label="Filtrar por estado de pago"
@@ -300,7 +300,7 @@ export const FinanceAnalyticsDashboard = () => {
                   (event.target.value || undefined) as FinancialReportFilters['estadoPago'],
                 )
               }
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             >
               <option value="">Todos</option>
               {quotationStatuses.map((status) => (
@@ -308,7 +308,7 @@ export const FinanceAnalyticsDashboard = () => {
               ))}
             </select>
           </label>
-          <label className="min-w-0 text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-brand-muted">
             Método de pago
             <select
               aria-label="Filtrar por método de pago"
@@ -319,7 +319,7 @@ export const FinanceAnalyticsDashboard = () => {
                   (event.target.value || undefined) as FinancialReportFilters['metodo'],
                 )
               }
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             >
               <option value="">Todos</option>
               {paymentMethods.map((method) => (
@@ -327,7 +327,7 @@ export const FinanceAnalyticsDashboard = () => {
               ))}
             </select>
           </label>
-          <label className="min-w-0 text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-brand-muted">
             Tipo de ítem
             <select
               aria-label="Filtrar por tipo de catálogo"
@@ -338,7 +338,7 @@ export const FinanceAnalyticsDashboard = () => {
                   (event.target.value || undefined) as FinancialReportFilters['catalogType'],
                 )
               }
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             >
               <option value="">Todos</option>
               <option value="parte">Repuestos</option>
@@ -346,7 +346,7 @@ export const FinanceAnalyticsDashboard = () => {
               <option value="especifico">Servicios específicos</option>
             </select>
           </label>
-          <label className="min-w-0 text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-brand-muted">
             Tipo de movimiento
             <select
               aria-label="Filtrar por tipo de movimiento"
@@ -357,14 +357,14 @@ export const FinanceAnalyticsDashboard = () => {
                   (event.target.value || undefined) as FinancialReportFilters['movimientoTipo'],
                 )
               }
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             >
               <option value="">Todos</option>
               <option value="ingreso">Ingreso</option>
               <option value="egreso">Egreso</option>
             </select>
           </label>
-          <label className="min-w-0 text-xs font-bold text-slate-600">
+          <label className="min-w-0 text-xs font-bold text-brand-muted">
             Categoría de caja
             <select
               aria-label="Filtrar por categoría de caja"
@@ -375,7 +375,7 @@ export const FinanceAnalyticsDashboard = () => {
                   (event.target.value || undefined) as FinancialReportFilters['movimientoCategoria'],
                 )
               }
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue"
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             >
               <option value="">Todas</option>
               {movementCategories.map((category) => (
@@ -383,19 +383,19 @@ export const FinanceAnalyticsDashboard = () => {
               ))}
             </select>
           </label>
-          <label className="flex min-w-0 h-10 items-center gap-2 self-end text-sm font-semibold text-slate-700">
+          <label className="flex min-w-0 h-10 items-center gap-2 self-end text-sm font-semibold text-brand-ink">
             <input
               type="checkbox"
               checked={filters.comparar}
               onChange={(event) => setFilter('comparar', event.target.checked)}
-              className="h-4 w-4 accent-brand-blue"
+              className="h-4 w-4 accent-brand-primary"
             />
             Comparar período anterior
           </label>
           <button
             type="button"
             onClick={() => setFilters(initialFilters())}
-            className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-lg border border-brand-line px-3 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
           >
             <RefreshCcw className="h-4 w-4" aria-hidden="true" />
             Restablecer
@@ -405,7 +405,7 @@ export const FinanceAnalyticsDashboard = () => {
 
       {analyticsQuery.isLoading && <AnalyticsSkeleton />}
       {analyticsQuery.isError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-5 text-sm text-red-800">
+        <div className="rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-5 text-sm text-brand-coralInk">
           No se pudo cargar el análisis financiero. Reintenta la consulta.
         </div>
       )}
@@ -469,10 +469,10 @@ export const FinanceAnalyticsDashboard = () => {
           </div>
 
           <div className="grid min-w-0 gap-5 xl:grid-cols-[1.4fr_1fr]">
-            <section className="min-w-0 rounded-lg border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h3 className="font-bold text-brand-blue">Evolución del período</h3>
-                <p className="mt-1 text-xs text-slate-500">Ventas, cobros y egresos por {filters.agruparPor}.</p>
+            <section className="min-w-0 rounded-lg border border-brand-line bg-white">
+              <div className="border-b border-brand-line px-5 py-4">
+                <h3 className="font-bold text-brand-primaryInk">Evolución del período</h3>
+                <p className="mt-1 text-xs text-brand-muted">Ventas, cobros y egresos por {filters.agruparPor}.</p>
               </div>
               <div className="max-h-96 overflow-auto p-5">
                 {data.trend.length === 0 ? (
@@ -482,28 +482,28 @@ export const FinanceAnalyticsDashboard = () => {
                     {data.trend.map((point) => (
                       <div key={point.key} className="grid min-w-0 gap-3 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
                         <div>
-                          <p className="text-xs font-bold text-slate-700">{point.label}</p>
+                          <p className="text-xs font-bold text-brand-ink">{point.label}</p>
                           <p className={`mt-1 text-xs font-semibold ${
-                            point.netCash >= 0 ? 'text-emerald-700' : 'text-red-700'
+                            point.netCash >= 0 ? 'text-brand-mintInk' : 'text-brand-coralInk'
                           }`}>
                             Neto {formatClp(point.netCash)}
                           </p>
                         </div>
                         <div className="space-y-1.5">
                           <div className="grid min-w-0 grid-cols-[3.5rem_minmax(2rem,1fr)_auto] items-center gap-2">
-                            <span className="text-right text-[11px] text-slate-500">Ventas</span>
-                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-brand-blue" style={{ width: `${Math.max(2, (point.grossSales / maxTrendValue) * 100)}%` }} />
-                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-slate-600">{formatClp(point.grossSales)}</span>
+                            <span className="text-right text-[11px] text-brand-muted">Ventas</span>
+                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-brand-primaryInk" style={{ width: `${Math.max(2, (point.grossSales / maxTrendValue) * 100)}%` }} />
+                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-brand-muted">{formatClp(point.grossSales)}</span>
                           </div>
                           <div className="grid min-w-0 grid-cols-[3.5rem_minmax(2rem,1fr)_auto] items-center gap-2">
-                            <span className="text-right text-[11px] text-slate-500">Cobros</span>
-                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-emerald-600" style={{ width: `${Math.max(2, (point.collected / maxTrendValue) * 100)}%` }} />
-                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-slate-600">{formatClp(point.collected)}</span>
+                            <span className="text-right text-[11px] text-brand-muted">Cobros</span>
+                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-brand-mintInk" style={{ width: `${Math.max(2, (point.collected / maxTrendValue) * 100)}%` }} />
+                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-brand-muted">{formatClp(point.collected)}</span>
                           </div>
                           <div className="grid min-w-0 grid-cols-[3.5rem_minmax(2rem,1fr)_auto] items-center gap-2">
-                            <span className="text-right text-[11px] text-slate-500">Egresos</span>
-                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-red-500" style={{ width: `${Math.max(2, (point.expenses / maxTrendValue) * 100)}%` }} />
-                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-slate-600">{formatClp(point.expenses)}</span>
+                            <span className="text-right text-[11px] text-brand-muted">Egresos</span>
+                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-brand-coralInk" style={{ width: `${Math.max(2, (point.expenses / maxTrendValue) * 100)}%` }} />
+                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-brand-muted">{formatClp(point.expenses)}</span>
                           </div>
                         </div>
                       </div>
@@ -513,24 +513,24 @@ export const FinanceAnalyticsDashboard = () => {
               </div>
             </section>
 
-            <section className="min-w-0 rounded-lg border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h3 className="font-bold text-brand-blue">Quién vendió más</h3>
-                <p className="mt-1 text-xs text-slate-500">Ranking por venta bruta emitida.</p>
+            <section className="min-w-0 rounded-lg border border-brand-line bg-white">
+              <div className="border-b border-brand-line px-5 py-4">
+                <h3 className="font-bold text-brand-primaryInk">Quién vendió más</h3>
+                <p className="mt-1 text-xs text-brand-muted">Ranking por venta bruta emitida.</p>
               </div>
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-brand-line">
                 {data.topSellers.length === 0 ? (
                   <EmptyRows label="No hay vendedores para este filtro." />
                 ) : data.topSellers.slice(0, 8).map((seller, index) => (
                   <div key={seller.id ?? seller.nombre} className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5">
                     <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                      index === 0 ? 'bg-brand-yellow text-brand-dark' : 'bg-slate-100 text-slate-600'
+                      index === 0 ? 'bg-brand-gold text-brand-ink' : 'bg-brand-pale text-brand-muted'
                     }`}>{index + 1}</span>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-slate-800">{seller.nombre}</p>
-                      <p className="text-xs text-slate-500">{seller.quotationCount} COT · cobrado {formatClp(seller.collected)}</p>
+                      <p className="truncate text-sm font-bold text-brand-ink">{seller.nombre}</p>
+                      <p className="text-xs text-brand-muted">{seller.quotationCount} COT · cobrado {formatClp(seller.collected)}</p>
                     </div>
-                    <strong className="text-sm text-brand-blue">{formatClp(seller.grossSales)}</strong>
+                    <strong className="text-sm text-brand-primaryInk">{formatClp(seller.grossSales)}</strong>
                   </div>
                 ))}
               </div>
@@ -538,22 +538,22 @@ export const FinanceAnalyticsDashboard = () => {
           </div>
 
           <div className="grid min-w-0 gap-5 lg:grid-cols-2 xl:grid-cols-3">
-            <section className="min-w-0 rounded-lg border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h3 className="font-bold text-brand-blue">Productos y servicios con mayor salida</h3>
+            <section className="min-w-0 rounded-lg border border-brand-line bg-white">
+              <div className="border-b border-brand-line px-5 py-4">
+                <h3 className="font-bold text-brand-primaryInk">Productos y servicios con mayor salida</h3>
               </div>
               <div className="max-w-full overflow-x-auto overscroll-x-contain">
                 {data.topItems.length === 0 ? <EmptyRows label="No hay ítems vendidos." /> : (
                   <table className="w-full min-w-[28rem] text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                    <thead className="bg-brand-line/40 text-xs uppercase text-brand-muted">
                       <tr><th className="px-4 py-3">Ítem</th><th className="px-3 py-3 text-right">Cantidad</th><th className="px-4 py-3 text-right">Venta</th></tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-brand-line">
                       {data.topItems.slice(0, 8).map((item) => (
                         <tr key={`${item.catalogItemId ?? 'libre'}-${item.nombre}`}>
-                          <td className="px-4 py-3"><span className="block font-semibold text-slate-800">{item.nombre}</span><span className="text-xs text-slate-500">{item.codigo ?? humanize(item.tipo)}</span></td>
+                          <td className="px-4 py-3"><span className="block font-semibold text-brand-ink">{item.nombre}</span><span className="text-xs text-brand-muted">{item.codigo ?? humanize(item.tipo)}</span></td>
                           <td className="px-3 py-3 text-right font-semibold">{item.quantity.toLocaleString('es-CL')}</td>
-                          <td className="px-4 py-3 text-right font-bold text-brand-blue">{formatClp(item.revenue)}</td>
+                          <td className="px-4 py-3 text-right font-bold text-brand-primaryInk">{formatClp(item.revenue)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -562,36 +562,36 @@ export const FinanceAnalyticsDashboard = () => {
               </div>
             </section>
 
-            <section className="min-w-0 rounded-lg border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h3 className="font-bold text-brand-blue">Clientes principales</h3>
+            <section className="min-w-0 rounded-lg border border-brand-line bg-white">
+              <div className="border-b border-brand-line px-5 py-4">
+                <h3 className="font-bold text-brand-primaryInk">Clientes principales</h3>
               </div>
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-brand-line">
                 {data.topClients.length === 0 ? <EmptyRows label="No hay clientes para este filtro." /> : data.topClients.slice(0, 8).map((client) => (
                   <div key={client.id ?? client.nombre} className="px-5 py-3">
                     <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{client.nombre}</p><p className="text-xs text-slate-500">{client.rut ?? 'Sin identificación'} · {client.quotationCount} COT</p></div>
-                      <strong className="shrink-0 whitespace-nowrap text-sm text-brand-blue">{formatClp(client.grossSales)}</strong>
+                      <div className="min-w-0"><p className="truncate text-sm font-bold text-brand-ink">{client.nombre}</p><p className="text-xs text-brand-muted">{client.rut ?? 'Sin identificación'} · {client.quotationCount} COT</p></div>
+                      <strong className="shrink-0 whitespace-nowrap text-sm text-brand-primaryInk">{formatClp(client.grossSales)}</strong>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">Por cobrar: <span className="font-semibold text-amber-700">{formatClp(client.receivable)}</span></p>
+                    <p className="mt-1 text-xs text-brand-muted">Por cobrar: <span className="font-semibold text-brand-goldInk">{formatClp(client.receivable)}</span></p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="min-w-0 rounded-lg border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h3 className="font-bold text-brand-blue">Composición de cobros</h3>
+            <section className="min-w-0 rounded-lg border border-brand-line bg-white">
+              <div className="border-b border-brand-line px-5 py-4">
+                <h3 className="font-bold text-brand-primaryInk">Composición de cobros</h3>
               </div>
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-brand-line">
                 {data.paymentMethods.length === 0 ? <EmptyRows label="No hay pagos confirmados." /> : data.paymentMethods.map((method) => (
                   <div key={method.metodo} className="px-5 py-3">
                     <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="font-semibold text-slate-700">{humanize(method.metodo)}</span>
-                      <strong className="text-brand-blue">{formatClp(method.amount)}</strong>
+                      <span className="font-semibold text-brand-ink">{humanize(method.metodo)}</span>
+                      <strong className="text-brand-primaryInk">{formatClp(method.amount)}</strong>
                     </div>
-                    <div className="mt-2 h-1.5 overflow-hidden bg-slate-100"><div data-testid={`payment-share-${method.metodo}`} className="h-full max-w-full bg-brand-yellow" style={{ width: `${Math.min(100, Math.max(0, method.share))}%` }} /></div>
-                    <p className="mt-1 text-xs text-slate-500">{method.count} operaciones · {percent(method.share)}</p>
+                    <div className="mt-2 h-1.5 overflow-hidden bg-brand-pale"><div data-testid={`payment-share-${method.metodo}`} className="h-full max-w-full bg-brand-primaryInk" style={{ width: `${Math.min(100, Math.max(0, method.share))}%` }} /></div>
+                    <p className="mt-1 text-xs text-brand-muted">{method.count} operaciones · {percent(method.share)}</p>
                   </div>
                 ))}
               </div>
@@ -599,24 +599,24 @@ export const FinanceAnalyticsDashboard = () => {
           </div>
 
           <div className="grid min-w-0 gap-5 lg:grid-cols-2">
-            <section className="rounded-lg border border-slate-200 bg-white p-5">
-              <div className="flex items-center gap-2"><Users className="h-5 w-5 text-brand-blue" aria-hidden="true" /><h3 className="font-bold text-brand-blue">Estado de cotizaciones</h3></div>
+            <section className="rounded-lg border border-brand-line bg-white p-5">
+              <div className="flex items-center gap-2"><Users className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" /><h3 className="font-bold text-brand-primaryInk">Estado de cotizaciones</h3></div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 {data.quotationStatuses.map((status) => (
-                  <div key={status.estado} className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-2 text-sm">
-                    <span className="text-slate-600">{humanize(status.estado)} ({status.count})</span>
-                    <strong className="text-slate-800">{formatClp(status.amount)}</strong>
+                  <div key={status.estado} className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-brand-line py-2 text-sm">
+                    <span className="text-brand-muted">{humanize(status.estado)} ({status.count})</span>
+                    <strong className="text-brand-ink">{formatClp(status.amount)}</strong>
                   </div>
                 ))}
               </div>
             </section>
-            <section className="rounded-lg border border-slate-200 bg-white p-5">
-              <div className="flex items-center gap-2"><Download className="h-5 w-5 text-brand-blue" aria-hidden="true" /><h3 className="font-bold text-brand-blue">Egresos e ingresos por categoría</h3></div>
+            <section className="rounded-lg border border-brand-line bg-white p-5">
+              <div className="flex items-center gap-2"><Download className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" /><h3 className="font-bold text-brand-primaryInk">Egresos e ingresos por categoría</h3></div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 {data.movementCategories.length === 0 ? <EmptyRows label="No hay movimientos manuales." /> : data.movementCategories.map((movement) => (
-                  <div key={`${movement.tipo}-${movement.categoria}`} className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-2 text-sm">
-                    <span className="text-slate-600">{humanize(movement.categoria)} ({movement.count})</span>
-                    <strong className={movement.tipo === 'ingreso' ? 'text-emerald-700' : 'text-red-700'}>{formatClp(movement.amount)}</strong>
+                  <div key={`${movement.tipo}-${movement.categoria}`} className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-brand-line py-2 text-sm">
+                    <span className="text-brand-muted">{humanize(movement.categoria)} ({movement.count})</span>
+                    <strong className={movement.tipo === 'ingreso' ? 'text-brand-mintInk' : 'text-brand-coralInk'}>{formatClp(movement.amount)}</strong>
                   </div>
                 ))}
               </div>

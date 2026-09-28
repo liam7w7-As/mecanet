@@ -64,14 +64,14 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 px-4 py-8">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
       <section className="relative mx-auto w-full max-w-6xl rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="edit-work-items-title">
-        <header className="flex items-start justify-between border-b border-slate-200 p-5">
+        <header className="flex items-start justify-between border-b border-brand-line p-5">
           <div>
-            <p className="font-mono text-sm text-slate-500">{workOrder.codigo}</p>
-            <h2 id="edit-work-items-title" className="mt-1 text-xl font-bold text-brand-blue">Editar trabajos y repuestos</h2>
+            <p className="font-mono text-sm text-brand-muted">{workOrder.codigo}</p>
+            <h2 id="edit-work-items-title" className="mt-1 text-xl font-bold text-brand-primaryInk">Editar trabajos y repuestos</h2>
           </div>
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar">
+          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar">
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </header>
@@ -87,14 +87,14 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
             />
           </div>
           {(errors._form || updateMutation.isError) && (
-            <div className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+            <div className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2 text-sm text-brand-coralInk" role="alert">
               <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
               {errors._form ?? getApiErrorMessage(updateMutation.error)}
             </div>
           )}
-          <footer className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 p-4">
-            <button type="button" className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={updateMutation.isPending}>
+          <footer className="flex justify-end gap-2 border-t border-brand-line bg-brand-line/40 p-4">
+            <button type="button" className="h-10 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={updateMutation.isPending}>
               {updateMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
               Guardar trabajos
             </button>

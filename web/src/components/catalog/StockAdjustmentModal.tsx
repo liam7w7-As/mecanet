@@ -111,7 +111,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-3 py-3 sm:items-center sm:px-4 sm:py-6">
       <button
         type="button"
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-brand-scrim/60 backdrop-blur-[1px]"
         aria-label="Cerrar ajuste de stock"
         onClick={onClose}
       />
@@ -124,7 +124,11 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
         aria-modal="true"
         aria-labelledby="stock-adjustment-title"
       >
-        <header className="bg-brand-blue px-5 py-4 text-white sm:px-6">
+        {/* Cabecera sobre `surfaceDark` y no sobre el índigo: el título usa
+            `text-white/65` y `text-white/70`, que sobre `#255DFF` dan 3.05:1 y
+            3.3:1. Sobre la superficie oscura del tema `body.dark` del diseño
+            suben a ~6.9:1. */}
+        <header className="bg-brand-surfaceDark px-5 py-4 text-white sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase text-white/65">
@@ -155,8 +159,8 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
               type="button"
               className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors ${
                 movementType === 'ingreso'
-                  ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
-                  : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                  ? 'border-brand-mintInk bg-brand-mintPale text-brand-mintInk'
+                  : 'border-brand-line text-brand-muted hover:bg-brand-pale'
               }`}
               onClick={() => changeMovementType('ingreso')}
               aria-pressed={movementType === 'ingreso'}
@@ -167,8 +171,8 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
               type="button"
               className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors ${
                 movementType === 'salida'
-                  ? 'border-red-500 bg-red-50 text-red-700'
-                  : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                  ? 'border-red-500 bg-brand-coralPale text-brand-coralInk'
+                  : 'border-brand-line text-brand-muted hover:bg-brand-pale'
               }`}
               onClick={() => changeMovementType('salida')}
               aria-pressed={movementType === 'salida'}
@@ -177,11 +181,11 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
             </button>
           </div>
 
-          <label className="block text-sm font-semibold text-slate-700">
+          <label className="block text-sm font-semibold text-brand-ink">
             Almacén
             <span className="relative mt-1 block">
               <WarehouseIcon
-                className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400"
+                className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted"
                 aria-hidden="true"
               />
               <select
@@ -190,7 +194,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
                   setWarehouseId(event.target.value ? Number(event.target.value) : null);
                   setFieldErrors({});
                 }}
-                className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                className="h-10 w-full rounded-lg border border-brand-line bg-white pl-9 pr-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
                 aria-invalid={Boolean(fieldErrors.warehouseId)}
                 disabled={warehousesQuery.isPending || activeWarehouses.length === 0}
               >
@@ -203,39 +207,39 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
               </select>
             </span>
             {fieldErrors.warehouseId && (
-              <span className="mt-1 block text-xs text-red-600" role="alert">
+              <span className="mt-1 block text-xs text-brand-coralInk" role="alert">
                 {fieldErrors.warehouseId}
               </span>
             )}
           </label>
 
-          <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-center">
+          <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-brand-line bg-brand-line/40 text-center">
             <div className="p-3">
-              <p className="text-[11px] font-semibold uppercase text-slate-500">En bodega</p>
-              <p className="mt-1 text-xl font-bold text-brand-blue" data-testid="current-stock">
+              <p className="text-[11px] font-semibold uppercase text-brand-muted">En bodega</p>
+              <p className="mt-1 text-xl font-bold text-brand-primaryInk" data-testid="current-stock">
                 {balancesQuery.isPending ? '…' : warehouseStock}
               </p>
             </div>
-            <div className="border-x border-slate-200 p-3">
-              <p className="text-[11px] font-semibold uppercase text-slate-500">Quedará</p>
+            <div className="border-x border-brand-line p-3">
+              <p className="text-[11px] font-semibold uppercase text-brand-muted">Quedará</p>
               <p
-                className={`mt-1 text-xl font-bold ${nextWarehouseStock < 0 ? 'text-red-600' : 'text-brand-blue'}`}
+                className={`mt-1 text-xl font-bold ${nextWarehouseStock < 0 ? 'text-brand-coralInk' : 'text-brand-primaryInk'}`}
                 data-testid="next-stock"
               >
                 {nextWarehouseStock}
               </p>
             </div>
             <div className="p-3">
-              <p className="text-[11px] font-semibold uppercase text-slate-500">Global</p>
-              <p className="mt-1 text-xl font-bold text-slate-800">{nextGlobalStock}</p>
+              <p className="text-[11px] font-semibold uppercase text-brand-muted">Global</p>
+              <p className="mt-1 text-xl font-bold text-brand-ink">{nextGlobalStock}</p>
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-[140px_minmax(0,1fr)]">
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-sm font-semibold text-brand-ink">
               Cantidad
               <input
-                className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15 aria-[invalid=true]:border-red-500"
+                className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk"
                 type="number"
                 min="1"
                 step="1"
@@ -247,15 +251,15 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
                 aria-invalid={Boolean(fieldErrors.cantidad)}
               />
               {fieldErrors.cantidad && (
-                <span className="mt-1 block text-xs text-red-600" role="alert">
+                <span className="mt-1 block text-xs text-brand-coralInk" role="alert">
                   {fieldErrors.cantidad}
                 </span>
               )}
             </label>
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-sm font-semibold text-brand-ink">
               Motivo
               <input
-                className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15 aria-[invalid=true]:border-red-500"
+                className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk"
                 value={reason}
                 onChange={(event) => {
                   setReason(event.target.value);
@@ -267,7 +271,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
                 aria-invalid={Boolean(fieldErrors.motivo)}
               />
               {fieldErrors.motivo && (
-                <span className="mt-1 block text-xs text-red-600" role="alert">
+                <span className="mt-1 block text-xs text-brand-coralInk" role="alert">
                   {fieldErrors.motivo}
                 </span>
               )}
@@ -276,7 +280,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
 
           {warehousesQuery.isError && (
             <div
-              className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+              className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk"
               role="alert"
             >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -287,7 +291,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
             !warehousesQuery.isPending &&
             !warehousesQuery.isError && (
               <div
-                className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800"
+                className="flex items-start gap-2 rounded-lg border border-brand-line bg-brand-goldPale px-3 py-2.5 text-sm text-brand-goldInk"
                 role="alert"
               >
                 <Boxes className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -296,7 +300,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
             )}
           {movementMutation.error && (
             <div
-              className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+              className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk"
               role="alert"
             >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -304,10 +308,10 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
             </div>
           )}
 
-          <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+          <footer className="flex flex-col-reverse gap-2 border-t border-brand-line pt-5 sm:flex-row sm:justify-end">
             <button
               type="button"
-              className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
               onClick={onClose}
               disabled={movementMutation.isPending}
             >
@@ -315,7 +319,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
             </button>
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-5 text-sm font-bold text-brand-dark hover:bg-yellow-400 disabled:opacity-60"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-bold text-white hover:bg-brand-primaryHover disabled:opacity-60"
               disabled={
                 movementMutation.isPending ||
                 activeWarehouses.length === 0 ||

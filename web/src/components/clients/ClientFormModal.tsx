@@ -41,7 +41,7 @@ const getInitialState = (client?: Client | null): ClientFormState => ({
 });
 
 const inputClassName =
-  'h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15 aria-[invalid=true]:border-red-500';
+  'h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk';
 
 export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalProps) => {
   const [form, setForm] = useState<ClientFormState>(() => getInitialState(client));
@@ -109,7 +109,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
-        className="absolute inset-0 bg-slate-950/55"
+        className="absolute inset-0 bg-brand-scrim/55"
         aria-label="Cerrar formulario de cliente"
         onClick={onClose}
       />
@@ -122,16 +122,16 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
         aria-modal="true"
         aria-labelledby="client-form-title"
       >
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-brand-line bg-white px-5 py-4 sm:px-6">
           <div>
-            <h2 id="client-form-title" className="text-lg font-semibold text-brand-blue">
+            <h2 id="client-form-title" className="text-lg font-semibold text-brand-primaryInk">
               {isEditing ? 'Editar cliente' : 'Nuevo cliente'}
             </h2>
-            <p className="mt-0.5 text-sm text-slate-500">Datos de identificación y contacto</p>
+            <p className="mt-0.5 text-sm text-brand-muted">Datos de identificación y contacto</p>
           </div>
           <button
             type="button"
-            className="group flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-brand-blue"
+            className="group flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk"
             onClick={onClose}
             aria-label="Cerrar"
             title="Cerrar"
@@ -142,7 +142,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
 
         <form className="space-y-6 p-5 sm:p-6" noValidate onSubmit={handleSubmit}>
           <fieldset>
-            <legend className="mb-2 text-sm font-medium text-slate-700">Tipo de cliente</legend>
+            <legend className="mb-2 text-sm font-medium text-brand-ink">Tipo de cliente</legend>
             <div className="grid grid-cols-2 gap-2">
               {([
                 { value: 'cliente', label: 'Persona natural', icon: UserRound },
@@ -156,8 +156,8 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
                     type="button"
                     className={`group flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
                       selected
-                        ? 'border-brand-blue bg-brand-blue text-white'
-                        : 'border-slate-300 bg-white text-slate-600 hover:border-brand-blue/40'
+                        ? 'border-brand-primaryInk bg-brand-primaryInk text-white'
+                        : 'border-brand-line bg-white text-brand-muted hover:border-brand-primary/40'
                     }`}
                     onClick={() => setValue('tipo', option.value)}
                     aria-pressed={selected}
@@ -171,7 +171,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
           </fieldset>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               RUT / Identificación
               <input
                 className={inputClassName}
@@ -180,9 +180,9 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
                 aria-invalid={Boolean(fieldErrors.rut)}
                 placeholder="12.345.678-9"
               />
-              {fieldErrors.rut && <span className="mt-1 block text-xs text-red-600">{fieldErrors.rut}</span>}
+              {fieldErrors.rut && <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.rut}</span>}
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               {form.tipo === 'empresa' ? 'Razón social' : 'Nombre completo'}
               <input
                 className={inputClassName}
@@ -192,10 +192,10 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
                 placeholder={form.tipo === 'empresa' ? 'Empresa SpA' : 'Nombre y apellido'}
               />
               {fieldErrors.nombre && (
-                <span className="mt-1 block text-xs text-red-600">{fieldErrors.nombre}</span>
+                <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.nombre}</span>
               )}
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Correo electrónico
               <input
                 className={inputClassName}
@@ -206,10 +206,10 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
                 placeholder="contacto@empresa.cl"
               />
               {fieldErrors.email && (
-                <span className="mt-1 block text-xs text-red-600">{fieldErrors.email}</span>
+                <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.email}</span>
               )}
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Teléfono
               <input
                 className={inputClassName}
@@ -219,10 +219,10 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
                 placeholder="+56 9 1234 5678"
               />
               {fieldErrors.telefono && (
-                <span className="mt-1 block text-xs text-red-600">{fieldErrors.telefono}</span>
+                <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.telefono}</span>
               )}
             </label>
-            <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+            <label className="text-sm font-medium text-brand-ink sm:col-span-2">
               Dirección
               <input
                 className={inputClassName}
@@ -232,7 +232,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
                 placeholder="Calle, número y referencia"
               />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Región
               <input
                 className={inputClassName}
@@ -241,7 +241,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
                 aria-invalid={Boolean(fieldErrors.region)}
               />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-brand-ink">
               Comuna
               <input
                 className={inputClassName}
@@ -250,10 +250,10 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
                 aria-invalid={Boolean(fieldErrors.comuna)}
               />
             </label>
-            <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+            <label className="text-sm font-medium text-brand-ink sm:col-span-2">
               Notas
               <textarea
-                className="min-h-24 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                className="min-h-24 w-full resize-y rounded-lg border border-brand-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
                 value={form.notas}
                 onChange={(event) => setValue('notas', event.target.value)}
                 placeholder="Antecedentes relevantes del cliente"
@@ -262,7 +262,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
           </div>
 
           {mutationError && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700" role="alert">
+            <div className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk" role="alert">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span>
                 {isApiConflict(mutationError)
@@ -272,10 +272,10 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
             </div>
           )}
 
-          <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+          <footer className="flex flex-col-reverse gap-2 border-t border-brand-line pt-5 sm:flex-row sm:justify-end">
             <button
               type="button"
-              className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
               onClick={onClose}
               disabled={activeMutation.isPending}
             >
@@ -283,7 +283,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
             </button>
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:cursor-not-allowed disabled:opacity-60"
               disabled={activeMutation.isPending}
             >
               {activeMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}

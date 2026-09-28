@@ -53,19 +53,19 @@ export const getWorkOrderProgress = (workOrder: Pick<WorkOrder, 'estado' | 'item
 };
 
 export const PROGRESS_TIER_STYLES: Record<ProgressTier, { bar: string; ring: string; chip: string; label: string }> = {
-  done: { bar: 'bg-emerald-500', ring: 'ring-emerald-300 border-emerald-200', chip: 'bg-emerald-100 text-emerald-800', label: 'Finalizado' },
+  done: { bar: 'bg-brand-mint', ring: 'ring-brand-mint border-brand-line', chip: 'bg-brand-mintPale text-brand-mintInk', label: 'Finalizado' },
   good: { bar: 'bg-lime-500', ring: 'ring-lime-200 border-lime-200', chip: 'bg-lime-100 text-lime-800', label: 'Buen avance' },
-  mid: { bar: 'bg-amber-500', ring: 'ring-amber-200 border-amber-200', chip: 'bg-amber-100 text-amber-800', label: 'Avance medio' },
-  low: { bar: 'bg-red-400', ring: 'ring-red-200 border-red-200', chip: 'bg-red-100 text-red-700', label: 'Poco avance' },
-  none: { bar: 'bg-red-600', ring: 'ring-red-300 border-red-300', chip: 'bg-red-600 text-white', label: 'Sin iniciar' },
-  neutral: { bar: 'bg-slate-300', ring: 'ring-slate-200 border-slate-200', chip: 'bg-slate-100 text-slate-600', label: 'Diagnóstico' },
+  mid: { bar: 'bg-brand-gold', ring: 'ring-brand-line border-brand-line', chip: 'bg-brand-goldPale text-brand-goldInk', label: 'Avance medio' },
+  low: { bar: 'bg-red-400', ring: 'ring-brand-line border-brand-coral/30', chip: 'bg-brand-coralPale text-brand-coralInk', label: 'Poco avance' },
+  none: { bar: 'bg-brand-coralInk', ring: 'ring-red-300 border-brand-coral/40', chip: 'bg-brand-coralInk text-white', label: 'Sin iniciar' },
+  neutral: { bar: 'bg-brand-line', ring: 'ring-brand-line border-brand-line', chip: 'bg-brand-pale text-brand-muted', label: 'Diagnóstico' },
 };
 
 export const TASK_DOT_STYLES: Record<string, string> = {
-  pendiente: 'bg-red-500',
-  en_proceso: 'bg-amber-500',
-  completado: 'bg-emerald-500',
-  omitido: 'bg-slate-300',
+  pendiente: 'bg-brand-coral',
+  en_proceso: 'bg-brand-gold',
+  completado: 'bg-brand-mint',
+  omitido: 'bg-brand-line',
 };
 
 const TERMINAL_FALLBACK_LABEL = 'Duración total';

@@ -77,27 +77,27 @@ const SummaryRow = ({
   hint?: string | null;
 }) => (
   <div className="flex items-start gap-3">
-    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-pale text-brand-muted">
       {icon}
     </span>
     <div className="min-w-0">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="truncate text-sm font-semibold text-slate-800">{value}</p>
-      {hint && <p className="truncate text-xs text-slate-500">{hint}</p>}
+      <p className="text-[10px] font-bold uppercase tracking-wide text-brand-muted">{label}</p>
+      <p className="truncate text-sm font-semibold text-brand-ink">{value}</p>
+      {hint && <p className="truncate text-xs text-brand-muted">{hint}</p>}
     </div>
   </div>
 );
 
-const MetricTile = ({ label, value, hint, tone = 'text-slate-900' }: {
+const MetricTile = ({ label, value, hint, tone = 'text-brand-ink' }: {
   label: string;
   value: string;
   hint?: string;
   tone?: string;
 }) => (
-  <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
+  <div className="rounded-lg border border-brand-line bg-brand-line/40 px-3 py-2">
+    <p className="text-[10px] font-bold uppercase tracking-wide text-brand-muted">{label}</p>
     <p className={`mt-0.5 text-base font-bold leading-tight ${tone}`}>{value}</p>
-    {hint && <p className="truncate text-[11px] text-slate-500">{hint}</p>}
+    {hint && <p className="truncate text-[11px] text-brand-muted">{hint}</p>}
   </div>
 );
 
@@ -145,7 +145,7 @@ export const WorkOrderQuickDetailModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button type="button" className="absolute inset-0 bg-slate-950/60" aria-label="Cerrar detalle" onClick={onClose} />
+      <button type="button" className="absolute inset-0 bg-brand-scrim/60" aria-label="Cerrar detalle" onClick={onClose} />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -170,26 +170,26 @@ export const WorkOrderQuickDetailModal = ({
         aria-modal="true"
         aria-labelledby="work-order-quick-detail-title"
       >
-        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+        <header className="sticky top-0 z-10 border-b border-brand-line bg-white px-5 py-4 sm:px-6">
           {workOrderQuery.isPending && (
             <>
-              <p className="text-xs font-semibold uppercase text-slate-500">Orden de trabajo</p>
-              <h2 id="work-order-quick-detail-title" className="mt-0.5 text-xl font-bold text-brand-blue">
+              <p className="text-xs font-semibold uppercase text-brand-muted">Orden de trabajo</p>
+              <h2 id="work-order-quick-detail-title" className="mt-0.5 text-xl font-bold text-brand-primaryInk">
                 Cargando detalle...
               </h2>
             </>
           )}
-          {!workOrder && <button type="button" onClick={onClose} aria-label="Cerrar" className="absolute right-4 top-4 rounded-lg p-2 text-slate-500"><X className="h-4 w-4" aria-hidden="true" /></button>}
+          {!workOrder && <button type="button" onClick={onClose} aria-label="Cerrar" className="absolute right-4 top-4 rounded-lg p-2 text-brand-muted"><X className="h-4 w-4" aria-hidden="true" /></button>}
           {workOrder && (
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase text-slate-500">
+                <p className="text-xs font-semibold uppercase text-brand-muted">
                   {ENTRY_TYPE_LABELS[workOrder.tipoIngreso ?? ''] ?? 'Orden de trabajo'}
                 </p>
-                <h2 id="work-order-quick-detail-title" className="mt-0.5 font-mono text-xl font-bold text-brand-blue">
+                <h2 id="work-order-quick-detail-title" className="mt-0.5 font-mono text-xl font-bold text-brand-primaryInk">
                   {workOrder.codigo}
                 </h2>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 text-xs text-brand-muted">
                   Ingreso {formatDate(workOrder.fechaIngreso)}
                   {workOrder.fechaEntrega ? ` · Entrega prometida ${formatDate(workOrder.fechaEntrega)}` : ''}
                 </p>
@@ -198,7 +198,7 @@ export const WorkOrderQuickDetailModal = ({
                 <WorkOrderStatusBadge status={workOrder.estado} />
                 <button
                   type="button"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale"
                   onClick={onClose}
                   aria-label="Cerrar"
                   title="Cerrar"
@@ -212,9 +212,9 @@ export const WorkOrderQuickDetailModal = ({
             <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Vista de la orden">
               {([{ value: 'summary', label: 'Resumen' }, { value: 'execution', label: 'Avances' }, { value: 'requests', label: 'Solicitudes' }] as const).map((option) => (
                 <button key={option.value} type="button" aria-pressed={view === option.value} onClick={() => setView(option.value)}
-                  className={`inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold ${view === option.value ? 'bg-brand-blue text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                  className={`inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold ${view === option.value ? 'bg-brand-primaryInk text-white' : 'bg-brand-pale text-brand-muted hover:bg-brand-line'}`}>
                   {option.label}
-                  {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span className="rounded bg-brand-yellow px-1.5 text-xs text-brand-dark">{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
+                  {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span className="rounded bg-brand-primaryInk px-1.5 text-xs text-white">{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
                 </button>
               ))}
             </div>
@@ -226,14 +226,14 @@ export const WorkOrderQuickDetailModal = ({
         )}
 
         {workOrderQuery.isPending && (
-          <div className="flex min-h-72 items-center justify-center text-brand-blue" role="status">
+          <div className="flex min-h-72 items-center justify-center text-brand-primaryInk" role="status">
             <LoaderCircle className="h-7 w-7 animate-spin" aria-hidden="true" />
             <span className="sr-only">Cargando detalle de la orden</span>
           </div>
         )}
 
         {workOrderQuery.isError && (
-          <div className="m-6 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+          <div className="m-6 flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale p-4 text-sm text-brand-coralInk" role="alert">
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             {getApiErrorMessage(workOrderQuery.error, 'No fue posible cargar el detalle de la orden')}
           </div>
@@ -242,7 +242,7 @@ export const WorkOrderQuickDetailModal = ({
         {workOrder && progress && tier && elapsed && (view === 'summary' || !canOperate) && (
           <div className="space-y-5 p-5 sm:p-6">
             {workOrder.descripcion && (
-              <p className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <p className="rounded-lg border border-brand-line bg-brand-line/40 px-4 py-3 text-sm text-brand-ink">
                 {workOrder.descripcion}
               </p>
             )}
@@ -275,7 +275,7 @@ export const WorkOrderQuickDetailModal = ({
             </div>
 
             {workOrder.vehicleOwner && workOrder.vehicleOwner.nombre !== workOrder.client?.nombre && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <div className="flex items-start gap-2 rounded-lg border border-brand-line bg-brand-goldPale px-4 py-3 text-sm text-brand-ink">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>
                   Vehículo de <strong>{workOrder.vehicleOwner.nombre}</strong>
@@ -289,13 +289,13 @@ export const WorkOrderQuickDetailModal = ({
                 label="Avance"
                 value={progress.total === 0 ? '—' : `${progress.percent}%`}
                 hint={`${progress.completed}/${progress.total} tareas`}
-                tone={progress.percent === 100 ? 'text-emerald-700' : 'text-brand-blue'}
+                tone={progress.percent === 100 ? 'text-brand-mintInk' : 'text-brand-primaryInk'}
               />
               <MetricTile
                 label="Tiempo en taller"
                 value={elapsed.running ? elapsed.text.replace('En taller ', '') : elapsed.text.replace('Duración total: ', '')}
                 hint={elapsed.overdue ? 'Entrega vencida' : workOrder.fechaEntrega ? `Entrega ${formatDate(workOrder.fechaEntrega)}` : 'Sin entrega prometida'}
-                tone={elapsed.overdue ? 'text-red-700' : 'text-slate-900'}
+                tone={elapsed.overdue ? 'text-brand-coralInk' : 'text-brand-ink'}
               />
               <MetricTile
                 label="Kilometraje"
@@ -306,14 +306,14 @@ export const WorkOrderQuickDetailModal = ({
                 label="Total estimado"
                 value={formatClp(estimatedTotal)}
                 hint={workOrder.quotation ? `COT ${workOrder.quotation.estadoPago}` : 'Sin cotización espejo'}
-                tone="text-brand-blue"
+                tone="text-brand-primaryInk"
               />
             </div>
 
             {progress.total > 0 && (
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-ink">
                     <Gauge className="h-4 w-4" aria-hidden="true" /> Avance operativo
                   </p>
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${tier.chip}`}>
@@ -321,7 +321,7 @@ export const WorkOrderQuickDetailModal = ({
                   </span>
                 </div>
                 <div
-                  className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100"
+                  className="mt-2 h-2 w-full overflow-hidden rounded-full bg-brand-pale"
                   role="progressbar"
                   aria-valuemin={0}
                   aria-valuemax={100}
@@ -335,31 +335,31 @@ export const WorkOrderQuickDetailModal = ({
 
             {grouped.length > 0 && (
               <div>
-                <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-ink">
                   <ListChecks className="h-4 w-4" aria-hidden="true" />
                   Trabajos y repuestos ({workOrder.items?.length ?? 0})
                 </p>
                 <div className="mt-3 space-y-4">
                   {grouped.map((group) => (
-                    <div key={group.type} className="overflow-hidden rounded-lg border border-slate-200">
-                      <div className="flex items-center justify-between gap-2 bg-slate-50 px-3 py-2">
-                        <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
+                    <div key={group.type} className="overflow-hidden rounded-lg border border-brand-line">
+                      <div className="flex items-center justify-between gap-2 bg-brand-line/40 px-3 py-2">
+                        <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">
                           {TYPE_LABELS[group.type]}
                         </p>
-                        <p className="text-xs font-semibold text-slate-500">
+                        <p className="text-xs font-semibold text-brand-muted">
                           {formatClp(group.items.reduce((sum, item) => sum + Number(item.subtotal), 0))}
                         </p>
                       </div>
-                      <ul className="divide-y divide-slate-100">
+                      <ul className="divide-y divide-brand-line">
                         {group.items.map((item) => (
                           <li key={item.id} className="flex items-start gap-3 px-3 py-2.5">
                             <span
-                              className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TASK_DOT_STYLES[item.estadoOperativo] ?? 'bg-slate-300'}`}
+                              className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TASK_DOT_STYLES[item.estadoOperativo] ?? 'bg-brand-line'}`}
                               aria-hidden="true"
                             />
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-slate-800">{item.descripcion}</p>
-                              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
+                              <p className="text-sm font-medium text-brand-ink">{item.descripcion}</p>
+                              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-brand-muted">
                                 <span>
                                   {item.cantidad} {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ?? item.unidadMedida}
                                 </span>
@@ -373,12 +373,12 @@ export const WorkOrderQuickDetailModal = ({
                                 )}
                               </p>
                               {item.notasOperativas && (
-                                <p className="mt-1 text-xs italic text-slate-500">{item.notasOperativas}</p>
+                                <p className="mt-1 text-xs italic text-brand-muted">{item.notasOperativas}</p>
                               )}
                             </div>
                             <div className="shrink-0 text-right">
-                              <p className="text-sm font-semibold text-slate-800">{formatClp(item.subtotal)}</p>
-                              <p className="text-[11px] text-slate-500">{formatClp(item.precioUnitario)} c/u</p>
+                              <p className="text-sm font-semibold text-brand-ink">{formatClp(item.subtotal)}</p>
+                              <p className="text-[11px] text-brand-muted">{formatClp(item.precioUnitario)} c/u</p>
                             </div>
                           </li>
                         ))}
@@ -386,7 +386,7 @@ export const WorkOrderQuickDetailModal = ({
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 flex items-center justify-between border-t-2 border-brand-blue pt-2 text-sm font-bold text-brand-blue">
+                <div className="mt-3 flex items-center justify-between border-t-2 border-brand-primaryInk pt-2 text-sm font-bold text-brand-primaryInk">
                   <span>Total estimado</span>
                   <span>{formatClp(estimatedTotal)}</span>
                 </div>
@@ -394,39 +394,39 @@ export const WorkOrderQuickDetailModal = ({
             )}
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-lg border border-slate-200 px-3 py-3">
-                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <div className="rounded-lg border border-brand-line px-3 py-3">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-muted">
                   <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" /> Inspección
                 </p>
-                <p className="mt-1 text-sm font-semibold text-slate-800">
+                <p className="mt-1 text-sm font-semibold text-brand-ink">
                   {workOrder.inspection ? 'Registrada' : 'Pendiente'}
                 </p>
                 {workOrder.inspection?.observaciones && (
-                  <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{workOrder.inspection.observaciones}</p>
+                  <p className="mt-0.5 line-clamp-2 text-xs text-brand-muted">{workOrder.inspection.observaciones}</p>
                 )}
               </div>
-              <div className="rounded-lg border border-slate-200 px-3 py-3">
-                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <div className="rounded-lg border border-brand-line px-3 py-3">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-muted">
                   <FileText className="h-3.5 w-3.5" aria-hidden="true" /> Cotización
                 </p>
-                <p className="mt-1 text-sm font-semibold text-slate-800">
+                <p className="mt-1 text-sm font-semibold text-brand-ink">
                   {workOrder.quotation?.codigo ?? 'Sin cotización'}
                 </p>
                 {workOrder.quotation && (
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-brand-muted">
                     {workOrder.quotation.estadoPago} · saldo {formatClp(workOrder.quotation.saldoPendiente)}
                   </p>
                 )}
               </div>
-              <div className="rounded-lg border border-slate-200 px-3 py-3">
-                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <div className="rounded-lg border border-brand-line px-3 py-3">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-muted">
                   <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" /> Entrega
                 </p>
-                <p className="mt-1 text-sm font-semibold text-slate-800">
+                <p className="mt-1 text-sm font-semibold text-brand-ink">
                   {workOrder.fechaEntrega ? formatDateTime(workOrder.fechaEntrega) : 'Sin fecha prometida'}
                 </p>
                 {workOrder.delivery && (
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-brand-muted">
                     Entregada {formatDateTime(workOrder.delivery.deliveredAt)}
                   </p>
                 )}
@@ -435,9 +435,9 @@ export const WorkOrderQuickDetailModal = ({
 
             {workOrder.inspection?.inventario && workOrder.inspection.inventario.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <Wrench className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+                <Wrench className="h-3.5 w-3.5 text-brand-muted" aria-hidden="true" />
                 {workOrder.inspection.inventario.map((entry) => (
-                  <span key={entry} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                  <span key={entry} className="rounded-full bg-brand-pale px-2 py-0.5 text-[11px] font-semibold text-brand-muted">
                     {entry}
                   </span>
                 ))}
@@ -445,17 +445,17 @@ export const WorkOrderQuickDetailModal = ({
             )}
 
             {workOrder.contact?.telefono && (
-              <p className="flex items-center gap-2 text-sm text-slate-600">
-                <Phone className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              <p className="flex items-center gap-2 text-sm text-brand-muted">
+                <Phone className="h-4 w-4 text-brand-muted" aria-hidden="true" />
                 Contacto: {workOrder.contact.nombre} · {workOrder.contact.telefono}
               </p>
             )}
 
-            <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-4">
+            <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-brand-line pt-4">
               <button
                 type="button"
                 onClick={() => onPreviewPdf(workOrder)}
-                className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
               >
                 <Download className="h-4 w-4" aria-hidden="true" />
                 Vista previa PDF
@@ -463,7 +463,7 @@ export const WorkOrderQuickDetailModal = ({
               <Link
                 to={`/work-orders/${workOrder.id}`}
                 onClick={onClose}
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white hover:bg-brand-dark"
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover"
               >
                 Abrir detalle completo
                 <ArrowUpRight className="h-4 w-4" aria-hidden="true" />

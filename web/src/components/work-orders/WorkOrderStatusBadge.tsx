@@ -12,12 +12,12 @@ export const WORK_ORDER_STATUS_LABELS: Record<WorkOrderStatus, string> = {
 };
 
 const STATUS_STYLES: Record<WorkOrderStatus, string> = {
-  borrador: 'bg-brand-pale text-brand-ink ring-slate-200',
+  borrador: 'bg-brand-pale text-brand-ink ring-brand-line',
   en_progreso: 'bg-brand-pale text-brand-primaryInk ring-brand-line',
-  esperando_repuesto: 'bg-amber-100 text-brand-goldInk ring-amber-200',
-  finalizada: 'bg-green-100 text-green-800 ring-green-200',
-  entregada: 'bg-brand-mintPale text-emerald-900 ring-emerald-200',
-  cancelada: 'bg-brand-coralPale text-brand-coralInk ring-red-200',
+  esperando_repuesto: 'bg-brand-goldPale text-brand-goldInk ring-brand-line',
+  finalizada: 'bg-brand-mintPale text-brand-mintInk ring-brand-line',
+  entregada: 'bg-brand-mintPale text-brand-mintInk ring-brand-line',
+  cancelada: 'bg-brand-coralPale text-brand-coralInk ring-brand-line',
 };
 
 interface WorkOrderStatusBadgeProps {

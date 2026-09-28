@@ -40,7 +40,7 @@ export const PhotoSlotInput = ({
   if (variant === 'replace') {
     return (
       <span className="absolute bottom-2 right-2 flex gap-1.5">
-        <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-white/95 px-3 text-xs font-bold text-brand-blue shadow hover:bg-brand-light">
+        <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-white/95 px-3 text-xs font-bold text-brand-primaryInk shadow hover:bg-brand-line/40">
           {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />}
           Reemplazar
           <input
@@ -55,7 +55,7 @@ export const PhotoSlotInput = ({
             aria-label={`Reemplazar foto ${slotLabel}`}
           />
         </label>
-        <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-white/95 px-2.5 text-brand-blue shadow hover:bg-brand-light" title="Usar cámara">
+        <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-white/95 px-2.5 text-brand-primaryInk shadow hover:bg-brand-line/40" title="Usar cámara">
           <Camera className="h-4 w-4" aria-hidden="true" />
           <input
             type="file"
@@ -75,14 +75,14 @@ export const PhotoSlotInput = ({
   }
 
   return (
-    <span className="flex h-40 flex-col items-center justify-center gap-2 bg-slate-50 px-3 text-center">
+    <span className="flex h-40 flex-col items-center justify-center gap-2 bg-brand-line/40 px-3 text-center">
       {busy ? (
-        <LoaderCircle className="h-7 w-7 animate-spin text-brand-blue" aria-hidden="true" />
+        <LoaderCircle className="h-7 w-7 animate-spin text-brand-primaryInk" aria-hidden="true" />
       ) : (
         <>
-          <ImagePlus className="h-7 w-7 text-slate-400" aria-hidden="true" />
-          <span className="text-sm font-semibold text-slate-500">Subir foto</span>
-          <span className="text-[11px] font-normal text-slate-400">
+          <ImagePlus className="h-7 w-7 text-brand-muted" aria-hidden="true" />
+          <span className="text-sm font-semibold text-brand-muted">Subir foto</span>
+          <span className="text-[11px] font-normal text-brand-muted">
             JPG, PNG o WebP · máx {MAX_INSPECTION_PHOTO_MB} MB
           </span>
         </>
@@ -93,7 +93,7 @@ export const PhotoSlotInput = ({
         </span>
       )}
       <span className="flex gap-2">
-        <label className={`inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-brand-blue bg-white px-3 text-xs font-bold text-brand-blue hover:bg-brand-light ${disabled || busy ? 'pointer-events-none opacity-50' : ''}`}>
+        <label className={`inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-brand-primaryInk bg-white px-3 text-xs font-bold text-brand-primaryInk hover:bg-brand-line/40 ${disabled || busy ? 'pointer-events-none opacity-50' : ''}`}>
           <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
           Elegir archivo
           <input
@@ -108,7 +108,7 @@ export const PhotoSlotInput = ({
             aria-label={`Subir foto ${slotLabel}`}
           />
         </label>
-        <label className={`inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-brand-blue px-3 text-xs font-bold text-white hover:bg-brand-dark ${disabled || busy ? 'pointer-events-none opacity-50' : ''}`}>
+        <label className={`inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-brand-primaryInk px-3 text-xs font-bold text-white hover:bg-brand-primaryInkHover ${disabled || busy ? 'pointer-events-none opacity-50' : ''}`}>
           <Camera className="h-3.5 w-3.5" aria-hidden="true" />
           Cámara
           <input

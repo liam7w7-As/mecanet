@@ -11,11 +11,11 @@ export const QUOTATION_STATUS_LABELS: Record<QuotationStatus, string> = {
 };
 
 const STATUS_STYLES: Record<QuotationStatus, string> = {
-  por_pagar: 'bg-brand-goldPale text-brand-goldInk ring-amber-200',
+  por_pagar: 'bg-brand-goldPale text-brand-goldInk ring-brand-line',
   parcial: 'bg-brand-pale text-brand-primaryInk ring-brand-line',
-  total: 'bg-brand-mintPale text-emerald-900 ring-emerald-200',
+  total: 'bg-brand-mintPale text-brand-mintInk ring-brand-line',
   por_verificar: 'bg-purple-100 text-purple-800 ring-purple-200',
-  ot_finalizado: 'bg-slate-800 text-white ring-slate-700',
+  ot_finalizado: 'bg-brand-surfaceDark text-white ring-slate-700',
 };
 
 interface QuotationStatusBadgeProps {

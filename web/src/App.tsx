@@ -13,6 +13,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import QuotationCreatePage from './pages/quotations/QuotationCreatePage';
 import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
+import SettingsPage from './pages/settings/SettingsPage';
 import UsersPage from './pages/users/UsersPage';
 import VehicleDetailPage from './pages/vehicles/VehicleDetailPage';
 import VehiclesPage from './pages/vehicles/VehiclesPage';
@@ -164,6 +165,14 @@ export const App = () => (
           element={
             <ProtectedRoute requiredAnyPermission={[{ modulo: 'admin', accion: 'read' }]}>
               <UsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'admin', accion: 'read' }]}>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />

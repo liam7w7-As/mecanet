@@ -13,3 +13,5 @@ export * from './permission.schema.js';
 export * from './search.schema.js';
 export * from './finance.schema.js';
 export * from './warehouse.schema.js';
+export * from './notification.schema.js';
+export * from './settings.schema.js';

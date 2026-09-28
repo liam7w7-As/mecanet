@@ -21,6 +21,7 @@ import {
   StaggerItem,
 } from '../../components/animate-ui';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
+import OperationalInbox from '../../components/dashboard/OperationalInbox';
 import WorkOrderStatusBadge from '../../components/work-orders/WorkOrderStatusBadge';
 import { useDashboardSummary } from '../../hooks/useDashboard';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -84,7 +85,7 @@ export const DashboardPage = () => {
   const canCreateWorkOrder = Boolean(user && hasUserPermission(user, 'taller', 'create'));
   const canCreateQuotation = Boolean(user && hasUserPermission(user, 'comercial', 'create'));
   const canCreateClient = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'taller', 'create')));
-  const canAdjustStock = Boolean(user && (hasUserPermission(user, 'taller', 'update') || hasUserPermission(user, 'admin', 'update')));
+  const canAdjustStock = Boolean(user && hasUserPermission(user, 'almacen', 'create'));
   const summary = dashboardQuery.data;
 
   return (
@@ -143,6 +144,8 @@ export const DashboardPage = () => {
             <StaggerItem><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} iconClassName="bg-red-100 text-red-700" testId="pending-balance" /></StaggerItem>
             <StaggerItem><KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} iconClassName={summary.lowStockCount > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} testId="low-stock-count" /></StaggerItem>
           </Stagger>
+
+          <OperationalInbox inbox={summary.operationalInbox} />
 
           <section className="grid gap-5 xl:grid-cols-[3fr_2fr]">
             <div className="overflow-hidden border border-slate-200 bg-white shadow-sm">

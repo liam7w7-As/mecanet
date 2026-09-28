@@ -7,7 +7,7 @@ import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
 import WarehousesPage from '../WarehousesPage';
 
-import type { PaginatedResponse, StockBalance, StockMovement, Warehouse } from '../../../types/entities';
+import type { PaginatedResponse, StockBalance, StockMovement, Warehouse, WarehouseWorkOrderRequest } from '../../../types/entities';
 import type { AxiosResponse } from 'axios';
 
 vi.mock('../../../lib/api', () => ({
@@ -59,6 +59,42 @@ const movement: StockMovement = {
   warehouseNombre: 'Bodega Central',
 };
 
+const emptyRequests: PaginatedResponse<WarehouseWorkOrderRequest> = {
+  items: [],
+  total: 0,
+  page: 1,
+  pageSize: 20,
+  totalPages: 0,
+};
+
+const approvedRequest: WarehouseWorkOrderRequest = {
+  id: 41,
+  workOrderId: 9,
+  workOrderItemId: 71,
+  catalogItemId: 7,
+  estado: 'aprobada',
+  motivo: 'Se detectó desgaste durante el desmontaje',
+  cantidad: 2,
+  precioAprobado: 15000,
+  createdAt: '2026-09-23T09:00:00.000Z',
+  reviewedAt: '2026-09-23T10:00:00.000Z',
+  deliveredAt: null,
+  deliveryNote: null,
+  workOrder: {
+    id: 9,
+    codigo: 'OT-2026-0041',
+    estado: 'en_progreso',
+    client: { id: 3, nombre: 'Cliente Taller' },
+    vehicle: { id: 5, patente: 'ABCD12', marca: 'Toyota', modelo: 'Hilux' },
+    mechanic: { id: 8, nombre: 'Mecánico Uno' },
+  },
+  catalogItem: { id: 7, codigo: 'UNT101', nombre: 'Kit Hilux GR', stock: 10 },
+  requester: { id: 8, nombre: 'Mecánico Uno' },
+  reviewer: { id: 1, nombre: 'Jefe Taller' },
+  deliveredWarehouse: null,
+  deliverer: null,
+};
+
 const renderPage = () => {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
@@ -98,6 +134,9 @@ describe('WarehousesPage', () => {
           data: { items: [movement], total: 1, page: 1, pageSize: 15, totalPages: 1 } as PaginatedResponse<StockMovement>,
         } as AxiosResponse<PaginatedResponse<StockMovement>>);
       }
+      if (url === '/warehouses/requests') {
+        return Promise.resolve({ data: emptyRequests } as AxiosResponse<PaginatedResponse<WarehouseWorkOrderRequest>>);
+      }
       return Promise.reject(new Error(`GET inesperado: ${url}`));
     });
   });
@@ -128,12 +167,63 @@ describe('WarehousesPage', () => {
           data: { items: [], total: 0, page: 1, pageSize: 15, totalPages: 0 } as PaginatedResponse<StockMovement>,
         } as AxiosResponse<PaginatedResponse<StockMovement>>);
       }
+      if (url === '/warehouses/requests') {
+        return Promise.resolve({ data: emptyRequests } as AxiosResponse<PaginatedResponse<WarehouseWorkOrderRequest>>);
+      }
       return Promise.reject(new Error(`GET inesperado: ${url}`));
     });
     renderPage();
     await screen.findByText('Filtro aceite');
 
-    expect(screen.getByText('Bajo mínimo')).toBeInTheDocument();
+    expect(screen.getAllByText('Bajo mínimo').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('entrega una solicitud aprobada desde la bodega seleccionada', async () => {
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/warehouses') {
+        return Promise.resolve({
+          data: { items: [warehouse], total: 1, page: 1, pageSize: 50, totalPages: 1 } as PaginatedResponse<Warehouse>,
+        } as AxiosResponse<PaginatedResponse<Warehouse>>);
+      }
+      if (url === '/warehouses/1/balances') {
+        return Promise.resolve({ data: { balances: [balance] } } as AxiosResponse<{ balances: StockBalance[] }>);
+      }
+      if (url === '/warehouses/movements/all') {
+        return Promise.resolve({
+          data: { items: [], total: 0, page: 1, pageSize: 15, totalPages: 0 } as PaginatedResponse<StockMovement>,
+        } as AxiosResponse<PaginatedResponse<StockMovement>>);
+      }
+      if (url === '/warehouses/requests') {
+        return Promise.resolve({
+          data: { items: [approvedRequest], total: 1, page: 1, pageSize: 20, totalPages: 1 },
+        } as AxiosResponse<PaginatedResponse<WarehouseWorkOrderRequest>>);
+      }
+      return Promise.reject(new Error(`GET inesperado: ${url}`));
+    });
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        request: {
+          ...approvedRequest,
+          estado: 'entregada',
+          deliveredWarehouse: warehouse,
+          deliveredAt: '2026-09-23T11:00:00.000Z',
+        } as WarehouseWorkOrderRequest,
+      },
+    } as AxiosResponse<{ request: WarehouseWorkOrderRequest }>);
+
+    renderPage();
+    expect(await screen.findByText('OT-2026-0041')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Entregar' }));
+    expect(await screen.findByRole('dialog', { name: 'Confirmar entrega de repuesto' })).toBeInTheDocument();
+    expect(await screen.findByText('8')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar entrega' }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/warehouses/requests/41/deliver', {
+        warehouseId: 1,
+        comentario: undefined,
+      });
+    });
   });
 
   it('abre el modal de traslado cuando hay más de un almacén', async () => {
@@ -151,6 +241,9 @@ describe('WarehousesPage', () => {
         return Promise.resolve({
           data: { items: [movement], total: 1, page: 1, pageSize: 15, totalPages: 1 } as PaginatedResponse<StockMovement>,
         } as AxiosResponse<PaginatedResponse<StockMovement>>);
+      }
+      if (url === '/warehouses/requests') {
+        return Promise.resolve({ data: emptyRequests } as AxiosResponse<PaginatedResponse<WarehouseWorkOrderRequest>>);
       }
       return Promise.reject(new Error(`GET inesperado: ${url}`));
     });
@@ -183,6 +276,9 @@ describe('WarehousesPage', () => {
         return Promise.resolve({
           data: { items: [], total: 0, page: 1, pageSize: 12, totalPages: 0 },
         } as AxiosResponse);
+      }
+      if (url === '/warehouses/requests') {
+        return Promise.resolve({ data: emptyRequests } as AxiosResponse<PaginatedResponse<WarehouseWorkOrderRequest>>);
       }
       return Promise.reject(new Error(`GET inesperado: ${url}`));
     });

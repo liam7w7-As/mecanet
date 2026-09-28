@@ -1,5 +1,6 @@
 import {
   VEHICLE_INVENTORY_ITEMS,
+  layoutInspectionPhotos,
   WORK_ORDER_INSPECTION_PHOTO_SLOTS,
   type FuelLevel,
   type TireCondition,
@@ -15,6 +16,7 @@ import {
   type PDFPage,
 } from 'pdf-lib';
 
+import { readInspectionPhotoBytes } from './work-order-inspection-photo.service.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
 import { User } from '../models/User.js';
@@ -25,7 +27,6 @@ import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js'
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { ApiError } from '../utils/ApiError.js';
 import { logger } from '../utils/logger.js';
-import { readInspectionPhotoBytes } from './work-order-inspection-photo.service.js';
 
 const A4_WIDTH = 595.28;
 const A4_HEIGHT = 841.89;
@@ -442,10 +443,11 @@ const drawPhotoCard = (
   const { page, fonts } = ctx;
   page.drawRectangle({ x, y: y - height, width, height, borderColor: BORDER, borderWidth: 0.8 });
   page.drawRectangle({ x, y: y - 24, width, height: 24, color: SOFT });
+  const labelSize = Math.min(9, 9 * (width - 20) / fonts.bold.widthOfTextAtSize(PHOTO_LABELS[photo.slot], 9));
   page.drawText(PHOTO_LABELS[photo.slot], {
     x: x + 10,
     y: y - 16,
-    size: 9,
+    size: labelSize,
     font: fonts.bold,
     color: PRIMARY,
   });
@@ -700,24 +702,28 @@ const drawPhotos = async (ctx: PdfContext, workOrder: WorkOrder): Promise<void> 
     photos.map(async (photo) => ({ photo, image: await embedPhoto(ctx.pdfDoc, photo) })),
   );
   let cursorY = addPage(ctx, 'EVIDENCIA FOTOGRÁFICA');
-  const gap = 12;
-  const cardWidth = (CONTENT_WIDTH - gap) / 2;
-  const cardHeight = 212;
-  let column = 0;
+  const gap = 10;
+  const rows = layoutInspectionPhotos(
+    embedded.map(({ image }) => image ? image.width / image.height : 4 / 3),
+    CONTENT_WIDTH - 16 * 3,
+    164,
+    gap,
+  );
 
-  for (const entry of embedded) {
+  for (const row of rows) {
+    const cardHeight = row.height + 40;
     if (cursorY - cardHeight < CONTENT_BOTTOM) {
       cursorY = addPage(ctx, 'EVIDENCIA FOTOGRÁFICA');
-      column = 0;
     }
-    const x = MARGIN + column * (cardWidth + gap);
-    drawPhotoCard(ctx, entry.photo, entry.image, x, cursorY, cardWidth, cardHeight);
-    if (column === 0) {
-      column = 1;
-    } else {
-      column = 0;
-      cursorY -= cardHeight + 12;
+    const rowWidth = row.widths.reduce((sum, width) => sum + width + 16, 0) + gap * (row.widths.length - 1);
+    let x = MARGIN + (CONTENT_WIDTH - rowWidth) / 2;
+    for (let index = 0; index < row.widths.length; index += 1) {
+      const entry = embedded[row.startIndex + index];
+      const cardWidth = row.widths[index] + 16;
+      drawPhotoCard(ctx, entry.photo, entry.image, x, cursorY, cardWidth, cardHeight);
+      x += cardWidth + gap;
     }
+    cursorY -= cardHeight + gap;
   }
 };
 

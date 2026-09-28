@@ -7,8 +7,13 @@ import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
 import CatalogPage from '../CatalogPage';
 
-import type { StockAdjustmentResponse } from '../../../hooks/useCatalog';
-import type { CatalogItem, PaginatedResponse } from '../../../types/entities';
+import type {
+  CatalogItem,
+  PaginatedResponse,
+  StockBalance,
+  StockMovement,
+  Warehouse,
+} from '../../../types/entities';
 import type { AxiosResponse } from 'axios';
 
 vi.mock('../../../lib/api', () => ({
@@ -50,6 +55,44 @@ const partItem: CatalogItem = {
   updatedAt: '2026-09-15T10:00:00.000Z',
 };
 
+const warehouse: Warehouse = {
+  id: 1,
+  codigo: 'CENTRAL',
+  nombre: 'Bodega Central',
+  direccion: null,
+  activo: true,
+  totalItems: 1,
+  totalUnidades: 3,
+};
+
+const balance: StockBalance = {
+  warehouseId: 1,
+  catalogItemId: 2,
+  cantidad: 3,
+  codigo: 'REP-002',
+  nombre: 'Filtro de aceite',
+  precio: 12000,
+  stockMinimo: 2,
+  bajoMinimo: false,
+};
+
+const movement: StockMovement = {
+  id: 10,
+  catalogItemId: 2,
+  warehouseId: 1,
+  tipo: 'ingreso',
+  cantidad: 5,
+  saldoResultante: 8,
+  motivo: 'Recepción proveedor',
+  referencia: null,
+  createdBy: 1,
+  fecha: '2026-09-26T10:00:00.000Z',
+  codigo: 'REP-002',
+  nombre: 'Filtro de aceite',
+  warehouseCodigo: 'CENTRAL',
+  warehouseNombre: 'Bodega Central',
+};
+
 let catalogResponse: PaginatedResponse<CatalogItem>;
 
 const renderPage = () => {
@@ -59,7 +102,9 @@ const renderPage = () => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter><CatalogPage /></MemoryRouter>
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 };
@@ -84,7 +129,35 @@ describe('CatalogPage', () => {
       isAuthenticated: true,
       isLoading: false,
     });
-    vi.mocked(api.get).mockImplementation(() => Promise.resolve({ data: catalogResponse } as AxiosResponse<PaginatedResponse<CatalogItem>>));
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/catalog') {
+        return Promise.resolve({
+          data: catalogResponse,
+        } as AxiosResponse<PaginatedResponse<CatalogItem>>);
+      }
+      if (url === '/warehouses') {
+        return Promise.resolve({
+          data: {
+            items: [warehouse],
+            total: 1,
+            page: 1,
+            pageSize: 100,
+            totalPages: 1,
+          },
+        } as AxiosResponse<PaginatedResponse<Warehouse>>);
+      }
+      if (url === '/warehouses/1/balances') {
+        return Promise.resolve({
+          data: { balances: [balance] },
+        } as AxiosResponse<{ balances: StockBalance[] }>);
+      }
+      if (url === '/warehouses/movements/all') {
+        return Promise.resolve({
+          data: { items: [movement], total: 1, page: 1, pageSize: 12, totalPages: 1 },
+        } as AxiosResponse<PaginatedResponse<StockMovement>>);
+      }
+      return Promise.reject(new Error(`GET inesperado: ${url}`));
+    });
   });
 
   it('renderiza el listado y las tabs de navegación', async () => {
@@ -94,7 +167,7 @@ describe('CatalogPage', () => {
     expect(screen.getByText('Filtro de aceite')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Servicios Estándar' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Repuestos / Partes' })).toBeInTheDocument();
-    expect(screen.getByText('Stock crítico: 3')).toBeInTheDocument();
+    expect(screen.getByText('Crítico · 3')).toBeInTheDocument();
   });
 
   it('muestra el filtro de disponibilidad al seleccionar Repuestos', async () => {
@@ -103,7 +176,6 @@ describe('CatalogPage', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Repuestos / Partes' }));
     const stockFilter = screen.getByRole('checkbox', { name: 'Solo con stock disponible' });
-    expect(screen.getByRole('columnheader', { name: 'Stock' })).toBeInTheDocument();
     fireEvent.click(stockFilter);
 
     await waitFor(() => {
@@ -128,11 +200,18 @@ describe('CatalogPage', () => {
     await screen.findByText('Filtro de aceite');
 
     fireEvent.click(screen.getByRole('button', { name: 'Ajustar stock de Filtro de aceite' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Salida / Egreso' }));
+    await waitFor(() => expect(screen.getByLabelText('Almacén')).toBeEnabled());
+    await waitFor(() => expect(screen.getByTestId('current-stock')).toHaveTextContent('3'));
+    fireEvent.click(screen.getByRole('button', { name: 'Salida' }));
     fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '4' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Registrar movimiento' }));
+    fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'Entrega a taller' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar movimiento' }));
 
-    expect(await screen.findByText('El egreso no puede superar el stock disponible (3)')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'La salida no puede superar las 3 unidades disponibles en esta bodega',
+      ),
+    ).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
   });
 
@@ -140,26 +219,38 @@ describe('CatalogPage', () => {
     vi.mocked(api.post).mockImplementation(async () => {
       const updatedItem = { ...partItem, stock: 8 };
       catalogResponse = { ...catalogResponse, items: [serviceItem, updatedItem] };
-      const response: StockAdjustmentResponse = {
-        item: updatedItem,
-        stockAnterior: 3,
-        nuevoStock: 8,
-        delta: 5,
-        motivo: 'Recepción proveedor',
-      };
-      return { data: response } as AxiosResponse<StockAdjustmentResponse>;
+      return { data: { movement } } as AxiosResponse<{ movement: StockMovement }>;
     });
     renderPage();
     await screen.findByText('Filtro de aceite');
 
     fireEvent.click(screen.getByRole('button', { name: 'Ajustar stock de Filtro de aceite' }));
+    await waitFor(() => expect(screen.getByLabelText('Almacén')).toBeEnabled());
     fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '5' } });
-    fireEvent.change(screen.getByLabelText('Motivo del movimiento (opcional)'), { target: { value: 'Recepción proveedor' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Registrar movimiento' }));
+    fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'Recepción proveedor' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar movimiento' }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/catalog/2/stock', { delta: 5, motivo: 'Recepción proveedor' }));
-    await waitFor(() => expect(screen.getByTestId('stock-2')).toHaveTextContent('8'));
-    expect(screen.queryByRole('dialog', { name: 'Ajustar stock' })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/warehouses/movements', {
+        catalogItemId: 2,
+        warehouseId: 1,
+        tipo: 'ingreso',
+        cantidad: 5,
+        motivo: 'Recepción proveedor',
+      }),
+    );
+    await waitFor(() => expect(screen.getByTestId('stock-2')).toHaveTextContent('8 unidades'));
+    expect(screen.queryByRole('dialog', { name: 'Filtro de aceite' })).not.toBeInTheDocument();
+  });
+
+  it('abre el detalle del item con existencias y kardex', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver detalle de Filtro de aceite' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Filtro de aceite' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Existencias' }));
+    expect(await screen.findByText('Bodega Central')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Kardex' }));
+    expect(await screen.findByText('Ingreso · Recepción proveedor')).toBeInTheDocument();
   });
 });
-

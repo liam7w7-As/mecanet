@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { paginationSchema } from './pagination.schema.js';
 import { STOCK_MOVEMENT_TYPES } from '../constants/stock-movement-types.js';
+import { WORK_ORDER_REQUEST_STATUS } from '../constants/work-order-requests.js';
 
 const optionalText = (maxLength: number) =>
   z
@@ -64,9 +65,21 @@ export const stockMovementQuerySchema = paginationSchema.extend({
   fechaHasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha hasta inválida (YYYY-MM-DD)').optional(),
 });
 
+export const warehouseRequestQuerySchema = paginationSchema.extend({
+  estado: z.enum(WORK_ORDER_REQUEST_STATUS).optional().default('aprobada'),
+  search: z.string().trim().max(100).optional(),
+});
+
+export const deliverWarehouseRequestSchema = z.object({
+  warehouseId: z.number().int().positive('Almacén inválido'),
+  comentario: z.string().trim().max(500).optional(),
+});
+
 export type CreateWarehouseInput = z.infer<typeof createWarehouseSchema>;
 export type UpdateWarehouseInput = z.infer<typeof updateWarehouseSchema>;
 export type WarehouseQueryInput = z.infer<typeof warehouseQuerySchema>;
 export type CreateStockMovementInput = z.infer<typeof createStockMovementSchema>;
 export type CreateStockTransferInput = z.infer<typeof createStockTransferSchema>;
 export type StockMovementQueryInput = z.infer<typeof stockMovementQuerySchema>;
+export type WarehouseRequestQueryInput = z.infer<typeof warehouseRequestQuerySchema>;
+export type DeliverWarehouseRequestInput = z.infer<typeof deliverWarehouseRequestSchema>;

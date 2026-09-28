@@ -6,6 +6,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { MotionProvider } from './components/animate-ui/motion-config';
+import { BrandingProvider } from './components/common/BrandingContext';
 import { queryClient } from './lib/query-client';
 import { useAuthStore } from './stores/auth.store';
 
@@ -28,7 +29,9 @@ ReactDOM.createRoot(rootElement).render(
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <MotionProvider>
-        <AuthInitializer />
+        <BrandingProvider>
+          <AuthInitializer />
+        </BrandingProvider>
       </MotionProvider>
     </BrowserRouter>
   </QueryClientProvider>,

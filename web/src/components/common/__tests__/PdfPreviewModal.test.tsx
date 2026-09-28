@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { WORK_ORDER_INSPECTION_PHOTO_SLOTS } from '@unithor/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import PdfPreviewModal from '../PdfPreviewModal';
@@ -236,7 +237,7 @@ describe('PdfPreviewModal', () => {
     expect(btnColor).toHaveClass('bg-slate-600');
   });
 
-  it('ejecuta window.print() al pulsar Imprimir', () => {
+  it('ejecuta window.print() al pulsar Imprimir', async () => {
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined);
 
     render(
@@ -247,8 +248,11 @@ describe('PdfPreviewModal', () => {
       />,
     );
 
+    document.querySelectorAll('img').forEach((image) => {
+      Object.defineProperty(image, 'complete', { value: true });
+    });
     fireEvent.click(screen.getByRole('button', { name: /Imprimir/i }));
-    expect(printSpy).toHaveBeenCalled();
+    await waitFor(() => expect(printSpy).toHaveBeenCalled());
     printSpy.mockRestore();
   });
 
@@ -296,5 +300,22 @@ describe('PdfPreviewModal', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['work-order', 'quotation'] as const)('includes all nine photos in the %s preview and print copy', (type) => {
+    const photos = WORK_ORDER_INSPECTION_PHOTO_SLOTS.map((slot, index) => ({
+      id: index + 1, slot, mimeType: 'image/png', sizeBytes: 1024, uploadedBy: 1,
+      createdAt: mockWorkOrder.createdAt, updatedAt: mockWorkOrder.updatedAt,
+      url: `/api/${type === 'quotation' ? 'quotations/202' : 'work-orders/101'}/inspection/photos/${slot}`,
+    }));
+    render(<PdfPreviewModal type={type} onClose={onClose}
+      workOrder={{ ...mockWorkOrder, inspection: { ...mockWorkOrder.inspection!, photos } }}
+      quotation={{ ...mockQuotation, workOrder: { ...mockQuotation.workOrder!, inspectionPhotos: photos } }} />);
+    expect(within(screen.getByRole('dialog')).queryAllByRole('img', { name: /^Foto / })).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Fotos de recepción' }));
+    expect(within(screen.getByRole('dialog')).getAllByRole('img', { name: /^Foto / })).toHaveLength(9);
+    const printPortal = document.getElementById('unithor-print-portal')!;
+    expect(printPortal.querySelectorAll('img[alt^="Foto "]')).toHaveLength(9);
+    expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(type === 'work-order' ? 3 : 2);
   });
 });

@@ -1,6 +1,8 @@
 import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
+import { notifyByType } from './notification.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
+import { getInspectionPhoto } from './work-order-inspection-photo.service.js';
 import { getWorkOrderById, type WorkOrderPublic } from './work-order.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -11,11 +13,15 @@ import { QuotationItem } from '../models/QuotationItem.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
+import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
+import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { ApiError } from '../utils/ApiError.js';
+import { formatClpAmount } from '../utils/formatters.js';
 import { generateQuotationCode, generateWorkOrderCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
 
+import type { InspectionPhotoFile, InspectionPhotoPublic } from './work-order-inspection-photo.service.js';
 import type {
   ConvertQuotationInput,
   CatalogType,
@@ -26,6 +32,7 @@ import type {
   QuotationQueryInput,
   QuotationStatus,
   UpdateQuotationInput,
+  WorkOrderInspectionPhotoSlot,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
 
@@ -53,6 +60,7 @@ interface QuotationWorkOrderPublic {
   id: number;
   codigo: string;
   estado: string;
+  inspectionPhotos?: InspectionPhotoPublic[];
 }
 
 interface QuotationItemCatalogPublic {
@@ -227,6 +235,16 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
         id: quotation.workOrder.id,
         codigo: quotation.workOrder.codigo,
         estado: quotation.workOrder.estado,
+        inspectionPhotos: quotation.workOrder.inspection?.photos?.map((photo) => ({
+          id: photo.id,
+          slot: photo.slot,
+          mimeType: photo.mimeType,
+          sizeBytes: photo.sizeBytes,
+          uploadedBy: photo.uploadedBy,
+          createdAt: photo.createdAt,
+          updatedAt: photo.updatedAt,
+          url: `/api/quotations/${quotation.id}/inspection/photos/${photo.slot}`,
+        })),
       }
     : quotation.workOrderId === null
       ? null
@@ -495,7 +513,23 @@ const getCompleteQuotation = async (
   transaction?: Transaction,
 ): Promise<Quotation> => {
   const quotation = await Quotation.findByPk(id, {
-    include: [clientInclude, vehicleInclude, asesorInclude, workOrderInclude, itemsInclude],
+    include: [
+      clientInclude,
+      vehicleInclude,
+      asesorInclude,
+      {
+        ...workOrderInclude,
+        include: [{
+          model: WorkOrderInspection,
+          attributes: ['id'],
+          include: [{
+            model: WorkOrderInspectionPhoto,
+            attributes: ['id', 'slot', 'mimeType', 'sizeBytes', 'uploadedBy', 'createdAt', 'updatedAt'],
+          }],
+        }],
+      },
+      itemsInclude,
+    ],
     transaction,
   });
 
@@ -584,11 +618,21 @@ export const getQuotationById = async (id: number): Promise<QuotationPublic> => 
   return toQuotationPublic(quotation);
 };
 
+export const getQuotationInspectionPhoto = async (
+  id: number,
+  slot: WorkOrderInspectionPhotoSlot,
+): Promise<InspectionPhotoFile> => {
+  const quotation = await Quotation.findByPk(id, { attributes: ['id', 'workOrderId'] });
+  if (!quotation) throw ApiError.notFound('Cotización no encontrada');
+  if (quotation.workOrderId === null) throw ApiError.notFound('Foto de inspección no encontrada');
+  return getInspectionPhoto(quotation.workOrderId, slot);
+};
+
 export const createQuotation = async (
   data: CreateQuotationInput,
   asesorId: number,
 ): Promise<QuotationPublic> => {
-  const quotationId = await sequelize.transaction(async (transaction) => {
+  const result = await sequelize.transaction(async (transaction) => {
     let clientId = data.clientId ?? null;
     let vehicleId = data.vehicleId ?? null;
     let items = data.items;
@@ -652,10 +696,24 @@ export const createQuotation = async (
       await QuotationItem.bulkCreate(buildItemsPayload(quotation.id, items), { transaction });
     }
 
-    return quotation.id;
+    return { quotationId: quotation.id, codigo, total, workOrderId: data.workOrderId ?? null };
   });
 
-  return getQuotationById(quotationId);
+  const advisor = await User.findByPk(asesorId, { attributes: ['nombre'] });
+  await notifyByType(
+    'cotizacion_creada',
+    {
+      titulo: `Nueva cotización ${result.codigo}`,
+      mensaje: `${advisor?.nombre ?? 'El comercial'} creó una cotización por ${formatClpAmount(result.total)}.`,
+      href: `/quotations/${result.quotationId}`,
+      quotationId: result.quotationId,
+      workOrderId: result.workOrderId,
+      actorId: asesorId,
+    },
+    { excludeUserId: asesorId },
+  );
+
+  return getQuotationById(result.quotationId);
 };
 
 export const updateQuotation = async (
@@ -812,6 +870,7 @@ export const convertQuotationToWorkOrder = async (
     return {
       quotationId: quotation.id,
       workOrderId: workOrder.id,
+      workOrderCodigo: workOrder.codigo,
     };
   });
 
@@ -819,6 +878,20 @@ export const convertQuotationToWorkOrder = async (
     getQuotationById(converted.quotationId),
     getWorkOrderById(converted.workOrderId),
   ]);
+
+  const converter = await User.findByPk(userId, { attributes: ['nombre'] });
+  await notifyByType(
+    'cotizacion_convertida',
+    {
+      titulo: `${converted.workOrderCodigo} creada desde ${quotation.codigo}`,
+      mensaje: `${converter?.nombre ?? 'El comercial'} convirtió la cotización en una orden de taller.`,
+      href: `/work-orders/${converted.workOrderId}`,
+      quotationId: converted.quotationId,
+      workOrderId: converted.workOrderId,
+      actorId: userId,
+    },
+    { excludeUserId: userId },
+  );
 
   return { quotation, workOrder };
 };

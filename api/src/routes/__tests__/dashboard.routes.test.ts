@@ -81,6 +81,18 @@ describe('Dashboard Routes (E2E)', () => {
     expect(typeof response.body.lowStockCount).toBe('number');
     expect(Array.isArray(response.body.lowStockItems)).toBe(true);
     expect(Array.isArray(response.body.unlinkedQuotations)).toBe(true);
+    expect(response.body.operationalInbox).toEqual(
+      expect.objectContaining({
+        role: 'desarrollador',
+        total: expect.any(Number),
+        counts: expect.objectContaining({
+          approvals: expect.any(Number),
+          warehouseDeliveries: expect.any(Number),
+          paymentVerifications: expect.any(Number),
+        }),
+        items: expect.any(Array),
+      }),
+    );
     expect(dashboardSummarySchema.safeParse(response.body).success).toBe(true);
   });
 });

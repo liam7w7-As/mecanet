@@ -12,6 +12,7 @@ import {
 
 import { CatalogItem } from './CatalogItem.js';
 import { User } from './User.js';
+import { Warehouse } from './Warehouse.js';
 import { WorkOrder } from './WorkOrder.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
 
@@ -86,6 +87,20 @@ export class WorkOrderRequest extends Model<
   @Column({ type: DataType.DATE, allowNull: true })
   declare reviewedAt: Date | null;
 
+  @ForeignKey(() => Warehouse)
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare deliveredWarehouseId: CreationOptional<number | null>;
+
+  @ForeignKey(() => User)
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare deliveredBy: CreationOptional<number | null>;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare deliveredAt: CreationOptional<Date | null>;
+
+  @Column({ type: DataType.TEXT, allowNull: true })
+  declare deliveryNote: CreationOptional<string | null>;
+
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;
 
@@ -106,4 +121,10 @@ export class WorkOrderRequest extends Model<
 
   @BelongsTo(() => User, 'reviewedBy')
   declare reviewer?: User;
+
+  @BelongsTo(() => Warehouse, 'deliveredWarehouseId')
+  declare deliveredWarehouse?: Warehouse;
+
+  @BelongsTo(() => User, 'deliveredBy')
+  declare deliverer?: User;
 }

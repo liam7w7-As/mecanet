@@ -1,18 +1,22 @@
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { motion } from 'motion/react';
-import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import {
   Download,
   LoaderCircle,
   Printer,
   X,
 } from 'lucide-react';
+import { motion } from 'motion/react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
+import { useCompanyBranding } from './BrandingContext';
+import BrandLogo from './BrandLogo';
+import InspectionPhotoGallery from './InspectionPhotoGallery';
 import { formatClp, formatDateTime } from '../../lib/formatters';
+import { preparePdfImages } from '../../lib/pdf-images';
 
-import type { Quotation, WorkOrder } from '../../types/entities';
+import type { Quotation, WorkOrder, WorkOrderInspectionPhoto } from '../../types/entities';
 
 export type PdfDocType = 'work-order' | 'quotation';
 
@@ -72,6 +76,7 @@ interface WorkOrderSheetPage1Props {
   rawSubtotal: number;
   rawIVA: number;
   rawTotal: number;
+  totalPages: number;
 }
 
 const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
@@ -80,8 +85,10 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
   rawSubtotal,
   rawIVA,
   rawTotal,
+  totalPages,
 }) => {
   const items = workOrder.items ?? [];
+  const company = useCompanyBranding();
 
   return (
     <div
@@ -99,15 +106,8 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
         {/* Header Anverso OT */}
         <div className="flex items-start justify-between border-b-2 border-[#0E2B4E] pb-2">
           <div>
-            <img
-              src="/marca.webp"
-              alt="UNITHOR"
-              className="h-8 object-contain"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-            <div className="text-[10px] text-slate-500">R.U.T. 77.374.788-1</div>
+            <BrandLogo heightClassName="h-8" alt={company.nombreComercial} />
+            {company.rutLine && <div className="text-[10px] text-slate-500">{company.rutLine}</div>}
           </div>
           <div className="text-center">
             <h1 className="text-xl font-black tracking-tight text-[#0E2B4E]">
@@ -283,34 +283,13 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
             </div>
           </div>
 
-          {/* Registro Fotográfico Pericial (1 a 6 fotos) */}
-          {workOrder.inspection?.photos && workOrder.inspection.photos.length > 0 && (
-            <div className="mt-2 border-t border-slate-200 pt-1.5">
-              <div className="mb-1 font-bold text-[#0E2B4E]">Fotos periciales de recepción:</div>
-              <div className="grid grid-cols-6 gap-1.5">
-                {workOrder.inspection.photos.slice(0, 6).map((photo) => (
-                  <div key={photo.id} className="relative aspect-video overflow-hidden rounded border border-slate-300 bg-slate-100">
-                    <img
-                      src={photo.url}
-                      alt={`Foto ${photo.slot}`}
-                      crossOrigin="anonymous"
-                      className="h-full w-full object-cover"
-                    />
-                    <span className="absolute bottom-0 inset-x-0 bg-black/60 text-center text-[7px] font-bold text-white capitalize">
-                      {photo.slot.replace('_', ' ')}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Footer Anverso */}
       <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-1 text-[9px] text-slate-500">
-        <div>Arturo Fernández 2101, Iquique | Fono: +56 9 2375 7478 | contacto@unithor.cl</div>
-        <div>Página 1 de 2</div>
+        <div>{company.addressLine}{company.contactLine ? ` | ${company.contactLine}` : ''}</div>
+        <div>Página 1 de {totalPages}</div>
       </div>
     </div>
   );
@@ -318,9 +297,12 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
 
 interface WorkOrderSheetPage2Props {
   workOrder: WorkOrder;
+  totalPages: number;
 }
 
-const WorkOrderSheetPage2: React.FC<WorkOrderSheetPage2Props> = ({ workOrder }) => {
+const WorkOrderSheetPage2: React.FC<WorkOrderSheetPage2Props> = ({ workOrder, totalPages }) => {
+  const company = useCompanyBranding();
+
   return (
     <div
       id="pdf-sheet-page-2"
@@ -337,15 +319,8 @@ const WorkOrderSheetPage2: React.FC<WorkOrderSheetPage2Props> = ({ workOrder }) 
         {/* Header Reverso OT */}
         <div className="flex items-start justify-between border-b-2 border-[#0E2B4E] pb-2">
           <div>
-            <img
-              src="/marca.webp"
-              alt="UNITHOR"
-              className="h-8 object-contain"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-            <div className="text-[10px] text-slate-500">R.U.T. 77.374.788-1</div>
+            <BrandLogo heightClassName="h-8" alt={company.nombreComercial} />
+            {company.rutLine && <div className="text-[10px] text-slate-500">{company.rutLine}</div>}
           </div>
           <div className="text-right">
             <h2 className="text-sm font-black text-[#0E2B4E]">
@@ -360,16 +335,16 @@ const WorkOrderSheetPage2: React.FC<WorkOrderSheetPage2Props> = ({ workOrder }) 
         {/* 12 Cláusulas Legales Oficiales */}
         <div className="mt-3 text-justify text-[9px] leading-relaxed text-slate-700">
           <p className="mb-1.5">
-            <strong>1.</strong> El presente contrato de Prestación de Servicios es convenido entre UNITHOR SERVICIOS INTEGRALES SPA, y la persona nombrada en el anverso de este documento "Orden de trabajo" denominado CLIENTE.
+            <strong>1.</strong> El presente contrato de Prestación de Servicios es convenido entre {company.razonSocial}, y la persona nombrada en el anverso de este documento "Orden de trabajo" denominado CLIENTE.
           </p>
           <p className="mb-1.5">
-            <strong>2.</strong> El CLIENTE declara que es propietario del automóvil especificado en la Orden de Trabajo, o tener autorización escrita del propietario para encargar trabajos y entregar el vehículo a UNITHOR SERVICIOS INTEGRALES SPA.
+            <strong>2.</strong> El CLIENTE declara que es propietario del automóvil especificado en la Orden de Trabajo, o tener autorización escrita del propietario para encargar trabajos y entregar el vehículo a {company.razonSocial}.
           </p>
           <p className="mb-1.5">
-            <strong>3.</strong> El CLIENTE contrata los servicios de UNITHOR SERVICIOS INTEGRALES SPA., para que realice trabajos especificados en la Orden de Trabajo bajo el rubro "Trabajos a realizar", el trabajo incluye: repuestos, material y servicios terceros necesarios. También autoriza a UNITHOR SERVICIOS INTEGRALES SPA a realizar los traslados del vehículo individualizado en el formulario Orden de Trabajo por los recorridos calles, carreteras, autopistas y otros lugares dentro del radio urbano a fin de efectuar pruebas e inspecciones necesarias.
+            <strong>3.</strong> El CLIENTE contrata los servicios de {company.razonSocial}., para que realice trabajos especificados en la Orden de Trabajo bajo el rubro "Trabajos a realizar", el trabajo incluye: repuestos, material y servicios terceros necesarios. También autoriza a {company.razonSocial} a realizar los traslados del vehículo individualizado en el formulario Orden de Trabajo por los recorridos calles, carreteras, autopistas y otros lugares dentro del radio urbano a fin de efectuar pruebas e inspecciones necesarias.
           </p>
           <p className="mb-1.5">
-            <strong>4.</strong> El CLIENTE a tiempo de hacer la entrega del vehículo en el taller, se obliga a retirar todo objeto de valor en el interior de la movilidad, quedando establecido que todos los accesorios serán dejados bajo inventario; asimismo el CLIENTE, se obliga a informar al taller sobre trabajos anteriores en otros talleres y proporcionar información que ayude en la ejecución óptima del trabajo. Así mismo UNITHOR SERVICIOS INTEGRALES SPA no será responsable por los defectos no visibles, que puedan tener el vehículo al momento de la recepción.
+            <strong>4.</strong> El CLIENTE a tiempo de hacer la entrega del vehículo en el taller, se obliga a retirar todo objeto de valor en el interior de la movilidad, quedando establecido que todos los accesorios serán dejados bajo inventario; asimismo el CLIENTE, se obliga a informar al taller sobre trabajos anteriores en otros talleres y proporcionar información que ayude en la ejecución óptima del trabajo. Así mismo {company.razonSocial} no será responsable por los defectos no visibles, que puedan tener el vehículo al momento de la recepción.
           </p>
           <p className="mb-1.5">
             <strong>5.</strong> Los precios cotizados en la Orden de Trabajo incluyen impuestos fiscales y se refieren al servicio específico cotizado. Reparaciones y/o materiales cotizados en la orden de trabajo con valor referencial están en evaluación para definir su valor que será informado al cliente previo a su compra o realización. No incluyen reparaciones ni materiales que no estuvieran considerados ni especificados en la Orden de Trabajo o sea que no son parte de este mismo servicio. En caso de requerir trabajos o repuestos adicionales estos serán cobrados de acuerdo con la tasa de mano de obra vigente y los repuestos por los precios de venta normales y vigentes a la fecha.
@@ -378,13 +353,13 @@ const WorkOrderSheetPage2: React.FC<WorkOrderSheetPage2Props> = ({ workOrder }) 
             <strong>6.</strong> En el caso que se requiera la importación de repuestos, para la ejecución de los servicios encargados, el CLIENTE pagará el 50% (cincuenta por ciento) del valor de los repuestos en el momento de la confirmación del pedido.
           </p>
           <p className="mb-1.5">
-            <strong>7.</strong> Una vez que se ha informado al CLIENTE que los trabajos están concluidos, el CLIENTE deberá recoger el vehículo dentro de diez días hábiles siguientes a su notificación. A partir del onceavo día, UNITHOR SERVICIOS INTEGRALES SPA se reserva el derecho de cobrar estacionamiento por valor de diez mil pesos más IVA por día calendario e incluir el valor en la facturación del servicio prestado.
+            <strong>7.</strong> Una vez que se ha informado al CLIENTE que los trabajos están concluidos, el CLIENTE deberá recoger el vehículo dentro de diez días hábiles siguientes a su notificación. A partir del onceavo día, {company.razonSocial} se reserva el derecho de cobrar estacionamiento por valor de diez mil pesos más IVA por día calendario e incluir el valor en la facturación del servicio prestado.
           </p>
           <p className="mb-1.5">
-            <strong>8.</strong> Para proceder al retiro del vehículo, el CLIENTE debe proceder al pago total del valor del trabajo encomendado de acuerdo a la factura que le extienda UNITHOR SERVICIOS INTEGRALES SPA, por los trabajos, servicios y materiales de la Orden de Trabajo presente, otras cotizaciones y/o adiciones que se sumen al requerimiento del cliente y por adiciones que autorice el CLIENTE incluso verbalmente. En el caso que el CLIENTE no cancele su deuda en su totalidad y no cuente con una línea de crédito vigente, el automóvil no será devuelto y quedará como garantía de pago en UNITHOR SERVICIOS INTEGRALES SPA hasta que sea cancelada toda la deuda.
+            <strong>8.</strong> Para proceder al retiro del vehículo, el CLIENTE debe proceder al pago total del valor del trabajo encomendado de acuerdo a la factura que le extienda {company.razonSocial}, por los trabajos, servicios y materiales de la Orden de Trabajo presente, otras cotizaciones y/o adiciones que se sumen al requerimiento del cliente y por adiciones que autorice el CLIENTE incluso verbalmente. En el caso que el CLIENTE no cancele su deuda en su totalidad y no cuente con una línea de crédito vigente, el automóvil no será devuelto y quedará como garantía de pago en {company.razonSocial} hasta que sea cancelada toda la deuda.
           </p>
           <p className="mb-1.5">
-            <strong>9.</strong> La entrega del vehículo se realizará exclusivamente a la persona que figura como CLIENTE en la Orden de trabajo presentando su ejemplar de la Orden de trabajo emitido por UNITHOR SERVICIOS INTEGRALES SPA. En caso contrario la persona que recoge la movilidad tiene el deber de identificarse como propietario legítimo o presentar el poder correspondiente.
+            <strong>9.</strong> La entrega del vehículo se realizará exclusivamente a la persona que figura como CLIENTE en la Orden de trabajo presentando su ejemplar de la Orden de trabajo emitido por {company.razonSocial}. En caso contrario la persona que recoge la movilidad tiene el deber de identificarse como propietario legítimo o presentar el poder correspondiente.
           </p>
           <p className="mb-1.5">
             <strong>10.</strong> Los repuestos cuyo reemplazo fue pagado por el CLIENTE están a su disposición en el momento de la entrega del vehículo. Los repuestos no reclamados en ese momento son destruidos y por lo tanto, no se puede tomar consideración posterior al respecto, no se podrá imputar al costo de la reparación parte alguna de los repuestos reemplazados.
@@ -393,7 +368,7 @@ const WorkOrderSheetPage2: React.FC<WorkOrderSheetPage2Props> = ({ workOrder }) 
             <strong>11.</strong> El CLIENTE a tiempo de recibir el vehículo, deberá firmar la Orden de trabajo, dando su conformidad por la recepción del vehículo y la inexistencia de daños y/o objetos perdidos. Cualquier reclamo el CLIENTE tiene que hacer presente en el momento de la entrega, reclamos posteriores acerca de daños y/o objetos perdidos serán rechazados.
           </p>
           <p className="mb-1.5">
-            <strong>12.</strong> El CLIENTE autoriza a UNITHOR SERVICIOS INTEGRALES SPA guardar los datos que contiene la Orden de trabajo y los datos de la factura correspondiente en su base de datos.
+            <strong>12.</strong> El CLIENTE autoriza a {company.razonSocial} guardar los datos que contiene la Orden de trabajo y los datos de la factura correspondiente en su base de datos.
           </p>
         </div>
 
@@ -402,9 +377,9 @@ const WorkOrderSheetPage2: React.FC<WorkOrderSheetPage2Props> = ({ workOrder }) 
           <div className="rounded border border-slate-300 p-4 text-center">
             <div className="h-14"></div>
             <div className="border-t border-slate-400 pt-1.5 font-black text-[#0E2B4E]">
-              FIRMA ASESOR UNITHOR
+              FIRMA ASESOR {company.nombreComercial}
             </div>
-            <div className="text-[9px] text-slate-500">UNITHOR SERVICIOS INTEGRALES SPA</div>
+            <div className="text-[9px] text-slate-500">{company.razonSocial}</div>
           </div>
 
           <div className="rounded border border-slate-300 p-4 text-center">
@@ -421,8 +396,8 @@ const WorkOrderSheetPage2: React.FC<WorkOrderSheetPage2Props> = ({ workOrder }) 
 
       {/* Footer Reverso */}
       <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-1 text-[9px] text-slate-500">
-        <div>Arturo Fernández 2101, Iquique | Fono: +56 9 2375 7478</div>
-        <div>Página 2 de 2</div>
+        <div>{company.addressLine}{company.telefono ? ` | Fono: ${company.telefono}` : ''}</div>
+        <div>Página 2 de {totalPages}</div>
       </div>
     </div>
   );
@@ -433,6 +408,7 @@ interface QuotationSheetPageProps {
   rawSubtotal: number;
   rawIVA: number;
   rawTotal: number;
+  totalPages: number;
 }
 
 const QuotationSheetPage: React.FC<QuotationSheetPageProps> = ({
@@ -440,8 +416,10 @@ const QuotationSheetPage: React.FC<QuotationSheetPageProps> = ({
   rawSubtotal,
   rawIVA,
   rawTotal,
+  totalPages,
 }) => {
   const items = quotation.items ?? [];
+  const company = useCompanyBranding();
 
   return (
     <div
@@ -459,16 +437,9 @@ const QuotationSheetPage: React.FC<QuotationSheetPageProps> = ({
         {/* Header Cotización */}
         <div className="flex items-start justify-between border-b-2 border-[#0E2B4E] pb-2">
           <div>
-            <img
-              src="/marca.webp"
-              alt="UNITHOR"
-              className="h-8 object-contain"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-            <div className="text-[10px] text-slate-500">R.U.T. 77.374.788-1</div>
-            <div className="text-[10px] text-slate-500">Arturo Fernández 2101, Iquique</div>
+            <BrandLogo heightClassName="h-8" alt={company.nombreComercial} />
+            {company.rutLine && <div className="text-[10px] text-slate-500">{company.rutLine}</div>}
+            {company.addressLine && <div className="text-[10px] text-slate-500">{company.addressLine}</div>}
           </div>
           <div className="text-right">
             <h1 className="text-xl font-black tracking-tight text-[#0E2B4E]">
@@ -588,7 +559,7 @@ const QuotationSheetPage: React.FC<QuotationSheetPageProps> = ({
         <div className="mt-10 flex justify-end text-[10px]">
           <div className="w-64 border-t border-slate-400 pt-1.5 text-center">
             <div className="font-black text-[#0E2B4E]">
-              {quotation.asesor?.nombre ?? 'UNITHOR SERVICIOS INTEGRALES'}
+              {quotation.asesor?.nombre ?? company.razonSocial}
             </div>
             <div className="text-[9px] text-slate-500">Asesor Comercial / Atención a Clientes</div>
           </div>
@@ -597,10 +568,48 @@ const QuotationSheetPage: React.FC<QuotationSheetPageProps> = ({
 
       {/* Footer Cotización */}
       <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-1 text-[9px] text-slate-500">
-        <div>Arturo Fernández 2101, Iquique | Fono: +56 9 2375 7478 | contacto@unithor.cl</div>
-        <div>Página 1 de 1</div>
+        <div>{company.addressLine}{company.contactLine ? ` | ${company.contactLine}` : ''}</div>
+        <div>Página 1 de {totalPages}</div>
       </div>
     </div>
+  );
+};
+
+interface InspectionPhotosSheetProps {
+  photos: WorkOrderInspectionPhoto[];
+  code: string;
+  workOrderCode: string;
+  clientName: string;
+  vehicle: string;
+  totalPages: number;
+}
+
+const InspectionPhotosSheet = ({ photos, code, workOrderCode, clientName, vehicle, totalPages }: InspectionPhotosSheetProps) => {
+  const company = useCompanyBranding();
+
+  return (
+  <div className="pdf-paper-sheet mx-auto flex flex-col justify-between bg-white text-slate-800 shadow-2xl"
+    style={{ width: 816, minHeight: 1056, padding: '26px 34px', boxSizing: 'border-box', fontFamily: "'Segoe UI', Arial, sans-serif" }}>
+    <div>
+      <div className="flex items-start justify-between border-b-2 border-[#0E2B4E] pb-2">
+        <BrandLogo heightClassName="h-8" alt={company.nombreComercial} />
+        <div className="text-right text-[#0E2B4E]">
+          <h2 className="text-sm font-black">REGISTRO FOTOGRÁFICO</h2>
+          <div className="text-xs font-bold">{code}</div>
+        </div>
+      </div>
+      <div className="my-4 grid grid-cols-2 gap-2 text-[10px]">
+        <div><strong>Cliente:</strong> {clientName}</div>
+        <div><strong>Vehículo:</strong> {vehicle}</div>
+        <div className="col-span-2 text-slate-500">Inspección de recepción: {workOrderCode}</div>
+      </div>
+      <InspectionPhotoGallery photos={photos} width={748} maxPhotoHeight={212} />
+    </div>
+    <div className="mt-3 flex justify-between border-t border-slate-200 pt-1 text-[9px] text-slate-500">
+      <div>{company.nombreComercial} | Anexo fotográfico de recepción | {code}</div>
+      <div>Página {totalPages} de {totalPages}</div>
+    </div>
+  </div>
   );
 };
 
@@ -615,14 +624,26 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   onClose,
   onDownload,
 }) => {
-  const [activeTab, setActiveTab] = useState<'pag1' | 'pag2'>('pag1');
+  const [activeTab, setActiveTab] = useState<'pag1' | 'pag2' | 'photos'>('pag1');
   const [isGrayscale, setIsGrayscale] = useState<boolean>(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const company = useCompanyBranding();
 
   const isOT = type === 'work-order';
   const displayCode = isOT
     ? workOrder?.codigo ?? 'OT-S/N'
     : quotation?.codigo ?? 'COT-S/N';
+  const photos = isOT ? workOrder?.inspection?.photos ?? [] : quotation?.workOrder?.inspectionPhotos ?? [];
+  const hasPhotos = photos.length > 0;
+  const totalPages = (isOT ? 2 : 1) + (hasPhotos ? 1 : 0);
+  const photosSheet = hasPhotos ? <InspectionPhotosSheet photos={photos} code={displayCode}
+    workOrderCode={(isOT ? workOrder?.codigo : quotation?.workOrder?.codigo) ?? displayCode}
+    clientName={(isOT ? workOrder?.client?.nombre : quotation?.client?.nombre) ?? 'Sin cliente'}
+    vehicle={[(isOT ? workOrder?.vehicle?.patente : quotation?.vehicle?.patente),
+      (isOT ? workOrder?.vehicle?.marca : quotation?.vehicle?.marca),
+      (isOT ? workOrder?.vehicle?.modelo : quotation?.vehicle?.modelo)].filter(Boolean).join(' ') || 'Sin vehículo'}
+    totalPages={totalPages} /> : null;
 
   // Cerrar con Escape
   useEffect(() => {
@@ -654,8 +675,18 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   // Impresión nativa del navegador.
   // Usa el mismo portal (#unithor-print-portal) que la vista previa,
   // por lo que el papel impreso es idéntico al que se ve en pantalla.
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    const portal = document.getElementById('unithor-print-portal');
+    setPdfError(null);
+    setIsGeneratingPdf(true);
+    try {
+      if (portal) await preparePdfImages(portal);
+      window.print();
+    } catch {
+      setPdfError('No se pudieron cargar todas las fotos. Reintenta la impresión.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   // Descarga directa como archivo PDF con el mismo diseño de la vista previa.
@@ -682,6 +713,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
     }
 
     setIsGeneratingPdf(true);
+    setPdfError(null);
 
     // El portal está oculto en pantalla (display:none). Lo mostramos in-place
     // detrás del backdrop (z-40 vs z-50 del modal) para que el navegador
@@ -696,10 +728,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
     portal.style.setProperty('pointer-events', 'none', 'important');
 
     try {
-      // Espera a que el navegador pinte + carguen imágenes/fuentes
-      await new Promise((resolve) =>
-        requestAnimationFrame(() => setTimeout(resolve, 150)),
-      );
+      await preparePdfImages(portal);
       if (document.fonts?.ready) {
         try {
           await document.fonts.ready;
@@ -731,13 +760,16 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
         if (index > 0) {
           pdf.addPage([SHEET_WIDTH, SHEET_HEIGHT], 'portrait');
         }
-        pdf.addImage(dataUrl, 'PNG', 0, 0, SHEET_WIDTH, SHEET_HEIGHT, undefined, 'FAST');
+        const sheetHeight = sheet.getBoundingClientRect().height || SHEET_HEIGHT;
+        const scale = Math.min(1, SHEET_HEIGHT / sheetHeight);
+        pdf.addImage(dataUrl, 'PNG', (SHEET_WIDTH - SHEET_WIDTH * scale) / 2, 0,
+          SHEET_WIDTH * scale, sheetHeight * scale, undefined, 'FAST');
       }
 
       pdf.save(`${displayCode}.pdf`);
     } catch (err) {
-      console.error('Error al generar PDF directo, recurriendo a impresión:', err);
-      window.print();
+      console.error('Error al generar PDF directo:', err);
+      setPdfError('No se pudo preparar el PDF. Comprueba que las fotos estén cargadas y reintenta.');
     } finally {
       portal.style.removeProperty('display');
       portal.style.removeProperty('position');
@@ -838,18 +870,12 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         className="relative flex h-[95vh] w-full max-w-[940px] flex-col overflow-hidden rounded-2xl bg-slate-900 shadow-2xl border border-slate-700/50"
       >
+        {pdfError && <div role="alert" className="bg-red-50 px-4 py-2 text-sm text-red-800">{pdfError}</div>}
         {/* Barra superior de herramientas */}
         <header className="flex flex-col gap-2 border-b border-blue-950 bg-[#0E2B4E] px-4 py-3 text-white sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img
-                src="/marca.webp"
-                alt="UNITHOR"
-                className="h-6 object-contain"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
+              <BrandLogo heightClassName="h-6" alt={company.nombreComercial} className="rounded bg-white px-1.5 py-1" />
               <h2
                 id="pdf-modal-title"
                 className="text-base font-extrabold tracking-tight text-white sm:text-lg"
@@ -899,6 +925,11 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                 </div>
               )}
 
+              {!isOT && hasPhotos && <button type="button" onClick={() => setActiveTab('pag1')}
+                className={`rounded-md px-3 py-1 text-xs font-bold ${activeTab === 'pag1' ? 'bg-brand-blue text-white' : 'text-slate-400'}`}>Cotización</button>}
+              {hasPhotos && <button type="button" onClick={() => setActiveTab('photos')}
+                className={`rounded-md px-3 py-1 text-xs font-bold ${activeTab === 'photos' ? 'bg-brand-blue text-white' : 'text-slate-400'}`}>Fotos de recepción</button>}
+
               {/* Selector Color / B&N */}
               <div className="flex rounded-lg border border-slate-700 bg-slate-800/90 p-1">
                 <button
@@ -931,6 +962,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
               <button
                 type="button"
                 onClick={handlePrint}
+                disabled={isGeneratingPdf}
                 className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-white/10 px-3 text-xs font-bold text-white transition hover:bg-white/20"
                 title="Imprimir documento físico o mediante diálogo de impresión del sistema"
               >
@@ -968,7 +1000,8 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
             filter: isGrayscale ? 'grayscale(100%)' : 'none',
           }}
         >
-          {isOT && workOrder && (
+          {activeTab === 'photos' && photosSheet}
+          {activeTab !== 'photos' && isOT && workOrder && (
             <div className="pdf-print-wrapper mx-auto">
               {activeTab === 'pag1' ? (
                 <WorkOrderSheetPage1
@@ -977,20 +1010,22 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                   rawSubtotal={rawSubtotal}
                   rawIVA={rawIVA}
                   rawTotal={rawTotal}
+                  totalPages={totalPages}
                 />
               ) : (
-                <WorkOrderSheetPage2 workOrder={workOrder} />
+                <WorkOrderSheetPage2 workOrder={workOrder} totalPages={totalPages} />
               )}
             </div>
           )}
 
-          {!isOT && quotation && (
+          {activeTab !== 'photos' && !isOT && quotation && (
             <div className="pdf-print-wrapper mx-auto">
               <QuotationSheetPage
                 quotation={quotation}
                 rawSubtotal={rawSubtotal}
                 rawIVA={rawIVA}
                 rawTotal={rawTotal}
+                totalPages={totalPages}
               />
             </div>
           )}
@@ -1015,8 +1050,10 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                 rawSubtotal={rawSubtotal}
                 rawIVA={rawIVA}
                 rawTotal={rawTotal}
+                totalPages={totalPages}
               />
-              <WorkOrderSheetPage2 workOrder={workOrder} />
+              <WorkOrderSheetPage2 workOrder={workOrder} totalPages={totalPages} />
+              {photosSheet}
             </div>
           )}
 
@@ -1032,7 +1069,9 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                 rawSubtotal={rawSubtotal}
                 rawIVA={rawIVA}
                 rawTotal={rawTotal}
+                totalPages={totalPages}
               />
+              {photosSheet}
             </div>
           )}
         </div>,

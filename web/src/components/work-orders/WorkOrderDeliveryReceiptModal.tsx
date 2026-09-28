@@ -2,6 +2,7 @@ import { Printer, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 import { formatDateTime } from '../../lib/formatters';
+import { useCompanyBranding } from '../common/BrandingContext';
 
 import type { WorkOrder } from '../../types/entities';
 
@@ -19,6 +20,7 @@ const checklistLabels: Record<string, string> = {
 
 const DeliverySheet = ({ workOrder }: { workOrder: WorkOrder }) => {
   const delivery = workOrder.delivery;
+  const company = useCompanyBranding();
   if (!delivery) return null;
 
   return (
@@ -63,11 +65,11 @@ const DeliverySheet = ({ workOrder }: { workOrder: WorkOrder }) => {
           <p className="text-xs leading-5 text-slate-600">El receptor declara haber revisado y recibido el vehículo, sus pertenencias, llaves y documentos en conformidad, y haber recibido la explicación de los trabajos realizados y recomendaciones del taller.</p>
           <div className="mt-16 grid grid-cols-2 gap-16 text-center text-xs">
             <div className="border-t border-slate-500 pt-2"><p className="font-semibold italic">{delivery.firmaRecepcion}</p><p className="mt-1 text-slate-500">Firma nominativa del receptor</p></div>
-            <div className="border-t border-slate-500 pt-2"><p className="font-semibold">{delivery.deliverer?.nombre ?? 'UNITHOR'}</p><p className="mt-1 text-slate-500">Responsable de entrega</p></div>
+            <div className="border-t border-slate-500 pt-2"><p className="font-semibold">{delivery.deliverer?.nombre ?? company.nombreComercial}</p><p className="mt-1 text-slate-500">Responsable de entrega</p></div>
           </div>
         </section>
       </div>
-      <footer className="mt-auto border-t border-slate-300 px-8 py-4 text-center text-[10px] text-slate-500">UNITHOR SERVICIOS INTEGRALES · Comprobante asociado a {workOrder.codigo}</footer>
+      <footer className="mt-auto border-t border-slate-300 px-8 py-4 text-center text-[10px] text-slate-500">{company.razonSocial}{company.rut ? ` · R.U.T. ${company.rut}` : ''} · Comprobante asociado a {workOrder.codigo}</footer>
     </article>
   );
 };

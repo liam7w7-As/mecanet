@@ -7,6 +7,7 @@ import type {
   CreateQuotationInput,
   QuotationQueryInput,
   UpdateQuotationInput,
+  WorkOrderInspectionPhotoSlot,
 } from '@unithor/shared';
 import type { Request, Response } from 'express';
 
@@ -32,6 +33,20 @@ export const getQuotationByIdHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const quotation = await quotationService.getQuotationById(getParamId(req));
     res.status(200).json({ quotation });
+  },
+);
+
+export const getQuotationInspectionPhotoHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { photo, bytes } = await quotationService.getQuotationInspectionPhoto(
+      getParamId(req),
+      req.params.slot as WorkOrderInspectionPhotoSlot,
+    );
+    res.setHeader('Content-Type', photo.mimeType);
+    res.setHeader('Content-Length', String(bytes.length));
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Content-Disposition', `inline; filename="inspeccion-${photo.slot}"`);
+    res.end(bytes);
   },
 );
 

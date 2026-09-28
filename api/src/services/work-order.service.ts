@@ -5,6 +5,7 @@ import {
 } from '@unithor/shared';
 import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
+import { notifyByType, notifyUsers } from './notification.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -14,6 +15,7 @@ import { QuotationItem } from '../models/QuotationItem.js';
 import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
+import { Warehouse } from '../models/Warehouse.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { WorkOrderDelivery } from '../models/WorkOrderDelivery.js';
 import { WorkOrderEvent } from '../models/WorkOrderEvent.js';
@@ -23,6 +25,7 @@ import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
+import { formatClpAmount } from '../utils/formatters.js';
 import { generateQuotationCode, generateWorkOrderCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
 
@@ -211,11 +214,17 @@ interface WorkOrderRequestPublic {
   precioAprobado: number | null;
   reviewNote: string | null;
   reviewedAt: Date | null;
+  deliveredWarehouseId: number | null;
+  deliveredBy: number | null;
+  deliveredAt: Date | null;
+  deliveryNote: string | null;
   createdAt: Date;
   catalogItem?: { id: number; codigo: string | null; nombre: string; precio: number } | null;
   workOrderItem?: { id: number; descripcion: string; precioUnitario: number } | null;
   requester?: { id: number; nombre: string } | null;
   reviewer?: { id: number; nombre: string } | null;
+  deliveredWarehouse?: { id: number; codigo: string; nombre: string } | null;
+  deliverer?: { id: number; nombre: string } | null;
 }
 
 export interface WorkOrderMechanicPublic {
@@ -448,6 +457,16 @@ const requestsInclude = {
     {
       model: User,
       as: 'reviewer',
+      attributes: ['id', 'nombre'],
+    },
+    {
+      model: Warehouse,
+      as: 'deliveredWarehouse',
+      attributes: ['id', 'codigo', 'nombre'],
+    },
+    {
+      model: User,
+      as: 'deliverer',
       attributes: ['id', 'nombre'],
     },
   ],
@@ -790,6 +809,10 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
         request.precioAprobado === null ? null : toNumber(request.precioAprobado),
       reviewNote: request.reviewNote,
       reviewedAt: request.reviewedAt,
+      deliveredWarehouseId: request.deliveredWarehouseId ?? null,
+      deliveredBy: request.deliveredBy ?? null,
+      deliveredAt: request.deliveredAt ?? null,
+      deliveryNote: request.deliveryNote ?? null,
       createdAt: request.createdAt,
       catalogItem: request.catalogItem
         ? {
@@ -818,6 +841,20 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
       reviewer: request.reviewer
         ? { id: request.reviewer.id, nombre: request.reviewer.nombre }
         : request.reviewedBy === null
+          ? null
+          : undefined,
+      deliveredWarehouse: request.deliveredWarehouse
+        ? {
+            id: request.deliveredWarehouse.id,
+            codigo: request.deliveredWarehouse.codigo,
+            nombre: request.deliveredWarehouse.nombre,
+          }
+        : request.deliveredWarehouseId === null
+          ? null
+          : undefined,
+      deliverer: request.deliverer
+        ? { id: request.deliverer.id, nombre: request.deliverer.nombre }
+        : request.deliveredBy === null
           ? null
           : undefined,
     })),
@@ -1797,6 +1834,20 @@ export const changeStatus = async (
       transaction,
     );
 
+    const actor = await User.findByPk(userId, { attributes: ['nombre'], transaction });
+    await notifyByType(
+      'ot_estado_cambiado',
+      {
+        titulo: `${workOrder.codigo} → ${nuevoEstado.replace(/_/g, ' ')}`,
+        mensaje: `${actor?.nombre ?? 'El taller'} cambió el estado de ${estadoAnterior} a ${nuevoEstado}.${motivo ? ` Motivo: ${motivo}` : ''}`,
+        href: `/work-orders/${workOrder.id}`,
+        workOrderId: workOrder.id,
+        actorId: userId,
+        nivel: nuevoEstado === 'cancelada' ? 'critical' : 'info',
+      },
+      { transaction, excludeUserId: userId },
+    );
+
     return workOrder.id;
   });
 
@@ -1896,6 +1947,19 @@ export const deliverWorkOrder = async (
       `Vehículo entregado a ${data.receptorNombre}`,
       { kilometrajeSalida: data.kilometrajeSalida, receptorNombre: data.receptorNombre },
       transaction,
+    );
+
+    const deliverer = await User.findByPk(userId, { attributes: ['nombre'], transaction });
+    await notifyByType(
+      'ot_entregada',
+      {
+        titulo: `${workOrder.codigo} entregada`,
+        mensaje: `${deliverer?.nombre ?? 'El taller'} entregó el vehículo a ${data.receptorNombre} con ${data.kilometrajeSalida.toLocaleString('es-CL')} km.`,
+        href: `/work-orders/${workOrder.id}`,
+        workOrderId: workOrder.id,
+        actorId: userId,
+      },
+      { transaction, excludeUserId: userId },
     );
 
     return workOrder.id;
@@ -2119,6 +2183,39 @@ export const assignMechanic = async (
       { previousMechanicId, mechanicId },
       transaction,
     );
+
+    const assignedOrder = await WorkOrder.findByPk(id, { transaction });
+    const codigo = assignedOrder?.codigo ?? `OT ${id}`;
+    const assigner = await User.findByPk(userId, { attributes: ['nombre'], transaction });
+
+    if (mechanic) {
+      await notifyByType(
+        'mecanico_asignado',
+        {
+          titulo: `Te asignaron ${codigo}`,
+          mensaje: `${assigner?.nombre ?? 'El taller'} te asignó esta orden como responsable técnico.`,
+          href: `/work-orders/${id}`,
+          workOrderId: id,
+          actorId: userId,
+        },
+        { transaction, excludeUserId: userId },
+      );
+    }
+
+    if (previousMechanicId !== null && previousMechanicId !== mechanicId) {
+      await notifyUsers(
+        [previousMechanicId],
+        {
+          tipo: 'mecanico_asignado',
+          titulo: `${codigo} ya no está a tu cargo`,
+          mensaje: `La orden fue reasignada a ${mechanic?.nombre ?? 'otro responsable'}.`,
+          href: `/work-orders/${id}`,
+          workOrderId: id,
+          actorId: userId,
+        },
+        transaction,
+      );
+    }
   });
 
   return getWorkOrderById(id);
@@ -2175,10 +2272,31 @@ export const updateWorkOrderExecution = async (
       if (!item) {
         throw ApiError.badRequest('Uno o más trabajos no pertenecen a esta orden');
       }
-      if (item.stockConsumido && itemUpdate.estadoOperativo !== 'completado') {
+      if (
+        item.stockConsumido &&
+        item.estadoOperativo === 'completado' &&
+        itemUpdate.estadoOperativo !== 'completado'
+      ) {
         throw ApiError.badRequest(
           `El repuesto "${item.descripcion}" ya fue consumido y no puede volver a un estado anterior`,
         );
+      }
+
+      if (itemUpdate.estadoOperativo === 'completado' && !item.stockConsumido) {
+        const pendingWarehouseDelivery = await WorkOrderRequest.findOne({
+          where: {
+            workOrderId: id,
+            workOrderItemId: item.id,
+            tipo: 'repuesto',
+            estado: 'aprobada',
+          },
+          transaction,
+        });
+        if (pendingWarehouseDelivery) {
+          throw ApiError.badRequest(
+            `Bodega debe entregar el repuesto "${item.descripcion}" antes de marcarlo como completado`,
+          );
+        }
       }
 
       await item.update(
@@ -2280,7 +2398,7 @@ export const createWorkOrderRequest = async (
       description = `Sugerencia de aumento para ${item.descripcion}`;
     }
 
-    await WorkOrderRequest.create(
+    const createdRequest = await WorkOrderRequest.create(
       {
         workOrderId: id,
         workOrderItemId,
@@ -2305,6 +2423,27 @@ export const createWorkOrderRequest = async (
       description,
       { tipo: data.tipo, catalogItemId, workOrderItemId, cantidad, precioSugerido },
       transaction,
+    );
+
+    const requester = await User.findByPk(userId, {
+      attributes: ['nombre'],
+      transaction,
+    });
+    const codigo = workOrder.codigo;
+    await notifyByType(
+      'solicitud_creada',
+      {
+        titulo:
+          data.tipo === 'repuesto'
+            ? `Repuesto solicitado en ${codigo}`
+            : `Aumento de precio propuesto en ${codigo}`,
+        mensaje: `${requester?.nombre ?? 'Un mecánico'} pide aprobación: ${data.motivo}`,
+        href: `/work-orders/${id}`,
+        workOrderId: id,
+        actorId: userId,
+        dedupeKey: `request:${createdRequest.id}`,
+      },
+      { transaction, excludeUserId: userId },
     );
   });
 
@@ -2346,7 +2485,11 @@ export const reviewWorkOrderRequest = async (
       throw ApiError.badRequest('Esta solicitud ya fue revisada');
     }
 
+    const reviewedOrder = await WorkOrder.findByPk(id, { transaction });
+    const codigo = reviewedOrder?.codigo ?? `OT ${id}`;
+
     let approvedPrice: number | null = null;
+    let approvedWorkOrderItemId = request.workOrderItemId;
     if (data.decision === 'aprobar') {
       const quotation = await Quotation.findOne({
         where: { workOrderId: id },
@@ -2364,7 +2507,7 @@ export const reviewWorkOrderRequest = async (
         }
         approvedPrice = data.precioAprobado ?? toNumber(catalogItem.precio);
         const quantity = toNumber(request.cantidad);
-        await WorkOrderItem.create(
+        const createdItem = await WorkOrderItem.create(
           {
             workOrderId: id,
              catalogItemId: catalogItem.id,
@@ -2382,6 +2525,7 @@ export const reviewWorkOrderRequest = async (
           },
           { transaction },
         );
+        approvedWorkOrderItemId = createdItem.id;
         if (quotation) {
           await QuotationItem.create(
             {
@@ -2449,6 +2593,7 @@ export const reviewWorkOrderRequest = async (
     await request.update(
       {
         estado: data.decision === 'aprobar' ? 'aprobada' : 'rechazada',
+        workOrderItemId: approvedWorkOrderItemId,
         precioAprobado: approvedPrice,
         reviewedBy: userId,
         reviewNote: data.comentario ?? null,
@@ -2464,6 +2609,52 @@ export const reviewWorkOrderRequest = async (
       { requestId: request.id, decision: data.decision, approvedPrice },
       transaction,
     );
+
+    const reviewer = await User.findByPk(userId, { attributes: ['nombre'], transaction });
+    const approved = data.decision === 'aprobar';
+
+    if (approved) {
+      await notifyByType(
+        'solicitud_aprobada',
+        {
+          titulo: `Solicitud aprobada en ${codigo}`,
+            mensaje: `${reviewer?.nombre ?? 'El jefe de taller'} aprobó tu solicitud.${approvedPrice !== null ? ` Precio aprobado: ${formatClpAmount(approvedPrice)}.` : ''}`,
+          href: `/work-orders/${id}`,
+          workOrderId: id,
+          actorId: userId,
+          dedupeKey: `request-review:${request.id}:approved`,
+        },
+        { transaction, excludeUserId: userId },
+      );
+    } else {
+      await notifyByType(
+        'solicitud_rechazada',
+        {
+          titulo: `Solicitud rechazada en ${codigo}`,
+          mensaje: `${reviewer?.nombre ?? 'El jefe de taller'} rechazó tu solicitud.${data.comentario ? ` Motivo: ${data.comentario}` : ''}`,
+          href: `/work-orders/${id}`,
+          workOrderId: id,
+          actorId: userId,
+          dedupeKey: `request-review:${request.id}:rejected`,
+        },
+        { transaction, excludeUserId: userId },
+      );
+    }
+
+    if (approved && request.tipo === 'repuesto') {
+      await notifyByType(
+        'repuesto_por_entregar',
+        {
+          titulo: `Repuesto aprobado para ${codigo}`,
+          mensaje: `${reviewer?.nombre ?? 'El jefe de taller'} aprobó el repuesto. Coordina la entrega en bodega.`,
+          href: `/work-orders/${id}`,
+          workOrderId: id,
+          actorId: userId,
+          dedupeKey: `request-delivery:${request.id}`,
+        },
+        { transaction, excludeUserId: userId },
+      );
+    }
   });
 
   return getWorkOrderById(id);

@@ -4,6 +4,7 @@ export type WorkOrderRequestType = (typeof WORK_ORDER_REQUEST_TYPES)[number];
 export const WORK_ORDER_REQUEST_STATUS = [
   'pendiente',
   'aprobada',
+  'entregada',
   'rechazada',
   'cancelada',
 ] as const;

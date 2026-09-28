@@ -2,9 +2,16 @@ import { Op, Transaction } from 'sequelize';
 
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
+import { Client } from '../models/Client.js';
 import { StockBalance } from '../models/StockBalance.js';
 import { StockMovement } from '../models/StockMovement.js';
+import { User } from '../models/User.js';
+import { Vehicle } from '../models/Vehicle.js';
 import { Warehouse } from '../models/Warehouse.js';
+import { WorkOrder } from '../models/WorkOrder.js';
+import { WorkOrderEvent } from '../models/WorkOrderEvent.js';
+import { WorkOrderItem } from '../models/WorkOrderItem.js';
+import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
 import { getPagination } from '../utils/paginate.js';
 
@@ -12,12 +19,15 @@ import type {
   CreateStockMovementInput,
   CreateStockTransferInput,
   CreateWarehouseInput,
+  DeliverWarehouseRequestInput,
   StockMovementQueryInput,
   StockMovementType,
   UpdateWarehouseInput,
+  WarehouseRequestQueryInput,
   WarehouseQueryInput,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
+import type { WorkOrderRequestStatus } from '@unithor/shared';
 
 type WarehouseWhere = WhereOptions<InferAttributes<Warehouse>> & {
   [Op.or]?: WhereOptions<InferAttributes<Warehouse>>[];
@@ -77,6 +87,42 @@ export interface ListStockMovementsResult {
   totalPages: number;
 }
 
+export interface WarehouseWorkOrderRequestPublic {
+  id: number;
+  workOrderId: number;
+  workOrderItemId: number | null;
+  catalogItemId: number;
+  estado: WorkOrderRequestStatus;
+  motivo: string;
+  cantidad: number;
+  precioAprobado: number | null;
+  createdAt: Date;
+  reviewedAt: Date | null;
+  deliveredAt: Date | null;
+  deliveryNote: string | null;
+  workOrder: {
+    id: number;
+    codigo: string;
+    estado: string;
+    client: { id: number; nombre: string } | null;
+    vehicle: { id: number; patente: string; marca: string | null; modelo: string | null } | null;
+    mechanic: { id: number; nombre: string } | null;
+  };
+  catalogItem: { id: number; codigo: string | null; nombre: string; stock: number };
+  requester: { id: number; nombre: string } | null;
+  reviewer: { id: number; nombre: string } | null;
+  deliveredWarehouse: { id: number; codigo: string; nombre: string } | null;
+  deliverer: { id: number; nombre: string } | null;
+}
+
+export interface ListWarehouseWorkOrderRequestsResult {
+  items: WarehouseWorkOrderRequestPublic[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 const toWarehousePublic = (
   warehouse: Warehouse,
   totals?: { totalItems: number; totalUnidades: number },
@@ -117,6 +163,7 @@ const getOrCreateBalance = async (
     defaults: { warehouseId, catalogItemId, cantidad: 0 },
     transaction,
   });
+  await balance.reload({ transaction, lock: Transaction.LOCK.UPDATE });
   return balance;
 };
 
@@ -168,6 +215,7 @@ export const consumeForWorkOrder = async (
     referencia: string;
     motivo: string;
     userId: number;
+    warehouseId?: number;
   },
   transaction: Transaction,
 ): Promise<WorkOrderConsumption> => {
@@ -176,7 +224,16 @@ export const consumeForWorkOrder = async (
     throw ApiError.badRequest('Solo los repuestos (tipo parte) manejan stock por almacén');
   }
 
-  const warehouse = await getDefaultWarehouse(transaction);
+  const warehouse =
+    args.warehouseId === undefined
+      ? await getDefaultWarehouse(transaction)
+      : await Warehouse.findByPk(args.warehouseId, {
+          transaction,
+          lock: Transaction.LOCK.UPDATE,
+        });
+  if (!warehouse || !warehouse.activo) {
+    throw ApiError.badRequest('El almacén seleccionado no existe o está inactivo');
+  }
   const balance = await getOrCreateBalance(warehouse.id, catalogItem.id, transaction);
   if (balance.cantidad < args.cantidad) {
     throw ApiError.badRequest(
@@ -540,4 +597,243 @@ export const listMovements = async (
     pageSize: pagination.limit,
     totalPages: count > 0 ? Math.ceil(count / pagination.limit) : 0,
   };
+};
+
+const warehouseRequestInclude = [
+  {
+    model: WorkOrder,
+    as: 'workOrder',
+    required: true,
+    attributes: ['id', 'codigo', 'estado'],
+    include: [
+      { model: Client, as: 'client', attributes: ['id', 'nombre'] },
+      { model: Vehicle, as: 'vehicle', attributes: ['id', 'patente', 'marca', 'modelo'] },
+      { model: User, as: 'assignedMechanic', attributes: ['id', 'nombre'] },
+    ],
+  },
+  {
+    model: CatalogItem,
+    as: 'catalogItem',
+    required: true,
+    attributes: ['id', 'codigo', 'nombre', 'stock'],
+  },
+  { model: User, as: 'requester', attributes: ['id', 'nombre'] },
+  { model: User, as: 'reviewer', attributes: ['id', 'nombre'] },
+  { model: Warehouse, as: 'deliveredWarehouse', attributes: ['id', 'codigo', 'nombre'] },
+  { model: User, as: 'deliverer', attributes: ['id', 'nombre'] },
+];
+
+const toWarehouseRequestPublic = (
+  request: WorkOrderRequest,
+): WarehouseWorkOrderRequestPublic => {
+  if (!request.workOrder || !request.catalogItem || request.catalogItemId === null) {
+    throw ApiError.internal('La solicitud de repuesto no tiene sus relaciones disponibles');
+  }
+
+  return {
+    id: request.id,
+    workOrderId: request.workOrderId,
+    workOrderItemId: request.workOrderItemId,
+    catalogItemId: request.catalogItemId,
+    estado: request.estado,
+    motivo: request.motivo,
+    cantidad: Number(request.cantidad ?? 0),
+    precioAprobado:
+      request.precioAprobado === null ? null : Number(request.precioAprobado),
+    createdAt: request.createdAt,
+    reviewedAt: request.reviewedAt,
+    deliveredAt: request.deliveredAt ?? null,
+    deliveryNote: request.deliveryNote ?? null,
+    workOrder: {
+      id: request.workOrder.id,
+      codigo: request.workOrder.codigo,
+      estado: request.workOrder.estado,
+      client: request.workOrder.client
+        ? { id: request.workOrder.client.id, nombre: request.workOrder.client.nombre }
+        : null,
+      vehicle: request.workOrder.vehicle
+        ? {
+            id: request.workOrder.vehicle.id,
+            patente: request.workOrder.vehicle.patente,
+            marca: request.workOrder.vehicle.marca,
+            modelo: request.workOrder.vehicle.modelo,
+          }
+        : null,
+      mechanic: request.workOrder.assignedMechanic
+        ? {
+            id: request.workOrder.assignedMechanic.id,
+            nombre: request.workOrder.assignedMechanic.nombre,
+          }
+        : null,
+    },
+    catalogItem: {
+      id: request.catalogItem.id,
+      codigo: request.catalogItem.codigo,
+      nombre: request.catalogItem.nombre,
+      stock: Number(request.catalogItem.stock),
+    },
+    requester: request.requester
+      ? { id: request.requester.id, nombre: request.requester.nombre }
+      : null,
+    reviewer: request.reviewer
+      ? { id: request.reviewer.id, nombre: request.reviewer.nombre }
+      : null,
+    deliveredWarehouse: request.deliveredWarehouse
+      ? {
+          id: request.deliveredWarehouse.id,
+          codigo: request.deliveredWarehouse.codigo,
+          nombre: request.deliveredWarehouse.nombre,
+        }
+      : null,
+    deliverer: request.deliverer
+      ? { id: request.deliverer.id, nombre: request.deliverer.nombre }
+      : null,
+  };
+};
+
+export const listWorkOrderRequests = async (
+  query: WarehouseRequestQueryInput,
+): Promise<ListWarehouseWorkOrderRequestsResult> => {
+  const pagination = getPagination(query);
+  type RequestWhere = WhereOptions<InferAttributes<WorkOrderRequest>> & {
+    [Op.or]?: Array<Record<string, unknown>>;
+  };
+  const where: RequestWhere = { tipo: 'repuesto', estado: query.estado };
+
+  if (query.search) {
+    const pattern = `%${query.search}%`;
+    where[Op.or] = [
+      { '$workOrder.codigo$': { [Op.like]: pattern } },
+      { '$workOrder.client.nombre$': { [Op.like]: pattern } },
+      { '$workOrder.vehicle.patente$': { [Op.like]: pattern } },
+      { '$catalogItem.nombre$': { [Op.like]: pattern } },
+      { '$catalogItem.codigo$': { [Op.like]: pattern } },
+    ];
+  }
+
+  const { rows, count } = await WorkOrderRequest.findAndCountAll({
+    where,
+    include: warehouseRequestInclude,
+    distinct: true,
+    subQuery: false,
+    limit: pagination.limit,
+    offset: pagination.offset,
+    order: [['reviewedAt', 'ASC'], ['id', 'ASC']],
+  });
+
+  return {
+    items: rows.map(toWarehouseRequestPublic),
+    total: count,
+    page: pagination.page,
+    pageSize: pagination.limit,
+    totalPages: count > 0 ? Math.ceil(count / pagination.limit) : 0,
+  };
+};
+
+export const deliverWorkOrderRequest = async (
+  requestId: number,
+  data: DeliverWarehouseRequestInput,
+  userId: number,
+): Promise<WarehouseWorkOrderRequestPublic> => {
+  await sequelize.transaction(async (transaction) => {
+    const request = await WorkOrderRequest.findByPk(requestId, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    if (!request || request.tipo !== 'repuesto') {
+      throw ApiError.notFound('Solicitud de repuesto no encontrada');
+    }
+    if (request.estado !== 'aprobada') {
+      throw ApiError.badRequest('La solicitud debe estar aprobada y pendiente de entrega');
+    }
+    if (
+      request.catalogItemId === null ||
+      request.workOrderItemId === null ||
+      request.cantidad === null
+    ) {
+      throw ApiError.badRequest('La solicitud aprobada no tiene un repuesto asociado a la OT');
+    }
+
+    const [workOrder, item] = await Promise.all([
+      WorkOrder.findByPk(request.workOrderId, {
+        transaction,
+        lock: Transaction.LOCK.UPDATE,
+      }),
+      WorkOrderItem.findOne({
+        where: { id: request.workOrderItemId, workOrderId: request.workOrderId },
+        transaction,
+        lock: Transaction.LOCK.UPDATE,
+      }),
+    ]);
+    if (!workOrder || !item) {
+      throw ApiError.badRequest('La Orden de Trabajo o su repuesto asociado ya no existe');
+    }
+    if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') {
+      throw ApiError.badRequest('No se pueden entregar repuestos a una orden cerrada');
+    }
+    if (item.stockConsumido) {
+      throw ApiError.badRequest('El repuesto ya fue entregado y descontado de inventario');
+    }
+
+    const quantity = Number(request.cantidad);
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      throw ApiError.badRequest('La cantidad solicitada debe ser un número entero positivo');
+    }
+
+    const consumption = await consumeForWorkOrder(
+      {
+        catalogItemId: request.catalogItemId,
+        cantidad: quantity,
+        referencia: workOrder.codigo,
+        motivo: `Entrega de bodega para ${workOrder.codigo} - solicitud #${request.id}`,
+        userId,
+        warehouseId: data.warehouseId,
+      },
+      transaction,
+    );
+    const deliveredAt = new Date();
+    await item.update(
+      {
+        stockConsumido: true,
+        stockConsumidoCantidad: quantity,
+        stockConsumidoAt: deliveredAt,
+        stockConsumidoWarehouseId: consumption.warehouseId,
+      },
+      { transaction },
+    );
+    await request.update(
+      {
+        estado: 'entregada',
+        deliveredWarehouseId: consumption.warehouseId,
+        deliveredBy: userId,
+        deliveredAt,
+        deliveryNote: data.comentario?.trim() || null,
+      },
+      { transaction },
+    );
+    await WorkOrderEvent.create(
+      {
+        workOrderId: workOrder.id,
+        actorUserId: userId,
+        tipo: 'actualizacion',
+        descripcion: `Bodega entregó ${quantity} unidad(es) de ${item.descripcion}`.slice(0, 255),
+        metadata: {
+          requestId: request.id,
+          workOrderItemId: item.id,
+          catalogItemId: request.catalogItemId,
+          warehouseId: consumption.warehouseId,
+          cantidad: quantity,
+        },
+      },
+      { transaction },
+    );
+  });
+
+  const delivered = await WorkOrderRequest.findByPk(requestId, {
+    include: warehouseRequestInclude,
+  });
+  if (!delivered) {
+    throw ApiError.internal('No fue posible recuperar la solicitud entregada');
+  }
+  return toWarehouseRequestPublic(delivered);
 };

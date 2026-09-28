@@ -54,6 +54,29 @@ const summary: DashboardSummary = {
       client: { id: 7, nombre: 'Cliente Demo' },
     },
   ],
+  operationalInbox: {
+    role: 'desarrollador',
+    total: 3,
+    counts: {
+      approvals: 1,
+      warehouseDeliveries: 1,
+      assignedWorkOrders: 0,
+      paymentVerifications: 1,
+      quotationFollowUps: 0,
+      stockAlerts: 0,
+    },
+    items: [
+      {
+        id: 'approval-9',
+        type: 'work_order_approval',
+        title: 'Aprobar solicitud de repuesto',
+        description: 'OT-2026-0021 · Filtro de aceite',
+        href: '/work-orders/21',
+        createdAt: '2026-09-15T12:00:00.000Z',
+        priority: 'high',
+      },
+    ],
+  },
 };
 
 const renderPage = () => {
@@ -111,5 +134,16 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('Cliente Demo').length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: 'Ver OT-2026-0021' })).toHaveAttribute('href', '/work-orders/21');
     expect(screen.getByRole('link', { name: /Ver todas/ })).toHaveAttribute('href', '/work-orders');
+  });
+
+  it('muestra los pendientes accionables de la bandeja operativa', async () => {
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Tu bandeja operativa' })).toBeInTheDocument();
+    expect(screen.getByText('1 Por aprobar')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Aprobar solicitud de repuesto/ })).toHaveAttribute(
+      'href',
+      '/work-orders/21',
+    );
   });
 });

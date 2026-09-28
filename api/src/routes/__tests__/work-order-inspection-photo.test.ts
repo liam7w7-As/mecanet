@@ -9,7 +9,9 @@ import { sequelize } from '../../config/database.js';
 import { env } from '../../config/env.js';
 import { app } from '../../main.js';
 import { Client } from '../../models/Client.js';
+import { Quotation } from '../../models/Quotation.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
+import { Role } from '../../models/Role.js';
 import { User } from '../../models/User.js';
 import { Vehicle } from '../../models/Vehicle.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
@@ -73,6 +75,9 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
   let vehicleId: number;
   let editableWorkOrderId: number;
   let closedWorkOrderId: number;
+  let quotationId: number;
+  let financeUserId: number;
+  let financeCookies: LoginCookies;
   let cookies: LoginCookies;
 
   beforeAll(async () => {
@@ -128,6 +133,24 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
     ]);
     editableWorkOrderId = editableOrder.id;
     closedWorkOrderId = closedOrder.id;
+    const quotation = await Quotation.create({
+      codigo: `COT-${TEST_YEAR}-8421`, workOrderId: editableWorkOrderId,
+      clientId, vehicleId, asesorId: devUserId,
+    });
+    quotationId = quotation.id;
+
+    const financeRole = await Role.findOne({ where: { nombre: 'finanzas' } });
+    if (!financeRole) throw new Error('Falta el rol finanzas');
+    const financeUser = await User.create({
+      nombre: 'Finanzas Fotos 842', email: 'phase842-finance@unithor.local',
+      passwordHash: await hashPassword(TEST_PASSWORD), roleId: financeRole.id, activo: true,
+    });
+    financeUserId = financeUser.id;
+    const financeLogin = await request(app).post('/api/auth/login')
+      .send({ email: financeUser.email, password: TEST_PASSWORD });
+    expect(financeLogin.status).toBe(200);
+    const financeLoginCookies = extractCookies(financeLogin);
+    financeCookies = { accessToken: financeLoginCookies.access_token, csrfToken: financeLoginCookies.csrf_token };
 
     const loginResponse = await request(app)
       .post('/api/auth/login')
@@ -141,13 +164,15 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
   });
 
   afterAll(async () => {
+    await Quotation.destroy({ where: { id: quotationId }, force: true });
     await WorkOrder.destroy({
       where: { id: [editableWorkOrderId, closedWorkOrderId] },
       force: true,
     });
     await Vehicle.destroy({ where: { id: vehicleId }, force: true });
     await Client.destroy({ where: { id: clientId }, force: true });
-    await RefreshToken.destroy({ where: { userId: devUserId }, force: true });
+    await RefreshToken.destroy({ where: { userId: [devUserId, financeUserId] }, force: true });
+    await User.destroy({ where: { id: financeUserId }, force: true });
 
     const photoRoot = path.resolve(env.UPLOAD_DIR, 'work-orders');
     await rm(path.join(photoRoot, String(editableWorkOrderId)), { recursive: true, force: true });
@@ -159,6 +184,7 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
       `/api/work-orders/${editableWorkOrderId}/inspection/photos/frontal`,
     );
     expect(response.status).toBe(401);
+    expect((await request(app).get(`/api/quotations/${quotationId}/inspection/photos/frontal`)).status).toBe(401);
   });
 
   it('sube, lista, sirve, reemplaza y elimina una foto por ranura', async () => {
@@ -194,6 +220,24 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
     expect(downloadResponse.headers['content-type']).toContain('image/png');
     expect(downloadResponse.body).toEqual(PNG_BYTES);
 
+    const quotationDetail = await request(app).get(`/api/quotations/${quotationId}`)
+      .set('Cookie', authCookie(financeCookies));
+    expect(quotationDetail.status).toBe(200);
+    expect(quotationDetail.body.quotation.workOrder.inspectionPhotos).toEqual([
+      expect.objectContaining({ slot: 'frontal', url: `/api/quotations/${quotationId}/inspection/photos/frontal` }),
+    ]);
+    expect(quotationDetail.body.quotation.workOrder.inspectionPhotos[0]).not.toHaveProperty('storageKey');
+    const quotationPhoto = await request(app).get(`/api/quotations/${quotationId}/inspection/photos/frontal`)
+      .set('Cookie', authCookie(financeCookies)).buffer(true).parse(binaryParser);
+    expect(quotationPhoto.status).toBe(200);
+    expect(quotationPhoto.headers['content-type']).toContain('image/png');
+    expect(quotationPhoto.body).toEqual(PNG_BYTES);
+    const workshopPhoto = await request(app).get(`/api/work-orders/${editableWorkOrderId}/inspection/photos/frontal`)
+      .set('Cookie', authCookie(financeCookies));
+    expect(workshopPhoto.status).toBe(403);
+    expect((await request(app).get(`/api/quotations/${quotationId}/inspection/photos/techo`)
+      .set('Cookie', authCookie(cookies))).status).toBe(400);
+
     const firstStoredPhoto = await WorkOrderInspectionPhoto.findByPk(
       uploadResponse.body.photo.id as number,
     );
@@ -221,6 +265,8 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
       .get(`/api/work-orders/${editableWorkOrderId}/inspection/photos/frontal`)
       .set('Cookie', authCookie(cookies));
     expect(missingResponse.status).toBe(404);
+    expect((await request(app).get(`/api/quotations/${quotationId}/inspection/photos/frontal`)
+      .set('Cookie', authCookie(financeCookies))).status).toBe(404);
   });
 
   it('rechaza archivos falsos y ranuras no definidas', async () => {

@@ -3,6 +3,7 @@ import {
   createQuotationSchema,
   quotationQuerySchema,
   updateQuotationSchema,
+  WORK_ORDER_INSPECTION_PHOTO_SLOTS,
 } from '@unithor/shared';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -13,6 +14,7 @@ import {
   createQuotationHandler,
   deleteQuotationHandler,
   getQuotationByIdHandler,
+  getQuotationInspectionPhotoHandler,
   getQuotationsHandler,
   updateQuotationHandler,
 } from '../controllers/quotation.controller.js';
@@ -41,6 +43,13 @@ quotationRouter.get(
   authorizeAny([{ modulo: 'comercial', accion: 'read' }, { modulo: 'finanzas', accion: 'read' }]),
   validate({ params: idParamSchema }),
   getQuotationPaymentsHandler,
+);
+
+quotationRouter.get(
+  '/:id/inspection/photos/:slot',
+  authorizeAny([{ modulo: 'comercial', accion: 'read' }, { modulo: 'finanzas', accion: 'read' }]),
+  validate({ params: idParamSchema.extend({ slot: z.enum(WORK_ORDER_INSPECTION_PHOTO_SLOTS) }) }),
+  getQuotationInspectionPhotoHandler,
 );
 
 quotationRouter.get(

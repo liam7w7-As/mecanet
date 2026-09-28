@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination.schema.js';
 import { STOCK_MOVEMENT_TYPES } from '../constants/stock-movement-types.js';
+import { WORK_ORDER_REQUEST_STATUS } from '../constants/work-order-requests.js';
 const optionalText = (maxLength) => z
     .string()
     .trim()
@@ -53,4 +54,12 @@ export const stockMovementQuerySchema = paginationSchema.extend({
     tipo: z.enum(STOCK_MOVEMENT_TYPES).optional(),
     fechaDesde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha desde inválida (YYYY-MM-DD)').optional(),
     fechaHasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha hasta inválida (YYYY-MM-DD)').optional(),
+});
+export const warehouseRequestQuerySchema = paginationSchema.extend({
+    estado: z.enum(WORK_ORDER_REQUEST_STATUS).optional().default('aprobada'),
+    search: z.string().trim().max(100).optional(),
+});
+export const deliverWarehouseRequestSchema = z.object({
+    warehouseId: z.number().int().positive('Almacén inválido'),
+    comentario: z.string().trim().max(500).optional(),
 });

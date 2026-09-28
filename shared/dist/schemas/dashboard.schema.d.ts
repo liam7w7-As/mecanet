@@ -1,4 +1,30 @@
 import { z } from 'zod';
+export declare const OPERATIONAL_TASK_TYPES: readonly ["work_order_approval", "warehouse_delivery", "assigned_work_order", "payment_verification", "quotation_follow_up", "stock_alert"];
+export declare const operationalTaskSchema: z.ZodObject<{
+    id: z.ZodString;
+    type: z.ZodEnum<["work_order_approval", "warehouse_delivery", "assigned_work_order", "payment_verification", "quotation_follow_up", "stock_alert"]>;
+    title: z.ZodString;
+    description: z.ZodString;
+    href: z.ZodString;
+    createdAt: z.ZodString;
+    priority: z.ZodEnum<["high", "medium", "normal"]>;
+}, "strip", z.ZodTypeAny, {
+    type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+    id: string;
+    title: string;
+    description: string;
+    href: string;
+    createdAt: string;
+    priority: "normal" | "high" | "medium";
+}, {
+    type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+    id: string;
+    title: string;
+    description: string;
+    href: string;
+    createdAt: string;
+    priority: "normal" | "high" | "medium";
+}>;
 export declare const dashboardSummarySchema: z.ZodObject<{
     metrics: z.ZodObject<{
         activeWorkOrders: z.ZodNumber;
@@ -131,6 +157,97 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         } | null;
         estadoPago: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado";
     }>, "many">;
+    operationalInbox: z.ZodObject<{
+        role: z.ZodEnum<["desarrollador", "admin", "jefe", "mecanico", "vendedor", "bodeguero", "finanzas"]>;
+        total: z.ZodNumber;
+        counts: z.ZodObject<{
+            approvals: z.ZodNumber;
+            warehouseDeliveries: z.ZodNumber;
+            assignedWorkOrders: z.ZodNumber;
+            paymentVerifications: z.ZodNumber;
+            quotationFollowUps: z.ZodNumber;
+            stockAlerts: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            approvals: number;
+            warehouseDeliveries: number;
+            assignedWorkOrders: number;
+            paymentVerifications: number;
+            quotationFollowUps: number;
+            stockAlerts: number;
+        }, {
+            approvals: number;
+            warehouseDeliveries: number;
+            assignedWorkOrders: number;
+            paymentVerifications: number;
+            quotationFollowUps: number;
+            stockAlerts: number;
+        }>;
+        items: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            type: z.ZodEnum<["work_order_approval", "warehouse_delivery", "assigned_work_order", "payment_verification", "quotation_follow_up", "stock_alert"]>;
+            title: z.ZodString;
+            description: z.ZodString;
+            href: z.ZodString;
+            createdAt: z.ZodString;
+            priority: z.ZodEnum<["high", "medium", "normal"]>;
+        }, "strip", z.ZodTypeAny, {
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            id: string;
+            title: string;
+            description: string;
+            href: string;
+            createdAt: string;
+            priority: "normal" | "high" | "medium";
+        }, {
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            id: string;
+            title: string;
+            description: string;
+            href: string;
+            createdAt: string;
+            priority: "normal" | "high" | "medium";
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        total: number;
+        role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas";
+        counts: {
+            approvals: number;
+            warehouseDeliveries: number;
+            assignedWorkOrders: number;
+            paymentVerifications: number;
+            quotationFollowUps: number;
+            stockAlerts: number;
+        };
+        items: {
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            id: string;
+            title: string;
+            description: string;
+            href: string;
+            createdAt: string;
+            priority: "normal" | "high" | "medium";
+        }[];
+    }, {
+        total: number;
+        role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas";
+        counts: {
+            approvals: number;
+            warehouseDeliveries: number;
+            assignedWorkOrders: number;
+            paymentVerifications: number;
+            quotationFollowUps: number;
+            stockAlerts: number;
+        };
+        items: {
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            id: string;
+            title: string;
+            description: string;
+            href: string;
+            createdAt: string;
+            priority: "normal" | "high" | "medium";
+        }[];
+    }>;
 }, "strip", z.ZodTypeAny, {
     metrics: {
         activeWorkOrders: number;
@@ -173,6 +290,27 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         } | null;
         estadoPago: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado";
     }[];
+    operationalInbox: {
+        total: number;
+        role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas";
+        counts: {
+            approvals: number;
+            warehouseDeliveries: number;
+            assignedWorkOrders: number;
+            paymentVerifications: number;
+            quotationFollowUps: number;
+            stockAlerts: number;
+        };
+        items: {
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            id: string;
+            title: string;
+            description: string;
+            href: string;
+            createdAt: string;
+            priority: "normal" | "high" | "medium";
+        }[];
+    };
 }, {
     metrics: {
         activeWorkOrders: number;
@@ -215,5 +353,28 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         } | null;
         estadoPago: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado";
     }[];
+    operationalInbox: {
+        total: number;
+        role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas";
+        counts: {
+            approvals: number;
+            warehouseDeliveries: number;
+            assignedWorkOrders: number;
+            paymentVerifications: number;
+            quotationFollowUps: number;
+            stockAlerts: number;
+        };
+        items: {
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            id: string;
+            title: string;
+            description: string;
+            href: string;
+            createdAt: string;
+            priority: "normal" | "high" | "medium";
+        }[];
+    };
 }>;
+export type OperationalTaskType = (typeof OPERATIONAL_TASK_TYPES)[number];
+export type OperationalTask = z.infer<typeof operationalTaskSchema>;
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>;

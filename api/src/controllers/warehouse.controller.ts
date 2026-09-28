@@ -6,8 +6,10 @@ import type {
   CreateStockMovementInput,
   CreateStockTransferInput,
   CreateWarehouseInput,
+  DeliverWarehouseRequestInput,
   StockMovementQueryInput,
   UpdateWarehouseInput,
+  WarehouseRequestQueryInput,
   WarehouseQueryInput,
 } from '@unithor/shared';
 import type { Request, Response } from 'express';
@@ -79,5 +81,24 @@ export const getStockMovementsHandler = asyncHandler(
     const query = res.locals.validatedQuery as StockMovementQueryInput;
     const result = await warehouseService.listMovements(query);
     res.status(200).json(result);
+  },
+);
+
+export const getWarehouseRequestsHandler = asyncHandler(
+  async (_req: Request, res: Response): Promise<void> => {
+    const query = res.locals.validatedQuery as WarehouseRequestQueryInput;
+    const result = await warehouseService.listWorkOrderRequests(query);
+    res.status(200).json(result);
+  },
+);
+
+export const deliverWarehouseRequestHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const warehouseRequest = await warehouseService.deliverWorkOrderRequest(
+      getParamId(req),
+      req.body as DeliverWarehouseRequestInput,
+      getCurrentUserId(req),
+    );
+    res.status(200).json({ request: warehouseRequest });
   },
 );

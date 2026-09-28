@@ -7,7 +7,10 @@ import { app } from '../../main.js';
 import { CatalogItem } from '../../models/CatalogItem.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
+import { StockBalance } from '../../models/StockBalance.js';
+import { StockMovement } from '../../models/StockMovement.js';
 import { User } from '../../models/User.js';
+import { Warehouse } from '../../models/Warehouse.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
 import { WorkOrderEvent } from '../../models/WorkOrderEvent.js';
 import { WorkOrderItem } from '../../models/WorkOrderItem.js';
@@ -56,6 +59,7 @@ describe('Work order mechanic workflow (E2E)', () => {
   let foreignWorkOrderId: number;
   let serviceItemId: number;
   let partId: number;
+  let warehouseId: number;
 
   beforeAll(async () => {
     await sequelize.authenticate();
@@ -132,6 +136,10 @@ describe('Work order mechanic workflow (E2E)', () => {
       stock: 10,
     });
     partId = part.id;
+    const warehouse = await Warehouse.findOne({ where: { codigo: 'CENTRAL', activo: true } });
+    if (!warehouse) throw new Error('Falta la bodega CENTRAL para la prueba de mecánico');
+    warehouseId = warehouse.id;
+    await StockBalance.upsert({ warehouseId, catalogItemId: partId, cantidad: 10 });
   });
 
   afterAll(async () => {
@@ -141,6 +149,8 @@ describe('Work order mechanic workflow (E2E)', () => {
     await WorkOrderEvent.destroy({ where: { workOrderId: orderIds } });
     await WorkOrderItem.destroy({ where: { workOrderId: orderIds } });
     await WorkOrder.destroy({ where: { id: orderIds }, force: true });
+    await StockMovement.destroy({ where: { catalogItemId: partId }, force: true });
+    await StockBalance.destroy({ where: { catalogItemId: partId }, force: true });
     await CatalogItem.destroy({ where: { id: partId }, force: true });
     await RefreshToken.destroy({ where: { userId: mechanicId }, force: true });
     await User.destroy({ where: { id: mechanicId }, force: true });
@@ -227,6 +237,54 @@ describe('Work order mechanic workflow (E2E)', () => {
       .send({ decision: 'aprobar' });
     expect(approvePartResponse.status).toBe(200);
     expect(await WorkOrderItem.count({ where: { workOrderId: assignedWorkOrderId } })).toBe(2);
+    const approvedPartRequest = approvePartResponse.body.workOrder.requests.find(
+      (entry: { id: number }) => entry.id === partRequest.id,
+    );
+    expect(approvedPartRequest).toMatchObject({ estado: 'aprobada' });
+    expect(approvedPartRequest.workOrderItemId).toEqual(expect.any(Number));
+
+    const prematureCompletion = await request(app)
+      .patch(`/api/work-orders/${assignedWorkOrderId}/execution`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({
+        items: [{ id: approvedPartRequest.workOrderItemId, estadoOperativo: 'completado' }],
+      });
+    expect(prematureCompletion.status).toBe(400);
+    expect(prematureCompletion.body.error.message).toContain('Bodega debe entregar');
+
+    const queueResponse = await request(app)
+      .get('/api/warehouses/requests')
+      .query({ estado: 'aprobada' })
+      .set('Cookie', authCookie(devCookies));
+    expect(queueResponse.status).toBe(200);
+    expect(queueResponse.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: partRequest.id, workOrderId: assignedWorkOrderId }),
+      ]),
+    );
+
+    const deliveryResponse = await request(app)
+      .post(`/api/warehouses/requests/${partRequest.id}/deliver`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ warehouseId, comentario: 'Entrega en mesón de taller' });
+    expect(deliveryResponse.status).toBe(200);
+    expect(deliveryResponse.body.request).toMatchObject({
+      id: partRequest.id,
+      estado: 'entregada',
+      deliveredWarehouse: { id: warehouseId, codigo: 'CENTRAL' },
+    });
+    expect((await StockBalance.findOne({ where: { warehouseId, catalogItemId: partId } }))?.cantidad).toBe(8);
+
+    const completionAfterDelivery = await request(app)
+      .patch(`/api/work-orders/${assignedWorkOrderId}/execution`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({
+        items: [{ id: approvedPartRequest.workOrderItemId, estadoOperativo: 'completado' }],
+      });
+    expect(completionAfterDelivery.status).toBe(200);
 
     const approvePriceResponse = await request(app)
       .patch(`/api/work-orders/${assignedWorkOrderId}/requests/${priceRequest.id}`)

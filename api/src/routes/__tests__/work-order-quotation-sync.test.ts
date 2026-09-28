@@ -318,7 +318,7 @@ describe('Sincronización OT → COT espejo (E2E)', () => {
     expect(Number(quotation?.total)).toBe(45000);
   });
 
-  it('no destruye los trabajos de la OT al editar la cotización vinculada', async () => {
+  it('sincroniza los trabajos de la OT al editar la cotización vinculada', async () => {
     const quotation = await Quotation.findOne({ where: { workOrderId } });
     expect(quotation).not.toBeNull();
 
@@ -346,11 +346,11 @@ describe('Sincronización OT → COT espejo (E2E)', () => {
     const workOrderItems = await WorkOrderItem.findAll({ where: { workOrderId } });
     expect(workOrderItems).toHaveLength(1);
     expect(workOrderItems[0]).toMatchObject({
-      descripcion: 'Repuesto sincronización',
-      tipoLinea: 'parte',
-      unidadMedida: 'juego',
+      descripcion: 'Concepto agregado por el asesor',
+      tipoLinea: 'especifico',
+      unidadMedida: 'servicio',
     });
-    expect(Number(workOrderItems[0].cantidad)).toBe(3);
+    expect(Number(workOrderItems[0].cantidad)).toBe(1);
 
     const updatedQuotation = await Quotation.findByPk(quotation?.id ?? 0, {
       include: [{ model: QuotationItem }],
@@ -388,7 +388,7 @@ describe('Sincronización OT → COT espejo (E2E)', () => {
 
     const workOrderItems = await WorkOrderItem.findAll({ where: { workOrderId } });
     expect(workOrderItems).toHaveLength(1);
-    expect(workOrderItems[0].descripcion).toBe('Repuesto sincronización');
+    expect(workOrderItems[0].descripcion).toBe('Concepto agregado por el asesor');
   });
 
   it('mantiene el estado de pago parcial al recalcular la cotización espejo', async () => {

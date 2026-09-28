@@ -17,4 +17,6 @@ api/storage/test-uploads/*
 !api/storage/test-uploads/.gitkeep
 storage/uploads/*
 !storage/uploads/.gitkeep
+storage/test-uploads/*
+!storage/test-uploads/.gitkeep
 

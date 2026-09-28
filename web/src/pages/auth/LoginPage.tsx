@@ -1,9 +1,11 @@
 import { loginSchema } from '@unithor/shared';
 import axios from 'axios';
-import { AlertCircle, Eye, EyeOff, LoaderCircle, LogIn, Wrench } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, LoaderCircle, LogIn } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { useCompanyBranding } from '../../components/common/BrandingContext';
+import BrandLogo from '../../components/common/BrandLogo';
 import { useLoginMutation } from '../../hooks/useAuth';
 import { getFieldErrors } from '../../lib/form-errors';
 
@@ -76,20 +78,18 @@ export const LoginPage = () => {
     });
   };
 
+  const company = useCompanyBranding();
+
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-brand-dark px-4 py-10">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-brand-yellow" />
 
       <section className="relative w-full max-w-md overflow-hidden rounded-lg border border-white/10 bg-white shadow-2xl shadow-black/25">
         <div className="p-6 sm:p-8">
-          <div className="mb-8 flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-blue text-brand-yellow">
-              <Wrench className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-brand-blue">UNITHOR</h1>
-              <p className="text-sm text-slate-500">Sistema de Gestión de Taller</p>
-            </div>
+          <div className="mb-8">
+            <h1 className="sr-only">{company.nombreComercial}</h1>
+            <BrandLogo heightClassName="h-10" alt={company.nombreComercial} />
+            <p className="mt-2 text-sm text-slate-500">{company.sitioWeb ? `${company.nombreComercial} · ${company.sitioWeb}` : company.nombreComercial}</p>
           </div>
 
           <div className="mb-6">

@@ -3,13 +3,20 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useDebouncedValue } from './useDebouncedValue';
 import { api } from '../lib/api';
 
-import type { PaginatedResponse, StockBalance, StockMovement, Warehouse } from '../types/entities';
+import type {
+  PaginatedResponse,
+  StockBalance,
+  StockMovement,
+  Warehouse,
+  WarehouseWorkOrderRequest,
+} from '../types/entities';
 import type {
   CreateStockMovementInput,
   CreateStockTransferInput,
   CreateWarehouseInput,
   StockMovementType,
   UpdateWarehouseInput,
+  WorkOrderRequestStatus,
 } from '@unithor/shared';
 
 export const warehouseKeys = {
@@ -17,7 +24,11 @@ export const warehouseKeys = {
   lists: () => [...warehouseKeys.all, 'list'] as const,
   list: (params: WarehouseQueryParams) => [...warehouseKeys.lists(), params] as const,
   balances: (id: number) => [...warehouseKeys.all, 'balances', id] as const,
+  catalogInventory: (catalogItemId: number) =>
+    [...warehouseKeys.all, 'catalog-inventory', catalogItemId] as const,
   movements: (params: MovementQueryParams) => [...warehouseKeys.all, 'movements', params] as const,
+  requests: (params: WarehouseRequestQueryParams) =>
+    [...warehouseKeys.all, 'requests', params] as const,
 };
 
 export interface WarehouseQueryParams {
@@ -37,6 +48,18 @@ export interface MovementQueryParams {
   fechaHasta?: string;
 }
 
+export interface WarehouseRequestQueryParams {
+  page?: number;
+  pageSize?: number;
+  estado?: WorkOrderRequestStatus;
+  search?: string;
+}
+
+export interface CatalogWarehouseInventory {
+  warehouse: Warehouse;
+  balance: StockBalance | null;
+}
+
 export const useWarehouses = (params: WarehouseQueryParams) =>
   useQuery({
     queryKey: warehouseKeys.list(params),
@@ -51,23 +74,99 @@ export const useWarehouseBalances = (warehouseId: number | null) =>
   useQuery({
     queryKey: warehouseKeys.balances(warehouseId ?? 0),
     queryFn: async () => {
-      const response = await api.get<{ balances: StockBalance[] }>(`/warehouses/${warehouseId}/balances`);
+      const response = await api.get<{ balances: StockBalance[] }>(
+        `/warehouses/${warehouseId}/balances`,
+      );
       return response.data.balances;
     },
     enabled: warehouseId !== null && warehouseId > 0,
   });
 
-export const useStockMovements = (params: MovementQueryParams) =>
+export const useCatalogItemInventory = (catalogItemId: number | null, enabled = true) =>
+  useQuery({
+    queryKey: warehouseKeys.catalogInventory(catalogItemId ?? 0),
+    queryFn: async (): Promise<CatalogWarehouseInventory[]> => {
+      const warehousesResponse = await api.get<PaginatedResponse<Warehouse>>('/warehouses', {
+        params: { page: 1, pageSize: 100 },
+      });
+      const warehouses = warehousesResponse.data.items;
+      const balanceResponses = await Promise.all(
+        warehouses.map((warehouse) =>
+          api.get<{ balances: StockBalance[] }>(`/warehouses/${warehouse.id}/balances`),
+        ),
+      );
+
+      return warehouses.map((warehouse, index) => ({
+        warehouse,
+        balance:
+          balanceResponses[index]?.data.balances.find(
+            (balance) => balance.catalogItemId === catalogItemId,
+          ) ?? null,
+      }));
+    },
+    enabled: enabled && catalogItemId !== null && catalogItemId > 0,
+    staleTime: 30_000,
+  });
+
+export const useStockMovements = (params: MovementQueryParams, enabled = true) =>
   useQuery({
     queryKey: warehouseKeys.movements(params),
     queryFn: async () => {
-      const response = await api.get<PaginatedResponse<StockMovement>>('/warehouses/movements/all', {
-        params,
-      });
+      const response = await api.get<PaginatedResponse<StockMovement>>(
+        '/warehouses/movements/all',
+        {
+          params,
+        },
+      );
+      return response.data;
+    },
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+
+export const useWarehouseRequests = (params: WarehouseRequestQueryParams) =>
+  useQuery({
+    queryKey: warehouseKeys.requests(params),
+    queryFn: async () => {
+      const response = await api.get<PaginatedResponse<WarehouseWorkOrderRequest>>(
+        '/warehouses/requests',
+        { params },
+      );
       return response.data;
     },
     placeholderData: keepPreviousData,
   });
+
+export const useDeliverWarehouseRequestMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      requestId,
+      warehouseId,
+      comentario,
+    }: {
+      requestId: number;
+      warehouseId: number;
+      comentario?: string;
+    }) => {
+      const response = await api.post<{ request: WarehouseWorkOrderRequest }>(
+        `/warehouses/requests/${requestId}/deliver`,
+        { warehouseId, comentario },
+      );
+      return response.data.request;
+    },
+    onSuccess: (request) => {
+      void queryClient.invalidateQueries({ queryKey: warehouseKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['catalog'] });
+      void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      void queryClient.invalidateQueries({
+        queryKey: warehouseKeys.catalogInventory(request.catalogItemId),
+      });
+    },
+  });
+};
 
 export const useCreateWarehouseMutation = () => {
   const queryClient = useQueryClient();
@@ -105,6 +204,7 @@ export const useCreateStockMovementMutation = () => {
     onSuccess: (movement) => {
       void queryClient.invalidateQueries({ queryKey: warehouseKeys.all });
       void queryClient.invalidateQueries({ queryKey: ['catalog'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -123,6 +223,7 @@ export const useCreateStockTransferMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: warehouseKeys.all });
       void queryClient.invalidateQueries({ queryKey: ['catalog'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };

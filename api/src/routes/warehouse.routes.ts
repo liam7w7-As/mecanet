@@ -2,8 +2,10 @@ import {
   createStockMovementSchema,
   createStockTransferSchema,
   createWarehouseSchema,
+  deliverWarehouseRequestSchema,
   stockMovementQuerySchema,
   updateWarehouseSchema,
+  warehouseRequestQuerySchema,
   warehouseQuerySchema,
 } from '@unithor/shared';
 import { Router } from 'express';
@@ -13,8 +15,10 @@ import {
   createStockMovementHandler,
   createStockTransferHandler,
   createWarehouseHandler,
+  deliverWarehouseRequestHandler,
   getStockMovementsHandler,
   getWarehouseBalancesHandler,
+  getWarehouseRequestsHandler,
   getWarehousesHandler,
   updateWarehouseHandler,
 } from '../controllers/warehouse.controller.js';
@@ -56,6 +60,20 @@ warehouseRouter.get(
   authorize('almacen', 'read'),
   validate({ query: stockMovementQuerySchema }),
   getStockMovementsHandler,
+);
+
+warehouseRouter.get(
+  '/requests',
+  authorize('almacen', 'read'),
+  validate({ query: warehouseRequestQuerySchema }),
+  getWarehouseRequestsHandler,
+);
+
+warehouseRouter.post(
+  '/requests/:id/deliver',
+  authorize('almacen', 'create'),
+  validate({ params: idParamSchema, body: deliverWarehouseRequestSchema }),
+  deliverWarehouseRequestHandler,
 );
 
 warehouseRouter.get(

@@ -247,11 +247,17 @@ export interface WorkOrderRequest {
   precioAprobado: number | null;
   reviewNote: string | null;
   reviewedAt: string | null;
+  deliveredWarehouseId: number | null;
+  deliveredBy: number | null;
+  deliveredAt: string | null;
+  deliveryNote: string | null;
   createdAt: string;
   catalogItem?: { id: number; codigo: string | null; nombre: string; precio: number } | null;
   workOrderItem?: { id: number; descripcion: string; precioUnitario: number } | null;
   requester?: { id: number; nombre: string } | null;
   reviewer?: { id: number; nombre: string } | null;
+  deliveredWarehouse?: { id: number; codigo: string; nombre: string } | null;
+  deliverer?: { id: number; nombre: string } | null;
 }
 
 export interface WorkOrder {
@@ -317,6 +323,7 @@ export interface QuotationWorkOrder {
   id: number;
   codigo: string;
   estado: string;
+  inspectionPhotos?: WorkOrderInspectionPhoto[];
 }
 
 export interface ItemCatalogInfo {
@@ -398,6 +405,39 @@ export interface StockMovement {
   nombre: string;
   warehouseCodigo: string;
   warehouseNombre: string;
+}
+
+export interface WarehouseWorkOrderRequest {
+  id: number;
+  workOrderId: number;
+  workOrderItemId: number | null;
+  catalogItemId: number;
+  estado: import('@unithor/shared').WorkOrderRequestStatus;
+  motivo: string;
+  cantidad: number;
+  precioAprobado: number | null;
+  createdAt: string;
+  reviewedAt: string | null;
+  deliveredAt: string | null;
+  deliveryNote: string | null;
+  workOrder: {
+    id: number;
+    codigo: string;
+    estado: string;
+    client: { id: number; nombre: string } | null;
+    vehicle: {
+      id: number;
+      patente: string;
+      marca: string | null;
+      modelo: string | null;
+    } | null;
+    mechanic: { id: number; nombre: string } | null;
+  };
+  catalogItem: { id: number; codigo: string | null; nombre: string; stock: number };
+  requester: { id: number; nombre: string } | null;
+  reviewer: { id: number; nombre: string } | null;
+  deliveredWarehouse: { id: number; codigo: string; nombre: string } | null;
+  deliverer: { id: number; nombre: string } | null;
 }
 
 export interface PaymentCreator {

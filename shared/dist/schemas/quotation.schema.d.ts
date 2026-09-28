@@ -77,8 +77,6 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodObject<{
     workOrderId?: number | null | undefined;
 }, {
     notas?: string | null | undefined;
-    clientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
     items?: {
         descripcion: string;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
@@ -89,6 +87,8 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodObject<{
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    clientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
 }>, {
     items: {
@@ -107,8 +107,6 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodObject<{
     workOrderId?: number | null | undefined;
 }, {
     notas?: string | null | undefined;
-    clientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
     items?: {
         descripcion: string;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
@@ -119,6 +117,8 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodObject<{
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    clientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
 }>;
 export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{

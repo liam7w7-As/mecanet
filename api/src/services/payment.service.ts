@@ -5,6 +5,7 @@ import path from 'node:path';
 import { Op, Transaction } from 'sequelize';
 
 import { assertAccountingDateOpen } from './cash-closure.service.js';
+import { notifyByType } from './notification.service.js';
 import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
 import { Client } from '../models/Client.js';
@@ -12,6 +13,7 @@ import { Payment } from '../models/Payment.js';
 import { Quotation } from '../models/Quotation.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
+import { formatClpAmount } from '../utils/formatters.js';
 import { logger } from '../utils/logger.js';
 import { getPagination } from '../utils/paginate.js';
 
@@ -443,6 +445,23 @@ export const createPayment = async (
       Quotation.findByPk(result.quotationId),
     ]);
     if (!quotation) throw ApiError.notFound('Cotización no encontrada');
+
+    if (payment.estado === 'por_verificar') {
+      const creator = await User.findByPk(userId, { attributes: ['nombre'] });
+      await notifyByType(
+        'pago_por_verificar',
+        {
+          titulo: `Pago por verificar en ${quotation.codigo}`,
+          mensaje: `${creator?.nombre ?? 'El comercial'} registró un pago de ${formatClpAmount(numberValue(payment.monto))} pendiente de verificación.`,
+          href: `/payments?estado=por_verificar`,
+          quotationId: quotation.id,
+          paymentId: payment.id,
+          actorId: userId,
+        },
+        { excludeUserId: userId },
+      );
+    }
+
     return { payment, quotation: toQuotationSummary(quotation) };
   } catch (error: unknown) {
     if (storedReceiptKey) {
@@ -535,6 +554,22 @@ export const verifyPayment = async (
     Quotation.findByPk(result.quotationId),
   ]);
   if (!quotation) throw ApiError.notFound('Cotización no encontrada');
+
+  const approved = data.decision === 'aprobar';
+  const reviewer = await User.findByPk(userId, { attributes: ['nombre'] });
+  await notifyByType(
+    approved ? 'pago_verificado' : 'pago_rechazado',
+    {
+      titulo: `Pago ${approved ? 'verificado' : 'rechazado'} en ${quotation.codigo}`,
+      mensaje: `${reviewer?.nombre ?? 'Finanzas'} ${approved ? 'confirmó' : 'rechazó'} el pago de ${formatClpAmount(numberValue(payment.monto))}.${data.comentario ? ` Observación: ${data.comentario}` : ''}`,
+      href: `/quotations/${quotation.id}`,
+      quotationId: quotation.id,
+      paymentId: payment.id,
+      actorId: userId,
+    },
+    { excludeUserId: userId },
+  );
+
   return { payment, quotation: toQuotationSummary(quotation) };
 };
 

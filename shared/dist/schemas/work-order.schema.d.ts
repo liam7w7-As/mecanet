@@ -199,14 +199,6 @@ export declare const createWorkOrderSchema: z.ZodObject<{
     } | undefined;
 }, {
     fechaIngreso?: string | null | undefined;
-    clientId?: number | null | undefined;
-    descripcion?: string | null | undefined;
-    contactClientId?: number | null | undefined;
-    billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
-    assignedMechanicId?: number | null | undefined;
-    kilometrajeIngreso?: number | null | undefined;
-    fechaEntrega?: string | null | undefined;
     items?: {
         descripcion: string;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
@@ -217,6 +209,14 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    clientId?: number | null | undefined;
+    descripcion?: string | null | undefined;
+    contactClientId?: number | null | undefined;
+    billingClientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
+    assignedMechanicId?: number | null | undefined;
+    kilometrajeIngreso?: number | null | undefined;
+    fechaEntrega?: string | null | undefined;
     inspection?: {
         inventario?: ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[] | undefined;
         nivelCombustible?: "vacio" | "cuarto" | "medio" | "tres_cuartos" | "lleno" | null | undefined;
@@ -313,13 +313,6 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     fechaIngreso?: string | null | undefined;
-    clientId?: number | null | undefined;
-    descripcion?: string | null | undefined;
-    contactClientId?: number | null | undefined;
-    billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
-    kilometrajeIngreso?: number | null | undefined;
-    fechaEntrega?: string | null | undefined;
     items?: {
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
@@ -330,6 +323,13 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    clientId?: number | null | undefined;
+    descripcion?: string | null | undefined;
+    contactClientId?: number | null | undefined;
+    billingClientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
+    kilometrajeIngreso?: number | null | undefined;
+    fechaEntrega?: string | null | undefined;
     inspection?: {
         inventario?: ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[] | undefined;
         nivelCombustible?: "vacio" | "cuarto" | "medio" | "tres_cuartos" | "lleno" | null | undefined;
@@ -342,13 +342,6 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     } | undefined;
 }, {
     fechaIngreso?: string | null | undefined;
-    clientId?: number | null | undefined;
-    descripcion?: string | null | undefined;
-    contactClientId?: number | null | undefined;
-    billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
-    kilometrajeIngreso?: number | null | undefined;
-    fechaEntrega?: string | null | undefined;
     items?: {
         descripcion: string;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
@@ -359,6 +352,13 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    clientId?: number | null | undefined;
+    descripcion?: string | null | undefined;
+    contactClientId?: number | null | undefined;
+    billingClientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
+    kilometrajeIngreso?: number | null | undefined;
+    fechaEntrega?: string | null | undefined;
     inspection?: {
         inventario?: ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[] | undefined;
         nivelCombustible?: "vacio" | "cuarto" | "medio" | "tres_cuartos" | "lleno" | null | undefined;
@@ -371,13 +371,6 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     } | undefined;
 }>, {
     fechaIngreso?: string | null | undefined;
-    clientId?: number | null | undefined;
-    descripcion?: string | null | undefined;
-    contactClientId?: number | null | undefined;
-    billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
-    kilometrajeIngreso?: number | null | undefined;
-    fechaEntrega?: string | null | undefined;
     items?: {
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
@@ -388,6 +381,13 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    clientId?: number | null | undefined;
+    descripcion?: string | null | undefined;
+    contactClientId?: number | null | undefined;
+    billingClientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
+    kilometrajeIngreso?: number | null | undefined;
+    fechaEntrega?: string | null | undefined;
     inspection?: {
         inventario?: ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[] | undefined;
         nivelCombustible?: "vacio" | "cuarto" | "medio" | "tres_cuartos" | "lleno" | null | undefined;
@@ -400,13 +400,6 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     } | undefined;
 }, {
     fechaIngreso?: string | null | undefined;
-    clientId?: number | null | undefined;
-    descripcion?: string | null | undefined;
-    contactClientId?: number | null | undefined;
-    billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
-    kilometrajeIngreso?: number | null | undefined;
-    fechaEntrega?: string | null | undefined;
     items?: {
         descripcion: string;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
@@ -417,6 +410,13 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    clientId?: number | null | undefined;
+    descripcion?: string | null | undefined;
+    contactClientId?: number | null | undefined;
+    billingClientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
+    kilometrajeIngreso?: number | null | undefined;
+    fechaEntrega?: string | null | undefined;
     inspection?: {
         inventario?: ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[] | undefined;
         nivelCombustible?: "vacio" | "cuarto" | "medio" | "tres_cuartos" | "lleno" | null | undefined;

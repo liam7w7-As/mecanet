@@ -29,6 +29,7 @@ const statusLabels: Record<ItemOperationalStatus, string> = {
 const requestStatusStyles = {
   pendiente: 'bg-amber-50 text-amber-800',
   aprobada: 'bg-emerald-50 text-emerald-700',
+  entregada: 'bg-blue-50 text-blue-700',
   rechazada: 'bg-red-50 text-red-700',
   cancelada: 'bg-slate-100 text-slate-600',
 } as const;

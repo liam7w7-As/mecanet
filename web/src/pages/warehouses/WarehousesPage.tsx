@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Boxes, History, LoaderCircle, Pencil, Plus, Search, Warehouse as WarehouseIcon } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Boxes, CheckCircle2, Clock3, History, LoaderCircle, PackageCheck, Pencil, Plus, Search, Truck, Warehouse as WarehouseIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { AnimateIcon, AnimatedCard, Stagger, StaggerItem } from '../../components/animate-ui';
@@ -13,13 +13,15 @@ import {
   useCreateStockMovementMutation,
   useCreateStockTransferMutation,
   useCreateWarehouseMutation,
+  useDeliverWarehouseRequestMutation,
   useStockMovements,
   useUpdateWarehouseMutation,
   useWarehouseBalances,
+  useWarehouseRequests,
   useWarehouses,
 } from '../../hooks/useWarehouses';
 
-import type { CatalogItem, StockMovement, Warehouse } from '../../types/entities';
+import type { CatalogItem, StockMovement, Warehouse, WarehouseWorkOrderRequest } from '../../types/entities';
 
 const MOVEMENT_TYPE_LABELS: Record<StockMovement['tipo'], string> = {
   ingreso: 'Ingreso',
@@ -117,6 +119,9 @@ export const WarehousesPage = () => {
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
   const [showMovementModal, setShowMovementModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<'aprobada' | 'entregada'>('aprobada');
+  const [requestSearch, setRequestSearch] = useState('');
+  const [selectedRequest, setSelectedRequest] = useState<WarehouseWorkOrderRequest | null>(null);
 
   const warehousesQuery = useWarehouses({ page: 1, pageSize: 50, search: search || undefined });
   const balancesQuery = useWarehouseBalances(selectedId);
@@ -126,6 +131,17 @@ export const WarehousesPage = () => {
     warehouseId: selectedId ?? undefined,
     fechaDesde,
     fechaHasta,
+  });
+  const requestsQuery = useWarehouseRequests({
+    page: 1,
+    pageSize: 20,
+    estado: requestStatus,
+    search: requestSearch || undefined,
+  });
+  const pendingRequestsCountQuery = useWarehouseRequests({
+    page: 1,
+    pageSize: 1,
+    estado: 'aprobada',
   });
 
   const canCreate = Boolean(user && hasUserPermission(user, 'almacen', 'create'));
@@ -202,12 +218,63 @@ export const WarehousesPage = () => {
         </div>
       </header>
 
-      {(warehousesQuery.isError || balancesQuery.isError || movementsQuery.isError) && (
+      {(warehousesQuery.isError || balancesQuery.isError || movementsQuery.isError || requestsQuery.isError) && (
         <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {getApiErrorMessage(warehousesQuery.error ?? balancesQuery.error ?? movementsQuery.error)}
+          {getApiErrorMessage(warehousesQuery.error ?? balancesQuery.error ?? movementsQuery.error ?? requestsQuery.error)}
         </div>
       )}
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen de almacenes">
+        <InventoryMetric icon={WarehouseIcon} label="Almacenes activos" value={warehouses.filter((warehouse) => warehouse.activo).length} tone="blue" />
+        <InventoryMetric icon={Boxes} label="Unidades en almacenes" value={warehouses.reduce((total, warehouse) => total + warehouse.totalUnidades, 0)} tone="slate" />
+        <InventoryMetric icon={Clock3} label="Entregas pendientes" value={pendingRequestsCountQuery.data?.total ?? 0} tone="amber" />
+        <InventoryMetric icon={AlertCircle} label="Bajo mínimo" value={(balancesQuery.data ?? []).filter((balance) => balance.bajoMinimo).length} tone="red" />
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" aria-label="Solicitudes de repuestos para órdenes de trabajo">
+        <div className="border-b border-slate-200 bg-brand-blue px-4 py-4 text-white sm:px-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Truck className="h-5 w-5 text-brand-yellow" aria-hidden="true" />
+                <h2 className="font-bold">Despacho a órdenes de trabajo</h2>
+              </div>
+              <p className="mt-1 text-sm text-blue-100">Entrega únicamente repuestos aprobados por el jefe de taller.</p>
+            </div>
+            <label className="relative w-full lg:w-80">
+              <span className="sr-only">Buscar solicitud de repuesto</span>
+              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
+              <input value={requestSearch} onChange={(event) => setRequestSearch(event.target.value)} className="h-10 w-full rounded-lg border border-white/20 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-brand-yellow" placeholder="OT, patente, cliente o repuesto" />
+            </label>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50 p-1 sm:flex sm:w-fit sm:rounded-br-lg">
+          <button type="button" onClick={() => setRequestStatus('aprobada')} className={`h-9 px-4 text-sm font-semibold ${requestStatus === 'aprobada' ? 'rounded-md bg-white text-brand-blue shadow-sm' : 'text-slate-500'}`}>Pendientes ({pendingRequestsCountQuery.data?.total ?? 0})</button>
+          <button type="button" onClick={() => setRequestStatus('entregada')} className={`h-9 px-4 text-sm font-semibold ${requestStatus === 'entregada' ? 'rounded-md bg-white text-brand-blue shadow-sm' : 'text-slate-500'}`}>Entregados</button>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {requestsQuery.isPending ? (
+            Array.from({ length: 3 }, (_, index) => <div key={index} className="h-28 animate-pulse bg-slate-50" />)
+          ) : (requestsQuery.data?.items.length ?? 0) === 0 ? (
+            <div className="px-4 py-10 text-center"><PackageCheck className="mx-auto h-9 w-9 text-slate-300" aria-hidden="true" /><p className="mt-2 font-semibold text-slate-700">{requestStatus === 'aprobada' ? 'No hay entregas pendientes' : 'No hay entregas registradas'}</p><p className="mt-1 text-sm text-slate-500">Las solicitudes aprobadas desde una OT aparecerán aquí.</p></div>
+          ) : requestsQuery.data?.items.map((request) => (
+            <article key={request.id} className="grid gap-4 px-4 py-4 transition hover:bg-slate-50 sm:px-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] lg:items-center">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-brand-blue px-2 py-1 font-mono text-xs font-bold text-white">{request.workOrder.codigo}</span><span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-700">{request.workOrder.vehicle?.patente ?? 'SIN PATENTE'}</span>{request.estado === 'entregada' && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800"><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />Entregado</span>}</div>
+                <p className="mt-2 truncate font-bold text-slate-900">{request.catalogItem.nombre}</p>
+                <p className="mt-1 text-sm text-slate-500">{request.catalogItem.codigo ?? 'Sin código'} · Solicitó {request.requester?.nombre ?? 'Taller'}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><p className="text-xs font-semibold uppercase text-slate-400">Cantidad</p><p className="mt-1 font-bold text-brand-blue">{request.cantidad} unidades</p></div>
+                <div><p className="text-xs font-semibold uppercase text-slate-400">Vehículo / cliente</p><p className="mt-1 truncate font-semibold text-slate-700">{request.workOrder.vehicle ? `${request.workOrder.vehicle.marca ?? ''} ${request.workOrder.vehicle.modelo ?? ''}`.trim() || request.workOrder.vehicle.patente : 'Sin vehículo'}</p><p className="truncate text-xs text-slate-500">{request.workOrder.client?.nombre ?? 'Sin cliente'}</p></div>
+                {request.estado === 'entregada' && <div className="col-span-2"><p className="text-xs text-slate-500">{request.deliveredWarehouse?.codigo} · {request.deliverer?.nombre ?? 'Bodega'} · {request.deliveredAt ? formatDateTime(request.deliveredAt) : ''}</p></div>}
+              </div>
+              {request.estado === 'aprobada' && canCreate ? <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark hover:bg-yellow-400" onClick={() => setSelectedRequest(request)}><PackageCheck className="h-4 w-4" aria-hidden="true" />Entregar</button> : <a href={`/work-orders/${request.workOrderId}`} className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:border-brand-blue hover:text-brand-blue">Ver OT</a>}
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section aria-label="Almacenes">
         {warehousesQuery.isPending ? (
@@ -376,6 +443,88 @@ export const WarehousesPage = () => {
           onClose={() => setShowTransferModal(false)}
         />
       )}
+      {selectedRequest && (
+        <WarehouseDeliveryModal
+          request={selectedRequest}
+          warehouses={warehouses.filter((warehouse) => warehouse.activo)}
+          onClose={() => setSelectedRequest(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+const InventoryMetric = ({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof WarehouseIcon;
+  label: string;
+  value: number;
+  tone: 'blue' | 'slate' | 'amber' | 'red';
+}) => {
+  const tones = {
+    blue: 'bg-blue-50 text-brand-blue',
+    slate: 'bg-slate-100 text-slate-700',
+    amber: 'bg-amber-50 text-amber-700',
+    red: 'bg-red-50 text-red-700',
+  } as const;
+  return (
+    <div className="flex min-h-24 items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg ${tones[tone]}`}><Icon className="h-5 w-5" aria-hidden="true" /></span>
+      <div className="min-w-0"><p className="text-2xl font-bold text-slate-900">{value}</p><p className="truncate text-sm font-medium text-slate-500">{label}</p></div>
+    </div>
+  );
+};
+
+const WarehouseDeliveryModal = ({
+  request,
+  warehouses,
+  onClose,
+}: {
+  request: WarehouseWorkOrderRequest;
+  warehouses: Warehouse[];
+  onClose: () => void;
+}) => {
+  const [warehouseId, setWarehouseId] = useState<number | null>(warehouses[0]?.id ?? null);
+  const [comentario, setComentario] = useState('');
+  const balancesQuery = useWarehouseBalances(warehouseId);
+  const deliverMutation = useDeliverWarehouseRequestMutation();
+  const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === warehouseId) ?? null;
+  const stock = balancesQuery.data?.find((balance) => balance.catalogItemId === request.catalogItemId)?.cantidad ?? 0;
+  const insufficientStock = !balancesQuery.isPending && stock < request.cantidad;
+
+  const submit = (): void => {
+    if (warehouseId === null || insufficientStock) return;
+    deliverMutation.mutate(
+      { requestId: request.id, warehouseId, comentario: comentario.trim() || undefined },
+      {
+        onSuccess: (delivered) => {
+          notifySuccess(`${delivered.catalogItem.nombre} entregado a ${delivered.workOrder.codigo}.`);
+          onClose();
+        },
+        onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo registrar la entrega.')),
+      },
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="max-h-[94vh] w-full overflow-y-auto rounded-t-xl bg-white shadow-2xl sm:max-w-xl sm:rounded-xl" role="dialog" aria-modal="true" aria-labelledby="warehouse-delivery-title">
+        <header className="bg-brand-blue px-5 py-5 text-white sm:rounded-t-xl">
+          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-brand-yellow text-brand-dark"><PackageCheck className="h-5 w-5" aria-hidden="true" /></span><div className="min-w-0"><p className="text-xs font-bold uppercase text-blue-200">{request.workOrder.codigo} · {request.workOrder.vehicle?.patente ?? 'Sin patente'}</p><h2 id="warehouse-delivery-title" className="mt-1 text-xl font-bold">Confirmar entrega de repuesto</h2></div></div>
+        </header>
+        <div className="space-y-5 p-5">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="font-bold text-slate-900">{request.catalogItem.nombre}</p><div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600"><span>Código: <strong className="font-mono text-slate-800">{request.catalogItem.codigo ?? '—'}</strong></span><span>Cantidad aprobada: <strong className="text-brand-blue">{request.cantidad}</strong></span></div><p className="mt-2 text-sm text-slate-500">{request.motivo}</p></div>
+          <label className="block text-sm font-semibold text-slate-700">Almacén de salida<select value={warehouseId ?? ''} onChange={(event) => setWarehouseId(Number(event.target.value))} className="mt-2 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal outline-none focus:border-brand-blue"><option value="" disabled>Seleccione almacén</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.codigo} · {warehouse.nombre}</option>)}</select></label>
+          <div className={`grid grid-cols-2 gap-3 rounded-lg border p-4 ${insufficientStock ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'}`}><div><p className="text-xs font-semibold uppercase text-slate-500">Disponible</p><p className={`mt-1 text-2xl font-bold ${insufficientStock ? 'text-red-700' : 'text-emerald-700'}`}>{balancesQuery.isPending ? '…' : stock}</p></div><div><p className="text-xs font-semibold uppercase text-slate-500">Saldo posterior</p><p className={`mt-1 text-2xl font-bold ${insufficientStock ? 'text-red-700' : 'text-brand-blue'}`}>{balancesQuery.isPending ? '…' : stock - request.cantidad}</p></div>{insufficientStock && <p className="col-span-2 text-sm font-semibold text-red-700" role="alert">Stock insuficiente en {selectedWarehouse?.codigo}. Traslade o ingrese existencias antes de entregar.</p>}</div>
+          <label className="block text-sm font-semibold text-slate-700">Observación de entrega <span className="font-normal text-slate-400">(opcional)</span><textarea value={comentario} onChange={(event) => setComentario(event.target.value)} rows={3} maxLength={500} className="mt-2 w-full resize-none rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-brand-blue" placeholder="Serie, ubicación física, indicación para el mecánico…" /></label>
+          {deliverMutation.isError && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{getApiErrorMessage(deliverMutation.error)}</div>}
+        </div>
+        <footer className="flex flex-col-reverse gap-2 border-t border-slate-200 px-5 py-4 sm:flex-row sm:justify-end"><button type="button" className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={onClose}>Cancelar</button><button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-5 text-sm font-bold text-brand-dark hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-50" onClick={submit} disabled={warehouseId === null || balancesQuery.isPending || insufficientStock || deliverMutation.isPending}>{deliverMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <PackageCheck className="h-4 w-4" aria-hidden="true" />}{deliverMutation.isPending ? 'Entregando…' : 'Confirmar entrega'}</button></footer>
+      </section>
     </div>
   );
 };

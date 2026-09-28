@@ -6,11 +6,13 @@ import { clientRouter } from './client.routes.js';
 import { dashboardRouter } from './dashboard.routes.js';
 import { financeRouter } from './finance.routes.js';
 import { healthRouter } from './health.js';
+import { notificationRouter } from './notification.routes.js';
 import { paymentRouter } from './payment.routes.js';
 import { permissionRouter } from './permission.routes.js';
 import { quotationRouter } from './quotation.routes.js';
 import { reportRouter } from './report.routes.js';
 import { searchRouter } from './search.routes.js';
+import { settingsRouter } from './settings.routes.js';
 import { userRouter } from './user.routes.js';
 import { vehicleRouter } from './vehicle.routes.js';
 import { warehouseRouter } from './warehouse.routes.js';
@@ -29,6 +31,12 @@ apiRouter.use('/dashboard', dashboardRouter);
 
 // Panel de Finanzas y Contabilidad (/api/finance)
 apiRouter.use('/finance', financeRouter);
+
+// Notificaciones personales por rol (/api/notifications)
+apiRouter.use('/notifications', notificationRouter);
+
+// Configuración de la empresa e identidad (/api/settings)
+apiRouter.use('/settings', settingsRouter);
 
 // Módulo de usuarios (/api/users)
 apiRouter.use('/users', userRouter);

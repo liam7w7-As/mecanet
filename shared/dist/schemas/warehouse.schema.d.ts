@@ -129,9 +129,38 @@ export declare const stockMovementQuerySchema: z.ZodObject<{
     fechaHasta?: string | undefined;
     warehouseId?: number | undefined;
 }>;
+export declare const warehouseRequestQuerySchema: z.ZodObject<{
+    page: z.ZodDefault<z.ZodNumber>;
+    pageSize: z.ZodDefault<z.ZodNumber>;
+} & {
+    estado: z.ZodDefault<z.ZodOptional<z.ZodEnum<["pendiente", "aprobada", "entregada", "rechazada", "cancelada"]>>>;
+    search: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    page: number;
+    pageSize: number;
+    estado: "entregada" | "cancelada" | "pendiente" | "aprobada" | "rechazada";
+    search?: string | undefined;
+}, {
+    page?: number | undefined;
+    pageSize?: number | undefined;
+    search?: string | undefined;
+    estado?: "entregada" | "cancelada" | "pendiente" | "aprobada" | "rechazada" | undefined;
+}>;
+export declare const deliverWarehouseRequestSchema: z.ZodObject<{
+    warehouseId: z.ZodNumber;
+    comentario: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    warehouseId: number;
+    comentario?: string | undefined;
+}, {
+    warehouseId: number;
+    comentario?: string | undefined;
+}>;
 export type CreateWarehouseInput = z.infer<typeof createWarehouseSchema>;
 export type UpdateWarehouseInput = z.infer<typeof updateWarehouseSchema>;
 export type WarehouseQueryInput = z.infer<typeof warehouseQuerySchema>;
 export type CreateStockMovementInput = z.infer<typeof createStockMovementSchema>;
 export type CreateStockTransferInput = z.infer<typeof createStockTransferSchema>;
 export type StockMovementQueryInput = z.infer<typeof stockMovementQuerySchema>;
+export type WarehouseRequestQueryInput = z.infer<typeof warehouseRequestQuerySchema>;
+export type DeliverWarehouseRequestInput = z.infer<typeof deliverWarehouseRequestSchema>;

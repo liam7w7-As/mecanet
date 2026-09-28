@@ -5,6 +5,8 @@ import { StockMovement } from './StockMovement.js';
 import { Warehouse } from './Warehouse.js';
 import { CatalogItem } from './CatalogItem.js';
 import { Client } from './Client.js';
+import { CompanySettings } from './CompanySettings.js';
+import { Notification } from './Notification.js';
 import { Payment } from './Payment.js';
 import { Permission } from './Permission.js';
 import { Quotation } from './Quotation.js';
@@ -50,6 +52,8 @@ export const models = [
   Quotation,
   QuotationItem,
   Payment,
+  Notification,
+  CompanySettings,
 ];
 
 export function initModels(sequelize: Sequelize): void {
@@ -81,4 +85,6 @@ export {
   Quotation,
   QuotationItem,
   Payment,
+  Notification,
+  CompanySettings,
 };

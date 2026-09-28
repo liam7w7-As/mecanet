@@ -1,7 +1,8 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { PDFDocument } from 'pdf-lib';
+import { WORK_ORDER_INSPECTION_PHOTO_SLOTS } from '@unithor/shared';
+import { PDFDict, PDFDocument, PDFName } from 'pdf-lib';
 import { Op } from 'sequelize';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -30,10 +31,11 @@ const TEST_EMAIL_PREFIX = 'phase43-';
 const TEST_PLATE_PREFIX = 'PH43';
 const TEST_YEAR = new Date().getFullYear();
 const TEST_CODE_PREFIX = `OT-${TEST_YEAR}-43`;
-const PNG_BYTES = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-  'base64',
-);
+const PHOTO_BYTES = [
+  'iVBORw0KGgoAAAANSUhEUgAAADAAAABACAYAAABcIPRGAAAAeElEQVR4AdXBAQEAMAyDMI7yOt91kLxtR5jESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzEfbDAAv+wRkN/AAAAAElFTkSuQmCC',
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAYAAAChS3wfAAAAYElEQVR4AeXBAQEAMAyDMI7yOt+FkLxtR5jESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzEfYGTAt+t89V8AAAAAElFTkSuQmCC',
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAeElEQVR4AeXBAQEAMAyDMI7yOt+FkLxtR5jESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzESZzEfbNUAv/+T/uYAAAAAElFTkSuQmCC',
+].map((base64) => Buffer.from(base64, 'base64'));
 
 interface LoginCookies {
   accessToken: string;
@@ -255,23 +257,17 @@ describe('Work Order PDF Routes (E2E)', () => {
       observaciones: 'Rayón superficial en puerta trasera derecha.',
       inspectedBy: devUserId,
     });
-    const photoStorageKey = path.posix.join(
-      'work-orders',
-      String(workOrderWithItemsId),
-      'frontal-phase849.png',
-    );
-    const photoPath = path.resolve(env.UPLOAD_DIR, ...photoStorageKey.split('/'));
-    await mkdir(path.dirname(photoPath), { recursive: true });
-    await writeFile(photoPath, PNG_BYTES);
-    await WorkOrderInspectionPhoto.create({
-      inspectionId: inspection.id,
-      slot: 'frontal',
-      storageKey: photoStorageKey,
-      mimeType: 'image/png',
-      sizeBytes: PNG_BYTES.length,
-      sha256: 'a'.repeat(64),
-      uploadedBy: devUserId,
-    });
+    for (const [index, slot] of WORK_ORDER_INSPECTION_PHOTO_SLOTS.entries()) {
+      const photoStorageKey = path.posix.join('work-orders', String(workOrderWithItemsId), `${slot}-phase849.png`);
+      const photoPath = path.resolve(env.UPLOAD_DIR, ...photoStorageKey.split('/'));
+      const bytes = PHOTO_BYTES[index % PHOTO_BYTES.length];
+      await mkdir(path.dirname(photoPath), { recursive: true });
+      await writeFile(photoPath, bytes);
+      await WorkOrderInspectionPhoto.create({
+        inspectionId: inspection.id, slot, storageKey: photoStorageKey,
+        mimeType: 'image/png', sizeBytes: bytes.length, sha256: 'a'.repeat(64), uploadedBy: devUserId,
+      });
+    }
 
     const emptyWorkOrder = await WorkOrder.create({
       codigo: `${TEST_CODE_PREFIX}02`,
@@ -391,6 +387,10 @@ describe('Work Order PDF Routes (E2E)', () => {
     const document = await PDFDocument.load(body);
     expect(document.getTitle()).toBe(`Orden de Trabajo ${TEST_CODE_PREFIX}01`);
     expect(document.getPageCount()).toBeGreaterThanOrEqual(4);
+    const imageCounts = document.getPages().map((page) =>
+      page.node.Resources()?.lookupMaybe(PDFName.of('XObject'), PDFDict)?.keys().length ?? 0,
+    );
+    expect(imageCounts).toContain(9);
     expect(body.length).toBeGreaterThan(5000);
   });
 

@@ -9,7 +9,7 @@ interface ModalHeaderProps {
   onClose: () => void;
   closeLabel?: string;
   /** Rotulo sobre el titulo, como el "Movimiento de inventario" de los ajustes de stock. */
-  eyebrow?: string;
+  eyebrow?: ReactNode;
   /**
    * Badge circular de 52px de la referencia (`.dialog-badge`). Admite un icono ya
    * construido, como `<TypeIcon aria-hidden />`, o contenido propio, como las

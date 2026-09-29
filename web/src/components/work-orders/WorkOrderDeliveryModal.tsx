@@ -9,9 +9,11 @@ import { useDeliverWorkOrderMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { notifySuccess } from '../../stores/toast.store';
+import ModalHeader from '../common/ModalHeader';
 
 import type { WorkOrder } from '../../types/entities';
 import type { WorkOrderDeliveryChecklistItem } from '@unithor/shared';
+
 
 interface WorkOrderDeliveryModalProps {
   workOrder: WorkOrder;
@@ -91,21 +93,16 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/60 px-4 py-6">
       <section className="relative mx-auto w-full max-w-3xl rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="delivery-title">
-        <header className="flex items-start justify-between border-b border-brand-line p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-mintPale text-brand-mintInk">
-              <PackageCheck className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <p className="font-mono text-sm text-brand-muted">{workOrder.codigo}</p>
-              <h2 id="delivery-title" className="mt-1 text-xl font-bold text-brand-primaryInk">Cierre y entrega del vehículo</h2>
-              <p className="mt-1 text-sm text-brand-muted">Este registro deja la orden en estado entregada y no podrá editarse.</p>
-            </div>
-          </div>
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar">
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </header>
+        <ModalHeader
+  id="delivery-title"
+  badge={<PackageCheck className="h-6 w-6" aria-hidden="true" />}
+  tone="success"
+  eyebrow={<span className="font-mono text-sm normal-case">{workOrder.codigo}</span>}
+  title="Cierre y entrega del vehículo"
+  description="Este registro deja la orden en estado entregada y no podrá editarse."
+  onClose={onClose}
+  closeLabel="Cerrar"
+/>
 
         <form onSubmit={submit}>
           <div className="space-y-6 p-5">

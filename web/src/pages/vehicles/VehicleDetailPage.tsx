@@ -325,7 +325,7 @@ export const VehicleDetailPage = ({
         {activeTab === 'details' && (
           <div className="grid md:min-h-[300px] md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <section
-              className="min-w-0 border-b border-brand-line bg-brand-line/40/60 px-5 py-5 sm:px-6 md:border-b-0 md:border-r"
+              className="min-w-0 border-b border-brand-line bg-brand-line/60 px-5 py-5 sm:px-6 md:border-b-0 md:border-r"
               aria-labelledby={`${tabId}-owner-title`}
             >
               <h2 id={`${tabId}-owner-title`} className="text-xs font-semibold text-brand-muted">

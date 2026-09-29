@@ -3,10 +3,12 @@ import { AlertCircle, ArrowRight, LoaderCircle, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { AnimateIcon } from '../animate-ui';
 import { useConvertToWorkOrderMutation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { AnimateIcon } from '../animate-ui';
+import ModalHeader from '../common/ModalHeader';
+
 
 interface ConvertQuotationModalProps {
   quotationId: number;
@@ -54,11 +56,12 @@ export const ConvertQuotationModal = ({ quotationId, codigo, notas, onClose, onC
         aria-modal="true"
         aria-labelledby="convert-title"
       >
-        <button type="button" className="group absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar">
-          <AnimateIcon icon={X} animation="spin" size={16} />
-        </button>
-        <h2 id="convert-title" className="text-xl font-bold text-brand-primaryInk">Convertir {codigo} en OT</h2>
-        <p className="mt-2 text-sm leading-6 text-brand-muted">Se copiarán el cliente, vehículo e ítems a una nueva Orden de Trabajo en estado borrador.</p>
+        <ModalHeader
+  id="convert-title"
+  title={`Convertir ${codigo} en OT`}
+  description="Se copiarán el cliente, vehículo e ítems a una nueva Orden de Trabajo en estado borrador."
+  onClose={onClose}
+/>
         <form onSubmit={submit} className="mt-5 space-y-4">
           <label className="block text-sm font-semibold text-brand-ink">Kilometraje de entrada <span className="font-normal text-brand-muted">(opcional)</span><input type="number" min="0" step="1" value={kilometraje} onChange={(event) => setKilometraje(event.target.value)} className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary" placeholder="0" />{errors.kilometrajeIngreso && <span className="mt-1 block text-xs font-normal text-brand-coralInk">{errors.kilometrajeIngreso}</span>}</label>
           <label className="block text-sm font-semibold text-brand-ink">Descripción para la OT<textarea rows={4} value={descripcion} onChange={(event) => setDescripcion(event.target.value)} className="mt-2 w-full resize-none rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" placeholder="Motivo de ingreso o trabajo aprobado" /></label>

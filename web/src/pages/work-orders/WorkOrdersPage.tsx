@@ -421,7 +421,7 @@ export const WorkOrdersPage = () => {
           </div>
         )}
 
-        <div className="bg-brand-line/40/60 p-4">
+        <div className="bg-brand-line/60 p-4">
           {workOrdersQuery.isPending ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <WorkOrdersSkeleton />

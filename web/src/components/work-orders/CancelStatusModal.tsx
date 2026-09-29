@@ -3,6 +3,8 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 
 import { AnimateIcon } from '../animate-ui';
+import ModalHeader from '../common/ModalHeader';
+
 
 interface CancelStatusModalProps {
   codigo: string;
@@ -45,14 +47,15 @@ export const CancelStatusModal = ({
         aria-modal="true"
         aria-labelledby="cancel-work-order-title"
       >
-        <button type="button" className="group absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar">
-          <AnimateIcon icon={X} animation="spin" size={16} />
-        </button>
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-coralPale text-brand-coralInk">
-          <AnimateIcon icon={AlertTriangle} animation="bounce" size={20} />
-        </div>
-        <h2 id="cancel-work-order-title" className="mt-4 text-xl font-bold text-brand-primaryInk">Cancelar {codigo}</h2>
-        <p className="mt-2 text-sm leading-6 text-brand-muted">Esta orden quedará en un estado terminal. El motivo se incorporará al registro operativo.</p>
+        <ModalHeader
+  id="cancel-work-order-title"
+  badge={<AlertTriangle className="h-6 w-6" aria-hidden="true" />}
+  tone="warning"
+  title={`Cancelar ${codigo}`}
+  description="Esta orden quedará en un estado terminal. El motivo se incorporará al registro operativo."
+  onClose={onClose}
+  closeLabel="Cerrar"
+/>
         <label className="mt-5 block text-sm font-semibold text-brand-ink" htmlFor="cancellation-reason">Motivo de cancelación</label>
         <textarea
           id="cancellation-reason"

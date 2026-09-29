@@ -640,7 +640,7 @@ export const WorkOrderCreatePage = () => {
       >
         {/* Stepper Línea de Tiempo Continua (Estilo Unithor 1.0) */}
         <nav
-          className="border-b border-brand-line bg-brand-line/40/80 px-4 py-6 sm:px-8"
+          className="border-b border-brand-line bg-brand-line/60 px-4 py-6 sm:px-8"
           aria-label="Línea de tiempo de orden de trabajo"
         >
           {/* Vista Desktop / Tablet: Línea continua y nodos */}
@@ -951,7 +951,7 @@ export const WorkOrderCreatePage = () => {
           {activeStep === 3 && (
             <div className="space-y-6">
               {/* Fechas y motivo de ingreso */}
-              <section className="rounded-lg border border-brand-line bg-brand-line/40/60 p-4">
+              <section className="rounded-lg border border-brand-line bg-brand-line/60 p-4">
                 <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-brand-primaryInk">
                   Datos de la orden
                 </h3>
@@ -1195,7 +1195,7 @@ export const WorkOrderCreatePage = () => {
 
           {activeStep === 4 && (
             <div className="space-y-4">
-              <div className="rounded-lg border border-brand-primaryInk/20 bg-brand-line/40/40 px-4 py-3">
+              <div className="rounded-lg border border-brand-primaryInk/20 bg-brand-line/60 px-4 py-3">
                 <p className="text-sm font-semibold text-brand-primaryInk">
                   Agregue los trabajos a realizar y repuestos necesarios. Puede dejar esta sección
                   vacía si el diagnóstico está pendiente.

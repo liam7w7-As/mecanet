@@ -12,8 +12,10 @@ import { formatClp, formatDateTime } from '../../lib/formatters';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 import { AnimateIcon } from '../animate-ui';
 import CurrencyInput from '../common/CurrencyInput';
+import ModalHeader from '../common/ModalHeader';
 
 import type { PaymentBank, PaymentMethod } from '@unithor/shared';
+
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   efectivo: 'Efectivo',
@@ -147,28 +149,17 @@ export const PaymentFormModal = ({
         aria-modal="true"
         aria-labelledby="payment-modal-title"
       >
-        <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-brand-line bg-white px-5 py-4 sm:px-6">
-          <button
-            type="button"
-            className="group absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale"
-            onClick={onClose}
-            aria-label="Cerrar"
-          >
-            <AnimateIcon icon={X} animation="spin" size={16} />
-          </button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primaryInk text-white">
-            <AnimateIcon icon={Banknote} animation="bounce" size={20} />
-          </div>
-          <div className="min-w-0 pr-8">
-            <h2 id="payment-modal-title" className="text-xl font-bold text-brand-primaryInk">
-              Registrar abono
-            </h2>
-            <p className="mt-1 font-mono text-xs text-brand-muted">{codigo}</p>
-          </div>
-        </header>
+        <ModalHeader
+  id="payment-modal-title"
+  badge={<Banknote className="h-6 w-6" aria-hidden="true" />}
+  title="Registrar abono"
+  description={<span className="font-mono text-xs">{codigo}</span>}
+  onClose={onClose}
+  closeLabel="Cerrar"
+/>
 
         <div className="grid min-w-0 md:grid-cols-2">
-          <div className="min-w-0 border-b border-brand-line bg-brand-line/40/60 p-5 sm:p-6 md:border-b-0 md:border-r">
+          <div className="min-w-0 border-b border-brand-line bg-brand-line/60 p-5 sm:p-6 md:border-b-0 md:border-r">
             {loadingSummary ? (
               <div role="status" className="min-h-48 animate-pulse space-y-4">
                 <span className="sr-only">Cargando trabajos y saldo</span>

@@ -41,10 +41,12 @@ import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 import CurrencyInput from '../common/CurrencyInput';
+import ModalHeader from '../common/ModalHeader';
 import PdfPreviewModal from '../common/PdfPreviewModal';
 
 import type { CatalogItem, Quotation, QuotationItem } from '../../types/entities';
 import type { CatalogType, ItemOperationalStatus, QuotationItemInput } from '@unithor/shared';
+
 
 export type ItemApprovalStatus = 'aprobado' | 'pendiente' | 'rechazado' | 'normal';
 
@@ -462,57 +464,25 @@ export const QuotationDetailModal = ({
         aria-modal="true"
         aria-labelledby="quotation-detail-title"
       >
-        {/* Modal Top Header */}
-        <div className="flex items-center justify-between border-b border-brand-line px-5 py-4 bg-brand-line/40/80">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-primaryInk text-white shadow-xs">
-              <FileText className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 id="quotation-detail-title" className="font-mono text-xl font-bold tracking-tight text-brand-primaryInk">
-                  {quotation?.codigo ?? 'Cargando cotización...'}
-                </h2>
-                {quotation && <QuotationStatusBadge status={quotation.estadoPago} />}
-                {quotation?.workOrder ? (
-                  <Link
-                    to={`/work-orders/${quotation.workOrder.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-brand-mintPale px-2 py-0.5 font-mono text-xs font-bold text-brand-mintInk ring-1 ring-inset ring-brand-line hover:bg-brand-mintPale transition-colors"
-                    title={`Orden de Trabajo ${quotation.workOrder.codigo}`}
-                  >
-                    <Wrench className="h-3 w-3 text-brand-mintInk" aria-hidden="true" />
-                    <span>OT · {quotation.workOrder.codigo}</span>
-                  </Link>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-brand-line/70 px-2 py-0.5 text-xs font-medium text-brand-muted">
-                    <Clock className="h-3 w-3 text-brand-muted" aria-hidden="true" />
-                    Sin OT
-                  </span>
-                )}
-              </div>
-              <p className="mt-0.5 flex items-center gap-2 text-xs text-brand-muted">
-                <span>Fecha: {quotation ? formatDate(quotation.createdAt) : '-'}</span>
-                {quotation?.asesor?.nombre && (
-                  <>
-                    <span>·</span>
-                    <span>Asesor: <strong>{quotation.asesor.nombre}</strong></span>
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-line hover:text-brand-ink transition-colors"
-              onClick={onClose}
-              aria-label="Cerrar modal"
-            >
-              <AnimateIcon icon={X} animation="spin" size={18} />
-            </button>
-          </div>
-        </div>
+        <ModalHeader
+  id="quotation-detail-title"
+  badge={<FileText className="h-6 w-6" aria-hidden="true" />}
+  title={quotation?.codigo ?? 'Cargando cotización...'}
+  onClose={onClose}
+  closeLabel="Cerrar cotización"
+>
+  {quotation && <QuotationStatusBadge status={quotation.estadoPago} />}
+  {quotation?.workOrder ? (
+    <Link
+      to={`/work-orders/${quotation.workOrder.id}`}
+      className="inline-flex items-center gap-1.5 rounded-md bg-brand-mintPale px-2 py-0.5 font-mono text-xs font-bold text-brand-mintInk ring-1 ring-inset ring-brand-line"
+      title={`Orden de Trabajo ${quotation.workOrder.codigo}`}
+    >
+      <Wrench className="h-3 w-3 text-brand-mintInk" aria-hidden="true" />
+      <span>OT · {quotation.workOrder.codigo}</span>
+    </Link>
+  ) : null}
+</ModalHeader>
 
         {/* Modal Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
@@ -534,7 +504,7 @@ export const QuotationDetailModal = ({
               {/* Client, Vehicle & Financial KPI strip */}
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {/* Client Box */}
-                <div className="flex items-center gap-3 rounded-xl border border-brand-line/80 bg-brand-line/40/60 p-3.5">
+                <div className="flex items-center gap-3 rounded-xl border border-brand-line/80 bg-brand-line/60 p-3.5">
                   {/* Iniciales en tinta y no en `primaryInk`: sobre el teñido al 10% daba
             4.46:1, apenas bajo el 4.5:1 de AA. */}
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-primaryInk/10 text-xs font-black text-brand-ink">
@@ -552,7 +522,7 @@ export const QuotationDetailModal = ({
                 </div>
 
                 {/* Vehicle Box */}
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-line/80 bg-brand-line/40/60 p-3.5">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-line/80 bg-brand-line/60 p-3.5">
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Vehículo</p>
                     <p className="truncate text-sm font-bold text-brand-ink" title={[quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos'}>
@@ -576,7 +546,7 @@ export const QuotationDetailModal = ({
                 </div>
 
                 {/* Financial Overview */}
-                <div className="flex flex-col justify-between rounded-xl border border-brand-line/80 bg-brand-line/40/60 p-3.5">
+                <div className="flex flex-col justify-between rounded-xl border border-brand-line/80 bg-brand-line/60 p-3.5">
                   <div className="flex items-baseline justify-between">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Total Cotizado</p>
@@ -610,7 +580,7 @@ export const QuotationDetailModal = ({
               {/* Items Management Section */}
               <div className="rounded-xl border border-brand-line bg-white overflow-hidden shadow-2xs">
                 {/* Tabs & Add Action */}
-                <div className="flex flex-col gap-2 border-b border-brand-line bg-brand-line/40/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-2 border-b border-brand-line bg-brand-line/60 p-3 sm:flex-row sm:items-center sm:justify-between">
                   {/* Filter category pills */}
                   <div className="flex flex-wrap items-center gap-1.5 text-xs">
                     <button
@@ -873,7 +843,7 @@ export const QuotationDetailModal = ({
                               key={item.id ?? item.originalIndex}
                               className={`transition-colors ${
                                 isRejected
-                                  ? 'bg-brand-line/40/50 opacity-60'
+                                  ? 'bg-brand-line/60 opacity-60'
                                   : isPendingApproval
                                     ? 'bg-brand-goldPale/40 hover:bg-brand-goldPale/70'
                                     : 'hover:bg-brand-pale/60'
@@ -1097,7 +1067,7 @@ export const QuotationDetailModal = ({
                 </button>
 
                 {showPaymentsHistory && (
-                  <div className="border-t border-brand-line p-3.5 bg-brand-line/40/50">
+                  <div className="border-t border-brand-line p-3.5 bg-brand-line/60">
                     {summary?.payments && summary.payments.length > 0 ? (
                       <div className="divide-y divide-brand-line text-xs">
                         {summary.payments.map((p) => (
@@ -1129,7 +1099,7 @@ export const QuotationDetailModal = ({
         </div>
 
         {/* Modal Sticky Footer Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-line bg-brand-line/40/90 px-5 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-line bg-brand-line/60 px-5 py-3.5">
           {/* Left Actions: Abono & Convertir */}
           <div className="flex items-center gap-2">
             {balance > 0 && (

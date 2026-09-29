@@ -99,7 +99,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-3 py-3 sm:items-center sm:px-4 sm:py-6">
       <button
         type="button"
-        className="absolute inset-0 bg-brand-scrim/60 backdrop-blur-[1px]"
+        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
         aria-label="Cerrar ajuste de stock"
         onClick={onClose}
       />
@@ -107,7 +107,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
         initial={{ opacity: 0, scale: 0.97, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative w-full max-w-[720px] overflow-hidden rounded-lg bg-white shadow-2xl"
+        className="relative w-full max-w-[720px] overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="stock-adjustment-title"

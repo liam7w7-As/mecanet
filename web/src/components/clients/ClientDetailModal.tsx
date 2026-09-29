@@ -161,7 +161,7 @@ export const ClientDetailModal = ({
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5">
         <button
           type="button"
-          className="absolute inset-0 bg-brand-scrim/60 backdrop-blur-[1px]"
+          className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
           aria-label="Cerrar detalle"
           onClick={onClose}
           disabled={deleteMutation.isPending}
@@ -175,7 +175,7 @@ export const ClientDetailModal = ({
           initial={{ opacity: 0, scale: 0.97, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-          className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[850px] flex-col overflow-hidden rounded-lg bg-white shadow-2xl outline-none sm:max-h-[calc(100dvh-2.5rem)]"
+          className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl outline-none sm:max-h-[calc(100dvh-2.5rem)]"
           role="dialog"
           aria-modal="true"
           aria-label="Ficha del cliente"
@@ -516,7 +516,7 @@ export const ClientDetailModal = ({
             {canCreateOrder && (
               <Link
                 to={`/work-orders/new?clientId=${clientId}`}
-                className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-gold px-3 text-sm font-bold text-brand-ink transition hover:bg-brand-goldHover"
+                className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-primary px-3 text-sm font-bold text-white transition hover:bg-brand-primaryHover shadow-xs"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Nueva OT

@@ -30,7 +30,7 @@ import type { Vehicle } from '../../types/entities';
 const formatKilometres = (value: number | null): string =>
   value === null ? '—' : `${new Intl.NumberFormat('es-CL').format(value)} km`;
 
-const vehicleGridClassName = 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,270px),1fr))] gap-3';
+const vehicleGridClassName = 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-4';
 
 const VehicleSkeleton = () => (
   <div className={vehicleGridClassName}>
@@ -203,68 +203,67 @@ export const VehiclesPage = () => {
                 vehicle.combustible,
               ].filter((value) => value === null).length;
               return (
-                // Superficie oscura a proposito: es la card de vehículo del
-                // diseño previo y los acentos claros (dorado, ámbar, esmeralda)
-                // solo contrastan sobre un fondo oscuro. Sobre índigo `#255DFF`
-                // quedaban en 2.9-4.2:1. `surfaceDark` es el `--surface` del
-                // tema `body.dark` del propio Modernize.
                 <AnimatedCard
                   key={vehicle.id}
-                  className="group relative flex h-[200px] min-w-0 flex-col rounded-lg border border-brand-line bg-white p-4 text-brand-ink shadow-sm transition-[border-color,box-shadow] hover:border-brand-primary/40 hover:shadow-md focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-brand-primary/20"
+                  className="group relative flex min-h-[224px] min-w-0 flex-col rounded-2xl border border-brand-line bg-white p-5 text-brand-ink shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary/40 hover:shadow-md focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-brand-primary/20"
                 >
                   <button
                     type="button"
-                    className="absolute inset-0 z-0 rounded-lg focus:outline-none"
+                    className="absolute inset-0 z-0 rounded-2xl focus:outline-none"
                     onClick={() => openVehicle(vehicle.id)}
                     aria-label={`Abrir ficha de ${vehicle.patente}`}
                   />
                   <div className="pointer-events-none relative z-[1] flex min-h-0 flex-1 flex-col">
-                    <div className="flex h-5 items-center justify-between gap-2 text-[11px]">
-                      <span className="font-mono font-semibold tabular-nums text-brand-muted">
-                        #{number}
-                      </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center rounded-full bg-brand-pale px-2.5 py-0.5 font-mono text-xs font-bold text-brand-primaryInk">
+                          #{number}
+                        </span>
+                        <div className="inline-flex items-center rounded-lg border-2 border-slate-700 bg-white px-2.5 py-0.5 shadow-2xs">
+                          <span className="font-mono text-sm font-black tracking-widest text-slate-800">
+                            {vehicle.patente}
+                          </span>
+                        </div>
+                      </div>
                       <span
-                        className={`inline-flex items-center gap-1.5 font-medium ${missingCount > 0 ? 'text-brand-goldInk' : 'text-brand-mintInk'}`}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                          missingCount > 0
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'bg-brand-mintPale text-brand-mintInk border border-brand-mint/30'
+                        }`}
                       >
                         <span
-                          className={`h-1.5 w-1.5 rounded-full ${missingCount > 0 ? 'bg-brand-goldInk' : 'bg-brand-mintInk'}`}
+                          className={`h-1.5 w-1.5 rounded-full ${missingCount > 0 ? 'bg-amber-500' : 'bg-brand-mint'}`}
                           aria-hidden="true"
                         />
                         {missingCount > 0 ? `${missingCount} datos pendientes` : 'Ficha completa'}
                       </span>
                     </div>
 
-                    <div className="mt-2 flex min-w-0 items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-brand-pale text-brand-primaryInk transition-colors group-hover:bg-brand-primary/12">
-                        <Car className="h-5 w-5" aria-hidden="true" />
+                    <div className="mt-3 flex min-w-0 items-center gap-3.5">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-pale text-brand-primary transition-colors group-hover:bg-brand-primary group-hover:text-white">
+                        <Car className="h-6 w-6" aria-hidden="true" />
                       </span>
                       <div className="min-w-0 flex-1">
                         <h2
-                          className="truncate font-mono text-lg font-bold leading-6 text-brand-ink"
-                          title={vehicle.patente}
+                          className="truncate text-base font-bold leading-6 text-brand-ink transition-colors group-hover:text-brand-primary"
+                          title={[vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' ')}
                         >
-                          {vehicle.patente}
+                          {[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ') || 'Vehículo sin descripción'}
                         </h2>
-                        <p
-                          className="truncate text-xs leading-5 text-brand-muted"
-                          title={[vehicle.marca, vehicle.modelo, vehicle.ano]
-                            .filter(Boolean)
-                            .join(' ')}
-                        >
-                          {[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ') ||
-                            'Vehículo sin descripción'}
-                          {vehicle.ano ? ` · ${vehicle.ano}` : ''}
+                        <p className="truncate text-xs font-medium leading-5 text-brand-muted">
+                          {vehicle.ano ? `Año ${vehicle.ano} · ` : ''}VIN: {vehicle.vinChasis ?? 'Sin registrar'}
                         </p>
                       </div>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-xs leading-5 text-brand-muted">
+                    <div className="mt-3.5 grid grid-cols-2 gap-2 rounded-xl bg-brand-pale/50 p-2.5 text-xs text-brand-muted">
                       <p
                         className="flex min-w-0 items-center gap-2"
                         title={`Kilometraje: ${formatKilometres(vehicle.kilometraje)}`}
                       >
-                        <Gauge className="h-3.5 w-3.5 shrink-0 text-brand-muted" aria-hidden="true" />
-                        <span className="truncate tabular-nums">
+                        <Gauge className="h-3.5 w-3.5 shrink-0 text-brand-primary" aria-hidden="true" />
+                        <span className="truncate font-semibold tabular-nums text-brand-ink">
                           {formatKilometres(vehicle.kilometraje)}
                         </span>
                       </p>
@@ -272,49 +271,49 @@ export const VehiclesPage = () => {
                         className="flex min-w-0 items-center gap-2"
                         title={`Combustible: ${vehicle.combustible ?? 'Sin registrar'}`}
                       >
-                        <Fuel className="h-3.5 w-3.5 shrink-0 text-brand-muted" aria-hidden="true" />
-                        <span className="truncate capitalize">
+                        <Fuel className="h-3.5 w-3.5 shrink-0 text-brand-primary" aria-hidden="true" />
+                        <span className="truncate font-semibold capitalize text-brand-ink">
                           {vehicle.combustible ?? 'Sin registrar'}
                         </span>
                       </p>
                     </div>
 
-                    <div className="mt-2 flex min-w-0 items-center gap-2 text-xs leading-5 text-brand-muted">
+                    <div className="mt-2.5 flex min-w-0 items-center gap-2 px-1 text-xs text-brand-muted">
                       <UserRound
                         className="h-3.5 w-3.5 shrink-0 text-brand-muted"
                         aria-hidden="true"
                       />
                       <p
-                        className="truncate"
+                        className="truncate font-medium text-brand-ink"
                         title={vehicle.client?.nombre ?? 'Sin propietario asignado'}
                       >
                         {vehicle.client?.nombre ?? 'Sin propietario asignado'}
                       </p>
                     </div>
 
-                    <div className="mt-auto flex items-center gap-2 border-t border-brand-line pt-3">
-                      <span className="flex h-8 min-w-0 flex-1 items-center justify-center gap-2 rounded-md bg-brand-primaryInk text-xs font-semibold text-white transition-colors group-hover:bg-brand-gold">
+                    <div className="mt-auto flex items-center gap-2 border-t border-brand-line pt-3.5">
+                      <span className="flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-pale text-xs font-bold text-brand-primaryInk transition-colors group-hover:bg-brand-primary group-hover:text-white">
                         Ver ficha
                         <ChevronRight
-                          className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                          className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
                           aria-hidden="true"
                         />
                       </span>
                       {canEdit && (
                         <button
                           type="button"
-                          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-brand-line bg-white text-brand-muted transition-colors hover:border-brand-primary/40 hover:bg-brand-pale hover:text-brand-primaryInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
+                          className="pointer-events-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-brand-line bg-white text-brand-muted transition-colors hover:border-brand-primary/40 hover:bg-brand-pale hover:text-brand-primaryInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
                           onClick={() => setFormVehicle(vehicle)}
                           aria-label={`Editar ${vehicle.patente}`}
                           title="Editar vehículo"
                         >
-                          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
                         </button>
                       )}
                       {canDelete && (
                         <button
                           type="button"
-                          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-brand-line bg-white text-brand-muted transition-colors hover:border-brand-coral/40 hover:bg-brand-coralPale hover:text-brand-coralInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
+                          className="pointer-events-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-brand-line bg-white text-brand-muted transition-colors hover:border-brand-coral/40 hover:bg-brand-coralPale hover:text-brand-coralInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
                           onClick={() => {
                             deleteMutation.reset();
                             setDeleteVehicle(vehicle);
@@ -322,7 +321,7 @@ export const VehiclesPage = () => {
                           aria-label={`Eliminar ${vehicle.patente}`}
                           title="Eliminar vehículo"
                         >
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                       )}
                     </div>
@@ -358,7 +357,7 @@ export const VehiclesPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-brand-scrim/60 backdrop-blur-[1px]"
+              className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
               aria-label="Cerrar ficha del vehículo"
               onClick={closeVehicle}
             />
@@ -367,7 +366,7 @@ export const VehiclesPage = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 8 }}
               transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-              className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100dvh-2.5rem)]"
+              className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl sm:max-h-[calc(100dvh-2.5rem)]"
               role="dialog"
               aria-modal="true"
               aria-label="Ficha del vehículo"
@@ -387,7 +386,7 @@ export const VehiclesPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-brand-scrim/55"
+              className="absolute inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
               aria-label="Cancelar eliminación"
               onClick={() => setDeleteVehicle(null)}
             />
@@ -396,15 +395,20 @@ export const VehiclesPage = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
+              className="relative w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl"
               role="dialog"
               aria-modal="true"
               aria-labelledby="delete-vehicle-title"
             >
-              <h2 id="delete-vehicle-title" className="text-lg font-semibold text-brand-primaryInk">
-                Eliminar vehículo {deleteVehicle.patente}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-brand-muted">
+              <div className="mb-3 flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-coralPale text-brand-coralInk">
+                  <Trash2 className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h2 id="delete-vehicle-title" className="text-lg font-bold text-brand-ink">
+                  Eliminar vehículo {deleteVehicle.patente}
+                </h2>
+              </div>
+              <p className="text-sm leading-6 text-brand-muted">
                 El vehículo se ocultará del parque activo. No podrá eliminarse si mantiene órdenes
                 de trabajo abiertas.
               </p>
@@ -418,7 +422,7 @@ export const VehiclesPage = () => {
                 </button>
                 <button
                   type="button"
-                  className="h-10 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white hover:bg-brand-coralInk transition-colors disabled:opacity-60"
+                  className="h-10 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white hover:bg-brand-coralInk/90 transition-colors disabled:opacity-60"
                   onClick={confirmDelete}
                   disabled={deleteMutation.isPending}
                 >

@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 
 import { AnimateIcon, AnimatedTableRow } from '../../components/animate-ui';
 import Pagination from '../../components/common/Pagination';
+import UserAvatar from '../../components/common/UserAvatar';
 import RolePermissionsPanel from '../../components/users/RolePermissionsPanel';
 import UserFormModal from '../../components/users/UserFormModal';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -196,7 +197,18 @@ export const UsersPage = () => {
                   const isSelf = currentUser?.id === user.id;
                   return (
                     <AnimatedTableRow key={user.id} index={index} className="border-b border-brand-line last:border-0 hover:bg-brand-pale/70 transition-colors">
-                      <td className="px-4 py-3"><span className="block font-semibold text-brand-ink">{user.nombre}{isSelf && <span className="ml-2 text-xs font-medium text-brand-muted">Tu cuenta</span>}</span><span className="block text-xs text-brand-muted">@{user.username} · {user.email}</span></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <UserAvatar user={user} size="sm" />
+                          <div className="min-w-0">
+                            <span className="block font-semibold text-brand-ink">
+                              {user.nombre}
+                              {isSelf && <span className="ml-2 text-xs font-medium text-brand-muted">Tu cuenta</span>}
+                            </span>
+                            <span className="block truncate text-xs text-brand-muted">@{user.username} · {user.email}</span>
+                          </div>
+                        </div>
+                      </td>
                       <td className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${roleStyles[user.role.nombre]}`}>{getRoleLabel(user.role.nombre)}</span></td>
                       <td className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${user.activo ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-line text-brand-muted'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
                       <td className="whitespace-nowrap px-4 py-3 text-brand-muted">{formatDate(user.createdAt)}</td>
@@ -204,7 +216,7 @@ export const UsersPage = () => {
                         {canUpdate && (
                           <button
                             type="button"
-                            className="group flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-goldPale hover:text-brand-goldInk transition-colors"
+                            className="group flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primary transition-colors"
                             onClick={() => setFormUser(user)}
                             aria-label={`Editar ${user.nombre}`}
                             title="Editar"
@@ -246,7 +258,7 @@ export const UsersPage = () => {
 
           {!usersQuery.isPending && usersQuery.data?.data.length === 0 && (
             <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center">
-              <AnimateIcon icon={UserCog} animation="bounce" size={40} className="text-brand-line" />
+              <AnimateIcon icon={UserCog} animation="bounce" size={40} className="text-brand-muted/40" />
               <p className="mt-3 font-semibold text-brand-ink">No se encontraron usuarios</p>
               <p className="mt-1 text-sm text-brand-muted">Cambie los filtros o registre una nueva cuenta.</p>
             </div>
@@ -269,26 +281,59 @@ export const UsersPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-brand-scrim/55"
+              className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm"
               aria-label="Cancelar cambio de estado"
               onClick={() => setStatusTarget(null)}
             />
             <motion.section
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              initial={{ opacity: 0, scale: 0.95, y: 14 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              exit={{ opacity: 0, scale: 0.95, y: 14 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
+              className="relative w-full max-w-[480px] rounded-2xl border border-brand-line bg-white p-7 shadow-2xl"
               role="dialog"
               aria-modal="true"
               aria-labelledby="status-user-title"
             >
-              <h2 id="status-user-title" className="text-lg font-semibold text-brand-primaryInk">{statusTarget.activo ? 'Desactivar' : 'Activar'} cuenta</h2>
-              <p className="mt-2 text-sm leading-6 text-brand-muted">{statusTarget.activo ? `La sesión de ${statusTarget.nombre} se cerrará y no podrá ingresar hasta que la cuenta se reactive.` : `${statusTarget.nombre} recuperará el acceso con su rol actual.`}</p>
-              {statusMutation.error && <p className="mt-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(statusMutation.error)}</p>}
-              <div className="mt-5 flex justify-end gap-2">
-                <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale transition-colors" onClick={() => setStatusTarget(null)}>Cancelar</button>
-                <button type="button" className={`h-10 rounded-lg px-4 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${statusTarget.activo ? 'bg-brand-coralInk hover:bg-brand-coralInk' : 'bg-brand-primaryInk hover:bg-brand-primaryInk'}`} onClick={changeStatus} disabled={statusMutation.isPending}>{statusMutation.isPending ? 'Guardando...' : statusTarget.activo ? 'Desactivar cuenta' : 'Activar cuenta'}</button>
+              <div className="dialog-badge warning">
+                <Power className="h-6 w-6 stroke-[2.5]" />
+              </div>
+
+              <h2 id="status-user-title" className="text-lg font-bold text-brand-ink">
+                {statusTarget.activo ? 'Desactivar' : 'Activar'} cuenta
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-brand-muted">
+                {statusTarget.activo
+                  ? `La sesión de ${statusTarget.nombre} se cerrará y no podrá ingresar hasta que la cuenta se reactive.`
+                  : `${statusTarget.nombre} recuperará el acceso con su rol actual.`}
+              </p>
+
+              {statusMutation.error && (
+                <p className="mt-3 text-sm text-brand-coralInk" role="alert">
+                  {getApiErrorMessage(statusMutation.error)}
+                </p>
+              )}
+
+              <div className="dialog-buttons mt-6">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setStatusTarget(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className={statusTarget.activo ? 'danger-button' : 'primary-button'}
+                  onClick={changeStatus}
+                  disabled={statusMutation.isPending}
+                >
+                  {statusMutation.isPending
+                    ? 'Guardando...'
+                    : statusTarget.activo
+                      ? 'Desactivar cuenta'
+                      : 'Activar cuenta'}
+                </button>
               </div>
             </motion.section>
           </div>
@@ -303,26 +348,53 @@ export const UsersPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-brand-scrim/55"
+              className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm"
               aria-label="Cancelar eliminación"
               onClick={() => setDeleteTarget(null)}
             />
             <motion.section
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              initial={{ opacity: 0, scale: 0.95, y: 14 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              exit={{ opacity: 0, scale: 0.95, y: 14 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
+              className="relative w-full max-w-[480px] rounded-2xl border border-brand-line bg-white p-7 shadow-2xl"
               role="dialog"
               aria-modal="true"
               aria-labelledby="delete-user-title"
             >
-              <h2 id="delete-user-title" className="text-lg font-semibold text-brand-primaryInk">Eliminar usuario</h2>
-              <p className="mt-2 text-sm leading-6 text-brand-muted">La cuenta de {deleteTarget.nombre} quedará inactiva y se cerrarán todas sus sesiones. El registro se conservará para auditoría.</p>
-              {deleteMutation.error && <p className="mt-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(deleteMutation.error)}</p>}
-              <div className="mt-5 flex justify-end gap-2">
-                <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale transition-colors" onClick={() => setDeleteTarget(null)}>Cancelar</button>
-                <button type="button" className="h-10 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white hover:bg-brand-coralInk transition-colors disabled:opacity-60" onClick={deleteUser} disabled={deleteMutation.isPending}>{deleteMutation.isPending ? 'Eliminando...' : 'Eliminar usuario'}</button>
+              <div className="dialog-badge warning">
+                <Trash2 className="h-6 w-6 stroke-[2.5]" />
+              </div>
+
+              <h2 id="delete-user-title" className="text-lg font-bold text-brand-ink">
+                Eliminar usuario
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-brand-muted">
+                La cuenta de {deleteTarget.nombre} quedará inactiva y se cerrarán todas sus sesiones. El registro se conservará para auditoría.
+              </p>
+
+              {deleteMutation.error && (
+                <p className="mt-3 text-sm text-brand-coralInk" role="alert">
+                  {getApiErrorMessage(deleteMutation.error)}
+                </p>
+              )}
+
+              <div className="dialog-buttons mt-6">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setDeleteTarget(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  onClick={deleteUser}
+                  disabled={deleteMutation.isPending}
+                >
+                  {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar usuario'}
+                </button>
               </div>
             </motion.section>
           </div>

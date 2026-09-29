@@ -27,7 +27,7 @@ const DeliverySheet = ({ workOrder }: { workOrder: WorkOrder }) => {
 
   return (
     <article className="delivery-receipt-sheet mx-auto bg-white text-brand-ink">
-      <header className="border-b-4 border-[#FFD600] bg-[#0E2B4E] px-8 py-7 text-white">
+      <header className="border-b-4 border-brand-primary bg-[#131b2e] px-8 py-7 text-white">
         <div className="flex items-start justify-between gap-6">
           <div><h1 className="text-2xl font-black">UNITHOR</h1><p className="mt-1 text-sm font-semibold">ACTA DE ENTREGA DE VEHÍCULO</p></div>
           <div className="text-right"><p className="font-mono text-xl font-bold">{workOrder.codigo}</p><p className="mt-1 text-xs">{formatDateTime(delivery.deliveredAt)}</p></div>
@@ -90,7 +90,7 @@ export const WorkOrderDeliveryReceiptModal = ({ workOrder, onClose }: WorkOrderD
           #delivery-print-portal .delivery-receipt-sheet { width: 8.5in; min-height: 11in; box-shadow: none !important; }
         }
       `}</style>
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/70 px-4 py-6">
+      <div className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity">
         <section
           className="mx-auto w-fit max-w-full"
           role="dialog"

@@ -872,7 +872,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
       >
         {pdfError && <div role="alert" className="bg-red-50 px-4 py-2 text-sm text-red-800">{pdfError}</div>}
         {/* Barra superior de herramientas */}
-        <header className="flex flex-col gap-2 border-b border-blue-950 bg-[#0E2B4E] px-4 py-3 text-white sm:px-6">
+        <header className="flex flex-col gap-2 border-b border-slate-800 bg-[#131b2e] px-4 py-3 text-white sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <BrandLogo heightClassName="h-6" alt={company.nombreComercial} className="rounded bg-white px-1.5 py-1" />
@@ -880,7 +880,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                 id="pdf-modal-title"
                 className="text-base font-extrabold tracking-tight text-white sm:text-lg"
               >
-                Vista Previa PDF: <span className="text-brand-yellow">{displayCode}</span>
+                Vista Previa PDF: <span className="text-blue-400 font-mono">{displayCode}</span>
               </h2>
             </div>
             <button

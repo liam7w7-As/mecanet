@@ -122,12 +122,12 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
-        className="absolute inset-0 bg-brand-scrim/55"
+        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
         aria-label="Cerrar formulario de catálogo"
         onClick={onClose}
       />
       <section
-        className="relative max-h-full w-full max-w-[520px] overflow-y-auto rounded-lg bg-white shadow-2xl"
+        className="relative max-h-full w-full max-w-[520px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="catalog-form-title"
@@ -211,8 +211,8 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
             </div>
           )}
 
-          <footer className="flex flex-col-reverse gap-2 border-t border-brand-line pt-5 sm:flex-row sm:justify-end">
-            <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale" onClick={onClose} disabled={activeMutation.isPending}>Cancelar</button>
+          <footer className="dialog-buttons border-t border-brand-line pt-5">
+            <button type="button" className="secondary-button" onClick={onClose} disabled={activeMutation.isPending}>Cancelar</button>
             <button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-60" disabled={activeMutation.isPending}>
               {activeMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Boxes className="h-4 w-4" aria-hidden="true" />}
               {activeMutation.isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear item'}

@@ -122,7 +122,7 @@ export const NotificationBell = () => {
               </p>
             ) : items.length === 0 ? (
               <div className="flex min-h-32 flex-col items-center justify-center px-4 py-6 text-center">
-                <ClipboardList className="h-8 w-8 text-brand-line" aria-hidden="true" />
+                <ClipboardList className="h-8 w-8 text-brand-muted/40" aria-hidden="true" />
                 <p className="mt-2 text-sm font-semibold text-brand-ink">Sin notificaciones</p>
                 <p className="mt-0.5 text-xs text-brand-muted">
                   Aquí verás las solicitudes, pagos y cambios que te conciernan.

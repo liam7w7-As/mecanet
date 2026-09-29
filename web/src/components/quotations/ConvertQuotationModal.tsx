@@ -49,12 +49,12 @@ export const ConvertQuotationModal = ({ quotationId, codigo, notas, onClose, onC
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button type="button" className="absolute inset-0 bg-brand-scrim/55" aria-label="Cerrar conversión" onClick={onClose} />
+      <button type="button" className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity" aria-label="Cerrar conversión" onClick={onClose} />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative w-full max-w-[520px] rounded-lg bg-white p-6 shadow-2xl"
+        className="relative w-full max-w-[520px] rounded-2xl border border-brand-line bg-white p-6 shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="convert-title"

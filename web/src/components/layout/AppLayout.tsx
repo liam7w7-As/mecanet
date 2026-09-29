@@ -25,9 +25,10 @@ import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth.store';
 import { AnimateIcon } from '../animate-ui/animate-icon';
 import { PageTransition } from '../animate-ui/page';
-import { getInitials, getRoleLabel } from '../auth/UserProfileModal';
+import { getRoleLabel } from '../auth/UserProfileModal';
 import BrandLogo from '../common/BrandLogo';
 import ToastViewport from '../common/Toast';
+import UserAvatar from '../common/UserAvatar';
 
 import type { AnimateIconVariant } from '../animate-ui/animate-icon';
 import type { PermissionDefinition } from '@unithor/shared';
@@ -154,9 +155,7 @@ const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
 
       {user && (
         <div className="profile-footer">
-          <div className="avatar flex h-10 w-10 items-center justify-center rounded-full bg-brand-primaryInk text-sm font-semibold text-white">
-            {getInitials(user.nombre)}
-          </div>
+          <UserAvatar user={user} size="md" className="shrink-0" />
           <div className="min-w-0 flex-1">
             <strong className="block truncate" title={user.nombre}>
               {user.nombre}

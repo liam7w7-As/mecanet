@@ -524,7 +524,7 @@ export const FinanceAnalyticsDashboard = () => {
                 ) : data.topSellers.slice(0, 8).map((seller, index) => (
                   <div key={seller.id ?? seller.nombre} className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5">
                     <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                      index === 0 ? 'bg-brand-gold text-brand-ink' : 'bg-brand-pale text-brand-muted'
+                      index === 0 ? 'bg-brand-primary text-white' : 'bg-brand-pale text-brand-muted'
                     }`}>{index + 1}</span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-brand-ink">{seller.nombre}</p>

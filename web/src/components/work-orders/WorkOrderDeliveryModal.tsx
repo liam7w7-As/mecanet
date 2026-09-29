@@ -94,8 +94,14 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
 
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/60 px-4 py-6">
-      <section className="relative mx-auto w-full max-w-[720px] rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="delivery-title">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
+      <button
+        type="button"
+        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
+        aria-label="Cerrar entrega"
+        onClick={onClose}
+      />
+      <section className="relative max-h-[92vh] w-full max-w-[720px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="delivery-title">
         <ModalHeader
   id="delivery-title"
   badge={<PackageCheck className="h-6 w-6" aria-hidden="true" />}

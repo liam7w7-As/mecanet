@@ -51,38 +51,24 @@ const getLoginError = (error: unknown): string => {
 
 const BrandPanel = ({ company }: { company: { nombreComercial: string } }) => (
   <section
-    className="relative hidden items-center justify-center bg-[linear-gradient(110deg,#f2f5fc,#f2faf7)] px-8 py-20 lg:flex"
+    className="relative hidden items-center justify-center bg-gradient-to-br from-[#f2f6ff] via-[#eef4fe] to-[#edf9f7] px-8 py-20 lg:flex"
     aria-label={company.nombreComercial}
   >
-    <div className="absolute left-6 top-0 flex h-[70px] items-center">
+    <div className="absolute left-8 top-0 flex h-[70px] items-center">
       <BrandLogo heightClassName="h-9" alt={company.nombreComercial} />
     </div>
 
-    <svg viewBox="0 0 500 500" className="mt-9 h-auto w-[min(500px,42vw)]" fill="none" aria-hidden="true">
-      <circle cx="250" cy="250" r="196" fill="#5D87FF" fillOpacity=".08" />
-      <circle cx="250" cy="250" r="150" fill="#13DEB9" fillOpacity=".07" />
-      <circle cx="250" cy="250" r="104" fill="#fff" />
-      <circle cx="250" cy="250" r="104" stroke="#EBF1F6" />
-      <path
-        d="M250 186l52 19v39c0 36-22 62-52 74-30-12-52-38-52-74v-39l52-19z"
-        fill="#5D87FF"
-        fillOpacity=".12"
+    <div className="flex flex-col items-center justify-center text-center">
+      <img
+        src="/assets/images/backgrounds/login-illustration.svg"
+        alt="Ilustración de acceso y seguridad Modernize"
+        className="h-auto w-[min(500px,38vw)] max-h-[500px] object-contain drop-shadow-sm select-none"
+        loading="eager"
       />
-      <path d="M250 200l38 14v30c0 27-17 46-38 57-21-11-38-30-38-57v-30l38-14z" fill="#5D87FF" />
-      <path
-        d="M234 255l11 12 23-26"
-        stroke="#fff"
-        strokeWidth="7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="96" cy="146" r="10" fill="#FFAE1F" />
-      <circle cx="408" cy="178" r="8" fill="#49BEFF" />
-      <rect x="392" y="332" width="34" height="34" rx="9" fill="#FA896B" fillOpacity=".35" transform="rotate(18 409 349)" />
-      <rect x="80" y="320" width="30" height="30" rx="8" fill="#13DEB9" fillOpacity=".3" transform="rotate(-14 95 335)" />
-    </svg>
+    </div>
   </section>
 );
+
 
 export const LoginPage = () => {
   const [identifier, setIdentifier] = useState('');
@@ -208,7 +194,7 @@ export const LoginPage = () => {
             <button
               type="submit"
               disabled={loginMutation.isPending}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-medium text-white transition hover:bg-brand-primaryInkHover focus:outline-none focus:ring-2 focus:ring-brand-primaryInk focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 text-sm font-semibold text-white shadow-md transition-all hover:bg-brand-primary/90 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loginMutation.isPending ? (
                 <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />

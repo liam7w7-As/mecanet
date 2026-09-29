@@ -68,12 +68,12 @@ export const QuotationEditModal = ({ quotation, onClose }: QuotationEditModalPro
 
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
+    <div className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity">
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative mx-auto w-full max-w-[720px] rounded-lg bg-white shadow-2xl"
+        className="relative mx-auto w-full max-w-[720px] rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="edit-quotation-title"

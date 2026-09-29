@@ -186,9 +186,32 @@ export const QuotationsPage = () => {
                           </AnimateIcon>
                         </button>
                       )}
-                      {canEdit && (quotation.estadoPago === 'total' ? <button type="button" disabled className="flex h-10 w-10 items-center justify-center rounded-xl text-brand-line" aria-label={`Editar ${quotation.codigo} deshabilitado`} title="Cotización pagada"><Pencil className="h-4 w-4" aria-hidden="true" /></button> : <Link to={`/quotations/${quotation.id}?edit=true`} className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-goldPale hover:text-brand-goldInk" aria-label={`Editar ${quotation.codigo}`} title="Editar"><AnimateIcon variant="wiggle" animateOnHover><Pencil className="h-4 w-4" aria-hidden="true" /></AnimateIcon></Link>)}
+                      {canEdit && (
+                        quotation.estadoPago === 'total' ? (
+                          <button
+                            type="button"
+                            disabled
+                            className="flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted/30"
+                            aria-label={`Editar ${quotation.codigo} deshabilitado`}
+                            title="Cotización pagada"
+                          >
+                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        ) : (
+                          <Link
+                            to={`/quotations/${quotation.id}?edit=true`}
+                            className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-pale hover:text-brand-primary"
+                            aria-label={`Editar ${quotation.codigo}`}
+                            title="Editar"
+                          >
+                            <AnimateIcon variant="wiggle" animateOnHover>
+                              <Pencil className="h-4 w-4" aria-hidden="true" />
+                            </AnimateIcon>
+                          </Link>
+                        )
+                      )}
                       {canConvert && quotation.workOrderId === null && <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-mintPale hover:text-brand-mintInk" onClick={() => setQuotationToConvert(quotation)} aria-label={`Convertir ${quotation.codigo} a OT`} title="Convertir a OT"><AnimateIcon variant="spin" animateOnHover><Wrench className="h-4 w-4" aria-hidden="true" /></AnimateIcon></button>}
-                      <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-goldPale hover:text-brand-goldInk disabled:opacity-50" onClick={() => setPreviewQuotationId(quotation.id)} disabled={previewQuery.isPending && previewQuotationId === quotation.id} aria-label={`Vista previa PDF de ${quotation.codigo}`} title="Vista previa / Descargar PDF (mismo diseño)">
+                      <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-pale hover:text-brand-primary disabled:opacity-50" onClick={() => setPreviewQuotationId(quotation.id)} disabled={previewQuery.isPending && previewQuotationId === quotation.id} aria-label={`Vista previa PDF de ${quotation.codigo}`} title="Vista previa / Descargar PDF (mismo diseño)">
                         {previewQuery.isPending && previewQuotationId === quotation.id ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon variant="bounce" animateOnHover><Download className="h-4 w-4" aria-hidden="true" /></AnimateIcon>}
                       </button>
                       <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl bg-brand-pale text-brand-primaryInk hover:bg-brand-primaryHover hover:text-white" onClick={() => setDetailQuotationId(quotation.id)} aria-label={`Ver detalle de ${quotation.codigo}`} title="Ver detalle">
@@ -203,8 +226,7 @@ export const QuotationsPage = () => {
             </tbody>
           </table>
         </div>
-
-        {!quotationsQuery.isPending && quotationsQuery.data?.items.length === 0 && <div className="flex min-h-56 flex-col items-center justify-center px-4 text-center"><FileText className="h-10 w-10 text-brand-line" aria-hidden="true" /><p className="mt-3 font-semibold text-brand-ink">No se encontraron cotizaciones</p><p className="mt-1 text-sm text-brand-muted">Cambie los filtros o emita el primer presupuesto.</p></div>}
+        {!quotationsQuery.isPending && quotationsQuery.data?.items.length === 0 && <div className="flex min-h-56 flex-col items-center justify-center px-4 text-center"><FileText className="h-10 w-10 text-brand-muted/40" aria-hidden="true" /><p className="mt-3 font-semibold text-brand-ink">No se encontraron cotizaciones</p><p className="mt-1 text-sm text-brand-muted">Cambie los filtros o emita el primer presupuesto.</p></div>}
         <Pagination page={page} totalPages={quotationsQuery.data?.totalPages ?? 0} total={quotationsQuery.data?.total ?? 0} onPageChange={setPage} />
       </section>
 

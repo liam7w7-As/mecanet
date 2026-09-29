@@ -262,7 +262,7 @@ export const ClientsPage = () => {
                     {canEdit && (
                       <button
                         type="button"
-                        className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md text-brand-muted transition-colors hover:bg-brand-goldPale hover:text-brand-goldInk"
+                        className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md text-brand-muted transition-colors hover:bg-brand-pale hover:text-brand-primary"
                         onClick={() => setFormClient(client)}
                         aria-label={`Editar ${client.nombre}`}
                         title="Editar cliente"
@@ -281,7 +281,7 @@ export const ClientsPage = () => {
         )}
         {!clientsQuery.isPending && clientsQuery.data?.items.length === 0 && (
           <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center">
-            <Users className="h-9 w-9 text-brand-line" aria-hidden="true" />
+            <Users className="h-9 w-9 text-brand-muted/40" aria-hidden="true" />
             <p className="mt-3 font-semibold text-brand-ink">No se encontraron clientes</p>
             <p className="mt-1 text-sm text-brand-muted">
               Ajuste la búsqueda o el tipo seleccionado.

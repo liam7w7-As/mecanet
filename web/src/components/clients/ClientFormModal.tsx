@@ -105,7 +105,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
-        className="absolute inset-0 bg-brand-scrim/55"
+        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
         aria-label="Cerrar formulario de cliente"
         onClick={onClose}
       />
@@ -113,7 +113,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative max-h-full w-full max-w-[720px] overflow-y-auto rounded-lg bg-white shadow-2xl"
+        className="relative max-h-[92vh] w-full max-w-[720px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="client-form-title"
@@ -257,10 +257,10 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
             </div>
           )}
 
-          <footer className="flex flex-col-reverse gap-2 border-t border-brand-line pt-5 sm:flex-row sm:justify-end">
+          <footer className="dialog-buttons border-t border-brand-line pt-5">
             <button
               type="button"
-              className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
+              className="secondary-button"
               onClick={onClose}
               disabled={activeMutation.isPending}
             >
@@ -268,7 +268,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
             </button>
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:cursor-not-allowed disabled:opacity-60"
+              className="primary-button"
               disabled={activeMutation.isPending}
             >
               {activeMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}

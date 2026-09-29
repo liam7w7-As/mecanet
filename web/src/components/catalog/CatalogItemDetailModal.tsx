@@ -87,7 +87,7 @@ export const CatalogItemDetailModal = ({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6">
       <button
         type="button"
-        className="absolute inset-0 bg-brand-scrim/60 backdrop-blur-[1px]"
+        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
         aria-label="Cerrar detalle de catálogo"
         onClick={onClose}
       />
@@ -95,7 +95,7 @@ export const CatalogItemDetailModal = ({
         initial={{ opacity: 0, scale: 0.98, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 360, damping: 32 }}
-        className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-[850px] flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]"
+        className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="catalog-detail-title"
@@ -194,7 +194,7 @@ export const CatalogItemDetailModal = ({
             <div className="space-y-4">
               {!canViewInventory ? (
                 <div className="rounded-lg border border-brand-line bg-brand-line/40 p-5 text-center">
-                  <Warehouse className="mx-auto h-8 w-8 text-brand-line" aria-hidden="true" />
+                  <Warehouse className="mx-auto h-8 w-8 text-brand-muted/40" aria-hidden="true" />
                   <p className="mt-2 font-semibold text-brand-ink">Existencias protegidas</p>
                   <p className="mt-1 text-sm text-brand-muted">
                     Su rol puede consultar el catálogo, pero no el detalle por almacén.
@@ -253,7 +253,7 @@ export const CatalogItemDetailModal = ({
             <div>
               {!canViewInventory ? (
                 <div className="rounded-lg border border-brand-line bg-brand-line/40 p-5 text-center">
-                  <History className="mx-auto h-8 w-8 text-brand-line" aria-hidden="true" />
+                  <History className="mx-auto h-8 w-8 text-brand-muted/40" aria-hidden="true" />
                   <p className="mt-2 font-semibold text-brand-ink">Kardex protegido</p>
                   <p className="mt-1 text-sm text-brand-muted">
                     No tiene permiso para consultar movimientos de almacén.
@@ -267,7 +267,7 @@ export const CatalogItemDetailModal = ({
                 </div>
               ) : (movementsQuery.data?.items.length ?? 0) === 0 ? (
                 <div className="py-10 text-center">
-                  <History className="mx-auto h-9 w-9 text-brand-line" aria-hidden="true" />
+                  <History className="mx-auto h-9 w-9 text-brand-muted/40" aria-hidden="true" />
                   <p className="mt-2 text-sm text-brand-muted">
                     Aún no hay movimientos para este repuesto.
                   </p>

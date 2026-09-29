@@ -1,4 +1,5 @@
 import { WORK_ORDER_STATUS, isValidWorkOrderTransition } from '@unithor/shared';
+import RevertStatusModal from '../../components/work-orders/RevertStatusModal';
 import {
   AlertCircle,
   ClipboardList,
@@ -12,7 +13,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { AnimateIcon, AnimatedCard, Stagger, StaggerItem } from '../../components/animate-ui';
@@ -88,6 +89,28 @@ interface PendingCancellation {
   id: number;
   codigo: string;
 }
+
+interface PendingRevert {
+  id: number;
+  codigo: string;
+  fromStatus: WorkOrderStatus;
+  toStatus: WorkOrderStatus;
+}
+
+// Status progression order for regression detection
+const STATUS_ORDER: WorkOrderStatus[] = [
+  'borrador',
+  'en_progreso',
+  'esperando_repuesto',
+  'finalizada',
+  'entregada',
+];
+
+const isStatusRegression = (from: WorkOrderStatus, to: WorkOrderStatus): boolean => {
+  const fi = STATUS_ORDER.indexOf(from);
+  const ti = STATUS_ORDER.indexOf(to);
+  return fi > ti && fi !== -1 && ti !== -1;
+};
 
 const WorkOrderCard = ({
   workOrder,
@@ -331,11 +354,13 @@ export const WorkOrdersPage = () => {
   const [status, setStatus] = useState<StatusFilter>('all');
   const [page, setPage] = useState(1);
   const [pendingCancellation, setPendingCancellation] = useState<PendingCancellation | null>(null);
+  const [pendingRevert, setPendingRevert] = useState<PendingRevert | null>(null);
   const [detailWorkOrderId, setDetailWorkOrderId] = useState<number | null>(null);
   const [detailView, setDetailView] = useState<'summary' | 'execution'>('summary');
   const [previewWorkOrderId, setPreviewWorkOrderId] = useState<number | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
   const user = useAuthStore((state) => state.user);
+  const isAdmin = Boolean(user && ['desarrollador', 'admin'].includes(user.role));
   const now = useNow();
   const workOrdersQuery = useWorkOrders({
     page,
@@ -357,6 +382,18 @@ export const WorkOrdersPage = () => {
     statusMutation.reset();
     if (nuevoEstado === 'cancelada') {
       setPendingCancellation({ id: workOrder.id, codigo: workOrder.codigo });
+      return;
+    }
+
+    // Backward transitions require admin role + mandatory justification
+    if (isStatusRegression(workOrder.estado, nuevoEstado)) {
+      if (!isAdmin) return; // Non-admins cannot revert
+      setPendingRevert({
+        id: workOrder.id,
+        codigo: workOrder.codigo,
+        fromStatus: workOrder.estado,
+        toStatus: nuevoEstado,
+      });
       return;
     }
 
@@ -466,6 +503,21 @@ export const WorkOrdersPage = () => {
           onConfirm={(motivo) => statusMutation.mutate(
             { id: pendingCancellation.id, data: { nuevoEstado: 'cancelada', motivo } },
             { onSuccess: () => setPendingCancellation(null) },
+          )}
+        />
+      )}
+
+      {pendingRevert && (
+        <RevertStatusModal
+          codigo={pendingRevert.codigo}
+          fromStatus={pendingRevert.fromStatus}
+          toStatus={pendingRevert.toStatus}
+          isPending={statusMutation.isPending}
+          errorMessage={statusMutation.isError ? getApiErrorMessage(statusMutation.error) : null}
+          onClose={() => { setPendingRevert(null); statusMutation.reset(); }}
+          onConfirm={(motivo) => statusMutation.mutate(
+            { id: pendingRevert.id, data: { nuevoEstado: pendingRevert.toStatus, motivo } },
+            { onSuccess: () => setPendingRevert(null) },
           )}
         />
       )}

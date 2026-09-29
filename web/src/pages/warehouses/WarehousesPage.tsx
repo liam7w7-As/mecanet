@@ -260,7 +260,7 @@ export const WarehousesPage = () => {
           {requestsQuery.isPending ? (
             Array.from({ length: 3 }, (_, index) => <div key={index} className="h-28 animate-pulse bg-brand-line/40" />)
           ) : (requestsQuery.data?.items.length ?? 0) === 0 ? (
-            <div className="px-4 py-10 text-center"><PackageCheck className="mx-auto h-9 w-9 text-brand-line" aria-hidden="true" /><p className="mt-2 font-semibold text-brand-ink">{requestStatus === 'aprobada' ? 'No hay entregas pendientes' : 'No hay entregas registradas'}</p><p className="mt-1 text-sm text-brand-muted">Las solicitudes aprobadas desde una OT aparecerán aquí.</p></div>
+            <div className="px-4 py-10 text-center"><PackageCheck className="mx-auto h-9 w-9 text-brand-muted/40" aria-hidden="true" /><p className="mt-2 font-semibold text-brand-ink">{requestStatus === 'aprobada' ? 'No hay entregas pendientes' : 'No hay entregas registradas'}</p><p className="mt-1 text-sm text-brand-muted">Las solicitudes aprobadas desde una OT aparecerán aquí.</p></div>
           ) : requestsQuery.data?.items.map((request) => (
             <article key={request.id} className="grid gap-4 px-4 py-4 transition hover:bg-brand-pale sm:px-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] lg:items-center">
               <div className="min-w-0">
@@ -288,7 +288,7 @@ export const WarehousesPage = () => {
           </div>
         ) : warehouses.length === 0 ? (
           <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed border-brand-line bg-white px-4 text-center">
-            <WarehouseIcon className="h-10 w-10 text-brand-line" aria-hidden="true" />
+            <WarehouseIcon className="h-10 w-10 text-brand-muted/40" aria-hidden="true" />
             <p className="mt-3 font-semibold text-brand-ink">Sin almacenes registrados</p>
             <p className="mt-1 text-sm text-brand-muted">Cree la primera bodega para llevar stock por ubicación.</p>
           </div>
@@ -376,7 +376,7 @@ export const WarehousesPage = () => {
                 {balancesQuery.isPending ? (
                   <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-brand-muted">Cargando stock...</td></tr>
                 ) : filteredBalances.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-brand-muted"><Boxes className="mx-auto h-8 w-8 text-brand-line" aria-hidden="true" /><p className="mt-2">Sin saldos registrados.</p></td></tr>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-brand-muted"><Boxes className="mx-auto h-8 w-8 text-brand-muted/40" aria-hidden="true" /><p className="mt-2">Sin saldos registrados.</p></td></tr>
                 ) : filteredBalances.map((balance) => (
                   <tr key={balance.catalogItemId} className="border-t border-brand-line">
                     <td className="px-4 py-3 font-mono text-xs font-bold text-brand-ink">{balance.codigo ?? '—'}</td>

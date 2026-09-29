@@ -425,7 +425,7 @@ export const QuotationDetailModal = ({
       {/* Backdrop */}
       <button
         type="button"
-        className="fixed inset-0 bg-brand-scrim/60 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
         aria-label="Cerrar modal de detalle"
         onClick={onClose}
       />
@@ -515,7 +515,7 @@ export const QuotationDetailModal = ({
                     // una acción principal. Aplanarla al color de CTA le quitaría
                     // la distinción. El texto va en tinta porque blanco sobre
                     // `--gold` daba 1.9:1.
-                    <span className="shrink-0 rounded bg-brand-gold px-2.5 py-1 font-mono text-xs font-extrabold text-brand-ink shadow-2xs">
+                    <span className="shrink-0 rounded-lg border border-brand-line bg-brand-pale px-2.5 py-1 font-mono text-xs font-bold text-brand-primaryInk shadow-2xs">
                       {quotation.vehicle.patente}
                     </span>
                   ) : (
@@ -617,7 +617,7 @@ export const QuotationDetailModal = ({
                       onClick={() => setActiveCategory('parte')}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
                         activeCategory === 'parte'
-                          ? 'bg-brand-goldInk text-white shadow-2xs'
+                          ? 'bg-brand-primary text-white shadow-2xs'
                           : 'bg-white text-brand-muted hover:bg-brand-pale border border-brand-line'
                       }`}
                     >
@@ -634,7 +634,7 @@ export const QuotationDetailModal = ({
                     <button
                       type="button"
                       onClick={() => setShowAddSuggestedForm(!showAddSuggestedForm)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand-ink shadow-xs hover:bg-brand-goldHover transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-brand-pale text-brand-primary px-3 py-1.5 text-xs font-bold shadow-xs hover:bg-brand-primary hover:text-white transition-colors"
                     >
                       <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>Sugerir Repuesto / Servicio</span>
@@ -842,13 +842,13 @@ export const QuotationDetailModal = ({
                                     className={`inline-flex h-7 w-7 items-center justify-center rounded-lg border transition-all ${
                                       isDelivered
                                         ? 'border-brand-mintInk bg-brand-mintInk text-white shadow-2xs hover:bg-brand-mintInk'
-                                        : 'border-brand-line bg-white text-brand-line hover:border-brand-primary hover:text-brand-muted'
+                                        : 'border-brand-line bg-white text-brand-muted/40 hover:border-brand-primary hover:text-brand-primary'
                                     }`}
                                   >
                                     <Check className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />
                                   </button>
                                 ) : (
-                                  <span className="inline-flex h-6 w-6 items-center justify-center text-brand-line">
+                                  <span className="inline-flex h-6 w-6 items-center justify-center text-brand-muted/40">
                                     -
                                   </span>
                                 )}
@@ -871,7 +871,7 @@ export const QuotationDetailModal = ({
                                         Específico
                                       </span>
                                     ) : (
-                                      <span className="inline-flex items-center gap-1 rounded bg-brand-goldPale px-1.5 py-0.5 text-[10px] font-bold text-brand-goldInk ring-1 ring-inset ring-brand-line">
+                                      <span className="inline-flex items-center gap-1 rounded bg-cyan-50 px-1.5 py-0.5 text-[10px] font-bold text-cyan-700 ring-1 ring-inset ring-cyan-200">
                                         <Boxes className="h-2.5 w-2.5" />
                                         Repuesto
                                       </span>
@@ -899,8 +899,8 @@ export const QuotationDetailModal = ({
                               <td className="px-3.5 py-3">
                                 {isPendingApproval ? (
                                   <div className="flex flex-col gap-1.5">
-                                    <span className="inline-flex items-center gap-1 rounded bg-brand-goldPale px-2 py-0.5 font-bold text-brand-goldInk">
-                                      <Clock className="h-3 w-3 text-brand-goldInk" />
+                                    <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 font-bold text-amber-700 border border-amber-200">
+                                      <Clock className="h-3 w-3 text-amber-600" />
                                       Pendiente Aprobación Cliente
                                     </span>
                                     {canApprove && (
@@ -998,7 +998,7 @@ export const QuotationDetailModal = ({
                                     {/* Lock indicator for sales on service price */}
                                     {isService && !canEditPrice && (
                                       <span
-                                        className="text-brand-line"
+                                        className="text-brand-muted/50"
                                         title="Solo el Jefe de Taller puede ajustar precios de servicio"
                                       >
                                         <Lock className="h-3 w-3" />
@@ -1095,7 +1095,7 @@ export const QuotationDetailModal = ({
               <button
                 type="button"
                 onClick={() => setShowConversionModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-gold px-3 py-2 text-xs font-bold text-brand-ink shadow-xs hover:bg-brand-goldHover transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-primaryHover transition-colors"
               >
                 <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Convertir a OT</span>

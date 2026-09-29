@@ -115,7 +115,7 @@ export const VehicleDetailPage = ({
     <button
       type="button"
       onClick={onClose}
-      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-brand-muted transition-colors hover:bg-brand-pale hover:text-brand-primaryInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
       aria-label="Cerrar ficha"
       title="Cerrar ficha"
     >
@@ -124,7 +124,7 @@ export const VehicleDetailPage = ({
   ) : (
     <Link
       to="/vehicles"
-      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/70 hover:bg-white/10 hover:text-white"
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-brand-muted transition-colors hover:bg-brand-pale hover:text-brand-primaryInk"
       aria-label="Volver a vehículos"
       title="Volver a vehículos"
     >
@@ -195,26 +195,23 @@ export const VehicleDetailPage = ({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
-      {/* Migra a `surfaceDark` por coherencia con el resto de superficies
-          oscuras: la miga de pan usa `text-brand-line`, que sobre índigo
-          queda en 4.7:1, al limite, y sobre la superficie oscura sube a 12:1. */}
       <header className="shrink-0 border-b border-brand-line bg-brand-page text-brand-ink">
-        <div className="flex items-center justify-between gap-3 px-5 pt-3 sm:px-6">
-          <p className="text-xs font-medium text-brand-line">
+        <div className="flex items-center justify-between gap-3 px-5 pt-4 sm:px-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-muted">
             Parque vehicular / Ficha del vehículo
           </p>
           {closeControl}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 px-5 pb-5 pt-2 sm:px-6">
-          <div className="flex min-w-0 max-w-full items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-brand-goldInk">
+          <div className="flex min-w-0 max-w-full items-center gap-3.5">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-brand-line bg-brand-pale text-brand-primaryInk">
               <Car className="h-6 w-6" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <h1 className="break-all font-mono text-2xl font-bold leading-8">
+              <h1 className="break-all font-mono text-2xl font-bold leading-8 text-brand-ink">
                 {vehicle.patente}
               </h1>
-              <p className="mt-0.5 break-words text-sm text-brand-line">
+              <p className="mt-0.5 break-words text-sm text-brand-muted">
                 {displayName || 'Vehículo sin descripción técnica'}
               </p>
             </div>
@@ -224,7 +221,7 @@ export const VehicleDetailPage = ({
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 text-brand-line transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:border-brand-primary/40 hover:bg-brand-pale hover:text-brand-primaryInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
                 aria-label="Editar ficha"
                 title="Editar ficha"
               >
@@ -234,7 +231,7 @@ export const VehicleDetailPage = ({
             {canCreateWorkOrder && (
               <Link
                 to={`/work-orders/new?vehicleId=${vehicle.id}`}
-                className="inline-flex h-9 items-center gap-2 rounded-md bg-brand-gold px-3 text-xs font-bold text-brand-ink transition-colors hover:bg-brand-goldHover"
+                className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-primaryInk px-3.5 text-xs font-bold text-white transition-colors hover:bg-brand-primaryInkHover"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" /> Nueva OT
               </Link>
@@ -479,7 +476,7 @@ export const VehicleDetailPage = ({
               </div>
             ) : (
               <div className="flex flex-col items-center px-6 py-12 text-center">
-                <ClipboardList className="h-7 w-7 text-brand-line" aria-hidden="true" />
+                <ClipboardList className="h-8 w-8 text-brand-muted/40" aria-hidden="true" />
                 <p className="mt-3 text-sm text-brand-muted">
                   Este vehículo aún no registra órdenes de trabajo.
                 </p>
@@ -540,7 +537,7 @@ export const VehicleDetailPage = ({
               </div>
             ) : (
               <div className="flex flex-col items-center px-6 py-12 text-center">
-                <FileText className="h-7 w-7 text-brand-line" aria-hidden="true" />
+                <FileText className="h-8 w-8 text-brand-muted/40" aria-hidden="true" />
                 <p className="mt-3 text-sm text-brand-muted">
                   Este vehículo aún no registra cotizaciones.
                 </p>

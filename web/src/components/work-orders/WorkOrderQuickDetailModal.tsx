@@ -145,7 +145,7 @@ export const WorkOrderQuickDetailModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button type="button" className="absolute inset-0 bg-brand-scrim/60" aria-label="Cerrar detalle" onClick={onClose} />
+      <button type="button" className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity" aria-label="Cerrar detalle" onClick={onClose} />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -165,7 +165,7 @@ export const WorkOrderQuickDetailModal = ({
             event.preventDefault(); first?.focus();
           }
         }}
-        className="relative max-h-full w-full max-w-[850px] overflow-y-auto rounded-lg bg-white shadow-2xl outline-none"
+        className="relative max-h-full w-full max-w-[850px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl outline-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="work-order-quick-detail-title"
@@ -210,11 +210,11 @@ export const WorkOrderQuickDetailModal = ({
           )}
           {workOrder && canOperate && (
             <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Vista de la orden">
-              {([{ value: 'summary', label: 'Resumen' }, { value: 'execution', label: 'Avances' }, { value: 'requests', label: 'Solicitudes' }] as const).map((option) => (
+              {([{ value: 'summary', label: 'Resumen' }, { value: 'execution', label: 'Avances y Checklist' }, { value: 'requests', label: 'Solicitudes' }] as const).map((option) => (
                 <button key={option.value} type="button" aria-pressed={view === option.value} onClick={() => setView(option.value)}
-                  className={`inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold ${view === option.value ? 'bg-brand-primaryInk text-white' : 'bg-brand-pale text-brand-muted hover:bg-brand-line'}`}>
+                  className={`inline-flex min-h-9 items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${view === option.value ? 'bg-brand-primary text-white shadow-xs ring-2 ring-brand-primary/20' : 'bg-brand-pale/70 text-brand-muted hover:bg-brand-pale hover:text-brand-ink'}`}>
                   {option.label}
-                  {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span className="rounded bg-brand-primaryInk px-1.5 text-xs text-white">{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
+                  {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${view === option.value ? 'bg-white text-brand-primary' : 'bg-brand-primary text-white'}`}>{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
                 </button>
               ))}
             </div>
@@ -455,7 +455,7 @@ export const WorkOrderQuickDetailModal = ({
               <button
                 type="button"
                 onClick={() => onPreviewPdf(workOrder)}
-                className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-brand-line bg-white px-4 text-xs font-bold text-brand-ink transition hover:bg-brand-pale"
               >
                 <Download className="h-4 w-4" aria-hidden="true" />
                 Vista previa PDF
@@ -463,7 +463,7 @@ export const WorkOrderQuickDetailModal = ({
               <Link
                 to={`/work-orders/${workOrder.id}`}
                 onClick={onClose}
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand-primary px-4 text-xs font-bold text-white shadow-xs hover:bg-brand-primaryHover transition"
               >
                 Abrir detalle completo
                 <ArrowUpRight className="h-4 w-4" aria-hidden="true" />

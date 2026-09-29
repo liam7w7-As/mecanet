@@ -44,6 +44,7 @@ import WorkOrderMechanicPanel from '../../components/work-orders/WorkOrderMechan
 import WorkOrderReceptionInspectionModal from '../../components/work-orders/WorkOrderReceptionInspectionModal';
 import WorkOrderReentryModal from '../../components/work-orders/WorkOrderReentryModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
+import RevertStatusModal from '../../components/work-orders/RevertStatusModal';
 import {
   useChangeWorkOrderStatusMutation,
   useDeleteWorkOrderInspectionPhotoMutation,
@@ -140,6 +141,22 @@ const photoSlotLabels: Record<WorkOrderInspectionPhotoSlot, string> = {
 const getContactLine = (value: string | null | undefined, fallback = 'Sin registrar'): string =>
   value && value.trim().length > 0 ? value : fallback;
 
+const DETAIL_STATUS_ORDER: WorkOrderStatus[] = [
+  'borrador',
+  'en_progreso',
+  'esperando_repuesto',
+  'finalizada',
+  'entregada',
+];
+
+const isStatusRegressionDetail = (from: WorkOrderStatus, to: WorkOrderStatus): boolean => {
+  const fi = DETAIL_STATUS_ORDER.indexOf(from);
+  const ti = DETAIL_STATUS_ORDER.indexOf(to);
+  return fi > ti && fi !== -1 && ti !== -1;
+};
+
+
+
 export const WorkOrderDetailPage = () => {
   const { id } = useParams();
   const workOrderId = Number(id);
@@ -159,6 +176,7 @@ export const WorkOrderDetailPage = () => {
   const user = useAuthStore((state) => state.user);
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
   const canManage = Boolean(canUpdate && user?.role !== 'mecanico');
+  const isAdmin = Boolean(user && ['desarrollador', 'admin'].includes(user.role));
   const canCreate = Boolean(user && hasUserPermission(user, 'taller', 'create'));
   const workOrder = workOrderQuery.data;
   const validTransitions = useMemo(
@@ -182,6 +200,8 @@ export const WorkOrderDetailPage = () => {
     [workOrder?.inspection?.photos],
   );
 
+  const [pendingRevert, setPendingRevert] = useState<{ fromStatus: WorkOrderStatus; toStatus: WorkOrderStatus } | null>(null);
+
   const changeStatus = (nextStatus: WorkOrderStatus): void => {
     statusMutation.reset();
     if (nextStatus === 'cancelada') {
@@ -190,6 +210,12 @@ export const WorkOrderDetailPage = () => {
     }
     if (nextStatus === 'entregada') {
       setShowDeliveryModal(true);
+      return;
+    }
+    // Backward transitions require admin role + mandatory justification
+    if (workOrder && isStatusRegressionDetail(workOrder.estado, nextStatus)) {
+      if (!isAdmin) return; // Non-admins cannot revert
+      setPendingRevert({ fromStatus: workOrder.estado, toStatus: nextStatus });
       return;
     }
     statusMutation.mutate(
@@ -565,7 +591,25 @@ export const WorkOrderDetailPage = () => {
       </section>
 
       {showCancelModal && <CancelStatusModal codigo={workOrder.codigo} isPending={statusMutation.isPending} errorMessage={statusMutation.isError ? getApiErrorMessage(statusMutation.error) : null} onClose={() => setShowCancelModal(false)} onConfirm={(motivo) => statusMutation.mutate({ id: workOrder.id, data: { nuevoEstado: 'cancelada', motivo } }, { onSuccess: () => setShowCancelModal(false) })} />}
+      {pendingRevert && (
+        <RevertStatusModal
+          codigo={workOrder.codigo}
+          fromStatus={pendingRevert.fromStatus}
+          toStatus={pendingRevert.toStatus}
+          isPending={statusMutation.isPending}
+          errorMessage={statusMutation.isError ? getApiErrorMessage(statusMutation.error) : null}
+          onClose={() => { setPendingRevert(null); statusMutation.reset(); }}
+          onConfirm={(motivo) => statusMutation.mutate(
+            { id: workOrder.id, data: { nuevoEstado: pendingRevert.toStatus, motivo } },
+            {
+              onSuccess: () => { setPendingRevert(null); notifySuccess('Estado de la orden revertido.'); },
+              onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo revertir el estado.')),
+            },
+          )}
+        />
+      )}
       {showReceptionModal && <WorkOrderReceptionInspectionModal workOrder={workOrder} onClose={() => setShowReceptionModal(false)} />}
+
       {showItemsModal && <WorkOrderItemsModal workOrder={workOrder} onClose={() => setShowItemsModal(false)} />}
       {showDeliveryModal && <WorkOrderDeliveryModal workOrder={workOrder} onClose={() => setShowDeliveryModal(false)} />}
       {showDeliveryReceipt && <WorkOrderDeliveryReceiptModal workOrder={workOrder} onClose={() => setShowDeliveryReceipt(false)} />}

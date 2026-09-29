@@ -209,8 +209,14 @@ export const WorkOrderReceptionInspectionModal = ({
 
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
-      <section className="relative mx-auto w-full max-w-[720px] rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="edit-reception-title">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
+      <button
+        type="button"
+        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
+        aria-label="Cerrar recepción e inspección"
+        onClick={onClose}
+      />
+      <section className="relative max-h-[92vh] w-full max-w-[720px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="edit-reception-title">
         <ModalHeader
   id="edit-reception-title"
   title={"Editar recepción e inspección"}

@@ -40,43 +40,69 @@ export const CancelStatusModal = ({
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button type="button" className="absolute inset-0 bg-brand-scrim/55" aria-label="Cerrar cancelación" onClick={onClose} />
+      <button
+        type="button"
+        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
+        aria-label="Cerrar cancelación"
+        onClick={onClose}
+      />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative w-full max-w-[520px] rounded-lg bg-white p-6 shadow-2xl"
-        role="dialog" ref={setPanelNode}
+        className="relative w-full max-w-[520px] overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
+        role="dialog"
+        ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="cancel-work-order-title"
       >
         <ModalHeader
-  id="cancel-work-order-title"
-  badge={<AlertTriangle className="h-6 w-6" aria-hidden="true" />}
-  tone="warning"
-  title={`Cancelar ${codigo}`}
-  description="Esta orden quedará en un estado terminal. El motivo se incorporará al registro operativo."
-  onClose={onClose}
-  closeLabel="Cerrar"
-/>
-        <label className="mt-5 block text-sm font-semibold text-brand-ink" htmlFor="cancellation-reason">Motivo de cancelación</label>
-        <textarea
-          id="cancellation-reason"
-          value={motivo}
-          onChange={(event) => setMotivo(event.target.value)}
-          rows={4}
-          maxLength={500}
-          className="mt-2 w-full resize-none rounded-lg border border-brand-line px-3 py-2 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-          placeholder="Ej. Cliente desistió del trabajo solicitado"
-          autoFocus
+          id="cancel-work-order-title"
+          badge={<AlertTriangle className="h-6 w-6 stroke-[2.5]" aria-hidden="true" />}
+          tone="warning"
+          title={`Cancelar ${codigo}`}
+          description="Esta orden quedará en un estado terminal. El motivo se incorporará al registro operativo."
+          onClose={onClose}
+          closeLabel="Cerrar"
         />
-        {(validationError || errorMessage) && <p className="mt-2 text-sm text-brand-coralInk" role="alert">{validationError ?? errorMessage}</p>}
-        <div className="mt-6 flex justify-end gap-2">
-          <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale" onClick={onClose} disabled={isPending}>Volver</button>
-          <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white hover:bg-brand-coralInk disabled:opacity-60" onClick={submit} disabled={isPending}>
-            {isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
-            Confirmar cancelación
-          </button>
+        <div className="px-7 pb-7 pt-2">
+          <label className="block text-sm font-semibold text-brand-ink" htmlFor="cancellation-reason">
+            Motivo de cancelación
+          </label>
+          <textarea
+            id="cancellation-reason"
+            value={motivo}
+            onChange={(event) => setMotivo(event.target.value)}
+            rows={4}
+            maxLength={500}
+            className="form-control mt-2 resize-none"
+            placeholder="Ej. Cliente desistió del trabajo solicitado"
+            autoFocus
+          />
+          {(validationError || errorMessage) && (
+            <p className="mt-2 text-sm text-brand-coralInk" role="alert">
+              {validationError ?? errorMessage}
+            </p>
+          )}
+          <div className="dialog-buttons mt-6">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={onClose}
+              disabled={isPending}
+            >
+              Volver
+            </button>
+            <button
+              type="button"
+              className="danger-button"
+              onClick={submit}
+              disabled={isPending}
+            >
+              {isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              Confirmar cancelación
+            </button>
+          </div>
         </div>
       </motion.section>
     </div>

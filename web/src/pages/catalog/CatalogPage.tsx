@@ -325,7 +325,7 @@ export const CatalogPage = () => {
                     {canEdit && (
                       <button
                         type="button"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-goldPale hover:text-brand-goldInk"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primary"
                         onClick={() => setFormItem(item)}
                         aria-label={`Editar ${item.nombre}`}
                         title="Editar"
@@ -367,7 +367,7 @@ export const CatalogPage = () => {
 
         {!catalogQuery.isPending && catalogQuery.data?.items.length === 0 && (
           <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center">
-            <PackageOpen className="h-10 w-10 text-brand-line" aria-hidden="true" />
+            <PackageOpen className="h-10 w-10 text-brand-muted/40" aria-hidden="true" />
             <p className="mt-3 font-semibold text-brand-ink">No se encontraron items</p>
             <p className="mt-1 text-sm text-brand-muted">
               Cambie los filtros o registre un nuevo elemento.
@@ -407,25 +407,32 @@ export const CatalogPage = () => {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
           <button
             type="button"
-            className="absolute inset-0 bg-brand-scrim/60"
+            className="absolute inset-0 bg-brand-scrim/55 backdrop-blur-sm transition-opacity"
             aria-label="Cancelar eliminación"
             onClick={() => setDeleteItem(null)}
           />
           <section
-            className="relative w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl"
+            className="relative w-full max-w-md overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-catalog-title"
           >
-            <div className="bg-brand-primaryInk px-6 py-5 text-white">
-              <h2 id="delete-catalog-title" className="text-lg font-bold">
-                Eliminar item
-              </h2>
-              <p className="mt-1 text-sm text-white/70">
-                {deleteItem.codigo ?? 'Sin código'} · {deleteItem.nombre}
-              </p>
+            <div className="px-6 pt-6 pb-2">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-coralPale text-brand-coralInk">
+                  <Trash2 className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h2 id="delete-catalog-title" className="text-lg font-bold text-brand-ink">
+                    Eliminar item
+                  </h2>
+                  <p className="mt-0.5 truncate font-mono text-xs text-brand-muted">
+                    {deleteItem.codigo ?? 'Sin código'} · {deleteItem.nombre}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="p-6">
+            <div className="px-6 pb-6 pt-3">
               <p className="text-sm leading-6 text-brand-muted">
                 Dejará de estar disponible para nuevas órdenes y cotizaciones. El historial
                 existente se conservará.
@@ -438,14 +445,14 @@ export const CatalogPage = () => {
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   type="button"
-                  className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink"
+                  className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale transition-colors"
                   onClick={() => setDeleteItem(null)}
                 >
                   Cancelar
                 </button>
                 <button
                   type="button"
-                  className="h-10 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white hover:bg-brand-coralInk disabled:opacity-60"
+                  className="h-10 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white hover:bg-brand-coralInk/90 transition-colors disabled:opacity-60"
                   onClick={confirmDelete}
                   disabled={deleteMutation.isPending}
                 >

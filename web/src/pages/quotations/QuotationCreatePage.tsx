@@ -1,11 +1,10 @@
 import { createQuotationSchema } from '@unithor/shared';
 import { AlertCircle, ArrowLeft, Car, ClipboardList, LoaderCircle, Save, UserRound } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
 
 import { AnimateIcon } from '../../components/animate-ui';
-
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';

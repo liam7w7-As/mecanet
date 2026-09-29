@@ -3,6 +3,7 @@ import { LoaderCircle, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useCreateWorkOrderReentryMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
@@ -11,7 +12,6 @@ import ModalHeader from '../common/ModalHeader';
 
 import type { WorkOrder } from '../../types/entities';
 import type { WorkOrderEntryType } from '@unithor/shared';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 
 
 

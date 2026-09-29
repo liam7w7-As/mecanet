@@ -8,6 +8,7 @@ import { AlertCircle, LoaderCircle, Save, Search, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { useClients } from '../../hooks/useClients';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useUpdateWorkOrderMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
@@ -15,7 +16,6 @@ import ModalHeader from '../common/ModalHeader';
 
 import type { Client, WorkOrder } from '../../types/entities';
 import type { FuelLevel, TireCondition, VehicleInventoryItem } from '@unithor/shared';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 
 
 

@@ -6,6 +6,7 @@ import {
   useCreateCatalogItemMutation,
   useUpdateCatalogItemMutation,
 } from '../../hooks/useCatalog';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { getApiErrorMessage, isApiConflict } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp } from '../../lib/formatters';
@@ -14,7 +15,6 @@ import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem } from '../../types/entities';
 import type { CatalogType } from '@unithor/shared';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 
 
 

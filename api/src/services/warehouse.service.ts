@@ -26,8 +26,8 @@ import type {
   WarehouseRequestQueryInput,
   WarehouseQueryInput,
 } from '@unithor/shared';
-import type { InferAttributes, WhereOptions } from 'sequelize';
 import type { WorkOrderRequestStatus } from '@unithor/shared';
+import type { InferAttributes, WhereOptions } from 'sequelize';
 
 type WarehouseWhere = WhereOptions<InferAttributes<Warehouse>> & {
   [Op.or]?: WhereOptions<InferAttributes<Warehouse>>[];

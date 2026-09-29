@@ -5,13 +5,12 @@ import {
   LogOut,
   UserRound,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-
 import { AnimatePresence, motion } from 'motion/react';
-import { AnimateIcon } from '../animate-ui/animate-icon';
+import { useEffect, useRef, useState } from 'react';
 
 import { useLogoutMutation } from '../../hooks/useAuth';
 import { useAuthStore } from '../../stores/auth.store';
+import { AnimateIcon } from '../animate-ui/animate-icon';
 import UserProfileModal, { getInitials, getRoleLabel } from '../auth/UserProfileModal';
 
 export const UserMenu = () => {

@@ -1,9 +1,9 @@
 import { Camera, ImagePlus, LoaderCircle } from 'lucide-react';
 
-import { ProgressBar } from '../common/LoadingIndicator';
 import { INSPECTION_PHOTO_ACCEPT, MAX_INSPECTION_PHOTO_MB } from '../../lib/inspection-photos';
-import { notifyError } from '../../stores/toast.store';
 import { validateInspectionFile } from '../../lib/inspection-photos';
+import { notifyError } from '../../stores/toast.store';
+import { ProgressBar } from '../common/LoadingIndicator';
 
 interface PhotoSlotInputProps {
   slotLabel: string;

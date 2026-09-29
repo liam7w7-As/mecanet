@@ -10,6 +10,7 @@ import {
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import {
   useCreateStockMovementMutation,
   useWarehouseBalances,
@@ -21,7 +22,6 @@ import { AnimateIcon } from '../animate-ui';
 import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem } from '../../types/entities';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 
 
 

@@ -51,5 +51,14 @@ module.exports = {
       },
     },
   ],
-  ignorePatterns: ['dist', 'node_modules', '*.min.js', 'coverage'],
+  ignorePatterns: [
+    'dist',
+    'node_modules',
+    '*.min.js',
+    'coverage',
+    // No es codigo: es la plantilla que `build.cjs` rellena con los marcadores
+    // {{tableAssets}} y {{tableData}} antes de emitirla. ESLint la leia como
+    // JavaScript y se quejaba de una linea 3 que jamas se ejecuta tal cual.
+    'web/designs/work/views.js',
+  ],
 };

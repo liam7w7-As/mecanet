@@ -15,13 +15,13 @@ import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useCatalogItemInventory, useStockMovements } from '../../hooks/useWarehouses';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { AnimateIcon } from '../animate-ui';
 import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem, StockMovement } from '../../types/entities';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 
 
 

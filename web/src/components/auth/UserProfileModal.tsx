@@ -1,6 +1,7 @@
 import { AtSign, Mail, ShieldCheck, UserRound } from 'lucide-react';
-import { useEffect } from 'react';
 
+
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import {
   ACTION_LABELS,
   getRoleLabel,
@@ -10,7 +11,6 @@ import {
 import ModalHeader from '../common/ModalHeader';
 
 import type { UserPublic } from '../../stores/auth.store';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 
 
 

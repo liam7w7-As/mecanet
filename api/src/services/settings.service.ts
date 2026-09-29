@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { env } from '../config/env.js';
 import { sequelize } from '../config/database.js';
+import { env } from '../config/env.js';
 import { CompanySettings } from '../models/CompanySettings.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';

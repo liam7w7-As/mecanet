@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Application } from 'express';
@@ -9,11 +10,11 @@ import helmet from 'helmet';
 
 import { sequelize } from './config/database.js';
 import { env } from './config/env.js';
+import { ensureDatabaseBootstrapped } from './database/bootstrap.js';
 import { csrfProtection } from './middlewares/csrf-protection.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
 import { requestIdMiddleware } from './middlewares/request-id.js';
-import { ensureDatabaseBootstrapped } from './database/bootstrap.js';
 import { apiRouter } from './routes/index.js';
 import { logger } from './utils/logger.js';
 

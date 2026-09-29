@@ -1,8 +1,8 @@
 import { motion } from 'motion/react';
 import React, { useState } from 'react';
 
-import type { ReactNode } from 'react';
 import type { TargetAndTransition, Variants } from 'motion/react';
+import type { ReactNode } from 'react';
 
 export type AnimateIconVariant =
   | 'wiggle'

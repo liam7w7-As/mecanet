@@ -1,8 +1,8 @@
 import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import ToastViewport from '../Toast';
 import { notifyError, notifySuccess, useToastStore } from '../../../stores/toast.store';
+import ToastViewport from '../Toast';
 
 describe('ToastViewport', () => {
   it('muestra notificaciones de éxito y error', () => {

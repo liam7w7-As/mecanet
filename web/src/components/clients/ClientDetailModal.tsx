@@ -21,6 +21,7 @@ import { Link } from 'react-router-dom';
 
 import ClientFormModal from './ClientFormModal';
 import { useClient, useDeleteClientMutation } from '../../hooks/useClients';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useQuotations } from '../../hooks/useQuotations';
 import { useWorkOrders } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -31,7 +32,6 @@ import Pagination from '../common/Pagination';
 import QuotationStatusBadge from '../quotations/QuotationStatusBadge';
 import VehicleFormModal from '../vehicles/VehicleFormModal';
 import WorkOrderStatusBadge from '../work-orders/WorkOrderStatusBadge';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 
 
 interface ClientDetailModalProps {

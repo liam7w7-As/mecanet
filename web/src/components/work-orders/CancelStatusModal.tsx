@@ -2,9 +2,9 @@ import { AlertTriangle, LoaderCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { AnimateIcon } from '../animate-ui';
-import ModalHeader from '../common/ModalHeader';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
+
+import ModalHeader from '../common/ModalHeader';
 
 
 

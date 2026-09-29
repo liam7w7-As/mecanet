@@ -3,6 +3,7 @@ import { AlertCircle, LoaderCircle, Save } from 'lucide-react';
 import { useState } from 'react';
 
 import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from './WorkOrderItemsEditor';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useUpdateWorkOrderMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
@@ -10,7 +11,6 @@ import ModalHeader from '../common/ModalHeader';
 
 import type { EditableWorkOrderItem } from './WorkOrderItemsEditor';
 import type { WorkOrder } from '../../types/entities';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 
 
 

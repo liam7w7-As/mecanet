@@ -32,6 +32,8 @@ import Pagination from '../common/Pagination';
 import QuotationStatusBadge from '../quotations/QuotationStatusBadge';
 import VehicleFormModal from '../vehicles/VehicleFormModal';
 import WorkOrderStatusBadge from '../work-orders/WorkOrderStatusBadge';
+import ModalHeader from '../common/ModalHeader';
+
 
 
 interface ClientDetailModalProps {
@@ -70,7 +72,7 @@ export const ClientDetailModal = ({
   onClose,
 }: ClientDetailModalProps) => {
   const tabId = useId();
-  const dialogRef = useRef<HTMLElement>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
   const clientQuery = useClient(clientId, true);
   const deleteMutation = useDeleteClientMutation();
   const [isConfirmingDelete, setConfirmingDelete] = useState(false);
@@ -182,11 +184,14 @@ export const ClientDetailModal = ({
           tabIndex={-1}
         />
         <motion.section
-          ref={dialogRef}
+          ref={(node) => {
+            dialogRef.current = node;
+            setPanelNode(node);
+          }}
           initial={{ opacity: 0, scale: 0.97, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-          className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white ref={setPanelNode} shadow-2xl outline-none sm:max-h-[calc(100dvh-2.5rem)]"
+          className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl outline-none sm:max-h-[calc(100dvh-2.5rem)]"
           role="dialog"
           aria-modal="true"
           aria-label="Ficha del cliente"
@@ -194,63 +199,23 @@ export const ClientDetailModal = ({
         >
           {/* Migra a `surfaceDark` por coherencia con el resto de superficies
             oscuras; la miga de pan queda en 12:1 en vez de 4.7:1. */}
-        <header className="shrink-0 bg-brand-surfaceDark text-white">
-            <div className="flex items-center justify-between gap-3 px-5 pt-3 sm:px-6">
-              <p className="text-xs font-medium text-brand-line">Clientes / Ficha del cliente</p>
-              <button
-                type="button"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-50"
-                onClick={onClose}
-                disabled={deleteMutation.isPending}
-                aria-label="Cerrar ficha"
-                title="Cerrar ficha"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="flex flex-col items-start justify-between gap-4 px-5 pb-5 pt-2 sm:flex-row sm:items-center sm:px-6">
-              <div className="flex w-full min-w-0 flex-1 items-start gap-3 sm:w-auto">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-brand-goldInk">
-                  <ClientIcon className="h-5 w-5" aria-hidden="true" />
+                  <ModalHeader
+            id="client-detail-title"
+            badge={<ClientIcon className="h-6 w-6" aria-hidden="true" />}
+            tone="gold"
+            eyebrow="Clientes / Ficha del cliente"
+            title={client?.nombre ?? 'Cargando cliente...'}
+            description={
+              client ? (
+                <span className="break-words">
+                  {client.tipo === 'empresa' ? 'Empresa' : 'Persona natural'} ·{' '}
+                  {client.rut ?? 'Sin identificación'}
                 </span>
-                <div className="min-w-0">
-                  <h2 className="break-words text-lg font-semibold leading-6">
-                    {client?.nombre ?? 'Cargando cliente...'}
-                  </h2>
-                  {client && (
-                    <p className="mt-1 break-words text-xs text-brand-line">
-                      {client.tipo === 'empresa' ? 'Empresa' : 'Persona natural'} ·{' '}
-                      {client.rut ?? 'Sin identificación'}
-                    </p>
-                  )}
-                </div>
-              </div>
-              {client && (
-                <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-                  {canEdit && (
-                    <button
-                      type="button"
-                      className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 text-brand-line hover:bg-white/10"
-                      onClick={() => setIsEditing(true)}
-                      aria-label="Editar cliente"
-                      title="Editar cliente"
-                    >
-                      <Pencil className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  )}
-                  {canCreateOrder && (
-                    <Link
-                      to={`/work-orders/new?clientId=${clientId}`}
-                      className="inline-flex h-9 items-center gap-2 rounded-md bg-brand-gold px-3 text-xs font-bold text-brand-ink hover:bg-brand-goldHover"
-                    >
-                      <Plus className="h-4 w-4" aria-hidden="true" />
-                      Nueva OT
-                    </Link>
-                  )}
-                </div>
-              )}
-            </div>
-          </header>
+              ) : undefined
+            }
+            onClose={onClose}
+            closeLabel="Cerrar ficha"
+          />
 
           {clientQuery.isPending && (
             <div className="flex h-80 items-center justify-center text-brand-primaryInk" role="status">
@@ -554,6 +519,26 @@ export const ClientDetailModal = ({
 
           {client && (
             <footer className="shrink-0 border-t border-brand-line bg-brand-line/40 px-5 py-3 sm:px-6">
+            {canEdit && (
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-line px-3 text-sm font-semibold text-brand-ink transition hover:border-brand-primary/40 hover:text-brand-primaryInk"
+                onClick={() => setIsEditing(true)}
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+                Editar
+              </button>
+            )}
+            {canCreateOrder && (
+              <Link
+                to={`/work-orders/new?clientId=${clientId}`}
+                className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-gold px-3 text-sm font-bold text-brand-ink transition hover:bg-brand-goldHover"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Nueva OT
+              </Link>
+            )}
+
               {deleteMutation.isError && (
                 <p className="mb-3 text-sm text-brand-coralInk" role="alert">
                   {getApiErrorMessage(deleteMutation.error)}

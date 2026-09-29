@@ -102,7 +102,7 @@ export const CatalogItemDetailModal = ({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6">
       <button
         type="button"
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-brand-scrim/60 backdrop-blur-[1px]"
         aria-label="Cerrar detalle de catálogo"
         onClick={onClose}
       />
@@ -115,9 +115,11 @@ export const CatalogItemDetailModal = ({
         aria-modal="true"
         aria-labelledby="catalog-detail-title"
       >
-        <header className="bg-brand-blue px-5 py-5 text-white sm:px-6">
+        {/* Cabecera sobre `surfaceDark`: el subtítulo usa `text-white/65` y el
+            código `text-white/70`, que sobre `#255DFF` dan 3.05:1 y 3.3:1. */}
+        <header className="bg-brand-surfaceDark px-5 py-5 text-white sm:px-6">
           <div className="flex items-start gap-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-yellow text-brand-dark">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-gold text-brand-ink">
               <TypeIcon className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0 flex-1">
@@ -145,7 +147,7 @@ export const CatalogItemDetailModal = ({
         </header>
 
         <nav
-          className={`grid gap-1 border-b border-slate-200 px-3 pt-2 sm:px-6 ${isPart ? 'grid-cols-3' : 'grid-cols-1'}`}
+          className={`grid gap-1 border-b border-brand-line px-3 pt-2 sm:px-6 ${isPart ? 'grid-cols-3' : 'grid-cols-1'}`}
           aria-label="Secciones del item"
         >
           {tabs.map((tab) => {
@@ -157,8 +159,8 @@ export const CatalogItemDetailModal = ({
                 type="button"
                 className={`inline-flex h-10 min-w-0 items-center justify-center gap-1.5 border-b-2 px-1 text-xs font-semibold sm:gap-2 sm:px-3 sm:text-sm ${
                   selected
-                    ? 'border-brand-yellow text-brand-blue'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-brand-gold text-brand-primaryInk'
+                    : 'border-transparent text-brand-muted hover:text-brand-ink'
                 }`}
                 aria-pressed={selected}
                 onClick={() => setActiveTab(tab.id)}
@@ -174,48 +176,48 @@ export const CatalogItemDetailModal = ({
           {activeTab === 'summary' && (
             <div className="space-y-5">
               <div className={`grid gap-3 ${isPart ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-500">Precio vigente</p>
-                  <p className="mt-2 text-2xl font-bold text-brand-blue">
+                <div className="rounded-lg border border-brand-line bg-brand-line/40 p-4">
+                  <p className="text-xs font-semibold uppercase text-brand-muted">Precio vigente</p>
+                  <p className="mt-2 text-2xl font-bold text-brand-primaryInk">
                     {formatClp(item.precio)}
                   </p>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-500">Unidad de cobro</p>
-                  <p className="mt-2 text-lg font-bold capitalize text-slate-800">
+                <div className="rounded-lg border border-brand-line bg-brand-line/40 p-4">
+                  <p className="text-xs font-semibold uppercase text-brand-muted">Unidad de cobro</p>
+                  <p className="mt-2 text-lg font-bold capitalize text-brand-ink">
                     {item.unidadMedida}
                   </p>
                 </div>
                 {isPart && (
                   <div
-                    className={`rounded-lg border p-4 ${item.stock <= item.stockMinimo ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}
+                    className={`rounded-lg border p-4 ${item.stock <= item.stockMinimo ? 'border-brand-line bg-brand-goldPale' : 'border-brand-line bg-brand-mintPale'}`}
                   >
-                    <p className="text-xs font-semibold uppercase text-slate-500">Stock global</p>
+                    <p className="text-xs font-semibold uppercase text-brand-muted">Stock global</p>
                     <p
-                      className={`mt-2 text-2xl font-bold ${item.stock <= item.stockMinimo ? 'text-amber-800' : 'text-emerald-700'}`}
+                      className={`mt-2 text-2xl font-bold ${item.stock <= item.stockMinimo ? 'text-brand-goldInk' : 'text-brand-mintInk'}`}
                     >
                       {item.stock} <span className="text-sm font-semibold">uds.</span>
                     </p>
-                    <p className="mt-1 text-xs text-slate-600">
+                    <p className="mt-1 text-xs text-brand-muted">
                       Mínimo configurado: {item.stockMinimo}
                     </p>
                   </div>
                 )}
               </div>
               <div>
-                <h3 className="text-sm font-bold text-brand-blue">Descripción</h3>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                <h3 className="text-sm font-bold text-brand-primaryInk">Descripción</h3>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-muted">
                   {item.descripcion || 'Este item no tiene una descripción registrada.'}
                 </p>
               </div>
-              <div className="grid gap-3 border-t border-slate-200 pt-4 text-sm sm:grid-cols-2">
+              <div className="grid gap-3 border-t border-brand-line pt-4 text-sm sm:grid-cols-2">
                 <p>
-                  <span className="text-slate-500">Creado:</span>{' '}
-                  <strong className="text-slate-700">{formatDateTime(item.createdAt)}</strong>
+                  <span className="text-brand-muted">Creado:</span>{' '}
+                  <strong className="text-brand-ink">{formatDateTime(item.createdAt)}</strong>
                 </p>
                 <p>
-                  <span className="text-slate-500">Última edición:</span>{' '}
-                  <strong className="text-slate-700">{formatDateTime(item.updatedAt)}</strong>
+                  <span className="text-brand-muted">Última edición:</span>{' '}
+                  <strong className="text-brand-ink">{formatDateTime(item.updatedAt)}</strong>
                 </p>
               </div>
             </div>
@@ -224,21 +226,21 @@ export const CatalogItemDetailModal = ({
           {activeTab === 'inventory' && (
             <div className="space-y-4">
               {!canViewInventory ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-5 text-center">
-                  <Warehouse className="mx-auto h-8 w-8 text-slate-300" aria-hidden="true" />
-                  <p className="mt-2 font-semibold text-slate-700">Existencias protegidas</p>
-                  <p className="mt-1 text-sm text-slate-500">
+                <div className="rounded-lg border border-brand-line bg-brand-line/40 p-5 text-center">
+                  <Warehouse className="mx-auto h-8 w-8 text-brand-line" aria-hidden="true" />
+                  <p className="mt-2 font-semibold text-brand-ink">Existencias protegidas</p>
+                  <p className="mt-1 text-sm text-brand-muted">
                     Su rol puede consultar el catálogo, pero no el detalle por almacén.
                   </p>
                 </div>
               ) : inventoryQuery.isPending ? (
                 <div className="space-y-2">
                   {Array.from({ length: 3 }, (_, index) => (
-                    <div key={index} className="h-16 animate-pulse rounded-lg bg-slate-100" />
+                    <div key={index} className="h-16 animate-pulse rounded-lg bg-brand-pale" />
                   ))}
                 </div>
               ) : inventoryQuery.isError ? (
-                <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                <p className="rounded-lg border border-brand-coral/30 bg-brand-coralPale p-4 text-sm text-brand-coralInk">
                   No se pudo cargar la distribución del stock.
                 </p>
               ) : (
@@ -248,22 +250,22 @@ export const CatalogItemDetailModal = ({
                     return (
                       <div
                         key={warehouse.id}
-                        className="flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-3"
+                        className="flex items-center gap-3 rounded-lg border border-brand-line px-4 py-3"
                       >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand-blue">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-line/40 text-brand-primaryInk">
                           <Warehouse className="h-4 w-4" aria-hidden="true" />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-bold text-slate-800">
+                          <span className="block truncate text-sm font-bold text-brand-ink">
                             {warehouse.nombre}
                           </span>
-                          <span className="block font-mono text-xs text-slate-500">
+                          <span className="block font-mono text-xs text-brand-muted">
                             {warehouse.codigo}
                             {warehouse.direccion ? ` · ${warehouse.direccion}` : ''}
                           </span>
                         </span>
                         <span
-                          className={`rounded-md px-2.5 py-1 text-sm font-bold ${quantity > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}
+                          className={`rounded-md px-2.5 py-1 text-sm font-bold ${quantity > 0 ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-coralPale text-brand-coralInk'}`}
                         >
                           {quantity} uds.
                         </span>
@@ -271,7 +273,7 @@ export const CatalogItemDetailModal = ({
                     );
                   })}
                   {(inventoryQuery.data?.length ?? 0) === 0 && (
-                    <p className="py-8 text-center text-sm text-slate-500">
+                    <p className="py-8 text-center text-sm text-brand-muted">
                       No hay almacenes registrados.
                     </p>
                   )}
@@ -283,28 +285,28 @@ export const CatalogItemDetailModal = ({
           {activeTab === 'movements' && (
             <div>
               {!canViewInventory ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-5 text-center">
-                  <History className="mx-auto h-8 w-8 text-slate-300" aria-hidden="true" />
-                  <p className="mt-2 font-semibold text-slate-700">Kardex protegido</p>
-                  <p className="mt-1 text-sm text-slate-500">
+                <div className="rounded-lg border border-brand-line bg-brand-line/40 p-5 text-center">
+                  <History className="mx-auto h-8 w-8 text-brand-line" aria-hidden="true" />
+                  <p className="mt-2 font-semibold text-brand-ink">Kardex protegido</p>
+                  <p className="mt-1 text-sm text-brand-muted">
                     No tiene permiso para consultar movimientos de almacén.
                   </p>
                 </div>
               ) : movementsQuery.isPending ? (
                 <div className="space-y-2">
                   {Array.from({ length: 4 }, (_, index) => (
-                    <div key={index} className="h-14 animate-pulse rounded-lg bg-slate-100" />
+                    <div key={index} className="h-14 animate-pulse rounded-lg bg-brand-pale" />
                   ))}
                 </div>
               ) : (movementsQuery.data?.items.length ?? 0) === 0 ? (
                 <div className="py-10 text-center">
-                  <History className="mx-auto h-9 w-9 text-slate-300" aria-hidden="true" />
-                  <p className="mt-2 text-sm text-slate-500">
+                  <History className="mx-auto h-9 w-9 text-brand-line" aria-hidden="true" />
+                  <p className="mt-2 text-sm text-brand-muted">
                     Aún no hay movimientos para este repuesto.
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-brand-line">
                   {movementsQuery.data?.items.map((movement) => {
                     const outgoing = isOutgoingMovement(movement);
                     return (
@@ -314,7 +316,7 @@ export const CatalogItemDetailModal = ({
                       >
                         <div className="flex min-w-0 items-start gap-3">
                           <span
-                            className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${outgoing ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}
+                            className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${outgoing ? 'bg-brand-coralPale text-brand-coralInk' : 'bg-brand-mintPale text-brand-mintInk'}`}
                           >
                             {outgoing ? (
                               <ArrowUpFromLine className="h-4 w-4" aria-hidden="true" />
@@ -323,20 +325,20 @@ export const CatalogItemDetailModal = ({
                             )}
                           </span>
                           <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-slate-800">
+                            <span className="block text-sm font-semibold text-brand-ink">
                               {MOVEMENT_LABELS[movement.tipo]} · {movement.motivo}
                             </span>
-                            <span className="block truncate text-xs text-slate-500">
+                            <span className="block truncate text-xs text-brand-muted">
                               {movement.warehouseCodigo} · {formatDateTime(movement.fecha)}
                             </span>
                           </span>
                         </div>
-                        <span className="text-xs text-slate-500 sm:text-right">
+                        <span className="text-xs text-brand-muted sm:text-right">
                           Saldo resultante:{' '}
-                          <strong className="text-slate-700">{movement.saldoResultante}</strong>
+                          <strong className="text-brand-ink">{movement.saldoResultante}</strong>
                         </span>
                         <span
-                          className={`text-right text-sm font-bold ${outgoing ? 'text-red-700' : 'text-emerald-700'}`}
+                          className={`text-right text-sm font-bold ${outgoing ? 'text-brand-coralInk' : 'text-brand-mintInk'}`}
                         >
                           {outgoing ? '-' : '+'}
                           {movement.cantidad}
@@ -350,11 +352,11 @@ export const CatalogItemDetailModal = ({
           )}
         </div>
 
-        <footer className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <footer className="flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           {isPart && canViewInventory ? (
             <Link
               to="/warehouses"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold text-brand-blue hover:bg-white"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold text-brand-primaryInk hover:bg-white"
               onClick={onClose}
             >
               Abrir almacenes <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -366,7 +368,7 @@ export const CatalogItemDetailModal = ({
             {isPart && canAdjustStock && (
               <button
                 type="button"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark hover:bg-yellow-400"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryHover"
                 onClick={onAdjustStock}
               >
                 <Boxes className="h-4 w-4" aria-hidden="true" /> Movimiento
@@ -375,7 +377,7 @@ export const CatalogItemDetailModal = ({
             {canEdit && (
               <button
                 type="button"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white hover:bg-brand-dark"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover"
                 onClick={onEdit}
               >
                 <Pencil className="h-4 w-4" aria-hidden="true" /> Editar

@@ -44,19 +44,19 @@ interface FactProps {
 }
 
 const Fact = ({ icon: Icon, label, value }: FactProps) => (
-  <div className="min-w-0 border-b border-slate-100 py-3">
-    <dt className="flex items-center gap-2 text-xs text-slate-500">
+  <div className="min-w-0 border-b border-brand-line py-3">
+    <dt className="flex items-center gap-2 text-xs text-brand-muted">
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> {label}
     </dt>
-    <dd className="mt-1.5 break-words text-sm font-medium text-slate-800">{value}</dd>
+    <dd className="mt-1.5 break-words text-sm font-medium text-brand-ink">{value}</dd>
   </div>
 );
 
 const ProfileSkeleton = () => (
   <div className="space-y-5 p-6" role="status" aria-label="Cargando ficha del vehículo">
-    <div className="h-16 w-2/3 animate-pulse rounded bg-slate-100" />
-    <div className="h-16 animate-pulse rounded bg-slate-100" />
-    <div className="h-52 animate-pulse rounded bg-slate-100" />
+    <div className="h-16 w-2/3 animate-pulse rounded bg-brand-pale" />
+    <div className="h-16 animate-pulse rounded bg-brand-pale" />
+    <div className="h-52 animate-pulse rounded bg-brand-pale" />
   </div>
 );
 
@@ -115,7 +115,7 @@ export const VehicleDetailPage = ({
     <button
       type="button"
       onClick={onClose}
-      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-yellow"
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
       aria-label="Cerrar ficha"
       title="Cerrar ficha"
     >
@@ -135,7 +135,10 @@ export const VehicleDetailPage = ({
   if (vehicleQuery.isPending || vehicleQuery.isError || !vehicleQuery.data) {
     return (
       <div className="min-h-0 overflow-y-auto">
-        <header className="flex items-center justify-between bg-brand-blue px-5 py-3 text-white">
+        {/* Cabecera sobre `surfaceDark`: los botones usan `text-white/70`, que
+          sobre índigo `#255DFF` no llega a 4.5:1. Sobre la superficie oscura
+          del tema `body.dark` del diseño sí. */}
+      <header className="flex items-center justify-between bg-brand-surfaceDark px-5 py-3 text-white">
           <p className="text-sm font-semibold">Ficha del vehículo</p>
           {closeControl}
         </header>
@@ -143,7 +146,7 @@ export const VehicleDetailPage = ({
           <ProfileSkeleton />
         ) : (
           <div
-            className="m-5 flex items-start gap-3 rounded-lg bg-red-50 p-5 text-sm text-red-700"
+            className="m-5 flex items-start gap-3 rounded-lg bg-brand-coralPale p-5 text-sm text-brand-coralInk"
             role="alert"
           >
             <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
@@ -192,23 +195,26 @@ export const VehicleDetailPage = ({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
-      <header className="shrink-0 bg-brand-blue text-white">
+      {/* Migra a `surfaceDark` por coherencia con el resto de superficies
+          oscuras: la miga de pan usa `text-brand-line`, que sobre índigo
+          queda en 4.7:1, al limite, y sobre la superficie oscura sube a 12:1. */}
+      <header className="shrink-0 bg-brand-surfaceDark text-white">
         <div className="flex items-center justify-between gap-3 px-5 pt-3 sm:px-6">
-          <p className="text-xs font-medium text-slate-300">
+          <p className="text-xs font-medium text-brand-line">
             Parque vehicular / Ficha del vehículo
           </p>
           {closeControl}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 px-5 pb-5 pt-2 sm:px-6">
           <div className="flex min-w-0 max-w-full items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-brand-yellow">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-brand-goldInk">
               <Car className="h-6 w-6" aria-hidden="true" />
             </span>
             <div className="min-w-0">
               <h1 className="break-all font-mono text-2xl font-bold leading-8">
                 {vehicle.patente}
               </h1>
-              <p className="mt-0.5 break-words text-sm text-slate-300">
+              <p className="mt-0.5 break-words text-sm text-brand-line">
                 {displayName || 'Vehículo sin descripción técnica'}
               </p>
             </div>
@@ -218,7 +224,7 @@ export const VehicleDetailPage = ({
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 text-slate-200 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-yellow"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 text-brand-line transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
                 aria-label="Editar ficha"
                 title="Editar ficha"
               >
@@ -228,7 +234,7 @@ export const VehicleDetailPage = ({
             {canCreateWorkOrder && (
               <Link
                 to={`/work-orders/new?vehicleId=${vehicle.id}`}
-                className="inline-flex h-9 items-center gap-2 rounded-md bg-brand-yellow px-3 text-xs font-bold text-brand-dark transition-colors hover:bg-yellow-300"
+                className="inline-flex h-9 items-center gap-2 rounded-md bg-brand-gold px-3 text-xs font-bold text-brand-ink transition-colors hover:bg-brand-goldHover"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" /> Nueva OT
               </Link>
@@ -238,39 +244,39 @@ export const VehicleDetailPage = ({
       </header>
 
       <section
-        className="grid shrink-0 grid-cols-2 border-b border-slate-200 bg-slate-50 sm:grid-cols-4"
+        className="grid shrink-0 grid-cols-2 border-b border-brand-line bg-brand-line/40 sm:grid-cols-4"
         aria-label="Resumen del vehículo"
       >
-        <div className="min-w-0 border-b border-r border-slate-200 px-4 py-3 sm:border-b-0 sm:px-6">
-          <p className="text-xs text-slate-500">Órdenes históricas</p>
-          <p className="mt-1 text-xl font-semibold tabular-nums text-brand-blue">
+        <div className="min-w-0 border-b border-r border-brand-line px-4 py-3 sm:border-b-0 sm:px-6">
+          <p className="text-xs text-brand-muted">Órdenes históricas</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums text-brand-primaryInk">
             {workshopReady ? workOrdersQuery.data.total : '—'}
           </p>
         </div>
-        <div className="min-w-0 border-b border-slate-200 px-4 py-3 sm:border-b-0 sm:border-r sm:px-6">
-          <p className="text-xs text-slate-500">OT activas</p>
+        <div className="min-w-0 border-b border-brand-line px-4 py-3 sm:border-b-0 sm:border-r sm:px-6">
+          <p className="text-xs text-brand-muted">OT activas</p>
           <p
-            className={`mt-1 text-xl font-semibold tabular-nums ${activeOrders.length > 0 ? 'text-amber-700' : 'text-emerald-700'}`}
+            className={`mt-1 text-xl font-semibold tabular-nums ${activeOrders.length > 0 ? 'text-brand-goldInk' : 'text-brand-mintInk'}`}
           >
             {workshopReady ? activeOrders.length : '—'}
           </p>
         </div>
-        <div className="min-w-0 border-r border-slate-200 px-4 py-3 sm:px-6">
-          <p className="text-xs text-slate-500">Último kilometraje</p>
-          <p className="mt-1 break-words text-base font-semibold tabular-nums text-brand-blue">
+        <div className="min-w-0 border-r border-brand-line px-4 py-3 sm:px-6">
+          <p className="text-xs text-brand-muted">Último kilometraje</p>
+          <p className="mt-1 break-words text-base font-semibold tabular-nums text-brand-primaryInk">
             {formatKilometres(latestKilometres)}
           </p>
         </div>
         <div className="min-w-0 px-4 py-3 sm:px-6">
-          <p className="text-xs text-slate-500">Saldo relacionado</p>
-          <p className="mt-1 break-words text-base font-semibold tabular-nums text-brand-blue">
+          <p className="text-xs text-brand-muted">Saldo relacionado</p>
+          <p className="mt-1 break-words text-base font-semibold tabular-nums text-brand-primaryInk">
             {commercialReady ? formatClp(outstanding) : '—'}
           </p>
         </div>
       </section>
 
       <div
-        className="flex shrink-0 border-b border-slate-200 px-3 sm:px-6"
+        className="flex shrink-0 border-b border-brand-line px-3 sm:px-6"
         role="tablist"
         aria-label="Información del vehículo"
       >
@@ -296,12 +302,12 @@ export const VehicleDetailPage = ({
               setSelectedTab(tabs[nextIndex].id);
               document.getElementById(`${tabId}-${tabs[nextIndex].id}-tab`)?.focus();
             }}
-            className={`flex min-w-0 items-center justify-center gap-1.5 border-b-2 px-2 py-3.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-blue sm:gap-2 sm:px-4 sm:text-sm ${activeTab === tab.id ? 'border-brand-yellow text-brand-blue' : 'border-transparent text-slate-500 hover:border-slate-200 hover:text-brand-blue'}`}
+            className={`flex min-w-0 items-center justify-center gap-1.5 border-b-2 px-2 py-3.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-primary sm:gap-2 sm:px-4 sm:text-sm ${activeTab === tab.id ? 'border-brand-gold text-brand-primaryInk' : 'border-transparent text-brand-muted hover:border-brand-line hover:text-brand-primaryInk'}`}
           >
             <tab.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
             {tab.label}
             {tab.count !== undefined && (
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] tabular-nums text-slate-500">
+              <span className="rounded bg-brand-pale px-1.5 py-0.5 text-[10px] tabular-nums text-brand-muted">
                 {tab.count}
               </span>
             )}
@@ -314,19 +320,19 @@ export const VehicleDetailPage = ({
         role="tabpanel"
         aria-labelledby={`${tabId}-${activeTab}-tab`}
         tabIndex={0}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary"
       >
         {activeTab === 'details' && (
           <div className="grid md:min-h-[300px] md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <section
-              className="min-w-0 border-b border-slate-200 bg-slate-50/60 px-5 py-5 sm:px-6 md:border-b-0 md:border-r"
+              className="min-w-0 border-b border-brand-line bg-brand-line/40/60 px-5 py-5 sm:px-6 md:border-b-0 md:border-r"
               aria-labelledby={`${tabId}-owner-title`}
             >
-              <h2 id={`${tabId}-owner-title`} className="text-xs font-semibold text-slate-500">
+              <h2 id={`${tabId}-owner-title`} className="text-xs font-semibold text-brand-muted">
                 Propietario actual
               </h2>
               <div className="mt-3 flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue/5 text-brand-blue">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-pale text-brand-primaryInk">
                   <UserRound className="h-4 w-4" aria-hidden="true" />
                 </span>
                 <div className="min-w-0">
@@ -334,26 +340,26 @@ export const VehicleDetailPage = ({
                     <>
                       <Link
                         to={`/clients?search=${encodeURIComponent(vehicle.client.rut ?? vehicle.client.nombre)}`}
-                        className="break-words text-sm font-semibold text-brand-blue hover:underline"
+                        className="break-words text-sm font-semibold text-brand-primaryInk hover:underline"
                       >
                         {vehicle.client.nombre}
                       </Link>
-                      <p className="mt-1 break-words text-xs text-slate-500">
+                      <p className="mt-1 break-words text-xs text-brand-muted">
                         {vehicle.client.rut ?? 'Sin identificación'}
                       </p>
-                      <p className="mt-3 flex items-start gap-1.5 break-all text-xs text-slate-600">
+                      <p className="mt-3 flex items-start gap-1.5 break-all text-xs text-brand-muted">
                         <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                         {vehicle.client.telefono ?? 'Sin teléfono'}
                       </p>
                     </>
                   ) : (
-                    <p className="text-sm text-slate-500">Sin propietario asignado</p>
+                    <p className="text-sm text-brand-muted">Sin propietario asignado</p>
                   )}
                 </div>
               </div>
-              <div className="mt-5 border-t border-slate-200 pt-4">
+              <div className="mt-5 border-t border-brand-line pt-4">
                 <p
-                  className={`flex items-center gap-1.5 text-xs font-semibold ${missingFields.length > 0 ? 'text-amber-700' : 'text-emerald-700'}`}
+                  className={`flex items-center gap-1.5 text-xs font-semibold ${missingFields.length > 0 ? 'text-brand-goldInk' : 'text-brand-mintInk'}`}
                 >
                   {missingFields.length > 0 ? (
                     <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
@@ -365,7 +371,7 @@ export const VehicleDetailPage = ({
                     : 'Ficha completa'}
                 </p>
                 {missingFields.length > 0 && (
-                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                  <p className="mt-2 text-xs leading-5 text-brand-muted">
                     Faltan {missingFields.join(', ')}.
                   </p>
                 )}
@@ -377,7 +383,7 @@ export const VehicleDetailPage = ({
             >
               <h2
                 id={`${tabId}-technical-title`}
-                className="flex items-center gap-2 text-sm font-semibold text-brand-blue"
+                className="flex items-center gap-2 text-sm font-semibold text-brand-primaryInk"
               >
                 <Settings2 className="h-4 w-4" aria-hidden="true" />
                 Datos técnicos
@@ -427,36 +433,36 @@ export const VehicleDetailPage = ({
 
         {activeTab === 'workshop' && (
           <section className="min-h-[300px]" aria-label="Historial de taller">
-            <h2 className="px-5 pb-3 pt-5 text-sm font-semibold text-brand-blue sm:px-6">
+            <h2 className="px-5 pb-3 pt-5 text-sm font-semibold text-brand-primaryInk sm:px-6">
               Historial de taller
             </h2>
             {workOrdersQuery.isPending ? (
-              <p className="px-6 py-12 text-center text-sm text-slate-500" role="status">
+              <p className="px-6 py-12 text-center text-sm text-brand-muted" role="status">
                 Cargando historial...
               </p>
             ) : workOrdersQuery.isError ? (
-              <p className="mx-6 bg-red-50 p-4 text-sm text-red-700" role="alert">
+              <p className="mx-6 bg-brand-coralPale p-4 text-sm text-brand-coralInk" role="alert">
                 No fue posible cargar el historial de taller.
               </p>
             ) : workOrders.length > 0 ? (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-brand-line">
                 {workOrders.map((order) => (
                   <Link
                     key={order.id}
                     to={`/work-orders/${order.id}`}
-                    className="group grid gap-2 px-5 py-3.5 transition-colors hover:bg-slate-50 sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:px-6"
+                    className="group grid gap-2 px-5 py-3.5 transition-colors hover:bg-brand-pale sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:px-6"
                   >
                     <div>
-                      <p className="font-mono text-xs font-bold text-brand-blue">{order.codigo}</p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="font-mono text-xs font-bold text-brand-primaryInk">{order.codigo}</p>
+                      <p className="mt-1 text-xs text-brand-muted">
                         {formatDate(order.fechaIngreso ?? order.createdAt)}
                       </p>
                     </div>
                     <div className="min-w-0">
-                      <p className="break-words text-sm font-medium text-slate-800">
+                      <p className="break-words text-sm font-medium text-brand-ink">
                         {order.descripcion || 'Sin diagnóstico registrado'}
                       </p>
-                      <p className="mt-1 break-words text-xs text-slate-500">
+                      <p className="mt-1 break-words text-xs text-brand-muted">
                         {formatKilometres(order.kilometrajeIngreso)}
                         {order.assignedMechanic ? ` · ${order.assignedMechanic.nombre}` : ''}
                       </p>
@@ -464,7 +470,7 @@ export const VehicleDetailPage = ({
                     <div className="flex items-center justify-between gap-2">
                       <WorkOrderStatusBadge status={order.estado} />
                       <ArrowUpRight
-                        className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-brand-blue"
+                        className="h-4 w-4 shrink-0 text-brand-muted group-hover:text-brand-primaryInk"
                         aria-hidden="true"
                       />
                     </div>
@@ -473,8 +479,8 @@ export const VehicleDetailPage = ({
               </div>
             ) : (
               <div className="flex flex-col items-center px-6 py-12 text-center">
-                <ClipboardList className="h-7 w-7 text-slate-300" aria-hidden="true" />
-                <p className="mt-3 text-sm text-slate-500">
+                <ClipboardList className="h-7 w-7 text-brand-line" aria-hidden="true" />
+                <p className="mt-3 text-sm text-brand-muted">
                   Este vehículo aún no registra órdenes de trabajo.
                 </p>
               </div>
@@ -484,47 +490,47 @@ export const VehicleDetailPage = ({
 
         {activeTab === 'quotations' && (
           <section className="min-h-[300px]" aria-label="Historial comercial">
-            <h2 className="px-5 pb-3 pt-5 text-sm font-semibold text-brand-blue sm:px-6">
+            <h2 className="px-5 pb-3 pt-5 text-sm font-semibold text-brand-primaryInk sm:px-6">
               Historial comercial
             </h2>
             {quotationsQuery.isPending ? (
-              <p className="px-6 py-12 text-center text-sm text-slate-500" role="status">
+              <p className="px-6 py-12 text-center text-sm text-brand-muted" role="status">
                 Cargando cotizaciones...
               </p>
             ) : quotationsQuery.isError ? (
-              <p className="mx-6 bg-red-50 p-4 text-sm text-red-700" role="alert">
+              <p className="mx-6 bg-brand-coralPale p-4 text-sm text-brand-coralInk" role="alert">
                 No fue posible cargar el historial comercial.
               </p>
             ) : quotations.length > 0 ? (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-brand-line">
                 {quotations.map((quotation) => {
                   const balance = Math.max(0, Number(quotation.total) - Number(quotation.pagado));
                   return (
                     <Link
                       key={quotation.id}
                       to={`/quotations/${quotation.id}`}
-                      className="group grid gap-2 px-5 py-3.5 transition-colors hover:bg-slate-50 sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:px-6"
+                      className="group grid gap-2 px-5 py-3.5 transition-colors hover:bg-brand-pale sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:px-6"
                     >
                       <div>
-                        <p className="font-mono text-xs font-bold text-brand-blue">
+                        <p className="font-mono text-xs font-bold text-brand-primaryInk">
                           {quotation.codigo}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-brand-muted">
                           {formatDate(quotation.createdAt)}
                         </p>
                       </div>
                       <div className="min-w-0">
-                        <p className="break-words text-sm font-semibold tabular-nums text-slate-800">
+                        <p className="break-words text-sm font-semibold tabular-nums text-brand-ink">
                           {formatClp(Number(quotation.total))}
                         </p>
-                        <p className="mt-1 break-words text-xs text-slate-500">
+                        <p className="mt-1 break-words text-xs text-brand-muted">
                           Pagado {formatClp(Number(quotation.pagado))} · Saldo {formatClp(balance)}
                         </p>
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <QuotationStatusBadge status={quotation.estadoPago} />
                         <ArrowUpRight
-                          className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-brand-blue"
+                          className="h-4 w-4 shrink-0 text-brand-muted group-hover:text-brand-primaryInk"
                           aria-hidden="true"
                         />
                       </div>
@@ -534,8 +540,8 @@ export const VehicleDetailPage = ({
               </div>
             ) : (
               <div className="flex flex-col items-center px-6 py-12 text-center">
-                <FileText className="h-7 w-7 text-slate-300" aria-hidden="true" />
-                <p className="mt-3 text-sm text-slate-500">
+                <FileText className="h-7 w-7 text-brand-line" aria-hidden="true" />
+                <p className="mt-3 text-sm text-brand-muted">
                   Este vehículo aún no registra cotizaciones.
                 </p>
               </div>
@@ -544,7 +550,7 @@ export const VehicleDetailPage = ({
         )}
       </div>
 
-      <footer className="flex shrink-0 flex-wrap justify-between gap-x-4 gap-y-1 border-t border-slate-200 bg-slate-50 px-5 py-3 text-[11px] text-slate-500 sm:px-6">
+      <footer className="flex shrink-0 flex-wrap justify-between gap-x-4 gap-y-1 border-t border-brand-line bg-brand-line/40 px-5 py-3 text-[11px] text-brand-muted sm:px-6">
         <span>Registrado el {formatDate(vehicle.createdAt)}</span>
         <span>Actualizado el {formatDate(vehicle.updatedAt)}</span>
       </footer>

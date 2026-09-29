@@ -67,6 +67,13 @@ const MAPPING = [
   ['focus-visible:ring-brand-yellow', 'focus-visible:ring-brand-primary', 'foco'],
   ['focus-visible:outline-brand-yellow', 'focus-visible:outline-brand-primary', 'foco'],
   ['sm:border-brand-yellow', 'sm:border-brand-primaryInk', 'indicador de tab'],
+  // Acentos dorados que quedan: icono sobre superficie oscura, borde de
+  // tab activa y filete lateral de un aviso. El tono se conserva, porque
+  // todos son adorno o estado y no llamadas a la accion.
+  ['text-brand-yellow', 'text-brand-gold', 'acento sobre oscuro'],
+  ['border-brand-yellow', 'border-brand-gold', 'borde de acento'],
+  ['text-slate-200', 'text-brand-line', 'texto sobre oscuro'],
+  ['text-slate-100', 'text-brand-line', 'texto sobre oscuro'],
   // Bordes y anillos atenuados en amarillo: son acentos de estado, no texto.
   // El tono se conserva porque no llevan texto encima.
   ['border-brand-yellow/60', 'border-brand-primary/40', 'borde atenuado'],

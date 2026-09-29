@@ -50,12 +50,12 @@ const ClientFact = ({
   label: string;
   value: string | null;
 }) => (
-  <div className="min-w-0 border-b border-slate-100 py-3">
-    <dt className="flex items-center gap-2 text-xs text-slate-500">
+  <div className="min-w-0 border-b border-brand-line py-3">
+    <dt className="flex items-center gap-2 text-xs text-brand-muted">
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       {label}
     </dt>
-    <dd className="mt-1.5 break-words text-sm font-medium text-slate-800">
+    <dd className="mt-1.5 break-words text-sm font-medium text-brand-ink">
       {value || 'Sin registrar'}
     </dd>
   </div>
@@ -172,7 +172,7 @@ export const ClientDetailModal = ({
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5">
         <button
           type="button"
-          className="absolute inset-0 bg-slate-950/60 backdrop-blur-[1px]"
+          className="absolute inset-0 bg-brand-scrim/60 backdrop-blur-[1px]"
           aria-label="Cerrar detalle"
           onClick={onClose}
           disabled={deleteMutation.isPending}
@@ -189,9 +189,11 @@ export const ClientDetailModal = ({
           aria-label="Ficha del cliente"
           tabIndex={-1}
         >
-          <header className="shrink-0 bg-brand-blue text-white">
+          {/* Migra a `surfaceDark` por coherencia con el resto de superficies
+            oscuras; la miga de pan queda en 12:1 en vez de 4.7:1. */}
+        <header className="shrink-0 bg-brand-surfaceDark text-white">
             <div className="flex items-center justify-between gap-3 px-5 pt-3 sm:px-6">
-              <p className="text-xs font-medium text-slate-300">Clientes / Ficha del cliente</p>
+              <p className="text-xs font-medium text-brand-line">Clientes / Ficha del cliente</p>
               <button
                 type="button"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-50"
@@ -205,7 +207,7 @@ export const ClientDetailModal = ({
             </div>
             <div className="flex flex-col items-start justify-between gap-4 px-5 pb-5 pt-2 sm:flex-row sm:items-center sm:px-6">
               <div className="flex w-full min-w-0 flex-1 items-start gap-3 sm:w-auto">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-brand-yellow">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-brand-goldInk">
                   <ClientIcon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <div className="min-w-0">
@@ -213,7 +215,7 @@ export const ClientDetailModal = ({
                     {client?.nombre ?? 'Cargando cliente...'}
                   </h2>
                   {client && (
-                    <p className="mt-1 break-words text-xs text-slate-300">
+                    <p className="mt-1 break-words text-xs text-brand-line">
                       {client.tipo === 'empresa' ? 'Empresa' : 'Persona natural'} ·{' '}
                       {client.rut ?? 'Sin identificación'}
                     </p>
@@ -225,7 +227,7 @@ export const ClientDetailModal = ({
                   {canEdit && (
                     <button
                       type="button"
-                      className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 text-slate-200 hover:bg-white/10"
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 text-brand-line hover:bg-white/10"
                       onClick={() => setIsEditing(true)}
                       aria-label="Editar cliente"
                       title="Editar cliente"
@@ -236,7 +238,7 @@ export const ClientDetailModal = ({
                   {canCreateOrder && (
                     <Link
                       to={`/work-orders/new?clientId=${clientId}`}
-                      className="inline-flex h-9 items-center gap-2 rounded-md bg-brand-yellow px-3 text-xs font-bold text-brand-dark hover:bg-yellow-300"
+                      className="inline-flex h-9 items-center gap-2 rounded-md bg-brand-gold px-3 text-xs font-bold text-brand-ink hover:bg-brand-goldHover"
                     >
                       <Plus className="h-4 w-4" aria-hidden="true" />
                       Nueva OT
@@ -248,13 +250,13 @@ export const ClientDetailModal = ({
           </header>
 
           {clientQuery.isPending && (
-            <div className="flex h-80 items-center justify-center text-brand-blue" role="status">
+            <div className="flex h-80 items-center justify-center text-brand-primaryInk" role="status">
               <LoaderCircle className="h-7 w-7 animate-spin" aria-hidden="true" />
               <span className="sr-only">Cargando cliente</span>
             </div>
           )}
           {clientQuery.isError && (
-            <div className="m-5 bg-red-50 p-4 text-sm text-red-700" role="alert">
+            <div className="m-5 bg-brand-coralPale p-4 text-sm text-brand-coralInk" role="alert">
               {getApiErrorMessage(clientQuery.error, 'No fue posible cargar el cliente')}
             </div>
           )}
@@ -262,7 +264,7 @@ export const ClientDetailModal = ({
           {client && (
             <>
               <div
-                className="flex shrink-0 overflow-x-auto border-b border-slate-200 px-2 sm:px-6"
+                className="flex shrink-0 overflow-x-auto border-b border-brand-line px-2 sm:px-6"
                 role="tablist"
                 aria-label="Información del cliente"
               >
@@ -288,12 +290,12 @@ export const ClientDetailModal = ({
                       setTab(tabs[next].id);
                       document.getElementById(`${tabId}-${tabs[next].id}-tab`)?.focus();
                     }}
-                    className={`flex shrink-0 items-center gap-2 border-b-2 px-2 py-3.5 text-xs font-semibold transition-colors sm:px-4 sm:text-sm ${activeTab === item.id ? 'border-brand-yellow text-brand-blue' : 'border-transparent text-slate-500 hover:text-brand-blue'}`}
+                    className={`flex shrink-0 items-center gap-2 border-b-2 px-2 py-3.5 text-xs font-semibold transition-colors sm:px-4 sm:text-sm ${activeTab === item.id ? 'border-brand-gold text-brand-primaryInk' : 'border-transparent text-brand-muted hover:text-brand-primaryInk'}`}
                   >
                     <item.icon className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
                     {item.label}
                     {item.count !== undefined && (
-                      <span className="hidden rounded bg-slate-100 px-1.5 py-0.5 text-[10px] tabular-nums text-slate-500 sm:inline">
+                      <span className="hidden rounded bg-brand-pale px-1.5 py-0.5 text-[10px] tabular-nums text-brand-muted sm:inline">
                         {item.count}
                       </span>
                     )}
@@ -305,7 +307,7 @@ export const ClientDetailModal = ({
                 id={`${tabId}-${activeTab}-panel`}
                 aria-labelledby={`${tabId}-${activeTab}-tab`}
                 tabIndex={0}
-                className="min-h-0 overflow-y-auto overscroll-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-blue sm:h-[360px]"
+                className="min-h-0 overflow-y-auto overscroll-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-primary sm:h-[360px]"
               >
                 {activeTab === 'data' && (
                   <div className="grid gap-x-8 px-5 py-3 sm:grid-cols-2 sm:px-6">
@@ -324,8 +326,8 @@ export const ClientDetailModal = ({
                       <ClientFact icon={MapPin} label="Región" value={client.region} />
                     </dl>
                     <section className="py-4 sm:col-span-2" aria-label="Notas del cliente">
-                      <h3 className="text-xs font-semibold text-slate-500">Notas</h3>
-                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
+                      <h3 className="text-xs font-semibold text-brand-muted">Notas</h3>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-brand-ink">
                         {client.notas || 'Sin notas registradas.'}
                       </p>
                     </section>
@@ -335,16 +337,16 @@ export const ClientDetailModal = ({
                 {activeTab === 'vehicles' && (
                   <section aria-label="Vehículos asociados">
                     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
-                      <h3 className="text-sm font-semibold text-brand-blue">
+                      <h3 className="text-sm font-semibold text-brand-primaryInk">
                         Vehículos asociados{' '}
-                        <span className="ml-1 text-slate-400">
+                        <span className="ml-1 text-brand-muted">
                           ({client.vehicles?.length ?? 0})
                         </span>
                       </h3>
                       {canCreateVehicle && (
                         <button
                           type="button"
-                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-brand-blue px-3 text-xs font-semibold text-white hover:bg-brand-dark"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-brand-primaryInk px-3 text-xs font-semibold text-white hover:bg-brand-primaryInkHover"
                           onClick={() => setVehicleFormOpen(true)}
                         >
                           <Plus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -353,7 +355,7 @@ export const ClientDetailModal = ({
                       )}
                     </div>
                     {client.vehicles?.length ? (
-                      <ul className="divide-y divide-slate-100">
+                      <ul className="divide-y divide-brand-line">
                         {client.vehicles.map((vehicle) => (
                           <li
                             key={vehicle.id}
@@ -363,28 +365,28 @@ export const ClientDetailModal = ({
                               to={`/vehicles?vehicleId=${vehicle.id}`}
                               className="group flex min-w-0 flex-1 items-center gap-3"
                             >
-                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue/5 text-brand-blue">
+                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-pale text-brand-primaryInk">
                                 <Car className="h-4 w-4" aria-hidden="true" />
                               </span>
                               <div className="min-w-0">
-                                <p className="font-mono text-sm font-bold text-brand-blue group-hover:underline">
+                                <p className="font-mono text-sm font-bold text-brand-primaryInk group-hover:underline">
                                   {vehicle.patente}
                                 </p>
-                                <p className="mt-1 break-words text-xs text-slate-500">
+                                <p className="mt-1 break-words text-xs text-brand-muted">
                                   {[vehicle.marca, vehicle.modelo, vehicle.ano]
                                     .filter(Boolean)
                                     .join(' · ') || 'Sin detalles'}
                                 </p>
                               </div>
                               <ArrowUpRight
-                                className="h-4 w-4 shrink-0 text-slate-400"
+                                className="h-4 w-4 shrink-0 text-brand-muted"
                                 aria-hidden="true"
                               />
                             </Link>
                             {canCreateOrder && (
                               <Link
                                 to={`/work-orders/new?clientId=${clientId}&vehicleId=${vehicle.id}`}
-                                className="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 px-2.5 text-xs font-semibold text-brand-blue hover:bg-slate-50"
+                                className="inline-flex h-8 items-center gap-1 rounded-md border border-brand-line px-2.5 text-xs font-semibold text-brand-primaryInk hover:bg-brand-pale"
                                 aria-label={`Nueva OT para ${vehicle.patente}`}
                               >
                                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -395,7 +397,7 @@ export const ClientDetailModal = ({
                         ))}
                       </ul>
                     ) : (
-                      <p className="px-5 py-12 text-center text-sm text-slate-500">
+                      <p className="px-5 py-12 text-center text-sm text-brand-muted">
                         Sin vehículos asociados
                       </p>
                     )}
@@ -405,54 +407,54 @@ export const ClientDetailModal = ({
                 {activeTab === 'orders' && (
                   <section aria-label="Órdenes del cliente">
                     <div className="px-5 pb-3 pt-4 sm:px-6">
-                      <h3 className="text-sm font-semibold text-brand-blue">Órdenes de trabajo</h3>
-                      <p className="mt-1 text-xs text-slate-500">Como responsable de ingreso</p>
+                      <h3 className="text-sm font-semibold text-brand-primaryInk">Órdenes de trabajo</h3>
+                      <p className="mt-1 text-xs text-brand-muted">Como responsable de ingreso</p>
                     </div>
                     {ordersQuery.isPending ? (
-                      <p className="p-6 text-sm text-slate-500" role="status">
+                      <p className="p-6 text-sm text-brand-muted" role="status">
                         Cargando órdenes...
                       </p>
                     ) : ordersQuery.isError ? (
-                      <p className="mx-5 bg-red-50 p-3 text-sm text-red-700" role="alert">
+                      <p className="mx-5 bg-brand-coralPale p-3 text-sm text-brand-coralInk" role="alert">
                         No fue posible cargar las órdenes.
                       </p>
                     ) : ordersQuery.data?.items.length ? (
                       <>
-                        <div className="divide-y divide-slate-100">
+                        <div className="divide-y divide-brand-line">
                           {ordersQuery.data.items.map((order) => (
                             <Link
                               key={order.id}
                               to={`/work-orders/${order.id}`}
-                              className="block px-5 py-3 transition-colors hover:bg-slate-50 sm:px-6"
+                              className="block px-5 py-3 transition-colors hover:bg-brand-pale sm:px-6"
                             >
                               <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="font-mono text-xs font-bold text-brand-blue">
+                                <span className="font-mono text-xs font-bold text-brand-primaryInk">
                                   {order.codigo}
                                 </span>
                                 <WorkOrderStatusBadge status={order.estado} />
                               </div>
-                              <p className="mt-1.5 text-xs text-slate-500">
+                              <p className="mt-1.5 text-xs text-brand-muted">
                                 {order.vehicle?.patente ?? 'Sin vehículo'} ·{' '}
                                 {formatDate(order.fechaIngreso ?? order.createdAt)}
                               </p>
                               <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
                                 <div>
-                                  <dt className="text-slate-500">Responsable de ingreso</dt>
-                                  <dd className="mt-1 break-words font-medium text-slate-800">
+                                  <dt className="text-brand-muted">Responsable de ingreso</dt>
+                                  <dd className="mt-1 break-words font-medium text-brand-ink">
                                     {order.client?.nombre ?? client.nombre}
                                   </dd>
                                 </div>
                                 <div>
-                                  <dt className="text-slate-500">Contacto</dt>
-                                  <dd className="mt-1 break-words font-medium text-slate-800">
+                                  <dt className="text-brand-muted">Contacto</dt>
+                                  <dd className="mt-1 break-words font-medium text-brand-ink">
                                     {order.contact?.nombre ??
                                       order.contactClient?.nombre ??
                                       'Sin registrar'}
                                   </dd>
                                 </div>
                                 <div>
-                                  <dt className="text-slate-500">Facturar a</dt>
-                                  <dd className="mt-1 break-words font-medium text-slate-800">
+                                  <dt className="text-brand-muted">Facturar a</dt>
+                                  <dd className="mt-1 break-words font-medium text-brand-ink">
                                     {order.billing?.nombre ??
                                       order.billingClient?.nombre ??
                                       'Sin datos de facturación'}
@@ -470,7 +472,7 @@ export const ClientDetailModal = ({
                         />
                       </>
                     ) : (
-                      <p className="px-5 py-12 text-center text-sm text-slate-500">
+                      <p className="px-5 py-12 text-center text-sm text-brand-muted">
                         Sin órdenes de trabajo registradas
                       </p>
                     )}
@@ -479,40 +481,40 @@ export const ClientDetailModal = ({
 
                 {activeTab === 'quotations' && (
                   <section aria-label="Cotizaciones del cliente">
-                    <h3 className="px-5 pb-3 pt-4 text-sm font-semibold text-brand-blue sm:px-6">
+                    <h3 className="px-5 pb-3 pt-4 text-sm font-semibold text-brand-primaryInk sm:px-6">
                       Cotizaciones
                     </h3>
                     {quotationsQuery.isPending ? (
-                      <p className="p-6 text-sm text-slate-500" role="status">
+                      <p className="p-6 text-sm text-brand-muted" role="status">
                         Cargando cotizaciones...
                       </p>
                     ) : quotationsQuery.isError ? (
-                      <p className="mx-5 bg-red-50 p-3 text-sm text-red-700" role="alert">
+                      <p className="mx-5 bg-brand-coralPale p-3 text-sm text-brand-coralInk" role="alert">
                         No fue posible cargar las cotizaciones.
                       </p>
                     ) : quotationsQuery.data?.items.length ? (
                       <>
-                        <div className="divide-y divide-slate-100">
+                        <div className="divide-y divide-brand-line">
                           {quotationsQuery.data.items.map((quotation) => (
                             <Link
                               key={quotation.id}
                               to={`/quotations/${quotation.id}`}
-                              className="grid gap-2 px-5 py-3 transition-colors hover:bg-slate-50 sm:grid-cols-[1fr_1fr_auto] sm:items-center sm:px-6"
+                              className="grid gap-2 px-5 py-3 transition-colors hover:bg-brand-pale sm:grid-cols-[1fr_1fr_auto] sm:items-center sm:px-6"
                             >
                               <div>
-                                <p className="font-mono text-xs font-bold text-brand-blue">
+                                <p className="font-mono text-xs font-bold text-brand-primaryInk">
                                   {quotation.codigo}
                                 </p>
-                                <p className="mt-1 text-xs text-slate-500">
+                                <p className="mt-1 text-xs text-brand-muted">
                                   {formatDate(quotation.createdAt)} ·{' '}
                                   {quotation.vehicle?.patente ?? 'Sin vehículo'}
                                 </p>
                               </div>
                               <div>
-                                <p className="text-sm font-semibold tabular-nums text-slate-800">
+                                <p className="text-sm font-semibold tabular-nums text-brand-ink">
                                   {formatClp(Number(quotation.total))}
                                 </p>
-                                <p className="mt-1 text-xs text-slate-500">
+                                <p className="mt-1 text-xs text-brand-muted">
                                   Saldo{' '}
                                   {formatClp(
                                     Math.max(0, Number(quotation.total) - Number(quotation.pagado)),
@@ -522,7 +524,7 @@ export const ClientDetailModal = ({
                               <div className="flex items-center justify-between gap-2">
                                 <QuotationStatusBadge status={quotation.estadoPago} />
                                 <ArrowUpRight
-                                  className="h-4 w-4 text-slate-400"
+                                  className="h-4 w-4 text-brand-muted"
                                   aria-hidden="true"
                                 />
                               </div>
@@ -537,7 +539,7 @@ export const ClientDetailModal = ({
                         />
                       </>
                     ) : (
-                      <p className="px-5 py-12 text-center text-sm text-slate-500">
+                      <p className="px-5 py-12 text-center text-sm text-brand-muted">
                         Sin cotizaciones registradas
                       </p>
                     )}
@@ -548,17 +550,17 @@ export const ClientDetailModal = ({
           )}
 
           {client && (
-            <footer className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-3 sm:px-6">
+            <footer className="shrink-0 border-t border-brand-line bg-brand-line/40 px-5 py-3 sm:px-6">
               {deleteMutation.isError && (
-                <p className="mb-3 text-sm text-red-700" role="alert">
+                <p className="mb-3 text-sm text-brand-coralInk" role="alert">
                   {getApiErrorMessage(deleteMutation.error)}
                 </p>
               )}
               {isConfirmingDelete && canDelete ? (
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-red-700">¿Eliminar este cliente?</p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="text-sm font-semibold text-brand-coralInk">¿Eliminar este cliente?</p>
+                    <p className="mt-1 text-xs text-brand-muted">
                       Se ocultará del listado y conservará su historial.
                     </p>
                   </div>
@@ -567,7 +569,7 @@ export const ClientDetailModal = ({
                       type="button"
                       disabled={deleteMutation.isPending}
                       onClick={() => setConfirmingDelete(false)}
-                      className="h-8 rounded-md border border-slate-300 px-3 text-xs font-semibold text-slate-600"
+                      className="h-8 rounded-md border border-brand-line px-3 text-xs font-semibold text-brand-muted"
                     >
                       Cancelar
                     </button>
@@ -575,7 +577,7 @@ export const ClientDetailModal = ({
                       type="button"
                       disabled={deleteMutation.isPending}
                       onClick={() => deleteMutation.mutate(clientId, { onSuccess: onClose })}
-                      className="inline-flex h-8 items-center gap-2 rounded-md bg-red-700 px-3 text-xs font-semibold text-white disabled:opacity-50"
+                      className="inline-flex h-8 items-center gap-2 rounded-md bg-brand-coralInk px-3 text-xs font-semibold text-white disabled:opacity-50"
                     >
                       {deleteMutation.isPending && (
                         <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -586,13 +588,13 @@ export const ClientDetailModal = ({
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-brand-muted">
                     Registrado el {formatDate(client.createdAt)}
                   </p>
                   {canDelete && (
                     <button
                       type="button"
-                      className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-700"
+                      className="flex h-8 w-8 items-center justify-center rounded-md text-brand-muted hover:bg-brand-coralPale hover:text-brand-coralInk"
                       aria-label="Eliminar cliente"
                       title="Eliminar cliente"
                       onClick={() => {

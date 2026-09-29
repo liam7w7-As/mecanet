@@ -10,7 +10,6 @@ import {
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { AnimateIcon } from '../animate-ui';
 import {
   useCreateStockMovementMutation,
   useWarehouseBalances,
@@ -18,8 +17,11 @@ import {
 } from '../../hooks/useWarehouses';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { notifySuccess } from '../../stores/toast.store';
+import { AnimateIcon } from '../animate-ui';
+import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem } from '../../types/entities';
+
 
 interface StockAdjustmentModalProps {
   item: Pick<CatalogItem, 'id' | 'codigo' | 'nombre' | 'stock'>;
@@ -128,30 +130,14 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
             `text-white/65` y `text-white/70`, que sobre `#255DFF` dan 3.05:1 y
             3.3:1. Sobre la superficie oscura del tema `body.dark` del diseño
             suben a ~6.9:1. */}
-        <header className="bg-brand-surfaceDark px-5 py-4 text-white sm:px-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase text-white/65">
-                Movimiento de inventario
-              </p>
-              <h2 id="stock-adjustment-title" className="mt-1 text-xl font-bold">
-                {item.nombre}
-              </h2>
-              <p className="mt-1 truncate font-mono text-xs text-white/70">
-                {item.codigo ?? 'SIN CÓDIGO'} · Stock global {item.stock}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="group flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white"
-              onClick={onClose}
-              aria-label="Cerrar"
-              title="Cerrar"
-            >
-              <AnimateIcon icon={X} animation="spin" size={17} />
-            </button>
-          </div>
-        </header>
+        <ModalHeader
+  id="stock-adjustment-title"
+  eyebrow="Movimiento de inventario"
+  title={item.nombre}
+  description={<span className="font-mono text-xs">{item.codigo ?? 'SIN CÓDIGO'} · Stock global {item.stock}</span>}
+  onClose={onClose}
+  closeLabel="Cerrar ajuste"
+/>
 
         <form className="space-y-5 p-5 sm:p-6" noValidate onSubmit={handleSubmit}>
           <div className="grid grid-cols-2 gap-2" role="group" aria-label="Tipo de movimiento">

@@ -15,11 +15,13 @@ import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { AnimateIcon } from '../animate-ui';
 import { useCatalogItemInventory, useStockMovements } from '../../hooks/useWarehouses';
 import { formatClp, formatDateTime } from '../../lib/formatters';
+import { AnimateIcon } from '../animate-ui';
+import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem, StockMovement } from '../../types/entities';
+
 
 type DetailTab = 'summary' | 'inventory' | 'movements';
 
@@ -117,34 +119,16 @@ export const CatalogItemDetailModal = ({
       >
         {/* Cabecera sobre `surfaceDark`: el subtítulo usa `text-white/65` y el
             código `text-white/70`, que sobre `#255DFF` dan 3.05:1 y 3.3:1. */}
-        <header className="bg-brand-surfaceDark px-5 py-5 text-white sm:px-6">
-          <div className="flex items-start gap-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-gold text-brand-ink">
-              <TypeIcon className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase text-white/65">
-                {TYPE_LABELS[item.tipo]}
-              </p>
-              <h2
-                id="catalog-detail-title"
-                className="mt-1 break-words text-xl font-bold sm:text-2xl"
-              >
-                {item.nombre}
-              </h2>
-              <p className="mt-1 font-mono text-xs text-white/70">{item.codigo ?? 'SIN CÓDIGO'}</p>
-            </div>
-            <button
-              type="button"
-              className="group flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white"
-              onClick={onClose}
-              aria-label="Cerrar"
-              title="Cerrar"
-            >
-              <AnimateIcon icon={X} animation="spin" size={17} />
-            </button>
-          </div>
-        </header>
+        <ModalHeader
+  id="catalog-detail-title"
+  badge={<TypeIcon className="h-6 w-6" aria-hidden="true" />}
+  tone="gold"
+  eyebrow={TYPE_LABELS[item.tipo]}
+  title={item.nombre}
+  description={<span className="font-mono text-xs">{item.codigo ?? 'SIN CÓDIGO'}</span>}
+  onClose={onClose}
+  closeLabel="Cerrar detalle"
+/>
 
         <nav
           className={`grid gap-1 border-b border-brand-line px-3 pt-2 sm:px-6 ${isPart ? 'grid-cols-3' : 'grid-cols-1'}`}

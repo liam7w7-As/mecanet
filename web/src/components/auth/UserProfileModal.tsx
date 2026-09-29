@@ -7,8 +7,10 @@ import {
   getUserPermissionEntries,
   MODULE_LABELS,
 } from '../../lib/permissions';
+import ModalHeader from '../common/ModalHeader';
 
 import type { UserPublic } from '../../stores/auth.store';
+
 
 interface UserProfileModalProps {
   user: UserPublic;
@@ -54,28 +56,14 @@ export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
         aria-modal="true"
         aria-labelledby="profile-title"
       >
-        <header className="flex items-start justify-between bg-brand-primaryInk px-6 py-5 text-white">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-primaryInk font-bold text-white">
-              {getInitials(user.nombre)}
-            </div>
-            <div>
-              <h2 id="profile-title" className="text-lg font-semibold">
-                Perfil de usuario
-              </h2>
-              <p className="mt-0.5 text-sm text-white/70">{getRoleLabel(user.role)}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white"
-            onClick={onClose}
-            aria-label="Cerrar"
-            title="Cerrar"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
-        </header>
+        <ModalHeader
+  id="profile-title"
+  badge={getInitials(user.nombre)}
+  title="Perfil de usuario"
+  description={getRoleLabel(user.role)}
+  onClose={onClose}
+  closeLabel="Cerrar perfil"
+/>
 
         <div className="space-y-6 p-6">
           <dl className="divide-y divide-brand-line border-y border-brand-line">

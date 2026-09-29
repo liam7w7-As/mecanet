@@ -1,5 +1,5 @@
 import { PAYMENT_BANKS, PAYMENT_METHODS, createPaymentSchema } from '@unithor/shared';
-import { AlertCircle, Banknote, LoaderCircle, Pencil, X } from 'lucide-react';
+import { AlertCircle, Banknote, LoaderCircle, Pencil } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
@@ -15,6 +15,8 @@ import CurrencyInput from '../common/CurrencyInput';
 import ModalHeader from '../common/ModalHeader';
 
 import type { PaymentBank, PaymentMethod } from '@unithor/shared';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -132,6 +134,7 @@ export const PaymentFormModal = ({
     });
   };
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
@@ -145,7 +148,7 @@ export const PaymentFormModal = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         className="relative max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-lg bg-white shadow-2xl"
-        role="dialog"
+        role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="payment-modal-title"
       >

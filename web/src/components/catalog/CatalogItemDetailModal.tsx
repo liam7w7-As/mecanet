@@ -21,6 +21,8 @@ import { AnimateIcon } from '../animate-ui';
 import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem, StockMovement } from '../../types/entities';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 type DetailTab = 'summary' | 'inventory' | 'movements';
@@ -82,13 +84,6 @@ export const CatalogItemDetailModal = ({
   );
   const TypeIcon = TYPE_ICONS[item.tipo];
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   const tabs: Array<{ id: DetailTab; label: string; icon: typeof Boxes }> = [
     { id: 'summary', label: 'Resumen', icon: Boxes },
@@ -100,6 +95,7 @@ export const CatalogItemDetailModal = ({
       : []),
   ];
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6">
       <button
@@ -113,7 +109,7 @@ export const CatalogItemDetailModal = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 360, damping: 32 }}
         className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]"
-        role="dialog"
+        role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="catalog-detail-title"
       >

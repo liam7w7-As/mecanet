@@ -1,5 +1,5 @@
 import { createCatalogItemSchema, updateCatalogItemSchema, UNIT_MEASURES, UNIT_MEASURE_LABELS } from '@unithor/shared';
-import { AlertCircle, Boxes, LoaderCircle, Package, Settings2, Wrench, X } from 'lucide-react';
+import { AlertCircle, Boxes, LoaderCircle, Package, Settings2, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
@@ -14,6 +14,8 @@ import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem } from '../../types/entities';
 import type { CatalogType } from '@unithor/shared';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 interface CatalogItemModalProps {
@@ -61,13 +63,6 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
   const activeMutation = isEditing ? updateMutation : createMutation;
   const pricePreview = Number(form.precio);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape' && !activeMutation.isPending) onClose();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeMutation.isPending, onClose]);
 
   const setValue = <K extends keyof CatalogFormState>(
     key: K,
@@ -122,6 +117,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
     createMutation.mutate(result.data, { onSuccess: onClose });
   };
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose, isPending: activeMutation.isPending });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
@@ -132,7 +128,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
       />
       <section
         className="relative max-h-full w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-2xl"
-        role="dialog"
+        role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="catalog-form-title"
       >

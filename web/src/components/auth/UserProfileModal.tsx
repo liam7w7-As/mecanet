@@ -1,4 +1,4 @@
-import { AtSign, Mail, ShieldCheck, UserRound, X } from 'lucide-react';
+import { AtSign, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { useEffect } from 'react';
 
 import {
@@ -10,6 +10,8 @@ import {
 import ModalHeader from '../common/ModalHeader';
 
 import type { UserPublic } from '../../stores/auth.store';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 interface UserProfileModalProps {
@@ -30,17 +32,8 @@ export const getInitials = (name: string): string =>
 export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
   const permissions = getUserPermissionEntries(user);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6" role="presentation">
       <button
@@ -52,7 +45,7 @@ export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
 
       <section
         className="relative max-h-full w-full max-w-lg overflow-y-auto rounded-lg bg-white shadow-2xl"
-        role="dialog"
+        role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="profile-title"
       >

@@ -1,5 +1,5 @@
 import { updateQuotationSchema } from '@unithor/shared';
-import { AlertCircle, LoaderCircle, Save, X } from 'lucide-react';
+import { AlertCircle, LoaderCircle, Save } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
@@ -12,6 +12,8 @@ import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from '../work-orders/W
 
 import type { Quotation } from '../../types/entities';
 import type { EditableWorkOrderItem } from '../work-orders/WorkOrderItemsEditor';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 const toEditableItems = (quotation: Quotation): EditableWorkOrderItem[] =>
@@ -64,6 +66,7 @@ export const QuotationEditModal = ({ quotation, onClose }: QuotationEditModalPro
     updateMutation.mutate({ id: quotation.id, data: result.data }, { onSuccess: onClose });
   };
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
       <motion.section
@@ -71,7 +74,7 @@ export const QuotationEditModal = ({ quotation, onClose }: QuotationEditModalPro
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         className="relative mx-auto w-full max-w-5xl rounded-lg bg-white shadow-2xl"
-        role="dialog"
+        role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="edit-quotation-title"
       >

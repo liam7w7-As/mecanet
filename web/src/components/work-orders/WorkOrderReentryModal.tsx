@@ -1,5 +1,5 @@
 import { createWorkOrderReentrySchema } from '@unithor/shared';
-import { LoaderCircle, RotateCcw, ShieldCheck, X } from 'lucide-react';
+import { LoaderCircle, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,6 +11,8 @@ import ModalHeader from '../common/ModalHeader';
 
 import type { WorkOrder } from '../../types/entities';
 import type { WorkOrderEntryType } from '@unithor/shared';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 interface WorkOrderReentryModalProps {
@@ -60,9 +62,10 @@ export const WorkOrderReentryModal = ({ workOrder, onClose }: WorkOrderReentryMo
     );
   };
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/60 px-4 py-8">
-      <section className="relative mx-auto w-full max-w-2xl rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="reentry-title">
+      <section className="relative mx-auto w-full max-w-2xl rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="reentry-title">
         <ModalHeader
   id="reentry-title"
   title={"Crear garantía o reingreso"}

@@ -2,7 +2,7 @@ import {
   deliverWorkOrderSchema,
   WORK_ORDER_DELIVERY_CHECKLIST,
 } from '@unithor/shared';
-import { CheckCircle2, LoaderCircle, PackageCheck, X } from 'lucide-react';
+import { CheckCircle2, LoaderCircle, PackageCheck } from 'lucide-react';
 import { useState } from 'react';
 
 import { useDeliverWorkOrderMutation } from '../../hooks/useWorkOrders';
@@ -13,6 +13,8 @@ import ModalHeader from '../common/ModalHeader';
 
 import type { WorkOrder } from '../../types/entities';
 import type { WorkOrderDeliveryChecklistItem } from '@unithor/shared';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 interface WorkOrderDeliveryModalProps {
@@ -90,9 +92,10 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
     ? getApiErrorMessage(deliveryMutation.error, 'No se pudo registrar la entrega.')
     : null;
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/60 px-4 py-6">
-      <section className="relative mx-auto w-full max-w-3xl rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="delivery-title">
+      <section className="relative mx-auto w-full max-w-3xl rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="delivery-title">
         <ModalHeader
   id="delivery-title"
   badge={<PackageCheck className="h-6 w-6" aria-hidden="true" />}

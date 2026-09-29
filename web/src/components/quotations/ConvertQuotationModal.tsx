@@ -1,5 +1,5 @@
 import { convertQuotationToWorkOrderSchema } from '@unithor/shared';
-import { AlertCircle, ArrowRight, LoaderCircle, X } from 'lucide-react';
+import { AlertCircle, ArrowRight, LoaderCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
@@ -8,6 +8,8 @@ import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { AnimateIcon } from '../animate-ui';
 import ModalHeader from '../common/ModalHeader';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 interface ConvertQuotationModalProps {
@@ -44,6 +46,7 @@ export const ConvertQuotationModal = ({ quotationId, codigo, notas, onClose, onC
     );
   };
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-brand-scrim/55" aria-label="Cerrar conversión" onClick={onClose} />
@@ -52,7 +55,7 @@ export const ConvertQuotationModal = ({ quotationId, codigo, notas, onClose, onC
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         className="relative w-full max-w-lg rounded-lg bg-white p-6 shadow-2xl"
-        role="dialog"
+        role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="convert-title"
       >

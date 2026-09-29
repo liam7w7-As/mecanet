@@ -1,5 +1,5 @@
 import { createVehicleSchema, normalizeChilePatente } from '@unithor/shared';
-import { AlertCircle, Check, LoaderCircle, Search, UserRound, X } from 'lucide-react';
+import { AlertCircle, Check, LoaderCircle, Search, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
@@ -12,6 +12,8 @@ import { AnimateIcon } from '../animate-ui';
 import ModalHeader from '../common/ModalHeader';
 
 import type { Client, Vehicle } from '../../types/entities';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 interface VehicleFormModalProps {
@@ -76,15 +78,6 @@ export const VehicleFormModal = ({
   const isEditing = Boolean(vehicle);
   const activeMutation = isEditing ? updateMutation : createMutation;
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape' && !activeMutation.isPending) {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeMutation.isPending, onClose]);
 
   const setValue = <K extends keyof VehicleFormState>(key: K, value: VehicleFormState[K]): void => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -145,6 +138,7 @@ export const VehicleFormModal = ({
 
   const mutationError = activeMutation.error;
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose, isPending: activeMutation.isPending });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-brand-scrim/55" aria-label="Cerrar formulario de vehículo" onClick={onClose} />
@@ -153,7 +147,7 @@ export const VehicleFormModal = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         className="relative max-h-full w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-2xl"
-        role="dialog"
+        role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="vehicle-form-title"
       >

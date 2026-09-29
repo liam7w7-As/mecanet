@@ -1,5 +1,5 @@
 import { createClientSchema } from '@unithor/shared';
-import { AlertCircle, Building2, LoaderCircle, UserRound, X } from 'lucide-react';
+import { AlertCircle, Building2, LoaderCircle, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
@@ -10,6 +10,8 @@ import { AnimateIcon } from '../animate-ui';
 import ModalHeader from '../common/ModalHeader';
 
 import type { Client } from '../../types/entities';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 interface ClientFormModalProps {
@@ -53,15 +55,6 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
   const isEditing = Boolean(client);
   const activeMutation = isEditing ? updateMutation : createMutation;
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape' && !activeMutation.isPending) {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeMutation.isPending, onClose]);
 
   const setValue = <K extends keyof ClientFormState>(key: K, value: ClientFormState[K]): void => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -107,6 +100,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
 
   const mutationError = activeMutation.error;
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose, isPending: activeMutation.isPending });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
@@ -120,7 +114,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         className="relative max-h-full w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-2xl"
-        role="dialog"
+        role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="client-form-title"
       >

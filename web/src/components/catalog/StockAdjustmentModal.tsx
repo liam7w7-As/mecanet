@@ -21,6 +21,8 @@ import { AnimateIcon } from '../animate-ui';
 import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem } from '../../types/entities';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 interface StockAdjustmentModalProps {
@@ -44,19 +46,6 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
   const balancesQuery = useWarehouseBalances(warehouseId);
   const movementMutation = useCreateStockMovementMutation();
 
-  useEffect(() => {
-    if (warehouseId === null && activeWarehouses[0]) {
-      setWarehouseId(activeWarehouses[0].id);
-    }
-  }, [activeWarehouses, warehouseId]);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape' && !movementMutation.isPending) onClose();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [movementMutation.isPending, onClose]);
 
   const selectedWarehouse = activeWarehouses.find((warehouse) => warehouse.id === warehouseId);
   const warehouseStock =
@@ -109,6 +98,12 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
     );
   };
 
+  useEffect(() => {
+    if (warehouseId === null && activeWarehouses[0]) {
+      setWarehouseId(activeWarehouses[0].id);
+    }
+  }, [activeWarehouses, warehouseId]);
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose, isPending: movementMutation.isPending });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-3 py-3 sm:items-center sm:px-4 sm:py-6">
       <button
@@ -122,7 +117,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         className="relative w-full max-w-xl overflow-hidden rounded-lg bg-white shadow-2xl"
-        role="dialog"
+        role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="stock-adjustment-title"
       >

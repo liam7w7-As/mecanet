@@ -1,5 +1,5 @@
 import { updateWorkOrderSchema } from '@unithor/shared';
-import { AlertCircle, LoaderCircle, Save, X } from 'lucide-react';
+import { AlertCircle, LoaderCircle, Save } from 'lucide-react';
 import { useState } from 'react';
 
 import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from './WorkOrderItemsEditor';
@@ -10,6 +10,8 @@ import ModalHeader from '../common/ModalHeader';
 
 import type { EditableWorkOrderItem } from './WorkOrderItemsEditor';
 import type { WorkOrder } from '../../types/entities';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 interface WorkOrderItemsModalProps {
@@ -65,9 +67,10 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
     updateMutation.mutate({ id: workOrder.id, data: result.data }, { onSuccess: onClose });
   };
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
-      <section className="relative mx-auto w-full max-w-6xl rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="edit-work-items-title">
+      <section className="relative mx-auto w-full max-w-6xl rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="edit-work-items-title">
         <ModalHeader
   id="edit-work-items-title"
   title={"Editar trabajos y repuestos"}

@@ -199,11 +199,11 @@ const WorkOrderCard = ({
           </div>
 
           <div className="mt-3 flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate font-mono text-2xl font-black leading-none tracking-wide text-brand-ink">
+            <div className="min-w-0 flex-1">
+              <p className="whitespace-nowrap font-mono text-2xl font-black leading-tight tracking-widest text-slate-900 transition-colors group-hover:text-brand-primary">
                 {workOrder.vehicle?.patente ?? 'SIN PATENTE'}
               </p>
-              <p className="mt-1 truncate text-xs font-medium text-brand-muted">
+              <p className="mt-0.5 truncate text-xs font-medium text-brand-muted">
                 {vehicleLabel || 'Vehículo sin datos'}
               </p>
             </div>

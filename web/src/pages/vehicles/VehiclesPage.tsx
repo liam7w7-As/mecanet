@@ -214,29 +214,28 @@ export const VehiclesPage = () => {
                     aria-label={`Abrir ficha de ${vehicle.patente}`}
                   />
                   <div className="pointer-events-none relative z-[1] flex min-h-0 flex-1 flex-col">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center rounded-full bg-brand-pale px-2.5 py-0.5 font-mono text-xs font-bold text-brand-primaryInk">
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="inline-flex shrink-0 items-center rounded-md bg-brand-pale px-2 py-0.5 font-mono text-[11px] font-bold text-brand-primaryInk">
                           #{number}
                         </span>
-                        <div className="inline-flex items-center rounded-lg border-2 border-slate-700 bg-white px-2.5 py-0.5 shadow-2xs">
-                          <span className="font-mono text-sm font-black tracking-widest text-slate-800">
-                            {vehicle.patente}
-                          </span>
-                        </div>
+                        <span className="whitespace-nowrap font-mono text-2xl font-black tracking-widest text-slate-900 transition-colors group-hover:text-brand-primary">
+                          {vehicle.patente}
+                        </span>
                       </div>
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap ${
                           missingCount > 0
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-brand-mintPale text-brand-mintInk border border-brand-mint/30'
+                            ? 'border border-amber-200 bg-amber-50 text-amber-700'
+                            : 'border border-brand-mint/30 bg-brand-mintPale text-brand-mintInk'
                         }`}
+                        title={missingCount > 0 ? `${missingCount} datos pendientes en ficha` : 'Ficha completa'}
                       >
                         <span
-                          className={`h-1.5 w-1.5 rounded-full ${missingCount > 0 ? 'bg-amber-500' : 'bg-brand-mint'}`}
+                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${missingCount > 0 ? 'bg-amber-500' : 'bg-brand-mint'}`}
                           aria-hidden="true"
                         />
-                        {missingCount > 0 ? `${missingCount} datos pendientes` : 'Ficha completa'}
+                        {missingCount > 0 ? `${missingCount} pend.` : 'Completa'}
                       </span>
                     </div>
 

@@ -1,6 +1,7 @@
 import { loginSchema } from '@unithor/shared';
 import axios from 'axios';
 import { AlertCircle, Eye, EyeOff, LoaderCircle, LogIn } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -26,7 +27,7 @@ interface FieldErrors {
 }
 
 const inputClass =
-  'h-11 w-full rounded-lg border border-brand-line bg-white px-3 text-sm text-brand-ink outline-none transition placeholder:text-brand-muted/70 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk';
+  'h-12 w-full rounded-xl border border-brand-line bg-white px-3.5 text-base text-brand-ink outline-none transition-all placeholder:text-base placeholder:text-brand-muted/70 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk';
 
 const getLoginError = (error: unknown): string => {
   if (!axios.isAxiosError<ApiErrorBody>(error)) {
@@ -59,16 +60,22 @@ const BrandPanel = ({ company }: { company: { nombreComercial: string } }) => (
     </div>
 
     <div className="flex flex-col items-center justify-center text-center">
-      <img
+      <motion.img
         src="/assets/images/backgrounds/login-illustration.svg"
         alt="Ilustración de acceso y seguridad Modernize"
         className="h-auto w-[min(500px,38vw)] max-h-[500px] object-contain drop-shadow-sm select-none"
         loading="eager"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1, y: [0, -6, 0] }}
+        transition={{
+          opacity: { duration: 0.5, ease: 'easeOut' },
+          scale: { duration: 0.5, ease: 'easeOut' },
+          y: { repeat: Infinity, duration: 6, ease: 'easeInOut' },
+        }}
       />
     </div>
   </section>
 );
-
 
 export const LoginPage = () => {
   const [identifier, setIdentifier] = useState('');
@@ -113,15 +120,20 @@ export const LoginPage = () => {
       <BrandPanel company={company} />
 
       <section className="flex items-center justify-center px-6 py-12 md:px-10">
-        <div className="w-full max-w-[398px]">
-          <h1 className="text-2xl font-bold leading-[1.4] text-brand-ink">Iniciar sesión</h1>
-          <p className="mt-1.5 text-sm text-brand-muted">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+          className="w-full max-w-[410px]"
+        >
+          <h1 className="text-3xl font-extrabold tracking-tight text-brand-ink">Iniciar sesión</h1>
+          <p className="mt-2 text-base text-brand-muted">
             {company.sitioWeb ? `${company.nombreComercial} · ${company.sitioWeb}` : company.nombreComercial}
           </p>
 
           <form className="mt-7 flex flex-col gap-6" noValidate onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-[7px]">
-              <label className="text-sm font-medium text-brand-ink" htmlFor="identifier">
+            <div className="flex flex-col gap-2">
+              <label className="text-base font-semibold text-brand-ink" htmlFor="identifier">
                 Usuario o correo
               </label>
               <input
@@ -137,14 +149,14 @@ export const LoginPage = () => {
                 placeholder="usuario o ejemplo@unithor.cl"
               />
               {fieldErrors.identifier && (
-                <p id="identifier-error" className="text-sm text-brand-coralInk">
+                <p id="identifier-error" className="text-sm font-medium text-brand-coralInk">
                   {fieldErrors.identifier}
                 </p>
               )}
             </div>
 
-            <div className="flex flex-col gap-[7px]">
-              <label className="text-sm font-medium text-brand-ink" htmlFor="password">
+            <div className="flex flex-col gap-2">
+              <label className="text-base font-semibold text-brand-ink" htmlFor="password">
                 Contraseña
               </label>
               <div className="relative">
@@ -157,12 +169,12 @@ export const LoginPage = () => {
                   onChange={(event) => setPassword(event.target.value)}
                   aria-invalid={Boolean(fieldErrors.password)}
                   aria-describedby={fieldErrors.password ? 'password-error' : undefined}
-                  className={`${inputClass} pr-11`}
+                  className={`${inputClass} pr-12`}
                   placeholder="Ingrese su contraseña"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-brand-muted transition hover:text-brand-primary"
+                  className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-brand-muted transition-colors hover:text-brand-primary"
                   onClick={() => setShowPassword((visible) => !visible)}
                   aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                   title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
@@ -175,26 +187,33 @@ export const LoginPage = () => {
                 </button>
               </div>
               {fieldErrors.password && (
-                <p id="password-error" className="text-sm text-brand-coralInk">
+                <p id="password-error" className="text-sm font-medium text-brand-coralInk">
                   {fieldErrors.password}
                 </p>
               )}
             </div>
 
-            {loginMutation.isError && (
-              <div
-                className="flex items-start gap-2 rounded-lg border border-brand-coralInk/25 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk"
-                role="alert"
-              >
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{getLoginError(loginMutation.error)}</span>
-              </div>
-            )}
+            <AnimatePresence>
+              {loginMutation.isError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, y: -6 }}
+                  animate={{ opacity: 1, height: 'auto', y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -6 }}
+                  className="flex items-start gap-2.5 rounded-xl border border-brand-coralInk/25 bg-brand-coralPale px-3.5 py-3 text-sm font-medium text-brand-coralInk"
+                  role="alert"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>{getLoginError(loginMutation.error)}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            <button
+            <motion.button
               type="submit"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
               disabled={loginMutation.isPending}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 text-sm font-semibold text-white shadow-md transition-all hover:bg-brand-primary/90 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-xl bg-brand-primary px-5 text-base font-bold text-white shadow-md transition-all hover:bg-brand-primary/90 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loginMutation.isPending ? (
                 <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />
@@ -202,11 +221,11 @@ export const LoginPage = () => {
                 <LogIn className="h-5 w-5" aria-hidden="true" />
               )}
               {loginMutation.isPending ? 'Ingresando...' : 'Iniciar Sesión'}
-            </button>
+            </motion.button>
           </form>
 
-          <p className="mt-7 text-center text-xs text-brand-muted">Acceso exclusivo para personal autorizado</p>
-        </div>
+          <p className="mt-7 text-center text-sm text-brand-muted">Acceso exclusivo para personal autorizado</p>
+        </motion.div>
       </section>
     </div>
   );

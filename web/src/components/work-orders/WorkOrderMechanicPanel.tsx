@@ -259,7 +259,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all' }: Props) =>
                 <label className="grid gap-1 text-xs font-semibold text-brand-muted">Comentario<input className="h-10 rounded-lg border border-brand-line px-3 text-sm" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Resumen del trabajo realizado" /></label>
               </div>
               <label className="mt-3 grid gap-1 text-xs font-semibold text-brand-muted">Bloqueos o novedades<textarea className="min-h-20 rounded-lg border border-brand-line p-3 text-sm" value={blockers} onChange={(event) => setBlockers(event.target.value)} placeholder="Opcional" /></label>
-              <button type="button" className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryHover disabled:opacity-50" onClick={submitProgress} disabled={executionMutation.isPending || !validProgress}><ClipboardPen className="h-4 w-4" aria-hidden="true" />Registrar avance</button>
+              <button type="button" className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryInkHover disabled:opacity-50" onClick={submitProgress} disabled={executionMutation.isPending || !validProgress}><ClipboardPen className="h-4 w-4" aria-hidden="true" />Registrar avance</button>
             </div>
           </div>
 

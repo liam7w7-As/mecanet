@@ -10,9 +10,11 @@ import { getApiErrorMessage, isApiConflict } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp } from '../../lib/formatters';
 import CurrencyInput from '../common/CurrencyInput';
+import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem } from '../../types/entities';
 import type { CatalogType } from '@unithor/shared';
+
 
 interface CatalogItemModalProps {
   item?: CatalogItem | null;
@@ -134,17 +136,12 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
         aria-modal="true"
         aria-labelledby="catalog-form-title"
       >
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-brand-line bg-white px-5 py-4 sm:px-6">
-          <div>
-            <h2 id="catalog-form-title" className="text-lg font-semibold text-brand-primaryInk">
-              {isEditing ? 'Editar item' : 'Nuevo item de catálogo'}
-            </h2>
-            <p className="mt-0.5 text-sm text-brand-muted">Servicio, trabajo específico o repuesto</p>
-          </div>
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar" title="Cerrar">
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
-        </header>
+        <ModalHeader
+  id="catalog-form-title"
+  title={isEditing ? 'Editar item' : 'Nuevo item de catálogo'}
+  description={"Servicio, trabajo específico o repuesto"}
+  onClose={onClose}
+/>
 
         <form className="space-y-5 p-5 sm:p-6" noValidate onSubmit={handleSubmit}>
           <fieldset>

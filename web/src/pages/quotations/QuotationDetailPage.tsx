@@ -127,7 +127,7 @@ export const QuotationDetailPage = () => {
             </div>
           </div>
           {canConvert && (
-            <button type="button" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-primaryHover hover:shadow" onClick={() => setShowConversionModal(true)}>
+            <button type="button" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow" onClick={() => setShowConversionModal(true)}>
               Convertir en Orden de Trabajo
             </button>
           )}

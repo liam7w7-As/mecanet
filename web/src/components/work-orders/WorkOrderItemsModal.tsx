@@ -6,9 +6,11 @@ import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from './WorkOrderItems
 import { useUpdateWorkOrderMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import ModalHeader from '../common/ModalHeader';
 
 import type { EditableWorkOrderItem } from './WorkOrderItemsEditor';
 import type { WorkOrder } from '../../types/entities';
+
 
 interface WorkOrderItemsModalProps {
   workOrder: WorkOrder;
@@ -66,15 +68,12 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
       <section className="relative mx-auto w-full max-w-6xl rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="edit-work-items-title">
-        <header className="flex items-start justify-between border-b border-brand-line p-5">
-          <div>
-            <p className="font-mono text-sm text-brand-muted">{workOrder.codigo}</p>
-            <h2 id="edit-work-items-title" className="mt-1 text-xl font-bold text-brand-primaryInk">Editar trabajos y repuestos</h2>
-          </div>
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar">
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </header>
+        <ModalHeader
+  id="edit-work-items-title"
+  title={"Editar trabajos y repuestos"}
+  description={workOrder.codigo}
+  onClose={onClose}
+/>
         <form onSubmit={submit}>
           <div className="p-5">
             <WorkOrderItemsEditor

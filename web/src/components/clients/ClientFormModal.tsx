@@ -3,12 +3,14 @@ import { AlertCircle, Building2, LoaderCircle, UserRound, X } from 'lucide-react
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
-import { AnimateIcon } from '../animate-ui';
 import { useCreateClientMutation, useUpdateClientMutation } from '../../hooks/useClients';
 import { getApiErrorMessage, isApiConflict } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { AnimateIcon } from '../animate-ui';
+import ModalHeader from '../common/ModalHeader';
 
 import type { Client } from '../../types/entities';
+
 
 interface ClientFormModalProps {
   client?: Client | null;
@@ -122,23 +124,12 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
         aria-modal="true"
         aria-labelledby="client-form-title"
       >
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-brand-line bg-white px-5 py-4 sm:px-6">
-          <div>
-            <h2 id="client-form-title" className="text-lg font-semibold text-brand-primaryInk">
-              {isEditing ? 'Editar cliente' : 'Nuevo cliente'}
-            </h2>
-            <p className="mt-0.5 text-sm text-brand-muted">Datos de identificación y contacto</p>
-          </div>
-          <button
-            type="button"
-            className="group flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk"
-            onClick={onClose}
-            aria-label="Cerrar"
-            title="Cerrar"
-          >
-            <AnimateIcon icon={X} animation="spin" size={18} />
-          </button>
-        </header>
+        <ModalHeader
+  id="client-form-title"
+  title={isEditing ? 'Editar cliente' : 'Nuevo cliente'}
+  description={"Datos de identificación y contacto"}
+  onClose={onClose}
+/>
 
         <form className="space-y-6 p-5 sm:p-6" noValidate onSubmit={handleSubmit}>
           <fieldset>

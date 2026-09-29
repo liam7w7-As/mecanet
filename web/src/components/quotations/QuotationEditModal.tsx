@@ -3,14 +3,16 @@ import { AlertCircle, LoaderCircle, Save, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { AnimateIcon } from '../animate-ui';
 import { useUpdateQuotationMutation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { AnimateIcon } from '../animate-ui';
+import ModalHeader from '../common/ModalHeader';
 import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from '../work-orders/WorkOrderItemsEditor';
 
 import type { Quotation } from '../../types/entities';
 import type { EditableWorkOrderItem } from '../work-orders/WorkOrderItemsEditor';
+
 
 const toEditableItems = (quotation: Quotation): EditableWorkOrderItem[] =>
   quotation.items?.map((item) => ({
@@ -73,15 +75,12 @@ export const QuotationEditModal = ({ quotation, onClose }: QuotationEditModalPro
         aria-modal="true"
         aria-labelledby="edit-quotation-title"
       >
-        <header className="flex items-start justify-between border-b border-brand-line p-5">
-          <div>
-            <p className="text-sm text-brand-muted">{quotation.codigo}</p>
-            <h2 id="edit-quotation-title" className="mt-1 text-xl font-bold text-brand-primaryInk">Editar cotización</h2>
-          </div>
-          <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar">
-            <AnimateIcon icon={X} animation="spin" size={16} />
-          </button>
-        </header>
+        <ModalHeader
+  id="edit-quotation-title"
+  title={"Editar cotización"}
+  description={quotation.codigo}
+  onClose={onClose}
+/>
         <form onSubmit={submit}>
           <div className="p-5">
             <label className="block text-sm font-semibold text-brand-ink">Notas comerciales<textarea rows={4} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" /></label>

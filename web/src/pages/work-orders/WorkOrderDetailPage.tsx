@@ -543,7 +543,7 @@ export const WorkOrderDetailPage = () => {
               <p className="mt-1 text-sm text-brand-muted">Copia comercial editable vinculada a esta orden de taller.</p>
             </div>
           </div>
-          {workOrder.quotation && <Link to={`/quotations/${workOrder.quotation.id}`} className="inline-flex h-10 items-center justify-center rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryHover">Abrir COT</Link>}
+          {workOrder.quotation && <Link to={`/quotations/${workOrder.quotation.id}`} className="inline-flex h-10 items-center justify-center rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryInkHover">Abrir COT</Link>}
         </div>
         {workOrder.quotation ? (
           <div className="grid divide-y divide-brand-line sm:grid-cols-4 sm:divide-x sm:divide-y-0">

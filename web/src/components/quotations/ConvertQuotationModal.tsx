@@ -65,7 +65,7 @@ export const ConvertQuotationModal = ({ quotationId, codigo, notas, onClose, onC
           {conversionMutation.isError && <div className="flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(conversionMutation.error)}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="group inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white transition-all hover:bg-brand-primaryHover active:scale-95 disabled:opacity-60" disabled={conversionMutation.isPending}>
+            <button type="submit" className="group inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white transition-all hover:bg-brand-primaryInkHover active:scale-95 disabled:opacity-60" disabled={conversionMutation.isPending}>
               {conversionMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon icon={ArrowRight} animation="slide-right" size={16} />}
               Crear Orden de Trabajo
             </button>

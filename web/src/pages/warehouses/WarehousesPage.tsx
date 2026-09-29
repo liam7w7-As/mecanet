@@ -203,7 +203,7 @@ export const WarehousesPage = () => {
           {canCreate && (
             <button
               type="button"
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryHover"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryInkHover"
               onClick={() => {
                 setEditingWarehouse(null);
                 setShowWarehouseModal(true);
@@ -273,7 +273,7 @@ export const WarehousesPage = () => {
                 <div><p className="text-xs font-semibold uppercase text-brand-muted">Vehículo / cliente</p><p className="mt-1 truncate font-semibold text-brand-ink">{request.workOrder.vehicle ? `${request.workOrder.vehicle.marca ?? ''} ${request.workOrder.vehicle.modelo ?? ''}`.trim() || request.workOrder.vehicle.patente : 'Sin vehículo'}</p><p className="truncate text-xs text-brand-muted">{request.workOrder.client?.nombre ?? 'Sin cliente'}</p></div>
                 {request.estado === 'entregada' && <div className="col-span-2"><p className="text-xs text-brand-muted">{request.deliveredWarehouse?.codigo} · {request.deliverer?.nombre ?? 'Bodega'} · {request.deliveredAt ? formatDateTime(request.deliveredAt) : ''}</p></div>}
               </div>
-              {request.estado === 'aprobada' && canCreate ? <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryHover" onClick={() => setSelectedRequest(request)}><PackageCheck className="h-4 w-4" aria-hidden="true" />Entregar</button> : <a href={`/work-orders/${request.workOrderId}`} className="inline-flex h-10 items-center justify-center rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:border-brand-primary hover:text-brand-primaryInk">Ver OT</a>}
+              {request.estado === 'aprobada' && canCreate ? <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryInkHover" onClick={() => setSelectedRequest(request)}><PackageCheck className="h-4 w-4" aria-hidden="true" />Entregar</button> : <a href={`/work-orders/${request.workOrderId}`} className="inline-flex h-10 items-center justify-center rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:border-brand-primary hover:text-brand-primaryInk">Ver OT</a>}
             </article>
           ))}
         </div>
@@ -528,7 +528,7 @@ const WarehouseDeliveryModal = ({
           <label className="block text-sm font-semibold text-brand-ink">Observación de entrega <span className="font-normal text-brand-muted">(opcional)</span><textarea value={comentario} onChange={(event) => setComentario(event.target.value)} rows={3} maxLength={500} className="mt-2 w-full resize-none rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" placeholder="Serie, ubicación física, indicación para el mecánico…" /></label>
           {deliverMutation.isError && <div className="rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(deliverMutation.error)}</div>}
         </div>
-        <footer className="flex flex-col-reverse gap-2 border-t border-brand-line px-5 py-4 sm:flex-row sm:justify-end"><button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale" onClick={onClose}>Cancelar</button><button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-bold text-white hover:bg-brand-primaryHover disabled:cursor-not-allowed disabled:opacity-50" onClick={submit} disabled={warehouseId === null || balancesQuery.isPending || insufficientStock || deliverMutation.isPending}>{deliverMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <PackageCheck className="h-4 w-4" aria-hidden="true" />}{deliverMutation.isPending ? 'Entregando…' : 'Confirmar entrega'}</button></footer>
+        <footer className="flex flex-col-reverse gap-2 border-t border-brand-line px-5 py-4 sm:flex-row sm:justify-end"><button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale" onClick={onClose}>Cancelar</button><button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-bold text-white hover:bg-brand-primaryInkHover disabled:cursor-not-allowed disabled:opacity-50" onClick={submit} disabled={warehouseId === null || balancesQuery.isPending || insufficientStock || deliverMutation.isPending}>{deliverMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <PackageCheck className="h-4 w-4" aria-hidden="true" />}{deliverMutation.isPending ? 'Entregando…' : 'Confirmar entrega'}</button></footer>
       </section>
     </div>
   );

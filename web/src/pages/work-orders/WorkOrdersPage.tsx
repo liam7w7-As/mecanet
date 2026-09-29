@@ -371,7 +371,7 @@ export const WorkOrdersPage = () => {
           <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">{user?.role === 'mecanico' ? 'Mis órdenes asignadas' : 'Taller - Órdenes de Trabajo'}</h1>
         </div>
         {canCreate && (
-          <Link to="/work-orders/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-primaryHover hover:shadow-md">
+          <Link to="/work-orders/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow-md">
             <AnimateIcon variant="spin" animateOnHover>
               <Plus className="h-4 w-4" aria-hidden="true" />
             </AnimateIcon>

@@ -11,9 +11,11 @@ import { useClients } from '../../hooks/useClients';
 import { useUpdateWorkOrderMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import ModalHeader from '../common/ModalHeader';
 
 import type { Client, WorkOrder } from '../../types/entities';
 import type { FuelLevel, TireCondition, VehicleInventoryItem } from '@unithor/shared';
+
 
 interface WorkOrderReceptionInspectionModalProps {
   workOrder: WorkOrder;
@@ -206,15 +208,12 @@ export const WorkOrderReceptionInspectionModal = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
       <section className="relative mx-auto w-full max-w-5xl rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="edit-reception-title">
-        <header className="flex items-start justify-between border-b border-brand-line p-5">
-          <div>
-            <p className="font-mono text-sm text-brand-muted">{workOrder.codigo}</p>
-            <h2 id="edit-reception-title" className="mt-1 text-xl font-bold text-brand-primaryInk">Editar recepción e inspección</h2>
-          </div>
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar">
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </header>
+        <ModalHeader
+  id="edit-reception-title"
+  title={"Editar recepción e inspección"}
+  description={workOrder.codigo}
+  onClose={onClose}
+/>
         <form onSubmit={submit}>
           <div className="space-y-6 p-5">
             <div className="grid gap-4 lg:grid-cols-2">

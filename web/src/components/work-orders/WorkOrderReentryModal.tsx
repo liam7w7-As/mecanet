@@ -7,9 +7,11 @@ import { useCreateWorkOrderReentryMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { notifySuccess } from '../../stores/toast.store';
+import ModalHeader from '../common/ModalHeader';
 
 import type { WorkOrder } from '../../types/entities';
 import type { WorkOrderEntryType } from '@unithor/shared';
+
 
 interface WorkOrderReentryModalProps {
   workOrder: WorkOrder;
@@ -61,13 +63,12 @@ export const WorkOrderReentryModal = ({ workOrder, onClose }: WorkOrderReentryMo
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/60 px-4 py-8">
       <section className="relative mx-auto w-full max-w-2xl rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="reentry-title">
-        <header className="flex items-start justify-between border-b border-brand-line p-5">
-          <div>
-            <p className="font-mono text-sm text-brand-muted">Origen: {workOrder.codigo}</p>
-            <h2 id="reentry-title" className="mt-1 text-xl font-bold text-brand-primaryInk">Crear garantía o reingreso</h2>
-          </div>
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar"><X className="h-4 w-4" aria-hidden="true" /></button>
-        </header>
+        <ModalHeader
+  id="reentry-title"
+  title={"Crear garantía o reingreso"}
+  description={"Origen: {workOrder.codigo}"}
+  onClose={onClose}
+/>
         <form onSubmit={submit}>
           <div className="space-y-5 p-5">
             <div className="grid grid-cols-2 gap-2" role="group" aria-label="Tipo de nuevo ingreso">

@@ -1,9 +1,9 @@
 import { createUserSchema, updateUserSchema } from '@unithor/shared';
-import { AlertCircle, LoaderCircle, Save, X } from 'lucide-react';
+import { AlertCircle, LoaderCircle, Save } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-import { AnimateIcon } from '../animate-ui';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import {
   useCreateUserMutation,
   useUpdateUserMutation,
@@ -11,6 +11,8 @@ import {
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { getRoleLabel } from '../../lib/permissions';
+import { AnimateIcon } from '../animate-ui';
+import ModalHeader from '../common/ModalHeader';
 
 import type { AdminUser, RoleOption } from '../../hooks/useUsers';
 
@@ -34,13 +36,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
   const [roleId, setRoleId] = useState(String(user?.roleId ?? defaultRole?.id ?? ''));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape' && !mutation.isPending) onClose();
-    };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [mutation.isPending, onClose]);
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose, isPending: mutation.isPending });
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -77,16 +73,14 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="user-form-title"
+        ref={setPanelNode}
       >
-        {/* Cabecera sobre `surfaceDark`: el subtítulo usa `text-white/70`, que
-            sobre el índigo `#255DFF` no llega a 4.5:1. Sobre la superficie
-            oscura del tema `body.dark` del diseño sí. */}
-        <header className="flex items-start justify-between bg-brand-surfaceDark px-6 py-5 text-white">
-          <div><h2 id="user-form-title" className="text-lg font-bold">{user ? 'Editar usuario' : 'Nuevo usuario'}</h2><p className="mt-1 text-sm text-white/75">Acceso, identidad y rol operativo</p></div>
-          <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-white/75 hover:bg-white/10" onClick={onClose} aria-label="Cerrar">
-            <AnimateIcon icon={X} animation="spin" size={18} />
-          </button>
-        </header>
+        <ModalHeader
+          id="user-form-title"
+          title={user ? 'Editar usuario' : 'Nuevo usuario'}
+          description="Acceso, identidad y rol operativo"
+          onClose={onClose}
+        />
         <form onSubmit={submit} className="space-y-4 p-6">
           {mutation.isError && <div className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk" role="alert"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(mutation.error, 'No fue posible guardar el usuario.')}</div>}
           <label className="block text-sm font-semibold text-brand-ink">Nombre completo<input className={inputClass} value={nombre} onChange={(event) => setNombre(event.target.value)} autoFocus />{errors.nombre && <span className="mt-1 block text-xs font-normal text-brand-coralInk">{errors.nombre}</span>}</label>
@@ -96,7 +90,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
           <label className="block text-sm font-semibold text-brand-ink">Rol<select className={`${inputClass} bg-white`} value={roleId} onChange={(event) => setRoleId(event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{getRoleLabel(role.nombre)}</option>)}</select>{errors.roleId && <span className="mt-1 block text-xs font-normal text-brand-coralInk">{errors.roleId}</span>}</label>
           <footer className="flex justify-end gap-2 pt-2">
             <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="group inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white transition-all hover:bg-brand-primaryHover active:scale-95 disabled:opacity-60" disabled={mutation.isPending}>
+            <button type="submit" className="group inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white transition-all hover:bg-brand-primaryInkHover active:scale-95 disabled:opacity-60" disabled={mutation.isPending}>
               {mutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon icon={Save} animation="bounce" size={16} />}
               {user ? 'Guardar cambios' : 'Crear usuario'}
             </button>

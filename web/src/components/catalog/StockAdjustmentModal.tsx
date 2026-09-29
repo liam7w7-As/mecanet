@@ -319,7 +319,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
             </button>
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-bold text-white hover:bg-brand-primaryHover disabled:opacity-60"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-bold text-white hover:bg-brand-primaryInkHover disabled:opacity-60"
               disabled={
                 movementMutation.isPending ||
                 activeWarehouses.length === 0 ||

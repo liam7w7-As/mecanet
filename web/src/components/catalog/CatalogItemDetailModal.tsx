@@ -368,7 +368,7 @@ export const CatalogItemDetailModal = ({
             {isPart && canAdjustStock && (
               <button
                 type="button"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryHover"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryInkHover"
                 onClick={onAdjustStock}
               >
                 <Boxes className="h-4 w-4" aria-hidden="true" /> Movimiento

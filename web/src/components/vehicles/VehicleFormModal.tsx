@@ -3,14 +3,16 @@ import { AlertCircle, Check, LoaderCircle, Search, UserRound, X } from 'lucide-r
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
-import { AnimateIcon } from '../animate-ui';
 import { useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCreateVehicleMutation, useUpdateVehicleMutation } from '../../hooks/useVehicles';
 import { getApiErrorMessage, isApiConflict } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { AnimateIcon } from '../animate-ui';
+import ModalHeader from '../common/ModalHeader';
 
 import type { Client, Vehicle } from '../../types/entities';
+
 
 interface VehicleFormModalProps {
   vehicle?: Vehicle | null;
@@ -155,17 +157,12 @@ export const VehicleFormModal = ({
         aria-modal="true"
         aria-labelledby="vehicle-form-title"
       >
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-brand-line bg-white px-5 py-4 sm:px-6">
-          <div>
-            <h2 id="vehicle-form-title" className="text-lg font-semibold text-brand-primaryInk">
-              {isEditing ? 'Editar vehículo' : 'Nuevo vehículo'}
-            </h2>
-            <p className="mt-0.5 text-sm text-brand-muted">Identificación, mecánica y propietario</p>
-          </div>
-          <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar" title="Cerrar">
-            <AnimateIcon icon={X} animation="spin" size={18} />
-          </button>
-        </header>
+        <ModalHeader
+  id="vehicle-form-title"
+  title={isEditing ? 'Editar vehículo' : 'Nuevo vehículo'}
+  description={"Identificación, mecánica y propietario"}
+  onClose={onClose}
+/>
 
         <form className="space-y-6 p-5 sm:p-6" noValidate onSubmit={handleSubmit}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

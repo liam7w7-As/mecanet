@@ -1,5 +1,6 @@
 const fs=require('node:fs');
-const {chromium}=require('C:/Users/UnseR/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+
+const {chromium}=require('./playwright.cjs');
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'msedge'}),page=await browser.newPage({viewport:{width:1600,height:1080}});
  const images=new Set();

@@ -11,8 +11,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { chromium } = require('C:/Users/UnseR/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
-
+const { chromium } = require('./playwright.cjs');
 const { startServer } = require('./serve-dist.cjs');
 
 const REPO = path.resolve(__dirname, '../../..');

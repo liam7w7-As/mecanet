@@ -12,7 +12,7 @@ const http = require('node:http');
 const net = require('node:net');
 const path = require('node:path');
 
-const { chromium } = require('C:/Users/UnseR/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const { chromium } = require('./playwright.cjs');
 
 // __dirname es <repo>/web/designs/work: el repo está tres niveles arriba.
 const REPO = path.resolve(__dirname, '../../..');

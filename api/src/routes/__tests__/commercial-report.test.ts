@@ -241,19 +241,43 @@ describe('Commercial Excel Report Routes (E2E)', () => {
     const summarySheet = workbook.getWorksheet('Resumen Comercial');
     const paymentSheet = workbook.getWorksheet('Detalle de Pagos - Abonos');
 
-    expect(summarySheet).toBeDefined();
-    expect(paymentSheet).toBeDefined();
-    expect(summarySheet?.getCell('A1').value).toBe(
-      'UNITHOR - INFORME DE VENTAS Y COBRANZAS',
-    );
-    expect(summarySheet?.getCell('A5').value).toBe(`${TEST_CODE_PREFIX}01`);
-    expect(summarySheet?.getCell('J5').value).toBe(25000);
-    expect(summarySheet?.getCell('A6').value).toBe('TOTALES GENERALES');
-    expect(paymentSheet?.getCell('A5').value).toBe(`${TEST_CODE_PREFIX}01`);
-    expect(paymentSheet?.getCell('E5').value).toBe(25000);
-    expect(paymentSheet?.getCell('A6').value).toBe(`${TEST_CODE_PREFIX}02`);
-    expect(paymentSheet?.getCell('E6').value).toBe(10000);
-  });
+expect(summarySheet).toBeDefined();
+expect(paymentSheet).toBeDefined();
+expect(summarySheet?.getCell('A1').value).toBe(
+  'UNITHOR - INFORME DE VENTAS Y COBRANZAS',
+);
+
+// El informe lista todas las cotizaciones del periodo, no solo las de este
+// test: la fila A5 es la mas antigua del mes y puede pertenecer a otro archivo de
+// pruebas que dejo datos en la misma base. Se localiza la fila por codigo en vez
+// de asumir la posicion, porque afirmar que la nuestra es la primera fila era una
+// suposicion que no se cumplia y hacia fallar el test sin que hubiera un bug.
+const findRowByCode = (
+  sheet: ExcelJS.Worksheet,
+  code: string,
+): number => {
+  for (let row = 5; ; row += 1) {
+    const value = sheet.getCell(`A${row}`).value;
+    if (value === code) return row;
+    if (value === 'TOTALES GENERALES' || value === null || value === undefined) {
+      break;
+    }
+  }
+  throw new Error(`El informe no contiene la fila ${code}`);
+};
+
+const summaryRow = findRowByCode(summarySheet!, `${TEST_CODE_PREFIX}01`);
+expect(summarySheet?.getCell(`J${summaryRow}`).value).toBe(25000);
+// La fila de totales tampoco es fija: se situa tras la ultima cotizacion del
+// periodo, y esa cantidad depende de lo que haya en la base ese mes.
+expect(() => findRowByCode(summarySheet!, 'TOTALES GENERALES')).not.toThrow();
+
+const paymentRowOne = findRowByCode(paymentSheet!, `${TEST_CODE_PREFIX}01`);
+expect(paymentSheet?.getCell(`E${paymentRowOne}`).value).toBe(25000);
+const paymentRowTwo = findRowByCode(paymentSheet!, `${TEST_CODE_PREFIX}02`);
+expect(paymentSheet?.getCell(`E${paymentRowTwo}`).value).toBe(10000);
+});
+
 
   it('rechaza un rango de fechas invertido', async () => {
     const cookies = await loginAs(vendedorEmail);

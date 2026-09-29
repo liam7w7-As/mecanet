@@ -63,7 +63,7 @@ export const QuotationEditModal = ({ quotation, onClose }: QuotationEditModalPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 px-4 py-8">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -73,24 +73,24 @@ export const QuotationEditModal = ({ quotation, onClose }: QuotationEditModalPro
         aria-modal="true"
         aria-labelledby="edit-quotation-title"
       >
-        <header className="flex items-start justify-between border-b border-slate-200 p-5">
+        <header className="flex items-start justify-between border-b border-brand-line p-5">
           <div>
-            <p className="text-sm text-slate-500">{quotation.codigo}</p>
-            <h2 id="edit-quotation-title" className="mt-1 text-xl font-bold text-brand-blue">Editar cotización</h2>
+            <p className="text-sm text-brand-muted">{quotation.codigo}</p>
+            <h2 id="edit-quotation-title" className="mt-1 text-xl font-bold text-brand-primaryInk">Editar cotización</h2>
           </div>
-          <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Cerrar">
+          <button type="button" className="group flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale" onClick={onClose} aria-label="Cerrar">
             <AnimateIcon icon={X} animation="spin" size={16} />
           </button>
         </header>
         <form onSubmit={submit}>
           <div className="p-5">
-            <label className="block text-sm font-semibold text-slate-700">Notas comerciales<textarea rows={4} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-brand-blue" /></label>
+            <label className="block text-sm font-semibold text-brand-ink">Notas comerciales<textarea rows={4} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" /></label>
             <div className="mt-5"><WorkOrderItemsEditor items={items} onChange={setItems} errors={errors} title="Ítems cotizados" description="Actualice servicios, repuestos o conceptos libres." emptyMessage="La cotización quedará sin ítems y con total cero." totalLabel="Nuevo total" totalTestId="quotation-edit-total" /></div>
           </div>
-          {updateMutation.isError && <div className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(updateMutation.error)}</div>}
-          <footer className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 p-4">
-            <button type="button" className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="group inline-flex h-10 items-center gap-2 rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white transition-all hover:bg-brand-dark active:scale-95 disabled:opacity-60" disabled={updateMutation.isPending}>
+          {updateMutation.isError && <div className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(updateMutation.error)}</div>}
+          <footer className="flex justify-end gap-2 border-t border-brand-line bg-brand-line/40 p-4">
+            <button type="button" className="h-10 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="group inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white transition-all hover:bg-brand-primaryInkHover active:scale-95 disabled:opacity-60" disabled={updateMutation.isPending}>
               {updateMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon icon={Save} animation="bounce" size={16} />}
               Guardar cambios
             </button>

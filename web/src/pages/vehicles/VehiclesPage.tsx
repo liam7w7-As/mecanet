@@ -303,7 +303,7 @@ export const VehiclesPage = () => {
                       {canEdit && (
                         <button
                           type="button"
-                          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-brand-line transition-colors hover:bg-white/10 hover:text-brand-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-gold"
+                          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-brand-line transition-colors hover:bg-white/10 hover:text-brand-goldInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-gold"
                           onClick={() => setFormVehicle(vehicle)}
                           aria-label={`Editar ${vehicle.patente}`}
                           title="Editar vehículo"
@@ -314,7 +314,7 @@ export const VehiclesPage = () => {
                       {canDelete && (
                         <button
                           type="button"
-                          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-brand-line transition-colors hover:bg-brand-coral/15 hover:text-brand-coral focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-gold"
+                          className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-brand-line transition-colors hover:bg-brand-coral/15 hover:text-brand-coralInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-gold"
                           onClick={() => {
                             deleteMutation.reset();
                             setDeleteVehicle(vehicle);
@@ -358,7 +358,7 @@ export const VehiclesPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-950/60 backdrop-blur-[1px]"
+              className="fixed inset-0 bg-brand-scrim/60 backdrop-blur-[1px]"
               aria-label="Cerrar ficha del vehículo"
               onClick={closeVehicle}
             />
@@ -387,7 +387,7 @@ export const VehiclesPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-950/55"
+              className="absolute inset-0 bg-brand-scrim/55"
               aria-label="Cancelar eliminación"
               onClick={() => setDeleteVehicle(null)}
             />
@@ -418,7 +418,7 @@ export const VehiclesPage = () => {
                 </button>
                 <button
                   type="button"
-                  className="h-10 rounded-lg bg-red-700 px-4 text-sm font-semibold text-white hover:bg-red-800 transition-colors disabled:opacity-60"
+                  className="h-10 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white hover:bg-brand-coralInk transition-colors disabled:opacity-60"
                   onClick={confirmDelete}
                   disabled={deleteMutation.isPending}
                 >

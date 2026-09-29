@@ -135,24 +135,24 @@ const NOTIFICATION_PRESENTATION: Record<
   pago_por_verificar: { label: 'Pago por verificar', dot: 'bg-brand-gold', icon: 'cash' },
   pago_verificado: { label: 'Pago verificado', dot: 'bg-brand-mint', icon: 'cash' },
   pago_rechazado: { label: 'Pago rechazado', dot: 'bg-brand-coral', icon: 'cash' },
-  ot_estado_cambiado: { label: 'Cambio de estado', dot: 'bg-blue-500', icon: 'bell' },
+  ot_estado_cambiado: { label: 'Cambio de estado', dot: 'bg-brand-primaryInk', icon: 'bell' },
   ot_entregada: { label: 'Orden entregada', dot: 'bg-brand-mint', icon: 'truck' },
-  mecanico_asignado: { label: 'Asignación', dot: 'bg-blue-500', icon: 'wrench' },
-  reingreso_creado: { label: 'Reingreso creado', dot: 'bg-blue-500', icon: 'truck' },
+  mecanico_asignado: { label: 'Asignación', dot: 'bg-brand-primaryInk', icon: 'wrench' },
+  reingreso_creado: { label: 'Reingreso creado', dot: 'bg-brand-primaryInk', icon: 'truck' },
   fecha_entrega_vencida: { label: 'Entrega vencida', dot: 'bg-brand-coralInk', icon: 'bell' },
-  cotizacion_creada: { label: 'Cotización creada', dot: 'bg-blue-500', icon: 'file' },
+  cotizacion_creada: { label: 'Cotización creada', dot: 'bg-brand-primaryInk', icon: 'file' },
   cotizacion_convertida: { label: 'Cotización convertida', dot: 'bg-brand-mint', icon: 'file' },
 };
 
 export const getNotificationPresentation = (
   tipo: NotificationType,
 ): { label: string; dot: string; icon: 'bell' | 'wrench' | 'cash' | 'truck' | 'file' } =>
-  NOTIFICATION_PRESENTATION[tipo] ?? { label: 'Notificación', dot: 'bg-slate-400', icon: 'bell' };
+  NOTIFICATION_PRESENTATION[tipo] ?? { label: 'Notificación', dot: 'bg-brand-muted', icon: 'bell' };
 
 export const NOTIFICATION_LEVEL_STYLES: Record<NotificationLevel, string> = {
-  info: 'border-l-blue-400',
-  warning: 'border-l-amber-400',
-  critical: 'border-l-red-500',
+  info: 'border-l-brand-primary',
+  warning: 'border-l-brand-gold',
+  critical: 'border-l-brand-coral',
 };
 
 export const useNotificationPanel = (onClose: () => void) => {

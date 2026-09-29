@@ -269,7 +269,7 @@ export const UsersPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-950/55"
+              className="absolute inset-0 bg-brand-scrim/55"
               aria-label="Cancelar cambio de estado"
               onClick={() => setStatusTarget(null)}
             />
@@ -288,7 +288,7 @@ export const UsersPage = () => {
               {statusMutation.error && <p className="mt-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(statusMutation.error)}</p>}
               <div className="mt-5 flex justify-end gap-2">
                 <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale transition-colors" onClick={() => setStatusTarget(null)}>Cancelar</button>
-                <button type="button" className={`h-10 rounded-lg px-4 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${statusTarget.activo ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-primaryInk hover:bg-brand-primaryInk'}`} onClick={changeStatus} disabled={statusMutation.isPending}>{statusMutation.isPending ? 'Guardando...' : statusTarget.activo ? 'Desactivar cuenta' : 'Activar cuenta'}</button>
+                <button type="button" className={`h-10 rounded-lg px-4 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${statusTarget.activo ? 'bg-brand-coralInk hover:bg-brand-coralInk' : 'bg-brand-primaryInk hover:bg-brand-primaryInk'}`} onClick={changeStatus} disabled={statusMutation.isPending}>{statusMutation.isPending ? 'Guardando...' : statusTarget.activo ? 'Desactivar cuenta' : 'Activar cuenta'}</button>
               </div>
             </motion.section>
           </div>
@@ -303,7 +303,7 @@ export const UsersPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-950/55"
+              className="absolute inset-0 bg-brand-scrim/55"
               aria-label="Cancelar eliminación"
               onClick={() => setDeleteTarget(null)}
             />
@@ -322,7 +322,7 @@ export const UsersPage = () => {
               {deleteMutation.error && <p className="mt-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(deleteMutation.error)}</p>}
               <div className="mt-5 flex justify-end gap-2">
                 <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale transition-colors" onClick={() => setDeleteTarget(null)}>Cancelar</button>
-                <button type="button" className="h-10 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-60" onClick={deleteUser} disabled={deleteMutation.isPending}>{deleteMutation.isPending ? 'Eliminando...' : 'Eliminar usuario'}</button>
+                <button type="button" className="h-10 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white hover:bg-brand-coralInk transition-colors disabled:opacity-60" onClick={deleteUser} disabled={deleteMutation.isPending}>{deleteMutation.isPending ? 'Eliminando...' : 'Eliminar usuario'}</button>
               </div>
             </motion.section>
           </div>

@@ -56,8 +56,8 @@ export const PROGRESS_TIER_STYLES: Record<ProgressTier, { bar: string; ring: str
   done: { bar: 'bg-brand-mint', ring: 'ring-brand-mint border-brand-line', chip: 'bg-brand-mintPale text-brand-mintInk', label: 'Finalizado' },
   good: { bar: 'bg-lime-500', ring: 'ring-lime-200 border-lime-200', chip: 'bg-lime-100 text-lime-800', label: 'Buen avance' },
   mid: { bar: 'bg-brand-gold', ring: 'ring-brand-line border-brand-line', chip: 'bg-brand-goldPale text-brand-goldInk', label: 'Avance medio' },
-  low: { bar: 'bg-red-400', ring: 'ring-brand-line border-brand-coral/30', chip: 'bg-brand-coralPale text-brand-coralInk', label: 'Poco avance' },
-  none: { bar: 'bg-brand-coralInk', ring: 'ring-red-300 border-brand-coral/40', chip: 'bg-brand-coralInk text-white', label: 'Sin iniciar' },
+  low: { bar: 'bg-brand-coral', ring: 'ring-brand-line border-brand-coral/30', chip: 'bg-brand-coralPale text-brand-coralInk', label: 'Poco avance' },
+  none: { bar: 'bg-brand-coralInk', ring: 'ring-brand-coral/40 border-brand-coral/40', chip: 'bg-brand-coralInk text-white', label: 'Sin iniciar' },
   neutral: { bar: 'bg-brand-line', ring: 'ring-brand-line border-brand-line', chip: 'bg-brand-pale text-brand-muted', label: 'Diagnóstico' },
 };
 

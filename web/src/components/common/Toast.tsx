@@ -37,14 +37,14 @@ export const ToastViewport = () => {
               role={isSuccess ? 'status' : 'alert'}
               className={`pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 shadow-2xl backdrop-blur ${
                 isSuccess
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-                  : 'border-red-200 bg-red-50 text-red-900'
+                  ? 'border-brand-line bg-brand-mintPale text-brand-mintInk'
+                  : 'border-brand-coral/30 bg-brand-coralPale text-brand-coralInk'
               }`}
             >
               {isSuccess ? (
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-mintInk" aria-hidden="true" />
               ) : (
-                <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
+                <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-brand-coralInk" aria-hidden="true" />
               )}
               <p className="min-w-0 flex-1 text-sm font-medium leading-5">{toast.message}</p>
               <button

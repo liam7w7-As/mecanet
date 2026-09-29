@@ -43,7 +43,7 @@ export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6" role="presentation">
       <button
         type="button"
-        className="absolute inset-0 bg-slate-950/55"
+        className="absolute inset-0 bg-brand-scrim/55"
         aria-label="Cerrar perfil"
         onClick={onClose}
       />
@@ -54,9 +54,9 @@ export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
         aria-modal="true"
         aria-labelledby="profile-title"
       >
-        <header className="flex items-start justify-between bg-brand-blue px-6 py-5 text-white">
+        <header className="flex items-start justify-between bg-brand-primaryInk px-6 py-5 text-white">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-yellow font-bold text-brand-dark">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-primaryInk font-bold text-white">
               {getInitials(user.nombre)}
             </div>
             <div>
@@ -78,44 +78,44 @@ export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
         </header>
 
         <div className="space-y-6 p-6">
-          <dl className="divide-y divide-slate-100 border-y border-slate-100">
+          <dl className="divide-y divide-brand-line border-y border-brand-line">
             <div className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:items-center">
-              <dt className="flex items-center gap-2 text-xs font-medium uppercase text-slate-500">
+              <dt className="flex items-center gap-2 text-xs font-medium uppercase text-brand-muted">
                 <UserRound className="h-4 w-4" aria-hidden="true" /> ID de usuario
               </dt>
-              <dd className="font-semibold text-slate-900">#{user.id}</dd>
+              <dd className="font-semibold text-brand-ink">#{user.id}</dd>
             </div>
             <div className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:items-center">
-              <dt className="flex items-center gap-2 text-xs font-medium uppercase text-slate-500">
+              <dt className="flex items-center gap-2 text-xs font-medium uppercase text-brand-muted">
                 <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Rol asignado
               </dt>
-              <dd className="font-semibold text-slate-900">{getRoleLabel(user.role)}</dd>
+              <dd className="font-semibold text-brand-ink">{getRoleLabel(user.role)}</dd>
             </div>
             <div className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:items-center">
-              <dt className="text-xs font-medium uppercase text-slate-500">Nombre completo</dt>
-              <dd className="font-semibold text-slate-900">{user.nombre}</dd>
+              <dt className="text-xs font-medium uppercase text-brand-muted">Nombre completo</dt>
+              <dd className="font-semibold text-brand-ink">{user.nombre}</dd>
             </div>
             <div className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:items-center">
-              <dt className="flex items-center gap-2 text-xs font-medium uppercase text-slate-500">
+              <dt className="flex items-center gap-2 text-xs font-medium uppercase text-brand-muted">
                 <AtSign className="h-4 w-4" aria-hidden="true" /> Usuario
               </dt>
-              <dd className="font-semibold text-slate-900">{user.username ?? 'Sin asignar'}</dd>
+              <dd className="font-semibold text-brand-ink">{user.username ?? 'Sin asignar'}</dd>
             </div>
             <div className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:items-center">
-              <dt className="flex items-center gap-2 text-xs font-medium uppercase text-slate-500">
+              <dt className="flex items-center gap-2 text-xs font-medium uppercase text-brand-muted">
                 <Mail className="h-4 w-4" aria-hidden="true" /> Correo electrónico
               </dt>
-              <dd className="break-all font-semibold text-slate-900">{user.email}</dd>
+              <dd className="break-all font-semibold text-brand-ink">{user.email}</dd>
             </div>
           </dl>
 
           <div>
-            <h3 className="text-sm font-semibold text-brand-blue">Permisos activos</h3>
+            <h3 className="text-sm font-semibold text-brand-primaryInk">Permisos activos</h3>
             <div className="mt-3 space-y-3">
               {permissions.map(([module, actions]) => (
-                <div key={module} className="border-l-2 border-brand-yellow pl-3">
-                  <p className="text-sm font-semibold text-slate-800">{MODULE_LABELS[module]}</p>
-                  <p className="mt-0.5 text-sm text-slate-500">
+                <div key={module} className="border-l-2 border-brand-gold pl-3">
+                  <p className="text-sm font-semibold text-brand-ink">{MODULE_LABELS[module]}</p>
+                  <p className="mt-0.5 text-sm text-brand-muted">
                     {actions.map((action) => ACTION_LABELS[action]).join(', ')}
                   </p>
                 </div>
@@ -125,7 +125,7 @@ export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
 
           <button
             type="button"
-            className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-brand-blue px-4 text-sm font-semibold text-white hover:bg-brand-dark"
+            className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover"
             onClick={onClose}
           >
             Cerrar

@@ -171,7 +171,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
               type="button"
               className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors ${
                 movementType === 'salida'
-                  ? 'border-red-500 bg-brand-coralPale text-brand-coralInk'
+                  ? 'border-brand-coralInk bg-brand-coralPale text-brand-coralInk'
                   : 'border-brand-line text-brand-muted hover:bg-brand-pale'
               }`}
               onClick={() => changeMovementType('salida')}

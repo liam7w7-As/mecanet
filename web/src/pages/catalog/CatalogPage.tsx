@@ -407,7 +407,7 @@ export const CatalogPage = () => {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
           <button
             type="button"
-            className="absolute inset-0 bg-slate-950/60"
+            className="absolute inset-0 bg-brand-scrim/60"
             aria-label="Cancelar eliminación"
             onClick={() => setDeleteItem(null)}
           />
@@ -445,7 +445,7 @@ export const CatalogPage = () => {
                 </button>
                 <button
                   type="button"
-                  className="h-10 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                  className="h-10 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white hover:bg-brand-coralInk disabled:opacity-60"
                   onClick={confirmDelete}
                   disabled={deleteMutation.isPending}
                 >

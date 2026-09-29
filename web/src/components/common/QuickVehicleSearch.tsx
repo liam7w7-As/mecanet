@@ -72,7 +72,7 @@ export const QuickVehicleSearch = ({
       </div>
 
       {showResults && (
-        <div id="quick-search-results" className="absolute z-30 mt-2 max-h-96 w-full overflow-y-auto rounded-lg border border-brand-line bg-white py-2 shadow-xl shadow-slate-900/10">
+        <div id="quick-search-results" className="absolute z-30 mt-2 max-h-96 w-full overflow-y-auto rounded-lg border border-brand-line bg-white py-2 shadow-xl shadow-brand-ink/10">
           {searchQuery.data?.vehicles.length ? (
             <section aria-labelledby="quick-vehicles-title">
               <h3 id="quick-vehicles-title" className="px-3 pb-1 pt-1 text-xs font-semibold uppercase text-brand-muted">Vehículos</h3>
@@ -111,7 +111,7 @@ export const QuickVehicleSearch = ({
           )}
 
           {canRegisterPlate && (
-            <button type="button" className="mt-1 flex w-full items-center gap-2 border-t border-brand-line px-3 py-3 text-left text-sm font-semibold text-brand-primaryInk hover:bg-brand-light" onMouseDown={(event) => event.preventDefault()} onClick={() => { setNewVehiclePlate(normalizedTerm); setFocused(false); }}>
+            <button type="button" className="mt-1 flex w-full items-center gap-2 border-t border-brand-line px-3 py-3 text-left text-sm font-semibold text-brand-primaryInk hover:bg-brand-line/40" onMouseDown={(event) => event.preventDefault()} onClick={() => { setNewVehiclePlate(normalizedTerm); setFocused(false); }}>
               <Plus className="h-4 w-4" aria-hidden="true" /> Registrar nuevo vehículo con patente {normalizedTerm}
             </button>
           )}

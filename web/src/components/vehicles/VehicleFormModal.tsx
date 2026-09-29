@@ -270,7 +270,7 @@ export const VehicleFormModal = ({
                 {fieldErrors.clientId && <p className="mt-1 text-xs text-brand-coralInk">{fieldErrors.clientId}</p>}
 
                 {selectedClient ? (
-                  <div className="mt-2 flex items-center gap-2 border-l-2 border-brand-yellow px-3 py-2 text-sm text-brand-ink">
+                  <div className="mt-2 flex items-center gap-2 border-l-2 border-brand-gold px-3 py-2 text-sm text-brand-ink">
                     <Check className="h-4 w-4 text-brand-mintInk" aria-hidden="true" />
                     <span className="font-semibold">{selectedClient.nombre}</span>
                     <span className="text-brand-muted">{selectedClient.rut ?? 'Sin RUT'}</span>

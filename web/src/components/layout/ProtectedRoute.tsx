@@ -15,11 +15,11 @@ interface ProtectedRouteProps {
 
 export const RouteLoading = () => (
   <div
-    className="flex min-h-screen items-center justify-center bg-brand-light"
+    className="flex min-h-screen items-center justify-center bg-brand-line/40"
     role="status"
     aria-label="Verificando sesión"
   >
-    <div className="flex flex-col items-center gap-3 text-brand-blue">
+    <div className="flex flex-col items-center gap-3 text-brand-primaryInk">
       <LoaderCircle className="h-8 w-8 animate-spin" aria-hidden="true" />
       <span className="text-sm font-medium">Verificando sesión...</span>
     </div>

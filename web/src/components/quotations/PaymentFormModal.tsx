@@ -203,7 +203,7 @@ export const PaymentFormModal = ({
           </div>
 
           <form onSubmit={submit} className="min-w-0 space-y-4 p-5 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-brand-yellow bg-brand-line/40 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-brand-gold bg-brand-line/40 px-4 py-3">
               <div>
                 <p className="text-xs font-semibold text-brand-muted">Disponible para abonar</p>
                 <p
@@ -274,8 +274,8 @@ export const PaymentFormModal = ({
               </div>
             )}
             {metodo === 'transferencia' && (
-              <div className="space-y-3 border-l-4 border-amber-400 bg-brand-goldPale px-4 py-3">
-                <p className="text-sm text-amber-900">
+              <div className="space-y-3 border-l-4 border-brand-gold bg-brand-goldPale px-4 py-3">
+                <p className="text-sm text-brand-ink">
                   La transferencia quedará pendiente hasta que Finanzas confirme su recepción.
                 </p>
                 <label className="block text-sm font-semibold text-brand-ink">

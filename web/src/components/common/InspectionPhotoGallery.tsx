@@ -47,12 +47,12 @@ export const InspectionPhotoGallery = ({
 
   return (
     <section
-      className="mt-2 border-t border-slate-200 pt-2"
+      className="mt-2 border-t border-brand-line pt-2"
       aria-label="Registro fotográfico de recepción"
     >
       <div className="mb-2 flex items-center justify-between text-[9px] font-bold text-[#0E2B4E]">
         <span>Fotos periciales de recepción</span>
-        <span className="font-normal text-slate-500">{photos.length} fotografías</span>
+        <span className="font-normal text-brand-muted">{photos.length} fotografías</span>
       </div>
       <div className="space-y-2">
         {rows.map((row) => (
@@ -67,11 +67,11 @@ export const InspectionPhotoGallery = ({
               return (
                 <figure key={photo.id} className="m-0 min-w-0" style={{ width: photoWidth }}>
                   <div
-                    className="overflow-hidden rounded-sm bg-slate-100"
+                    className="overflow-hidden rounded-sm bg-brand-pale"
                     style={{ height: row.height }}
                   >
                     {failedPhotos[source] ? (
-                      <span className="flex h-full items-center justify-center text-center text-[8px] text-slate-500">
+                      <span className="flex h-full items-center justify-center text-center text-[8px] text-brand-muted">
                         Imagen no disponible
                       </span>
                     ) : (
@@ -93,7 +93,7 @@ export const InspectionPhotoGallery = ({
                       />
                     )}
                   </div>
-                  <figcaption className="mt-1 break-words text-center text-[8px] font-semibold leading-3 text-slate-600">
+                  <figcaption className="mt-1 break-words text-center text-[8px] font-semibold leading-3 text-brand-muted">
                     {labels[photo.slot]}
                   </figcaption>
                 </figure>

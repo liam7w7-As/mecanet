@@ -1266,7 +1266,7 @@ export const WorkOrderCreatePage = () => {
             ) : (
               <button
                 type="button"
-                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-mintInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow disabled:opacity-60"
+                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-mintInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-mintInk hover:shadow disabled:opacity-60"
                 disabled={isSubmitting}
                 onClick={handleOpenConfirm}
               >

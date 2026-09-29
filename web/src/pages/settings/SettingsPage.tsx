@@ -155,7 +155,7 @@ export const SettingsPage = () => {
 
   if (!canEdit) {
     return (
-      <div className="rounded-lg border border-brand-line bg-brand-goldPale p-4 text-sm text-amber-900">
+      <div className="rounded-lg border border-brand-line bg-brand-goldPale p-4 text-sm text-brand-ink">
         Solo los administradores pueden ver y modificar la configuración de la empresa.
       </div>
     );
@@ -256,7 +256,7 @@ export const SettingsPage = () => {
                   type="button"
                   onClick={removeLogo}
                   disabled={logoBusy}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-300 px-4 text-sm font-semibold text-brand-coralInk hover:bg-brand-coralPale disabled:opacity-60"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-coral/40 px-4 text-sm font-semibold text-brand-coralInk hover:bg-brand-coralPale disabled:opacity-60"
                 >
                   {deleteMutation.isPending ? (
                     <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />

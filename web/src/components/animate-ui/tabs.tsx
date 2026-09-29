@@ -59,19 +59,19 @@ export function AnimatedTabs<T extends string = string>({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(tab.value)}
-            className={`relative z-10 inline-flex items-center gap-2 rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue ${
+            className={`relative z-10 inline-flex items-center gap-2 rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
               sizeClasses[size]
             } ${
               isActive
-                ? 'text-brand-blue font-bold'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'text-brand-primaryInk font-bold'
+                : 'text-brand-muted hover:text-brand-ink'
             }`}
           >
             {/* Píldora activa deslizante */}
             {isActive && (
               <motion.span
                 layoutId={layoutId}
-                className="absolute inset-0 -z-10 rounded-lg bg-white shadow-sm border border-slate-200/80"
+                className="absolute inset-0 -z-10 rounded-lg bg-white shadow-sm border border-brand-line/80"
                 transition={{ type: 'spring', stiffness: 450, damping: 32 }}
               />
             )}
@@ -83,8 +83,8 @@ export function AnimatedTabs<T extends string = string>({
               <span
                 className={`ml-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
                   isActive
-                    ? 'bg-brand-blue/10 text-brand-blue'
-                    : 'bg-slate-200 text-slate-600'
+                    ? 'bg-brand-primaryInk/10 text-brand-primaryInk'
+                    : 'bg-brand-line text-brand-muted'
                 }`}
               >
                 {tab.count}

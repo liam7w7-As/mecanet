@@ -28,28 +28,28 @@ const colorMap: Record<BadgeVariant, { bg: string; text: string; dot: string; pi
     ping: 'bg-brand-primaryInk/40',
   },
   yellow: {
-    bg: 'bg-yellow-50 border-yellow-200',
-    text: 'text-yellow-800',
-    dot: 'bg-yellow-500',
-    ping: 'bg-yellow-400/50',
+    bg: 'bg-brand-goldPale border-brand-line',
+    text: 'text-brand-goldInk',
+    dot: 'bg-brand-gold',
+    ping: 'bg-brand-gold/50',
   },
   emerald: {
     bg: 'bg-brand-mintPale border-brand-line',
     text: 'text-brand-mintInk',
     dot: 'bg-brand-mint',
-    ping: 'bg-emerald-400/50',
+    ping: 'bg-brand-mint/50',
   },
   red: {
     bg: 'bg-brand-coralPale border-brand-coral/30',
     text: 'text-brand-coralInk',
     dot: 'bg-brand-coral',
-    ping: 'bg-red-400/50',
+    ping: 'bg-brand-coral/50',
   },
   amber: {
     bg: 'bg-brand-goldPale border-brand-line',
     text: 'text-brand-goldInk',
     dot: 'bg-brand-gold',
-    ping: 'bg-amber-400/50',
+    ping: 'bg-brand-gold/50',
   },
   purple: {
     bg: 'bg-purple-50 border-purple-200',
@@ -60,7 +60,7 @@ const colorMap: Record<BadgeVariant, { bg: string; text: string; dot: string; pi
   slate: {
     bg: 'bg-brand-pale border-brand-line',
     text: 'text-brand-ink',
-    dot: 'bg-slate-400',
+    dot: 'bg-brand-muted',
     ping: 'bg-brand-line/50',
   },
 };

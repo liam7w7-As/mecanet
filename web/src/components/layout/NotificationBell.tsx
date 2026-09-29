@@ -60,13 +60,13 @@ export const NotificationBell = () => {
       <button
         type="button"
         onClick={panel.toggle}
-        className={cn('icon-button', panel.open && 'bg-brand-pale text-brand-primary')}
+        className={cn('icon-button', panel.open && 'bg-brand-pale text-brand-primaryInk')}
         aria-label={count > 0 ? `Notificaciones, ${count} sin leer` : 'Notificaciones'}
         aria-expanded={panel.open}
         title="Notificaciones"
       >
         {count > 0 ? (
-          <BellRing className="icon text-brand-primary" aria-hidden="true" />
+          <BellRing className="icon text-brand-primaryInk" aria-hidden="true" />
         ) : (
           <Bell className="icon" aria-hidden="true" />
         )}
@@ -98,7 +98,7 @@ export const NotificationBell = () => {
                 type="button"
                 onClick={markAllRead}
                 disabled={markRead.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md border border-brand-line px-2.5 py-1.5 text-xs font-semibold text-brand-primary transition-colors hover:bg-brand-pale disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md border border-brand-line px-2.5 py-1.5 text-xs font-semibold text-brand-primaryInk transition-colors hover:bg-brand-pale disabled:opacity-50"
               >
                 {markRead.isPending ? (
                   <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -112,12 +112,12 @@ export const NotificationBell = () => {
 
           <div className="max-h-[26rem] overflow-y-auto">
             {notificationsQuery.isPending ? (
-              <div className="flex min-h-32 items-center justify-center text-brand-primary" role="status">
+              <div className="flex min-h-32 items-center justify-center text-brand-primaryInk" role="status">
                 <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />
                 <span className="sr-only">Cargando notificaciones</span>
               </div>
             ) : notificationsQuery.isError ? (
-              <p className="px-4 py-6 text-center text-sm text-red-600">
+              <p className="px-4 py-6 text-center text-sm text-brand-coralInk">
                 No fue posible cargar tus notificaciones.
               </p>
             ) : items.length === 0 ? (
@@ -143,7 +143,7 @@ export const NotificationBell = () => {
                           item.leida ? 'border-l-transparent opacity-60' : NOTIFICATION_LEVEL_STYLES[item.nivel],
                         )}
                       >
-                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-pale text-brand-primary">
+                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-pale text-brand-primaryInk">
                           <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                         </span>
                         <span className="min-w-0 flex-1">
@@ -163,7 +163,7 @@ export const NotificationBell = () => {
                           </span>
                         </span>
                         {!item.leida && (
-                          <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center text-brand-primary" title="Sin leer">
+                          <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center text-brand-primaryInk" title="Sin leer">
                             <Check className="h-3.5 w-3.5 opacity-40" aria-hidden="true" />
                           </span>
                         )}
@@ -182,7 +182,7 @@ export const NotificationBell = () => {
                 panel.close();
                 navigate('/dashboard');
               }}
-              className="text-xs font-semibold text-brand-primary hover:underline"
+              className="text-xs font-semibold text-brand-primaryInk hover:underline"
             >
               Ver bandeja operativa
             </button>

@@ -88,7 +88,7 @@ export const OperationalInbox = ({ inbox }: OperationalInboxProps) => {
     <section className="view-panel" aria-labelledby="operational-inbox-title">
       <div className="view-panel-title flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary text-white">
+          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-primaryInk text-white">
             <BellRing className="h-5 w-5" aria-hidden="true" />
             {/* `bg-brand-coralInk` y no `bg-brand-coral`: el badge lleva texto
                 blanco de 11px y el coral claro solo da 2.3:1. */}

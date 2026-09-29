@@ -462,7 +462,7 @@ export const QuotationDetailModal = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 16 }}
         transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-        className="relative z-10 flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden ref={setPanelNode} rounded-2xl bg-white shadow-2xl border border-brand-line"
+        className="relative z-10 flex max-h-[92vh] w-full max-w-[850px] flex-col overflow-hidden ref={setPanelNode} rounded-2xl bg-white shadow-2xl border border-brand-line"
         role="dialog"
         aria-modal="true"
         aria-labelledby="quotation-detail-title"

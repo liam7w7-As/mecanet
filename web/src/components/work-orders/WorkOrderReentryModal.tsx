@@ -65,7 +65,7 @@ export const WorkOrderReentryModal = ({ workOrder, onClose }: WorkOrderReentryMo
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/60 px-4 py-8">
-      <section className="relative mx-auto w-full max-w-2xl rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="reentry-title">
+      <section className="relative mx-auto w-full max-w-[520px] rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="reentry-title">
         <ModalHeader
   id="reentry-title"
   title={"Crear garantía o reingreso"}

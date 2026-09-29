@@ -44,7 +44,7 @@ export const UserProfileModal = ({ user, onClose }: UserProfileModalProps) => {
       />
 
       <section
-        className="relative max-h-full w-full max-w-lg overflow-y-auto rounded-lg bg-white shadow-2xl"
+        className="relative max-h-full w-full max-w-[520px] overflow-y-auto rounded-lg bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="profile-title"

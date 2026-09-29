@@ -113,7 +113,7 @@ export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalPro
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative max-h-full w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-2xl"
+        className="relative max-h-full w-full max-w-[720px] overflow-y-auto rounded-lg bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="client-form-title"

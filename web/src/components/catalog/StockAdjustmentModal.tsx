@@ -116,7 +116,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
         initial={{ opacity: 0, scale: 0.97, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative w-full max-w-xl overflow-hidden rounded-lg bg-white shadow-2xl"
+        className="relative w-full max-w-[720px] overflow-hidden rounded-lg bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="stock-adjustment-title"

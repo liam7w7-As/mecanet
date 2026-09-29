@@ -69,7 +69,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative w-full max-w-lg overflow-hidden rounded-lg bg-white shadow-2xl"
+        className="relative w-full max-w-[720px] overflow-hidden rounded-lg bg-white shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="user-form-title"

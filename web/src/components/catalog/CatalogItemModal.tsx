@@ -127,7 +127,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
         onClick={onClose}
       />
       <section
-        className="relative max-h-full w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-2xl"
+        className="relative max-h-full w-full max-w-[520px] overflow-y-auto rounded-lg bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="catalog-form-title"

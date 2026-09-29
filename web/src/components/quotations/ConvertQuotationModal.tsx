@@ -54,7 +54,7 @@ export const ConvertQuotationModal = ({ quotationId, codigo, notas, onClose, onC
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative w-full max-w-lg rounded-lg bg-white p-6 shadow-2xl"
+        className="relative w-full max-w-[520px] rounded-lg bg-white p-6 shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="convert-title"

@@ -210,7 +210,7 @@ export const WorkOrderReceptionInspectionModal = ({
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
-      <section className="relative mx-auto w-full max-w-5xl rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="edit-reception-title">
+      <section className="relative mx-auto w-full max-w-[720px] rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="edit-reception-title">
         <ModalHeader
   id="edit-reception-title"
   title={"Editar recepción e inspección"}

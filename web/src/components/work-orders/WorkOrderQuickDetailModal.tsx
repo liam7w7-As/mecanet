@@ -165,7 +165,7 @@ export const WorkOrderQuickDetailModal = ({
             event.preventDefault(); first?.focus();
           }
         }}
-        className="relative max-h-full w-full max-w-5xl overflow-y-auto rounded-lg bg-white shadow-2xl outline-none"
+        className="relative max-h-full w-full max-w-[850px] overflow-y-auto rounded-lg bg-white shadow-2xl outline-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="work-order-quick-detail-title"

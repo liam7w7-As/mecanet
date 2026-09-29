@@ -70,7 +70,7 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
-      <section className="relative mx-auto w-full max-w-6xl rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="edit-work-items-title">
+      <section className="relative mx-auto w-full max-w-[850px] rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="edit-work-items-title">
         <ModalHeader
   id="edit-work-items-title"
   title={"Editar trabajos y repuestos"}

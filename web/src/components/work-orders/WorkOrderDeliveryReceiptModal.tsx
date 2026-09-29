@@ -5,6 +5,8 @@ import { formatDateTime } from '../../lib/formatters';
 import { useCompanyBranding } from '../common/BrandingContext';
 
 import type { WorkOrder } from '../../types/entities';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 interface WorkOrderDeliveryReceiptModalProps {
   workOrder: WorkOrder;
@@ -75,6 +77,7 @@ const DeliverySheet = ({ workOrder }: { workOrder: WorkOrder }) => {
 };
 
 export const WorkOrderDeliveryReceiptModal = ({ workOrder, onClose }: WorkOrderDeliveryReceiptModalProps) => {
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <>
       <style>{`
@@ -87,7 +90,7 @@ export const WorkOrderDeliveryReceiptModal = ({ workOrder, onClose }: WorkOrderD
           #delivery-print-portal .delivery-receipt-sheet { width: 8.5in; min-height: 11in; box-shadow: none !important; }
         }
       `}</style>
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/70 px-4 py-6">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/70 ref={setPanelNode} px-4 py-6">
         <section className="mx-auto w-fit max-w-full" role="dialog" aria-modal="true" aria-labelledby="delivery-receipt-title">
           <div className="mb-3 flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-lg">
             <h2 id="delivery-receipt-title" className="font-bold text-brand-primaryInk">Comprobante de entrega</h2>

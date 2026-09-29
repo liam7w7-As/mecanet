@@ -46,6 +46,8 @@ import PdfPreviewModal from '../common/PdfPreviewModal';
 
 import type { CatalogItem, Quotation, QuotationItem } from '../../types/entities';
 import type { CatalogType, ItemOperationalStatus, QuotationItemInput } from '@unithor/shared';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 export type ItemApprovalStatus = 'aprobado' | 'pendiente' | 'rechazado' | 'normal';
@@ -443,6 +445,7 @@ export const QuotationDetailModal = ({
     setSuggestedType(item.tipo);
   };
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
       {/* Backdrop */}
@@ -459,7 +462,7 @@ export const QuotationDetailModal = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 16 }}
         transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-        className="relative z-10 flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-brand-line"
+        className="relative z-10 flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden ref={setPanelNode} rounded-2xl bg-white shadow-2xl border border-brand-line"
         role="dialog"
         aria-modal="true"
         aria-labelledby="quotation-detail-title"

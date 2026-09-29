@@ -15,6 +15,8 @@ import ModalHeader from '../common/ModalHeader';
 
 import type { Client, WorkOrder } from '../../types/entities';
 import type { FuelLevel, TireCondition, VehicleInventoryItem } from '@unithor/shared';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 
 interface WorkOrderReceptionInspectionModalProps {
@@ -205,9 +207,10 @@ export const WorkOrderReceptionInspectionModal = ({
     updateMutation.mutate({ id: workOrder.id, data: result.data }, { onSuccess: onClose });
   };
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-scrim/55 px-4 py-8">
-      <section className="relative mx-auto w-full max-w-5xl rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="edit-reception-title">
+      <section className="relative mx-auto w-full max-w-5xl rounded-lg bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="edit-reception-title">
         <ModalHeader
   id="edit-reception-title"
   title={"Editar recepción e inspección"}

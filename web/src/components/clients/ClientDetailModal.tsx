@@ -31,6 +31,8 @@ import Pagination from '../common/Pagination';
 import QuotationStatusBadge from '../quotations/QuotationStatusBadge';
 import VehicleFormModal from '../vehicles/VehicleFormModal';
 import WorkOrderStatusBadge from '../work-orders/WorkOrderStatusBadge';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
+
 
 interface ClientDetailModalProps {
   clientId: number;
@@ -167,6 +169,7 @@ export const ClientDetailModal = ({
   ];
   const activeTab = tabs.some((item) => item.id === tab) ? tab : 'data';
 
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5">
@@ -183,7 +186,7 @@ export const ClientDetailModal = ({
           initial={{ opacity: 0, scale: 0.97, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-          className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl outline-none sm:max-h-[calc(100dvh-2.5rem)]"
+          className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white ref={setPanelNode} shadow-2xl outline-none sm:max-h-[calc(100dvh-2.5rem)]"
           role="dialog"
           aria-modal="true"
           aria-label="Ficha del cliente"

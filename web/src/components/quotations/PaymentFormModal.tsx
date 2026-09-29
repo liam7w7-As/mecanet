@@ -11,7 +11,6 @@ import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
-import { AnimateIcon } from '../animate-ui';
 import CurrencyInput from '../common/CurrencyInput';
 import ModalHeader from '../common/ModalHeader';
 

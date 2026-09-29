@@ -1,6 +1,6 @@
 import { createCatalogItemSchema, updateCatalogItemSchema, UNIT_MEASURES, UNIT_MEASURE_LABELS } from '@unithor/shared';
 import { AlertCircle, Boxes, LoaderCircle, Package, Settings2, Wrench } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import {
   useCreateCatalogItemMutation,

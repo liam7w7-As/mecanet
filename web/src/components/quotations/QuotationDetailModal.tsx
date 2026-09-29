@@ -1,34 +1,8 @@
-import {
-  AlertCircle,
-  AlertTriangle,
-  Boxes,
-  Calendar,
-  Car,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  Download,
-  FileText,
-  LoaderCircle,
-  Lock,
-  Pencil,
-  Plus,
-  ThumbsDown,
-  ThumbsUp,
-  Trash2,
-  UserRound,
-  WalletCards,
-  Wrench,
-  X,
-  Zap,
-} from 'lucide-react';
+import { AlertTriangle, Boxes, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, FileText, LoaderCircle, Lock, Pencil, Plus, ThumbsDown, ThumbsUp, WalletCards, Wrench, X, Zap } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { AnimateIcon } from '../animate-ui';
 import ConvertQuotationModal from './ConvertQuotationModal';
 import PaymentFormModal from './PaymentFormModal';
 import QuotationStatusBadge from './QuotationStatusBadge';
@@ -37,7 +11,7 @@ import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useQuotationPayments } from '../../hooks/usePayments';
 import { useQuotation, useUpdateQuotationMutation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
+import { formatClp, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
@@ -45,7 +19,7 @@ import CurrencyInput from '../common/CurrencyInput';
 import ModalHeader from '../common/ModalHeader';
 import PdfPreviewModal from '../common/PdfPreviewModal';
 
-import type { CatalogItem, Quotation, QuotationItem } from '../../types/entities';
+import type { CatalogItem } from '../../types/entities';
 import type { CatalogType, ItemOperationalStatus, QuotationItemInput } from '@unithor/shared';
 
 
@@ -462,8 +436,9 @@ export const QuotationDetailModal = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 16 }}
         transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-        className="relative z-10 flex max-h-[92vh] w-full max-w-[850px] flex-col overflow-hidden ref={setPanelNode} rounded-2xl bg-white shadow-2xl border border-brand-line"
+        className="relative z-10 flex max-h-[92vh] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-brand-line"
         role="dialog"
+        ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="quotation-detail-title"
       >

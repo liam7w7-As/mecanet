@@ -1,7 +1,7 @@
 import { createClientSchema } from '@unithor/shared';
 import { AlertCircle, Building2, LoaderCircle, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { useCreateClientMutation, useUpdateClientMutation } from '../../hooks/useClients';
 import { useModalOverlay } from '../../hooks/useModalOverlay';

@@ -4,7 +4,7 @@ import {
   VEHICLE_INVENTORY_ITEMS,
   updateWorkOrderSchema,
 } from '@unithor/shared';
-import { AlertCircle, LoaderCircle, Save, Search, X } from 'lucide-react';
+import { AlertCircle, LoaderCircle, Save, Search } from 'lucide-react';
 import { useState } from 'react';
 
 import { useClients } from '../../hooks/useClients';

@@ -1,20 +1,4 @@
-import {
-  ArrowUpRight,
-  Building2,
-  Car,
-  ClipboardList,
-  FileText,
-  Hash,
-  LoaderCircle,
-  Mail,
-  MapPin,
-  Pencil,
-  Phone,
-  Plus,
-  Trash2,
-  UserRound,
-  X,
-} from 'lucide-react';
+import { ArrowUpRight, Building2, Car, ClipboardList, FileText, Hash, LoaderCircle, Mail, MapPin, Pencil, Phone, Plus, Trash2, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';

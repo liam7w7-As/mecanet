@@ -1,24 +1,11 @@
-import {
-  ArrowDownToLine,
-  ArrowRight,
-  ArrowUpFromLine,
-  Boxes,
-  History,
-  Package,
-  Pencil,
-  Settings2,
-  Warehouse,
-  Wrench,
-  X,
-} from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, ArrowUpFromLine, Boxes, History, Package, Pencil, Settings2, Warehouse, Wrench } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useCatalogItemInventory, useStockMovements } from '../../hooks/useWarehouses';
 import { formatClp, formatDateTime } from '../../lib/formatters';
-import { AnimateIcon } from '../animate-ui';
 import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem, StockMovement } from '../../types/entities';

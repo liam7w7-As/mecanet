@@ -1,12 +1,4 @@
-import {
-  AlertCircle,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Boxes,
-  LoaderCircle,
-  Warehouse as WarehouseIcon,
-  X,
-} from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, ArrowUpFromLine, Boxes, LoaderCircle, Warehouse as WarehouseIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -18,7 +10,6 @@ import {
 } from '../../hooks/useWarehouses';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { notifySuccess } from '../../stores/toast.store';
-import { AnimateIcon } from '../animate-ui';
 import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem } from '../../types/entities';

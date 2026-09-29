@@ -1,7 +1,7 @@
 import { createVehicleSchema, normalizeChilePatente } from '@unithor/shared';
 import { AlertCircle, Check, LoaderCircle, Search, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -9,7 +9,6 @@ import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useCreateVehicleMutation, useUpdateVehicleMutation } from '../../hooks/useVehicles';
 import { getApiErrorMessage, isApiConflict } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
-import { AnimateIcon } from '../animate-ui';
 import ModalHeader from '../common/ModalHeader';
 
 import type { Client, Vehicle } from '../../types/entities';

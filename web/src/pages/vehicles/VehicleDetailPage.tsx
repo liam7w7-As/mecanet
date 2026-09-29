@@ -138,7 +138,7 @@ export const VehicleDetailPage = ({
         {/* Cabecera sobre `surfaceDark`: los botones usan `text-white/70`, que
           sobre índigo `#255DFF` no llega a 4.5:1. Sobre la superficie oscura
           del tema `body.dark` del diseño sí. */}
-      <header className="flex items-center justify-between bg-brand-surfaceDark px-5 py-3 text-white">
+      <header className="flex items-center justify-between border-b border-brand-line bg-brand-page px-5 py-3 text-brand-ink">
           <p className="text-sm font-semibold">Ficha del vehículo</p>
           {closeControl}
         </header>
@@ -198,7 +198,7 @@ export const VehicleDetailPage = ({
       {/* Migra a `surfaceDark` por coherencia con el resto de superficies
           oscuras: la miga de pan usa `text-brand-line`, que sobre índigo
           queda en 4.7:1, al limite, y sobre la superficie oscura sube a 12:1. */}
-      <header className="shrink-0 bg-brand-surfaceDark text-white">
+      <header className="shrink-0 border-b border-brand-line bg-brand-page text-brand-ink">
         <div className="flex items-center justify-between gap-3 px-5 pt-3 sm:px-6">
           <p className="text-xs font-medium text-brand-line">
             Parque vehicular / Ficha del vehículo

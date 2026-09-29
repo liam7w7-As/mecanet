@@ -15,7 +15,7 @@ const STATUS_STYLES: Record<QuotationStatus, string> = {
   parcial: 'bg-brand-pale text-brand-primaryInk ring-brand-line',
   total: 'bg-brand-mintPale text-brand-mintInk ring-brand-line',
   por_verificar: 'bg-purple-100 text-purple-800 ring-purple-200',
-  ot_finalizado: 'bg-brand-surfaceDark text-white ring-brand-line/30',
+  ot_finalizado: 'bg-brand-ink text-white ring-brand-line/30',
 };
 
 interface QuotationStatusBadgeProps {

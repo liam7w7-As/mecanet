@@ -234,16 +234,16 @@ export const WarehousesPage = () => {
 
       <section className="overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm" aria-label="Solicitudes de repuestos para órdenes de trabajo">
         {/* Banda sobre `surfaceDark`, no sobre el índigo: el subtítulo usa
-          `text-brand-mutedOnDark` (4.3:1 sobre `#255DFF`) y el icono dorado 2.9:1. Sobre
+          `text-brand-muted` (4.3:1 sobre `#255DFF`) y el icono dorado 2.9:1. Sobre
           la superficie oscura del tema `body.dark` del diseño ambos suben. */}
-      <div className="border-b border-brand-line bg-brand-surfaceDark px-4 py-4 text-white sm:px-5">
+      <div className="border-b border-brand-line bg-brand-page px-4 py-4 text-brand-ink sm:px-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-2">
                 <Truck className="h-5 w-5 text-brand-goldInk" aria-hidden="true" />
                 <h2 className="font-bold">Despacho a órdenes de trabajo</h2>
               </div>
-              <p className="mt-1 text-sm text-brand-mutedOnDark">Entrega únicamente repuestos aprobados por el jefe de taller.</p>
+              <p className="mt-1 text-sm text-brand-muted">Entrega únicamente repuestos aprobados por el jefe de taller.</p>
             </div>
             <label className="relative w-full lg:w-80">
               <span className="sr-only">Buscar solicitud de repuesto</span>
@@ -307,7 +307,7 @@ export const WarehousesPage = () => {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="rounded-md bg-brand-surfaceDark px-2 py-1 font-mono text-xs font-bold text-white">{warehouse.codigo}</span>
+                      <span className="rounded-md bg-brand-ink px-2 py-1 font-mono text-xs font-bold text-white">{warehouse.codigo}</span>
                       {warehouse.activo ? (
                         <span className="rounded-full bg-brand-mintPale px-2 py-0.5 text-[11px] font-bold text-brand-mintInk">Activo</span>
                       ) : (
@@ -518,7 +518,7 @@ const WarehouseDeliveryModal = ({
       <section className="max-h-[94vh] w-full overflow-y-auto rounded-t-xl bg-white shadow-2xl sm:max-w-xl sm:rounded-xl" role="dialog" aria-modal="true" aria-labelledby="warehouse-delivery-title">
         {/* Igual que la banda superior: este header lleva un badge dorado, que
           sobre índigo queda en 2.9:1. */}
-      <header className="bg-brand-surfaceDark px-5 py-5 text-white sm:rounded-t-xl">
+      <header className="border-b border-brand-line bg-brand-page px-5 py-5 text-brand-ink sm:rounded-t-xl">
           <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-brand-primaryInk text-white"><PackageCheck className="h-5 w-5" aria-hidden="true" /></span><div className="min-w-0"><p className="text-xs font-bold uppercase text-brand-cyanInk">{request.workOrder.codigo} · {request.workOrder.vehicle?.patente ?? 'Sin patente'}</p><h2 id="warehouse-delivery-title" className="mt-1 text-xl font-bold">Confirmar entrega de repuesto</h2></div></div>
         </header>
         <div className="space-y-5 p-5">

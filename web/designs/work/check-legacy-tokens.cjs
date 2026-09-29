@@ -19,12 +19,10 @@ const LEGACY = /\b(?:slate|emerald|amber|violet|red|green|yellow|blue|indigo)-\d
 
 /**
  * Archivos con excepcion, con motivo:
- *  - LoginPage: tiene su propia composicion (fondo marino con borde dorado) y se
- *    migra en un pase propio, no con el mapeo mecanico.
- *  - PdfPreviewModal: reproduce el PDF, que queda fuera del rediseño.
+ *  - PdfPreviewModal: reproduce el PDF, que queda fuera del rediseño. El resto de
+ *    la aplicacion, LoginPage incluida, esta libre de clases legacy.
  */
 const ALLOWED = new Map([
-  ['pages/auth/LoginPage.tsx', 'composicion propia, pase dedicated pendiente'],
   ['components/common/PdfPreviewModal.tsx', 'reproduce el PDF, fuera de alcance'],
 ]);
 

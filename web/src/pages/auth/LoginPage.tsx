@@ -25,6 +25,9 @@ interface FieldErrors {
   password?: string;
 }
 
+const inputClass =
+  'h-11 w-full rounded-lg border border-brand-line bg-white px-3 text-sm text-brand-ink outline-none transition placeholder:text-brand-muted/70 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk';
+
 const getLoginError = (error: unknown): string => {
   if (!axios.isAxiosError<ApiErrorBody>(error)) {
     return 'Ocurrió un error inesperado. Intente nuevamente.';
@@ -45,6 +48,41 @@ const getLoginError = (error: unknown): string => {
 
   return apiMessage || 'No fue posible iniciar sesión. Intente nuevamente.';
 };
+
+const BrandPanel = ({ company }: { company: { nombreComercial: string } }) => (
+  <section
+    className="relative hidden items-center justify-center bg-[linear-gradient(110deg,#f2f5fc,#f2faf7)] px-8 py-20 lg:flex"
+    aria-label={company.nombreComercial}
+  >
+    <div className="absolute left-6 top-0 flex h-[70px] items-center">
+      <BrandLogo heightClassName="h-9" alt={company.nombreComercial} />
+    </div>
+
+    <svg viewBox="0 0 500 500" className="mt-9 h-auto w-[min(500px,42vw)]" fill="none" aria-hidden="true">
+      <circle cx="250" cy="250" r="196" fill="#5D87FF" fillOpacity=".08" />
+      <circle cx="250" cy="250" r="150" fill="#13DEB9" fillOpacity=".07" />
+      <circle cx="250" cy="250" r="104" fill="#fff" />
+      <circle cx="250" cy="250" r="104" stroke="#EBF1F6" />
+      <path
+        d="M250 186l52 19v39c0 36-22 62-52 74-30-12-52-38-52-74v-39l52-19z"
+        fill="#5D87FF"
+        fillOpacity=".12"
+      />
+      <path d="M250 200l38 14v30c0 27-17 46-38 57-21-11-38-30-38-57v-30l38-14z" fill="#5D87FF" />
+      <path
+        d="M234 255l11 12 23-26"
+        stroke="#fff"
+        strokeWidth="7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="96" cy="146" r="10" fill="#FFAE1F" />
+      <circle cx="408" cy="178" r="8" fill="#49BEFF" />
+      <rect x="392" y="332" width="34" height="34" rx="9" fill="#FA896B" fillOpacity=".35" transform="rotate(18 409 349)" />
+      <rect x="80" y="320" width="30" height="30" rx="8" fill="#13DEB9" fillOpacity=".3" transform="rotate(-14 95 335)" />
+    </svg>
+  </section>
+);
 
 export const LoginPage = () => {
   const [identifier, setIdentifier] = useState('');
@@ -81,25 +119,23 @@ export const LoginPage = () => {
   const company = useCompanyBranding();
 
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-brand-dark px-4 py-10">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-brand-yellow" />
+    <div className="grid min-h-dvh bg-white lg:grid-cols-[2fr_1fr]">
+      <div className="flex h-[70px] items-center border-b border-brand-line px-6 lg:hidden">
+        <BrandLogo heightClassName="h-8" alt={company.nombreComercial} />
+      </div>
 
-      <section className="relative w-full max-w-md overflow-hidden rounded-lg border border-white/10 bg-white shadow-2xl shadow-black/25">
-        <div className="p-6 sm:p-8">
-          <div className="mb-8">
-            <h1 className="sr-only">{company.nombreComercial}</h1>
-            <BrandLogo heightClassName="h-10" alt={company.nombreComercial} />
-            <p className="mt-2 text-sm text-slate-500">{company.sitioWeb ? `${company.nombreComercial} · ${company.sitioWeb}` : company.nombreComercial}</p>
-          </div>
+      <BrandPanel company={company} />
 
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-slate-900">Bienvenido</h2>
-            <p className="mt-1 text-sm text-slate-500">Ingrese sus credenciales para continuar.</p>
-          </div>
+      <section className="flex items-center justify-center px-6 py-12 md:px-10">
+        <div className="w-full max-w-[398px]">
+          <h1 className="text-2xl font-bold leading-[1.4] text-brand-ink">Iniciar sesión</h1>
+          <p className="mt-1.5 text-sm text-brand-muted">
+            {company.sitioWeb ? `${company.nombreComercial} · ${company.sitioWeb}` : company.nombreComercial}
+          </p>
 
-          <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="identifier">
+          <form className="mt-7 flex flex-col gap-6" noValidate onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-[7px]">
+              <label className="text-sm font-medium text-brand-ink" htmlFor="identifier">
                 Usuario o correo
               </label>
               <input
@@ -111,18 +147,18 @@ export const LoginPage = () => {
                 onChange={(event) => setIdentifier(event.target.value)}
                 aria-invalid={Boolean(fieldErrors.identifier)}
                 aria-describedby={fieldErrors.identifier ? 'identifier-error' : undefined}
-                className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-brand-yellow focus:ring-2 focus:ring-brand-yellow/30 aria-[invalid=true]:border-red-500"
+                className={inputClass}
                 placeholder="usuario o ejemplo@unithor.cl"
               />
               {fieldErrors.identifier && (
-                <p id="identifier-error" className="mt-1.5 text-sm text-red-600">
+                <p id="identifier-error" className="text-sm text-brand-coralInk">
                   {fieldErrors.identifier}
                 </p>
               )}
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="password">
+            <div className="flex flex-col gap-[7px]">
+              <label className="text-sm font-medium text-brand-ink" htmlFor="password">
                 Contraseña
               </label>
               <div className="relative">
@@ -135,12 +171,12 @@ export const LoginPage = () => {
                   onChange={(event) => setPassword(event.target.value)}
                   aria-invalid={Boolean(fieldErrors.password)}
                   aria-describedby={fieldErrors.password ? 'password-error' : undefined}
-                  className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 pr-11 text-sm outline-none transition focus:border-brand-yellow focus:ring-2 focus:ring-brand-yellow/30 aria-[invalid=true]:border-red-500"
+                  className={`${inputClass} pr-11`}
                   placeholder="Ingrese su contraseña"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-brand-blue"
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-brand-muted transition hover:text-brand-primary"
                   onClick={() => setShowPassword((visible) => !visible)}
                   aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                   title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
@@ -153,7 +189,7 @@ export const LoginPage = () => {
                 </button>
               </div>
               {fieldErrors.password && (
-                <p id="password-error" className="mt-1.5 text-sm text-red-600">
+                <p id="password-error" className="text-sm text-brand-coralInk">
                   {fieldErrors.password}
                 </p>
               )}
@@ -161,7 +197,7 @@ export const LoginPage = () => {
 
             {loginMutation.isError && (
               <div
-                className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+                className="flex items-start gap-2 rounded-lg border border-brand-coralInk/25 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk"
                 role="alert"
               >
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -172,7 +208,7 @@ export const LoginPage = () => {
             <button
               type="submit"
               disabled={loginMutation.isPending}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-yellow px-4 text-sm font-bold text-brand-dark transition hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-medium text-white transition hover:bg-brand-primaryInkHover focus:outline-none focus:ring-2 focus:ring-brand-primaryInk focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loginMutation.isPending ? (
                 <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />
@@ -182,13 +218,11 @@ export const LoginPage = () => {
               {loginMutation.isPending ? 'Ingresando...' : 'Iniciar Sesión'}
             </button>
           </form>
-        </div>
 
-        <div className="border-t border-slate-100 bg-slate-50 px-6 py-3 text-center text-xs text-slate-500 sm:px-8">
-          Acceso exclusivo para personal autorizado
+          <p className="mt-7 text-center text-xs text-brand-muted">Acceso exclusivo para personal autorizado</p>
         </div>
       </section>
-    </main>
+    </div>
   );
 };
 

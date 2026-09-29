@@ -174,10 +174,18 @@ const readEnvValue = (key) => {
   const openIndex = args.indexOf('--abrir');
   const openName = openIndex >= 0 ? args[openIndex + 1] : null;
   if (openIndex >= 0) args.splice(openIndex, 2);
+
+  // Sin esto no se puede auditar /login. El verificador inicia sesion para llegar
+  // al shell, y PublicRoute manda a /dashboard a quien ya esta autenticado, asi
+  // que la pantalla de login nunca se renderizaba: la auditoria pasaba sobre el
+  // dashboard y reportaba "limpio" sin haber mirado el login.
+  const anonymous = args.includes('--anon');
+  if (anonymous) args.splice(args.indexOf('--anon'), 1);
+
   const routes = args;
 
   if (routes.length === 0) {
-    console.error('Uso: node verify-page.cjs /ruta [/otra ...] [--abrir "Nombre accesible"]');
+    console.error('Uso: node verify-page.cjs /ruta [/otra ...] [--abrir "Nombre accesible"] [--anon]');
     process.exit(1);
   }
 
@@ -190,13 +198,17 @@ const readEnvValue = (key) => {
   const browser = await chromium.launch({ headless: true, channel: 'msedge' });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
-  const pageErrors = [];
 
-  await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
-  await page.locator('#identifier').fill(readEnvValue('SEED_ADMIN_EMAIL'));
-  await page.locator('#password').fill(readEnvValue('SEED_ADMIN_PASSWORD'));
-  await page.getByRole('button', { name: /iniciar sesi/i }).click();
-  await page.locator('.sidebar .nav-item').first().waitFor({ state: 'visible', timeout: 20000 });
+  if (anonymous) {
+    console.log('Modo anonimo: no se inicia sesion. Solo para rutas publicas.');
+  } else {
+    await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
+    await page.locator('#identifier').fill(readEnvValue('SEED_ADMIN_EMAIL'));
+    await page.locator('#password').fill(readEnvValue('SEED_ADMIN_PASSWORD'));
+    await page.getByRole('button', { name: /iniciar sesi/i }).click();
+    await page.locator('.sidebar .nav-item').first().waitFor({ state: 'visible', timeout: 20000 });
+  }
+
 
   const report = {};
 

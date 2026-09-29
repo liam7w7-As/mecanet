@@ -60,7 +60,7 @@ describe('App routing and authentication', () => {
   it('redirige al login cuando no hay una sesión autenticada', async () => {
     renderRoute('/dashboard');
 
-    expect(await screen.findByRole('heading', { name: 'UNITHOR' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /iniciar sesi/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Iniciar Sesión' })).toBeInTheDocument();
   });
 
@@ -93,7 +93,7 @@ describe('App routing and authentication', () => {
     await waitFor(() => {
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
     });
-    expect(await screen.findByRole('heading', { name: 'UNITHOR' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /iniciar sesi/i })).toBeInTheDocument();
     expect(api.post).toHaveBeenCalledWith('/auth/logout');
   });
 });

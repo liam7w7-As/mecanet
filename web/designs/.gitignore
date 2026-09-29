@@ -20,3 +20,10 @@
 assets/
 reference.html
 *.csv
+
+# Referencias de diseño aportadas para login, perfil y modales. Autocontenidas
+# con recursos en base64: 483 KB, 2,8 MB y 2,8 MB. Viven en disco para migrar
+# contra ellas, no se versionan.
+login.html
+perfil.html
+modal-referencia.html

@@ -83,6 +83,13 @@ select,
 textarea {
   min-width: 0;
   max-width: 100%;
+  outline: none;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
 }
 
 img,

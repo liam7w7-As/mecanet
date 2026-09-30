@@ -267,8 +267,9 @@ export const useUploadWorkOrderInspectionPhotosMutation = () => {
 
       return uploaded;
     },
-    onSuccess: (_photos, variables) => {
+    onSettled: (_photos, _error, variables) => {
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(variables.id) });
+      void queryClient.invalidateQueries({ queryKey: ['quotations', 'detail'] });
     },
   });
 };
@@ -283,6 +284,7 @@ export const useDeleteWorkOrderInspectionPhotoMutation = () => {
     },
     onSuccess: ({ id }) => {
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: ['quotations', 'detail'] });
     },
   });
 };

@@ -1,6 +1,7 @@
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 
+import { WORK_ORDER_INSPECTION_PHOTO_SLOTS } from '@unithor/shared';
 import { Op } from 'sequelize';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -267,6 +268,50 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
     expect(missingResponse.status).toBe(404);
     expect((await request(app).get(`/api/quotations/${quotationId}/inspection/photos/frontal`)
       .set('Cookie', authCookie(financeCookies))).status).toBe(404);
+  });
+
+  it('presenta las mismas nueve fotos de la OT en el PDF de la COT vinculada', async () => {
+    for (const slot of WORK_ORDER_INSPECTION_PHOTO_SLOTS) {
+      const upload = await request(app)
+        .post(`/api/work-orders/${editableWorkOrderId}/inspection/photos/${slot}`)
+        .set('Cookie', authCookie(cookies))
+        .set('X-CSRF-Token', cookies.csrfToken)
+        .attach('photo', PNG_BYTES, { filename: `${slot}.png`, contentType: 'image/png' });
+      expect(upload.status).toBe(201);
+    }
+
+    const [orderDetail, quotationDetail] = await Promise.all([
+      request(app).get(`/api/work-orders/${editableWorkOrderId}`).set('Cookie', authCookie(cookies)),
+      request(app).get(`/api/quotations/${quotationId}`).set('Cookie', authCookie(financeCookies)),
+    ]);
+    expect(orderDetail.status).toBe(200);
+    expect(quotationDetail.status).toBe(200);
+    const orderPhotos = orderDetail.body.workOrder.inspection.photos as Array<{ id: number; slot: string }>;
+    const quotationPhotos = quotationDetail.body.quotation.workOrder.inspectionPhotos as Array<{ id: number; slot: string }>;
+    expect(orderPhotos).toHaveLength(9);
+    expect(quotationPhotos).toHaveLength(9);
+    expect(quotationPhotos.map((photo) => `${photo.id}:${photo.slot}`).sort()).toEqual(
+      orderPhotos.map((photo) => `${photo.id}:${photo.slot}`).sort(),
+    );
+
+    for (const slot of WORK_ORDER_INSPECTION_PHOTO_SLOTS) {
+      const photo = await request(app)
+        .get(`/api/quotations/${quotationId}/inspection/photos/${slot}`)
+        .set('Cookie', authCookie(financeCookies))
+        .buffer(true)
+        .parse(binaryParser);
+      expect(photo.status).toBe(200);
+      expect(photo.body).toEqual(PNG_BYTES);
+    }
+
+    for (const slot of WORK_ORDER_INSPECTION_PHOTO_SLOTS) {
+      const deletion = await request(app)
+        .delete(`/api/work-orders/${editableWorkOrderId}/inspection/photos/${slot}`)
+        .set('Cookie', authCookie(cookies))
+        .set('X-CSRF-Token', cookies.csrfToken);
+      expect(deletion.status).toBe(204);
+    }
+    expect(await WorkOrderInspectionPhoto.count()).toBe(0);
   });
 
   it('rechaza archivos falsos y ranuras no definidas', async () => {

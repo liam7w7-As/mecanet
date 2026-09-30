@@ -928,7 +928,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
               {!isOT && hasPhotos && <button type="button" onClick={() => setActiveTab('pag1')}
                 className={`rounded-md px-3 py-1 text-xs font-bold ${activeTab === 'pag1' ? 'bg-brand-blue text-white' : 'text-slate-400'}`}>Cotización</button>}
               {hasPhotos && <button type="button" onClick={() => setActiveTab('photos')}
-                className={`rounded-md px-3 py-1 text-xs font-bold ${activeTab === 'photos' ? 'bg-brand-blue text-white' : 'text-slate-400'}`}>Fotos de recepción</button>}
+                className={`rounded-md px-3 py-1 text-xs font-bold ${activeTab === 'photos' ? 'bg-brand-blue text-white' : 'text-slate-400'}`}>Fotos de recepción ({photos.length})</button>}
 
               {/* Selector Color / B&N */}
               <div className="flex rounded-lg border border-slate-700 bg-slate-800/90 p-1">

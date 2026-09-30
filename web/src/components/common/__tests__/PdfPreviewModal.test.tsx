@@ -312,7 +312,7 @@ describe('PdfPreviewModal', () => {
       workOrder={{ ...mockWorkOrder, inspection: { ...mockWorkOrder.inspection!, photos } }}
       quotation={{ ...mockQuotation, workOrder: { ...mockQuotation.workOrder!, inspectionPhotos: photos } }} />);
     expect(within(screen.getByRole('dialog')).queryAllByRole('img', { name: /^Foto / })).toHaveLength(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Fotos de recepción' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fotos de recepción (9)' }));
     expect(within(screen.getByRole('dialog')).getAllByRole('img', { name: /^Foto / })).toHaveLength(9);
     const printPortal = document.getElementById('unithor-print-portal')!;
     expect(printPortal.querySelectorAll('img[alt^="Foto "]')).toHaveLength(9);

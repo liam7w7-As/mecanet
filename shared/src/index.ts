@@ -8,6 +8,7 @@ export * from './constants/work-order-entry-type.js';
 export * from './constants/work-order-event-types.js';
 export * from './constants/work-order-requests.js';
 export * from './constants/quotation-status.js';
+export * from './constants/quotation-lifecycle.js';
 export * from './constants/catalog-types.js';
 export * from './constants/unit-measures.js';
 export * from './constants/item-operational-status.js';

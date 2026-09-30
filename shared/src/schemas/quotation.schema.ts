@@ -67,6 +67,7 @@ export const quotationQuerySchema = paginationSchema
     vehicleId: z.coerce.number().int().positive().optional(),
     workOrderId: z.coerce.number().int().positive().optional(),
     workOrderLinked: booleanQueryParam.optional(),
+    archiveStatus: z.enum(['active', 'archived']).optional(),
     fechaDesde: z.string().date('fechaDesde debe ser una fecha YYYY-MM-DD válida').optional(),
     fechaHasta: z.string().date('fechaHasta debe ser una fecha YYYY-MM-DD válida').optional(),
   })

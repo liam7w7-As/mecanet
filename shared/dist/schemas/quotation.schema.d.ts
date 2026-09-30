@@ -215,6 +215,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     vehicleId: z.ZodOptional<z.ZodNumber>;
     workOrderId: z.ZodOptional<z.ZodNumber>;
     workOrderLinked: z.ZodOptional<z.ZodUnion<[z.ZodBoolean, z.ZodEffects<z.ZodEnum<["true", "false"]>, boolean, "true" | "false">]>>;
+    archiveStatus: z.ZodOptional<z.ZodEnum<["active", "archived"]>>;
     fechaDesde: z.ZodOptional<z.ZodString>;
     fechaHasta: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -228,6 +229,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaHasta?: string | undefined;
     workOrderId?: number | undefined;
     workOrderLinked?: boolean | undefined;
+    archiveStatus?: "active" | "archived" | undefined;
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
@@ -239,6 +241,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaHasta?: string | undefined;
     workOrderId?: number | undefined;
     workOrderLinked?: boolean | "true" | "false" | undefined;
+    archiveStatus?: "active" | "archived" | undefined;
 }>, {
     page: number;
     pageSize: number;
@@ -250,6 +253,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaHasta?: string | undefined;
     workOrderId?: number | undefined;
     workOrderLinked?: boolean | undefined;
+    archiveStatus?: "active" | "archived" | undefined;
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
@@ -261,6 +265,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaHasta?: string | undefined;
     workOrderId?: number | undefined;
     workOrderLinked?: boolean | "true" | "false" | undefined;
+    archiveStatus?: "active" | "archived" | undefined;
 }>;
 export declare const convertQuotationToWorkOrderSchema: z.ZodObject<{
     kilometrajeIngreso: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;

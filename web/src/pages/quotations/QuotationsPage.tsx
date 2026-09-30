@@ -1,4 +1,5 @@
-import { Download, FileSpreadsheet, FileText, LoaderCircle, Pencil, Plus, Search, WalletCards, Wrench } from 'lucide-react';
+import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
+import { Archive, Download, FileSpreadsheet, FileText, LoaderCircle, Pencil, Plus, Search, WalletCards, Wrench } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -16,20 +17,22 @@ import { useQuotation, useQuotations } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
+import { getQuotationAttention } from '../../lib/quotation-attention';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { Quotation } from '../../types/entities';
 import type { QuotationStatus } from '@unithor/shared';
 
-type StatusFilter = QuotationStatus | 'all' | 'sin_ot';
+type StatusFilter = QuotationStatus | 'all' | 'sin_ot' | 'archived';
 
 const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
-  { value: 'all', label: 'Todas con OT' },
+  { value: 'all', label: 'Todas' },
   { value: 'sin_ot', label: 'Sin OT' },
   { value: 'por_pagar', label: 'Por pagar' },
   { value: 'parcial', label: 'Abono parcial' },
   { value: 'total', label: 'Pagadas total' },
   { value: 'por_verificar', label: 'Por verificar' },
+  { value: 'archived', label: 'Archivadas' },
 ];
 
 const toDateInput = (date: Date): string => date.toISOString().slice(0, 10);
@@ -49,8 +52,8 @@ export const QuotationsPage = () => {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [page, setPage] = useState(1);
-  const [fechaDesde, setFechaDesde] = useState(firstDayOfMonth);
-  const [fechaHasta, setFechaHasta] = useState(() => toDateInput(new Date()));
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
   const [quotationToConvert, setQuotationToConvert] = useState<Quotation | null>(null);
   const [previewQuotationId, setPreviewQuotationId] = useState<number | null>(null);
   const [paymentQuotation, setPaymentQuotation] = useState<{ id: number; codigo: string; saldoPendiente: number } | null>(null);
@@ -60,10 +63,11 @@ export const QuotationsPage = () => {
     page,
     pageSize: 20,
     search: debouncedSearch || undefined,
-    estadoPago: status === 'all' || status === 'sin_ot' ? undefined : status,
-    workOrderLinked: status === 'sin_ot' ? false : true,
-    fechaDesde,
-    fechaHasta,
+    estadoPago: status === 'all' || status === 'sin_ot' || status === 'archived' ? undefined : status,
+    workOrderLinked: status === 'sin_ot' ? false : undefined,
+    archiveStatus: status === 'archived' ? 'archived' : 'active',
+    fechaDesde: fechaDesde || undefined,
+    fechaHasta: fechaHasta || undefined,
   });
   const excelMutation = useDownloadCommercialExcel();
   // Detalle completo para la vista previa: la lista no trae ítems,
@@ -85,7 +89,7 @@ export const QuotationsPage = () => {
         </div>
         <div className="relative z-[1] ml-auto flex flex-wrap gap-2">
           {canExport && (
-            <button type="button" className="secondary-button inline-flex items-center gap-2 text-sm font-medium text-brand-ink transition-colors hover:border-brand-primary hover:text-brand-primaryInk disabled:opacity-60" onClick={() => excelMutation.mutate({ fechaDesde, fechaHasta, estadoPago: status === 'all' || status === 'sin_ot' ? undefined : status })} disabled={excelMutation.isPending}>
+            <button type="button" className="secondary-button inline-flex items-center gap-2 text-sm font-medium text-brand-ink transition-colors hover:border-brand-primary hover:text-brand-primaryInk disabled:opacity-60" onClick={() => excelMutation.mutate({ fechaDesde: fechaDesde || firstDayOfMonth(), fechaHasta: fechaHasta || toDateInput(new Date()), estadoPago: status === 'all' || status === 'sin_ot' || status === 'archived' ? undefined : status })} disabled={excelMutation.isPending} title="Sin fechas seleccionadas, exporta el mes actual">
               {excelMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon variant="bounce" animateOnHover><FileSpreadsheet className="h-4 w-4" aria-hidden="true" /></AnimateIcon>}
               Exportar Excel
             </button>
@@ -110,11 +114,12 @@ export const QuotationsPage = () => {
             {STATUS_FILTERS.map((filter) => {
               const isSelected = status === filter.value;
               return (
-                <button
-                  key={filter.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSelected}
+                  <button
+                    key={filter.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={isSelected}
+                    title={filter.value === 'archived' ? 'Cotizaciones sin OT, sin pagos y sin actividad durante 30 días' : undefined}
                   className={`relative min-h-10 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
                     isSelected ? 'text-white' : 'bg-brand-pale text-brand-muted hover:bg-brand-line'
                   }`}
@@ -157,12 +162,23 @@ export const QuotationsPage = () => {
               {quotationsQuery.isPending ? <QuotationSkeleton /> : quotationsQuery.data?.items.map((quotation, index) => {
                 const balance = Math.max(0, Number(quotation.total) - Number(quotation.pagado));
                 const rowNumber = (page - 1) * (quotationsQuery.data?.pageSize ?? 20) + index + 1;
+                const attention = status === 'archived' ? null : getQuotationAttention(quotation);
+                const rowStyle = status === 'archived'
+                  ? 'bg-slate-50/60 hover:bg-slate-100/70'
+                  : attention?.kind === 'linked'
+                    ? 'bg-orange-50/80 hover:bg-orange-100/70'
+                    : attention?.kind === 'fading'
+                      ? 'bg-amber-50/50 hover:bg-amber-100/70'
+                      : attention?.kind === 'unlinked'
+                        ? 'bg-yellow-50/80 hover:bg-yellow-100/70'
+                        : 'hover:bg-brand-pale/50';
                 return (
-                  <AnimatedTableRow key={quotation.id} delay={index * 0.02} className="border-b border-brand-line last:border-0">
-                    <td className="px-4 py-5 font-mono text-sm font-bold text-brand-muted">{rowNumber}</td>
+                  <AnimatedTableRow key={quotation.id} delay={index * 0.02} enableHover={false} className={`border-b border-brand-line transition-colors last:border-0 ${rowStyle}`}>
+                    <td className={`border-l-4 px-4 py-5 font-mono text-sm font-bold text-brand-muted ${status === 'archived' ? 'border-slate-300' : attention?.kind === 'linked' ? 'border-orange-400' : attention ? 'border-yellow-400' : 'border-transparent'}`}>{rowNumber}</td>
                     <td className="px-4 py-5">
                       <Link to={`/quotations/${quotation.id}`} className="font-mono text-[15px] font-bold text-brand-primaryInk hover:underline">{quotation.codigo}</Link>
                       {quotation.asesor?.nombre && <span className="block text-xs text-brand-muted">{quotation.asesor.nombre}</span>}
+                      {status === 'archived' ? <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-600"><Archive className="h-3 w-3" aria-hidden="true" />Archivada por inactividad</span> : attention && <span className={`mt-1 block text-xs font-semibold ${attention.kind === 'linked' ? 'text-orange-800' : 'text-amber-800'}`}>{attention.kind === 'linked' ? `OT sin actividad: ${attention.days} días` : attention.kind === 'fading' ? `Se archivará en ${QUOTATION_ARCHIVE_DAYS - attention.days} días` : `Sin OT: ${attention.days} días`}</span>}
                     </td>
                     <td className="max-w-52 px-4 py-5"><span className="block truncate text-[15px] font-semibold text-brand-ink">{quotation.client?.nombre ?? 'Sin cliente'}</span><span className="block text-xs text-brand-muted">{quotation.client?.rut ?? 'Sin identificación'}</span></td>
                     <td className="px-4 py-5"><span className="rounded-md bg-brand-ink px-2 py-1 font-mono text-xs font-bold text-white">{quotation.vehicle?.patente ?? 'S/V'}</span><span className="mt-1 block text-xs text-brand-muted">{[quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos'}</span></td>
@@ -226,7 +242,7 @@ export const QuotationsPage = () => {
             </tbody>
           </table>
         </div>
-        {!quotationsQuery.isPending && quotationsQuery.data?.items.length === 0 && <div className="flex min-h-56 flex-col items-center justify-center px-4 text-center"><FileText className="h-10 w-10 text-brand-muted/40" aria-hidden="true" /><p className="mt-3 font-semibold text-brand-ink">No se encontraron cotizaciones</p><p className="mt-1 text-sm text-brand-muted">Cambie los filtros o emita el primer presupuesto.</p></div>}
+        {!quotationsQuery.isPending && quotationsQuery.data?.items.length === 0 && <div className="flex min-h-56 flex-col items-center justify-center px-4 text-center"><FileText className="h-10 w-10 text-brand-muted/40" aria-hidden="true" /><p className="mt-3 font-semibold text-brand-ink">{status === 'archived' ? 'No hay cotizaciones archivadas' : 'No se encontraron cotizaciones'}</p><p className="mt-1 text-sm text-brand-muted">Cambie los filtros o emita el primer presupuesto.</p></div>}
         <Pagination page={page} totalPages={quotationsQuery.data?.totalPages ?? 0} total={quotationsQuery.data?.total ?? 0} onPageChange={setPage} />
       </section>
 

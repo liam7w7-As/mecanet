@@ -158,13 +158,13 @@ describe('QuotationsPage', () => {
     expect(screen.getByText('OT-2026-0012')).toBeInTheDocument();
   });
 
-  it('muestra numeración y filtra cotizaciones sin OT', async () => {
+  it('muestra numeración y filtra cotizaciones sin OT y archivadas', async () => {
     renderWithProviders(<QuotationsPage />);
 
     expect(await screen.findByText('COT-2026-0031')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'N°' })).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/quotations', {
-      params: expect.objectContaining({ workOrderLinked: true }),
+      params: expect.objectContaining({ archiveStatus: 'active' }),
     });
 
     fireEvent.click(screen.getByRole('tab', { name: 'Sin OT' }));
@@ -174,6 +174,26 @@ describe('QuotationsPage', () => {
         params: expect.objectContaining({ workOrderLinked: false }),
       }),
     );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Archivadas' }));
+    await waitFor(() =>
+      expect(api.get).toHaveBeenLastCalledWith('/quotations', {
+        params: expect.objectContaining({ archiveStatus: 'archived' }),
+      }),
+    );
+  });
+
+  it('resalta en amarillo las COT sin OT y en naranja las OT sin actividad', async () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 86_400_000).toISOString();
+    const oldUnlinked: Quotation = { ...quotation, estadoPago: 'por_pagar', pagado: 0, updatedAt: eightDaysAgo };
+    const oldLinked: Quotation = { ...linkedQuotation, updatedAt: eightDaysAgo, workOrder: { ...linkedQuotation.workOrder!, updatedAt: eightDaysAgo } };
+    vi.mocked(api.get).mockResolvedValue({ data: { ...listResponse, items: [oldUnlinked, oldLinked] } });
+    renderWithProviders(<QuotationsPage />);
+
+    const unlinkedWarning = await screen.findByText('Sin OT: 8 días');
+    const linkedWarning = screen.getByText('OT sin actividad: 8 días');
+    expect(unlinkedWarning.closest('tr')).toHaveClass('bg-yellow-50/80');
+    expect(linkedWarning.closest('tr')).toHaveClass('bg-orange-50/80');
   });
 
   it('muestra convertir a OT solamente para cotizaciones no vinculadas', async () => {

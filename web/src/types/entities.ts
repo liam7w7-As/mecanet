@@ -323,6 +323,7 @@ export interface QuotationWorkOrder {
   id: number;
   codigo: string;
   estado: string;
+  updatedAt?: string;
   inspectionPhotos?: WorkOrderInspectionPhoto[];
 }
 

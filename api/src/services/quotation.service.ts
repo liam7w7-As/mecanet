@@ -1,3 +1,4 @@
+import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
 import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
 import { notifyByType } from './notification.service.js';
@@ -60,6 +61,7 @@ interface QuotationWorkOrderPublic {
   id: number;
   codigo: string;
   estado: string;
+  updatedAt: Date;
   inspectionPhotos?: InspectionPhotoPublic[];
 }
 
@@ -120,6 +122,7 @@ export interface ConvertQuotationResult {
 
 type QuotationWhere = WhereOptions<InferAttributes<Quotation>> & {
   [Op.or]?: WhereOptions<InferAttributes<Quotation>>[];
+  [Op.and]?: WhereOptions<InferAttributes<Quotation>>[];
 };
 
 const clientInclude = {
@@ -140,7 +143,7 @@ const asesorInclude = {
 
 const workOrderInclude = {
   model: WorkOrder,
-  attributes: ['id', 'codigo', 'estado'],
+  attributes: ['id', 'codigo', 'estado', 'updatedAt'],
 };
 
 const itemsInclude = {
@@ -235,6 +238,7 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
         id: quotation.workOrder.id,
         codigo: quotation.workOrder.codigo,
         estado: quotation.workOrder.estado,
+        updatedAt: quotation.workOrder.updatedAt,
         inspectionPhotos: quotation.workOrder.inspection?.photos?.map((photo) => ({
           id: photo.id,
           slot: photo.slot,
@@ -594,6 +598,26 @@ export const listQuotations = async (
       range[Op.lte] = new Date(`${query.fechaHasta}T23:59:59.999Z`);
     }
     where.createdAt = range;
+  }
+
+  if (query.archiveStatus) {
+    const cutoff = new Date(Date.now() - QUOTATION_ARCHIVE_DAYS * 24 * 60 * 60 * 1000);
+    const archived: QuotationWhere = {
+      workOrderId: { [Op.is]: null },
+      pagado: 0,
+      estadoPago: 'por_pagar',
+      updatedAt: { [Op.lte]: cutoff },
+    };
+    where[Op.and] = query.archiveStatus === 'archived'
+      ? [archived]
+      : [{
+          [Op.or]: [
+            { workOrderId: { [Op.not]: null } },
+            { pagado: { [Op.gt]: 0 } },
+            { estadoPago: { [Op.ne]: 'por_pagar' } },
+            { updatedAt: { [Op.gt]: cutoff } },
+          ],
+        }];
   }
 
   const { rows, count } = await Quotation.findAndCountAll({

@@ -13,6 +13,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import QuotationCreatePage from './pages/quotations/QuotationCreatePage';
 import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
+import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import UsersPage from './pages/users/UsersPage';
 import VehicleDetailPage from './pages/vehicles/VehicleDetailPage';
@@ -97,6 +98,20 @@ export const App = () => (
           element={
             <ProtectedRoute requiredAnyPermission={[{ modulo: 'finanzas', accion: 'read' }]}>
               <FinancePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute requiredAnyPermission={[
+              { modulo: 'finanzas', accion: 'read' },
+              { modulo: 'comercial', accion: 'read' },
+              { modulo: 'taller', accion: 'read' },
+              { modulo: 'almacen', accion: 'read' },
+              { modulo: 'admin', accion: 'read' },
+            ]}>
+              <ReportsPage />
             </ProtectedRoute>
           }
         />

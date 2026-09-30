@@ -90,7 +90,7 @@ export const hasUserPermission = (
   module: Module,
   action: Action,
 ): boolean => {
-  if (user.role === 'desarrollador') return true;
+  if (user.role === 'desarrollador' || user.role === 'admin') return true;
   if (user.role === 'finanzas' && module === 'comercial' && action === 'export') {
     return user.permissions
       ? user.permissions.some(

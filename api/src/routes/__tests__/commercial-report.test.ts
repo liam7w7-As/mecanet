@@ -112,6 +112,7 @@ const removeReportFixtures = async (): Promise<void> => {
 
 describe('Commercial Excel Report Routes (E2E)', () => {
   let vendedorEmail: string;
+  let vendedorId: number;
   let bodegueroEmail: string;
 
   beforeAll(async () => {
@@ -152,6 +153,7 @@ describe('Commercial Excel Report Routes (E2E)', () => {
         activo: true,
       }),
     ]);
+    vendedorId = vendedor.id;
 
     const vehicle = await Vehicle.create({
       patente: `${TEST_PLATE_PREFIX}01`,
@@ -278,6 +280,22 @@ const paymentRowTwo = findRowByCode(paymentSheet!, `${TEST_CODE_PREFIX}02`);
 expect(paymentSheet?.getCell(`E${paymentRowTwo}`).value).toBe(10000);
 });
 
+  it('abre el reporte comercial en PDF con detalle ejecutivo', async () => {
+    const cookies = await loginAs(vendedorEmail);
+    const response = await request(app)
+      .get('/api/reports/commercial/pdf')
+      .query({ fechaDesde: CURRENT_MONTH_START, fechaHasta: TODAY })
+      .set('Cookie', [`access_token=${cookies.accessToken}`])
+      .buffer(true)
+      .parse(xlsxParser);
+
+    const body = response.body as Buffer;
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('application/pdf');
+    expect(response.headers['content-disposition']).toContain('.pdf');
+    expect(body.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
 
   it('rechaza un rango de fechas invertido', async () => {
     const cookies = await loginAs(vendedorEmail);
@@ -296,6 +314,31 @@ expect(paymentSheet?.getCell(`E${paymentRowTwo}`).value).toBe(10000);
         }),
       ]),
     );
+  });
+
+  it('filtra el Excel por vínculo con OT sin mezclar cotizaciones independientes', async () => {
+    const cookies = await loginAs(vendedorEmail);
+    const withoutOt = await request(app)
+      .get('/api/reports/commercial/excel')
+      .query({ fechaDesde: CURRENT_MONTH_START, fechaHasta: TODAY, asesorId: vendedorId, workOrderLinked: 'false' })
+      .set('Cookie', [`access_token=${cookies.accessToken}`])
+      .buffer(true)
+      .parse(xlsxParser);
+    const withOt = await request(app)
+      .get('/api/reports/commercial/excel')
+      .query({ fechaDesde: CURRENT_MONTH_START, fechaHasta: TODAY, asesorId: vendedorId, workOrderLinked: 'true' })
+      .set('Cookie', [`access_token=${cookies.accessToken}`])
+      .buffer(true)
+      .parse(xlsxParser);
+
+    expect(withoutOt.status).toBe(200);
+    expect(withOt.status).toBe(200);
+    const independentWorkbook = new ExcelJS.Workbook();
+    await independentWorkbook.xlsx.load(Uint8Array.from(withoutOt.body as Buffer).buffer);
+    const linkedWorkbook = new ExcelJS.Workbook();
+    await linkedWorkbook.xlsx.load(Uint8Array.from(withOt.body as Buffer).buffer);
+    expect(independentWorkbook.getWorksheet('Resumen Comercial')?.getCell('A5').value).toBe(`${TEST_CODE_PREFIX}01`);
+    expect(linkedWorkbook.getWorksheet('Resumen Comercial')?.getCell('A5').value).toBe('TOTALES GENERALES');
   });
 
   it('genera la estructura del libro aunque el rango no tenga cotizaciones', async () => {

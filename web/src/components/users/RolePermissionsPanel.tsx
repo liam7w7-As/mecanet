@@ -1,6 +1,5 @@
 import {
   AlertCircle,
-  Check,
   CheckCheck,
   FileText,
   Layers,
@@ -58,7 +57,7 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
   const assignedQuery = useRolePermissions(roleId);
   const updateMutation = useUpdateRolePermissionsMutation();
   const selectedRole = roles.find((role) => role.id === roleId) ?? null;
-  const isDeveloper = selectedRole?.nombre === 'desarrollador';
+  const isProtectedRole = selectedRole?.nombre === 'desarrollador' || selectedRole?.nombre === 'admin';
 
   useEffect(() => {
     if (assignedQuery.data) {
@@ -109,6 +108,9 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
 
   const error = permissionsQuery.error ?? assignedQuery.error ?? updateMutation.error;
   const totalAvailable = permissionsQuery.data?.length ?? 0;
+  const displayedIds = isProtectedRole
+    ? new Set(permissionsQuery.data?.map((permission) => permission.id) ?? [])
+    : selectedIds;
 
   return (
     <section
@@ -186,10 +188,10 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
       )}
 
       {/* Aviso de Rol Desarrollador */}
-      {isDeveloper && (
+      {isProtectedRole && (
         <div className="border-b border-brand-line bg-brand-pale/50 px-5 py-3 text-sm text-brand-primaryInk">
           <p className="font-semibold">
-            El rol desarrollador conserva acceso irrestricto a todos los módulos y no puede ser restringido.
+            El rol {selectedRole?.nombre} conserva acceso irrestricto a todos los módulos y no puede ser restringido.
           </p>
         </div>
       )}
@@ -206,15 +208,14 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
         <div className="p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-brand-muted">
-              Módulos y Acciones ({selectedIds.size} de {totalAvailable} activos)
+              Módulos y Acciones ({displayedIds.size} de {totalAvailable} activos)
             </p>
           </div>
 
           <div className="grid gap-5 md:grid-cols-2">
             {groupedPermissions.map(([module, permissions]) => {
               const ModuleIcon = MODULE_ICONS[module] ?? Layers;
-              const allChecked = permissions.every((p) => selectedIds.has(p.id));
-              const someChecked = permissions.some((p) => selectedIds.has(p.id));
+              const allChecked = permissions.every((p) => displayedIds.has(p.id));
 
               return (
                 <div
@@ -231,7 +232,7 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
                       </h3>
                     </div>
 
-                    {!isDeveloper && canUpdate && (
+                    {!isProtectedRole && canUpdate && (
                       <button
                         type="button"
                         onClick={() => toggleModulePermissions(permissions)}
@@ -245,7 +246,7 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
 
                   <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {permissions.map((permission) => {
-                      const isChecked = selectedIds.has(permission.id);
+                      const isChecked = displayedIds.has(permission.id);
                       return (
                         <label
                           key={permission.id}
@@ -253,13 +254,13 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
                             isChecked
                               ? 'border-brand-primary bg-brand-pale/70 text-brand-primary shadow-2xs ring-1 ring-brand-primary/20'
                               : 'border-brand-line bg-white text-brand-muted hover:border-brand-primary/30 hover:text-brand-ink'
-                          } ${isDeveloper || !canUpdate ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+                          } ${isProtectedRole || !canUpdate ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
                         >
                           <input
                             type="checkbox"
                             className="h-4 w-4 rounded accent-brand-primary"
                             checked={isChecked}
-                            disabled={isDeveloper || !canUpdate}
+                            disabled={isProtectedRole || !canUpdate}
                             onChange={() => togglePermission(permission.id)}
                             aria-label={ACTION_LABELS[permission.accion] ?? permission.accion}
                           />
@@ -280,10 +281,10 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
         <p className={`text-xs font-medium sm:text-sm ${updateMutation.isSuccess ? 'font-semibold text-brand-mintInk' : 'text-brand-muted'}`}>
           {updateMutation.isSuccess
             ? 'Permisos actualizados correctamente'
-            : `${selectedIds.size} permiso(s) seleccionado(s) para este rol`}
+            : `${displayedIds.size} permiso(s) seleccionado(s) para este rol`}
         </p>
 
-        {canUpdate && !isDeveloper && (
+        {canUpdate && !isProtectedRole && (
           <button
             type="button"
             className="primary-button h-10 px-5 text-xs font-bold text-white shadow-xs hover:shadow transition-all disabled:opacity-50"

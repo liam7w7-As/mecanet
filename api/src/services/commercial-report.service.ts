@@ -359,6 +359,11 @@ export async function generateCommercialReportExcel(
   if (filters.asesorId !== undefined) {
     quotationFilters.asesorId = filters.asesorId;
   }
+  if (filters.workOrderLinked !== undefined) {
+    quotationFilters.workOrderId = filters.workOrderLinked
+      ? { [Op.not]: null }
+      : { [Op.is]: null };
+  }
 
   const [quotations, payments] = await Promise.all([
     Quotation.findAll({

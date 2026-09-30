@@ -1,3 +1,4 @@
+import { financialReportQuerySchema } from '@unithor/shared';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -17,12 +18,15 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import {
   useDownloadFinancialReport,
   useFinancialAnalytics,
 } from '../../hooks/useFinance';
 import { formatClp } from '../../lib/formatters';
+import { hasUserPermission } from '../../lib/permissions';
+import { useAuthStore } from '../../stores/auth.store';
 
 import type { FinancialReportFilters } from '@unithor/shared';
 import type { LucideIcon } from 'lucide-react';
@@ -37,6 +41,21 @@ const initialFilters = (): FinancialReportFilters => {
     agruparPor: 'dia',
     comparar: true,
   };
+};
+
+const filterKeys: Array<keyof FinancialReportFilters> = [
+  'fechaDesde', 'fechaHasta', 'agruparPor', 'asesorId', 'clientId',
+  'estadoPago', 'metodo', 'catalogType', 'movimientoTipo',
+  'movimientoCategoria', 'comparar',
+];
+
+const filtersFromUrl = (params: URLSearchParams): FinancialReportFilters => {
+  const values = Object.fromEntries(filterKeys.flatMap((key) => {
+    const value = params.get(`f_${key}`);
+    return value === null ? [] : [[key, value]];
+  }));
+  const parsed = financialReportQuerySchema.safeParse(values);
+  return parsed.success ? parsed.data : initialFilters();
 };
 
 const humanize = (value: string): string =>
@@ -150,7 +169,10 @@ const EmptyRows = ({ label }: { label: string }) => (
 );
 
 export const FinanceAnalyticsDashboard = () => {
-  const [filters, setFilters] = useState<FinancialReportFilters>(initialFilters);
+  const [urlParams, setUrlParams] = useSearchParams();
+  const [filters, setFilters] = useState<FinancialReportFilters>(() => filtersFromUrl(urlParams));
+  const user = useAuthStore((state) => state.user);
+  const canExport = Boolean(user && hasUserPermission(user, 'finanzas', 'export'));
   const analyticsQuery = useFinancialAnalytics(filters);
   const downloadMutation = useDownloadFinancialReport();
   const data = analyticsQuery.data;
@@ -170,7 +192,24 @@ export const FinanceAnalyticsDashboard = () => {
   const setFilter = <Key extends keyof FinancialReportFilters>(
     key: Key,
     value: FinancialReportFilters[Key],
-  ): void => setFilters((current) => ({ ...current, [key]: value }));
+  ): void => {
+    setFilters((current) => ({ ...current, [key]: value }));
+    setUrlParams((current) => {
+      const next = new URLSearchParams(current);
+      if (value === undefined || value === null || value === '') next.delete(`f_${key}`);
+      else next.set(`f_${key}`, String(value));
+      return next;
+    }, { replace: true });
+  };
+
+  const resetFilters = (): void => {
+    setFilters(initialFilters());
+    setUrlParams((current) => {
+      const next = new URLSearchParams(current);
+      filterKeys.forEach((key) => next.delete(`f_${key}`));
+      return next;
+    }, { replace: true });
+  };
 
   const exportReport = (format: 'pdf' | 'excel'): void => {
     downloadMutation.mutate({ format, filters });
@@ -185,7 +224,7 @@ export const FinanceAnalyticsDashboard = () => {
             Rendimiento financiero y comercial
           </h2>
         </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+        {canExport && <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <button
             type="button"
             onClick={() => exportReport('pdf')}
@@ -208,7 +247,7 @@ export const FinanceAnalyticsDashboard = () => {
             <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
             Excel detallado
           </button>
-        </div>
+        </div>}
       </div>
 
       <div className="rounded-lg border border-brand-line bg-white p-4">
@@ -394,7 +433,7 @@ export const FinanceAnalyticsDashboard = () => {
           </label>
           <button
             type="button"
-            onClick={() => setFilters(initialFilters())}
+            onClick={resetFilters}
             className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-lg border border-brand-line px-3 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
           >
             <RefreshCcw className="h-4 w-4" aria-hidden="true" />

@@ -1,4 +1,4 @@
-import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, PDFFont, PDFImage, PDFPage, StandardFonts, rgb } from 'pdf-lib';
 
 import type { RGB } from 'pdf-lib';
 
@@ -27,6 +27,8 @@ export interface LayoutOptions {
   title: string;
   subtitle?: string;
   company?: string;
+  companyDetail?: string;
+  logo?: Uint8Array | null;
   theme?: Partial<LayoutTheme>;
   page?: { width?: number; height?: number; marginTop?: number; marginBottom?: number; marginX?: number };
 }
@@ -53,6 +55,8 @@ export class ReportDocument {
     title: string;
     subtitle?: string;
     company?: string;
+    companyDetail?: string;
+    logo?: Uint8Array | null;
     width: number;
     height: number;
     marginTop: number;
@@ -62,6 +66,7 @@ export class ReportDocument {
 
   private regular!: PDFFont;
   private bold!: PDFFont;
+  private logo?: PDFImage;
   private page!: PDFPage;
   private readonly pages: PDFPage[] = [];
   private y = 0;
@@ -85,6 +90,8 @@ export class ReportDocument {
       title: options.title,
       subtitle: options.subtitle,
       company: options.company,
+      companyDetail: options.companyDetail,
+      logo: options.logo,
       width: page.width ?? 595.28,
       height: page.height ?? 841.89,
       marginTop: page.marginTop ?? 64,
@@ -98,6 +105,9 @@ export class ReportDocument {
     this.pdf = await PDFDocument.create();
     this.regular = await this.pdf.embedFont(StandardFonts.Helvetica);
     this.bold = await this.pdf.embedFont(StandardFonts.HelveticaBold);
+    if (this.opts.logo) {
+      this.logo = await this.pdf.embedPng(this.opts.logo);
+    }
     this.newPage();
     return this;
   }
@@ -124,31 +134,81 @@ export class ReportDocument {
 
   private drawHeader(): void {
     if (!this.fontsReady) return;
-    const { width, height, marginX, marginTop } = this.opts;
+    const { height, marginX, marginTop } = this.opts;
     if (this.index === 1) {
+      let textX = marginX;
+      if (this.logo) {
+        const bounds = this.logo.scale(1);
+        const maxWidth = 92;
+        const maxHeight = 34;
+        const scale = Math.min(maxWidth / bounds.width, maxHeight / bounds.height);
+        const logoWidth = bounds.width * scale;
+        const logoHeight = bounds.height * scale;
+        this.page.drawImage(this.logo, {
+          x: marginX,
+          y: height - marginTop - 7,
+          width: logoWidth,
+          height: logoHeight,
+        });
+        textX += Math.max(logoWidth + 16, 108);
+      }
       if (this.opts.company) {
-        this.text(this.opts.company, marginX, height - marginTop + 8, { size: 8, color: this.theme.muted });
+        this.text(this.opts.company, textX, height - marginTop + 8, { size: 8, font: this.bold, color: this.theme.muted });
       }
-      this.text(this.opts.title, marginX, height - marginTop - 4, { size: 16, font: this.bold });
+      this.text(this.opts.title, textX, height - marginTop - 4, { size: 15, font: this.bold });
       if (this.opts.subtitle) {
-        this.text(this.opts.subtitle, marginX, height - marginTop - 22, { size: 9, color: this.theme.muted });
+        this.text(this.opts.subtitle, textX, height - marginTop - 20, { size: 8, color: this.theme.muted });
       }
-      this.rule(height - marginTop - 32);
-      this.y = height - marginTop - 48;
+      if (this.opts.companyDetail) {
+        this.text(this.opts.companyDetail, textX, height - marginTop - 32, { size: 7, color: this.theme.muted });
+      }
+      this.rule(height - marginTop - 40, this.theme.accent);
+      this.y = height - marginTop - 54;
       return;
     }
-    this.text(this.opts.title, marginX, height - marginTop + 12, { size: 8, color: this.theme.muted });
+    let textX = marginX;
+    if (this.logo) {
+      const bounds = this.logo.scale(1);
+      const maxWidth = 48;
+      const maxHeight = 18;
+      const scale = Math.min(maxWidth / bounds.width, maxHeight / bounds.height);
+      this.page.drawImage(this.logo, {
+        x: marginX,
+        y: height - marginTop + 6,
+        width: bounds.width * scale,
+        height: bounds.height * scale,
+      });
+      textX += 58;
+    }
+    this.text(this.opts.title, textX, height - marginTop + 12, { size: 8, color: this.theme.muted });
     this.rule(height - marginTop + 4);
     this.y = height - marginTop - 12;
   }
 
-  private drawFooter(): void {
-    const { width, height, marginX, marginBottom } = this.opts;
+  private drawFooter(page: PDFPage, pageNumber: number, totalPages: number): void {
+    const { width, marginX, marginBottom } = this.opts;
     const y = marginBottom - 14;
-    this.rule(y + 12);
-    this.text('Uso interno y confidencial', marginX, y, { size: 7, color: this.theme.muted });
-    const total = `Pagina ${this.index} de ${this.pages.length}`;
-    this.text(total, width - marginX - this.regular.widthOfTextAtSize(total, 7), y, { size: 7, color: this.theme.muted });
+    page.drawLine({
+      start: { x: marginX, y: y + 12 },
+      end: { x: width - marginX, y: y + 12 },
+      thickness: 0.5,
+      color: this.theme.line,
+    });
+    page.drawText(`${this.opts.company ?? 'UNITHOR'} - Uso interno y confidencial`, {
+      x: marginX,
+      y,
+      size: 7,
+      font: this.regular,
+      color: this.theme.muted,
+    });
+    const total = `Pagina ${pageNumber} de ${totalPages}`;
+    page.drawText(total, {
+      x: width - marginX - this.regular.widthOfTextAtSize(total, 7),
+      y,
+      size: 7,
+      font: this.regular,
+      color: this.theme.muted,
+    });
   }
 
   private text(
@@ -178,7 +238,6 @@ export class ReportDocument {
 
   private requireSpace(needed: number): void {
     if (this.y - needed <= this.opts.marginBottom) {
-      this.drawFooter();
       this.newPage();
     }
   }
@@ -241,7 +300,7 @@ export class ReportDocument {
       });
       this.y -= 6;
       this.rule(this.y);
-      this.y -= 10;
+      this.y -= 8;
     };
 
     this.requireSpace(46);
@@ -249,7 +308,6 @@ export class ReportDocument {
 
     rows.forEach((row, rowIndex) => {
       if (this.y - 16 <= this.opts.marginBottom) {
-        this.drawFooter();
         this.newPage();
         drawHeader();
       }
@@ -258,7 +316,7 @@ export class ReportDocument {
           x: this.opts.marginX,
           y: this.y - 4,
           width: this.contentWidth,
-          height: 15,
+          height: 13,
           color: this.theme.zebra,
         });
       }
@@ -268,13 +326,13 @@ export class ReportDocument {
         const truncated = this.fit(value, column, widths[i]);
         const x =
           column.align === 'right'
-            ? xOf(i) + widths[i] - this.regular.widthOfTextAtSize(truncated, 8.5) - 4
+            ? xOf(i) + widths[i] - this.regular.widthOfTextAtSize(truncated, 7.6) - 4
             : column.align === 'center'
-              ? xOf(i) + (widths[i] - this.regular.widthOfTextAtSize(truncated, 8.5)) / 2
+              ? xOf(i) + (widths[i] - this.regular.widthOfTextAtSize(truncated, 7.6)) / 2
               : xOf(i) + 4;
-        this.text(truncated, x, this.y, { size: 8.5 });
+        this.text(truncated, x, this.y, { size: 7.6 });
       });
-      this.y -= 15;
+      this.y -= 13;
     });
 
     this.rule(this.y + 4);
@@ -284,9 +342,9 @@ export class ReportDocument {
 
   private fit(value: string, column: Column, width: number): string {
     const max = width - 8;
-    if (this.regular.widthOfTextAtSize(value, 8.5) <= max) return value;
+    if (this.regular.widthOfTextAtSize(value, 7.6) <= max) return value;
     let out = value;
-    while (out.length > 1 && this.regular.widthOfTextAtSize(`${out}...`, 8.5) > max) {
+    while (out.length > 1 && this.regular.widthOfTextAtSize(`${out}...`, 7.6) > max) {
       out = out.slice(0, -1);
     }
     return `${out}...`;
@@ -294,7 +352,7 @@ export class ReportDocument {
 
   /** Cierra el documento, dibujando los pies de todas las paginas. */
   async finalize(): Promise<Uint8Array> {
-    this.drawFooter();
+    this.pages.forEach((page, index) => this.drawFooter(page, index + 1, this.pages.length));
     return this.pdf.save();
   }
 }

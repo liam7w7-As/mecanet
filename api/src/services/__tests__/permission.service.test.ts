@@ -8,12 +8,14 @@ import {
   getPermissionsForRole,
   hasPermission,
   invalidatePermissionCache,
+  updateRolePermissions,
 } from '../permission.service.js';
 
 describe('permission.service', () => {
   let devUserId: number;
   let vendedorUserId: number;
   let vendedorRoleId: number;
+  let adminUserId: number;
 
   beforeAll(async () => {
     await sequelize.authenticate();
@@ -44,6 +46,18 @@ describe('permission.service', () => {
     }
     vendedorRoleId = vendedorRole.id;
 
+    const adminRole = await Role.findOne({ where: { nombre: 'admin' } });
+    if (!adminRole) throw new Error('El rol admin no existe en la base de datos');
+    await User.destroy({ where: { email: 'test-admin-reportes@unithor.local' }, force: true });
+    const adminUser = await User.create({
+      nombre: 'Admin Reportes Temporal',
+      email: 'test-admin-reportes@unithor.local',
+      passwordHash: '$2b$10$invaliddummypasswordhashforvitest',
+      roleId: adminRole.id,
+      activo: true,
+    });
+    adminUserId = adminUser.id;
+
     // Crear o recuperar usuario temporal de prueba vendedor
     let vendedorUser = await User.findOne({
       where: { email: 'test-vendedor@unithor.local' },
@@ -72,6 +86,7 @@ describe('permission.service', () => {
       where: { email: 'test-vendedor@unithor.local' },
       force: true,
     });
+    await User.destroy({ where: { id: adminUserId }, force: true });
     invalidatePermissionCache();
   });
 
@@ -89,6 +104,17 @@ describe('permission.service', () => {
       expect(canDeleteAdmin).toBe(true);
       expect(canFake).toBe(true);
     });
+  });
+
+  it('conserva acceso total para el rol admin', async () => {
+    expect(await hasPermission(adminUserId, 'finanzas', 'export')).toBe(true);
+    expect(await hasPermission(adminUserId, 'almacen', 'read')).toBe(true);
+  });
+
+  it('impide restringir la matriz del rol admin', async () => {
+    const admin = await Role.findOne({ where: { nombre: 'admin' } });
+    expect(admin).not.toBeNull();
+    await expect(updateRolePermissions(admin!.id, [])).rejects.toMatchObject({ statusCode: 400 });
   });
 
   describe('roles estándar y matriz de permisos', () => {

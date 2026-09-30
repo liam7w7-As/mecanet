@@ -94,6 +94,9 @@ describe('UsersPage', () => {
       if (url === '/users') return Promise.resolve({ data: usersResponse } as AxiosResponse);
       if (url === '/roles') return Promise.resolve({ data: { roles } } as AxiosResponse);
       if (url === '/permissions') return Promise.resolve({ data: { permissions } } as AxiosResponse);
+      if (url === '/roles/4/permissions') {
+        return Promise.resolve({ data: { permissions: permissions.slice(0, 2) } } as AxiosResponse);
+      }
       if (url === '/roles/2/permissions') {
         return Promise.resolve({ data: { permissions: permissions.slice(0, 2) } } as AxiosResponse);
       }
@@ -139,18 +142,19 @@ describe('UsersPage', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Permisos por rol' }));
     expect(await screen.findByText('Matriz dinámica de permisos')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Vendedor' }));
     await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Creación' })).toBeChecked());
     fireEvent.click(screen.getByRole('checkbox', { name: 'Edición' }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar permisos' }));
 
-    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/roles/2/permissions', {
-      roleId: 2,
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/roles/4/permissions', {
+      roleId: 4,
       permissionIds: [1, 2, 3],
     }));
     expect(await screen.findByText('Permisos actualizados correctamente')).toBeInTheDocument();
   });
 
-  it('oculta acciones no concedidas aunque el rol sea administrador', async () => {
+  it('mantiene el acceso completo del administrador aunque la matriz almacenada sea parcial', async () => {
     useAuthStore.setState({
       user: {
         id: 1,
@@ -163,10 +167,11 @@ describe('UsersPage', () => {
     renderPage();
 
     await screen.findByText('Ana Administradora');
-    expect(screen.queryByRole('button', { name: 'Nuevo usuario' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Editar Víctor Ventas' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nuevo usuario' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar Víctor Ventas' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Permisos por rol' }));
     expect(await screen.findByRole('checkbox', { name: 'Lectura' })).toBeDisabled();
+    expect(screen.getByText('Módulos y Acciones (4 de 4 activos)')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Guardar permisos' })).not.toBeInTheDocument();
   });
 });

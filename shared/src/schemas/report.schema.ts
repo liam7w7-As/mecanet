@@ -4,6 +4,8 @@ import { CASH_MOVEMENT_CATEGORIES, CASH_MOVEMENT_TYPES } from './finance.schema.
 import { PAYMENT_METHODS } from './payment.schema.js';
 import { CATALOG_TYPES } from '../constants/catalog-types.js';
 import { QUOTATION_STATUS } from '../constants/quotation-status.js';
+import { STOCK_MOVEMENT_TYPES } from '../constants/stock-movement-types.js';
+import { WORK_ORDER_STATUS } from '../constants/work-order-status.js';
 
 const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
@@ -11,6 +13,10 @@ const firstDayOfCurrentMonth = (): string => {
   const now = new Date();
   return toIsoDate(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
 };
+
+const reportBooleanSchema = z
+  .union([z.boolean(), z.enum(['true', 'false'])])
+  .transform((value) => value === true || value === 'true');
 
 export const commercialReportQuerySchema = z
   .object({
@@ -24,6 +30,11 @@ export const commercialReportQuerySchema = z
       .default(() => toIsoDate(new Date())),
     estadoPago: z.enum(QUOTATION_STATUS).optional(),
     asesorId: z.coerce.number().int().positive('ID de asesor inválido').optional(),
+    clientId: z.coerce.number().int().positive('ID de cliente inválido').optional(),
+    vehicleId: z.coerce.number().int().positive('ID de vehículo inválido').optional(),
+    workOrderId: z.coerce.number().int().positive('ID de OT inválido').optional(),
+    search: z.string().trim().max(80).optional(),
+    workOrderLinked: z.enum(['true', 'false']).transform((value) => value === 'true').optional(),
   })
   .refine((filters) => filters.fechaDesde <= filters.fechaHasta, {
     message: 'fechaDesde no puede ser posterior a fechaHasta',
@@ -32,9 +43,118 @@ export const commercialReportQuerySchema = z
 
 export type CommercialReportFilters = z.infer<typeof commercialReportQuerySchema>;
 
-const reportBooleanSchema = z
-  .union([z.boolean(), z.enum(['true', 'false'])])
-  .transform((value) => value === true || value === 'true');
+export const workshopReportQuerySchema = z
+  .object({
+    fechaDesde: z
+      .string()
+      .date('fechaDesde debe ser una fecha YYYY-MM-DD válida')
+      .default(firstDayOfCurrentMonth),
+    fechaHasta: z
+      .string()
+      .date('fechaHasta debe ser una fecha YYYY-MM-DD válida')
+      .default(() => toIsoDate(new Date())),
+    estado: z.enum(WORK_ORDER_STATUS).optional(),
+    mechanicId: z.coerce.number().int().positive('ID de mecánico inválido').optional(),
+    clientId: z.coerce.number().int().positive('ID de cliente inválido').optional(),
+    vehicleId: z.coerce.number().int().positive('ID de vehículo inválido').optional(),
+    search: z.string().trim().max(80).optional(),
+  })
+  .refine((filters) => filters.fechaDesde <= filters.fechaHasta, {
+    message: 'fechaDesde no puede ser posterior a fechaHasta',
+    path: ['fechaHasta'],
+  });
+
+export type WorkshopReportFilters = z.infer<typeof workshopReportQuerySchema>;
+
+export const inventoryReportQuerySchema = z
+  .object({
+    fechaDesde: z
+      .string()
+      .date('fechaDesde debe ser una fecha YYYY-MM-DD válida')
+      .default(firstDayOfCurrentMonth),
+    fechaHasta: z
+      .string()
+      .date('fechaHasta debe ser una fecha YYYY-MM-DD válida')
+      .default(() => toIsoDate(new Date())),
+    warehouseId: z.coerce.number().int().positive('ID de almacén inválido').optional(),
+    catalogItemId: z.coerce.number().int().positive('ID de item inválido').optional(),
+    tipo: z.enum(STOCK_MOVEMENT_TYPES).optional(),
+    stock: z.enum(['todos', 'con_stock', 'sin_stock', 'critico']).default('todos'),
+    search: z.string().trim().max(80).optional(),
+  })
+  .refine((filters) => filters.fechaDesde <= filters.fechaHasta, {
+    message: 'fechaDesde no puede ser posterior a fechaHasta',
+    path: ['fechaHasta'],
+  });
+
+export type InventoryReportFilters = z.infer<typeof inventoryReportQuerySchema>;
+
+export const catalogReportQuerySchema = z
+  .object({
+    fechaDesde: z
+      .string()
+      .date('fechaDesde debe ser una fecha YYYY-MM-DD válida')
+      .default(firstDayOfCurrentMonth),
+    fechaHasta: z
+      .string()
+      .date('fechaHasta debe ser una fecha YYYY-MM-DD válida')
+      .default(() => toIsoDate(new Date())),
+    tipo: z.enum(CATALOG_TYPES).optional(),
+    stock: z.enum(['todos', 'con_stock', 'sin_stock', 'critico']).default('todos'),
+    search: z.string().trim().max(80).optional(),
+  })
+  .refine((filters) => filters.fechaDesde <= filters.fechaHasta, {
+    message: 'fechaDesde no puede ser posterior a fechaHasta',
+    path: ['fechaHasta'],
+  });
+
+export type CatalogReportFilters = z.infer<typeof catalogReportQuerySchema>;
+
+export const fleetReportQuerySchema = z
+  .object({
+    fechaDesde: z
+      .string()
+      .date('fechaDesde debe ser una fecha YYYY-MM-DD válida')
+      .default(firstDayOfCurrentMonth),
+    fechaHasta: z
+      .string()
+      .date('fechaHasta debe ser una fecha YYYY-MM-DD válida')
+      .default(() => toIsoDate(new Date())),
+    clientType: z.enum(['cliente', 'empresa']).optional(),
+    clientId: z.coerce.number().int().positive('ID de cliente inválido').optional(),
+    vehicleId: z.coerce.number().int().positive('ID de vehículo inválido').optional(),
+    scope: z.enum(['all', 'clients', 'vehicles']).default('all'),
+    onlyWithHistory: reportBooleanSchema.optional(),
+    search: z.string().trim().max(80).optional(),
+  })
+  .refine((filters) => filters.fechaDesde <= filters.fechaHasta, {
+    message: 'fechaDesde no puede ser posterior a fechaHasta',
+    path: ['fechaHasta'],
+  });
+
+export type FleetReportFilters = z.infer<typeof fleetReportQuerySchema>;
+
+export const administrationReportQuerySchema = z
+  .object({
+    fechaDesde: z
+      .string()
+      .date('fechaDesde debe ser una fecha YYYY-MM-DD válida')
+      .default(firstDayOfCurrentMonth),
+    fechaHasta: z
+      .string()
+      .date('fechaHasta debe ser una fecha YYYY-MM-DD válida')
+      .default(() => toIsoDate(new Date())),
+    roleId: z.coerce.number().int().positive('ID de rol inválido').optional(),
+    activo: reportBooleanSchema.optional(),
+    includeDeleted: reportBooleanSchema.default(false),
+    search: z.string().trim().max(80).optional(),
+  })
+  .refine((filters) => filters.fechaDesde <= filters.fechaHasta, {
+    message: 'fechaDesde no puede ser posterior a fechaHasta',
+    path: ['fechaHasta'],
+  });
+
+export type AdministrationReportFilters = z.infer<typeof administrationReportQuerySchema>;
 
 export const financialReportQuerySchema = z
   .object({

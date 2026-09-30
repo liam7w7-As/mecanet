@@ -2,10 +2,11 @@ import ExcelJS from 'exceljs';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 import { getFinancialReportData } from './financial-analytics.service.js';
+import { getReportBranding } from './reports/report-branding.js';
 
 import type { FinancialAnalytics, FinancialReportData } from './financial-analytics.service.js';
 import type { FinancialReportFilters } from '@unithor/shared';
-import type { PDFFont, PDFPage } from 'pdf-lib';
+import type { PDFFont, PDFImage, PDFPage } from 'pdf-lib';
 
 const PRIMARY = 'FF0E2B4E';
 const WHITE = 'FFFFFFFF';
@@ -327,6 +328,19 @@ export async function generateFinancialReportExcel(
     data.items.map((item) => ({ ...item, catalogType: humanize(item.catalogType) })),
   );
 
+  const branding = await getReportBranding();
+  workbook.creator = branding.companyName;
+  workbook.company = branding.legalName;
+  if (branding.logoPng) {
+    const imageId = workbook.addImage({ base64: branding.logoPng.toString('base64'), extension: 'png' });
+    workbook.eachSheet((sheet) => {
+      sheet.addImage(imageId, {
+        tl: { col: Math.max(0, sheet.columnCount - 2.15), row: 0.12 },
+        ext: { width: 104, height: 28 },
+        editAs: 'oneCell',
+      });
+    });
+  }
   const bytes = await workbook.xlsx.writeBuffer();
   return Buffer.from(bytes);
 }
@@ -349,6 +363,8 @@ interface PdfContext {
   pageNumber: number;
   title: string;
   subtitle: string;
+  companyName: string;
+  logo?: PDFImage;
 }
 
 const shorten = (value: string, maxLength: number): string =>
@@ -369,15 +385,38 @@ const drawPdfHeader = (ctx: PdfContext): void => {
     height: 4,
     color: PDF_ACCENT,
   });
+  let textX = PDF_MARGIN;
+  if (ctx.logo) {
+    const bounds = ctx.logo.scale(1);
+    const maxWidth = 104;
+    const maxHeight = 38;
+    const scale = Math.min(maxWidth / bounds.width, maxHeight / bounds.height);
+    const width = bounds.width * scale;
+    const height = bounds.height * scale;
+    ctx.page.drawRectangle({
+      x: PDF_MARGIN,
+      y: PDF_HEIGHT - 56,
+      width: 112,
+      height: 44,
+      color: rgb(1, 1, 1),
+    });
+    ctx.page.drawImage(ctx.logo, {
+      x: PDF_MARGIN + (112 - width) / 2,
+      y: PDF_HEIGHT - 54 + (40 - height) / 2,
+      width,
+      height,
+    });
+    textX += 128;
+  }
   ctx.page.drawText(ctx.title, {
-    x: PDF_MARGIN,
+    x: textX,
     y: PDF_HEIGHT - 31,
     size: 17,
     font: ctx.bold,
     color: rgb(1, 1, 1),
   });
   ctx.page.drawText(shorten(ctx.subtitle, 125), {
-    x: PDF_MARGIN,
+    x: textX,
     y: PDF_HEIGHT - 50,
     size: 8,
     font: ctx.regular,
@@ -394,7 +433,7 @@ const drawPdfFooters = (ctx: PdfContext): void => {
       thickness: 0.5,
       color: PDF_BORDER,
     });
-    page.drawText('UNITHOR - Uso interno y confidencial', {
+    page.drawText(`${ctx.companyName} - Uso interno y confidencial`, {
       x: PDF_MARGIN,
       y: 11,
       size: 7,
@@ -558,18 +597,24 @@ const percentageDetail = (
 export async function generateFinancialReportPdf(
   filters: FinancialReportFilters,
 ): Promise<Uint8Array> {
-  const data = await getFinancialReportData(filters);
+  const [data, branding] = await Promise.all([
+    getFinancialReportData(filters),
+    getReportBranding(),
+  ]);
   const document = await PDFDocument.create();
   const regular = await document.embedFont(StandardFonts.Helvetica);
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
+  const logo = branding.logoPng ? await document.embedPng(branding.logoPng) : undefined;
   const ctx: PdfContext = {
     document,
     page: document.addPage([PDF_WIDTH, PDF_HEIGHT]),
     regular,
     bold,
     pageNumber: 1,
-    title: 'UNITHOR - INFORME FINANCIERO EJECUTIVO',
+    title: `${branding.companyName} - INFORME FINANCIERO EJECUTIVO`,
     subtitle: filtersLabel(filters),
+    companyName: branding.companyName,
+    logo,
   };
   drawPdfHeader(ctx);
 
@@ -709,6 +754,108 @@ export async function generateFinancialReportPdf(
       humanize(item.categoria),
       String(item.count),
       money(item.amount),
+    ]),
+    y,
+  );
+
+  y = addPdfPage(ctx);
+  drawPdfTable(
+    ctx,
+    'Detalle completo de cotizaciones',
+    [
+      { header: 'COT', width: 80 },
+      { header: 'Fecha', width: 62 },
+      { header: 'Cliente', width: 150 },
+      { header: 'Vehículo', width: 105 },
+      { header: 'Estado', width: 80 },
+      { header: 'Total', width: 90, align: 'right' },
+      { header: 'Pagado', width: 90, align: 'right' },
+      { header: 'Saldo', width: 90, align: 'right' },
+    ],
+    data.quotations.map((item) => [
+      item.codigo,
+      item.fecha.toISOString().slice(0, 10),
+      item.clientName,
+      item.vehicle || '-',
+      humanize(item.status),
+      money(item.total),
+      money(item.paid),
+      money(item.receivable),
+    ]),
+    y,
+  );
+
+  y = addPdfPage(ctx);
+  drawPdfTable(
+    ctx,
+    'Detalle completo de pagos y abonos',
+    [
+      { header: 'Fecha', width: 70 },
+      { header: 'COT', width: 85 },
+      { header: 'Cliente', width: 175 },
+      { header: 'Asesor', width: 120 },
+      { header: 'Método', width: 100 },
+      { header: 'Receptor', width: 120 },
+      { header: 'Monto', width: 100, align: 'right' },
+    ],
+    data.payments.map((item) => [
+      item.fecha.toISOString().slice(0, 10),
+      item.quotationCode,
+      item.clientName,
+      item.advisor,
+      humanize(item.method),
+      item.receiver,
+      money(item.amount),
+    ]),
+    y,
+  );
+
+  y = addPdfPage(ctx);
+  drawPdfTable(
+    ctx,
+    'Movimientos de caja',
+    [
+      { header: 'Fecha', width: 70 },
+      { header: 'Tipo', width: 70 },
+      { header: 'Categoría', width: 105 },
+      { header: 'Método', width: 90 },
+      { header: 'Descripción', width: 210 },
+      { header: 'Responsable', width: 120 },
+      { header: 'Monto', width: 100, align: 'right' },
+    ],
+    data.movements.map((item) => [
+      item.fecha.toISOString().slice(0, 10),
+      humanize(item.type),
+      humanize(item.category),
+      humanize(item.method),
+      item.description,
+      item.creator,
+      money(item.amount),
+    ]),
+    y,
+  );
+
+  y = addPdfPage(ctx);
+  drawPdfTable(
+    ctx,
+    'Productos y servicios cotizados',
+    [
+      { header: 'COT', width: 80 },
+      { header: 'Código', width: 85 },
+      { header: 'Descripción', width: 265 },
+      { header: 'Tipo', width: 90 },
+      { header: 'Cantidad', width: 70, align: 'right' },
+      { header: 'P. unitario', width: 90, align: 'right' },
+      { header: 'Subtotal', width: 90, align: 'right' },
+    ],
+    data.items.map((item) => [
+      item.quotationCode,
+      item.catalogCode || '-',
+      item.description,
+      humanize(item.catalogType),
+      item.quantity.toLocaleString('es-CL'),
+      money(item.unitPrice),
+      money(item.subtotal),
     ]),
     y,
   );

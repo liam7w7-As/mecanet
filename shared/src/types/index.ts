@@ -59,7 +59,13 @@ export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
 export type PaymentQueryInput = z.infer<typeof paymentQuerySchema>;
 
 // Reportes
-export type { CommercialReportFilters } from '../schemas/index.js';
+export type { CommercialReportFilters, WorkshopReportFilters } from '../schemas/index.js';
+export type {
+  InventoryReportFilters,
+  CatalogReportFilters,
+  FleetReportFilters,
+  AdministrationReportFilters,
+} from '../schemas/index.js';
 
 // Permisos y roles
 export type { UpdateRolePermissionsInput, RoleQueryInput } from '../schemas/index.js';

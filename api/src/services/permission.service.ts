@@ -94,8 +94,8 @@ export const updateRolePermissions = async (
     throw ApiError.notFound('Rol no encontrado');
   }
 
-  if (role.nombre === 'desarrollador') {
-    throw ApiError.badRequest('No se pueden modificar los permisos del rol desarrollador');
+  if (role.nombre === 'desarrollador' || role.nombre === 'admin') {
+    throw ApiError.badRequest(`No se pueden modificar los permisos del rol ${role.nombre}`);
   }
 
   const permissionsCount = await Permission.count({
@@ -155,7 +155,7 @@ export const getPermissionsForRole = async (
 
 /**
  * Valida si un usuario posee permiso para ejecutar una acción en un módulo.
- * - El rol 'desarrollador' siempre retorna true sin consultar caché ni DB (bypass).
+ * - Los roles 'desarrollador' y 'admin' siempre retornan true sin consultar la matriz.
  * - Para los demás roles, se utiliza caché en memoria con TTL de 60s.
  */
 export const hasPermission = async (
@@ -172,8 +172,7 @@ export const hasPermission = async (
     return false;
   }
 
-  // Bypass para desarrollador
-  if (user.role.nombre === 'desarrollador') {
+  if (user.role.nombre === 'desarrollador' || user.role.nombre === 'admin') {
     return true;
   }
 

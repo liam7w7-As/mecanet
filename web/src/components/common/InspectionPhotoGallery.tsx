@@ -50,7 +50,7 @@ export const InspectionPhotoGallery = ({
       className="mt-2 border-t border-brand-line pt-2"
       aria-label="Registro fotográfico de recepción"
     >
-      <div className="mb-2 flex items-center justify-between text-[9px] font-bold text-[#0E2B4E]">
+      <div className="mb-2 flex items-center justify-between text-[9px] font-bold text-brand-primary">
         <span>Fotos periciales de recepción</span>
         <span className="font-normal text-brand-muted">{photos.length} fotografías</span>
       </div>

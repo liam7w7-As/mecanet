@@ -102,13 +102,13 @@ export const WorkOrderReentryModal = ({ workOrder, onClose }: WorkOrderReentryMo
             </label>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-brand-line p-4 text-sm text-brand-ink">
-              <input type="checkbox" checked={copiarItems} onChange={(event) => setCopiarItems(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#0E2B4E]" />
+              <input type="checkbox" checked={copiarItems} onChange={(event) => setCopiarItems(event.target.checked)} className="mt-0.5 h-4 w-4 accent-brand-primary" />
               <span><strong className="block text-brand-ink">Copiar trabajos y repuestos</strong>Se crearán como pendientes para volver a evaluarlos. Los omitidos no se copian.</span>
             </label>
 
             {tipoIngreso === 'garantia' && (
               <label className="flex cursor-pointer items-start gap-3 rounded-lg bg-brand-goldPale p-4 text-sm text-brand-ink">
-                <input type="checkbox" checked={coberturaGarantia} onChange={(event) => setCoberturaGarantia(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#0E2B4E]" />
+                <input type="checkbox" checked={coberturaGarantia} onChange={(event) => setCoberturaGarantia(event.target.checked)} className="mt-0.5 h-4 w-4 accent-brand-primary" />
                 <span><strong className="block">Cubierto por garantía</strong>Los conceptos copiados se crearán con precio $0. El taller podrá añadir cargos nuevos posteriormente.</span>
               </label>
             )}

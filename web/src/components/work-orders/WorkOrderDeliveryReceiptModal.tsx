@@ -35,7 +35,7 @@ const DeliverySheet = ({ workOrder }: { workOrder: WorkOrder }) => {
       </header>
       <div className="space-y-7 px-8 py-7">
         <section>
-          <h2 className="border-b border-brand-line pb-2 text-sm font-bold text-[#0E2B4E]">VEHÍCULO Y ORDEN</h2>
+          <h2 className="border-b border-brand-line pb-2 text-sm font-bold text-brand-primary">VEHÍCULO Y ORDEN</h2>
           <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
             <div><dt className="text-brand-muted">Patente</dt><dd className="font-mono text-lg font-bold">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</dd></div>
             <div><dt className="text-brand-muted">Marca / Modelo</dt><dd className="font-semibold">{[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos'}</dd></div>
@@ -45,7 +45,7 @@ const DeliverySheet = ({ workOrder }: { workOrder: WorkOrder }) => {
         </section>
 
         <section>
-          <h2 className="border-b border-brand-line pb-2 text-sm font-bold text-[#0E2B4E]">RECEPTOR DEL VEHÍCULO</h2>
+          <h2 className="border-b border-brand-line pb-2 text-sm font-bold text-brand-primary">RECEPTOR DEL VEHÍCULO</h2>
           <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
             <div><dt className="text-brand-muted">Nombre</dt><dd className="font-semibold">{delivery.receptorNombre}</dd></div>
             <div><dt className="text-brand-muted">RUT / Identificación</dt><dd className="font-semibold">{delivery.receptorRut || 'Sin registrar'}</dd></div>
@@ -55,13 +55,13 @@ const DeliverySheet = ({ workOrder }: { workOrder: WorkOrder }) => {
         </section>
 
         <section>
-          <h2 className="border-b border-brand-line pb-2 text-sm font-bold text-[#0E2B4E]">CONTROLES DE ENTREGA</h2>
+          <h2 className="border-b border-brand-line pb-2 text-sm font-bold text-brand-primary">CONTROLES DE ENTREGA</h2>
           <ul className="mt-4 grid grid-cols-2 gap-3 text-sm">
             {delivery.checklist.map((item) => <li key={item} className="flex items-start gap-2"><span className="font-bold text-brand-mintInk">✓</span>{checklistLabels[item] ?? item}</li>)}
           </ul>
         </section>
 
-        {delivery.observaciones && <section><h2 className="border-b border-brand-line pb-2 text-sm font-bold text-[#0E2B4E]">OBSERVACIONES</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-6">{delivery.observaciones}</p></section>}
+        {delivery.observaciones && <section><h2 className="border-b border-brand-line pb-2 text-sm font-bold text-brand-primary">OBSERVACIONES</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-6">{delivery.observaciones}</p></section>}
 
         <section className="pt-8">
           <p className="text-xs leading-5 text-brand-muted">El receptor declara haber revisado y recibido el vehículo, sus pertenencias, llaves y documentos en conformidad, y haber recibido la explicación de los trabajos realizados y recomendaciones del taller.</p>

@@ -105,6 +105,11 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--primary);
+}
+
 ::selection {
   color: #ffffff;
   background: var(--primary);

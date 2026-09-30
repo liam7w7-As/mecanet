@@ -220,7 +220,7 @@ export const CatalogPage = () => {
               <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-brand-ink">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-brand-line accent-[#0E2B4E]"
+                  className="h-4 w-4 rounded border-brand-line accent-brand-primary"
                   checked={onlyInStock}
                   onChange={(event) => setOnlyInStock(event.target.checked)}
                 />

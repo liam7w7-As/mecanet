@@ -139,7 +139,7 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
               <div className="mt-3 grid gap-2">
                 {WORK_ORDER_DELIVERY_CHECKLIST.map((item) => (
                   <label key={item} className="flex cursor-pointer items-start gap-3 rounded-lg border border-brand-line p-3 text-sm text-brand-ink hover:bg-brand-pale">
-                    <input type="checkbox" checked={checklist.includes(item)} onChange={() => toggleChecklist(item)} className="mt-0.5 h-4 w-4 accent-[#0E2B4E]" />
+                    <input type="checkbox" checked={checklist.includes(item)} onChange={() => toggleChecklist(item)} className="mt-0.5 h-4 w-4 accent-brand-primary" />
                     <span>{checklistLabels[item]}</span>
                   </label>
                 ))}
@@ -157,7 +157,7 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
                 {errors.firmaRecepcion && <span className="mt-1 block text-xs text-brand-coralInk">{errors.firmaRecepcion}</span>}
               </label>
               <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg bg-brand-line/40 p-4 text-sm text-brand-primaryInk">
-                <input type="checkbox" checked={conformidad} onChange={(event) => setConformidad(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#0E2B4E]" />
+                <input type="checkbox" checked={conformidad} onChange={(event) => setConformidad(event.target.checked)} className="mt-0.5 h-4 w-4 accent-brand-primary" />
                 <span>El receptor declara recibir el vehículo, sus pertenencias y la explicación de los trabajos en conformidad.</span>
               </label>
               {errors.conformidad && <p className="mt-2 text-xs text-brand-coralInk">{errors.conformidad}</p>}

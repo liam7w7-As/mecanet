@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { useDeleteWorkOrderInspectionPhotoMutation, useUploadWorkOrderInspectionPhotosMutation } from '../useWorkOrders';
 import { api } from '../../lib/api';
+import { useDeleteWorkOrderInspectionPhotoMutation, useUploadWorkOrderInspectionPhotosMutation } from '../useWorkOrders';
 
 import type { AxiosResponse } from 'axios';
 import type { ReactNode } from 'react';

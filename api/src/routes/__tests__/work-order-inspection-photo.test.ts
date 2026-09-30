@@ -270,7 +270,7 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
       .set('Cookie', authCookie(financeCookies))).status).toBe(404);
   });
 
-  it('presenta las mismas nueve fotos de la OT en el PDF de la COT vinculada', async () => {
+  it('expone las mismas nueve fotos para la OT y su COT vinculada', async () => {
     for (const slot of WORK_ORDER_INSPECTION_PHOTO_SLOTS) {
       const upload = await request(app)
         .post(`/api/work-orders/${editableWorkOrderId}/inspection/photos/${slot}`)

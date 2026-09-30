@@ -121,17 +121,21 @@ export const PwaInstallModal = ({ isOpen, platform, onClose }: PwaInstallModalPr
                           2
                         </span>
                         <span>
-                          Selecciona <strong>&quot;Instalar aplicación&quot;</strong> o{' '}
-                          <strong>&quot;Agregar a la pantalla principal&quot;</strong>.
+                          Selecciona <strong>&quot;Instalar aplicación&quot;</strong> (o <strong>&quot;Instalar UNITHOR&quot;</strong>).
                         </span>
                       </li>
                       <li className="flex items-start gap-2.5">
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#18335c] text-[11px] font-bold text-white">
                           3
                         </span>
-                        <span>Confirma la instalación y se agregará el ícono a tus aplicaciones.</span>
+                        <span>
+                          Confirma en el cuadro de diálogo y Android la instalará como una aplicación real en tu dispositivo.
+                        </span>
                       </li>
                     </ol>
+                    <p className="mt-2.5 text-[11px] text-blue-800">
+                      💡 <em>Consejo: Asegúrate de elegir <strong>&quot;Instalar aplicación&quot;</strong> (no &quot;Acceso directo&quot;) para que se instale con su propio icono sin barra de navegador.</em>
+                    </p>
                   </div>
                 </>
               ) : (

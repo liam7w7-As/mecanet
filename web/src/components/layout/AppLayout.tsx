@@ -17,6 +17,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
+import MobileTabBar from './MobileTabBar';
 import NotificationBell from './NotificationBell';
 import UserMenu from './UserMenu';
 import { useLogoutMutation } from '../../hooks/useAuth';
@@ -246,6 +247,8 @@ export const AppLayout = () => {
           <Menu className="icon" aria-hidden="true" />
         </button>
 
+        <BrandLogo heightClassName="h-6" className="topbar-brand" />
+
         <div className="top-actions">
           <PwaInstallButton />
           <NotificationBell />
@@ -260,6 +263,8 @@ export const AppLayout = () => {
           </PageTransition>
         </div>
       </main>
+
+      <MobileTabBar onOpenMenu={() => setSidebarOpen(true)} />
 
       <ToastViewport />
     </div>

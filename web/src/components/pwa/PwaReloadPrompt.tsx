@@ -51,7 +51,7 @@ export const PwaReloadPrompt = () => {
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           role="region"
           aria-label="Aviso de actualización de UNITHOR"
-          className="fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-md"
+          className="tabbar-safe fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-md"
           style={{ boxShadow: '0 20px 40px -15px rgba(24, 51, 92, 0.25)' }}
         >
           <div className="flex items-start gap-3">

@@ -159,3 +159,170 @@
 .popover-menu {
   padding: 8px 0;
 }
+
+/* ---------------------------------------------------------------------------
+ * Navegacion inferior fija (movil).
+ *
+ * Sustituye al cajón lateral como entrada principal en pantallas estrechas:
+ * el cajón sigue disponible desde la pestaña "Más". Se muestra por debajo de
+ * 900px, que es el ancho a partir del cual las tarjetas dejan de ser de una
+ * sola columna y la barra estorba mas de lo que ayuda.
+ *
+ * `z-index: 36` es deliberado: por debajo del velo (38) y del cajón (40), para
+ * que al abrir "Más" la barra quede atenuada y no tapar el menu, y por encima
+ * del topbar (30).
+ * ------------------------------------------------------------------------- */
+.tabbar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 36;
+  display: none;
+  padding: 6px 8px calc(4px + env(safe-area-inset-bottom, 0px));
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(14px) saturate(1.6);
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 24px rgba(23, 38, 60, 0.08);
+}
+
+body.dark .tabbar {
+  background: rgba(32, 41, 54, 0.94);
+}
+
+.tabbar-inner {
+  display: flex;
+  gap: 2px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.tab-item {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px 4px;
+  border: 0;
+  background: transparent;
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.18s ease, background-color 0.18s ease, transform 0.1s ease;
+}
+
+.tab-item .tab-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 26px;
+  border-radius: 999px;
+  color: inherit;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.tab-item .tab-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tab-item .tab-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-item:hover {
+  color: var(--primary);
+}
+
+.tab-item:active {
+  transform: scale(0.94);
+}
+
+.tab-item.active {
+  color: var(--primary-ink);
+}
+
+.tab-item.active .tab-icon {
+  background: var(--primary-ink);
+  color: #fff;
+}
+
+/* Contador de pendientes: pastilla sobre el icono, con anillo del color de la
+ * superficie para que no se pegue visualmente al icono. */
+.tab-badge {
+  position: absolute;
+  top: -4px;
+  right: 1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--cyan-ink);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+/* El logotipo en el topbar solo existe cuando el cajón lateral es un drawer
+ * (<=1199px); en escritorio la marca ya vive en el cajón. */
+.topbar-brand {
+  display: none;
+}
+
+@media (max-width: 1199.98px) {
+  .topbar-brand {
+    display: block;
+    max-width: 112px;
+    margin-left: 6px;
+    margin-right: 8px;
+    /* Sin esto la imagen no puede encogerse por debajo de su ancho intrínseco
+     * y se pega (o solapa) con las acciones en pantallas de 320-360px. */
+    min-width: 0;
+    flex-shrink: 1;
+  }
+}
+
+/* Barra visible y holgura para que el contenido no quede debajo de ella. */
+@media (max-width: 899.98px) {
+  .tabbar {
+    display: block;
+  }
+
+  .shell-main .container {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Toasts y avisos flotantes suben de sitio para no quedar tapados. */
+  .tabbar-safe {
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media print {
+  .tabbar {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-item,
+  .tab-item .tab-icon {
+    transition: none;
+  }
+}

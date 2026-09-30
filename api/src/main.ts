@@ -112,16 +112,7 @@ if (env.NODE_ENV === 'production') {
     res.sendFile(path.join(webDistPath, 'sw.js'));
   });
 
-  // 6b. Workbox runtime (companion del SW generado por VitePWA)
-  app.get('/workbox-*.js', (req, res) => {
-    res.set({
-      'Content-Type': 'application/javascript; charset=utf-8',
-      'Cache-Control': 'public, max-age=31536000, immutable',
-    });
-    res.sendFile(path.join(webDistPath, req.path));
-  });
-
-  // 6c. Manifiesto PWA: sin caché + MIME type correcto
+  // 6b. Manifiesto PWA: sin caché + MIME type correcto
   //     Express 5 no registra por defecto .webmanifest; sin el MIME correcto
   //     Chrome no muestra el prompt de instalación.
   app.get('/manifest.webmanifest', (_req, res) => {
@@ -132,12 +123,12 @@ if (env.NODE_ENV === 'production') {
     res.sendFile(path.join(webDistPath, 'manifest.webmanifest'));
   });
 
-  // 6d. Resto de assets estáticos (JS, CSS, imágenes, fuentes)
+  // 6c. Resto de assets estáticos (JS, CSS, imágenes, fuentes, workbox runtime)
   app.use(
     express.static(webDistPath, {
-      // Los assets de Vite llevan hash → cacheable 1 año
+      // Los assets de Vite y workbox llevan hash → cacheable 1 año
       setHeaders(res, filePath) {
-        if (/\/assets\//.test(filePath)) {
+        if (/\/assets\//.test(filePath) || /workbox-/.test(filePath)) {
           res.set('Cache-Control', 'public, max-age=31536000, immutable');
         }
       },

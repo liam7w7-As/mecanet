@@ -26,7 +26,28 @@ export const app: Application = express();
 app.use(requestIdMiddleware);
 
 // 2. Seguridad HTTP y CORS
-app.use(helmet());
+// Helmet con CSP configurado para permitir Service Workers (requerido para la instalación PWA).
+// El SW se sirve desde el mismo origen, pero necesita que la directiva `worker-src` lo permita.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'"],
+        workerSrc: ["'self'", 'blob:'],
+        manifestSrc: ["'self'"],
+        mediaSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+  }),
+);
 app.use(
   cors({
     origin: env.CORS_ORIGIN,
@@ -78,7 +99,52 @@ if (env.NODE_ENV === 'production') {
   const __dirname = path.dirname(__filename);
   const webDistPath = path.join(__dirname, '../../web/dist');
 
-  app.use(express.static(webDistPath));
+  // 6a. Service Worker: sin caché + header de scope completo
+  //     Chrome requiere Service-Worker-Allowed: / para que el SW cubra toda la app.
+  //     Cache-Control: no-cache evita que el navegador use un SW obsoleto.
+  app.get('/sw.js', (_req, res) => {
+    res.set({
+      'Content-Type': 'application/javascript; charset=utf-8',
+      'Service-Worker-Allowed': '/',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.sendFile(path.join(webDistPath, 'sw.js'));
+  });
+
+  // 6b. Workbox runtime (companion del SW generado por VitePWA)
+  app.get('/workbox-*.js', (req, res) => {
+    res.set({
+      'Content-Type': 'application/javascript; charset=utf-8',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    });
+    res.sendFile(path.join(webDistPath, req.path));
+  });
+
+  // 6c. Manifiesto PWA: sin caché + MIME type correcto
+  //     Express 5 no registra por defecto .webmanifest; sin el MIME correcto
+  //     Chrome no muestra el prompt de instalación.
+  app.get('/manifest.webmanifest', (_req, res) => {
+    res.set({
+      'Content-Type': 'application/manifest+json; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    });
+    res.sendFile(path.join(webDistPath, 'manifest.webmanifest'));
+  });
+
+  // 6d. Resto de assets estáticos (JS, CSS, imágenes, fuentes)
+  app.use(
+    express.static(webDistPath, {
+      // Los assets de Vite llevan hash → cacheable 1 año
+      setHeaders(res, filePath) {
+        if (/\/assets\//.test(filePath)) {
+          res.set('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    }),
+  );
+
+  // 6e. SPA fallback: todas las rutas desconocidas devuelven index.html
   app.get('/{*splat}', (_req, res) => {
     res.sendFile(path.join(webDistPath, 'index.html'));
   });

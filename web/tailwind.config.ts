@@ -37,9 +37,9 @@ const config: Config = {
            * usaba antes es mas frio y mas opaco.
            */
           scrim: '#18273C',
-          /** Acento: CTA, estado activo, foco. Nunca para texto corrido. */
-          primary: '#5D87FF',
-          primaryHover: '#4576F6',
+          /** Acento: CTA, estado activo, foco. */
+          primary: '#18335c',
+          primaryHover: '#204379',
           /** Fondos teñidos para KPIs y chips. */
           pale: '#ECF2FF',
           bluePale: '#E8F7FF',
@@ -55,36 +55,29 @@ const config: Config = {
           goldHover: '#E09200',
           /**
            * Variantes accesibles de los acentos, para TEXTO sobre fondos
-           * pastel. Los de arriba se quedan para superficies e iconos: como
-           * texto no llegan al minimo de WCAG AA, ni en su propio pastel.
-           * Medido sobre su fondo: primary 2.94:1, gold 1.99:1, mint 1.94:1,
-           * cyan 2.05:1, coral 2.08:1 (se exige 4.5:1). Estos valores se
-           * derivaron oscureciendo cada matiz hasta cumplir 4.5:1, sin
-           * cambiar el tono: 4.5-4.6:1 en los cinco.
+           * pastel.
            */
-          primaryInk: '#255DFF',
+          primaryInk: '#18335c',
           /**
-           * Hover de `primaryInk`. Necesario porque `primaryHover` (#4576F6) es
-           * mas CLARO que `primaryInk`, y aplicarlo dejaba el hover mas claro
-           * que el estado normal.
+           * Hover de `primaryInk`.
            */
-          primaryInkHover: '#1A4AE0',
+          primaryInkHover: '#204379',
           goldInk: '#9C6400',
           coralInk: '#CD3007',
           mintInk: '#0B826D',
           cyanInk: '#0075B7',
           // --- Legacy ----------------------------------------------------------
           // Se eliminan al terminar la migración. Ver brand.ink / brand.primary.
-          blue: '#0E2B4E',
+          blue: '#18335c',
           yellow: '#FFD600',
           dark: '#081B31',
           light: '#F4F6F9',
         },
         primary: {
-          DEFAULT: '#0E2B4E',
+          DEFAULT: '#18335c',
           foreground: '#FFFFFF',
-          dark: '#081D35',
-          light: '#1B477A',
+          dark: '#122747',
+          light: '#204379',
         },
         accent: {
           DEFAULT: '#FFD600',

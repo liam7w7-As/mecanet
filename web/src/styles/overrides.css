@@ -35,7 +35,7 @@
  * superficies sin texto, que es donde el diseño los aprovecha.
  * ------------------------------------------------------------------------- */
 :root {
-  --primary-ink: #255dff;
+  --primary-ink: #18335c;
   --cyan-ink: #0075b7;
   --coral-ink: #cd3007;
   --mint-ink: #0b826d;
@@ -51,7 +51,7 @@
 
 .primary-button:hover,
 .settings-trigger:hover {
-  background: #1a4ae0;
+  background: #204379;
 }
 
 .badge {

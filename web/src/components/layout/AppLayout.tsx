@@ -3,6 +3,7 @@ import {
   Car,
   ClipboardList,
   Gauge,
+  FileBarChart2,
   Landmark,
   LogOut,
   Menu,
@@ -29,6 +30,7 @@ import { getRoleLabel } from '../auth/UserProfileModal';
 import BrandLogo from '../common/BrandLogo';
 import ToastViewport from '../common/Toast';
 import UserAvatar from '../common/UserAvatar';
+import PwaInstallButton from '../pwa/PwaInstallButton';
 
 import type { AnimateIconVariant } from '../animate-ui/animate-icon';
 import type { PermissionDefinition } from '@unithor/shared';
@@ -56,6 +58,7 @@ const navigationGroups: NavigationGroup[] = [
     heading: 'Principal',
     items: [
       { label: 'Dashboard', path: '/dashboard', icon: Gauge, variant: 'pulse', badge: 'dashboard', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
+      { label: 'Reportes', path: '/reports', icon: FileBarChart2, variant: 'hover-lift', permissions: [{ modulo: 'finanzas', accion: 'read' }, { modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }, { modulo: 'almacen', accion: 'read' }, { modulo: 'admin', accion: 'read' }] },
     ],
   },
   {
@@ -244,6 +247,7 @@ export const AppLayout = () => {
         </button>
 
         <div className="top-actions">
+          <PwaInstallButton />
           <NotificationBell />
           <UserMenu />
         </div>

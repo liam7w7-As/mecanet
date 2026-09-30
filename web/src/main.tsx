@@ -17,6 +17,8 @@ import './styles/modernize.css';
 import './styles/overrides.css';
 import { MotionProvider } from './components/animate-ui/motion-config';
 import { BrandingProvider } from './components/common/BrandingContext';
+import { OfflineIndicator } from './components/pwa/OfflineIndicator';
+import { PwaReloadPrompt } from './components/pwa/PwaReloadPrompt';
 import { queryClient } from './lib/query-client';
 import { useAuthStore } from './stores/auth.store';
 
@@ -27,7 +29,13 @@ const AuthInitializer = () => {
     void checkAuth();
   }, [checkAuth]);
 
-  return <App />;
+  return (
+    <>
+      <App />
+      <PwaReloadPrompt />
+      <OfflineIndicator />
+    </>
+  );
 };
 
 const rootElement = document.getElementById('root');

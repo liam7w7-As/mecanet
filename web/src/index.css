@@ -41,6 +41,7 @@
 }
 
 :root {
+  color-scheme: light !important;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -54,6 +55,7 @@
 }
 
 html {
+  color-scheme: light !important;
   min-width: 320px;
   min-height: 100%;
   background: var(--page);

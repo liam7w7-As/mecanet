@@ -51,7 +51,7 @@ export const PwaReloadPrompt = () => {
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           role="region"
           aria-label="Aviso de actualización de UNITHOR"
-          className="fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95"
+          className="fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-md"
           style={{ boxShadow: '0 20px 40px -15px rgba(24, 51, 92, 0.25)' }}
         >
           <div className="flex items-start gap-3">
@@ -64,10 +64,10 @@ export const PwaReloadPrompt = () => {
             </div>
 
             <div className="min-w-0 flex-1">
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+              <h4 className="text-sm font-semibold text-slate-900">
                 {needRefresh ? 'Nueva versión disponible' : 'Listo para trabajar sin conexión'}
               </h4>
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-0.5 text-xs text-slate-500">
                 {needRefresh
                   ? 'Hay mejoras y nuevas funciones en UNITHOR listas para instalar.'
                   : 'La aplicación ha sido descargada para cargarse de forma instantánea.'}
@@ -87,7 +87,7 @@ export const PwaReloadPrompt = () => {
                   <button
                     type="button"
                     onClick={() => setNeedRefresh(false)}
-                    className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
                   >
                     Más tarde
                   </button>
@@ -102,7 +102,7 @@ export const PwaReloadPrompt = () => {
                 if (offlineReady) setOfflineReady(false);
               }}
               aria-label="Cerrar notificación"
-              className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
             >
               <X className="h-4 w-4" />
             </button>

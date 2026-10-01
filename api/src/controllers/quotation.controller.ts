@@ -88,3 +88,10 @@ export const deleteQuotationHandler = asyncHandler(
     res.status(204).send();
   },
 );
+
+export const archiveQuotationHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const quotation = await quotationService.archiveQuotation(getParamId(req));
+    res.status(200).json({ quotation });
+  },
+);

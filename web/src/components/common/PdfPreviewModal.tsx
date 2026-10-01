@@ -1,3 +1,4 @@
+import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import {
@@ -545,7 +546,7 @@ const QuotationSheetPage: React.FC<QuotationSheetPageProps> = ({
           </div>
           <ul className="mt-1.5 list-inside list-disc space-y-0.5">
             <li>Precios sujetos a confirmación y disponibilidad al momento de compra de repuestos.</li>
-            <li>Validez de la oferta: 15 días corridos a contar de la fecha de emisión.</li>
+            <li>Validez de la oferta: {QUOTATION_ARCHIVE_DAYS} días corridos a contar de la fecha de emisión.</li>
             <li>Formas de pago: Efectivo, Transferencia Electrónica o Tarjetas de Débito/Crédito.</li>
             {quotation.notas && (
               <li className="font-semibold text-slate-800">

@@ -40,6 +40,7 @@ export const useQuotations = (queryParams: QuotationQueryParams, enabled = true)
     },
     enabled,
     placeholderData: keepPreviousData,
+    refetchInterval: 60_000,
   });
 
 export const useQuotation = (id: number) =>
@@ -63,6 +64,20 @@ export const useCreateQuotationMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+};
+
+export const useArchiveQuotationMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await api.patch<QuotationResponse>(`/quotations/${id}/archive`);
+      return response.data.quotation;
+    },
+    onSuccess: (quotation) => {
+      queryClient.setQueryData(quotationKeys.detail(quotation.id), quotation);
+      void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
     },
   });
 };

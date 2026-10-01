@@ -1,6 +1,7 @@
 import { isValidChilePatente, normalizeChilePatente } from '@unithor/shared';
 import { Car, LoaderCircle, Plus, Search, UserRound } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useQuickSearch } from '../../hooks/useVehicles';
 import VehicleFormModal from '../vehicles/VehicleFormModal';
@@ -11,6 +12,7 @@ interface QuickVehicleSearchProps {
   onSelectVehicle: (vehicle: QuickSearchVehicle) => void;
   onSelectClient?: (client: QuickSearchClient) => void;
   placeholder?: string;
+  mode?: 'all' | 'clients' | 'vehicles';
   suggestedClient?: Pick<QuickSearchClient, 'id' | 'nombre' | 'rut'> | null;
 }
 
@@ -31,8 +33,10 @@ export const QuickVehicleSearch = ({
   onSelectVehicle,
   onSelectClient,
   placeholder = 'Buscar por patente, cliente, RUT o teléfono',
+  mode = 'all',
   suggestedClient = null,
 }: QuickVehicleSearchProps) => {
+  const resultsId = useId();
   const [term, setTerm] = useState('');
   const [isFocused, setFocused] = useState(false);
   const [newVehiclePlate, setNewVehiclePlate] = useState<string | null>(null);
@@ -41,8 +45,11 @@ export const QuickVehicleSearch = ({
   const hasExactPlate = searchQuery.data?.vehicles.some(
     (vehicle) => vehicle.patente === normalizedTerm,
   );
-  const canRegisterPlate = isValidChilePatente(normalizedTerm) && !hasExactPlate;
+  const canRegisterPlate = mode !== 'clients' && searchQuery.isSuccess && !searchQuery.isFetching
+    && !searchQuery.isDebouncing && isValidChilePatente(normalizedTerm) && !hasExactPlate;
   const showResults = isFocused && term.trim().length >= 2;
+  const hasResults = (mode !== 'clients' && Boolean(searchQuery.data?.vehicles.length)) ||
+    (mode !== 'vehicles' && Boolean(searchQuery.data?.clients.length));
 
   const selectVehicle = (vehicle: QuickSearchVehicle): void => {
     onSelectVehicle(vehicle);
@@ -61,10 +68,10 @@ export const QuickVehicleSearch = ({
           onBlur={() => setFocused(false)}
           className="h-10 w-full rounded-lg border border-brand-line bg-white pl-9 pr-10 text-sm outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
           placeholder={placeholder}
-          aria-label="Búsqueda rápida de vehículos y clientes"
+          aria-label={mode === 'clients' ? 'Buscar cliente' : mode === 'vehicles' ? 'Buscar vehículo' : 'Búsqueda rápida de vehículos y clientes'}
           role="combobox"
           aria-expanded={showResults}
-          aria-controls="quick-search-results"
+          aria-controls={resultsId}
         />
         {searchQuery.isFetching && (
           <LoaderCircle className="absolute right-3 top-3 h-4 w-4 animate-spin text-brand-primaryInk" aria-hidden="true" />
@@ -72,10 +79,10 @@ export const QuickVehicleSearch = ({
       </div>
 
       {showResults && (
-        <div id="quick-search-results" className="absolute z-30 mt-2 max-h-96 w-full overflow-y-auto rounded-lg border border-brand-line bg-white py-2 shadow-xl shadow-brand-ink/10">
-          {searchQuery.data?.vehicles.length ? (
-            <section aria-labelledby="quick-vehicles-title">
-              <h3 id="quick-vehicles-title" className="px-3 pb-1 pt-1 text-xs font-semibold uppercase text-brand-muted">Vehículos</h3>
+        <div id={resultsId} className="absolute z-30 mt-2 max-h-96 w-full overflow-y-auto rounded-lg border border-brand-line bg-white py-2 shadow-xl shadow-brand-ink/10">
+          {mode !== 'clients' && searchQuery.data?.vehicles.length ? (
+            <section aria-labelledby={`${resultsId}-vehicles`}>
+              <h3 id={`${resultsId}-vehicles`} className="px-3 pb-1 pt-1 text-xs font-semibold uppercase text-brand-muted">Vehículos</h3>
               {searchQuery.data.vehicles.map((vehicle) => (
                 <button key={vehicle.id} type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-pale" onMouseDown={(event) => event.preventDefault()} onClick={() => selectVehicle(vehicle)}>
                   <Car className="h-4 w-4 shrink-0 text-brand-primaryInk" aria-hidden="true" />
@@ -91,22 +98,22 @@ export const QuickVehicleSearch = ({
             </section>
           ) : null}
 
-          {searchQuery.data?.clients.length ? (
-            <section className="mt-1 border-t border-brand-line pt-1" aria-labelledby="quick-clients-title">
-              <h3 id="quick-clients-title" className="px-3 pb-1 pt-1 text-xs font-semibold uppercase text-brand-muted">Clientes</h3>
+          {mode !== 'vehicles' && searchQuery.data?.clients.length ? (
+            <section className="mt-1 border-t border-brand-line pt-1" aria-labelledby={`${resultsId}-clients`}>
+              <h3 id={`${resultsId}-clients`} className="px-3 pb-1 pt-1 text-xs font-semibold uppercase text-brand-muted">Clientes</h3>
               {searchQuery.data.clients.map((client) => (
                 <button key={client.id} type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-pale" onMouseDown={(event) => event.preventDefault()} onClick={() => { onSelectClient?.(client); setTerm(client.nombre); setFocused(false); }}>
                   <UserRound className="h-4 w-4 shrink-0 text-brand-muted" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-brand-ink">{client.nombre}</span>
-                    <span className="block text-xs text-brand-muted">{client.rut ?? 'Sin RUT'} · {client.vehiclesCount} vehículo(s)</span>
+                    <span className="block text-xs text-brand-muted">{client.rut ?? 'Sin RUT'}{mode === 'all' ? ` · ${client.vehiclesCount} vehículo(s)` : ''}</span>
                   </span>
                 </button>
               ))}
             </section>
           ) : null}
 
-          {!searchQuery.isFetching && searchQuery.data && searchQuery.data.clients.length === 0 && searchQuery.data.vehicles.length === 0 && (
+          {!searchQuery.isFetching && searchQuery.data && !hasResults && (
             <p className="px-3 py-4 text-center text-sm text-brand-muted">No se encontraron coincidencias</p>
           )}
 
@@ -118,7 +125,8 @@ export const QuickVehicleSearch = ({
         </div>
       )}
 
-      {newVehiclePlate && (
+      {newVehiclePlate && createPortal(
+        <div onSubmit={(event) => event.stopPropagation()}>
         <VehicleFormModal
           initialPatente={newVehiclePlate}
           suggestedClient={suggestedClient}
@@ -128,6 +136,8 @@ export const QuickVehicleSearch = ({
             setNewVehiclePlate(null);
           }}
         />
+        </div>,
+        document.body,
       )}
     </div>
   );

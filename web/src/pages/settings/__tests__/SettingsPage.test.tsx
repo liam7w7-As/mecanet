@@ -134,7 +134,7 @@ describe('SettingsPage', () => {
     fireEvent.change(rut, { target: { value: '77.374.788-9' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    expect(await screen.findByText(/RUT chileno inválido/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Revisa el RUN\/RUT completo/i)).toBeInTheDocument();
     expect(api.patch).not.toHaveBeenCalled();
   });
 

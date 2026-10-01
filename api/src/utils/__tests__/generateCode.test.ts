@@ -34,9 +34,9 @@ describe('generateCode utility', () => {
   });
 
   describe('generateWorkOrderCode', () => {
-    it('genera OT-YYYY-0001 si no hay órdenes en ese año', async () => {
+    it('genera OT-YY-1 si no hay órdenes en ese año', async () => {
       const code = await generateWorkOrderCode(undefined, TEST_YEAR);
-      expect(code).toBe(`OT-${TEST_YEAR}-0001`);
+      expect(code).toBe('OT-99-1');
     });
 
     it('incrementa correlativamente el código tras crear un registro', async () => {
@@ -44,25 +44,25 @@ describe('generateCode utility', () => {
       await WorkOrder.create({ codigo: code1 });
 
       const code2 = await generateWorkOrderCode(undefined, TEST_YEAR);
-      expect(code2).toBe(`OT-${TEST_YEAR}-0002`);
+      expect(code2).toBe('OT-99-2');
 
       await WorkOrder.create({ codigo: code2 });
       const code3 = await generateWorkOrderCode(undefined, TEST_YEAR);
-      expect(code3).toBe(`OT-${TEST_YEAR}-0003`);
+      expect(code3).toBe('OT-99-3');
     });
 
     it('maneja transición a más de 4 dígitos (> 9999)', async () => {
       await WorkOrder.create({ codigo: `OT-${TEST_YEAR}-9999` });
 
       const nextCode = await generateWorkOrderCode(undefined, TEST_YEAR);
-      expect(nextCode).toBe(`OT-${TEST_YEAR}-10000`);
+      expect(nextCode).toBe('OT-99-10000');
     });
 
     it('funciona dentro de una transacción con bloqueo', async () => {
       const t = await sequelize.transaction();
       try {
         const code = await generateWorkOrderCode(t, TEST_YEAR);
-        expect(code).toMatch(new RegExp(`^OT-${TEST_YEAR}-\\d{4,}$`));
+        expect(code).toMatch(/^OT-99-\d+$/);
         await t.commit();
       } catch (err) {
         await t.rollback();
@@ -72,9 +72,9 @@ describe('generateCode utility', () => {
   });
 
   describe('generateQuotationCode', () => {
-    it('genera COT-YYYY-0001 si no hay cotizaciones en ese año', async () => {
+    it('genera COT-YY-1 si no hay cotizaciones en ese año', async () => {
       const code = await generateQuotationCode(undefined, TEST_YEAR);
-      expect(code).toBe(`COT-${TEST_YEAR}-0001`);
+      expect(code).toBe('COT-99-1');
     });
 
     it('incrementa correlativamente el código tras crear cotizaciones', async () => {
@@ -82,8 +82,22 @@ describe('generateCode utility', () => {
       await Quotation.create({ codigo: code1 });
 
       const code2 = await generateQuotationCode(undefined, TEST_YEAR);
-      expect(code2).toBe(`COT-${TEST_YEAR}-0002`);
+      expect(code2).toBe('COT-99-2');
     });
+  });
+
+  it('continúa el máximo de ambos formatos, incluso si fue eliminado, y reinicia en otro año', async () => {
+    const old = await Quotation.create({ codigo: 'COT-2098-0005' });
+    await old.destroy();
+    expect(await generateQuotationCode(undefined, 2098)).toBe('COT-98-6');
+    await Quotation.create({ codigo: 'COT-98-9' });
+    expect(await generateQuotationCode(undefined, 2098)).toBe('COT-98-10');
+    await Quotation.create({ codigo: 'COT-98-10' });
+    expect(await generateQuotationCode(undefined, 2098)).toBe('COT-98-11');
+    expect(await generateQuotationCode(undefined, 2097)).toBe('COT-97-1');
+    await WorkOrder.create({ codigo: 'OT-2098-0005' });
+    expect(await generateWorkOrderCode(undefined, 2098)).toBe('OT-98-6');
+    expect(await generateWorkOrderCode(undefined, 2097)).toBe('OT-97-1');
   });
 
   describe('withCodeRetry', () => {

@@ -361,6 +361,7 @@ export interface Quotation {
   total: number;
   pagado: number;
   notas: string | null;
+  archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   client?: QuotationClient | null;

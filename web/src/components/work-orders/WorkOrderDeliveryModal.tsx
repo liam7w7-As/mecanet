@@ -2,13 +2,14 @@ import {
   deliverWorkOrderSchema,
   WORK_ORDER_DELIVERY_CHECKLIST,
 } from '@unithor/shared';
-import { CheckCircle2, LoaderCircle, PackageCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, LoaderCircle, PackageCheck } from 'lucide-react';
 import { useState } from 'react';
 
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useDeliverWorkOrderMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { formatClp } from '../../lib/formatters';
 import { notifySuccess } from '../../stores/toast.store';
 import ModalHeader from '../common/ModalHeader';
 
@@ -47,7 +48,12 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
   const [conformidad, setConformidad] = useState(false);
   const [firmaRecepcion, setFirmaRecepcion] = useState('');
   const [observaciones, setObservaciones] = useState('');
+  const [confirmaSaldo, setConfirmaSaldo] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // La entrega no se bloquea por deuda (hay clientes con crédito), pero el
+  // flujo del taller es cobrar al retirar: si la cotización espejo tiene
+  // saldo pendiente se exige confirmación explícita antes de soltar el auto.
+  const saldoPendiente = Math.max(0, workOrder.quotation?.saldoPendiente ?? 0);
 
   const toggleChecklist = (item: WorkOrderDeliveryChecklistItem): void => {
     setChecklist((current) =>
@@ -163,11 +169,29 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
               {errors.conformidad && <p className="mt-2 text-xs text-brand-coralInk">{errors.conformidad}</p>}
             </div>
 
+            {saldoPendiente > 0 && (
+              <div className="rounded-lg border border-brand-gold/40 bg-brand-goldPale p-4" role="alert">
+                <p className="flex items-start gap-2 text-sm font-semibold text-brand-goldInk">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  Esta orden tiene un saldo pendiente de {formatClp(saldoPendiente)}.
+                </p>
+                <label className="mt-3 flex cursor-pointer items-start gap-3 text-sm text-brand-ink">
+                  <input
+                    type="checkbox"
+                    checked={confirmaSaldo}
+                    onChange={(event) => setConfirmaSaldo(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-brand-primary"
+                  />
+                  <span>Confirmo que el saldo fue cancelado antes de entregar el vehículo.</span>
+                </label>
+              </div>
+            )}
+
             {apiError && <p className="rounded-lg bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">{apiError}</p>}
           </div>
           <footer className="flex justify-end gap-2 border-t border-brand-line bg-brand-line/40 p-5">
             <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-white" onClick={onClose} disabled={deliveryMutation.isPending}>Volver</button>
-            <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-60" disabled={deliveryMutation.isPending}>
+            <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-60" disabled={deliveryMutation.isPending || (saldoPendiente > 0 && !confirmaSaldo)}>
               {deliveryMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
               Confirmar entrega
             </button>

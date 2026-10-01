@@ -11,7 +11,7 @@ interface CodeSequenceOptions {
 }
 
 /**
- * Genera un código secuencial correlativo en formato PREFIX-YYYY-NNNN.
+ * Genera PREFIX-YY-N, continuando también los correlativos del formato anterior.
  * Utiliza SELECT ... FOR UPDATE cuando se provee una transacción para asegurar concurrencia atómica.
  */
 export const generateSequenceCode = async ({
@@ -20,18 +20,16 @@ export const generateSequenceCode = async ({
   year = new Date().getFullYear(),
   transaction,
 }: CodeSequenceOptions): Promise<string> => {
-  const codePrefix = `${prefix}-${year}-`;
+  const codePrefix = `${prefix}-${String(year).slice(-2)}-`;
+  const prefixes = [codePrefix, `${prefix}-${year}-`];
+  const where = { [Op.or]: prefixes.map((value) => ({ codigo: { [Op.like]: `${value}%` } })) };
 
   const lastRecord =
     model === WorkOrder
       ? await WorkOrder.findOne({
-          where: {
-            codigo: {
-              [Op.like]: `${codePrefix}%`,
-            },
-          },
+          where,
           order: [
-            [Sequelize.literal('LENGTH(codigo)'), 'DESC'],
+            [Sequelize.literal("CAST(SUBSTRING_INDEX(codigo, '-', -1) AS UNSIGNED)"), 'DESC'],
             ['codigo', 'DESC'],
           ],
           paranoid: false,
@@ -39,13 +37,9 @@ export const generateSequenceCode = async ({
           lock: transaction ? Transaction.LOCK.UPDATE : undefined,
         })
       : await Quotation.findOne({
-          where: {
-            codigo: {
-              [Op.like]: `${codePrefix}%`,
-            },
-          },
+          where,
           order: [
-            [Sequelize.literal('LENGTH(codigo)'), 'DESC'],
+            [Sequelize.literal("CAST(SUBSTRING_INDEX(codigo, '-', -1) AS UNSIGNED)"), 'DESC'],
             ['codigo', 'DESC'],
           ],
           paranoid: false,
@@ -54,7 +48,7 @@ export const generateSequenceCode = async ({
         });
 
   if (!lastRecord || !lastRecord.codigo) {
-    return `${codePrefix}0001`;
+    return `${codePrefix}1`;
   }
 
   const parts = lastRecord.codigo.split('-');
@@ -62,12 +56,11 @@ export const generateSequenceCode = async ({
   const lastNumber = parseInt(lastNumberStr, 10);
   const nextNumber = Number.isNaN(lastNumber) ? 1 : lastNumber + 1;
 
-  const paddedNumber = String(nextNumber).padStart(4, '0');
-  return `${codePrefix}${paddedNumber}`;
+  return `${codePrefix}${nextNumber}`;
 };
 
 /**
- * Genera el siguiente código para Órdenes de Trabajo: OT-YYYY-NNNN
+ * Genera el siguiente código para Órdenes de Trabajo: OT-YY-N
  */
 export const generateWorkOrderCode = async (
   transaction?: Transaction,
@@ -82,7 +75,7 @@ export const generateWorkOrderCode = async (
 };
 
 /**
- * Genera el siguiente código para Cotizaciones: COT-YYYY-NNNN
+ * Genera el siguiente código para Cotizaciones: COT-YY-N
  */
 export const generateQuotationCode = async (
   transaction?: Transaction,

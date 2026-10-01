@@ -10,6 +10,7 @@ import { z } from 'zod';
 
 import { getQuotationPaymentsHandler } from '../controllers/payment.controller.js';
 import {
+  archiveQuotationHandler,
   convertToWorkOrderHandler,
   createQuotationHandler,
   deleteQuotationHandler,
@@ -74,6 +75,13 @@ quotationRouter.post(
   ]),
   validate({ params: idParamSchema, body: convertQuotationToWorkOrderSchema }),
   convertToWorkOrderHandler,
+);
+
+quotationRouter.patch(
+  '/:id/archive',
+  authorize('comercial', 'update'),
+  validate({ params: idParamSchema }),
+  archiveQuotationHandler,
 );
 
 quotationRouter.patch(

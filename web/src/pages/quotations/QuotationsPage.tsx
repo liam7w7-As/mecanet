@@ -14,7 +14,7 @@ import QuotationEditModal from '../../components/quotations/QuotationEditModal';
 import QuotationStatusBadge from '../../components/quotations/QuotationStatusBadge';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDownloadCommercialExcel } from '../../hooks/usePayments';
-import { useQuotation, useQuotations } from '../../hooks/useQuotations';
+import { useArchiveQuotationMutation, useQuotation, useQuotations } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
@@ -44,7 +44,7 @@ const firstDayOfMonth = (): string => {
 };
 
 const QuotationSkeleton = () => (
-  <>{Array.from({ length: 6 }, (_, index) => <tr key={index} className="border-b border-brand-line">{Array.from({ length: 11 }, (_, cell) => <td key={cell} className="px-4 py-5"><div className="h-4 animate-pulse rounded bg-brand-pale" /></td>)}</tr>)}</>
+  <>{Array.from({ length: 6 }, (_, index) => <tr key={index} className="border-b border-brand-line">{Array.from({ length: 9 }, (_, cell) => <td key={cell} className="px-4 py-5"><div className="h-4 animate-pulse rounded bg-brand-pale" /></td>)}</tr>)}</>
 );
 
 export const QuotationsPage = () => {
@@ -60,6 +60,8 @@ export const QuotationsPage = () => {
   const [paymentQuotation, setPaymentQuotation] = useState<{ id: number; codigo: string; saldoPendiente: number } | null>(null);
   const [detailQuotationId, setDetailQuotationId] = useState<number | null>(null);
   const [editQuotationId, setEditQuotationId] = useState<number | null>(null);
+  const [quotationToArchive, setQuotationToArchive] = useState<Quotation | null>(null);
+  const archiveMutation = useArchiveQuotationMutation();
   const debouncedSearch = useDebouncedValue(search, 350);
   const quotationsQuery = useQuotations({
     page,
@@ -86,7 +88,7 @@ export const QuotationsPage = () => {
 
   return (
     <div className="min-w-0 space-y-5">
-      <header className="page-banner">
+      <header className="page-banner max-sm:!h-auto max-sm:flex-col max-sm:items-start max-sm:gap-3">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Gestión comercial</p>
           <h1 className="mt-1">Comercial - Cotizaciones</h1>
@@ -123,7 +125,7 @@ export const QuotationsPage = () => {
                     type="button"
                     role="tab"
                     aria-selected={isSelected}
-                    title={filter.value === 'archived' ? 'Cotizaciones sin OT, sin pagos y sin actividad durante 30 días' : undefined}
+                    title={filter.value === 'archived' ? `Archivadas manualmente o sin OT ni abonos con ${QUOTATION_ARCHIVE_DAYS} días desde su emisión` : undefined}
                   className={`relative min-h-10 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
                     isSelected ? 'text-white' : 'bg-brand-pale text-brand-muted hover:bg-brand-line'
                   }`}
@@ -145,15 +147,34 @@ export const QuotationsPage = () => {
 
         {(quotationsQuery.isError || excelMutation.isError || previewQuery.isError) && <div className="border-b border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(quotationsQuery.error ?? excelMutation.error ?? previewQuery.error, 'No fue posible completar la operación.')}</div>}
 
-        <div className="max-w-full overflow-x-auto overscroll-x-contain">
-          <table className="w-full min-w-[1080px] text-left text-sm">
-            <thead className="bg-brand-line/40 text-xs uppercase tracking-wide text-brand-muted">
+        {quotationToArchive && (
+          <div role="region" aria-label="Confirmar archivo" className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-line bg-brand-pale p-4">
+            <div className="min-w-0 text-sm text-brand-ink">
+              <p className="font-semibold">¿Archivar {quotationToArchive.codigo}?</p>
+              <p className="text-brand-muted">Se moverá a Archivadas sin eliminar sus datos.</p>
+              {archiveMutation.isError && <p role="alert" className="mt-1 text-brand-coralInk">{getApiErrorMessage(archiveMutation.error)}</p>}
+            </div>
+            <div className="flex gap-2">
+              <button type="button" className="secondary-button" disabled={archiveMutation.isPending} onClick={() => setQuotationToArchive(null)}>Cancelar</button>
+              <button type="button" className="primary-button" disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate(quotationToArchive.id, { onSuccess: () => setQuotationToArchive(null) })}>
+                {archiveMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />}
+                Confirmar archivo
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="max-w-full">
+          <table className="w-full table-fixed text-left text-sm max-xl:block [&_td]:break-words [&_td]:whitespace-normal [&_td]:px-2 [&_th]:px-2 [&_th]:whitespace-normal [&_th]:text-[11px] max-xl:[&_td]:block max-xl:[&_td]:border-none max-xl:[&_td]:py-2 max-xl:[&_td]:text-left max-xl:[&_td]:before:mb-1 max-xl:[&_td]:before:block max-xl:[&_td]:before:text-[10px] max-xl:[&_td]:before:font-semibold max-xl:[&_td]:before:uppercase max-xl:[&_td]:before:text-brand-muted max-xl:[&_td]:before:content-[attr(data-label)]">
+            <colgroup className="max-xl:hidden">
+              <col className="w-[4%]" /><col className="w-[13%]" /><col className="w-[23%]" />
+              <col className="w-[11%]" /><col className="w-[9%]" /><col className="w-[10%]" />
+              <col className="w-[9%]" /><col className="w-[10%]" /><col className="w-[11%]" />
+            </colgroup>
+            <thead className="bg-brand-line/40 text-[11px] uppercase text-brand-muted max-xl:hidden">
               <tr>
                 <th className="px-4 py-4 font-semibold">N°</th>
                 <th className="px-4 py-4 font-semibold">Código COT</th>
                 <th className="px-4 py-4 font-semibold">Cliente</th>
-                <th className="px-4 py-4 font-semibold">Vehículo</th>
-                <th className="px-4 py-4 font-semibold">OT asociada</th>
                 <th className="px-4 py-4 font-semibold">Estado pago</th>
                 <th className="px-4 py-4 font-semibold">Emitida</th>
                 <th className="px-4 py-4 text-right font-semibold">Total</th>
@@ -162,7 +183,7 @@ export const QuotationsPage = () => {
                 <th className="px-4 py-4 text-right font-semibold">Acciones</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="max-xl:block">
               {quotationsQuery.isPending ? <QuotationSkeleton /> : quotationsQuery.data?.items.map((quotation, index) => {
                 const balance = Math.max(0, Number(quotation.total) - Number(quotation.pagado));
                 const rowNumber = (page - 1) * (quotationsQuery.data?.pageSize ?? 20) + index + 1;
@@ -177,22 +198,34 @@ export const QuotationsPage = () => {
                         ? 'bg-yellow-50/80 hover:bg-yellow-100/70'
                         : 'hover:bg-brand-pale/50';
                 return (
-                  <AnimatedTableRow key={quotation.id} delay={index * 0.02} enableHover={false} className={`border-b border-brand-line transition-colors last:border-0 ${rowStyle}`}>
-                    <td className={`border-l-4 px-4 py-5 font-mono text-sm font-bold text-brand-muted ${status === 'archived' ? 'border-slate-300' : attention?.kind === 'linked' ? 'border-orange-400' : attention ? 'border-yellow-400' : 'border-transparent'}`}>{rowNumber}</td>
-                    <td className="px-4 py-5">
+                  <AnimatedTableRow key={quotation.id} delay={index * 0.02} enableHover={false} className={`border-b border-brand-line transition-colors last:border-0 max-xl:grid max-xl:grid-cols-2 max-xl:p-3 ${rowStyle}`}>
+                    <td data-label="N°" className={`border-l-4 px-4 py-5 font-mono text-sm font-bold text-brand-muted ${status === 'archived' ? 'border-slate-300' : attention?.kind === 'linked' ? 'border-orange-400' : attention ? 'border-yellow-400' : 'border-transparent'}`}>{rowNumber}</td>
+                    <td data-label="Código COT" className="px-4 py-5">
                       <Link to={`/quotations/${quotation.id}`} className="font-mono text-[15px] font-bold text-brand-primaryInk hover:underline">{quotation.codigo}</Link>
+                      {quotation.workOrder && (
+                        <Link to={`/work-orders/${quotation.workOrder.id}`} className="mt-1 block font-mono text-sm font-bold text-emerald-700 hover:underline">
+                          {quotation.workOrder.codigo}
+                        </Link>
+                      )}
                       {quotation.asesor?.nombre && <span className="block text-xs text-brand-muted">{quotation.asesor.nombre}</span>}
-                      {status === 'archived' ? <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-600"><Archive className="h-3 w-3" aria-hidden="true" />Archivada por inactividad</span> : attention && <span className={`mt-1 block text-xs font-semibold ${attention.kind === 'linked' ? 'text-orange-800' : 'text-amber-800'}`}>{attention.kind === 'linked' ? `OT sin actividad: ${attention.days} días` : attention.kind === 'fading' ? `Se archivará en ${QUOTATION_ARCHIVE_DAYS - attention.days} días` : `Sin OT: ${attention.days} días`}</span>}
+                      {status === 'archived' ? <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-600"><Archive className="h-3 w-3 shrink-0" aria-hidden="true" />{quotation.archivedAt ? 'Archivada manualmente' : 'Vigencia vencida'}</span> : attention && <span className={`mt-1 block text-xs font-semibold ${attention.kind === 'linked' ? 'text-orange-800' : 'text-amber-800'}`}>{attention.kind === 'linked' ? `OT sin actividad: ${attention.days} días` : attention.kind === 'fading' ? `Se archivará en ${QUOTATION_ARCHIVE_DAYS - attention.days} días` : `Sin OT: ${attention.days} días`}</span>}
                     </td>
-                    <td className="max-w-52 px-4 py-5"><span className="block truncate text-[15px] font-semibold text-brand-ink">{quotation.client?.nombre ?? 'Sin cliente'}</span><span className="block text-xs text-brand-muted">{quotation.client?.rut ?? 'Sin identificación'}</span></td>
-                    <td className="px-4 py-5"><span className="rounded-md bg-brand-ink px-2 py-1 font-mono text-xs font-bold text-white">{quotation.vehicle?.patente ?? 'S/V'}</span><span className="mt-1 block text-xs text-brand-muted">{[quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos'}</span></td>
-                    <td className="px-4 py-5">{quotation.workOrder ? <Link to={`/work-orders/${quotation.workOrder.id}`} className="inline-flex items-center gap-1 rounded-full bg-brand-mintPale px-2.5 py-1 font-mono text-xs font-bold text-brand-mintInk ring-1 ring-inset ring-brand-line hover:bg-brand-mintPale">{quotation.workOrder.codigo}</Link> : <span className="rounded-full bg-brand-goldPale px-2.5 py-1 text-xs font-semibold text-brand-goldInk ring-1 ring-inset ring-brand-line">COT sin OT</span>}</td>
-                    <td className="px-4 py-5"><QuotationStatusBadge status={quotation.estadoPago} /></td>
-                    <td className="whitespace-nowrap px-4 py-5 text-brand-muted">{formatDate(quotation.createdAt)}</td>
-                    <td className="whitespace-nowrap px-4 py-5 text-right text-[15px] font-semibold text-brand-ink">{formatClp(quotation.total)}</td>
-                    <td className="whitespace-nowrap px-4 py-5 text-right text-brand-muted">{formatClp(quotation.pagado)}</td>
-                    <td className="whitespace-nowrap px-4 py-5 text-right text-[15px] font-bold text-brand-primaryInk">{formatClp(balance)}</td>
-                    <td className="px-4 py-5"><div className="flex items-center justify-end gap-1">
+                    <td data-label="Cliente" className="px-4 py-5 max-xl:col-span-2">
+                      <span className="block break-words text-sm font-semibold text-brand-ink">{quotation.client?.nombre ?? 'Sin cliente'}</span>
+                      <span className="block text-xs text-brand-muted">{quotation.client?.rut ?? 'Sin identificación'}</span>
+                      {quotation.vehicle?.patente && <span className="mt-1 inline-block rounded border border-brand-line bg-brand-pale px-1.5 py-0.5 font-mono text-xs font-bold text-brand-primaryInk">{quotation.vehicle.patente}</span>}
+                    </td>
+                    <td data-label="Estado pago" className="px-4 py-5"><QuotationStatusBadge status={quotation.estadoPago} /></td>
+                    <td data-label="Emitida" className="px-4 py-5 text-xs text-brand-muted">{formatDate(quotation.createdAt)}</td>
+                    <td data-label="Total" className="px-4 py-5 text-right text-sm font-semibold text-brand-ink">{formatClp(quotation.total)}</td>
+                    <td data-label="Pagado" className="px-4 py-5 text-right text-brand-muted">{formatClp(quotation.pagado)}</td>
+                    <td data-label="Saldo" className="px-4 py-5 text-right text-sm font-bold text-brand-primaryInk">{formatClp(balance)}</td>
+                    <td data-label="Acciones" className="px-4 py-5 max-xl:col-span-2"><div className="flex flex-wrap items-center justify-end gap-1 max-xl:justify-start [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg">
+                      {canEdit && status !== 'archived' && quotation.workOrderId === null && Number(quotation.pagado) === 0 && quotation.estadoPago === 'por_pagar' && (
+                        <button type="button" className="flex items-center justify-center text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk" title="Archivar cotización" aria-label={`Archivar ${quotation.codigo}`} onClick={() => { archiveMutation.reset(); setQuotationToArchive(quotation); }}>
+                          <Archive className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      )}
                       {balance > 0 && (
                         <button
                           type="button"

@@ -280,7 +280,7 @@ describe('Quotation Routes (E2E)', () => {
       });
 
     expect(firstResponse.status).toBe(201);
-    expect(firstResponse.body.quotation.codigo).toBe(`COT-${TEST_YEAR}-0001`);
+    expect(firstResponse.body.quotation.codigo).toBe(`COT-${String(TEST_YEAR).slice(-2)}-1`);
 
     const secondResponse = await request(app)
       .post('/api/quotations')
@@ -292,7 +292,7 @@ describe('Quotation Routes (E2E)', () => {
       });
 
     expect(secondResponse.status).toBe(201);
-    expect(secondResponse.body.quotation.codigo).toBe(`COT-${TEST_YEAR}-0002`);
+    expect(secondResponse.body.quotation.codigo).toBe(`COT-${String(TEST_YEAR).slice(-2)}-2`);
   });
 
   it('crea COT vinculada a OT copiando items, cliente y vehículo', async () => {
@@ -543,9 +543,9 @@ describe('Quotation Routes (E2E)', () => {
     expect(withoutWorkOrder.body.items.map((item: { id: number }) => item.id)).not.toContain(linked.id);
   });
 
-  it('archiva solo COT sin OT, sin pagos y sin actividad durante 30 días', async () => {
+  it('archiva solo COT sin OT ni abonos a los 5 días desde la emisión, aunque se editen', async () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
-    const oldDate = new Date(Date.now() - 31 * 86_400_000);
+    const oldDate = new Date(Date.now() - 5 * 86_400_000);
     const marker = 'Archivo automático fase 51';
     const archived = await Quotation.create({
       codigo: `COT-${TEST_YEAR}-9400`,
@@ -589,12 +589,13 @@ describe('Quotation Routes (E2E)', () => {
       total: 10000,
       pagado: 0,
       notas: marker,
+      createdAt: new Date(Date.now() - 4 * 86_400_000),
     });
     await sequelize.query(
       'UPDATE quotations SET updated_at = :oldDate WHERE id IN (:ids)',
       { replacements: { oldDate, ids: [archived.id, linked.id, paid.id] } },
     );
-    expect((await archived.reload()).updatedAt.getTime()).toBeLessThan(Date.now() - 30 * 86_400_000);
+    await archived.update({ notas: marker + ' editada' });
 
     const activeResponse = await request(app)
       .get('/api/quotations')
@@ -612,6 +613,43 @@ describe('Quotation Routes (E2E)', () => {
     expect(archivedResponse.body.items.map((item: { id: number }) => item.id)).toEqual([archived.id]);
     expect(archivedResponse.body.total).toBe(1);
     expect(await Quotation.findByPk(archived.id)).not.toBeNull();
+  });
+
+  it('archiva manualmente sin eliminar datos, con permisos y CSRF, y conserva la fecha al repetir', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const denied = await loginAs(`${TEST_EMAIL_PREFIX}bodeguero@unithor.local`);
+    const quotation = await Quotation.create({ codigo: `COT-${TEST_YEAR}-9500`, clientId, notas: 'Archivo manual', total: 1000 });
+    const url = `/api/quotations/${quotation.id}/archive`;
+    expect((await request(app).patch(url).set('Cookie', [`csrf_token=${cookies.csrfToken}`]).set('X-CSRF-Token', cookies.csrfToken)).status).toBe(401);
+    expect((await request(app).patch(url).set('Cookie', authCookie(cookies))).status).toBe(403);
+    expect((await request(app).patch(url).set('Cookie', authCookie(denied)).set('X-CSRF-Token', denied.csrfToken)).status).toBe(403);
+    const response = await request(app).patch(url).set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken);
+    expect(response.status).toBe(200);
+    expect(response.body.quotation.archivedAt).toBeTruthy();
+    const repeat = await request(app).patch(url).set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken);
+    expect(repeat.body.quotation.archivedAt).toBe(response.body.quotation.archivedAt);
+    const active = await request(app).get('/api/quotations').query({ search: quotation.codigo, archiveStatus: 'active' }).set('Cookie', authCookie(cookies));
+    const archived = await request(app).get('/api/quotations').query({ search: quotation.codigo, archiveStatus: 'archived' }).set('Cookie', authCookie(cookies));
+    expect(active.body.total).toBe(0);
+    expect(archived.body.items.map((item: { id: number }) => item.id)).toEqual([quotation.id]);
+    expect(await Quotation.findByPk(quotation.id)).not.toBeNull();
+    expect((await request(app).get(`/api/quotations/${quotation.id}`).set('Cookie', authCookie(cookies))).status).toBe(200);
+  });
+
+  it('impide archivar manualmente con OT o abonos, incluyendo transferencias pendientes', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const linked = await Quotation.create({ codigo: `COT-${TEST_YEAR}-9501`, clientId, workOrderId, total: 1000 });
+    const paid = await Quotation.create({ codigo: `COT-${TEST_YEAR}-9502`, clientId, total: 1000, pagado: 500, estadoPago: 'parcial' });
+    const pending = await Quotation.create({ codigo: `COT-${TEST_YEAR}-9503`, clientId, total: 1000, createdAt: new Date(Date.now() - 6 * 86_400_000) });
+    await Payment.create({ quotationId: pending.id, monto: 500, metodo: 'transferencia', estado: 'por_verificar', fecha: new Date(), createdBy: vendedorUserId });
+    for (const quotation of [linked, paid, pending]) {
+      const response = await request(app).patch(`/api/quotations/${quotation.id}/archive`).set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken);
+      expect(response.status).toBe(400);
+      expect((await quotation.reload()).archivedAt).toBeNull();
+    }
+    const active = await request(app).get('/api/quotations').query({ search: pending.codigo, archiveStatus: 'active' }).set('Cookie', authCookie(cookies));
+    expect(active.body.items.map((item: { id: number }) => item.id)).toEqual([pending.id]);
+    expect((await request(app).patch('/api/quotations/999999/archive').set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)).status).toBe(404);
   });
 
   it('rechaza fechas invertidas y permite asociar un vehículo con otro responsable', async () => {

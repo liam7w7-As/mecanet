@@ -91,7 +91,7 @@ export const useDeleteVehicleMutation = () => {
 export const useQuickSearch = (term: string) => {
   const debouncedTerm = useDebouncedValue(term.trim(), 300);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: vehicleKeys.quickSearch(debouncedTerm),
     queryFn: async () => {
       const response = await api.get<QuickSearchResult>('/search/quick', {
@@ -101,4 +101,5 @@ export const useQuickSearch = (term: string) => {
     },
     enabled: debouncedTerm.length >= 2,
   });
+  return { ...query, isDebouncing: term.trim() !== debouncedTerm };
 };

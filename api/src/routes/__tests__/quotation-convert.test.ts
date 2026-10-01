@@ -299,7 +299,7 @@ describe('Quotation to Work Order Conversion (E2E)', () => {
       descripcion: 'OT generada desde cotización fase 52',
       kilometrajeIngreso: 120000,
     });
-    expect(response.body.workOrder.codigo).toMatch(new RegExp(`^OT-${TEST_YEAR}-\\d{4,}$`));
+    expect(response.body.workOrder.codigo).toMatch(new RegExp(`^OT-${String(TEST_YEAR).slice(-2)}-\\d+$`));
     expect(response.body.workOrder.items).toEqual([
       expect.objectContaining({
         descripcion: 'Diagnóstico electrónico',

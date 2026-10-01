@@ -11,7 +11,7 @@ export const QUOTATION_STATUS_LABELS: Record<QuotationStatus, string> = {
 };
 
 const STATUS_STYLES: Record<QuotationStatus, string> = {
-  por_pagar: 'bg-brand-goldPale text-brand-goldInk ring-brand-line',
+  por_pagar: 'text-brand-muted',
   parcial: 'bg-brand-pale text-brand-primaryInk ring-brand-line',
   total: 'bg-brand-mintPale text-brand-mintInk ring-brand-line',
   por_verificar: 'bg-purple-100 text-purple-800 ring-purple-200',
@@ -24,7 +24,7 @@ interface QuotationStatusBadgeProps {
 }
 
 export const QuotationStatusBadge = ({ status, className }: QuotationStatusBadgeProps) => (
-  <span className={cn('inline-flex min-h-7 items-center whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold ring-1 ring-inset', STATUS_STYLES[status], className)}>
+  <span className={cn(status === 'por_pagar' ? 'text-sm font-normal' : 'inline-flex min-h-7 items-center whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold ring-1 ring-inset', STATUS_STYLES[status], className)}>
     {QUOTATION_STATUS_LABELS[status]}
   </span>
 );

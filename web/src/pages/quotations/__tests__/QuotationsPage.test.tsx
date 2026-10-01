@@ -183,9 +183,38 @@ describe('QuotationsPage', () => {
     );
   });
 
+  it('agrupa la patente bajo el cliente y la OT en verde bajo el código COT', async () => {
+    renderWithProviders(<QuotationsPage />);
+    const code = await screen.findByRole('link', { name: linkedQuotation.codigo });
+    const codeCell = code.closest('td')!;
+    const order = within(codeCell).getByRole('link', { name: 'OT-2026-0012' });
+    expect(order).toHaveAttribute('href', '/work-orders/12');
+    expect(order).toHaveClass('text-emerald-700');
+    const row = code.closest('tr')!;
+    const clientCell = within(row).getByText('Cliente Demo').closest('td')!;
+    expect(within(clientCell).getByText('123456785')).toBeInTheDocument();
+    expect(within(clientCell).getByText('ABCD12')).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Vehículo' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'OT asociada' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('columnheader')).toHaveLength(9);
+  });
+
+  it('no muestra datos de vehículo ni etiquetas de OT para una venta de repuestos independiente', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: {
+      ...listResponse, items: [{ ...quotation, vehicleId: null, vehicle: null }], total: 1,
+    } });
+    renderWithProviders(<QuotationsPage />);
+    const row = (await screen.findByText(quotation.codigo)).closest('tr')!;
+    expect(within(row).queryByText('S/V')).not.toBeInTheDocument();
+    expect(within(row).queryByText('Sin datos')).not.toBeInTheDocument();
+    expect(within(row).queryByText('COT sin OT')).not.toBeInTheDocument();
+    expect(within(row).queryByText('ABCD12')).not.toBeInTheDocument();
+    expect(within(row).getAllByRole('cell')).toHaveLength(9);
+  });
+
   it('resalta en amarillo las COT sin OT y en naranja las OT sin actividad', async () => {
     const eightDaysAgo = new Date(Date.now() - 8 * 86_400_000).toISOString();
-    const oldUnlinked: Quotation = { ...quotation, estadoPago: 'por_pagar', pagado: 0, updatedAt: eightDaysAgo };
+    const oldUnlinked: Quotation = { ...quotation, estadoPago: 'por_pagar', pagado: 0, createdAt: eightDaysAgo, updatedAt: eightDaysAgo };
     const oldLinked: Quotation = { ...linkedQuotation, updatedAt: eightDaysAgo, workOrder: { ...linkedQuotation.workOrder!, updatedAt: eightDaysAgo } };
     vi.mocked(api.get).mockResolvedValue({ data: { ...listResponse, items: [oldUnlinked, oldLinked] } });
     renderWithProviders(<QuotationsPage />);
@@ -266,6 +295,41 @@ describe('QuotationsPage', () => {
     );
     const payload = vi.mocked(api.post).mock.calls.at(-1)?.[1] as { fecha: string };
     expect(Math.abs(new Date(payload.fecha).getTime() - Date.now())).toBeLessThan(60_000);
+  });
+
+  it('archiva desde la tabla con confirmación y actualiza el listado', async () => {
+    let archivedAt: string | null = null;
+    const unpaid = { ...quotation, pagado: 0, estadoPago: 'por_pagar' as const, createdAt: new Date().toISOString() };
+    vi.mocked(api.get).mockImplementation((_url, config) => Promise.resolve({ data: {
+      ...listResponse,
+      items: (config?.params as { archiveStatus?: string } | undefined)?.archiveStatus === 'archived'
+        ? archivedAt ? [{ ...unpaid, archivedAt }] : []
+        : archivedAt ? [] : [unpaid],
+    } }));
+    vi.mocked(api.patch).mockImplementation(() => {
+      archivedAt = new Date().toISOString();
+      return Promise.resolve({ data: { quotation: { ...unpaid, archivedAt } } });
+    });
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Archivar COT-2026-0031' }));
+    const paymentStatus = within(screen.getByText(unpaid.codigo).closest('tr')!).getByText('Por pagar');
+    expect(paymentStatus).toHaveClass('text-brand-muted');
+    expect(paymentStatus.className).not.toMatch(/bg-|ring-/);
+    expect(api.patch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar archivo' }));
+    await waitFor(() => expect(screen.queryByText('COT-2026-0031')).not.toBeInTheDocument());
+    expect(api.patch).toHaveBeenCalledWith('/quotations/31/archive');
+    fireEvent.click(screen.getByRole('tab', { name: 'Archivadas' }));
+    expect(await screen.findByText('Archivada manualmente')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Archivar COT-2026-0031' })).not.toBeInTheDocument();
+  });
+
+  it('conserva estilo de Abono parcial y no permite archivar con abonos u OT', async () => {
+    renderWithProviders(<QuotationsPage />);
+    await screen.findByText(quotation.codigo);
+    expect(screen.queryByRole('button', { name: /^Archivar COT/ })).not.toBeInTheDocument();
+    const cell = within(screen.getByText(quotation.codigo).closest('tr')!).getByText('Abono parcial');
+    expect(cell).toHaveClass('bg-brand-pale');
   });
 
   it('envía el número y una foto del comprobante para un abono con tarjeta', async () => {
@@ -400,7 +464,7 @@ describe('QuotationsPage', () => {
     fireEvent.change(within(dialog).getByLabelText('Método de pago'), {
       target: { value: 'transferencia' },
     });
-    fireEvent.change(within(dialog).getByLabelText('Banco de origen'), {
+    fireEvent.change(within(dialog).getByLabelText('Banco de procedencia'), {
       target: { value: 'Banco Santander' },
     });
     fireEvent.change(within(dialog).getByLabelText('Número de transacción'), {

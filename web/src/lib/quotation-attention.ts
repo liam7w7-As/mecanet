@@ -13,9 +13,9 @@ export type QuotationAttention = {
 } | null;
 
 export const getQuotationAttention = (quotation: Quotation, now = Date.now()): QuotationAttention => {
-  if (Number(quotation.pagado) >= Number(quotation.total)) return null;
+  if (quotation.archivedAt || (Number(quotation.total) > 0 && Number(quotation.pagado) >= Number(quotation.total))) return null;
 
-  const latestActivity = Math.max(
+  const latestActivity = quotation.workOrderId === null ? new Date(quotation.createdAt).getTime() : Math.max(
     new Date(quotation.updatedAt).getTime(),
     quotation.workOrder?.updatedAt ? new Date(quotation.workOrder.updatedAt).getTime() : 0,
   );

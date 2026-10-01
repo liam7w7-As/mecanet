@@ -283,7 +283,7 @@ describe('Work Order Routes (E2E)', () => {
       });
 
     expect(firstResponse.status).toBe(201);
-    expect(firstResponse.body.workOrder.codigo).toBe(`OT-${TEST_YEAR}-0001`);
+    expect(firstResponse.body.workOrder.codigo).toBe(`OT-${String(TEST_YEAR).slice(-2)}-1`);
     expect(firstResponse.body.workOrder.contact).toMatchObject({
       clientId,
       nombre: 'Cliente OT Fase 41',
@@ -304,7 +304,7 @@ describe('Work Order Routes (E2E)', () => {
       });
 
     expect(secondResponse.status).toBe(201);
-    expect(secondResponse.body.workOrder.codigo).toBe(`OT-${TEST_YEAR}-0002`);
+    expect(secondResponse.body.workOrder.codigo).toBe(`OT-${String(TEST_YEAR).slice(-2)}-2`);
     expect(secondResponse.body.workOrder.codigo).not.toBe(firstResponse.body.workOrder.codigo);
   });
 

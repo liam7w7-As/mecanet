@@ -109,9 +109,22 @@ interface ReviewState {
 
 const todayIso = (): string => new Date().toISOString().slice(0, 10);
 
-const openPaymentReceipt = (paymentId: number): void => {
-  window.open(`/api/payments/${paymentId}/receipt`, '_blank', 'noopener,noreferrer');
-};
+const PaymentReceiptLink = ({ payment }: { payment: Payment }) => (
+  payment.comprobantePago ? (
+    <a
+      href={`/api/payments/${payment.id}/receipt`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-brand-line px-3 py-1.5 text-xs font-semibold text-brand-primaryInk hover:border-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
+      title="Ver comprobante en una nueva pestaña"
+    >
+      <Paperclip className="h-4 w-4 shrink-0" aria-hidden="true" />
+      Ver comprobante
+    </a>
+  ) : (
+    <span className="text-xs text-brand-muted">Sin comprobante adjunto</span>
+  )
+);
 
 export const FinancePage = () => {
   const summaryQuery = useFinanceSummary();
@@ -635,22 +648,13 @@ export const FinancePage = () => {
                           <span className="block text-xs text-brand-muted">
                             {payment.numeroTransaccion ?? 'Sin N°'}
                           </span>
-                          {payment.comprobantePago && (
-                            <button
-                              type="button"
-                              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand-line px-2 py-1 text-xs font-semibold text-brand-primaryInk hover:border-brand-primary"
-                              onClick={() => openPaymentReceipt(payment.id)}
-                            >
-                              <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />
-                              Ver comprobante
-                            </button>
-                          )}
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-brand-primaryInk">
                           {formatClp(payment.monto)}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <PaymentReceiptLink payment={payment} />
                             <button
                               type="button"
                               className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-mintInk px-3 text-xs font-semibold text-white"
@@ -715,6 +719,7 @@ export const FinancePage = () => {
                         >
                           {statusLabels[status]}
                         </span>
+                        {status === 'por_verificar' && <PaymentReceiptLink payment={payment} />}
                         <span className="w-28 text-right text-sm font-bold text-brand-ink">
                           {formatClp(payment.monto)}
                         </span>
@@ -1014,6 +1019,21 @@ export const FinancePage = () => {
                 ? `Se sumarán ${formatClp(review.payment.monto)} al monto pagado de la cotización.`
                 : 'El monto dejará de reservar saldo y no se sumará como pago.'}
             </p>
+            <dl className="my-4 grid grid-cols-2 gap-3 border-y border-brand-line py-3 text-sm">
+              <div className="min-w-0">
+                <dt className="text-xs text-brand-muted">Banco de procedencia</dt>
+                <dd className="mt-1 break-words font-semibold text-brand-ink">
+                  {review.payment.bancoOrigen || 'No registrado'}
+                </dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-xs text-brand-muted">Número de transacción</dt>
+                <dd className="mt-1 break-words font-semibold text-brand-ink">
+                  {review.payment.numeroTransaccion || 'No registrado'}
+                </dd>
+              </div>
+            </dl>
+            <PaymentReceiptLink payment={review.payment} />
             <label className="mt-4 block text-sm font-semibold text-brand-ink">
               Comentario de revisión
               <textarea

@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import { DataTypes } from 'sequelize';
 
+import { up as ensureQuotationArchive } from './migrations/037-add-quotation-archive.js';
 import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -86,6 +87,7 @@ const CATALOG_ITEMS_SEED = [
 
 async function ensureSchemaUpToDate(): Promise<void> {
   const qi = sequelize.getQueryInterface();
+  await ensureQuotationArchive(qi);
   try {
     const woCols = await qi.describeTable('work_orders');
     if (!woCols.vehicle_owner_client_id) {

@@ -1811,6 +1811,26 @@ export const changeStatus = async (
       );
     }
 
+    // Finalizada significa "trabajo terminado y listo para cobro/retiro":
+    // no se puede declarar con tareas pendientes. La entrega vuelve a
+    // verificarlo, pero el filtro de Finalizadas (la cola del asesor para
+    // llamar a pagar y retirar) no debe incluir OTs sin terminar.
+    if (nuevoEstado === 'finalizada') {
+      const unresolvedItems = await WorkOrderItem.count({
+        where: {
+          workOrderId: id,
+          estadoOperativo: { [Op.notIn]: ['completado', 'omitido'] },
+        },
+        transaction,
+      });
+
+      if (unresolvedItems > 0) {
+        throw ApiError.badRequest(
+          'Todos los trabajos y repuestos deben estar completados u omitidos antes de marcar la orden como finalizada',
+        );
+      }
+    }
+
     const estadoAnterior = workOrder.estado;
     const updatePayload: Partial<Pick<WorkOrder, 'estado' | 'fechaEntrega' | 'descripcion'>> = {
       estado: nuevoEstado,

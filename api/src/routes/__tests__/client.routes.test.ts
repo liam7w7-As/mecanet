@@ -35,9 +35,7 @@ const extractCookies = (res: request.Response): Record<string, string> => {
       return cookies;
     }
 
-    cookies[pair.slice(0, separatorIndex).trim()] = pair
-      .slice(separatorIndex + 1)
-      .trim();
+    cookies[pair.slice(0, separatorIndex).trim()] = pair.slice(separatorIndex + 1).trim();
     return cookies;
   }, {});
 };
@@ -235,6 +233,55 @@ describe('Client Routes (E2E)', () => {
     expect(response.body.error.message).toBe('Ya existe un cliente con ese RUT');
   });
 
+  it('encuentra el cliente al pegar su RUT con puntos, espacios y guion', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const response = await request(app)
+      .get('/api/clients')
+      .query({ search: '76.310.002 - 2' })
+      .set('Cookie', authCookie(cookies));
+    expect(response.status).toBe(200);
+    expect(response.body.items).toContainEqual(expect.objectContaining({ rut: `${TEST_RUT_PREFIX}22` }));
+  });
+
+  it('acepta teléfonos regionales y datos opcionales vacíos al crear y editar', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const response = await request(app)
+      .post('/api/clients')
+      .set('Cookie', authCookie(cookies))
+      .set('X-CSRF-Token', cookies.csrfToken)
+      .send({
+        nombre: 'Cliente Regional',
+        tipo: 'cliente',
+        rut: '',
+        telefono: '+56 55 234 5678',
+        email: `${TEST_EMAIL_PREFIX}regional@unithor.local`,
+      });
+    expect(response.status).toBe(201);
+    expect(response.body.client).toMatchObject({ rut: null, telefono: '+56552345678' });
+
+    const updated = await request(app)
+      .patch(`/api/clients/${response.body.client.id}`)
+      .set('Cookie', authCookie(cookies))
+      .set('X-CSRF-Token', cookies.csrfToken)
+      .send({ telefono: '56 234 5678' });
+    expect(updated.status).toBe(200);
+    expect(updated.body.client.telefono).toBe('+56562345678');
+  });
+
+  it('explica qué campo falla cuando el dígito verificador es incorrecto', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const response = await request(app)
+      .post('/api/clients')
+      .set('Cookie', authCookie(cookies))
+      .set('X-CSRF-Token', cookies.csrfToken)
+      .send({ nombre: 'Cliente Inválido', tipo: 'cliente', rut: '12.345.678-9' });
+    expect(response.status).toBe(400);
+    expect(response.body.error.details).toContainEqual({
+      field: 'rut',
+      message: expect.stringContaining('dígito verificador'),
+    });
+  });
+
   it('lista con paginación, búsqueda por texto y filtro por tipo', async () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
 
@@ -269,9 +316,9 @@ describe('Client Routes (E2E)', () => {
     expect(response.body.pageSize).toBe(2);
     expect(response.body.total).toBeGreaterThanOrEqual(2);
     expect(response.body.items).toHaveLength(2);
-    expect(
-      response.body.items.every((client: { tipo: string }) => client.tipo === 'empresa'),
-    ).toBe(true);
+    expect(response.body.items.every((client: { tipo: string }) => client.tipo === 'empresa')).toBe(
+      true,
+    );
   });
 
   it('obtiene cliente por ID con y sin vehículos asociados', async () => {

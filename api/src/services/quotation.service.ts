@@ -1,5 +1,5 @@
 import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
-import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
+import { col, literal, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
 import { notifyByType } from './notification.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
@@ -98,6 +98,7 @@ export interface QuotationPublic {
   total: number;
   pagado: number;
   notas: string | null;
+  archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   client?: QuotationClientPublic | null;
@@ -198,6 +199,7 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
   vehicleId: quotation.vehicleId,
   asesorId: quotation.asesorId,
   estadoPago: quotation.estadoPago,
+  archivedAt: quotation.archivedAt ?? null,
   subtotal: numberValue(quotation.subtotal),
   total: numberValue(quotation.total),
   pagado: numberValue(quotation.pagado),
@@ -602,22 +604,19 @@ export const listQuotations = async (
 
   if (query.archiveStatus) {
     const cutoff = new Date(Date.now() - QUOTATION_ARCHIVE_DAYS * 24 * 60 * 60 * 1000);
-    const archived: QuotationWhere = {
+    const expired: QuotationWhere = {
       workOrderId: { [Op.is]: null },
       pagado: 0,
       estadoPago: 'por_pagar',
-      updatedAt: { [Op.lte]: cutoff },
+      createdAt: { [Op.lte]: cutoff },
+      [Op.and]: [literal("NOT EXISTS (SELECT 1 FROM payments AS archive_payment WHERE archive_payment.quotation_id = Quotation.id AND archive_payment.estado <> 'rechazado')")],
+    };
+    const archived: QuotationWhere = {
+      [Op.or]: [{ archivedAt: { [Op.not]: null } }, expired],
     };
     where[Op.and] = query.archiveStatus === 'archived'
       ? [archived]
-      : [{
-          [Op.or]: [
-            { workOrderId: { [Op.not]: null } },
-            { pagado: { [Op.gt]: 0 } },
-            { estadoPago: { [Op.ne]: 'por_pagar' } },
-            { updatedAt: { [Op.gt]: cutoff } },
-          ],
-        }];
+      : [{ [Op.not]: archived }];
   }
 
   const { rows, count } = await Quotation.findAndCountAll({
@@ -640,6 +639,22 @@ export const listQuotations = async (
 export const getQuotationById = async (id: number): Promise<QuotationPublic> => {
   const quotation = await getCompleteQuotation(id);
   return toQuotationPublic(quotation);
+};
+
+export const archiveQuotation = async (id: number): Promise<QuotationPublic> => {
+  await sequelize.transaction(async (transaction) => {
+    const quotation = await Quotation.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!quotation) throw ApiError.notFound('Cotización no encontrada');
+    if (quotation.archivedAt) return;
+    const paymentCount = await Payment.count({
+      where: { quotationId: id, estado: { [Op.ne]: 'rechazado' } }, transaction,
+    });
+    if (quotation.workOrderId !== null || numberValue(quotation.pagado) > 0 || quotation.estadoPago !== 'por_pagar' || paymentCount > 0) {
+      throw ApiError.badRequest('Solo se pueden archivar cotizaciones sin OT y sin abonos');
+    }
+    await quotation.update({ archivedAt: new Date() }, { transaction });
+  });
+  return getQuotationById(id);
 };
 
 export const getQuotationInspectionPhoto = async (

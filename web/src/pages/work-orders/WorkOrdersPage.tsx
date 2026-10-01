@@ -6,6 +6,7 @@ import {
   Download,
   Eye,
   ListChecks,
+  PackageCheck,
   Plus,
   ReceiptText,
   Search,
@@ -20,6 +21,7 @@ import { AnimateIcon, AnimatedCard, Stagger, StaggerItem } from '../../component
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
+import WorkOrderDeliveryModal from '../../components/work-orders/WorkOrderDeliveryModal';
 import WorkOrderQuickDetailModal from '../../components/work-orders/WorkOrderQuickDetailModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -38,6 +40,7 @@ import {
   useNow,
 } from '../../lib/work-order-progress';
 import { useAuthStore } from '../../stores/auth.store';
+import { notifyError } from '../../stores/toast.store';
 
 import type { WorkOrder } from '../../types/entities';
 import type { WorkOrderStatus } from '@unithor/shared';
@@ -118,6 +121,7 @@ const WorkOrderCard = ({
   canManage,
   statusPending,
   onChangeStatus,
+  onDeliver,
   onOpenDetail,
   onPreviewPdf,
   onOpenExecution,
@@ -127,6 +131,7 @@ const WorkOrderCard = ({
   canManage: boolean;
   statusPending: boolean;
   onChangeStatus: (workOrder: WorkOrder, nuevoEstado: WorkOrderStatus) => void;
+  onDeliver: () => void;
   onOpenDetail: () => void;
   onPreviewPdf: () => void;
   onOpenExecution?: () => void;
@@ -144,6 +149,15 @@ const WorkOrderCard = ({
   const paymentPercent = quotation && quotation.total > 0
     ? Math.min(100, Math.round((quotation.pagado / quotation.total) * 100))
     : 0;
+  // Aviso inteligente de cierre: si ya no quedan tareas por hacer y la OT
+  // sigue en progreso, la tarjeta lo canta. Con saldo pendiente pide cobrar;
+  // sin deuda invita a marcarla finalizada. Solo en `en_progreso` porque es
+  // el único estado desde el que se puede pasar a `finalizada`.
+  const items = workOrder.items ?? [];
+  const allTasksDone = items.length > 0
+    && items.every((item) => item.estadoOperativo === 'completado' || item.estadoOperativo === 'omitido');
+  const readyToFinish = workOrder.estado === 'en_progreso' && allTasksDone;
+  const balanceDue = quotation ? Math.max(0, quotation.saldoPendiente) : 0;
 
   const stats = [
     {
@@ -214,6 +228,26 @@ const WorkOrderCard = ({
             )}
           </div>
         </div>
+
+        {readyToFinish && (
+          <div
+            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold ${
+              balanceDue > 0
+                ? 'bg-brand-goldPale text-brand-goldInk'
+                : 'bg-brand-mintPale text-brand-mintInk'
+            }`}
+          >
+            <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
+              <span className={`absolute inline-flex h-full w-full rounded-full opacity-60 motion-safe:animate-ping ${balanceDue > 0 ? 'bg-brand-gold' : 'bg-brand-mint'}`} />
+              <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${balanceDue > 0 ? 'bg-brand-gold' : 'bg-brand-mint'}`} />
+            </span>
+            {balanceDue > 0 ? (
+              <span>Trabajo listo — falta abonar {formatClp(balanceDue)}</span>
+            ) : (
+              <span>Ya puede finalizar esta OT</span>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-x-3 border-y border-brand-line px-3.5 py-2">
           <p className="flex min-w-0 items-center gap-1.5 text-xs text-brand-muted" title={workOrder.client?.nombre ?? undefined}>
@@ -327,6 +361,18 @@ const WorkOrderCard = ({
           >
             <Download className="h-4 w-4" aria-hidden="true" />
           </button>
+          {canManage && workOrder.estado === 'finalizada' && (
+            <button
+              type="button"
+              onClick={onDeliver}
+              aria-label={`Entregar vehículo de ${workOrder.codigo}`}
+              title="Registrar entrega del vehículo"
+              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-mintInk px-3 text-xs font-bold text-white hover:brightness-95"
+            >
+              <PackageCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Entregar
+            </button>
+          )}
           {canManage && (
             <select
               aria-label={`Cambiar estado de ${workOrder.codigo}`}
@@ -336,7 +382,7 @@ const WorkOrderCard = ({
               disabled={statusPending || validTransitions.length === 0}
             >
               <option value="">
-                {workOrder.estado === 'finalizada' ? 'Entrega' : validTransitions.length === 0 ? 'Terminal' : 'Estado'}
+                {validTransitions.length === 0 ? 'Terminal' : 'Estado'}
               </option>
               {validTransitions.map((candidate) => (
                 <option key={candidate} value={candidate}>{WORK_ORDER_STATUS_LABELS[candidate]}</option>
@@ -358,6 +404,7 @@ export const WorkOrdersPage = () => {
   const [detailWorkOrderId, setDetailWorkOrderId] = useState<number | null>(null);
   const [detailView, setDetailView] = useState<'summary' | 'execution'>('summary');
   const [previewWorkOrderId, setPreviewWorkOrderId] = useState<number | null>(null);
+  const [deliveryWorkOrderId, setDeliveryWorkOrderId] = useState<number | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
   const user = useAuthStore((state) => state.user);
   const isAdmin = Boolean(user && ['desarrollador', 'admin'].includes(user.role));
@@ -372,6 +419,7 @@ export const WorkOrdersPage = () => {
   // Detalle completo para la vista previa: el diseño necesita
   // inspección, fotos y facturación además de los ítems de la lista.
   const previewQuery = useWorkOrder(previewWorkOrderId ?? 0);
+  const deliveryQuery = useWorkOrder(deliveryWorkOrderId ?? 0);
   const canCreate = Boolean(user && hasUserPermission(user, 'taller', 'create'));
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
   const canManage = Boolean(canUpdate && user?.role !== 'mecanico');
@@ -387,7 +435,10 @@ export const WorkOrdersPage = () => {
 
     // Backward transitions require admin role + mandatory justification
     if (isStatusRegression(workOrder.estado, nuevoEstado)) {
-      if (!isAdmin) return; // Non-admins cannot revert
+      if (!isAdmin) {
+        notifyError('Solo un administrador puede devolver la orden a un estado anterior.');
+        return;
+      }
       setPendingRevert({
         id: workOrder.id,
         codigo: workOrder.codigo,
@@ -451,10 +502,10 @@ export const WorkOrdersPage = () => {
           </div>
         </div>
 
-        {(workOrdersQuery.isError || statusMutation.isError || previewQuery.isError) && (
+        {(workOrdersQuery.isError || statusMutation.isError || previewQuery.isError || deliveryQuery.isError) && (
           <div className="flex items-center gap-2 border-b border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {getApiErrorMessage(workOrdersQuery.error ?? statusMutation.error ?? previewQuery.error, 'No fue posible completar la operación.')}
+            {getApiErrorMessage(workOrdersQuery.error ?? statusMutation.error ?? previewQuery.error ?? deliveryQuery.error, 'No fue posible completar la operación.')}
           </div>
         )}
 
@@ -479,6 +530,7 @@ export const WorkOrdersPage = () => {
                     canManage={canManage}
                     statusPending={statusMutation.isPending}
                     onChangeStatus={changeStatus}
+                    onDeliver={() => setDeliveryWorkOrderId(workOrder.id)}
                     onOpenDetail={() => { setDetailView('summary'); setDetailWorkOrderId(workOrder.id); }}
                     onOpenExecution={user && (['desarrollador', 'admin', 'jefe'].includes(user.role) || (user.role === 'mecanico' && workOrder.assignedMechanicId === user.id))
                       ? () => { setDetailView('execution'); setDetailWorkOrderId(workOrder.id); }
@@ -539,6 +591,13 @@ export const WorkOrdersPage = () => {
           type="work-order"
           workOrder={previewQuery.data}
           onClose={() => setPreviewWorkOrderId(null)}
+        />
+      )}
+
+      {deliveryWorkOrderId !== null && deliveryQuery.data && (
+        <WorkOrderDeliveryModal
+          workOrder={deliveryQuery.data}
+          onClose={() => setDeliveryWorkOrderId(null)}
         />
       )}
     </div>

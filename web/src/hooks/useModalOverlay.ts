@@ -25,6 +25,17 @@ interface ModalOverlayOptions {
  * de objeto porque `motion` tipa sus refs con la variante no nulable de React 19
  * y un `RefObject<HTMLElement | null>` no le encaja.
  */
+/**
+ * Contador de bloqueos activos. Varios overlays pueden apilarse (una ficha que
+ * abre un formulario, un drawer con un modal encima): cada uno guarda y
+ * restaura por su cuenta, y con dos locks en el mismo componente el último
+ * cleanup en correr dejaba `body` en `hidden` para siempre — el scroll
+ * desaparecía hasta recargar. Con contador, el overflow se restaura solo
+ * cuando se cierra el último overlay.
+ */
+let activeLocks = 0;
+let overflowBeforeFirstLock = '';
+
 export const useModalOverlay = ({
   isOpen,
   onClose,
@@ -52,7 +63,10 @@ export const useModalOverlay = ({
   useEffect(() => {
     if (!isOpen) return undefined;
 
-    const previousOverflow = document.body.style.overflow;
+    if (activeLocks === 0) {
+      overflowBeforeFirstLock = document.body.style.overflow;
+    }
+    activeLocks += 1;
     document.body.style.overflow = 'hidden';
 
     const previouslyFocused = document.activeElement;
@@ -75,7 +89,10 @@ export const useModalOverlay = ({
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousOverflow;
+      activeLocks = Math.max(0, activeLocks - 1);
+      if (activeLocks === 0) {
+        document.body.style.overflow = overflowBeforeFirstLock;
+      }
       if (previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) {
         previouslyFocused.focus();
       }

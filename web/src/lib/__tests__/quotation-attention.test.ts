@@ -19,15 +19,16 @@ const base: Quotation = {
   total: 10000,
   pagado: 0,
   notas: null,
-  createdAt: daysAgo(22),
+  createdAt: daysAgo(4),
   updatedAt: daysAgo(22),
 };
 
 describe('getQuotationAttention', () => {
   it('avisa y atenúa las COT sin OT según antigüedad', () => {
-    expect(getQuotationAttention({ ...base, updatedAt: daysAgo(2) }, NOW)).toBeNull();
-    expect(getQuotationAttention({ ...base, updatedAt: daysAgo(3) }, NOW)).toEqual({ kind: 'unlinked', days: 3 });
-    expect(getQuotationAttention(base, NOW)).toEqual({ kind: 'fading', days: 22 });
+    expect(getQuotationAttention({ ...base, createdAt: daysAgo(2) }, NOW)).toBeNull();
+    expect(getQuotationAttention({ ...base, createdAt: daysAgo(3) }, NOW)).toEqual({ kind: 'unlinked', days: 3 });
+    expect(getQuotationAttention({ ...base, updatedAt: daysAgo(0) }, NOW)).toEqual({ kind: 'fading', days: 4 });
+    expect(getQuotationAttention({ ...base, archivedAt: daysAgo(1) }, NOW)).toBeNull();
   });
 
   it('toma la última actividad de la OT vinculada', () => {

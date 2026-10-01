@@ -117,6 +117,9 @@ export class Quotation extends Model<
   })
   declare notas: string | null;
 
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare archivedAt: CreationOptional<Date | null>;
+
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;
 

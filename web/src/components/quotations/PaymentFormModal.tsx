@@ -272,7 +272,7 @@ export const PaymentFormModal = ({
                   La transferencia quedará pendiente hasta que Finanzas confirme su recepción.
                 </p>
                 <label className="block text-sm font-semibold text-brand-ink">
-                  Banco de origen
+                  Banco de procedencia
                   <select
                     value={bancoOrigen}
                     onChange={(event) => setBancoOrigen(event.target.value as PaymentBank)}

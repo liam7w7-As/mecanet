@@ -84,16 +84,10 @@ export const ClientDetailModal = ({
   const client = clientQuery.data;
   const ClientIcon = client?.tipo === 'empresa' ? Building2 : UserRound;
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    const previousFocus = document.activeElement;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
-    };
-  }, []);
-
+  // El scroll-lock y la restauración del foco los maneja `useModalOverlay`
+  // (más abajo): aquí solo van Escape y trampa de Tab, que ese hook no cubre.
+  // Antes había un segundo `body.style.overflow = 'hidden'` en este
+  // componente y su cleanup dejaba el scroll bloqueado hasta recargar.
   useEffect(() => {
     if (isEditing || isVehicleFormOpen) return undefined;
     dialogRef.current?.focus();

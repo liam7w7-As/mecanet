@@ -238,6 +238,40 @@ describe('Work Order State Machine Routes (E2E)', () => {
     expect(resumeResponse.body.workOrder.estado).toBe('en_progreso');
   });
 
+  it('rechaza marcar finalizada con trabajos pendientes y la permite al completarlos', async () => {
+    const devCookies = await loginAs('dev@unithor.local');
+    const workOrder = await createWorkOrder(11, 'en_progreso');
+    const item = await WorkOrderItem.create({
+      workOrderId: workOrder.id,
+      catalogItemId: null,
+      descripcion: 'Trabajo aún pendiente',
+      cantidad: 1,
+      precioUnitario: 1000,
+      subtotal: 1000,
+      estadoOperativo: 'en_proceso',
+      notasOperativas: null,
+    });
+
+    const blockedResponse = await request(app)
+      .patch(`/api/work-orders/${workOrder.id}/status`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ nuevoEstado: 'finalizada' });
+    expect(blockedResponse.status).toBe(400);
+    expect(blockedResponse.body.error.message).toBe(
+      'Todos los trabajos y repuestos deben estar completados u omitidos antes de marcar la orden como finalizada',
+    );
+
+    await item.update({ estadoOperativo: 'completado' });
+    const okResponse = await request(app)
+      .patch(`/api/work-orders/${workOrder.id}/status`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ nuevoEstado: 'finalizada' });
+    expect(okResponse.status).toBe(200);
+    expect(okResponse.body.workOrder.estado).toBe('finalizada');
+  });
+
   it('exige el flujo de cierre para finalizada -> entregada y registra el acta', async () => {
     const devCookies = await loginAs('dev@unithor.local');
     const workOrder = await createWorkOrder(3, 'finalizada');

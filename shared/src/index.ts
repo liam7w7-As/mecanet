@@ -18,3 +18,4 @@ export * from './schemas/index.js';
 export * from './schemas/dashboard.schema.js';
 export * from './types/index.js';
 export * from './utils/inspection-photo-layout.js';
+export * from './utils/rut.js';

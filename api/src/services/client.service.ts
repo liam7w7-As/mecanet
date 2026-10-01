@@ -1,3 +1,4 @@
+import { normalizeRut as normalizeRutInput } from '@unithor/shared';
 import { Op } from 'sequelize';
 
 import { Client } from '../models/Client.js';
@@ -53,7 +54,7 @@ const normalizeRut = (rut?: string | null): string | null | undefined => {
     return null;
   }
 
-  const normalized = rut.replace(/[.-]/g, '').trim().toUpperCase();
+  const normalized = normalizeRutInput(rut);
   return normalized === '' ? null : normalized;
 };
 
@@ -118,7 +119,7 @@ export const listClients = async (query: ClientQueryInput): Promise<ListClientsR
   if (query.search) {
     where[Op.or] = [
       { nombre: { [Op.like]: `%${query.search}%` } },
-      { rut: { [Op.like]: `%${query.search}%` } },
+      { rut: { [Op.like]: `%${normalizeRutInput(query.search) || query.search}%` } },
       { email: { [Op.like]: `%${query.search}%` } },
     ];
   }

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -38,6 +38,9 @@ const summary: FinanceSummary = {
     metodo: 'transferencia',
     estado: 'por_verificar',
     referencia: 'TRX-0091',
+    bancoOrigen: 'Banco de Chile',
+    numeroTransaccion: '0091',
+    comprobantePago: 'payment-receipts/transferencia-91.jpg',
     fecha: '2026-09-21T12:00:00.000Z',
     createdBy: 1,
     createdAt: '2026-09-21T12:00:00.000Z',
@@ -260,6 +263,43 @@ describe('FinancePage', () => {
       decision: 'aprobar',
       comentario: undefined,
     }));
+  });
+
+  it('permite abrir el comprobante pendiente sin aprobar ni abandonar finanzas', async () => {
+    renderPage();
+    const receipt = await screen.findByRole('link', { name: 'Ver comprobante' });
+    expect(receipt).toHaveAttribute('href', '/api/payments/91/receipt');
+    expect(receipt).toHaveAttribute('target', '_blank');
+    expect(receipt).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it.each(['Aprobar', 'Rechazar'])('muestra banco, transacción y comprobante al %s', async (action) => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: action }));
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByText('Banco de procedencia')).toBeInTheDocument();
+    expect(dialog.getByText('Banco de Chile')).toBeInTheDocument();
+    expect(dialog.getByText('0091')).toBeInTheDocument();
+    expect(dialog.getByRole('link', { name: 'Ver comprobante' }))
+      .toHaveAttribute('href', '/api/payments/91/receipt');
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('indica cuando el pago pendiente no tiene comprobante adjunto', async () => {
+    const get = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, config) => url === '/finance/summary'
+      ? Promise.resolve({ data: {
+        ...summary,
+        pendingTransfers: summary.pendingTransfers.map((payment) => ({ ...payment, comprobantePago: null })),
+      } } as AxiosResponse)
+      : get(url, config));
+    renderPage();
+    expect(await screen.findByText('Sin comprobante adjunto')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Ver comprobante' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Aprobar' }));
+    expect(within(screen.getByRole('dialog')).getByText('Sin comprobante adjunto')).toBeInTheDocument();
   });
 
   it('muestra el arqueo por método y permite cerrar una jornada conciliada', async () => {

@@ -1,4 +1,4 @@
-import { AlertTriangle, Boxes, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, FileText, LoaderCircle, Lock, Pencil, Plus, ThumbsDown, ThumbsUp, WalletCards, Wrench, X, Zap } from 'lucide-react';
+import { AlertTriangle, Boxes, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, DollarSign, Download, FileText, LoaderCircle, Lock, Pencil, Plus, ThumbsDown, ThumbsUp, Wrench, X, Zap } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -1029,7 +1029,7 @@ export const QuotationDetailModal = ({
                   className="flex w-full items-center justify-between p-3.5 text-xs font-bold text-brand-ink hover:bg-brand-pale transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    <WalletCards className="h-4 w-4 text-brand-mintInk" aria-hidden="true" />
+                    <DollarSign className="h-4 w-4 text-brand-mintInk" aria-hidden="true" />
                     <span>Historial de Abonos y Pagos ({summary?.payments.length ?? 0})</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1086,7 +1086,7 @@ export const QuotationDetailModal = ({
                 onClick={() => setShowPaymentModal(true)}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-brand-mintInk px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-mintInk transition-colors"
               >
-                <WalletCards className="h-3.5 w-3.5" aria-hidden="true" />
+                <DollarSign className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Registrar Abono</span>
               </button>
             )}

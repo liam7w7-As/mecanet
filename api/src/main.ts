@@ -126,17 +126,33 @@ if (env.NODE_ENV === 'production') {
   // 6c. Resto de assets estáticos (JS, CSS, imágenes, fuentes, workbox runtime)
   app.use(
     express.static(webDistPath, {
-      // Los assets de Vite y workbox llevan hash → cacheable 1 año
       setHeaders(res, filePath) {
-        if (/\/assets\//.test(filePath) || /workbox-/.test(filePath)) {
+        // index.html es el único archivo sin hash y el que decide qué bundle se
+        // carga. `send` ya pone `max-age=0`, pero se fija explícitamente para
+        // que ninguna capa intermedia lo cachee: si queda viejo, el
+        // dispositivo carga el bundle anterior hasta un hard refresh.
+        if (/[\\/]index\.html$/.test(filePath)) {
+          res.set('Cache-Control', 'no-cache, must-revalidate');
+        } else if (/\/assets\//.test(filePath) || /workbox-/.test(filePath)) {
+          // Los assets de Vite y workbox llevan hash → cacheable 1 año
           res.set('Cache-Control', 'public, max-age=31536000, immutable');
         }
       },
     }),
   );
 
-  // 6e. SPA fallback: todas las rutas desconocidas devuelven index.html
-  app.get('/{*splat}', (_req, res) => {
+  // 6e. SPA fallback: solo rutas de la aplicación, nunca archivos estáticos.
+  //      Devolver index.html para un asset inexistente hace que el navegador
+  //      reciba text/html donde esperaba JS o CSS y rechace el módulo: la app
+  //      queda en blanco (sin scroll) y el único remedio aparente era un hard
+  //      refresh. Un path con extensión es un 404, igual que /api desconocido.
+  app.get('/{*splat}', (req, res, next) => {
+    const lastSegment = req.path.split('/').pop() ?? '';
+    if (lastSegment.includes('.') || /^\/api(\/|$)/.test(req.path)) {
+      next();
+      return;
+    }
+    res.set('Cache-Control', 'no-cache, must-revalidate');
     res.sendFile(path.join(webDistPath, 'index.html'));
   });
 }

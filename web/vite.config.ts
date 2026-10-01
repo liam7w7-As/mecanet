@@ -8,7 +8,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      // autoUpdate, no 'prompt': el SW precachea index.html y lo sirve
+      // cache-first en cada navegacion, asi que una version en espera solo se
+      // activa cuando el usuario acepta el aviso o cierra todas las pestanas.
+      // Con 'prompt' los dispositivos quedaban pegados al build anterior y el
+      // unico modo de refrescarlos era Ctrl+Shift+R (que anula el SW). Con
+      // autoUpdate el SW nuevo se instala, toma el control y recarga solo.
+      registerType: 'autoUpdate',
       includeAssets: [
         'favicon.ico',
         'favicon.png',

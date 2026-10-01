@@ -59,7 +59,7 @@ export const QuotationsPage = () => {
   const [previewQuotationId, setPreviewQuotationId] = useState<number | null>(null);
   const [paymentQuotation, setPaymentQuotation] = useState<{ id: number; codigo: string; saldoPendiente: number } | null>(null);
   const [detailQuotationId, setDetailQuotationId] = useState<number | null>(null);
-  const [editQuotation, setEditQuotation] = useState<Quotation | null>(null);
+  const [editQuotationId, setEditQuotationId] = useState<number | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
   const quotationsQuery = useQuotations({
     page,
@@ -75,6 +75,8 @@ export const QuotationsPage = () => {
   // Detalle completo para la vista previa: la lista no trae ítems,
   // el diseño de vista previa necesita ítems y totales completos.
   const previewQuery = useQuotation(previewQuotationId ?? 0);
+  // Detalle completo para edición: igual que previewQuery, la lista no incluye ítems.
+  const editQuery = useQuotation(editQuotationId ?? 0);
   const canCreate = Boolean(user && hasUserPermission(user, 'comercial', 'create'));
   const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
   const canConvert = Boolean(user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'create')));
@@ -218,14 +220,16 @@ export const QuotationsPage = () => {
                         ) : (
                           <button
                             type="button"
-                            className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-pale hover:text-brand-primary"
+                            className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-pale hover:text-brand-primary disabled:opacity-50"
                             aria-label={`Editar ${quotation.codigo}`}
                             title="Editar"
-                            onClick={() => setEditQuotation(quotation)}
+                            onClick={() => setEditQuotationId(quotation.id)}
+                            disabled={editQuery.isPending && editQuotationId === quotation.id}
                           >
-                            <AnimateIcon variant="wiggle" animateOnHover>
-                              <Pencil className="h-4 w-4" aria-hidden="true" />
-                            </AnimateIcon>
+                            {editQuery.isPending && editQuotationId === quotation.id
+                              ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                              : <AnimateIcon variant="wiggle" animateOnHover><Pencil className="h-4 w-4" aria-hidden="true" /></AnimateIcon>
+                            }
                           </button>
                         )
                       )}
@@ -251,10 +255,10 @@ export const QuotationsPage = () => {
 
       {quotationToConvert && <ConvertQuotationModal quotationId={quotationToConvert.id} codigo={quotationToConvert.codigo} notas={quotationToConvert.notas} onClose={() => setQuotationToConvert(null)} onConverted={(workOrderId) => navigate(`/work-orders/${workOrderId}`)} />}
 
-      {editQuotation && (
+      {editQuotationId !== null && editQuery.data && (
         <QuotationEditModal
-          quotation={editQuotation}
-          onClose={() => setEditQuotation(null)}
+          quotation={editQuery.data}
+          onClose={() => setEditQuotationId(null)}
         />
       )}
 

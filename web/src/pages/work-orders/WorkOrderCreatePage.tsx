@@ -764,7 +764,7 @@ export const WorkOrderCreatePage = () => {
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="min-h-[560px] p-5 sm:p-6"
+          className="p-5 sm:p-6"
         >
           {activeStep === 0 && (
             <div className="grid gap-5 lg:grid-cols-[360px_1fr]">

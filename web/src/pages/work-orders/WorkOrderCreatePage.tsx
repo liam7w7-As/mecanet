@@ -192,7 +192,7 @@ interface SelectedClientCardProps {
 }
 
 const SelectedClientCard = ({ title, client, onClear }: SelectedClientCardProps) => (
-  <div className="min-h-28 rounded-lg border border-brand-line bg-white p-4">
+  <div className="rounded-lg border border-brand-line bg-white p-3">
     <div className="flex items-start justify-between gap-3">
       <p className="text-xs font-bold uppercase text-brand-muted">{title}</p>
       {client && onClear && (
@@ -278,7 +278,7 @@ const ClientSearchPicker = ({
         />
       </div>
 
-      <div className="mt-3 max-h-72 overflow-y-auto rounded-lg border border-brand-line">
+      <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-brand-line">
         {clientsQuery.isFetching && (
           <p className="px-3 py-3 text-sm text-brand-muted">Buscando clientes...</p>
         )}
@@ -291,7 +291,7 @@ const ClientSearchPicker = ({
             <button
               key={client.id}
               type="button"
-              className={`flex w-full items-center justify-between gap-3 border-b border-brand-line px-3 py-3 text-left last:border-0 hover:bg-brand-pale ${
+              className={`flex w-full items-center justify-between gap-3 border-b border-brand-line px-3 py-1.5 text-left last:border-0 hover:bg-brand-pale ${
                 selected ? 'bg-brand-line/40' : ''
               }`}
               onClick={() => onSelect(toClientOption(client))}
@@ -625,12 +625,6 @@ export const WorkOrderCreatePage = () => {
               Nueva Orden de Trabajo
             </h1>
           </div>
-        </div>
-        {/* El texto va en tinta y no en `primaryInk`: sobre el teñido al 10% daba
-            4.46:1, apenas por debajo del 4.5:1 que exige AA. El fondo y el borde
-            siguen marcando el bloque como informativo. */}
-        <div className="rounded-lg border border-brand-primary/40 bg-brand-primaryInk/10 px-4 py-3 text-sm text-brand-ink shadow-sm">
-          Flujo operativo: cliente, facturación, vehículo, inspección y servicios.
         </div>
       </header>
 

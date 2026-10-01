@@ -1,5 +1,5 @@
 import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
-import { Archive, Download, FileSpreadsheet, FileText, LoaderCircle, Pencil, Plus, Search, WalletCards, Wrench } from 'lucide-react';
+import { Archive, DollarSign, Download, FileSpreadsheet, FileText, LoaderCircle, Pencil, Plus, Search, Wrench } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -10,6 +10,7 @@ import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import ConvertQuotationModal from '../../components/quotations/ConvertQuotationModal';
 import PaymentFormModal from '../../components/quotations/PaymentFormModal';
 import QuotationDetailModal from '../../components/quotations/QuotationDetailModal';
+import QuotationEditModal from '../../components/quotations/QuotationEditModal';
 import QuotationStatusBadge from '../../components/quotations/QuotationStatusBadge';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDownloadCommercialExcel } from '../../hooks/usePayments';
@@ -58,6 +59,7 @@ export const QuotationsPage = () => {
   const [previewQuotationId, setPreviewQuotationId] = useState<number | null>(null);
   const [paymentQuotation, setPaymentQuotation] = useState<{ id: number; codigo: string; saldoPendiente: number } | null>(null);
   const [detailQuotationId, setDetailQuotationId] = useState<number | null>(null);
+  const [editQuotation, setEditQuotation] = useState<Quotation | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
   const quotationsQuery = useQuotations({
     page,
@@ -198,7 +200,7 @@ export const QuotationsPage = () => {
                           title="Registrar abono"
                         >
                           <AnimateIcon variant="bounce" animateOnHover>
-                            <WalletCards className="h-4 w-4" aria-hidden="true" />
+                            <DollarSign className="h-4 w-4" aria-hidden="true" />
                           </AnimateIcon>
                         </button>
                       )}
@@ -214,16 +216,17 @@ export const QuotationsPage = () => {
                             <Pencil className="h-4 w-4" aria-hidden="true" />
                           </button>
                         ) : (
-                          <Link
-                            to={`/quotations/${quotation.id}?edit=true`}
+                          <button
+                            type="button"
                             className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-pale hover:text-brand-primary"
                             aria-label={`Editar ${quotation.codigo}`}
                             title="Editar"
+                            onClick={() => setEditQuotation(quotation)}
                           >
                             <AnimateIcon variant="wiggle" animateOnHover>
                               <Pencil className="h-4 w-4" aria-hidden="true" />
                             </AnimateIcon>
-                          </Link>
+                          </button>
                         )
                       )}
                       {canConvert && quotation.workOrderId === null && <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-mintPale hover:text-brand-mintInk" onClick={() => setQuotationToConvert(quotation)} aria-label={`Convertir ${quotation.codigo} a OT`} title="Convertir a OT"><AnimateIcon variant="spin" animateOnHover><Wrench className="h-4 w-4" aria-hidden="true" /></AnimateIcon></button>}
@@ -247,6 +250,13 @@ export const QuotationsPage = () => {
       </section>
 
       {quotationToConvert && <ConvertQuotationModal quotationId={quotationToConvert.id} codigo={quotationToConvert.codigo} notas={quotationToConvert.notas} onClose={() => setQuotationToConvert(null)} onConverted={(workOrderId) => navigate(`/work-orders/${workOrderId}`)} />}
+
+      {editQuotation && (
+        <QuotationEditModal
+          quotation={editQuotation}
+          onClose={() => setEditQuotation(null)}
+        />
+      )}
 
       {paymentQuotation && (
         <PaymentFormModal

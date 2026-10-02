@@ -16,7 +16,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDownloadCommercialExcel } from '../../hooks/usePayments';
 import { useArchiveQuotationMutation, useQuotation, useQuotations } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { formatClp, formatDate } from '../../lib/formatters';
+import { formatClp, formatDate, formatTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { getQuotationAttention } from '../../lib/quotation-attention';
 import { useAuthStore } from '../../stores/auth.store';
@@ -216,7 +216,10 @@ export const QuotationsPage = () => {
                       {quotation.vehicle?.patente && <span className="mt-1 inline-block rounded border border-brand-line bg-brand-pale px-1.5 py-0.5 font-mono text-xs font-bold text-brand-primaryInk">{quotation.vehicle.patente}</span>}
                     </td>
                     <td data-label="Estado pago" className="px-4 py-5"><QuotationStatusBadge status={quotation.estadoPago} /></td>
-                    <td data-label="Emitida" className="px-4 py-5 text-xs text-brand-muted">{formatDate(quotation.createdAt)}</td>
+                    <td data-label="Emitida" className="px-4 py-5 text-xs text-brand-muted">
+                      <span className="block">{formatDate(quotation.createdAt)}</span>
+                      <span className="mt-0.5 block text-[11px]">{formatTime(quotation.createdAt)}</span>
+                    </td>
                     <td data-label="Total" className="px-4 py-5 text-right text-sm font-semibold text-brand-ink">{formatClp(quotation.total)}</td>
                     <td data-label="Pagado" className="px-4 py-5 text-right text-brand-muted">{formatClp(quotation.pagado)}</td>
                     <td data-label="Saldo" className="px-4 py-5 text-right text-sm font-bold text-brand-primaryInk">{formatClp(balance)}</td>

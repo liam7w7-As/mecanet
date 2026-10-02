@@ -36,6 +36,16 @@ export const formatDateTime = (value: string | null | undefined): string => {
   }).format(new Date(value));
 };
 
+/** Solo hora "14:30". Para segundas líneas bajo una fecha ya mostrada. */
+export const formatTime = (value: string | null | undefined): string => {
+  if (!value) return '';
+
+  return new Intl.DateTimeFormat('es-CL', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+};
+
 /** "hace 5 min", "hace 2 h", "ayer". Para listas de actividad y notificaciones. */
 export const formatRelativeTime = (value: string | null | undefined): string => {
   if (!value) return 'Sin fecha';

@@ -144,7 +144,7 @@ const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
                   <AnimateIcon variant={item.variant} animateOnHover>
                     <Icon className="icon" aria-hidden="true" />
                   </AnimateIcon>
-                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">{item.label}</span>
                   {badgeCount > 0 && (
                     <span className={cn('badge', badgeCount > 9 ? '' : 'count')}>
                       {badgeCount > 99 ? '99+' : badgeCount}

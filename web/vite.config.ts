@@ -144,6 +144,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+        // Los comprobantes y reportes deben llegar a la API, no a index.html.
+        navigateFallbackDenylist: [/^\/api(?:\/|\?|$)/i],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

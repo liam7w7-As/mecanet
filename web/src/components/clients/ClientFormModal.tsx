@@ -31,6 +31,8 @@ import type { ReactNode } from 'react';
 
 interface ClientFormModalProps {
   client?: Client | null;
+  /** Valores precargados al crear (p. ej. lo escrito en un buscador). */
+  initialValues?: { nombre?: string; rut?: string };
   onClose: () => void;
   onSaved?: (client: Client) => void;
 }
@@ -47,9 +49,12 @@ interface ClientFormState {
   notas: string;
 }
 
-const getInitialState = (client?: Client | null): ClientFormState => ({
-  rut: formatRut(client?.rut ?? ''),
-  nombre: client?.nombre ?? '',
+const getInitialState = (
+  client?: Client | null,
+  initialValues?: { nombre?: string; rut?: string },
+): ClientFormState => ({
+  rut: formatRut(initialValues?.rut ?? client?.rut ?? ''),
+  nombre: initialValues?.nombre ?? client?.nombre ?? '',
   tipo: client?.tipo ?? 'cliente',
   email: client?.email ?? '',
   telefono: client?.telefono ?? '',
@@ -94,8 +99,8 @@ const Field = ({
   </div>
 );
 
-export const ClientFormModal = ({ client, onClose, onSaved }: ClientFormModalProps) => {
-  const [initial] = useState(() => getInitialState(client));
+export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: ClientFormModalProps) => {
+  const [initial] = useState(() => getInitialState(client, initialValues));
   const [form, setForm] = useState(initial);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showAdditional, setShowAdditional] = useState(false);

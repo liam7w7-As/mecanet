@@ -142,7 +142,6 @@ const getContactLine = (value: string | null | undefined, fallback = 'Sin regist
   value && value.trim().length > 0 ? value : fallback;
 
 const DETAIL_STATUS_ORDER: WorkOrderStatus[] = [
-  'borrador',
   'en_progreso',
   'esperando_repuesto',
   'finalizada',

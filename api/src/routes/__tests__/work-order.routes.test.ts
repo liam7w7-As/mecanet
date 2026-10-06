@@ -269,6 +269,16 @@ describe('Work Order Routes (E2E)', () => {
     expect(forbiddenResponse.status).toBe(403);
   });
 
+  it.each([{}, { vehicleId: null }])('no permite dar de alta una OT sin vehículo: %j', async (data) => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const before = await WorkOrder.count();
+    const response = await request(app).post('/api/work-orders')
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ clientId, ...data });
+    expect(response.status).toBe(400);
+    expect(await WorkOrder.count()).toBe(before);
+  });
+
   it('crea órdenes con correlativo secuencial único', async () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
 
@@ -349,6 +359,10 @@ describe('Work Order Routes (E2E)', () => {
         subtotal: 8000,
       }),
     ]);
+
+    expect(response.body.workOrder.estado).toBe('en_progreso');
+    const createdOrder = await WorkOrder.findByPk(response.body.workOrder.id as number);
+    expect(createdOrder?.estado).toBe('en_progreso');
 
     const vehicle = await Vehicle.findByPk(vehicleId);
     expect(vehicle?.kilometraje).toBe(1500);
@@ -775,13 +789,13 @@ describe('Work Order Routes (E2E)', () => {
     expect(response.body.error.message).toBe('No se puede eliminar una orden activa');
   });
 
-  it('aplica soft delete a una OT en borrador', async () => {
+  it('aplica soft delete a una OT cancelada', async () => {
     const devCookies = await loginAs('dev@unithor.local');
     const workOrder = await WorkOrder.create({
       codigo: `OT-${TEST_YEAR}-9002`,
       clientId,
       vehicleId,
-      estado: 'borrador',
+      estado: 'cancelada',
       descripcion: 'OT eliminable fase 41',
     });
 

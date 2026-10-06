@@ -191,14 +191,15 @@ describe('Configuración de la empresa (E2E)', () => {
     expect(current?.razonSocial).toBe('UNITHOR SERVICIOS INTEGRALES SPA');
   });
 
-  it('rechaza un RUT con dígito verificador incorrecto', async () => {
+  it('acepta un RUT aunque el dígito verificador no sea el calculado', async () => {
     const response = await request(app)
       .patch('/api/settings/company')
       .set('Cookie', authCookie(devCookies))
       .set('X-CSRF-Token', devCookies.csrfToken)
       .send({ rut: '77.374.788-9' });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(200);
+    expect(response.body.rut).toBe('773747889');
   });
 
   it('rechaza un payload vacío', async () => {

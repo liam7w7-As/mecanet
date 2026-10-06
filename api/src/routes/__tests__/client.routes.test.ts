@@ -243,7 +243,7 @@ describe('Client Routes (E2E)', () => {
     expect(response.body.items).toContainEqual(expect.objectContaining({ rut: `${TEST_RUT_PREFIX}22` }));
   });
 
-  it('acepta teléfonos regionales y datos opcionales vacíos al crear y editar', async () => {
+  it('guarda el teléfono tal como se ingresa y datos opcionales vacíos al crear y editar', async () => {
     const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const response = await request(app)
       .post('/api/clients')
@@ -257,7 +257,7 @@ describe('Client Routes (E2E)', () => {
         email: `${TEST_EMAIL_PREFIX}regional@unithor.local`,
       });
     expect(response.status).toBe(201);
-    expect(response.body.client).toMatchObject({ rut: null, telefono: '+56552345678' });
+    expect(response.body.client).toMatchObject({ rut: null, telefono: '+56 55 234 5678' });
 
     const updated = await request(app)
       .patch(`/api/clients/${response.body.client.id}`)
@@ -265,20 +265,31 @@ describe('Client Routes (E2E)', () => {
       .set('X-CSRF-Token', cookies.csrfToken)
       .send({ telefono: '56 234 5678' });
     expect(updated.status).toBe(200);
-    expect(updated.body.client.telefono).toBe('+56562345678');
+    expect(updated.body.client.telefono).toBe('56 234 5678');
   });
 
-  it('explica qué campo falla cuando el dígito verificador es incorrecto', async () => {
+  it('acepta un RUN/RUT aunque el dígito verificador no sea el calculado', async () => {
     const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const response = await request(app)
       .post('/api/clients')
       .set('Cookie', authCookie(cookies))
       .set('X-CSRF-Token', cookies.csrfToken)
-      .send({ nombre: 'Cliente Inválido', tipo: 'cliente', rut: '12.345.678-9' });
+      .send({ nombre: 'Cliente Rut Libre', tipo: 'cliente', rut: '12.345.678-9', email: `${TEST_EMAIL_PREFIX}rut-libre@unithor.local` });
+    expect(response.status).toBe(201);
+    expect(response.body.client.rut).toBe('123456789');
+  });
+
+  it('rechaza un RUN/RUT que no son números con dígito verificador o K', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const response = await request(app)
+      .post('/api/clients')
+      .set('Cookie', authCookie(cookies))
+      .set('X-CSRF-Token', cookies.csrfToken)
+      .send({ nombre: 'Cliente Rut Inválido', tipo: 'cliente', rut: 'abcdefghi' });
     expect(response.status).toBe(400);
     expect(response.body.error.details).toContainEqual({
       field: 'rut',
-      message: expect.stringContaining('dígito verificador'),
+      message: expect.stringContaining('RUN/RUT'),
     });
   });
 

@@ -6,11 +6,20 @@ describe('Client identity and contact validation', () => {
         expect(rutSchema.parse(rut)).toBe('123456785');
         expect(formatRut(rut)).toBe('12.345.678-5');
     });
+    it('accepts a RUN/RUT pasted with a typographic dash', () => {
+        expect(rutSchema.parse('12.232.378–8')).toBe('122323788');
+        expect(formatRut('12.232.378–8')).toBe('12.232.378-8');
+        expect(isValidRut('12.232.378–8')).toBe(true);
+    });
     it('accepts a lowercase K without changing the verifier', () => {
         expect(rutSchema.parse('6.000.000-k')).toBe('6000000K');
         expect(formatRut('6000000k')).toBe('6.000.000-K');
     });
-    it.each(['12.345.678-9', '12.345.678', '123456785a', '0-0', '00000000-0', '123456789-0'])('rejects an invalid RUN/RUT %s', (rut) => {
+    it('accepts a RUN/RUT whose verifier is not the computed one', () => {
+        expect(rutSchema.parse('12.232.378-8')).toBe('122323788');
+        expect(rutSchema.parse('12.345.678-9')).toBe('123456789');
+    });
+    it.each(['123456785a', '0-0', '00000000-0', '123456789-0'])('rejects a RUN/RUT without the expected format %s', (rut) => {
         expect(rutSchema.safeParse(rut).success).toBe(false);
         expect(isValidRut(rut)).toBe(false);
     });
@@ -23,19 +32,11 @@ describe('Client identity and contact validation', () => {
             email: '',
         })).toMatchObject({ nombre: 'Ana Pérez', rut: null, telefono: null, email: null });
     });
-    it.each([
-        ['912345678', '+56912345678'],
-        ['+56 9 1234 5678', '+56912345678'],
-        ['2 2345 6789', '+56223456789'],
-        ['(32) 234 5678', '+56322345678'],
-        ['+56 55 234 5678', '+56552345678'],
-        ['56 234 5678', '+56562345678'],
-        ['600123456', '+56600123456'],
-    ])('accepts a mobile or regional number %s', (phone, expected) => {
-        expect(chilePhoneSchema.parse(phone)).toBe(expected);
-        expect(chilePhoneSchema.parse(expected)).toBe(expected);
+    it.each(['912345678', '+56 9 1234 5678', '+51 912345678', 'anexo 1234', 'abcdefghi'])('stores the phone exactly as entered: %s', (phone) => {
+        expect(chilePhoneSchema.parse(phone)).toBe(phone);
     });
-    it.each(['12345', '91234567', '+51 912345678', '+912345678', '9+12345678', 'abcdefghi'])('rejects an invalid phone %s', (phone) => {
-        expect(chilePhoneSchema.safeParse(phone).success).toBe(false);
+    it('turns blank phones into null and rejects values longer than 30 characters', () => {
+        expect(chilePhoneSchema.parse('  ')).toBe(null);
+        expect(chilePhoneSchema.safeParse('9'.repeat(31)).success).toBe(false);
     });
 });

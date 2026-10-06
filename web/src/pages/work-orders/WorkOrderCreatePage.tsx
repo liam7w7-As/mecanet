@@ -1,5 +1,6 @@
 import {
   createWorkOrderSchema,
+  convertQuotationToWorkOrderSchema,
   FUEL_LEVELS,
   TIRE_CONDITIONS,
   UNIT_MEASURE_LABELS,
@@ -25,7 +26,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { AnimateIcon } from '../../components/animate-ui';
 import ClientFormModal from '../../components/clients/ClientFormModal';
@@ -34,6 +35,7 @@ import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
 import WorkOrderItemsEditor from '../../components/work-orders/WorkOrderItemsEditor';
 import { useClient, useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useConvertToWorkOrderMutation, useQuotation } from '../../hooks/useQuotations';
 import { useVehicle } from '../../hooks/useVehicles';
 import {
   useCreateWorkOrderMutation,
@@ -42,11 +44,13 @@ import {
 } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { formatClp } from '../../lib/formatters';
 import {
   INSPECTION_PHOTO_ACCEPT,
   MAX_INSPECTION_PHOTO_MB,
   validateInspectionFile,
 } from '../../lib/inspection-photos';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
@@ -316,16 +320,25 @@ const ClientSearchPicker = ({
 export const WorkOrderCreatePage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { quotationId: quotationIdParam } = useParams();
+  const quotationId = Number(quotationIdParam);
+  const isConversion = quotationIdParam !== undefined;
+  const quotationQuery = useQuotation(quotationId);
+  const conversionMutation = useConvertToWorkOrderMutation();
   const requestedVehicleId = Number(searchParams.get('vehicleId'));
   const requestedClientId = Number(searchParams.get('clientId'));
   const preselectedClientId =
-    Number.isInteger(requestedClientId) && requestedClientId > 0 ? requestedClientId : null;
+    isConversion ? quotationQuery.data?.clientId ?? null :
+      Number.isInteger(requestedClientId) && requestedClientId > 0 ? requestedClientId : null;
   const preselectedVehicleId =
-    Number.isInteger(requestedVehicleId) && requestedVehicleId > 0 ? requestedVehicleId : null;
+    isConversion ? quotationQuery.data?.vehicleId ?? null :
+      Number.isInteger(requestedVehicleId) && requestedVehicleId > 0 ? requestedVehicleId : null;
   const createMutation = useCreateWorkOrderMutation();
   const uploadPhotosMutation = useUploadWorkOrderInspectionPhotosMutation();
   const user = useAuthStore((state) => state.user);
   const canAssignMechanic = Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role));
+  const canUploadPhotos = Boolean(user && hasUserPermission(user, 'taller', 'update'));
+  const canReadWorkOrders = Boolean(user && hasUserPermission(user, 'taller', 'read'));
   const mechanicsQuery = useMechanics(canAssignMechanic);
   const [assignedMechanicId, setAssignedMechanicId] = useState<number | null>(null);
   const [activeStep, setActiveStep] = useState<StepIndex>(0);
@@ -355,11 +368,14 @@ export const WorkOrderCreatePage = () => {
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const prefillApplied = useRef(false);
+  const submissionInFlight = useRef(false);
   const preselectedVehicleQuery = useVehicle(preselectedVehicleId);
   const initialClientId = preselectedClientId ?? preselectedVehicleQuery.data?.clientId ?? null;
   const preselectedClientQuery = useClient(initialClientId);
 
-  const isSubmitting = createMutation.isPending || uploadPhotosMutation.isPending;
+  const isSubmitting = createMutation.isPending || conversionMutation.isPending || uploadPhotosMutation.isPending;
+  const submissionError = isConversion ? conversionMutation.error : createMutation.error;
+  const returnPath = isConversion ? `/quotations/${quotationId}` : '/work-orders';
   const vehicleOwnerIsDifferent = Boolean(
     client && vehicle?.client && vehicle.client.id !== client.id,
   );
@@ -382,8 +398,9 @@ export const WorkOrderCreatePage = () => {
   };
 
   useEffect(() => {
-    if (prefillApplied.current || (preselectedClientId === null && preselectedVehicleId === null))
+    if (prefillApplied.current || (!isConversion && preselectedClientId === null && preselectedVehicleId === null))
       return;
+    if (isConversion && !quotationQuery.data) return;
     if (preselectedVehicleId !== null && preselectedVehicleQuery.isPending) return;
     if (initialClientId !== null && preselectedClientQuery.isPending) return;
     const selectedVehicle = preselectedVehicleQuery.data;
@@ -402,8 +419,27 @@ export const WorkOrderCreatePage = () => {
         setKilometrajeIngreso(String(selectedVehicle.kilometraje));
       }
     }
+    if (isConversion && quotationQuery.data) {
+      setDescripcion(quotationQuery.data.notas ?? '');
+      setItems((quotationQuery.data.items ?? []).map((item) => ({
+        key: `quotation-item-${item.id}`,
+        catalogItemId: item.catalogItemId,
+        catalogTipo: item.tipoLinea,
+        catalogStock: null,
+        descripcion: item.descripcion,
+        tipoLinea: item.tipoLinea,
+        unidadMedida: item.unidadMedida,
+        cantidad: String(item.cantidad),
+        precioUnitario: String(item.precioUnitario),
+        estadoOperativo: item.estadoOperativo,
+        notasOperativas: item.notasOperativas ?? '',
+      })));
+      setActiveStep(selectedResponsible ? 2 : 0);
+    }
     prefillApplied.current = true;
   }, [
+    isConversion,
+    quotationQuery.data,
     initialClientId,
     preselectedClientId,
     preselectedVehicleId,
@@ -427,6 +463,7 @@ export const WorkOrderCreatePage = () => {
   };
 
   const selectVehicle = (selectedVehicle: QuickSearchVehicle): void => {
+    if (vehicle?.id !== selectedVehicle.id) setKilometrajeIngreso('');
     setVehicle(selectedVehicle);
     setErrors((current) => {
       const next = { ...current };
@@ -492,9 +529,15 @@ export const WorkOrderCreatePage = () => {
   };
 
   const goToStep = (nextStep: StepIndex): void => {
-    if (nextStep <= activeStep || validateStep(activeStep)) {
-      setActiveStep(nextStep);
+    if (nextStep > activeStep) {
+      for (const step of steps.filter((step) => step.id < nextStep)) {
+        if (!validateStep(step.id)) {
+          setActiveStep(step.id);
+          return;
+        }
+      }
     }
+    setActiveStep(nextStep);
   };
 
   const goNext = (): void => {
@@ -550,7 +593,7 @@ export const WorkOrderCreatePage = () => {
 
   const handleOpenConfirm = (): void => {
     if (createdOrderId) {
-      navigate(`/work-orders/${createdOrderId}`);
+      navigate(isConversion && !canReadWorkOrders ? returnPath : `/work-orders/${createdOrderId}`);
       return;
     }
     // Validar pasos base antes de mostrar el resumen
@@ -570,6 +613,7 @@ export const WorkOrderCreatePage = () => {
   };
 
   const handleConfirmCreate = (): void => {
+    if (submissionInFlight.current || createdOrderId) return;
     const result = buildPayload();
     if (!result.success) {
       setErrors(getFieldErrors(result.error.issues));
@@ -579,10 +623,17 @@ export const WorkOrderCreatePage = () => {
 
     setErrors({});
     createMutation.reset();
+    conversionMutation.reset();
     uploadPhotosMutation.reset();
+    submissionInFlight.current = true;
     void (async () => {
       try {
-        const workOrder = await createMutation.mutateAsync(result.data);
+        const workOrder = isConversion
+          ? (await conversionMutation.mutateAsync({
+              id: quotationId,
+              data: convertQuotationToWorkOrderSchema.strip().parse(result.data),
+            })).workOrder
+          : await createMutation.mutateAsync(result.data);
         setCreatedOrderId(workOrder.id);
         if (photos.length > 0) {
           await uploadPhotosMutation.mutateAsync({
@@ -592,9 +643,11 @@ export const WorkOrderCreatePage = () => {
         }
         notifySuccess(`Orden ${workOrder.codigo} creada.`);
         setShowConfirm(false);
-        navigate(`/work-orders/${workOrder.id}`);
+        navigate(isConversion && !canReadWorkOrders ? returnPath : `/work-orders/${workOrder.id}`);
       } catch (error) {
         notifyError(getApiErrorMessage(error, 'No fue posible crear la orden.'));
+      } finally {
+        submissionInFlight.current = false;
       }
     })();
   };
@@ -605,14 +658,26 @@ export const WorkOrderCreatePage = () => {
     handleOpenConfirm();
   };
 
+  if (isConversion && Number.isInteger(quotationId) && quotationId > 0 && (quotationQuery.isPending ||
+    (initialClientId !== null && preselectedClientQuery.isPending) ||
+    (preselectedVehicleId !== null && preselectedVehicleQuery.isPending))) {
+    return <div role="status" className="flex items-center gap-2 p-6 text-brand-muted"><LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />Cargando cotización...</div>;
+  }
+  if (isConversion && (!Number.isInteger(quotationId) || quotationId <= 0 || quotationQuery.isError ||
+    !quotationQuery.data || quotationQuery.data.workOrderId !== null || quotationQuery.data.archivedAt)) {
+    return <section className="space-y-4 p-6"><p role="alert" className="text-brand-coralInk">
+      {quotationQuery.data?.workOrderId ? 'Esta cotización ya tiene una OT vinculada.' : quotationQuery.data?.archivedAt ? 'La cotización está archivada.' : 'No se pudo cargar la cotización para recepción.'}
+    </p><Link to="/quotations" className="font-semibold text-brand-primaryInk">Volver a cotizaciones</Link></section>;
+  }
+
   return (
     <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-3">
           <Link
-            to="/work-orders"
+            to={returnPath}
             className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:bg-brand-pale"
-            aria-label="Volver a órdenes"
+            aria-label={isConversion ? 'Volver a cotización' : 'Volver a órdenes'}
             title="Volver"
           >
             <AnimateIcon variant="slide-left" animateOnHover>
@@ -622,7 +687,7 @@ export const WorkOrderCreatePage = () => {
           <div>
             <p className="text-sm font-medium text-brand-muted">Recepción de taller</p>
             <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">
-              Nueva Orden de Trabajo
+              {isConversion ? `Recepción de ${quotationQuery.data?.codigo}` : 'Nueva Orden de Trabajo'}
             </h1>
           </div>
         </div>
@@ -1103,7 +1168,7 @@ export const WorkOrderCreatePage = () => {
                             <span className="text-[11px] font-normal text-brand-muted">
                               JPG, PNG o WebP · máx {MAX_INSPECTION_PHOTO_MB} MB
                             </span>
-                            <span className="flex gap-2">
+                            {canUploadPhotos ? <span className="flex gap-2">
                               <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-brand-primaryInk bg-white px-3 text-xs font-bold text-brand-primaryInk hover:bg-brand-line/40">
                                 Elegir archivo
                                 <input
@@ -1131,7 +1196,7 @@ export const WorkOrderCreatePage = () => {
                                   aria-label={`Usar cámara ${photoSlotLabels[slot]}`}
                                 />
                               </label>
-                            </span>
+                            </span> : <span className="text-xs text-brand-muted">Sin permiso para adjuntar fotografías</span>}
                           </div>
                         )}
                       </div>
@@ -1189,29 +1254,41 @@ export const WorkOrderCreatePage = () => {
 
           {activeStep === 4 && (
             <div className="space-y-4">
-              <div className="rounded-lg border border-brand-primaryInk/20 bg-brand-line/60 px-4 py-3">
+              {!isConversion && <div className="rounded-lg border border-brand-primaryInk/20 bg-brand-line/60 px-4 py-3">
                 <p className="text-sm font-semibold text-brand-primaryInk">
                   Agregue los trabajos a realizar y repuestos necesarios. Puede dejar esta sección
                   vacía si el diagnóstico está pendiente.
                 </p>
-              </div>
-              <WorkOrderItemsEditor
+              </div>}
+              {isConversion ? (
+                <section aria-label="Servicios de la cotización" className="min-w-0 space-y-3">
+                  <h2 className="font-semibold text-brand-primaryInk">Servicios y repuestos de {quotationQuery.data?.codigo}</h2>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-brand-line text-brand-muted"><tr><th className="p-3">Descripción</th><th className="p-3 text-right">Cantidad</th><th className="p-3 text-right">Precio</th><th className="p-3 text-right">Subtotal</th></tr></thead>
+                      <tbody>{items.map((item) => <tr key={item.key} className="border-b border-brand-line"><td className="p-3">{item.descripcion}</td><td className="p-3 text-right">{item.cantidad}</td><td className="whitespace-nowrap p-3 text-right">{formatClp(Number(item.precioUnitario))}</td><td className="whitespace-nowrap p-3 text-right">{formatClp(Number(item.cantidad) * Number(item.precioUnitario))}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                  {items.length === 0 && <p className="text-sm text-brand-muted">Sin servicios ni repuestos cotizados.</p>}
+                  <p className="text-right font-bold text-brand-primaryInk">Total cotizado: {formatClp(quotationQuery.data?.total ?? 0)}</p>
+                </section>
+              ) : <WorkOrderItemsEditor
                 items={items}
                 onChange={setItems}
                 errors={errors}
                 showExecution={false}
-              />
+              />}
             </div>
           )}
         </motion.div>
 
-        {createMutation.isError && (
+        {submissionError && (
           <div
             className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk"
             role="alert"
           >
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {getApiErrorMessage(createMutation.error, 'No fue posible crear la orden.')}
+            {getApiErrorMessage(submissionError, 'No fue posible crear la orden.')}
           </div>
         )}
 
@@ -1227,7 +1304,7 @@ export const WorkOrderCreatePage = () => {
 
         <footer className="flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Link
-            to="/work-orders"
+            to={returnPath}
             className="inline-flex h-10 items-center justify-center rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
           >
             Cancelar
@@ -1288,6 +1365,7 @@ export const WorkOrderCreatePage = () => {
           onClose={() => setVehicleModalOpen(false)}
           onSaved={(savedVehicle) => {
             setVehicle(toQuickVehicle(savedVehicle, client));
+            setKilometrajeIngreso(savedVehicle.kilometraje === null ? '' : String(savedVehicle.kilometraje));
             setVehicleModalOpen(false);
           }}
         />
@@ -1406,9 +1484,9 @@ export const WorkOrderCreatePage = () => {
               </div>
             </div>
 
-            {createMutation.isError && (
+            {submissionError && (
               <p className="mt-3 text-sm text-brand-coralInk" role="alert">
-                {getApiErrorMessage(createMutation.error, 'No fue posible crear la orden.')}
+                {getApiErrorMessage(submissionError, 'No fue posible crear la orden.')}
               </p>
             )}
 

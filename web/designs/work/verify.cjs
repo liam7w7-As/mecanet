@@ -10,7 +10,7 @@ const {chromium}=require('./playwright.cjs');
   await page.goto(pathToFileURL(path.resolve('outputs/modernize.html')).href);
   await page.evaluate(()=>document.fonts.ready);
   await page.screenshot({path:'work/desktop.png',fullPage:true});
-  const desktop=await page.evaluate(()=>({font:document.fonts.check('14px "Plus Jakarta Sans"'),width:innerWidth,scrollWidth:document.documentElement.scrollWidth,images:[...document.images].filter(i=>!i.complete||!i.naturalWidth).map(i=>i.alt),stats:document.querySelector('.stats').getBoundingClientRect().toJSON(),revenue:document.querySelector('.revenue').getBoundingClientRect().toJSON(),icons:document.querySelectorAll('[data-lucide]').length}));
+  const desktop=await page.evaluate(()=>({font:document.fonts.check('14px "Poppins"'),width:innerWidth,scrollWidth:document.documentElement.scrollWidth,images:[...document.images].filter(i=>!i.complete||!i.naturalWidth).map(i=>i.alt),stats:document.querySelector('.stats').getBoundingClientRect().toJSON(),revenue:document.querySelector('.revenue').getBoundingClientRect().toJSON(),icons:document.querySelectorAll('[data-lucide]').length}));
   await page.locator('#theme-toggle').click();
   if(!await page.locator('body').evaluate(e=>e.classList.contains('dark')))throw Error('Dark mode failed');
   await page.locator('#theme-toggle').click();

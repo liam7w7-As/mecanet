@@ -1,9 +1,7 @@
 import { z } from 'zod';
 
 import { paginationSchema } from './pagination.schema.js';
-import { isValidRut, normalizeRut } from '../utils/rut.js';
-
-const phoneRegex = /^\+?[\d\s().-]+$/;
+import { normalizeRut } from '../utils/rut.js';
 
 const optionalString = (maxLength: number) =>
   z
@@ -14,12 +12,28 @@ const optionalString = (maxLength: number) =>
     .nullable()
     .optional();
 
+// No se valida el dígito verificador (módulo 11): exigirlo bloqueaba RUT/RUN
+// reales y forzaba a los usuarios a no registrar clientes. Solo se exige el
+// formato: números con dígito verificador o K, con o sin puntos y guion.
 export const rutSchema = z
   .string()
   .trim()
-  .refine((value) => value === '' || isValidRut(value), {
-    message: 'Revisa el RUN/RUT completo y su dígito verificador (último número o K)',
-  })
+  .refine(
+    (value) => {
+      if (value === '') {
+        return true;
+      }
+
+      const normalized = normalizeRut(value);
+      if (!/^\d{1,8}[\dK]$/.test(normalized)) {
+        return false;
+      }
+      return Number(normalized.slice(0, -1)) > 0;
+    },
+    {
+      message: 'Ingresa el RUN/RUT completo, con números y su último dígito o K (ej: 12.345.678-5)',
+    },
+  )
   .transform((value) => {
     const normalized = normalizeRut(value);
     return normalized === '' ? null : normalized;
@@ -27,40 +41,14 @@ export const rutSchema = z
   .nullable()
   .optional();
 
+// Se acepta cualquier formato de teléfono (celular, fijo, internacional,
+// anexos): la validación estricta de 9 dígitos chilenos bloqueaba registros
+// válidos y el dato solo se usa para contacto/impresión.
 export const chilePhoneSchema = z
   .string()
   .trim()
   .max(30, 'Máximo 30 caracteres')
-  .refine(
-    (value) => {
-      if (value === '') {
-        return true;
-      }
-
-      if (!phoneRegex.test(value)) {
-        return false;
-      }
-
-      const digits = value.replace(/\D/g, '');
-      const hasCountryCode = digits.length === 11 && digits.startsWith('56');
-      if (value.startsWith('+') && !hasCountryCode) return false;
-      const nationalNumber = hasCountryCode ? digits.slice(2) : digits;
-      return /^[2-9]\d{8}$/.test(nationalNumber);
-    },
-    {
-      message: 'Ingresa 9 dígitos, con o sin +56; incluye el código de área si es teléfono fijo',
-    },
-  )
-  .transform((value) => {
-    if (value === '') {
-      return null;
-    }
-
-    const digits = value.replace(/\D/g, '');
-    const nationalNumber =
-      digits.length === 11 && digits.startsWith('56') ? digits.slice(2) : digits;
-    return `+56${nationalNumber}`;
-  })
+  .transform((value) => (value === '' ? null : value))
   .nullable()
   .optional();
 

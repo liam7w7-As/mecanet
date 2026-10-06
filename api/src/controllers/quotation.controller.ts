@@ -95,3 +95,10 @@ export const archiveQuotationHandler = asyncHandler(
     res.status(200).json({ quotation });
   },
 );
+
+export const unarchiveQuotationHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const quotation = await quotationService.unarchiveQuotation(getParamId(req));
+    res.status(200).json({ quotation });
+  },
+);

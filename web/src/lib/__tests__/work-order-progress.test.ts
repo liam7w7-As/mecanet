@@ -51,7 +51,7 @@ describe('getWorkOrderProgress', () => {
   });
 
   it('diagnóstico neutral sin tareas', () => {
-    const progress = getWorkOrderProgress({ estado: 'borrador', items: [] } as Pick<WorkOrder, 'estado' | 'items'>);
+    const progress = getWorkOrderProgress({ estado: 'en_progreso', items: [] } as Pick<WorkOrder, 'estado' | 'items'>);
     expect(progress.tier).toBe('neutral');
   });
 });

@@ -1,7 +1,7 @@
 import { WORK_ORDER_STATUS, isValidWorkOrderTransition } from '@unithor/shared';
-import RevertStatusModal from '../../components/work-orders/RevertStatusModal';
 import {
   AlertCircle,
+  CalendarDays,
   ClipboardList,
   Download,
   Eye,
@@ -14,13 +14,15 @@ import {
   UserRound,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { AnimateIcon, AnimatedCard, Stagger, StaggerItem } from '../../components/animate-ui';
+import DatePicker from '../../components/common/DatePicker';
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
+import RevertStatusModal from '../../components/work-orders/RevertStatusModal';
 import WorkOrderDeliveryModal from '../../components/work-orders/WorkOrderDeliveryModal';
 import WorkOrderQuickDetailModal from '../../components/work-orders/WorkOrderQuickDetailModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
@@ -46,11 +48,37 @@ import type { WorkOrder } from '../../types/entities';
 import type { WorkOrderStatus } from '@unithor/shared';
 
 type StatusFilter = WorkOrderStatus | 'all';
+type DateFilter = 'all' | '3_days' | '15_days' | 'month' | 'date';
+
+const getDateRange = (period: DateFilter, month: string, date: string, now: number) => {
+  if (period === 'all' || (period === 'month' && !month)) return {};
+  if (period === 'date') return date ? { fechaDesde: date, fechaHasta: date } : {};
+  if (period === 'month') {
+    const [year, monthNumber] = month.split('-').map(Number);
+    return {
+      fechaDesde: `${month}-01`,
+      fechaHasta: new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10),
+    };
+  }
+  const end = new Date(now);
+  const start = new Date(now);
+  start.setUTCDate(start.getUTCDate() - (period === '3_days' ? 2 : 14));
+  return {
+    fechaDesde: start.toISOString().slice(0, 10),
+    fechaHasta: end.toISOString().slice(0, 10),
+  };
+};
+
+const DATE_FILTERS: Array<{ value: Exclude<DateFilter, 'date'>; label: string }> = [
+  { value: 'all', label: 'Todas las fechas' },
+  { value: '3_days', label: '3 días' },
+  { value: '15_days', label: '15 días' },
+  { value: 'month', label: 'Por mes' },
+];
 
 const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
   { value: 'all', label: 'Todas' },
-  { value: 'borrador', label: 'Borrador' },
-  { value: 'en_progreso', label: 'En progreso' },
+  { value: 'en_progreso', label: WORK_ORDER_STATUS_LABELS.en_progreso },
   { value: 'esperando_repuesto', label: 'Esperando repuesto' },
   { value: 'finalizada', label: 'Finalizadas' },
   { value: 'entregada', label: 'Entregadas' },
@@ -102,7 +130,6 @@ interface PendingRevert {
 
 // Status progression order for regression detection
 const STATUS_ORDER: WorkOrderStatus[] = [
-  'borrador',
   'en_progreso',
   'esperando_repuesto',
   'finalizada',
@@ -398,6 +425,9 @@ const WorkOrderCard = ({
 export const WorkOrdersPage = () => {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
+  const [period, setPeriod] = useState<DateFilter>('all');
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [selectedDate, setSelectedDate] = useState('');
   const [page, setPage] = useState(1);
   const [pendingCancellation, setPendingCancellation] = useState<PendingCancellation | null>(null);
   const [pendingRevert, setPendingRevert] = useState<PendingRevert | null>(null);
@@ -409,11 +439,14 @@ export const WorkOrdersPage = () => {
   const user = useAuthStore((state) => state.user);
   const isAdmin = Boolean(user && ['desarrollador', 'admin'].includes(user.role));
   const now = useNow();
+  const { fechaDesde, fechaHasta } = getDateRange(period, selectedMonth, selectedDate, now);
   const workOrdersQuery = useWorkOrders({
     page,
     pageSize: 12,
     search: debouncedSearch || undefined,
     estado: status === 'all' ? undefined : status,
+    fechaDesde,
+    fechaHasta,
   });
   const statusMutation = useChangeWorkOrderStatusMutation();
   // Detalle completo para la vista previa: el diseño necesita
@@ -424,7 +457,7 @@ export const WorkOrdersPage = () => {
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
   const canManage = Boolean(canUpdate && user?.role !== 'mecanico');
 
-  useEffect(() => setPage(1), [debouncedSearch, status]);
+  useEffect(() => setPage(1), [debouncedSearch, status, fechaDesde, fechaHasta]);
 
   const changeStatus = (workOrder: WorkOrder, nuevoEstado: WorkOrderStatus): void => {
     statusMutation.reset();
@@ -470,7 +503,7 @@ export const WorkOrdersPage = () => {
 
       <section className="overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm" aria-label="Listado de órdenes de trabajo">
         <div className="border-b border-brand-line p-4">
-          <div className="relative max-w-xl">
+          <div className="relative min-w-0">
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-10 w-full rounded-lg border border-brand-line pl-9 pr-3 text-sm outline-none transition-shadow focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" placeholder="Buscar código OT, patente o cliente" aria-label="Buscar órdenes de trabajo" />
           </div>
@@ -499,6 +532,55 @@ export const WorkOrdersPage = () => {
                 </button>
               );
             })}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-brand-line pt-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-muted">
+              <CalendarDays className="h-4 w-4" aria-hidden="true" />
+              Ingreso
+            </span>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por fecha de ingreso">
+              {DATE_FILTERS.map((filter) => {
+                const isSelected = period === filter.value;
+                return (
+                  <button
+                    key={filter.value}
+                    type="button"
+                    aria-pressed={isSelected}
+                    className={`relative min-h-9 whitespace-nowrap rounded-lg px-3 text-sm font-semibold transition-colors ${
+                      isSelected ? 'text-white' : 'bg-brand-pale text-brand-muted hover:bg-brand-line'
+                    }`}
+                    onClick={() => { setPage(1); setSelectedDate(''); setPeriod(filter.value); }}
+                  >
+                    {isSelected && (
+                      <motion.span
+                        layoutId="workOrdersDatePill"
+                        className="absolute inset-0 rounded-lg bg-brand-primaryInk"
+                        transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                      />
+                    )}
+                    <span className="relative z-10">{filter.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {period === 'month' && (
+              <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold text-brand-muted">
+                Mes de ingreso
+                <input type="month" value={selectedMonth} onChange={(event) => { setPage(1); setSelectedMonth(event.target.value); }} className="h-9 w-44 min-w-0 rounded-lg border border-brand-line bg-white px-2 text-sm font-normal text-brand-ink outline-none focus:border-brand-primary" />
+              </label>
+            )}
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold text-brand-muted">
+              <span>Fecha específica</span>
+              <DatePicker
+                label="Fecha específica"
+                value={selectedDate}
+                onChange={(date) => {
+                  setPage(1);
+                  setSelectedDate(date);
+                  setPeriod(date ? 'date' : 'all');
+                }}
+              />
+            </div>
           </div>
         </div>
 

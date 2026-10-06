@@ -86,6 +86,17 @@ export const App = () => (
           }
         />
         <Route
+          path="/quotations/:quotationId/convert-to-ot"
+          element={
+            <ProtectedRoute requiredAnyPermission={[
+              { modulo: 'comercial', accion: 'update' },
+              { modulo: 'taller', accion: 'create' },
+            ]}>
+              <WorkOrderCreatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/quotations/:id"
           element={
             <ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }]}>

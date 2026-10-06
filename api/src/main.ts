@@ -11,6 +11,7 @@ import helmet from 'helmet';
 import { sequelize } from './config/database.js';
 import { env } from './config/env.js';
 import { ensureDatabaseBootstrapped } from './database/bootstrap.js';
+import { up as ensureStartedWorkOrders } from './database/migrations/039-start-work-orders-without-draft.js';
 import { csrfProtection } from './middlewares/csrf-protection.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
@@ -173,6 +174,7 @@ if (env.NODE_ENV !== 'test') {
     .authenticate()
     .then(async () => {
       logger.info('Conexión a base de datos MySQL establecida correctamente.');
+      await ensureStartedWorkOrders(sequelize.getQueryInterface());
       try {
         await sequelize.sync({ alter: true });
         logger.info('Modelos sincronizados con la base de datos (alter: true).');

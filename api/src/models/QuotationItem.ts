@@ -1,4 +1,4 @@
-import { ITEM_OPERATIONAL_STATUS, type CatalogType, type ItemOperationalStatus, type UnitMeasure } from '@unithor/shared';
+import { ITEM_OPERATIONAL_STATUS, type CatalogType, type ItemOperationalStatus, type UnitMeasure, type DiscountType } from '@unithor/shared';
 import {
   AutoIncrement,
   BelongsTo,
@@ -89,6 +89,12 @@ export class QuotationItem extends Model<
     defaultValue: 0,
   })
   declare subtotal: CreationOptional<number>;
+
+  @Column({ type: DataType.STRING(15), allowNull: true })
+  declare descuentoTipo: CreationOptional<DiscountType | null>;
+
+  @Column({ type: DataType.DECIMAL(12, 2), allowNull: false, defaultValue: 0 })
+  declare descuentoValor: CreationOptional<number>;
 
   @Column({
     type: DataType.ENUM(...ITEM_OPERATIONAL_STATUS),

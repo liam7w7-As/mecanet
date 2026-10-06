@@ -652,6 +652,26 @@ describe('Quotation Routes (E2E)', () => {
     expect((await request(app).patch('/api/quotations/999999/archive').set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)).status).toBe(404);
   });
 
+  it('desarchiva una cotización manual y es idempotente si ya está activa', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const denied = await loginAs(`${TEST_EMAIL_PREFIX}bodeguero@unithor.local`);
+    const quotation = await Quotation.create({ codigo: `COT-${TEST_YEAR}-9504`, clientId, total: 1000 });
+    const url = `/api/quotations/${quotation.id}/unarchive`;
+    expect((await request(app).patch(url).set('Cookie', [`csrf_token=${cookies.csrfToken}`]).set('X-CSRF-Token', cookies.csrfToken)).status).toBe(401);
+    expect((await request(app).patch(url).set('Cookie', authCookie(denied)).set('X-CSRF-Token', denied.csrfToken)).status).toBe(403);
+    expect((await request(app).patch('/api/quotations/999999/unarchive').set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)).status).toBe(404);
+    const idle = await request(app).patch(url).set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken);
+    expect(idle.status).toBe(200);
+    expect(idle.body.quotation.archivedAt).toBeNull();
+    await quotation.update({ archivedAt: new Date() });
+    const response = await request(app).patch(url).set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken);
+    expect(response.status).toBe(200);
+    expect(response.body.quotation.archivedAt).toBeNull();
+    expect((await quotation.reload()).archivedAt).toBeNull();
+    const active = await request(app).get('/api/quotations').query({ search: quotation.codigo, archiveStatus: 'active' }).set('Cookie', authCookie(cookies));
+    expect(active.body.items.map((item: { id: number }) => item.id)).toEqual([quotation.id]);
+  });
+
   it('rechaza fechas invertidas y permite asociar un vehículo con otro responsable', async () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const invalidDates = await request(app)
@@ -746,6 +766,73 @@ describe('Quotation Routes (E2E)', () => {
     expect(response.body.error.message).toBe(
       'No se puede eliminar una cotización con pagos registrados',
     );
+  });
+
+  it('guarda condiciones y descuentos por línea y general con totales exactos', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const response = await request(app).post('/api/quotations')
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ clientId, formaPago: 'transferencia', disponibilidadTrabajo: 'En 48 horas', validezDias: 10,
+        descuentoTipo: 'porcentaje', descuentoValor: 5,
+        items: [
+          { descripcion: 'Servicio con descuento', cantidad: 2, precioUnitario: 10000, descuentoTipo: 'porcentaje', descuentoValor: 10 },
+          { descripcion: 'Repuesto con descuento', tipoLinea: 'parte', cantidad: 1, precioUnitario: 5000, descuentoTipo: 'fijo', descuentoValor: 1000 },
+        ],
+      });
+    expect(response.status).toBe(201);
+    expect(response.body.quotation).toMatchObject({ subtotal: 25000, total: 20900, validezDias: 10, formaPago: 'transferencia', disponibilidadTrabajo: 'En 48 horas' });
+    expect(response.body.quotation.items).toMatchObject([{ subtotal: 18000, descuentoValor: 10 }, { subtotal: 4000, descuentoValor: 1000 }]);
+    const quotationId = response.body.quotation.id as number;
+    const stored = await Quotation.findByPk(quotationId);
+    expect(Number(stored?.total)).toBe(20900);
+    const fixed = await request(app).patch(`/api/quotations/${quotationId}`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ descuentoTipo: 'fijo', descuentoValor: 2000 });
+    expect(fixed.status).toBe(200);
+    expect(fixed.body.quotation.total).toBe(20000);
+    // Older operational editors don't include commercial fields in their item payload.
+    const operational = await request(app).patch(`/api/quotations/${quotationId}`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ items: [
+        { descripcion: 'Servicio con descuento', cantidad: 2, precioUnitario: 10000, estadoOperativo: 'completado' },
+        { descripcion: 'Repuesto con descuento', tipoLinea: 'parte', cantidad: 1, precioUnitario: 5000 },
+      ] });
+    expect(operational.status).toBe(200);
+    expect(operational.body.quotation.total).toBe(20000);
+    expect(operational.body.quotation.items[0].descuentoValor).toBe(10);
+  });
+
+  it('rechaza descuentos excesivos y no deja un total inferior al monto abonado', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const quotation = await Quotation.create({ codigo: 'COT-DISCOUNT-LIMIT', clientId, subtotal: 10000, total: 10000, pagado: 8000, estadoPago: 'parcial' });
+    await QuotationItem.create({ quotationId: quotation.id, descripcion: 'Servicio probado', cantidad: 1, precioUnitario: 10000, subtotal: 10000 });
+    for (const data of [
+      { descuentoTipo: 'fijo', descuentoValor: 10001 },
+      { descuentoTipo: 'porcentaje', descuentoValor: 101 },
+      { descuentoTipo: 'fijo', descuentoValor: 3000 },
+    ]) {
+      const response = await request(app).patch(`/api/quotations/${quotation.id}`)
+        .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken).send(data);
+      expect(response.status).toBe(400);
+      expect(Number((await quotation.reload()).total)).toBe(10000);
+    }
+    await quotation.update({ pagado: 10000, estadoPago: 'total' });
+    const paidResponse = await request(app).patch(`/api/quotations/${quotation.id}`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ descuentoTipo: 'porcentaje', descuentoValor: 10 });
+    expect(paidResponse.status).toBe(400);
+  });
+
+  it('archiva automáticamente según la vigencia individual, no siempre a los cinco días', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const createdAt = new Date(Date.now() - 6 * 86400000);
+    const active = await Quotation.create({ codigo: 'COT-VALIDITY-10', clientId, validezDias: 10, createdAt });
+    const expired = await Quotation.create({ codigo: 'COT-VALIDITY-3', clientId, validezDias: 3, createdAt });
+    const response = await request(app).get('/api/quotations?archiveStatus=archived&search=COT-VALIDITY').set('Cookie', authCookie(cookies));
+    expect(response.status).toBe(200);
+    expect(response.body.items.map((item: { id: number }) => item.id)).toEqual([expired.id]);
+    const visible = await request(app).get('/api/quotations?archiveStatus=active&search=COT-VALIDITY').set('Cookie', authCookie(cookies));
+    expect(visible.body.items.map((item: { id: number }) => item.id)).toEqual([active.id]);
   });
 
   it('aplica soft delete a cotización sin pagos', async () => {

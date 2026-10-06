@@ -273,7 +273,7 @@ describe('Work Order PDF Routes (E2E)', () => {
       codigo: `${TEST_CODE_PREFIX}02`,
       clientId,
       vehicleId,
-      estado: 'borrador',
+      estado: 'en_progreso',
       descripcion: 'Diagnóstico inicial pendiente de aprobación.',
       fechaIngreso: new Date('2026-01-11T12:00:00.000Z'),
       createdBy: devUserId,

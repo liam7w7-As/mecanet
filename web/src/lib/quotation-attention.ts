@@ -21,11 +21,12 @@ export const getQuotationAttention = (quotation: Quotation, now = Date.now()): Q
   );
   if (!Number.isFinite(latestActivity)) return null;
   const days = Math.max(0, Math.floor((now - latestActivity) / 86_400_000));
+  const validity = quotation.validezDias ?? QUOTATION_ARCHIVE_DAYS;
 
   if (quotation.workOrderId !== null) {
     return days >= QUOTATION_LINKED_WARNING_DAYS ? { kind: 'linked', days } : null;
   }
-  if (quotation.estadoPago === 'por_pagar' && Number(quotation.pagado) === 0 && days >= QUOTATION_UNLINKED_FADING_DAYS && days < QUOTATION_ARCHIVE_DAYS) {
+  if (quotation.estadoPago === 'por_pagar' && Number(quotation.pagado) === 0 && days >= Math.max(0, validity - (QUOTATION_ARCHIVE_DAYS - QUOTATION_UNLINKED_FADING_DAYS)) && days < validity) {
     return { kind: 'fading', days };
   }
   return days >= QUOTATION_UNLINKED_WARNING_DAYS ? { kind: 'unlinked', days } : null;

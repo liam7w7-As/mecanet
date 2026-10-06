@@ -76,7 +76,7 @@ const startStaticServer = () =>
 
     // 1. La fuente debe estar disponible y realmente aplicada.
     checks.fontAvailable = await page.evaluate(() =>
-      document.fonts.check('14px "Plus Jakarta Sans"'),
+      document.fonts.check('14px "Poppins"'),
     );
     checks.fontFamilyBody = await page.evaluate(() =>
       getComputedStyle(document.body).fontFamily,

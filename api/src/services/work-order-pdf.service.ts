@@ -1,3 +1,4 @@
+import { getWorkOrderStatusLabel } from '@unithor/shared';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 
 import { Client } from '../models/Client.js';
@@ -300,7 +301,7 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
     font: fonts.regular,
     color: rgb(1, 1, 1),
   });
-  page.drawText(workOrder.estado.replace(/_/g, ' ').toUpperCase(), {
+  page.drawText(getWorkOrderStatusLabel(workOrder.estado).toUpperCase(), {
     x: A4_WIDTH - MARGIN - 150,
     y: A4_HEIGHT - 50,
     size: 13,

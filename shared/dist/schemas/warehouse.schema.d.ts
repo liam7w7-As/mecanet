@@ -60,16 +60,16 @@ export declare const createStockMovementSchema: z.ZodObject<{
     cantidad: z.ZodNumber;
     motivo: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    cantidad: number;
     tipo: "ingreso" | "salida" | "ajuste";
     motivo: string;
     catalogItemId: number;
-    cantidad: number;
     warehouseId: number;
 }, {
+    cantidad: number;
     tipo: "ingreso" | "salida" | "ajuste";
     motivo: string;
     catalogItemId: number;
-    cantidad: number;
     warehouseId: number;
 }>;
 export declare const createStockTransferSchema: z.ZodEffects<z.ZodObject<{
@@ -79,27 +79,27 @@ export declare const createStockTransferSchema: z.ZodEffects<z.ZodObject<{
     cantidad: z.ZodNumber;
     motivo: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    cantidad: number;
     motivo: string;
     catalogItemId: number;
-    cantidad: number;
     originWarehouseId: number;
     destinationWarehouseId: number;
 }, {
+    cantidad: number;
     motivo: string;
     catalogItemId: number;
-    cantidad: number;
     originWarehouseId: number;
     destinationWarehouseId: number;
 }>, {
+    cantidad: number;
     motivo: string;
     catalogItemId: number;
-    cantidad: number;
     originWarehouseId: number;
     destinationWarehouseId: number;
 }, {
+    cantidad: number;
     motivo: string;
     catalogItemId: number;
-    cantidad: number;
     originWarehouseId: number;
     destinationWarehouseId: number;
 }>;

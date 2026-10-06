@@ -100,7 +100,7 @@ describe('SettingsPage', () => {
     expect(api.get).not.toHaveBeenCalledWith('/settings/company', expect.anything());
   });
 
-  it('guarda la identidad normalizando RUT y teléfono', async () => {
+  it('guarda la identidad normalizando el RUT y el teléfono tal como se ingresa', async () => {
     vi.mocked(api.patch).mockResolvedValue({ data: companyResponse } as AxiosResponse<typeof companyResponse>);
     renderPage();
 
@@ -114,27 +114,43 @@ describe('SettingsPage', () => {
       expect(api.patch).toHaveBeenCalledWith('/settings/company', {
         razonSocial: 'SERVICIOS PREMIUM LTDA',
         nombreComercial: 'UNITHOR',
-        // El schema normaliza: sin puntos ni guiones, y teléfono sin espacios.
+        // El schema normaliza el RUT sin puntos ni guion; el teléfono se guarda tal cual.
         rut: '773747881',
         giro: 'Mantenimiento vehicular',
         direccion: 'Arturo Fernández 2101',
         region: 'Tarapacá',
         comuna: 'Iquique',
-        telefono: '+56923757478',
+        telefono: '+56 9 2375 7478',
         email: 'contacto@unithor.cl',
         sitioWeb: 'unithor.cl',
       });
     });
   });
 
-  it('no envía nada si el RUT tiene un dígito verificador inválido', async () => {
+  it('envía el RUT aunque el dígito verificador no sea el calculado', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: companyResponse } as AxiosResponse<typeof companyResponse>);
     renderPage();
 
     const rut = await screen.findByDisplayValue('77.374.788-1');
     fireEvent.change(rut, { target: { value: '77.374.788-9' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    expect(await screen.findByText(/Revisa el RUN\/RUT completo/i)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledWith(
+        '/settings/company',
+        expect.objectContaining({ rut: '773747889' }),
+      ),
+    );
+  });
+
+  it('no envía nada si el RUT no tiene formato de números con dígito verificador o K', async () => {
+    renderPage();
+
+    const rut = await screen.findByDisplayValue('77.374.788-1');
+    fireEvent.change(rut, { target: { value: 'abc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText(/Ingresa el RUN\/RUT completo/i)).toBeInTheDocument();
     expect(api.patch).not.toHaveBeenCalled();
   });
 

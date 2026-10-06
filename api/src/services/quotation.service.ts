@@ -1,10 +1,10 @@
-import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
 import { col, literal, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
 import { notifyByType } from './notification.service.js';
+import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getInspectionPhoto } from './work-order-inspection-photo.service.js';
-import { getWorkOrderById, type WorkOrderPublic } from './work-order.service.js';
+import { createWorkOrderInTransaction, getWorkOrderById, type WorkOrderPublic } from './work-order.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -19,7 +19,7 @@ import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js'
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { ApiError } from '../utils/ApiError.js';
 import { formatClpAmount } from '../utils/formatters.js';
-import { generateQuotationCode, generateWorkOrderCode } from '../utils/generateCode.js';
+import { generateQuotationCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
 
 import type { InspectionPhotoFile, InspectionPhotoPublic } from './work-order-inspection-photo.service.js';
@@ -34,6 +34,8 @@ import type {
   QuotationStatus,
   UpdateQuotationInput,
   WorkOrderInspectionPhotoSlot,
+  DiscountType,
+  QuotationPaymentMethod,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
 
@@ -42,6 +44,8 @@ interface QuotationClientPublic {
   rut: string | null;
   nombre: string;
   telefono: string | null;
+  email: string | null;
+  direccion: string | null;
 }
 
 interface QuotationVehiclePublic {
@@ -81,6 +85,8 @@ interface QuotationItemPublic {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  descuentoTipo: DiscountType | null;
+  descuentoValor: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
   catalogItem?: QuotationItemCatalogPublic | null;
@@ -98,6 +104,11 @@ export interface QuotationPublic {
   total: number;
   pagado: number;
   notas: string | null;
+  formaPago: QuotationPaymentMethod;
+  disponibilidadTrabajo: string | null;
+  validezDias: number;
+  descuentoTipo: DiscountType | null;
+  descuentoValor: number;
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -128,7 +139,7 @@ type QuotationWhere = WhereOptions<InferAttributes<Quotation>> & {
 
 const clientInclude = {
   model: Client,
-  attributes: ['id', 'rut', 'nombre', 'telefono'],
+  attributes: ['id', 'rut', 'nombre', 'telefono', 'email', 'direccion'],
 };
 
 const vehicleInclude = {
@@ -158,6 +169,8 @@ const itemsInclude = {
     'cantidad',
     'precioUnitario',
     'subtotal',
+    'descuentoTipo',
+    'descuentoValor',
     'estadoOperativo',
     'notasOperativas',
   ],
@@ -183,14 +196,6 @@ const getFinancialQuotationStatus = (pagado: number, total: number): QuotationSt
   return 'parcial';
 };
 
-const toDateOrNull = (value: string | null | undefined): Date | null => {
-  if (value === undefined || value === null) {
-    return null;
-  }
-
-  return new Date(value);
-};
-
 const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
   id: quotation.id,
   codigo: quotation.codigo,
@@ -204,6 +209,11 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
   total: numberValue(quotation.total),
   pagado: numberValue(quotation.pagado),
   notas: quotation.notas,
+  formaPago: quotation.formaPago,
+  disponibilidadTrabajo: quotation.disponibilidadTrabajo,
+  validezDias: quotation.validezDias,
+  descuentoTipo: quotation.descuentoTipo,
+  descuentoValor: numberValue(quotation.descuentoValor),
   createdAt: quotation.createdAt,
   updatedAt: quotation.updatedAt,
   client: quotation.client
@@ -212,6 +222,8 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
         rut: quotation.client.rut,
         nombre: quotation.client.nombre,
         telefono: quotation.client.telefono,
+        email: quotation.client.email,
+        direccion: quotation.client.direccion,
       }
     : quotation.clientId === null
       ? null
@@ -267,6 +279,8 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
       cantidad: numberValue(item.cantidad),
       precioUnitario: numberValue(item.precioUnitario),
       subtotal: numberValue(item.subtotal),
+      descuentoTipo: item.descuentoTipo,
+      descuentoValor: numberValue(item.descuentoValor),
       estadoOperativo: item.estadoOperativo,
       notasOperativas: item.notasOperativas,
       catalogItem: item.catalogItem
@@ -292,10 +306,13 @@ const buildItemsPayload = (
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  descuentoTipo: DiscountType | null;
+  descuentoValor: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
 }> => {
-  return items.map((item) => {
+  const pricing = priceQuotation(items);
+  return items.map((item, index) => {
     const cantidad = Number(item.cantidad);
     const precioUnitario = Number(item.precioUnitario);
 
@@ -307,15 +324,13 @@ const buildItemsPayload = (
       unidadMedida: item.unidadMedida,
       cantidad,
       precioUnitario,
-      subtotal: cantidad * precioUnitario,
+      subtotal: pricing.lines[index].subtotal,
+      descuentoTipo: item.descuentoTipo ?? null,
+      descuentoValor: Number(item.descuentoValor ?? 0),
       estadoOperativo: item.estadoOperativo ?? 'pendiente',
       notasOperativas: item.notasOperativas ?? null,
     };
   });
-};
-
-const calculateTotal = (items: QuotationItemInput[]): number => {
-  return items.reduce((total, item) => total + Number(item.cantidad) * Number(item.precioUnitario), 0);
 };
 
 const buildWorkOrderItemsPayload = (
@@ -603,13 +618,14 @@ export const listQuotations = async (
   }
 
   if (query.archiveStatus) {
-    const cutoff = new Date(Date.now() - QUOTATION_ARCHIVE_DAYS * 24 * 60 * 60 * 1000);
     const expired: QuotationWhere = {
       workOrderId: { [Op.is]: null },
       pagado: 0,
       estadoPago: 'por_pagar',
-      createdAt: { [Op.lte]: cutoff },
-      [Op.and]: [literal("NOT EXISTS (SELECT 1 FROM payments AS archive_payment WHERE archive_payment.quotation_id = Quotation.id AND archive_payment.estado <> 'rechazado')")],
+      [Op.and]: [
+        literal('DATE_ADD(Quotation.created_at, INTERVAL Quotation.validez_dias DAY) <= UTC_TIMESTAMP()'),
+        literal("NOT EXISTS (SELECT 1 FROM payments AS archive_payment WHERE archive_payment.quotation_id = Quotation.id AND archive_payment.estado <> 'rechazado')"),
+      ],
     };
     const archived: QuotationWhere = {
       [Op.or]: [{ archivedAt: { [Op.not]: null } }, expired],
@@ -653,6 +669,16 @@ export const archiveQuotation = async (id: number): Promise<QuotationPublic> => 
       throw ApiError.badRequest('Solo se pueden archivar cotizaciones sin OT y sin abonos');
     }
     await quotation.update({ archivedAt: new Date() }, { transaction });
+  });
+  return getQuotationById(id);
+};
+
+export const unarchiveQuotation = async (id: number): Promise<QuotationPublic> => {
+  await sequelize.transaction(async (transaction) => {
+    const quotation = await Quotation.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!quotation) throw ApiError.notFound('Cotización no encontrada');
+    if (!quotation.archivedAt) return;
+    await quotation.update({ archivedAt: null }, { transaction });
   });
   return getQuotationById(id);
 };
@@ -713,7 +739,8 @@ export const createQuotation = async (
     }
     await assertCatalogItemsExist(items, transaction);
 
-    const total = calculateTotal(items);
+    const pricing = priceQuotation(items, data);
+    const { total } = pricing;
     const codigo = await generateQuotationCode(transaction);
     const quotation = await Quotation.create(
       {
@@ -723,10 +750,15 @@ export const createQuotation = async (
         vehicleId,
         asesorId,
         estadoPago: 'por_pagar',
-        subtotal: total,
+        subtotal: pricing.subtotal,
         total,
         pagado: 0,
         notas: data.notas ?? null,
+        formaPago: data.formaPago ?? 'transferencia',
+        disponibilidadTrabajo: data.disponibilidadTrabajo ?? null,
+        validezDias: data.validezDias ?? 5,
+        descuentoTipo: data.descuentoTipo ?? null,
+        descuentoValor: data.descuentoValor ?? 0,
       },
       { transaction },
     );
@@ -761,41 +793,55 @@ export const updateQuotation = async (
   userId: number,
 ): Promise<QuotationPublic> => {
   const quotationId = await sequelize.transaction(async (transaction) => {
-    const quotation = await Quotation.findByPk(id, { transaction });
+    const quotation = await Quotation.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
     if (!quotation) {
       throw ApiError.notFound('Cotización no encontrada');
     }
 
-    const updatePayload: Partial<Pick<Quotation, 'notas' | 'estadoPago' | 'subtotal' | 'total'>> = {};
+    const updatePayload: Partial<Pick<Quotation, 'notas' | 'estadoPago' | 'subtotal' | 'total' |
+      'formaPago' | 'disponibilidadTrabajo' | 'validezDias' | 'descuentoTipo' | 'descuentoValor'>> = {};
     let nextTotal = numberValue(quotation.total);
+    const changesPricing = data.items !== undefined || data.descuentoTipo !== undefined || data.descuentoValor !== undefined;
 
-    if (data.items !== undefined) {
+    if (changesPricing) {
       if (quotation.estadoPago === 'total') {
         throw ApiError.badRequest(
           'No se pueden modificar items de una cotización pagada en su totalidad',
         );
       }
 
-      await assertCatalogItemsExist(data.items, transaction);
-      const total = calculateTotal(data.items);
+      const previous = await QuotationItem.findAll({ where: { quotationId: id }, order: [['id', 'ASC']], transaction });
+      const items = data.items ? preserveLineDiscounts(data.items, previous) : previous;
+      if (data.items) await assertCatalogItemsExist(data.items, transaction);
+      const discount = {
+        descuentoTipo: data.descuentoTipo === undefined ? quotation.descuentoTipo : data.descuentoTipo,
+        descuentoValor: data.descuentoValor ?? Number(quotation.descuentoValor),
+      };
+      const pricing = priceQuotation(items, discount);
+      const { total } = pricing;
       if (total < numberValue(quotation.pagado)) {
         throw ApiError.badRequest('El nuevo total no puede ser inferior al monto ya pagado');
       }
       nextTotal = total;
 
-      await QuotationItem.destroy({ where: { quotationId: id }, transaction });
-      if (data.items.length > 0) {
-        await QuotationItem.bulkCreate(buildItemsPayload(id, data.items), { transaction });
+      if (data.items) {
+        const nextItems = preserveLineDiscounts(data.items, previous);
+        await QuotationItem.destroy({ where: { quotationId: id }, transaction });
+        if (nextItems.length > 0) await QuotationItem.bulkCreate(buildItemsPayload(id, nextItems), { transaction });
+        await syncLinkedWorkOrderFromQuotation(quotation, nextItems, userId, transaction);
       }
-      await syncLinkedWorkOrderFromQuotation(quotation, data.items, userId, transaction);
 
-      updatePayload.subtotal = total;
+      updatePayload.subtotal = pricing.subtotal;
       updatePayload.total = total;
+      Object.assign(updatePayload, discount);
     }
 
     if (data.notas !== undefined) {
       updatePayload.notas = data.notas;
     }
+    if (data.formaPago !== undefined) updatePayload.formaPago = data.formaPago;
+    if (data.disponibilidadTrabajo !== undefined) updatePayload.disponibilidadTrabajo = data.disponibilidadTrabajo;
+    if (data.validezDias !== undefined) updatePayload.validezDias = data.validezDias;
     const expectedFinancialStatus = getFinancialQuotationStatus(
       numberValue(quotation.pagado),
       nextTotal,
@@ -812,7 +858,7 @@ export const updateQuotation = async (
       }
       updatePayload.estadoPago = data.estadoPago;
     } else if (
-      data.items !== undefined &&
+      changesPricing &&
       FINANCIAL_QUOTATION_STATUSES.has(quotation.estadoPago)
     ) {
       updatePayload.estadoPago = expectedFinancialStatus;
@@ -828,7 +874,7 @@ export const updateQuotation = async (
 export const convertQuotationToWorkOrder = async (
   quotationId: number,
   userId: number,
-  data: ConvertQuotationInput = {},
+  data: ConvertQuotationInput,
 ): Promise<ConvertQuotationResult> => {
   const converted = await sequelize.transaction(async (transaction) => {
     const quotation = await Quotation.findByPk(quotationId, {
@@ -847,64 +893,35 @@ export const convertQuotationToWorkOrder = async (
       );
     }
 
-    if (quotation.clientId === null && quotation.vehicleId === null) {
-      throw ApiError.badRequest(
-        'La cotización requiere un cliente o vehículo para generar una Orden de Trabajo',
-      );
+    if (quotation.archivedAt !== null) {
+      throw ApiError.badRequest('No se puede convertir una cotización archivada');
     }
-
-    if (quotation.clientId !== null) {
-      await assertClientExists(quotation.clientId, transaction);
+    const clientId = data.clientId ?? quotation.clientId;
+    if (!clientId) {
+      throw ApiError.badRequest('Seleccione el responsable de la orden de trabajo');
     }
-    const vehicle = quotation.vehicleId === null
-      ? null
-      : await assertVehicleExists(quotation.vehicleId, transaction);
-    const vehicleOwner = vehicle?.clientId
-      ? await Client.findByPk(vehicle.clientId, { transaction })
-      : null;
-
-    const codigo = await generateWorkOrderCode(transaction);
-    const workOrder = await WorkOrder.create(
+    const workOrder = await createWorkOrderInTransaction(
       {
-        codigo,
-        clientId: quotation.clientId,
-         vehicleId: quotation.vehicleId,
-         vehicleOwnerClientId: vehicle?.clientId ?? null,
-         vehicleOwnerName: vehicleOwner?.nombre ?? null,
-         vehicleOwnerRut: vehicleOwner?.rut ?? null,
-         estado: 'borrador',
-        descripcion:
-          data.descripcion ??
-          quotation.notas ??
-          `Generada desde cotización ${quotation.codigo}`,
-        kilometrajeIngreso: data.kilometrajeIngreso ?? null,
-        fechaIngreso: toDateOrNull(data.fechaIngreso) ?? new Date(),
-        fechaEntrega: toDateOrNull(data.fechaEntrega),
-        createdBy: userId,
-      },
-      { transaction },
-    );
-
-    const items = quotation.items ?? [];
-    if (items.length > 0) {
-      await WorkOrderItem.bulkCreate(
-        items.map((item) => ({
-          workOrderId: workOrder.id,
+        ...data,
+        clientId,
+        descripcion: data.descripcion ?? quotation.notas ?? `Generada desde cotización ${quotation.codigo}`,
+        items: (quotation.items ?? []).map((item) => ({
           catalogItemId: item.catalogItemId,
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,
           unidadMedida: item.unidadMedida,
           cantidad: numberValue(item.cantidad),
           precioUnitario: numberValue(item.precioUnitario),
-          subtotal: numberValue(item.subtotal),
           estadoOperativo: item.estadoOperativo,
           notasOperativas: item.notasOperativas,
         })),
-        { transaction, hooks: true },
-      );
-    }
+      },
+      userId,
+      transaction,
+      false,
+    );
 
-    await quotation.update({ workOrderId: workOrder.id }, { transaction });
+    await quotation.update({ workOrderId: workOrder.id, vehicleId: workOrder.vehicleId, clientId: quotation.clientId ?? clientId }, { transaction });
 
     return {
       quotationId: quotation.id,

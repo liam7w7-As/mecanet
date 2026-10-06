@@ -57,7 +57,7 @@ export const createWorkOrderSchema = z.object({
     clientId: nullablePositiveId,
     contactClientId: nullablePositiveId,
     billingClientId: nullablePositiveId,
-    vehicleId: nullablePositiveId,
+    vehicleId: z.coerce.number().int().positive('Seleccione el vehículo que ingresa al taller'),
     assignedMechanicId: nullablePositiveId,
     kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),
     descripcion: optionalText(),
@@ -79,7 +79,7 @@ export const updateWorkOrderSchema = z
     clientId: nullablePositiveId,
     contactClientId: nullablePositiveId,
     billingClientId: nullablePositiveId,
-    vehicleId: nullablePositiveId,
+    vehicleId: z.coerce.number().int().positive('La OT debe conservar un vehículo').optional(),
     kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),
     descripcion: optionalText(),
     fechaIngreso: z

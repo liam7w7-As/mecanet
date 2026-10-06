@@ -304,6 +304,8 @@ export interface QuotationClient {
   rut: string | null;
   nombre: string;
   telefono: string | null;
+  email?: string | null;
+  direccion?: string | null;
 }
 
 export interface QuotationVehicle {
@@ -344,6 +346,8 @@ export interface QuotationItem {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  descuentoTipo?: import('@unithor/shared').DiscountType | null;
+  descuentoValor?: number;
   estadoOperativo: import('@unithor/shared').ItemOperationalStatus;
   notasOperativas: string | null;
   catalogItem?: ItemCatalogInfo | null;
@@ -361,6 +365,11 @@ export interface Quotation {
   total: number;
   pagado: number;
   notas: string | null;
+  formaPago?: import('@unithor/shared').QuotationPaymentMethod;
+  disponibilidadTrabajo?: string | null;
+  validezDias?: number;
+  descuentoTipo?: import('@unithor/shared').DiscountType | null;
+  descuentoValor?: number;
   archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;

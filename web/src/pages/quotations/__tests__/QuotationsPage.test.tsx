@@ -67,7 +67,7 @@ const linkedQuotation: Quotation = {
   id: 32,
   codigo: 'COT-2026-0032',
   workOrderId: 12,
-  workOrder: { id: 12, codigo: 'OT-2026-0012', estado: 'borrador' },
+  workOrder: { id: 12, codigo: 'OT-2026-0012', estado: 'en_progreso' },
 };
 
 const listResponse: PaginatedResponse<Quotation> = {
@@ -251,8 +251,10 @@ describe('QuotationsPage', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText('COT-2026-0031')).toBeInTheDocument();
-    expect(within(dialog).getByLabelText('Número de transacción')).toBeVisible();
-    expect(within(dialog).getByLabelText('Comprobante de pago')).toBeVisible();
+    await waitFor(() => {
+      expect(within(dialog).getByLabelText('Número de transacción')).toBeVisible();
+      expect(within(dialog).getByLabelText('Comprobante de pago')).toBeVisible();
+    });
     expect(dialog.querySelector('input[type="datetime-local"]')).toBeNull();
     const date = dialog.querySelector('time')?.getAttribute('datetime');
     expect(date).toBeTruthy();
@@ -324,6 +326,30 @@ describe('QuotationsPage', () => {
     expect(screen.queryByRole('button', { name: 'Archivar COT-2026-0031' })).not.toBeInTheDocument();
   });
 
+  it('desarchiva desde Archivadas con confirmación y vuelve al listado activo', async () => {
+    let archivedAt: string | null = new Date().toISOString();
+    const manual = { ...quotation, pagado: 0, estadoPago: 'por_pagar' as const, createdAt: new Date().toISOString() };
+    vi.mocked(api.get).mockImplementation((_url, config) => Promise.resolve({ data: {
+      ...listResponse,
+      items: (config?.params as { archiveStatus?: string } | undefined)?.archiveStatus === 'archived'
+        ? archivedAt ? [{ ...manual, archivedAt }] : []
+        : archivedAt ? [] : [{ ...manual, archivedAt: null }],
+    } }));
+    vi.mocked(api.patch).mockImplementation(() => {
+      archivedAt = null;
+      return Promise.resolve({ data: { quotation: { ...manual, archivedAt: null } } });
+    });
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Archivadas' }));
+    expect(await screen.findByText('Archivada manualmente')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Archivar COT-2026-0031' })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Desarchivar COT-2026-0031' }));
+    expect(api.patch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar desarchivo' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/quotations/31/unarchive'));
+    await waitFor(() => expect(screen.queryByText('Archivada manualmente')).not.toBeInTheDocument());
+  });
+
   it('conserva estilo de Abono parcial y no permite archivar con abonos u OT', async () => {
     renderWithProviders(<QuotationsPage />);
     await screen.findByText(quotation.codigo);
@@ -332,26 +358,36 @@ describe('QuotationsPage', () => {
     expect(cell).toHaveClass('bg-brand-pale');
   });
 
-  it('envía el número y una foto del comprobante para un abono con tarjeta', async () => {
+  it('no ofrece tarjeta en el método de pago del modal de abono', async () => {
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    const select = within(dialog).getByLabelText('Método de pago') as HTMLSelectElement;
+    const values = Array.from(select.querySelectorAll('option')).map((option) => option.value);
+    expect(values).toEqual(['efectivo', 'transferencia', 'cheque', 'otro']);
+  });
+
+  it('envía el banco, el número y una foto del comprobante para un abono con transferencia', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: {
-      payment: { ...initialPayment, metodo: 'tarjeta_debito' },
+      payment: { ...initialPayment, metodo: 'transferencia' },
       quotation: { id: quotation.id, codigo: quotation.codigo, total: 50000, pagado: 22000, saldoPendiente: 28000, estadoPago: 'parcial' },
     } });
     renderWithProviders(<QuotationsPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' }));
     const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
     fireEvent.change(within(dialog).getByLabelText('Monto del abono'), { target: { value: '12000' } });
-    fireEvent.change(within(dialog).getByLabelText('Método de pago'), { target: { value: 'tarjeta_debito' } });
-    fireEvent.change(within(dialog).getByLabelText('Número de transacción'), { target: { value: 'TARJETA-001' } });
+    fireEvent.change(within(dialog).getByLabelText('Método de pago'), { target: { value: 'transferencia' } });
+    fireEvent.change(within(dialog).getByLabelText('Banco de procedencia'), { target: { value: 'Banco Santander' } });
+    fireEvent.change(within(dialog).getByLabelText('Número de transacción'), { target: { value: 'TRANSF-001' } });
     const file = new File(['image'], 'comprobante.jpg', { type: 'image/jpeg' });
     fireEvent.change(within(dialog).getByLabelText('Comprobante de pago'), { target: { files: [file] } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Registrar abono' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/payments', expect.any(FormData)));
     const payload = vi.mocked(api.post).mock.calls.at(-1)?.[1] as FormData;
-    expect(payload.get('numeroTransaccion')).toBe('TARJETA-001');
+    expect(payload.get('numeroTransaccion')).toBe('TRANSF-001');
     expect(payload.get('comprobantePago')).toBe(file);
-    expect(payload.get('metodo')).toBe('tarjeta_debito');
-    expect(payload.has('bancoOrigen')).toBe(false);
+    expect(payload.get('metodo')).toBe('transferencia');
+    expect(payload.get('bancoOrigen')).toBe('Banco Santander');
   });
 
   it('distingue los trabajos terminados de los pendientes y calcula el saldo del nuevo abono', async () => {

@@ -121,7 +121,7 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
         codigo: `${TEST_CODE_PREFIX}1`,
         clientId,
         vehicleId,
-        estado: 'borrador',
+        estado: 'en_progreso',
         createdBy: devUserId,
       }),
       WorkOrder.create({

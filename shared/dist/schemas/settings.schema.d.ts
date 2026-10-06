@@ -7,7 +7,7 @@ export declare const companySettingsFields: {
     direccion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     region: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     comuna: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
-    telefono: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string | null, string>>>;
+    telefono: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     email: z.ZodEffects<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>, string | null | undefined, string | null | undefined>;
     sitioWeb: z.ZodEffects<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>, string | null | undefined, string | null | undefined>;
 };
@@ -19,7 +19,7 @@ export declare const companySettingsSchema: z.ZodObject<{
     direccion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     region: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     comuna: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
-    telefono: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string | null, string>>>;
+    telefono: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     email: z.ZodEffects<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>, string | null | undefined, string | null | undefined>;
     sitioWeb: z.ZodEffects<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>, string | null | undefined, string | null | undefined>;
 }, "strip", z.ZodTypeAny, {
@@ -53,7 +53,7 @@ export declare const updateCompanySettingsSchema: z.ZodEffects<z.ZodObject<{
     direccion: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     region: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     comuna: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
-    telefono: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string | null, string>>>>;
+    telefono: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     email: z.ZodOptional<z.ZodEffects<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>, string | null | undefined, string | null | undefined>>;
     sitioWeb: z.ZodOptional<z.ZodEffects<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>, string | null | undefined, string | null | undefined>>;
 }, "strip", z.ZodTypeAny, {

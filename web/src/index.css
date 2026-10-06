@@ -3,13 +3,54 @@
 @tailwind utilities;
 
 /**
- * Plus Jakarta Sans (SIL Open Font License 1.1). Fuente variable, pesos 100-900.
- * Empaquetada localmente: no depende de Google Fonts ni de red externa.
+ * Poppins (SIL Open Font License 1.1). Pesos estáticos 400-900, subset
+ * latino. Empaquetada localmente: no depende de Google Fonts ni de red
+ * externa. Sin itálicas propias: el navegador las sintetiza igual que antes.
  */
 @font-face {
-  font-family: 'Plus Jakarta Sans';
-  src: url('/fonts/plus-jakarta-sans.woff2') format('woff2');
-  font-weight: 100 900;
+  font-family: 'Poppins';
+  src: url('/fonts/poppins-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/poppins-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/poppins-600.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/poppins-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/poppins-800.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/poppins-900.woff2') format('woff2');
+  font-weight: 900;
   font-style: normal;
   font-display: swap;
 }
@@ -42,7 +83,7 @@
 
 :root {
   color-scheme: light !important;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Poppins', system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   letter-spacing: 0;

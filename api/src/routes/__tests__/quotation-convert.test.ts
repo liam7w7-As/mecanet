@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { Client } from '../../models/Client.js';
+import { Payment } from '../../models/Payment.js';
 import { Quotation } from '../../models/Quotation.js';
 import { QuotationItem } from '../../models/QuotationItem.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
@@ -287,6 +288,7 @@ describe('Quotation to Work Order Conversion (E2E)', () => {
       .set('Cookie', authCookie(devCookies))
       .set('X-CSRF-Token', devCookies.csrfToken)
       .send({
+        vehicleId,
         kilometrajeIngreso: 120000,
         descripcion: 'OT generada desde cotización fase 52',
       });
@@ -295,7 +297,7 @@ describe('Quotation to Work Order Conversion (E2E)', () => {
     expect(response.body.workOrder).toMatchObject({
       clientId,
       vehicleId,
-      estado: 'borrador',
+      estado: 'en_progreso',
       descripcion: 'OT generada desde cotización fase 52',
       kilometrajeIngreso: 120000,
     });
@@ -333,7 +335,7 @@ describe('Quotation to Work Order Conversion (E2E)', () => {
       codigo: `${TEST_OT_PREFIX}91`,
       clientId,
       vehicleId,
-      estado: 'borrador',
+      estado: 'en_progreso',
       descripcion: 'OT previa para cotización fase 52',
       createdBy: devUserId,
     });
@@ -347,7 +349,7 @@ describe('Quotation to Work Order Conversion (E2E)', () => {
       .post(`/api/quotations/${quotation.id}/convert-to-ot`)
       .set('Cookie', authCookie(devCookies))
       .set('X-CSRF-Token', devCookies.csrfToken)
-      .send({});
+      .send({ vehicleId });
 
     expect(response.status).toBe(400);
     expect(response.body.error.message).toBe(
@@ -366,11 +368,11 @@ describe('Quotation to Work Order Conversion (E2E)', () => {
       .post(`/api/quotations/${quotation.id}/convert-to-ot`)
       .set('Cookie', authCookie(devCookies))
       .set('X-CSRF-Token', devCookies.csrfToken)
-      .send({});
+      .send({ vehicleId });
 
     expect(response.status).toBe(400);
     expect(response.body.error.message).toBe(
-      'La cotización requiere un cliente o vehículo para generar una Orden de Trabajo',
+      'Seleccione el responsable de la orden de trabajo',
     );
   });
 
@@ -391,7 +393,7 @@ describe('Quotation to Work Order Conversion (E2E)', () => {
         .post(`/api/quotations/${quotation.id}/convert-to-ot`)
         .set('Cookie', authCookie(devCookies))
         .set('X-CSRF-Token', devCookies.csrfToken)
-        .send({ descripcion: 'Debe hacer rollback cotización fase 52' });
+        .send({ vehicleId, descripcion: 'Debe hacer rollback cotización fase 52' });
 
       expect(response.status).toBe(500);
     } finally {
@@ -406,5 +408,71 @@ describe('Quotation to Work Order Conversion (E2E)', () => {
       paranoid: false,
     });
     expect(rolledBackWorkOrder).toBeNull();
+  });
+
+  it.each([{}, { vehicleId: null }, { vehicleId: 0 }])('rechaza convertir sin vehículo válido: %j', async (data) => {
+    const cookies = await loginAs('dev@unithor.local');
+    const quotation = await createQuotationFixture(`missing-${Object.keys(data).length}-${String(data.vehicleId)}`, { clientId });
+    const before = await WorkOrder.count();
+    const response = await request(app).post(`/api/quotations/${quotation.id}/convert-to-ot`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken).send(data);
+    expect(response.status).toBe(400);
+    expect(await WorkOrder.count()).toBe(before);
+    expect((await quotation.reload()).workOrderId).toBeNull();
+  });
+
+  it('completa la recepción de una COT sin auto y conserva su identidad, items y abonos', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const quotation = await createQuotationFixture('reception', { clientId });
+    await quotation.update({ pagado: 10000, estadoPago: 'parcial' });
+    const payment = await Payment.create({ quotationId: quotation.id, monto: 10000, metodo: 'efectivo', fecha: new Date(), createdBy: devUserId });
+    const count = await Quotation.count();
+    const response = await request(app).post(`/api/quotations/${quotation.id}/convert-to-ot`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ vehicleId, clientId, contactClientId: clientId, billingClientId: clientId,
+        kilometrajeIngreso: 125000, descripcion: 'Recepción cotización fase 52',
+        inspection: { nivelCombustible: 'medio', inventario: ['botiquin'], observaciones: 'Golpe lateral' } });
+    expect(response.status).toBe(201);
+    expect(response.body.quotation).toMatchObject({ id: quotation.id, codigo: quotation.codigo, vehicleId, pagado: 10000, total: 61000, estadoPago: 'parcial' });
+    expect(response.body.workOrder.contact).toMatchObject({ clientId });
+    expect(response.body.workOrder.billing).toMatchObject({ clientId });
+    expect(response.body.workOrder.inspection).toMatchObject({ inventario: ['botiquin'], observaciones: 'Golpe lateral' });
+    expect(response.body.workOrder.events).toEqual(expect.arrayContaining([expect.objectContaining({ tipo: 'creacion' })]));
+    expect(response.body.workOrder.items).toHaveLength(2);
+    expect(await Quotation.count()).toBe(count);
+    expect((await payment.reload()).quotationId).toBe(quotation.id);
+    expect((await Vehicle.findByPk(vehicleId))?.kilometraje).toBe(125000);
+  });
+
+  it('rechaza vehículos eliminados sin modificar la COT', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const quotation = await createQuotationFixture('deleted', { clientId });
+    const vehicle = await Vehicle.create({ patente: 'PH5299', clientId });
+    await vehicle.destroy();
+    const response = await request(app).post(`/api/quotations/${quotation.id}/convert-to-ot`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken).send({ vehicleId: vehicle.id });
+    expect(response.status).toBe(400);
+    expect((await quotation.reload()).workOrderId).toBeNull();
+  });
+
+  it('rechaza modificaciones de importes en el payload de recepción', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const quotation = await createQuotationFixture('tampered', { clientId });
+    const response = await request(app).post(`/api/quotations/${quotation.id}/convert-to-ot`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ vehicleId, items: [{ descripcion: 'Alterado', precioUnitario: 0 }] });
+    expect(response.status).toBe(400);
+    expect((await quotation.reload()).workOrderId).toBeNull();
+    expect(Number(quotation.total)).toBe(61000);
+  });
+
+  it('solo genera una OT ante conversiones concurrentes', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const quotation = await createQuotationFixture('concurrent', { clientId, notas: 'Concurrente cotización fase 52' });
+    const send = () => request(app).post(`/api/quotations/${quotation.id}/convert-to-ot`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken).send({ vehicleId });
+    const responses = await Promise.all([send(), send()]);
+    expect(responses.map((response) => response.status).sort()).toEqual([201, 400]);
+    expect(await WorkOrder.count({ where: { descripcion: 'Concurrente cotización fase 52' } })).toBe(1);
   });
 });

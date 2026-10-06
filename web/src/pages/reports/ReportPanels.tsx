@@ -1,4 +1,4 @@
-import { CATALOG_TYPES, PAYMENT_METHODS, QUOTATION_STATUS, STOCK_MOVEMENT_TYPES, WORK_ORDER_STATUS } from '@unithor/shared';
+import { CATALOG_TYPES, PAYMENT_METHODS, QUOTATION_STATUS, STOCK_MOVEMENT_TYPES, WORK_ORDER_STATUS, WORK_ORDER_STATUS_LABELS } from '@unithor/shared';
 import { Download, FileText, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -28,7 +28,7 @@ export interface ReportPanelProps {
 }
 
 const label = (value: string): string =>
-  value.replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase());
+  value === 'en_progreso' ? WORK_ORDER_STATUS_LABELS.en_progreso : value.replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase());
 
 const DateFilters = ({ from, to, setFilter }: Pick<ReportPanelProps, 'from' | 'to' | 'setFilter'>) => (
   <div className="grid gap-2 sm:grid-cols-2">

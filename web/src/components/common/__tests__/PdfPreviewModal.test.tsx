@@ -280,10 +280,51 @@ describe('PdfPreviewModal', () => {
     );
 
     expect(screen.getAllByText('COT-2026-0202').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('COTIZACIÓN COMERCIAL').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('COTIZACIÓN').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('COTIZACIÓN COMERCIAL')).not.toBeInTheDocument();
     expect(screen.getAllByText('Según OT: OT-2026-0101').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Valores válidos por 15 días/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Página 1 de 1').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('omite el bloque de vehículo en vista previa e impresión de una COT de repuestos', () => {
+    render(<PdfPreviewModal type="quotation" quotation={{ ...mockQuotation, vehicleId: null, vehicle: null, workOrderId: null, workOrder: null }} onClose={onClose} />);
+    expect(screen.queryByText('DATOS DEL VEHÍCULO')).not.toBeInTheDocument();
+    const portal = document.getElementById('unithor-print-portal')!;
+    expect(portal).not.toHaveTextContent('DATOS DEL VEHÍCULO');
+    expect(portal).toHaveTextContent('Asesor Asignado:');
+    expect(screen.getAllByText('DATOS DEL CLIENTE').length).toBeGreaterThan(0);
+  });
+
+  it('incluye condiciones, descuentos y ambas cuentas en el PDF sin ofrecer tarjetas', () => {
+    render(<PdfPreviewModal type="quotation" quotation={{ ...mockQuotation, total: 63000, subtotal: 80000,
+      formaPago: 'transferencia', disponibilidadTrabajo: 'Disponible desde el lunes', validezDias: 7,
+      descuentoTipo: 'porcentaje', descuentoValor: 10,
+      items: mockQuotation.items!.map((item, index) => index === 0 ? { ...item, descuentoTipo: 'fijo', descuentoValor: 10000, subtotal: 55000 } : item),
+    }} onClose={onClose} />);
+    const portal = document.getElementById('unithor-print-portal')!;
+    for (const text of ['BCI', '89938 640', 'BANCO DE CHILE', '1073164200', '77.374.788-1', 'CONTACTO@UNITHOR.CL',
+      'Disponible desde el lunes', '7 días corridos', 'Descuentos por ítem', 'Dto. general (10%)', '$63.000']) {
+      expect(portal).toHaveTextContent(text);
+    }
+    expect(portal).not.toHaveTextContent('Débito/Crédito');
+    expect(portal).not.toHaveTextContent('IVA (19%)');
+  });
+
+  it('pagina los conceptos extensos sin reducir toda la cotización a una sola hoja', () => {
+    const items = Array.from({ length: 40 }, (_, index) => ({ ...mockQuotation.items![0], id: index + 1, descripcion: `Servicio ${index + 1}: ${'Trabajo de mantenimiento y revisión. '.repeat(5)}` }));
+    render(<PdfPreviewModal type="quotation" quotation={{ ...mockQuotation, items, notas: 'Condiciones adicionales. '.repeat(150) }} onClose={onClose} />);
+    const portal = document.getElementById('unithor-print-portal')!;
+    const sheets = portal.querySelectorAll('[data-quotation-sheet]');
+    expect(sheets.length).toBeGreaterThan(3);
+    expect(portal.querySelectorAll('tbody tr')).toHaveLength(40);
+    expect(sheets[sheets.length - 1]).toHaveTextContent(`Página ${sheets.length} de ${sheets.length}`);
+  });
+
+  it('conserva los datos de vehículo cuando la COT tiene uno asociado', () => {
+    render(<PdfPreviewModal type="quotation" quotation={mockQuotation} onClose={onClose} />);
+    expect(screen.getAllByText('DATOS DEL VEHÍCULO').length).toBeGreaterThan(0);
+    expect(document.getElementById('unithor-print-portal')).toHaveTextContent('HG-TR-34');
   });
 
   it('cierra el modal al presionar el botón X o la tecla Escape', () => {

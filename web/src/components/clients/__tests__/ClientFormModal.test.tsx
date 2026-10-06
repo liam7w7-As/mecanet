@@ -25,13 +25,13 @@ const savedClient: Client = {
   updatedAt: '',
 };
 
-const mount = (client?: Client) => {
+const mount = (client?: Client, initialValues?: { nombre?: string; rut?: string }) => {
   const onSaved = vi.fn();
   const onClose = vi.fn();
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
-      <ClientFormModal client={client} onSaved={onSaved} onClose={onClose} />
+      <ClientFormModal client={client} initialValues={initialValues} onSaved={onSaved} onClose={onClose} />
     </QueryClientProvider>,
   );
   return { onSaved, onClose };
@@ -50,7 +50,7 @@ describe('ClientFormModal', () => {
     vi.mocked(api.patch).mockResolvedValue({ data: { client: savedClient } } as AxiosResponse);
   });
 
-  it('formats RUN/RUT as it is typed and submits normalized data with a regional phone', async () => {
+  it('formats RUN/RUT as it is typed and submits the phone exactly as entered', async () => {
     const { onSaved, onClose } = mount();
     fillName();
     const rut = screen.getByRole('textbox', { name: 'RUN / RUT' });
@@ -63,9 +63,15 @@ describe('ClientFormModal', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(api.post).toHaveBeenCalledWith(
       '/clients',
-      expect.objectContaining({ rut: '123456785', telefono: '+56552345678' }),
+      expect.objectContaining({ rut: '123456785', telefono: '55 234 5678' }),
     );
     expect(onSaved).toHaveBeenCalledWith(savedClient);
+  });
+
+  it('prefills the fields given through initialValues', () => {
+    mount(undefined, { nombre: 'Juan Nuevo', rut: '12.232.378-8' });
+    expect(screen.getByRole('textbox', { name: 'Nombre completo' })).toHaveValue('Juan Nuevo');
+    expect(screen.getByRole('textbox', { name: 'RUN / RUT' })).toHaveValue('12.232.378-8');
   });
 
   it('supports K and deleting a separator without trapping the cursor', () => {
@@ -80,17 +86,18 @@ describe('ClientFormModal', () => {
     expect(rut.selectionStart).toBe(1);
   });
 
-  it('rejects an incorrect verifier, focuses the field and keeps the entered name', () => {
+  it('accepts a RUN/RUT without checking the verifier digit and submits it normalized', async () => {
     mount();
     fillName();
     const rut = screen.getByRole('textbox', { name: 'RUN / RUT' });
-    fireEvent.change(rut, { target: { value: '123456789' } });
+    fireEvent.change(rut, { target: { value: '12.232.378-8' } });
     submit();
-    expect(rut).toHaveFocus();
-    expect(rut).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByText(/Revisa el RUN\/RUT completo/)).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Nombre completo' })).toHaveValue('Ana Pérez');
-    expect(api.post).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(
+        '/clients',
+        expect.objectContaining({ nombre: 'Ana Pérez', rut: '122323788' }),
+      ),
+    );
   });
 
   it('registers a client without optional data', async () => {

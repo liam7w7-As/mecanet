@@ -27,6 +27,13 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   otro: 'Otro',
 };
 
+// El taller no opera con tarjetas: el selector solo ofrece efectivo,
+// transferencia, cheque u otro. Las etiquetas se conservan para seguir
+// mostrando abonos históricos con tarjeta.
+const AVAILABLE_METHODS = PAYMENT_METHODS.filter(
+  (method) => method !== 'tarjeta_debito' && method !== 'tarjeta_credito',
+);
+
 const toLocalDateTime = (date: Date): string => {
   const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return localTime.toISOString().slice(0, 16);
@@ -146,7 +153,7 @@ export const PaymentFormModal = ({
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-[720px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="payment-modal-title"
@@ -160,7 +167,9 @@ export const PaymentFormModal = ({
   closeLabel="Cerrar"
 />
 
-        <div className="grid min-w-0 md:grid-cols-2">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          {/* Solo esta sección hace scroll: encabezado y botones quedan fijos. */}
+          <div className="grid min-w-0 flex-1 overflow-y-auto overscroll-contain md:grid-cols-2">
           <div className="min-w-0 border-b border-brand-line bg-brand-line/60 p-5 sm:p-6 md:border-b-0 md:border-r">
             {loadingSummary ? (
               <div role="status" className="min-h-48 animate-pulse space-y-4">
@@ -195,7 +204,7 @@ export const PaymentFormModal = ({
             )}
           </div>
 
-          <form onSubmit={submit} className="min-w-0 space-y-4 p-5 sm:p-6">
+          <div className="min-w-0 space-y-4 p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-brand-gold bg-brand-line/40 px-4 py-3">
               <div>
                 <p className="text-xs font-semibold text-brand-muted">Disponible para abonar</p>
@@ -241,7 +250,7 @@ export const PaymentFormModal = ({
                 onChange={(event) => setMetodo(event.target.value as PaymentMethod)}
                 className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 font-normal outline-none focus:border-brand-primary"
               >
-                {PAYMENT_METHODS.map((method) => (
+                {AVAILABLE_METHODS.map((method) => (
                   <option key={method} value={method}>
                     {PAYMENT_METHOD_LABELS[method]}
                   </option>
@@ -396,32 +405,34 @@ export const PaymentFormModal = ({
                 {getApiErrorMessage(createMutation.error)}
               </div>
             )}
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink"
-                onClick={onClose}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white disabled:opacity-60"
-                disabled={
-                  createMutation.isPending ||
-                  loadingSummary ||
-                  summaryError ||
-                  availableBalance <= 0
-                }
-              >
-                {createMutation.isPending && (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                )}
-                Registrar abono
-              </button>
-            </div>
-          </form>
-        </div>
+          </div>
+          </div>
+          <footer className="flex shrink-0 justify-end gap-2 border-t border-brand-line bg-white px-5 py-4 sm:px-6">
+            <button
+              type="button"
+              className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
+              onClick={onClose}
+              disabled={createMutation.isPending}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white disabled:opacity-60"
+              disabled={
+                createMutation.isPending ||
+                loadingSummary ||
+                summaryError ||
+                availableBalance <= 0
+              }
+            >
+              {createMutation.isPending && (
+                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              )}
+              Registrar abono
+            </button>
+          </footer>
+        </form>
       </motion.section>
     </div>
   );

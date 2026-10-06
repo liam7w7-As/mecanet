@@ -131,7 +131,7 @@ export const DashboardPage = () => {
               tinte. La sexta es "COT sin OT", que ya existed en los datos y
               operaba en un encabezado de sección. */}
           <Stagger className="stats mb-6" aria-label="Indicadores principales">
-            <StaggerItem className="stat stat-auto"><KpiCard title="OTs en taller" value={String(summary.metrics.activeWorkOrders)} detail="En progreso o esperando repuesto" icon={Wrench} testId="active-work-orders" /></StaggerItem>
+            <StaggerItem className="stat stat-auto"><KpiCard title="OTs en taller" value={String(summary.metrics.activeWorkOrders)} detail="Iniciadas o esperando repuesto" icon={Wrench} testId="active-work-orders" /></StaggerItem>
             <StaggerItem className="stat stat-auto gold"><KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} testId="waiting-for-parts" /></StaggerItem>
             <StaggerItem className="stat stat-auto green"><KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} testId="monthly-revenue" /></StaggerItem>
             <StaggerItem className="stat stat-auto sky"><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} testId="pending-balance" /></StaggerItem>

@@ -51,7 +51,7 @@ export declare const dashboardSummarySchema: z.ZodObject<{
     recentWorkOrders: z.ZodArray<z.ZodObject<{
         id: z.ZodNumber;
         codigo: z.ZodString;
-        estado: z.ZodEnum<["borrador", "en_progreso", "esperando_repuesto", "finalizada", "entregada", "cancelada"]>;
+        estado: z.ZodEnum<["en_progreso", "esperando_repuesto", "finalizada", "entregada", "cancelada"]>;
         fechaIngreso: z.ZodNullable<z.ZodString>;
         updatedAt: z.ZodString;
         client: z.ZodNullable<z.ZodObject<{
@@ -77,7 +77,7 @@ export declare const dashboardSummarySchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: number;
         codigo: string;
-        estado: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
+        estado: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
         fechaIngreso: string | null;
         updatedAt: string;
         client: {
@@ -91,7 +91,7 @@ export declare const dashboardSummarySchema: z.ZodObject<{
     }, {
         id: number;
         codigo: string;
-        estado: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
+        estado: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
         fechaIngreso: string | null;
         updatedAt: string;
         client: {
@@ -260,7 +260,7 @@ export declare const dashboardSummarySchema: z.ZodObject<{
     recentWorkOrders: {
         id: number;
         codigo: string;
-        estado: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
+        estado: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
         fechaIngreso: string | null;
         updatedAt: string;
         client: {
@@ -323,7 +323,7 @@ export declare const dashboardSummarySchema: z.ZodObject<{
     recentWorkOrders: {
         id: number;
         codigo: string;
-        estado: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
+        estado: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
         fechaIngreso: string | null;
         updatedAt: string;
         client: {

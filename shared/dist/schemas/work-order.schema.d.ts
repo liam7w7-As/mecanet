@@ -83,21 +83,21 @@ export declare const workOrderItemInputSchema: z.ZodObject<{
     estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
     notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
 }, "strip", z.ZodTypeAny, {
+    cantidad: number;
+    precioUnitario: number;
     descripcion: string;
     unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
     tipoLinea: "parte" | "estandar" | "especifico";
-    cantidad: number;
-    precioUnitario: number;
     estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
     catalogItemId?: number | null | undefined;
     notasOperativas?: string | null | undefined;
 }, {
     descripcion: string;
+    cantidad?: number | undefined;
+    precioUnitario?: number | undefined;
     unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     catalogItemId?: number | null | undefined;
     tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-    cantidad?: number | undefined;
-    precioUnitario?: number | undefined;
     estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
     notasOperativas?: string | null | undefined;
 }>;
@@ -105,7 +105,7 @@ export declare const createWorkOrderSchema: z.ZodObject<{
     clientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     contactClientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     billingClientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    vehicleId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    vehicleId: z.ZodNumber;
     assignedMechanicId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     kilometrajeIngreso: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     descripcion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
@@ -121,21 +121,21 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     }, "strip", z.ZodTypeAny, {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
     }, {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
     }>, "many">>;
@@ -169,21 +169,21 @@ export declare const createWorkOrderSchema: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     items: {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
     }[];
+    vehicleId: number;
     fechaIngreso?: string | null | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
     assignedMechanicId?: number | null | undefined;
     kilometrajeIngreso?: number | null | undefined;
     fechaEntrega?: string | null | undefined;
@@ -198,14 +198,15 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         observaciones?: string | null | undefined;
     } | undefined;
 }, {
+    vehicleId: number;
     fechaIngreso?: string | null | undefined;
     items?: {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
@@ -213,7 +214,6 @@ export declare const createWorkOrderSchema: z.ZodObject<{
     descripcion?: string | null | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
     assignedMechanicId?: number | null | undefined;
     kilometrajeIngreso?: number | null | undefined;
     fechaEntrega?: string | null | undefined;
@@ -232,7 +232,7 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     clientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     contactClientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     billingClientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    vehicleId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    vehicleId: z.ZodOptional<z.ZodNumber>;
     kilometrajeIngreso: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     descripcion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     fechaIngreso: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -247,21 +247,21 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     }, "strip", z.ZodTypeAny, {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
     }, {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
     }>, "many">>;
@@ -314,11 +314,11 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     fechaIngreso?: string | null | undefined;
     items?: {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
@@ -327,7 +327,7 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     descripcion?: string | null | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
+    vehicleId?: number | undefined;
     kilometrajeIngreso?: number | null | undefined;
     fechaEntrega?: string | null | undefined;
     inspection?: {
@@ -344,11 +344,11 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     fechaIngreso?: string | null | undefined;
     items?: {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
@@ -356,7 +356,7 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     descripcion?: string | null | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
+    vehicleId?: number | undefined;
     kilometrajeIngreso?: number | null | undefined;
     fechaEntrega?: string | null | undefined;
     inspection?: {
@@ -372,11 +372,11 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
 }>, {
     fechaIngreso?: string | null | undefined;
     items?: {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
@@ -385,7 +385,7 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     descripcion?: string | null | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
+    vehicleId?: number | undefined;
     kilometrajeIngreso?: number | null | undefined;
     fechaEntrega?: string | null | undefined;
     inspection?: {
@@ -402,11 +402,11 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     fechaIngreso?: string | null | undefined;
     items?: {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
@@ -414,7 +414,7 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     descripcion?: string | null | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
+    vehicleId?: number | undefined;
     kilometrajeIngreso?: number | null | undefined;
     fechaEntrega?: string | null | undefined;
     inspection?: {
@@ -433,7 +433,7 @@ export declare const workOrderQuerySchema: z.ZodObject<{
     pageSize: z.ZodDefault<z.ZodNumber>;
 } & {
     search: z.ZodOptional<z.ZodString>;
-    estado: z.ZodOptional<z.ZodEnum<["borrador", "en_progreso", "esperando_repuesto", "finalizada", "entregada", "cancelada"]>>;
+    estado: z.ZodOptional<z.ZodEnum<["en_progreso", "esperando_repuesto", "finalizada", "entregada", "cancelada"]>>;
     clientId: z.ZodOptional<z.ZodNumber>;
     vehicleId: z.ZodOptional<z.ZodNumber>;
     fechaDesde: z.ZodOptional<z.ZodString>;
@@ -442,7 +442,7 @@ export declare const workOrderQuerySchema: z.ZodObject<{
     page: number;
     pageSize: number;
     search?: string | undefined;
-    estado?: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
+    estado?: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
     fechaDesde?: string | undefined;
@@ -451,27 +451,27 @@ export declare const workOrderQuerySchema: z.ZodObject<{
     page?: number | undefined;
     pageSize?: number | undefined;
     search?: string | undefined;
-    estado?: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
+    estado?: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
 }>;
 export declare const changeWorkOrderStatusSchema: z.ZodObject<{
-    nuevoEstado: z.ZodEnum<["borrador", "en_progreso", "esperando_repuesto", "finalizada", "entregada", "cancelada"]>;
+    nuevoEstado: z.ZodEnum<["en_progreso", "esperando_repuesto", "finalizada", "entregada", "cancelada"]>;
     motivo: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
 }, "strip", z.ZodTypeAny, {
-    nuevoEstado: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
+    nuevoEstado: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
     motivo?: string | null | undefined;
 }, {
-    nuevoEstado: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
+    nuevoEstado: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
     motivo?: string | null | undefined;
 }>;
 export declare const deliverWorkOrderSchema: z.ZodObject<{
     kilometrajeSalida: z.ZodNumber;
     receptorNombre: z.ZodString;
     receptorRut: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string | null, string>>>;
-    receptorTelefono: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string | null, string>>>;
+    receptorTelefono: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     checklist: z.ZodEffects<z.ZodEffects<z.ZodArray<z.ZodEnum<["trabajos_explicados", "vehiculo_revisado", "pertenencias_entregadas", "documentos_entregados"]>, "many">, ("trabajos_explicados" | "vehiculo_revisado" | "pertenencias_entregadas" | "documentos_entregados")[], ("trabajos_explicados" | "vehiculo_revisado" | "pertenencias_entregadas" | "documentos_entregados")[]>, ("trabajos_explicados" | "vehiculo_revisado" | "pertenencias_entregadas" | "documentos_entregados")[], ("trabajos_explicados" | "vehiculo_revisado" | "pertenencias_entregadas" | "documentos_entregados")[]>;
     conformidad: z.ZodLiteral<true>;
     firmaRecepcion: z.ZodString;
@@ -615,15 +615,15 @@ export declare const createWorkOrderRequestSchema: z.ZodDiscriminatedUnion<"tipo
     cantidad: z.ZodNumber;
     motivo: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    cantidad: number;
     tipo: "repuesto";
     motivo: string;
     catalogItemId: number;
-    cantidad: number;
 }, {
+    cantidad: number;
     tipo: "repuesto";
     motivo: string;
     catalogItemId: number;
-    cantidad: number;
 }>, z.ZodObject<{
     tipo: z.ZodLiteral<"aumento_precio">;
     workOrderItemId: z.ZodNumber;

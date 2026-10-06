@@ -1,8 +1,10 @@
-import { updateQuotationSchema } from '@unithor/shared';
+import { calculateQuotationPricing, updateQuotationSchema } from '@unithor/shared';
 import { AlertCircle, LoaderCircle, Save } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
+import QuotationCommercialFields, { createCommercialDraft } from './QuotationCommercialFields';
+import QuotationDiscountSummary from './QuotationDiscountSummary';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useUpdateQuotationMutation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -26,6 +28,8 @@ const toEditableItems = (quotation: Quotation): EditableWorkOrderItem[] =>
     precioUnitario: String(item.precioUnitario),
     estadoOperativo: item.estadoOperativo,
     notasOperativas: item.notasOperativas ?? '',
+    descuentoTipo: item.descuentoTipo ?? null,
+    descuentoValor: String(item.descuentoValor ?? 0),
   })) ?? [];
 
 interface QuotationEditModalProps {
@@ -38,13 +42,19 @@ interface QuotationEditModalProps {
 export const QuotationEditModal = ({ quotation, onClose, onSaved }: QuotationEditModalProps) => {
   const updateMutation = useUpdateQuotationMutation();
   const [notas, setNotas] = useState(quotation.notas ?? '');
+  const [commercial, setCommercial] = useState(() => createCommercialDraft(quotation));
   const [items, setItems] = useState<EditableWorkOrderItem[]>(() => toEditableItems(quotation));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     updateMutation.reset();
+    try { calculateQuotationPricing(items, commercial); } catch (error) {
+      setErrors({ descuentoValor: error instanceof Error ? error.message : 'Descuento inválido' });
+      return;
+    }
     const result = updateQuotationSchema.safeParse({
+      ...commercial,
       notas,
       items: items.map((item) => ({
         catalogItemId: item.catalogItemId,
@@ -55,6 +65,8 @@ export const QuotationEditModal = ({ quotation, onClose, onSaved }: QuotationEdi
         precioUnitario: item.precioUnitario,
         estadoOperativo: item.estadoOperativo,
         notasOperativas: item.notasOperativas,
+        descuentoTipo: item.descuentoTipo ?? null,
+        descuentoValor: item.descuentoValor ?? 0,
       })),
     });
 
@@ -111,8 +123,10 @@ export const QuotationEditModal = ({ quotation, onClose, onSaved }: QuotationEdi
         />
         <form onSubmit={submit} className="flex min-h-0 flex-col" aria-busy={updateMutation.isPending}>
           <div className="min-h-0 overflow-y-auto overscroll-contain p-5">
+            <div className="mb-5"><QuotationCommercialFields value={commercial} onChange={setCommercial} errors={errors} /></div>
             <label className="block text-sm font-semibold text-brand-ink">Notas comerciales<textarea rows={4} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" /></label>
-            <div className="mt-5"><WorkOrderItemsEditor items={items} onChange={setItems} errors={errors} title="Ítems cotizados" description="Actualice servicios, repuestos o conceptos libres." emptyMessage="La cotización quedará sin ítems y con total cero." totalLabel="Nuevo total" totalTestId="quotation-edit-total" /></div>
+            <div className="mt-5"><WorkOrderItemsEditor items={items} onChange={setItems} errors={errors} title="Ítems cotizados" emptyMessage="La cotización quedará sin ítems y con total cero." showDiscounts showTotal={false} /></div>
+            <QuotationDiscountSummary items={items} value={commercial} onChange={setCommercial} testId="quotation-edit-total" />
             {updateMutation.isError && <div className="mt-4 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(updateMutation.error)}</div>}
           </div>
           <footer className="flex shrink-0 justify-end gap-2 border-t border-brand-line bg-brand-line/40 p-4">

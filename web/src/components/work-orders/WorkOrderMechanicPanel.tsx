@@ -59,8 +59,8 @@ const STATUS_CONFIG: Record<
   completado: {
     label: 'Completado',
     icon: CheckCircle2,
-    activeClass: 'bg-brand-mint text-white border-brand-mint shadow-xs ring-2 ring-brand-mint/25 font-bold',
-    inactiveClass: 'bg-white text-brand-mintInk border-brand-line hover:bg-brand-mintPale/40',
+    activeClass: 'bg-brand-mintPale text-brand-mintInk border-brand-mint shadow-xs ring-2 ring-brand-mint/25 font-bold',
+    inactiveClass: 'bg-white text-brand-ink border-brand-line hover:bg-brand-pale/50',
   },
   omitido: {
     label: 'Omitido',

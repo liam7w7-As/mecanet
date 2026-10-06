@@ -260,7 +260,7 @@ export const sweepOverdueWorkOrders = async (): Promise<void> => {
       attributes: ['id', 'codigo', 'fechaEntrega', 'assignedMechanicId'],
       where: {
         fechaEntrega: { [Op.lt]: now },
-        estado: { [Op.in]: ['borrador', 'en_progreso', 'esperando_repuesto'] },
+        estado: { [Op.in]: ['en_progreso', 'esperando_repuesto'] },
       },
       limit: 200,
     });

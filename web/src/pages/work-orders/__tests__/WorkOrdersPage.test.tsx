@@ -33,7 +33,7 @@ const workOrder: WorkOrder = {
   contactClientId: 7,
   billingClientId: 7,
   vehicleId: 4,
-  estado: 'borrador',
+  estado: 'en_progreso',
   descripcion: 'Revisión de frenos',
   kilometrajeIngreso: 84500,
   fechaIngreso: '2026-09-15T10:00:00.000Z',
@@ -223,7 +223,8 @@ describe('WorkOrdersPage', () => {
     expect(await screen.findByText('OT-2026-0012')).toBeInTheDocument();
     expect(screen.getByText('ABCD12')).toBeInTheDocument();
     expect(screen.getByText('Cliente Demo')).toBeInTheDocument();
-    expect(screen.getAllByText('Borrador')).toHaveLength(2);
+    expect(screen.getAllByText('Iniciada')).toHaveLength(2);
+    expect(screen.queryByRole('tab', { name: 'Borrador' })).not.toBeInTheDocument();
   });
 
   it('muestra el reloj de taller y el avance por tareas en la card', async () => {
@@ -334,13 +335,86 @@ describe('WorkOrdersPage', () => {
     createWrapper(<WorkOrdersPage />);
     await screen.findByText('OT-2026-0012');
 
-    fireEvent.click(screen.getByRole('tab', { name: 'En progreso' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Iniciada' }));
 
     await waitFor(() => {
       expect(api.get).toHaveBeenCalledWith('/work-orders', {
         params: expect.objectContaining({ estado: 'en_progreso' }),
       });
     });
+  });
+
+  it.each([
+    ['3 días', '2025-12-31'],
+    ['15 días', '2025-12-19'],
+  ])('combina el periodo %s con el estado e incluye el día actual', async (period, from) => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-01-02T12:00:00.000Z'));
+    try {
+      createWrapper(<WorkOrdersPage />);
+      await screen.findByText('OT-2026-0012');
+      fireEvent.click(screen.getByRole('tab', { name: 'Iniciada' }));
+      fireEvent.click(screen.getByRole('button', { name: period }));
+      expect(screen.getByRole('button', { name: period })).toHaveAttribute('aria-pressed', 'true');
+      await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
+        params: expect.objectContaining({
+          page: 1,
+          estado: 'en_progreso',
+          fechaDesde: from,
+          fechaHasta: '2026-01-02',
+        }),
+      }));
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it('filtra un mes completo, contempla febrero bisiesto y reinicia la paginación', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { ...listResponse, total: 30, totalPages: 3 },
+    } as AxiosResponse<PaginatedResponse<WorkOrder>>);
+    createWrapper(<WorkOrdersPage />);
+    await screen.findByText('OT-2026-0012');
+    fireEvent.change(screen.getByLabelText('Seleccionar página'), { target: { value: '2' } });
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
+      params: expect.objectContaining({ page: 2 }),
+    }));
+    fireEvent.click(screen.getByRole('button', { name: 'Por mes' }));
+    fireEvent.change(screen.getByLabelText('Mes de ingreso'), { target: { value: '2024-02' } });
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
+      params: expect.objectContaining({ page: 1, fechaDesde: '2024-02-01', fechaHasta: '2024-02-29' }),
+    }));
+    fireEvent.click(screen.getByRole('button', { name: 'Todas las fechas' }));
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
+      params: expect.objectContaining({ fechaDesde: undefined, fechaHasta: undefined }),
+    }));
+    expect(screen.queryByLabelText('Mes de ingreso')).not.toBeInTheDocument();
+  });
+
+  it('filtra una fecha específica con el calendario y permite limpiar o cambiar el periodo', async () => {
+    createWrapper(<WorkOrdersPage />);
+    await screen.findByText('OT-2026-0012');
+    expect(screen.queryByRole('combobox', { name: 'Periodo de ingreso' })).not.toBeInTheDocument();
+    const datePicker = screen.getByRole('button', { name: 'Fecha específica' });
+    expect(datePicker).toHaveAttribute('aria-haspopup', 'dialog');
+    fireEvent.click(screen.getByRole('tab', { name: 'Iniciada' }));
+    fireEvent.click(datePicker);
+    fireEvent.click(screen.getByRole('button', { name: 'Hoy' }));
+    const today = new Date();
+    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
+      params: expect.objectContaining({ page: 1, estado: 'en_progreso', fechaDesde: date, fechaHasta: date }),
+    }));
+    expect(screen.getByRole('button', { name: 'Todas las fechas' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar fecha específica' }));
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
+      params: expect.objectContaining({ estado: 'en_progreso', fechaDesde: undefined, fechaHasta: undefined }),
+    }));
+    expect(screen.getByRole('button', { name: 'Todas las fechas' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(datePicker);
+    fireEvent.click(screen.getByRole('button', { name: 'Hoy' }));
+    fireEvent.click(screen.getByRole('button', { name: '15 días' }));
+    expect(datePicker).toHaveTextContent('Elegir fecha');
+    expect(screen.getByRole('button', { name: '15 días' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('recalcula subtotales y total al cambiar cantidad y precio', async () => {
@@ -377,7 +451,8 @@ describe('WorkOrdersPage', () => {
     expect(screen.getByTestId('work-order-total')).toHaveTextContent('36.000');
     expect(screen.queryByLabelText('Avance 1')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Quitar Cambio de aceite' }));
-    expect(screen.queryByLabelText('Descripción 1')).not.toBeInTheDocument();
+    // La fila sale con animación (0.18 s): se espera a que se desmonte.
+    await waitFor(() => expect(screen.queryByLabelText('Descripción 1')).not.toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }));
     expect(screen.getByLabelText('Cantidad 1')).toHaveValue(2);
     expect(screen.getByTestId('work-order-total')).toHaveTextContent('36.000');
@@ -398,8 +473,11 @@ describe('WorkOrdersPage', () => {
     };
     createWrapper(<Harness />);
     fireEvent.click(await screen.findByRole('button', { name: 'Agregar Servicio del catálogo' }));
-    expect(screen.getByLabelText('Cantidad 1')).toHaveValue(3);
-    expect(screen.getByLabelText('Descripción 2')).toHaveValue('Servicio del catálogo');
+    // El ítem nuevo entra al inicio; el borrador se conserva en la posición 2.
+    expect(screen.getByLabelText('Descripción 1')).toHaveValue('Servicio del catálogo');
+    expect(screen.getByLabelText('Cantidad 1')).toHaveValue(1);
+    expect(screen.getByLabelText('Descripción 2')).toHaveValue('');
+    expect(screen.getByLabelText('Cantidad 2')).toHaveValue(3);
   });
 
   it('permite recorrer el catálogo sin perder los ítems seleccionados', async () => {
@@ -417,8 +495,9 @@ describe('WorkOrdersPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Agregar Servicio página 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Página siguiente del catálogo' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Agregar Servicio página 2' }));
-    expect(screen.getByLabelText('Descripción 1')).toHaveValue('Servicio página 1');
-    expect(screen.getByLabelText('Descripción 2')).toHaveValue('Servicio página 2');
+    // El más reciente va primero.
+    expect(screen.getByLabelText('Descripción 1')).toHaveValue('Servicio página 2');
+    expect(screen.getByLabelText('Descripción 2')).toHaveValue('Servicio página 1');
     fireEvent.click(screen.getByRole('button', { name: 'Página anterior del catálogo' }));
     expect(await screen.findByRole('button', { name: 'Quitar Servicio página 1' })).toHaveAttribute('aria-pressed', 'true');
   });
@@ -498,7 +577,7 @@ describe('WorkOrdersPage', () => {
     );
 
     expect(await screen.findByText('Esta orden está en un estado terminal.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'En progreso' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Iniciada' })).not.toBeInTheDocument();
   });
 
   it('usa el formulario de cierre para entregar una orden finalizada', async () => {
@@ -815,6 +894,60 @@ describe('WorkOrdersPage', () => {
         ],
       }));
     });
+  });
+
+  it.each([false, true])('abre una COT en vehículo sin crear OT hasta confirmar (cancelar: %s)', async (cancel) => {
+    const quotation = { id: 44, codigo: 'COT-26-44', clientId: 7, vehicleId: null, workOrderId: null, total: 50000, pagado: 10000, notas: 'Presupuesto aprobado', items: workOrder.items };
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/quotations/44') return Promise.resolve({ data: { quotation } } as AxiosResponse);
+      if (url === '/clients/7') return Promise.resolve({ data: { client } } as AxiosResponse);
+      if (url === '/clients') return Promise.resolve({ data: clientsResponse } as AxiosResponse);
+      if (url === '/search/quick') return Promise.resolve({ data: quickSearchResponse } as AxiosResponse);
+      if (url === '/work-orders/mechanics') return Promise.resolve({ data: { mechanics: [] } } as AxiosResponse);
+      return Promise.reject(new Error(`Ruta no simulada: ${url}`));
+    });
+    vi.mocked(api.post).mockResolvedValue({ data: { quotation: { ...quotation, workOrderId: 77 }, workOrder: { ...workOrder, id: 77 } } });
+    createWrapper(<Routes>
+      <Route path="/quotations/:quotationId/convert-to-ot" element={<WorkOrderCreatePage />} />
+      <Route path="/quotations/:id" element={<p>Cotización original</p>} />
+      <Route path="/work-orders/:id" element={<p>OT convertida</p>} />
+    </Routes>, '/quotations/44/convert-to-ot');
+    expect(await screen.findByText('Buscar vehículo')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    expect(screen.getByText('Seleccione o cree el vehículo que ingresa al taller.')).toBeInTheDocument();
+    if (cancel) {
+      fireEvent.click(screen.getByRole('link', { name: 'Cancelar' }));
+      expect(await screen.findByText('Cotización original')).toBeInTheDocument();
+      expect(api.post).not.toHaveBeenCalled();
+      return;
+    }
+    const search = screen.getByRole('combobox', { name: 'Búsqueda rápida de vehículos y clientes' });
+    fireEvent.focus(search);
+    fireEvent.change(search, { target: { value: 'AB' } });
+    fireEvent.click(await screen.findByText('ABCD12'));
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    expect(screen.getByLabelText('Subir foto Frontal')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    expect(screen.getByText('Cambio de pastillas')).toBeInTheDocument();
+    expect(screen.getByText('Total cotizado: $50.000')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Precio unitario 1')).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar y crear orden' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar y crear orden' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/quotations/44/convert-to-ot', expect.objectContaining({ vehicleId: 4, clientId: 7, billingClientId: 7, contactClientId: 7, inspection: expect.any(Object) })));
+    expect(vi.mocked(api.post).mock.calls[0][1]).not.toHaveProperty('items');
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('OT convertida')).toBeInTheDocument();
+  });
+
+  it('impide saltar desde responsable a servicios sin seleccionar vehículo', async () => {
+    createWrapper(<WorkOrderCreatePage />, '/work-orders/new');
+    fireEvent.click(await screen.findByText('Cliente Demo'));
+    fireEvent.click(screen.getAllByRole('button', { name: /Servicios/ })[0]);
+    expect(screen.getByText('Seleccione o cree el vehículo que ingresa al taller.')).toBeInTheDocument();
+    expect(screen.getByText('Buscar vehículo')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('crea una OT desde el wizard y sube fotos de inspección', async () => {

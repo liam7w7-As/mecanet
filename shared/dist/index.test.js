@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CATALOG_TYPES, MODULES, PERMISSIONS, QUOTATION_STATUS, ROLES, WORK_ORDER_STATUS, createClientSchema, createVehicleSchema, createWorkOrderSchema, loginSchema, paginationSchema, } from './index.js';
+import { CATALOG_TYPES, MODULES, PERMISSIONS, QUOTATION_STATUS, ROLES, WORK_ORDER_STATUS, changeWorkOrderStatusSchema, createClientSchema, createVehicleSchema, createWorkOrderSchema, loginSchema, paginationSchema, } from './index.js';
 describe('Shared Package Constants & Schemas', () => {
     it('debe exportar roles y permisos válidos', () => {
         expect(ROLES).toContain('admin');
@@ -8,7 +8,9 @@ describe('Shared Package Constants & Schemas', () => {
         expect(PERMISSIONS.length).toBeGreaterThan(0);
         expect(CATALOG_TYPES).toEqual(['parte', 'estandar', 'especifico']);
         expect(QUOTATION_STATUS).toContain('por_pagar');
-        expect(WORK_ORDER_STATUS).toContain('borrador');
+        expect(WORK_ORDER_STATUS).toContain('en_progreso');
+        expect(WORK_ORDER_STATUS).not.toContain('borrador');
+        expect(changeWorkOrderStatusSchema.safeParse({ nuevoEstado: 'borrador' }).success).toBe(false);
     });
     it('valida createClientSchema con datos correctos y rechaza inválidos', () => {
         const validClient = createClientSchema.safeParse({
@@ -20,18 +22,26 @@ describe('Shared Package Constants & Schemas', () => {
         });
         expect(validClient.success).toBe(true);
         if (validClient.success) {
-            expect(validClient.data.telefono).toBe('+56912345678');
+            expect(validClient.data.telefono).toBe('+56 9 1234 5678');
+            expect(validClient.data.rut).toBe('123456785');
         }
         const invalidRutClient = createClientSchema.safeParse({
             nombre: 'Juan Perez',
-            rut: '12.345.678-4',
+            rut: 'abc',
         });
         expect(invalidRutClient.success).toBe(false);
-        const invalidPhoneClient = createClientSchema.safeParse({
+        const wrongVerifierRutClient = createClientSchema.safeParse({
             nombre: 'Juan Perez',
+            tipo: 'cliente',
+            rut: '12.345.678-4',
+        });
+        expect(wrongVerifierRutClient.success).toBe(true);
+        const anyPhoneClient = createClientSchema.safeParse({
+            nombre: 'Juan Perez',
+            tipo: 'cliente',
             telefono: '12345',
         });
-        expect(invalidPhoneClient.success).toBe(false);
+        expect(anyPhoneClient.success).toBe(true);
         const emptyNameClient = createClientSchema.safeParse({
             nombre: '   ',
         });

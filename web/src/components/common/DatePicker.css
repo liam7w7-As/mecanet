@@ -1,0 +1,59 @@
+.unithor-calendar {
+  --rdp-day-width: 38px;
+  --rdp-day-height: 34px;
+  --rdp-day_button-width: 32px;
+  --rdp-day_button-height: 32px;
+  --rdp-day_button-border-radius: 6px;
+  --rdp-selected-border: 0;
+  --rdp-nav_button-width: 30px;
+  --rdp-nav_button-height: 30px;
+  --rdp-nav-height: 32px;
+  @apply p-2 text-sm text-brand-ink;
+}
+
+.unithor-calendar .rdp-months,
+.unithor-calendar .rdp-month,
+.unithor-calendar .rdp-month_grid {
+  width: 100%;
+}
+
+.unithor-calendar .rdp-month_caption {
+  @apply text-sm font-semibold capitalize text-brand-primaryInk;
+}
+
+.unithor-calendar .rdp-month_grid {
+  table-layout: fixed;
+  white-space: normal;
+}
+
+.unithor-calendar .rdp-day,
+.unithor-calendar .rdp-weekday {
+  padding: 0;
+  border: 0;
+  text-align: center;
+}
+
+.unithor-calendar .rdp-weekday {
+  @apply py-1 text-xs font-medium text-brand-muted;
+}
+
+.unithor-calendar .rdp-day_button {
+  @apply mx-auto font-medium transition-colors hover:bg-brand-pale focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary;
+}
+
+.unithor-calendar .rdp-selected .rdp-day_button {
+  @apply bg-brand-primaryInk text-sm font-semibold text-white hover:bg-brand-primaryInkHover;
+}
+
+.unithor-calendar .rdp-today:not(.rdp-selected) .rdp-day_button {
+  @apply bg-brand-goldPale font-semibold text-brand-goldInk ring-1 ring-inset ring-brand-gold/50;
+}
+
+.unithor-calendar .rdp-outside {
+  @apply text-brand-muted;
+}
+
+.unithor-calendar .rdp-button_previous,
+.unithor-calendar .rdp-button_next {
+  @apply rounded-md border border-brand-line text-brand-primaryInk transition-colors hover:bg-brand-pale focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary;
+}

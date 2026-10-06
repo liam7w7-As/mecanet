@@ -1,4 +1,3 @@
-import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import {
@@ -16,6 +15,7 @@ import BrandLogo from './BrandLogo';
 import InspectionPhotoGallery from './InspectionPhotoGallery';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { preparePdfImages } from '../../lib/pdf-images';
+import QuotationDocument, { getQuotationDocumentPages } from '../quotations/QuotationDocument';
 
 import type { Quotation, WorkOrder, WorkOrderInspectionPhoto } from '../../types/entities';
 
@@ -404,177 +404,6 @@ const WorkOrderSheetPage2: React.FC<WorkOrderSheetPage2Props> = ({ workOrder, to
   );
 };
 
-interface QuotationSheetPageProps {
-  quotation: Quotation;
-  rawSubtotal: number;
-  rawIVA: number;
-  rawTotal: number;
-  totalPages: number;
-}
-
-const QuotationSheetPage: React.FC<QuotationSheetPageProps> = ({
-  quotation,
-  rawSubtotal,
-  rawIVA,
-  rawTotal,
-  totalPages,
-}) => {
-  const items = quotation.items ?? [];
-  const company = useCompanyBranding();
-
-  return (
-    <div
-      id="pdf-sheet-quotation"
-      className="pdf-paper-sheet mx-auto flex flex-col justify-between bg-white text-slate-800 shadow-2xl"
-      style={{
-        width: '816px',
-        minHeight: '1056px',
-        padding: '26px 34px',
-        boxSizing: 'border-box',
-        fontFamily: "'Segoe UI', Arial, sans-serif",
-      }}
-    >
-      <div>
-        {/* Header Cotización */}
-        <div className="flex items-start justify-between border-b-2 border-[#0E2B4E] pb-2">
-          <div>
-            <BrandLogo heightClassName="h-8" alt={company.nombreComercial} />
-            {company.rutLine && <div className="text-[10px] text-slate-500">{company.rutLine}</div>}
-            {company.addressLine && <div className="text-[10px] text-slate-500">{company.addressLine}</div>}
-          </div>
-          <div className="text-right">
-            <h1 className="text-xl font-black tracking-tight text-[#0E2B4E]">
-              COTIZACIÓN COMERCIAL
-            </h1>
-            <div className="text-sm font-black text-[#00A8E8]">{quotation.codigo}</div>
-            {quotation.workOrder && (
-              <div className="text-xs font-bold text-slate-600">
-                Según OT: {quotation.workOrder.codigo}
-              </div>
-            )}
-            <div className="text-[10px] text-slate-500">
-              Fecha: {formatDateTime(quotation.createdAt)}
-            </div>
-          </div>
-        </div>
-
-        {/* 2 Cajas de Datos: Cliente y Vehículo */}
-        <div className="mt-3 grid grid-cols-2 gap-3 text-[10.5px]">
-          <div className="rounded border border-slate-200 bg-slate-50/50 p-2.5">
-            <div className="mb-1 text-[9.5px] font-black uppercase tracking-wider text-[#0E2B4E]">
-              DATOS DEL CLIENTE
-            </div>
-            <div><strong>Señor(es):</strong> {quotation.client?.nombre ?? 'Sin cliente asignado'}</div>
-            <div><strong>R.U.T.:</strong> {quotation.client?.rut ?? 'Sin RUT'}</div>
-            <div><strong>Teléfono:</strong> {quotation.client?.telefono ?? '-'}</div>
-            <div><strong>Email:</strong> {(quotation.client as { email?: string | null })?.email ?? '-'}</div>
-            <div><strong>Dirección:</strong> {(quotation.client as { direccion?: string | null })?.direccion ?? '-'}</div>
-          </div>
-
-          <div className="rounded border border-slate-200 bg-slate-50/50 p-2.5">
-            <div className="mb-1 text-[9.5px] font-black uppercase tracking-wider text-[#0E2B4E]">
-              DATOS DEL VEHÍCULO
-            </div>
-            <div>
-              <strong>Patente:</strong> <strong className="text-[#0E2B4E]">{quotation.vehicle?.patente ?? '-'}</strong>
-            </div>
-            <div><strong>Marca/Modelo:</strong> {[quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || '-'}</div>
-            <div><strong>Año:</strong> {(quotation.vehicle as { ano?: number | null })?.ano ?? '-'} | <strong>Color:</strong> {(quotation.vehicle as { color?: string | null })?.color ?? '-'}</div>
-            <div><strong>Asesor Asignado:</strong> {quotation.asesor?.nombre ?? 'Ventas'}</div>
-          </div>
-        </div>
-
-        {/* Tabla de Conceptos Cotizados */}
-        <div className="mt-4">
-          <div className="mb-1 text-[10px] font-black uppercase tracking-wider text-[#0E2B4E]">
-            DESGLOSE DE SERVICIOS Y REPUESTOS
-          </div>
-          <table className="w-full border-collapse text-[10px]">
-            <thead>
-              <tr className="bg-[#0E2B4E] text-white">
-                <th className="p-2 text-center font-bold">#</th>
-                <th className="p-2 text-left font-bold">DESCRIPCIÓN DEL TRABAJO / PRODUCTO</th>
-                <th className="p-2 text-center font-bold">CANT.</th>
-                <th className="p-2 text-right font-bold">PRECIO UNIT.</th>
-                <th className="p-2 text-right font-bold">SUBTOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length > 0 ? (
-                items.map((item, idx) => (
-                  <tr key={item.id ?? idx} className="border-b border-slate-200">
-                    <td className="p-2 text-center text-slate-500">{idx + 1}</td>
-                    <td className="p-2 font-bold text-[#0E2B4E]">{item.descripcion}</td>
-                    <td className="p-2 text-center">{item.cantidad}</td>
-                    <td className="p-2 text-right">{formatClp(item.precioUnitario)}</td>
-                    <td className="p-2 text-right font-bold text-[#0E2B4E]">{formatClp(item.subtotal)}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr className="border-b border-slate-200">
-                  <td colSpan={5} className="p-4 text-center text-slate-400">
-                    Sin conceptos registrados
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-
-          {/* Resumen Totales Cotización */}
-          <div className="mt-3 flex justify-end">
-            <div className="w-56 rounded border border-slate-200 bg-slate-50 p-2.5 text-[10.5px]">
-              <div className="flex justify-between py-0.5">
-                <span className="text-slate-600">Subtotal Neto:</span>
-                <span className="font-bold">{formatClp(rawSubtotal)}</span>
-              </div>
-              <div className="flex justify-between py-0.5">
-                <span className="text-slate-600">IVA (19%):</span>
-                <span className="font-bold">{formatClp(rawIVA)}</span>
-              </div>
-              <div className="flex justify-between border-t border-slate-300 py-1 text-sm font-black text-[#0E2B4E]">
-                <span>TOTAL:</span>
-                <span>{formatClp(rawTotal)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Condiciones Comerciales y Notas */}
-        <div className="mt-6 rounded border border-slate-200 p-3 text-[10px] text-slate-600">
-          <div className="font-black uppercase tracking-wider text-[#0E2B4E]">
-            CONDICIONES COMERCIALES:
-          </div>
-          <ul className="mt-1.5 list-inside list-disc space-y-0.5">
-            <li>Precios sujetos a confirmación y disponibilidad al momento de compra de repuestos.</li>
-            <li>Validez de la oferta: {QUOTATION_ARCHIVE_DAYS} días corridos a contar de la fecha de emisión.</li>
-            <li>Formas de pago: Efectivo, Transferencia Electrónica o Tarjetas de Débito/Crédito.</li>
-            {quotation.notas && (
-              <li className="font-semibold text-slate-800">
-                Notas especiales: {quotation.notas}
-              </li>
-            )}
-          </ul>
-        </div>
-
-        {/* Firma Asesor Comercial */}
-        <div className="mt-10 flex justify-end text-[10px]">
-          <div className="w-64 border-t border-slate-400 pt-1.5 text-center">
-            <div className="font-black text-[#0E2B4E]">
-              {quotation.asesor?.nombre ?? company.razonSocial}
-            </div>
-            <div className="text-[9px] text-slate-500">Asesor Comercial / Atención a Clientes</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer Cotización */}
-      <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-1 text-[9px] text-slate-500">
-        <div>{company.addressLine}{company.contactLine ? ` | ${company.contactLine}` : ''}</div>
-        <div>Página 1 de {totalPages}</div>
-      </div>
-    </div>
-  );
-};
 
 interface InspectionPhotosSheetProps {
   photos: WorkOrderInspectionPhoto[];
@@ -637,7 +466,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
     : quotation?.codigo ?? 'COT-S/N';
   const photos = isOT ? workOrder?.inspection?.photos ?? [] : quotation?.workOrder?.inspectionPhotos ?? [];
   const hasPhotos = photos.length > 0;
-  const totalPages = (isOT ? 2 : 1) + (hasPhotos ? 1 : 0);
+  const totalPages = (isOT ? 2 : quotation ? getQuotationDocumentPages(quotation).length : 1) + (hasPhotos ? 1 : 0);
   const photosSheet = hasPhotos ? <InspectionPhotosSheet photos={photos} code={displayCode}
     workOrderCode={(isOT ? workOrder?.codigo : quotation?.workOrder?.codigo) ?? displayCode}
     clientName={(isOT ? workOrder?.client?.nombre : quotation?.client?.nombre) ?? 'Sin cliente'}
@@ -1021,13 +850,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
 
           {activeTab !== 'photos' && !isOT && quotation && (
             <div className="pdf-print-wrapper mx-auto">
-              <QuotationSheetPage
-                quotation={quotation}
-                rawSubtotal={rawSubtotal}
-                rawIVA={rawIVA}
-                rawTotal={rawTotal}
-                totalPages={totalPages}
-              />
+<QuotationDocument quotation={quotation} totalPages={totalPages} />
             </div>
           )}
         </div>
@@ -1065,13 +888,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                 filter: isGrayscale ? 'grayscale(100%)' : 'none',
               }}
             >
-              <QuotationSheetPage
-                quotation={quotation}
-                rawSubtotal={rawSubtotal}
-                rawIVA={rawIVA}
-                rawTotal={rawTotal}
-                totalPages={totalPages}
-              />
+<QuotationDocument quotation={quotation} totalPages={totalPages} />
               {photosSheet}
             </div>
           )}

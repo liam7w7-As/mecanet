@@ -6,6 +6,7 @@ import {
 import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
 import { notifyByType, notifyUsers } from './notification.service.js';
+import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -1065,7 +1066,7 @@ const syncMirrorQuotationFromWorkOrder = async (
   workOrderId: number,
   transaction: Transaction,
 ): Promise<void> => {
-  const quotation = await Quotation.findOne({ where: { workOrderId }, transaction });
+  const quotation = await Quotation.findOne({ where: { workOrderId }, transaction, lock: transaction.LOCK.UPDATE });
   if (!quotation) {
     return;
   }
@@ -1080,7 +1081,20 @@ const syncMirrorQuotationFromWorkOrder = async (
     order: [['id', 'ASC']],
     transaction,
   });
-  const total = workOrderItems.reduce((sum, item) => sum + toNumber(item.subtotal), 0);
+  const previous = await QuotationItem.findAll({ where: { quotationId: quotation.id }, order: [['id', 'ASC']], transaction });
+  const nextItems = preserveLineDiscounts(workOrderItems.map((item) => ({
+    quotationId: quotation.id,
+    catalogItemId: item.catalogItemId,
+    descripcion: item.descripcion,
+    tipoLinea: item.tipoLinea,
+    unidadMedida: item.unidadMedida,
+    cantidad: toNumber(item.cantidad),
+    precioUnitario: toNumber(item.precioUnitario),
+    estadoOperativo: item.estadoOperativo,
+    notasOperativas: item.notasOperativas,
+  })), previous);
+  const pricing = priceQuotation(nextItems, quotation);
+  const { total } = pricing;
   const paid = toNumber(quotation.pagado);
   if (total < paid) {
     throw ApiError.badRequest(
@@ -1091,27 +1105,16 @@ const syncMirrorQuotationFromWorkOrder = async (
   await QuotationItem.destroy({ where: { quotationId: quotation.id }, transaction });
   if (workOrderItems.length > 0) {
     await QuotationItem.bulkCreate(
-      workOrderItems.map((item) => ({
-        quotationId: quotation.id,
-        catalogItemId: item.catalogItemId,
-        descripcion: item.descripcion,
-        tipoLinea: item.tipoLinea,
-        unidadMedida: item.unidadMedida,
-        cantidad: toNumber(item.cantidad),
-        precioUnitario: toNumber(item.precioUnitario),
-        subtotal: toNumber(item.subtotal),
-        estadoOperativo: item.estadoOperativo,
-        notasOperativas: item.notasOperativas,
-      })),
+      nextItems.map((item, index) => ({ ...item, subtotal: pricing.lines[index].subtotal })),
       { transaction },
     );
   }
 
   await quotation.update(
     {
-      subtotal: total,
+      subtotal: pricing.subtotal,
       total,
-      estadoPago: paid <= 0 ? 'por_pagar' : 'parcial',
+      estadoPago: paid <= 0 ? 'por_pagar' : paid >= total ? 'total' : 'parcial',
     },
     { transaction },
   );
@@ -1495,125 +1498,138 @@ export const getWorkOrderById = async (
   return toWorkOrderPublic(workOrder);
 };
 
+export const createWorkOrderInTransaction = async (
+  data: CreateWorkOrderInput,
+  userId: number,
+  transaction: Transaction,
+  createQuotation = true,
+): Promise<WorkOrder> => {
+  if (!data.vehicleId) {
+    throw ApiError.badRequest('Seleccione el vehículo que ingresa al taller');
+  }
+  const clientId = data.clientId ?? null;
+  const contactClientId = data.contactClientId === undefined ? clientId : data.contactClientId;
+  const billingClientId = data.billingClientId === undefined ? clientId : data.billingClientId;
+  const vehicleId = data.vehicleId ?? null;
+  const assignedMechanicId = data.assignedMechanicId ?? null;
+
+  const client =
+    clientId === null ? null : await assertClientExists(clientId, transaction);
+  const contactClient =
+    contactClientId === clientId
+      ? client
+      : await resolveSnapshotClient(
+          contactClientId,
+          'El cliente de contacto especificado no existe',
+          transaction,
+        );
+  const billingClient =
+    billingClientId === clientId
+      ? client
+      : billingClientId === contactClientId
+        ? contactClient
+         : await resolveSnapshotClient(
+             billingClientId,
+             'El cliente de facturación especificado no existe',
+             transaction,
+           );
+
+  if (assignedMechanicId !== null) {
+    const mechanic = await User.findOne({
+      where: { id: assignedMechanicId, activo: true },
+      include: [{ model: Role, as: 'role', attributes: ['nombre'], where: { nombre: 'mecanico' } }],
+      transaction,
+    });
+    if (!mechanic) {
+      throw ApiError.badRequest('El mecánico seleccionado no existe o no está activo');
+    }
+  }
+
+  let vehicle: Vehicle | null = null;
+  if (data.vehicleId !== undefined && data.vehicleId !== null) {
+    vehicle = await assertVehicleExists(data.vehicleId, transaction);
+    if (
+      data.kilometrajeIngreso !== undefined &&
+      data.kilometrajeIngreso !== null &&
+      (vehicle.kilometraje === null || data.kilometrajeIngreso > vehicle.kilometraje)
+    ) {
+      await vehicle.update({ kilometraje: data.kilometrajeIngreso }, { transaction });
+    }
+  }
+  const vehicleOwner = await getVehicleOwnerSnapshot(vehicle, transaction);
+  const vehicleOwnerMismatch =
+    clientId !== null && vehicleOwner.clientId !== null && vehicleOwner.clientId !== clientId;
+
+  await assertCatalogItemsExist(data.items, transaction);
+
+  const codigo = await generateWorkOrderCode(transaction);
+  const workOrder = await WorkOrder.create(
+    {
+      codigo,
+      clientId,
+      ...buildContactSnapshot(contactClient),
+      ...buildBillingSnapshot(billingClient),
+       vehicleId,
+       assignedMechanicId,
+       vehicleOwnerClientId: vehicleOwner.clientId,
+      vehicleOwnerName: vehicleOwner.nombre,
+      vehicleOwnerRut: vehicleOwner.rut,
+      estado: 'en_progreso',
+      descripcion: data.descripcion ?? null,
+      kilometrajeIngreso: data.kilometrajeIngreso ?? null,
+      fechaIngreso: toDateOrNull(data.fechaIngreso) ?? new Date(),
+      fechaEntrega: toDateOrNull(data.fechaEntrega),
+      createdBy: userId,
+    },
+    { transaction },
+  );
+
+  if (data.items.length > 0) {
+    const createdItems = await WorkOrderItem.bulkCreate(buildItemsPayload(workOrder.id, data.items), {
+      transaction,
+    });
+    await consumeCompletedPartStock(createdItems, transaction, {
+      userId,
+      referencia: workOrder.codigo,
+    });
+  }
+
+  if (createQuotation) {
+    await createMirrorQuotation(workOrder, data.items, userId, transaction);
+  }
+
+  if (data.inspection !== undefined) {
+    await createInspection(workOrder.id, data.inspection, userId, transaction);
+  }
+
+  await recordWorkOrderEvent(
+    workOrder.id,
+    userId,
+    'creacion',
+    vehicleOwnerMismatch
+      ? 'Orden de trabajo creada con propietario del vehículo diferente al responsable'
+      : 'Orden de trabajo creada',
+    {
+      clientId,
+      vehicleId,
+      itemsCount: data.items.length,
+       vehicleOwnerClientId: vehicleOwner.clientId,
+       vehicleOwnerMismatch,
+    },
+    transaction,
+  );
+
+  return workOrder;
+};
+
 export const createWorkOrder = async (
   data: CreateWorkOrderInput,
   userId: number,
 ): Promise<WorkOrderPublic> => {
-  const workOrderId = await sequelize.transaction(async (transaction) => {
-    const clientId = data.clientId ?? null;
-    const contactClientId = data.contactClientId === undefined ? clientId : data.contactClientId;
-    const billingClientId = data.billingClientId === undefined ? clientId : data.billingClientId;
-    const vehicleId = data.vehicleId ?? null;
-    const assignedMechanicId = data.assignedMechanicId ?? null;
-
-    const client =
-      clientId === null ? null : await assertClientExists(clientId, transaction);
-    const contactClient =
-      contactClientId === clientId
-        ? client
-        : await resolveSnapshotClient(
-            contactClientId,
-            'El cliente de contacto especificado no existe',
-            transaction,
-          );
-    const billingClient =
-      billingClientId === clientId
-        ? client
-        : billingClientId === contactClientId
-          ? contactClient
-           : await resolveSnapshotClient(
-               billingClientId,
-               'El cliente de facturación especificado no existe',
-               transaction,
-             );
-
-    if (assignedMechanicId !== null) {
-      const mechanic = await User.findOne({
-        where: { id: assignedMechanicId, activo: true },
-        include: [{ model: Role, as: 'role', attributes: ['nombre'], where: { nombre: 'mecanico' } }],
-        transaction,
-      });
-      if (!mechanic) {
-        throw ApiError.badRequest('El mecánico seleccionado no existe o no está activo');
-      }
-    }
-
-    let vehicle: Vehicle | null = null;
-    if (data.vehicleId !== undefined && data.vehicleId !== null) {
-      vehicle = await assertVehicleExists(data.vehicleId, transaction);
-      if (
-        data.kilometrajeIngreso !== undefined &&
-        data.kilometrajeIngreso !== null &&
-        (vehicle.kilometraje === null || data.kilometrajeIngreso > vehicle.kilometraje)
-      ) {
-        await vehicle.update({ kilometraje: data.kilometrajeIngreso }, { transaction });
-      }
-    }
-    const vehicleOwner = await getVehicleOwnerSnapshot(vehicle, transaction);
-    const vehicleOwnerMismatch =
-      clientId !== null && vehicleOwner.clientId !== null && vehicleOwner.clientId !== clientId;
-
-    await assertCatalogItemsExist(data.items, transaction);
-
-    const codigo = await generateWorkOrderCode(transaction);
-    const workOrder = await WorkOrder.create(
-      {
-        codigo,
-        clientId,
-        ...buildContactSnapshot(contactClient),
-        ...buildBillingSnapshot(billingClient),
-         vehicleId,
-         assignedMechanicId,
-         vehicleOwnerClientId: vehicleOwner.clientId,
-        vehicleOwnerName: vehicleOwner.nombre,
-        vehicleOwnerRut: vehicleOwner.rut,
-        estado: 'borrador',
-        descripcion: data.descripcion ?? null,
-        kilometrajeIngreso: data.kilometrajeIngreso ?? null,
-        fechaIngreso: toDateOrNull(data.fechaIngreso) ?? new Date(),
-        fechaEntrega: toDateOrNull(data.fechaEntrega),
-        createdBy: userId,
-      },
-      { transaction },
-    );
-
-    if (data.items.length > 0) {
-      const createdItems = await WorkOrderItem.bulkCreate(buildItemsPayload(workOrder.id, data.items), {
-        transaction,
-      });
-      await consumeCompletedPartStock(createdItems, transaction, {
-        userId,
-        referencia: workOrder.codigo,
-      });
-    }
-
-    await createMirrorQuotation(workOrder, data.items, userId, transaction);
-
-    if (data.inspection !== undefined) {
-      await createInspection(workOrder.id, data.inspection, userId, transaction);
-    }
-
-    await recordWorkOrderEvent(
-      workOrder.id,
-      userId,
-      'creacion',
-      vehicleOwnerMismatch
-        ? 'Orden de trabajo creada con propietario del vehículo diferente al responsable'
-        : 'Orden de trabajo creada',
-      {
-        clientId,
-        vehicleId,
-        itemsCount: data.items.length,
-         vehicleOwnerClientId: vehicleOwner.clientId,
-         vehicleOwnerMismatch,
-      },
-      transaction,
-    );
-
-    return workOrder.id;
-  });
-
-  return getWorkOrderById(workOrderId);
+  const workOrder = await sequelize.transaction((transaction) =>
+    createWorkOrderInTransaction(data, userId, transaction),
+  );
+  return getWorkOrderById(workOrder.id);
 };
 
 export const updateWorkOrder = async (
@@ -1634,6 +1650,9 @@ export const updateWorkOrder = async (
 
     const nextClientId = data.clientId !== undefined ? data.clientId : workOrder.clientId;
     const nextVehicleId = data.vehicleId !== undefined ? data.vehicleId : workOrder.vehicleId;
+    if (nextVehicleId === null) {
+      throw ApiError.badRequest('La OT debe conservar un vehículo');
+    }
 
     if (nextClientId !== null) {
       await assertClientExists(nextClientId, transaction);
@@ -2006,6 +2025,9 @@ export const createWorkOrderReentry = async (
     if (source.estado !== 'entregada') {
       throw ApiError.badRequest('Solo una orden entregada puede originar una garantía o reingreso');
     }
+    if (source.vehicleId === null) {
+      throw ApiError.badRequest('La orden original debe tener un vehículo para generar un reingreso');
+    }
 
     if (source.clientId !== null) {
       await assertClientExists(
@@ -2085,7 +2107,7 @@ export const createWorkOrderReentry = async (
          vehicleOwnerClientId: source.vehicleOwnerClientId,
          vehicleOwnerName: source.vehicleOwnerName,
          vehicleOwnerRut: source.vehicleOwnerRut,
-         estado: 'borrador',
+         estado: 'en_progreso',
         descripcion: `[${label} de ${source.codigo}] ${data.motivo}`,
         kilometrajeIngreso,
         fechaIngreso: data.fechaIngreso ? new Date(data.fechaIngreso) : new Date(),
@@ -2482,11 +2504,16 @@ const recalculateMirrorQuotation = async (
     where: { quotationId: quotation.id },
     transaction,
   });
-  const total = items.reduce((sum, item) => sum + toNumber(item.subtotal), 0);
+  const pricing = priceQuotation(items, quotation);
+  const { total } = pricing;
+  for (let index = 0; index < items.length; index += 1) {
+    await items[index].update({ subtotal: pricing.lines[index].subtotal }, { transaction });
+  }
   const paid = toNumber(quotation.pagado);
+  if (total < paid) throw ApiError.badRequest('El nuevo total no puede ser inferior al monto ya pagado');
   const estadoPago: QuotationStatus =
     paid <= 0 ? 'por_pagar' : paid >= total ? 'total' : 'parcial';
-  await quotation.update({ subtotal: total, total, estadoPago }, { transaction });
+  await quotation.update({ subtotal: pricing.subtotal, total, estadoPago }, { transaction });
 };
 
 export const reviewWorkOrderRequest = async (
@@ -2701,7 +2728,7 @@ export const deleteWorkOrder = async (id: number, userId: number): Promise<void>
       throw ApiError.notFound('Orden de trabajo no encontrada');
     }
 
-    if (workOrder.estado !== 'borrador' && workOrder.estado !== 'cancelada') {
+    if (workOrder.estado !== 'cancelada') {
       throw ApiError.badRequest('No se puede eliminar una orden activa');
     }
 

@@ -17,36 +17,36 @@ export declare const createPaymentSchema: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     quotationId: number;
     monto: number;
-    metodo: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro";
+    metodo: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro";
     referencia?: string | undefined;
-    bancoOrigen?: "Banco de Chile" | "Banco Santander" | "BCI" | "Banco Estado" | undefined;
+    bancoOrigen?: "BCI" | "Banco de Chile" | "Banco Santander" | "Banco Estado" | undefined;
     numeroTransaccion?: string | undefined;
     comprobantePago?: string | undefined;
     fecha?: string | undefined;
 }, {
     quotationId: number;
     monto: number;
-    metodo: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro";
+    metodo: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro";
     referencia?: string | undefined;
-    bancoOrigen?: "Banco de Chile" | "Banco Santander" | "BCI" | "Banco Estado" | undefined;
+    bancoOrigen?: "BCI" | "Banco de Chile" | "Banco Santander" | "Banco Estado" | undefined;
     numeroTransaccion?: string | undefined;
     comprobantePago?: string | undefined;
     fecha?: string | undefined;
 }>, {
     quotationId: number;
     monto: number;
-    metodo: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro";
+    metodo: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro";
     referencia?: string | undefined;
-    bancoOrigen?: "Banco de Chile" | "Banco Santander" | "BCI" | "Banco Estado" | undefined;
+    bancoOrigen?: "BCI" | "Banco de Chile" | "Banco Santander" | "Banco Estado" | undefined;
     numeroTransaccion?: string | undefined;
     comprobantePago?: string | undefined;
     fecha?: string | undefined;
 }, {
     quotationId: number;
     monto: number;
-    metodo: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro";
+    metodo: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro";
     referencia?: string | undefined;
-    bancoOrigen?: "Banco de Chile" | "Banco Santander" | "BCI" | "Banco Estado" | undefined;
+    bancoOrigen?: "BCI" | "Banco de Chile" | "Banco Santander" | "Banco Estado" | undefined;
     numeroTransaccion?: string | undefined;
     comprobantePago?: string | undefined;
     fecha?: string | undefined;
@@ -63,18 +63,18 @@ export declare const updatePaymentSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     quotationId?: number | undefined;
     monto?: number | undefined;
-    metodo?: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
     referencia?: string | undefined;
-    bancoOrigen?: "Banco de Chile" | "Banco Santander" | "BCI" | "Banco Estado" | undefined;
+    bancoOrigen?: "BCI" | "Banco de Chile" | "Banco Santander" | "Banco Estado" | undefined;
     numeroTransaccion?: string | undefined;
     comprobantePago?: string | undefined;
     fecha?: string | undefined;
 }, {
     quotationId?: number | undefined;
     monto?: number | undefined;
-    metodo?: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
     referencia?: string | undefined;
-    bancoOrigen?: "Banco de Chile" | "Banco Santander" | "BCI" | "Banco Estado" | undefined;
+    bancoOrigen?: "BCI" | "Banco de Chile" | "Banco Santander" | "Banco Estado" | undefined;
     numeroTransaccion?: string | undefined;
     comprobantePago?: string | undefined;
     fecha?: string | undefined;
@@ -95,7 +95,7 @@ export declare const paymentQuerySchema: z.ZodObject<{
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
     quotationId?: number | undefined;
-    metodo?: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
@@ -103,7 +103,7 @@ export declare const paymentQuerySchema: z.ZodObject<{
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
     quotationId?: number | undefined;
-    metodo?: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
 }>;
 export declare const verifyPaymentSchema: z.ZodObject<{
     decision: z.ZodEnum<["aprobar", "rechazar"]>;

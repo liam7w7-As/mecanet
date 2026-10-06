@@ -54,7 +54,7 @@ export type CommercialReportFilters = z.infer<typeof commercialReportQuerySchema
 export declare const workshopReportQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde: z.ZodDefault<z.ZodString>;
     fechaHasta: z.ZodDefault<z.ZodString>;
-    estado: z.ZodOptional<z.ZodEnum<["borrador", "en_progreso", "esperando_repuesto", "finalizada", "entregada", "cancelada"]>>;
+    estado: z.ZodOptional<z.ZodEnum<["en_progreso", "esperando_repuesto", "finalizada", "entregada", "cancelada"]>>;
     mechanicId: z.ZodOptional<z.ZodNumber>;
     clientId: z.ZodOptional<z.ZodNumber>;
     vehicleId: z.ZodOptional<z.ZodNumber>;
@@ -63,13 +63,13 @@ export declare const workshopReportQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde: string;
     fechaHasta: string;
     search?: string | undefined;
-    estado?: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
+    estado?: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
     mechanicId?: number | undefined;
 }, {
     search?: string | undefined;
-    estado?: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
+    estado?: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
     fechaDesde?: string | undefined;
@@ -79,13 +79,13 @@ export declare const workshopReportQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde: string;
     fechaHasta: string;
     search?: string | undefined;
-    estado?: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
+    estado?: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
     mechanicId?: number | undefined;
 }, {
     search?: string | undefined;
-    estado?: "borrador" | "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
+    estado?: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada" | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
     fechaDesde?: string | undefined;
@@ -270,7 +270,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     comparar: boolean;
     estadoPago?: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado" | undefined;
     clientId?: number | undefined;
-    metodo?: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
     asesorId?: number | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;
     movimientoTipo?: "ingreso" | "egreso" | undefined;
@@ -280,7 +280,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     clientId?: number | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
-    metodo?: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
     asesorId?: number | undefined;
     agruparPor?: "dia" | "semana" | "mes" | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;
@@ -294,7 +294,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     comparar: boolean;
     estadoPago?: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado" | undefined;
     clientId?: number | undefined;
-    metodo?: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
     asesorId?: number | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;
     movimientoTipo?: "ingreso" | "egreso" | undefined;
@@ -304,7 +304,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     clientId?: number | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
-    metodo?: "efectivo" | "transferencia" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
     asesorId?: number | undefined;
     agruparPor?: "dia" | "semana" | "mes" | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;

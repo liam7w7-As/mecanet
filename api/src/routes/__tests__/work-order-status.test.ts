@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { sequelize } from '../../config/database.js';
+import { down as allowLegacyDrafts, up as startLegacyWorkOrders } from '../../database/migrations/039-start-work-orders-without-draft.js';
 import { app } from '../../main.js';
 import { Permission } from '../../models/Permission.js';
 import { Quotation } from '../../models/Quotation.js';
@@ -11,6 +12,7 @@ import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
 import { RolePermission } from '../../models/RolePermission.js';
 import { User } from '../../models/User.js';
+import { Vehicle } from '../../models/Vehicle.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
 import { WorkOrderDelivery } from '../../models/WorkOrderDelivery.js';
 import { WorkOrderEvent } from '../../models/WorkOrderEvent.js';
@@ -88,6 +90,7 @@ describe('Work Order State Machine Routes (E2E)', () => {
   let bodegueroRoleId: number;
   let tallerUpdatePermissionId: number;
   let removedBodegueroUpdatePermission = false;
+  let reentryVehicleId: number | undefined;
 
   beforeAll(async () => {
     await sequelize.authenticate();
@@ -189,28 +192,65 @@ describe('Work Order State Machine Routes (E2E)', () => {
       force: true,
     });
     await User.destroy({ where: { id: [bodegueroUserId] }, force: true });
+    if (reentryVehicleId) {
+      await Vehicle.destroy({ where: { id: reentryVehicleId }, force: true });
+    }
   });
 
-  it('permite transición borrador -> en_progreso', async () => {
+  it('migra borradores activos y eliminados sin alterar su historial y es idempotente', async () => {
+    const queryInterface = sequelize.getQueryInterface();
+    const active = await createWorkOrder(21, 'en_progreso');
+    const deleted = await createWorkOrder(22, 'en_progreso');
+    await deleted.destroy();
+    await WorkOrderEvent.create({
+      workOrderId: active.id,
+      actorUserId: devUserId,
+      tipo: 'creacion',
+      descripcion: 'Registro histórico original',
+      metadata: null,
+    });
+    await allowLegacyDrafts(queryInterface);
+    try {
+      await sequelize.query("UPDATE work_orders SET estado = 'borrador' WHERE id IN (:ids)", {
+        replacements: { ids: [active.id, deleted.id] },
+      });
+      await startLegacyWorkOrders(queryInterface);
+      await startLegacyWorkOrders(queryInterface);
+      await active.reload();
+      await deleted.reload({ paranoid: false });
+      expect(active.estado).toBe('en_progreso');
+      expect(deleted.estado).toBe('en_progreso');
+      expect(deleted.deletedAt).not.toBeNull();
+      expect(active.descripcion).toBe('OT estado 21');
+      expect(await WorkOrderEvent.count({ where: { workOrderId: active.id } })).toBe(1);
+      const columns = await queryInterface.describeTable('work_orders');
+      expect(columns.estado.type).not.toContain('borrador');
+      expect(columns.estado.defaultValue).toBe('en_progreso');
+    } finally {
+      await startLegacyWorkOrders(queryInterface);
+    }
+  });
+
+  it('permite transición en_progreso -> esperando_repuesto y registra el evento', async () => {
     const devCookies = await loginAs('dev@unithor.local');
-    const workOrder = await createWorkOrder(1, 'borrador');
+    const workOrder = await createWorkOrder(1, 'en_progreso');
 
     const response = await request(app)
       .patch(`/api/work-orders/${workOrder.id}/status`)
       .set('Cookie', authCookie(devCookies))
       .set('X-CSRF-Token', devCookies.csrfToken)
-      .send({ nuevoEstado: 'en_progreso' });
+      .send({ nuevoEstado: 'esperando_repuesto' });
 
     expect(response.status).toBe(200);
-    expect(response.body.workOrder.estado).toBe('en_progreso');
+    expect(response.body.workOrder.estado).toBe('esperando_repuesto');
 
     const stored = await WorkOrder.findByPk(workOrder.id);
-    expect(stored?.estado).toBe('en_progreso');
+    expect(stored?.estado).toBe('esperando_repuesto');
     const event = await WorkOrderEvent.findOne({ where: { workOrderId: workOrder.id } });
     expect(event).toMatchObject({
       actorUserId: devUserId,
       tipo: 'cambio_estado',
-      descripcion: 'Estado cambiado de borrador a en_progreso',
+      descripcion: 'Estado cambiado de en_progreso a esperando_repuesto',
     });
     expect(response.body.workOrder.events).toEqual([
       expect.objectContaining({ tipo: 'cambio_estado', actor: { id: devUserId, nombre: expect.any(String) } }),
@@ -322,9 +362,9 @@ describe('Work Order State Machine Routes (E2E)', () => {
     ]);
   });
 
-  it('rechaza transición inválida borrador -> entregada', async () => {
+  it('rechaza transición inválida en_progreso -> entregada', async () => {
     const devCookies = await loginAs('dev@unithor.local');
-    const workOrder = await createWorkOrder(4, 'borrador');
+    const workOrder = await createWorkOrder(4, 'en_progreso');
 
     const response = await request(app)
       .patch(`/api/work-orders/${workOrder.id}/status`)
@@ -334,7 +374,7 @@ describe('Work Order State Machine Routes (E2E)', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error.message).toBe(
-      "Transición inválida: no se puede cambiar de 'borrador' a 'entregada'",
+      "Transición inválida: no se puede cambiar de 'en_progreso' a 'entregada'",
     );
   });
 
@@ -391,8 +431,11 @@ describe('Work Order State Machine Routes (E2E)', () => {
 
   it('crea una garantía vinculada, reinicia items y conserva el historial', async () => {
     const devCookies = await loginAs('dev@unithor.local');
+    const vehicle = await Vehicle.create({ patente: 'PH4210', kilometraje: 100000 });
+    reentryVehicleId = vehicle.id;
     const source = await WorkOrder.create({
       codigo: `${TEST_CODE_PREFIX}10`,
+      vehicleId: vehicle.id,
       estado: 'entregada',
       descripcion: 'Orden original entregada',
       kilometrajeIngreso: 100000,
@@ -423,7 +466,7 @@ describe('Work Order State Machine Routes (E2E)', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.workOrder).toMatchObject({
-      estado: 'borrador',
+      estado: 'en_progreso',
       tipoIngreso: 'garantia',
       sourceWorkOrderId: source.id,
       coberturaGarantia: true,
@@ -449,6 +492,16 @@ describe('Work Order State Machine Routes (E2E)', () => {
         tipoIngreso: 'garantia',
       }),
     ]);
+  });
+
+  it('rechaza generar otro ingreso desde una OT histórica sin vehículo', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const source = await createWorkOrder(19, 'entregada');
+    const response = await request(app).post(`/api/work-orders/${source.id}/reentry`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ tipoIngreso: 'reingreso', motivo: 'Nueva revisión' });
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toContain('debe tener un vehículo');
   });
 
   it('rechaza crear un reingreso desde una orden que aún no fue entregada', async () => {
@@ -518,7 +571,7 @@ describe('Work Order State Machine Routes (E2E)', () => {
     invalidatePermissionCache(bodegueroRoleId);
 
     const bodegueroCookies = await loginAs(`${TEST_EMAIL_PREFIX}bodeguero@unithor.local`);
-    const workOrder = await createWorkOrder(8, 'borrador');
+    const workOrder = await createWorkOrder(8, 'en_progreso');
 
     const response = await request(app)
       .patch(`/api/work-orders/${workOrder.id}/status`)
@@ -527,5 +580,16 @@ describe('Work Order State Machine Routes (E2E)', () => {
       .send({ nuevoEstado: 'en_progreso' });
 
     expect(response.status).toBe(403);
+  });
+
+  it('rechaza volver al estado borrador eliminado del flujo', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const workOrder = await createWorkOrder(23, 'en_progreso');
+    const response = await request(app).patch(`/api/work-orders/${workOrder.id}/status`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ nuevoEstado: 'borrador' });
+    expect(response.status).toBe(400);
+    await workOrder.reload();
+    expect(workOrder.estado).toBe('en_progreso');
   });
 });

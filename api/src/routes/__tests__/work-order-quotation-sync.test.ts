@@ -417,4 +417,21 @@ describe('Sincronización OT → COT espejo (E2E)', () => {
     expect(updated?.estadoPago).toBe('parcial');
     expect(Number(updated?.total)).toBe(60000);
   });
+
+  it('conserva descuentos comerciales al cambiar cantidades desde taller', async () => {
+    const quotation = await Quotation.findOne({ where: { workOrderId } });
+    await quotation!.update({ descuentoTipo: 'fijo', descuentoValor: 1000 });
+    await QuotationItem.update({ descuentoTipo: 'porcentaje', descuentoValor: 10 }, { where: { quotationId: quotation!.id } });
+    const cookies = await loginAs('dev@unithor.local');
+    const response = await request(app).patch(`/api/work-orders/${workOrderId}`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ items: [{ descripcion: 'Repuesto sincronización', tipoLinea: 'parte', unidadMedida: 'unidad', cantidad: 5, precioUnitario: 15000 }] });
+    expect(response.status).toBe(200);
+    await quotation!.reload();
+    expect(Number(quotation!.subtotal)).toBe(75000);
+    expect(Number(quotation!.total)).toBe(66500);
+    const item = await QuotationItem.findOne({ where: { quotationId: quotation!.id } });
+    expect(Number(item!.descuentoValor)).toBe(10);
+    expect(Number(item!.subtotal)).toBe(67500);
+  });
 });

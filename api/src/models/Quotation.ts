@@ -1,4 +1,4 @@
-import { QUOTATION_STATUS, type QuotationStatus } from '@unithor/shared';
+import { QUOTATION_STATUS, type QuotationStatus, type DiscountType, type QuotationPaymentMethod } from '@unithor/shared';
 import {
   AutoIncrement,
   BelongsTo,
@@ -116,6 +116,21 @@ export class Quotation extends Model<
     allowNull: true,
   })
   declare notas: string | null;
+
+  @Column({ type: DataType.STRING(30), allowNull: false, defaultValue: 'transferencia' })
+  declare formaPago: CreationOptional<QuotationPaymentMethod>;
+
+  @Column({ type: DataType.STRING(200), allowNull: true })
+  declare disponibilidadTrabajo: CreationOptional<string | null>;
+
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 5 })
+  declare validezDias: CreationOptional<number>;
+
+  @Column({ type: DataType.STRING(15), allowNull: true })
+  declare descuentoTipo: CreationOptional<DiscountType | null>;
+
+  @Column({ type: DataType.DECIMAL(12, 2), allowNull: false, defaultValue: 0 })
+  declare descuentoValor: CreationOptional<number>;
 
   @Column({ type: DataType.DATE, allowNull: true })
   declare archivedAt: CreationOptional<Date | null>;

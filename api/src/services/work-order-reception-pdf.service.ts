@@ -2,6 +2,7 @@ import {
   VEHICLE_INVENTORY_ITEMS,
   layoutInspectionPhotos,
   WORK_ORDER_INSPECTION_PHOTO_SLOTS,
+  getWorkOrderStatusLabel,
   type FuelLevel,
   type TireCondition,
   type VehicleInventoryItem,
@@ -1013,7 +1014,7 @@ export async function generateWorkOrderReceptionPdf(
   };
 
   let cursorY = drawDocumentHeader(ctx);
-  const stateText = workOrder.estado.replace(/_/g, ' ').toUpperCase();
+  const stateText = getWorkOrderStatusLabel(workOrder.estado).toUpperCase();
   ctx.page.drawText(stateText, {
     x: MARGIN,
     y: cursorY,

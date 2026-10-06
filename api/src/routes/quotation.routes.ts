@@ -17,6 +17,7 @@ import {
   getQuotationByIdHandler,
   getQuotationInspectionPhotoHandler,
   getQuotationsHandler,
+  unarchiveQuotationHandler,
   updateQuotationHandler,
 } from '../controllers/quotation.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
@@ -55,7 +56,7 @@ quotationRouter.get(
 
 quotationRouter.get(
   '/:id',
-  authorizeAny([{ modulo: 'comercial', accion: 'read' }, { modulo: 'finanzas', accion: 'read' }]),
+  authorizeAny([{ modulo: 'comercial', accion: 'read' }, { modulo: 'finanzas', accion: 'read' }, { modulo: 'taller', accion: 'create' }, { modulo: 'comercial', accion: 'update' }]),
   validate({ params: idParamSchema }),
   getQuotationByIdHandler,
 );
@@ -82,6 +83,13 @@ quotationRouter.patch(
   authorize('comercial', 'update'),
   validate({ params: idParamSchema }),
   archiveQuotationHandler,
+);
+
+quotationRouter.patch(
+  '/:id/unarchive',
+  authorize('comercial', 'update'),
+  validate({ params: idParamSchema }),
+  unarchiveQuotationHandler,
 );
 
 quotationRouter.patch(

@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import ConvertQuotationModal from './ConvertQuotationModal';
 import PaymentFormModal from './PaymentFormModal';
 import QuotationStatusBadge from './QuotationStatusBadge';
 import { useCatalogItems } from '../../hooks/useCatalog';
@@ -67,13 +66,11 @@ const getInitials = (name?: string | null): string => {
 interface QuotationDetailModalProps {
   quotationId: number;
   onClose: () => void;
-  onConverted?: (workOrderId: number) => void;
 }
 
 export const QuotationDetailModal = ({
   quotationId,
   onClose,
-  onConverted,
 }: QuotationDetailModalProps) => {
   const user = useAuthStore((state) => state.user);
   const quotationQuery = useQuotation(quotationId);
@@ -90,7 +87,6 @@ export const QuotationDetailModal = ({
   // Sub-modal triggers
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
-  const [showConversionModal, setShowConversionModal] = useState(false);
   const [showAddSuggestedForm, setShowAddSuggestedForm] = useState(false);
   const [showPaymentsHistory, setShowPaymentsHistory] = useState(false);
 
@@ -288,6 +284,8 @@ export const QuotationDetailModal = ({
               unidadMedida: item.unidadMedida,
               cantidad: Number(item.cantidad),
               precioUnitario: 0, // No cost applied
+              descuentoTipo: null,
+              descuentoValor: 0,
               estadoOperativo: 'omitido' as const,
               notasOperativas: newNote,
             }
@@ -480,7 +478,7 @@ export const QuotationDetailModal = ({
           {quotation && (
             <>
               {/* Client, Vehicle & Financial KPI strip */}
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className={`grid grid-cols-1 gap-3 ${quotation.vehicle ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
                 {/* Client Box */}
                 <div className="flex items-center gap-3 rounded-xl border border-brand-line/80 bg-brand-line/60 p-3.5">
                   {/* Iniciales en tinta y no en `primaryInk`: sobre el teñido al 10% daba
@@ -500,7 +498,7 @@ export const QuotationDetailModal = ({
                 </div>
 
                 {/* Vehicle Box */}
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-line/80 bg-brand-line/60 p-3.5">
+                {quotation.vehicle && <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-line/80 bg-brand-line/60 p-3.5">
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Vehículo</p>
                     <p className="truncate text-sm font-bold text-brand-ink" title={[quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos'}>
@@ -521,7 +519,7 @@ export const QuotationDetailModal = ({
                   ) : (
                     <span className="font-mono text-xs text-brand-muted">Sin patente</span>
                   )}
-                </div>
+                </div>}
 
                 {/* Financial Overview */}
                 <div className="flex flex-col justify-between rounded-xl border border-brand-line/80 bg-brand-line/60 p-3.5">
@@ -1091,15 +1089,15 @@ export const QuotationDetailModal = ({
               </button>
             )}
 
-            {quotation && canConvert && quotation.workOrderId === null && (
-              <button
-                type="button"
-                onClick={() => setShowConversionModal(true)}
+            {quotation && canConvert && quotation.workOrderId === null && !quotation.archivedAt && (
+              <Link
+                to={`/quotations/${quotation.id}/convert-to-ot`}
+                onClick={onClose}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-primaryHover transition-colors"
               >
                 <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Convertir a OT</span>
-              </button>
+              </Link>
             )}
           </div>
 
@@ -1135,18 +1133,6 @@ export const QuotationDetailModal = ({
         />
       )}
 
-      {showConversionModal && quotation && (
-        <ConvertQuotationModal
-          quotationId={quotation.id}
-          codigo={quotation.codigo}
-          notas={quotation.notas}
-          onClose={() => setShowConversionModal(false)}
-          onConverted={(workOrderId) => {
-            setShowConversionModal(false);
-            if (onConverted) onConverted(workOrderId);
-          }}
-        />
-      )}
 
       {showPdfModal && quotation && (
         <PdfPreviewModal

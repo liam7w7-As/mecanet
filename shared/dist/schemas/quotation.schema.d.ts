@@ -1,5 +1,5 @@
 import { z } from 'zod';
-export declare const quotationItemInputSchema: z.ZodObject<{
+export declare const quotationItemInputSchema: z.ZodEffects<z.ZodObject<{
     catalogItemId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     tipoLinea: z.ZodDefault<z.ZodEnum<["parte", "estandar", "especifico"]>>;
     descripcion: z.ZodString;
@@ -8,31 +8,59 @@ export declare const quotationItemInputSchema: z.ZodObject<{
     precioUnitario: z.ZodDefault<z.ZodNumber>;
     estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
     notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+    descuentoValor: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
+    cantidad: number;
+    precioUnitario: number;
     descripcion: string;
     unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
     tipoLinea: "parte" | "estandar" | "especifico";
-    cantidad: number;
-    precioUnitario: number;
     estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
     catalogItemId?: number | null | undefined;
     notasOperativas?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
 }, {
     descripcion: string;
+    cantidad?: number | undefined;
+    precioUnitario?: number | undefined;
     unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     catalogItemId?: number | null | undefined;
     tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-    cantidad?: number | undefined;
-    precioUnitario?: number | undefined;
     estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
     notasOperativas?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
+}>, {
+    cantidad: number;
+    precioUnitario: number;
+    descripcion: string;
+    unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
+    tipoLinea: "parte" | "estandar" | "especifico";
+    estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
+    catalogItemId?: number | null | undefined;
+    notasOperativas?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
+}, {
+    descripcion: string;
+    cantidad?: number | undefined;
+    precioUnitario?: number | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+    catalogItemId?: number | null | undefined;
+    tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+    estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
+    notasOperativas?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
 }>;
-export declare const createQuotationSchema: z.ZodEffects<z.ZodObject<{
+export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     workOrderId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     clientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     vehicleId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     notas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
-    items: z.ZodDefault<z.ZodArray<z.ZodObject<{
+    items: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodObject<{
         catalogItemId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         tipoLinea: z.ZodDefault<z.ZodEnum<["parte", "estandar", "especifico"]>>;
         descripcion: z.ZodString;
@@ -41,89 +69,194 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodObject<{
         precioUnitario: z.ZodDefault<z.ZodNumber>;
         estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+        descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+        descuentoValor: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }, {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
+    }>, {
+        cantidad: number;
+        precioUnitario: number;
+        descripcion: string;
+        unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
+        tipoLinea: "parte" | "estandar" | "especifico";
+        estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
+        catalogItemId?: number | null | undefined;
+        notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
+    }, {
+        descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
+        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+        catalogItemId?: number | null | undefined;
+        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+        estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
+        notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }>, "many">>;
+    formaPago: z.ZodOptional<z.ZodEnum<["transferencia", "efectivo", "efectivo_transferencia", "a_convenir"]>>;
+    disponibilidadTrabajo: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    validezDias: z.ZodOptional<z.ZodNumber>;
+    descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+    descuentoValor: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     items: {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[];
     notas?: string | null | undefined;
     clientId?: number | null | undefined;
     vehicleId?: number | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     workOrderId?: number | null | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
 }, {
     notas?: string | null | undefined;
     items?: {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     vehicleId?: number | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     workOrderId?: number | null | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
 }>, {
     items: {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[];
     notas?: string | null | undefined;
     clientId?: number | null | undefined;
     vehicleId?: number | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     workOrderId?: number | null | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
 }, {
     notas?: string | null | undefined;
     items?: {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     vehicleId?: number | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     workOrderId?: number | null | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
+}>, {
+    items: {
+        cantidad: number;
+        precioUnitario: number;
+        descripcion: string;
+        unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
+        tipoLinea: "parte" | "estandar" | "especifico";
+        estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
+        catalogItemId?: number | null | undefined;
+        notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
+    }[];
+    notas?: string | null | undefined;
+    clientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
+    workOrderId?: number | null | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
+}, {
+    notas?: string | null | undefined;
+    items?: {
+        descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
+        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+        catalogItemId?: number | null | undefined;
+        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+        estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
+        notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
+    }[] | undefined;
+    clientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
+    workOrderId?: number | null | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
 }>;
 export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
     notas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
-    items: z.ZodOptional<z.ZodArray<z.ZodObject<{
+    items: z.ZodOptional<z.ZodArray<z.ZodEffects<z.ZodObject<{
         catalogItemId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         tipoLinea: z.ZodDefault<z.ZodEnum<["parte", "estandar", "especifico"]>>;
         descripcion: z.ZodString;
@@ -132,78 +265,139 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         precioUnitario: z.ZodDefault<z.ZodNumber>;
         estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+        descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+        descuentoValor: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }, {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
+    }>, {
+        cantidad: number;
+        precioUnitario: number;
+        descripcion: string;
+        unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
+        tipoLinea: "parte" | "estandar" | "especifico";
+        estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
+        catalogItemId?: number | null | undefined;
+        notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
+    }, {
+        descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
+        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+        catalogItemId?: number | null | undefined;
+        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+        estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
+        notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }>, "many">>;
     estadoPago: z.ZodOptional<z.ZodEnum<["total", "parcial", "por_verificar", "por_pagar", "ot_finalizado"]>>;
+    formaPago: z.ZodOptional<z.ZodEnum<["transferencia", "efectivo", "efectivo_transferencia", "a_convenir"]>>;
+    disponibilidadTrabajo: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    validezDias: z.ZodOptional<z.ZodNumber>;
+    descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+    descuentoValor: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     notas?: string | null | undefined;
     estadoPago?: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado" | undefined;
     items?: {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[] | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
 }, {
     notas?: string | null | undefined;
     estadoPago?: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado" | undefined;
     items?: {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[] | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
 }>, {
     notas?: string | null | undefined;
     estadoPago?: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado" | undefined;
     items?: {
+        cantidad: number;
+        precioUnitario: number;
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
-        cantidad: number;
-        precioUnitario: number;
         estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[] | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
 }, {
     notas?: string | null | undefined;
     estadoPago?: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado" | undefined;
     items?: {
         descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        cantidad?: number | undefined;
-        precioUnitario?: number | undefined;
         estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[] | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
 }>;
 export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
@@ -267,21 +461,112 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     workOrderLinked?: boolean | "true" | "false" | undefined;
     archiveStatus?: "active" | "archived" | undefined;
 }>;
-export declare const convertQuotationToWorkOrderSchema: z.ZodObject<{
+export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
+    clientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    contactClientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    billingClientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    vehicleId: z.ZodNumber;
+    assignedMechanicId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     kilometrajeIngreso: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    descripcion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     fechaIngreso: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     fechaEntrega: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    descripcion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
-}, "strip", z.ZodTypeAny, {
+    items: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        catalogItemId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        tipoLinea: z.ZodDefault<z.ZodEnum<["parte", "estandar", "especifico"]>>;
+        descripcion: z.ZodString;
+        cantidad: z.ZodDefault<z.ZodNumber>;
+        unidadMedida: z.ZodDefault<z.ZodEnum<["unidad", "litro", "mililitro", "kilogramo", "juego", "servicio"]>>;
+        precioUnitario: z.ZodDefault<z.ZodNumber>;
+        estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
+        notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    }, "strip", z.ZodTypeAny, {
+        cantidad: number;
+        precioUnitario: number;
+        descripcion: string;
+        unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
+        tipoLinea: "parte" | "estandar" | "especifico";
+        estadoOperativo: "pendiente" | "en_proceso" | "completado" | "omitido";
+        catalogItemId?: number | null | undefined;
+        notasOperativas?: string | null | undefined;
+    }, {
+        descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
+        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+        catalogItemId?: number | null | undefined;
+        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+        estadoOperativo?: "pendiente" | "en_proceso" | "completado" | "omitido" | undefined;
+        notasOperativas?: string | null | undefined;
+    }>, "many">>;
+    inspection: z.ZodOptional<z.ZodObject<{
+        inventario: z.ZodDefault<z.ZodEffects<z.ZodArray<z.ZodEnum<["botiquin", "chaleco_reflectante", "extintor", "triangulo", "control_remoto", "manual", "radio", "usb", "rueda_repuesto", "llave_ruedas", "gata", "herramientas", "perno_seguridad", "enganche", "antena", "tapa_combustible", "tapas_ruedas", "limpiaparabrisas"]>, "many">, ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[], ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[]>>;
+        nivelCombustible: z.ZodOptional<z.ZodNullable<z.ZodEnum<["vacio", "cuarto", "medio", "tres_cuartos", "lleno"]>>>;
+        llantaDelanteraIzquierda: z.ZodOptional<z.ZodNullable<z.ZodEnum<["no_revisado", "bueno", "regular", "desgaste_severo", "baja_presion"]>>>;
+        llantaDelanteraDerecha: z.ZodOptional<z.ZodNullable<z.ZodEnum<["no_revisado", "bueno", "regular", "desgaste_severo", "baja_presion"]>>>;
+        llantaTraseraIzquierda: z.ZodOptional<z.ZodNullable<z.ZodEnum<["no_revisado", "bueno", "regular", "desgaste_severo", "baja_presion"]>>>;
+        llantaTraseraDerecha: z.ZodOptional<z.ZodNullable<z.ZodEnum<["no_revisado", "bueno", "regular", "desgaste_severo", "baja_presion"]>>>;
+        objetosValor: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+        observaciones: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    }, "strip", z.ZodTypeAny, {
+        inventario: ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[];
+        nivelCombustible?: "vacio" | "cuarto" | "medio" | "tres_cuartos" | "lleno" | null | undefined;
+        llantaDelanteraIzquierda?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaDelanteraDerecha?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaTraseraIzquierda?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaTraseraDerecha?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        objetosValor?: string | null | undefined;
+        observaciones?: string | null | undefined;
+    }, {
+        inventario?: ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[] | undefined;
+        nivelCombustible?: "vacio" | "cuarto" | "medio" | "tres_cuartos" | "lleno" | null | undefined;
+        llantaDelanteraIzquierda?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaDelanteraDerecha?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaTraseraIzquierda?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaTraseraDerecha?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        objetosValor?: string | null | undefined;
+        observaciones?: string | null | undefined;
+    }>>;
+}, "items">, "strict", z.ZodTypeAny, {
+    vehicleId: number;
     fechaIngreso?: string | null | undefined;
+    clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
+    contactClientId?: number | null | undefined;
+    billingClientId?: number | null | undefined;
+    assignedMechanicId?: number | null | undefined;
     kilometrajeIngreso?: number | null | undefined;
     fechaEntrega?: string | null | undefined;
+    inspection?: {
+        inventario: ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[];
+        nivelCombustible?: "vacio" | "cuarto" | "medio" | "tres_cuartos" | "lleno" | null | undefined;
+        llantaDelanteraIzquierda?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaDelanteraDerecha?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaTraseraIzquierda?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaTraseraDerecha?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        objetosValor?: string | null | undefined;
+        observaciones?: string | null | undefined;
+    } | undefined;
 }, {
+    vehicleId: number;
     fechaIngreso?: string | null | undefined;
+    clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
+    contactClientId?: number | null | undefined;
+    billingClientId?: number | null | undefined;
+    assignedMechanicId?: number | null | undefined;
     kilometrajeIngreso?: number | null | undefined;
     fechaEntrega?: string | null | undefined;
+    inspection?: {
+        inventario?: ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[] | undefined;
+        nivelCombustible?: "vacio" | "cuarto" | "medio" | "tres_cuartos" | "lleno" | null | undefined;
+        llantaDelanteraIzquierda?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaDelanteraDerecha?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaTraseraIzquierda?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        llantaTraseraDerecha?: "no_revisado" | "bueno" | "regular" | "desgaste_severo" | "baja_presion" | null | undefined;
+        objetosValor?: string | null | undefined;
+        observaciones?: string | null | undefined;
+    } | undefined;
 }>;
 export type QuotationItemInput = z.infer<typeof quotationItemInputSchema>;
 export type CreateQuotationInput = z.infer<typeof createQuotationSchema>;

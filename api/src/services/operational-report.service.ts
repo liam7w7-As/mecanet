@@ -1,3 +1,4 @@
+import { getWorkOrderStatusLabel } from '@unithor/shared';
 import ExcelJS from 'exceljs';
 import { Op } from 'sequelize';
 
@@ -432,7 +433,7 @@ const commercialSubtitle = (filters: CommercialReportFilters): string =>
 const workshopSubtitle = (filters: WorkshopReportFilters): string =>
   [
     `${filters.fechaDesde} al ${filters.fechaHasta}`,
-    filters.estado ? `Estado: ${humanize(filters.estado)}` : null,
+    filters.estado ? `Estado: ${getWorkOrderStatusLabel(filters.estado)}` : null,
     filters.mechanicId ? `Mecánico #${filters.mechanicId}` : null,
     filters.search ? `Búsqueda: ${filters.search}` : null,
   ].filter((value): value is string => Boolean(value)).join(' | ');
@@ -673,7 +674,7 @@ export async function generateWorkshopReportExcel(filters: WorkshopReportFilters
         billing: workOrder.billingName ?? workOrder.billingClient?.nombre ?? '',
         vehicle: workOrderVehicleLabel(workOrder),
         mechanic: workOrder.assignedMechanic?.nombre ?? 'Sin asignar',
-        status: humanize(workOrder.estado),
+        status: getWorkOrderStatusLabel(workOrder.estado),
         progress: `${workOrderProgress(workOrder)}%`,
         quotation: quotation?.codigo ?? 'Sin COT',
         total,
@@ -823,7 +824,7 @@ export async function generateWorkshopReportPdf(filters: WorkshopReportFilters):
       client: workOrder.client?.nombre ?? 'Sin cliente',
       vehicle: workOrderVehicleLabel(workOrder),
       mechanic: workOrder.assignedMechanic?.nombre ?? 'Sin asignar',
-      status: humanize(workOrder.estado),
+      status: getWorkOrderStatusLabel(workOrder.estado),
       progress: `${workOrderProgress(workOrder)}%`,
     })),
   );
@@ -1662,7 +1663,7 @@ export async function generateFleetReportExcel(filters: FleetReportFilters): Pro
       date: workOrder.fechaIngreso ?? workOrder.createdAt,
       client: workOrder.client?.nombre ?? '',
       vehicle: workOrderVehicleLabel(workOrder),
-      status: humanize(workOrder.estado),
+      status: getWorkOrderStatusLabel(workOrder.estado),
       description: workOrder.descripcion ?? '',
     })),
     'TOTAL HISTORIAL OT',

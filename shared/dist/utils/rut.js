@@ -1,4 +1,7 @@
-export const normalizeRut = (value) => value.replace(/[.\s-]/g, '').toUpperCase();
+export const normalizeRut = (value) => 
+// Además del guion común se aceptan los guiones tipográficos (‐ – — ― −)
+// que llegan al pegar desde PDFs, WhatsApp o teclados móviles.
+value.replace(/[.\s‐‑‒–—―−-]+/g, '').toUpperCase();
 export const formatRut = (value) => {
     const normalized = normalizeRut(value);
     if (!/^\d{1,8}[\dK]$/.test(normalized))
@@ -6,20 +9,12 @@ export const formatRut = (value) => {
     const body = normalized.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     return `${body}-${normalized.slice(-1)}`;
 };
+// Solo formato (cuerpo numérico no nulo + dígito o K). El dígito
+// verificador módulo 11 no se exige: bloqueaba RUN/RUT reales en el
+// registro de clientes. Misma regla que `rutSchema`.
 export const isValidRut = (value) => {
     const normalized = normalizeRut(value);
     if (!/^\d{1,8}[\dK]$/.test(normalized))
         return false;
-    const body = normalized.slice(0, -1);
-    if (Number(body) === 0)
-        return false;
-    let sum = 0;
-    let weight = 2;
-    for (let index = body.length - 1; index >= 0; index -= 1) {
-        sum += Number(body[index]) * weight;
-        weight = weight === 7 ? 2 : weight + 1;
-    }
-    const remainder = sum % 11;
-    const verifier = remainder === 0 ? '0' : remainder === 1 ? 'K' : String(11 - remainder);
-    return normalized.slice(-1) === verifier;
+    return Number(normalized.slice(0, -1)) > 0;
 };

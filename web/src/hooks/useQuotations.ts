@@ -82,6 +82,20 @@ export const useArchiveQuotationMutation = () => {
   });
 };
 
+export const useUnarchiveQuotationMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await api.patch<QuotationResponse>(`/quotations/${id}/unarchive`);
+      return response.data.quotation;
+    },
+    onSuccess: (quotation) => {
+      queryClient.setQueryData(quotationKeys.detail(quotation.id), quotation);
+      void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
+    },
+  });
+};
+
 export const useUpdateQuotationMutation = () => {
   const queryClient = useQueryClient();
 
@@ -111,6 +125,8 @@ export const useConvertToWorkOrderMutation = () => {
       queryClient.setQueryData(quotationKeys.detail(quotation.id), quotation);
       void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      void queryClient.invalidateQueries({ queryKey: ['clients'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });

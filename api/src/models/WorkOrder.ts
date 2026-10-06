@@ -161,7 +161,7 @@ export class WorkOrder extends Model<
   @Column({
     type: DataType.ENUM(...WORK_ORDER_STATUS),
     allowNull: false,
-    defaultValue: 'borrador',
+    defaultValue: 'en_progreso',
   })
   declare estado: CreationOptional<WorkOrderStatus>;
 

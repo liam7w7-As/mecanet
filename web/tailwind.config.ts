@@ -87,7 +87,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        sans: ['Poppins', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         // El template usa radios de 6-8px casi en todas partes.

@@ -153,7 +153,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
       ? WorkOrder.findAndCountAll({
           where: {
             assignedMechanicId: userId,
-            estado: { [Op.in]: ['borrador', 'en_progreso', 'esperando_repuesto', 'finalizada'] },
+            estado: { [Op.in]: ['en_progreso', 'esperando_repuesto', 'finalizada'] },
           },
           attributes: ['id', 'codigo', 'estado', 'createdAt', 'updatedAt'],
           include: [

@@ -1,5 +1,5 @@
 import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
-import { Archive, DollarSign, Download, FileSpreadsheet, FileText, LoaderCircle, Pencil, Plus, Search, Wrench } from 'lucide-react';
+import { Archive, ArchiveRestore, DollarSign, Download, FileSpreadsheet, FileText, LoaderCircle, Pencil, Plus, Search, Wrench } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -7,14 +7,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AnimateIcon, AnimatedTableRow } from '../../components/animate-ui';
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
-import ConvertQuotationModal from '../../components/quotations/ConvertQuotationModal';
 import PaymentFormModal from '../../components/quotations/PaymentFormModal';
 import QuotationDetailModal from '../../components/quotations/QuotationDetailModal';
 import QuotationEditModal from '../../components/quotations/QuotationEditModal';
 import QuotationStatusBadge from '../../components/quotations/QuotationStatusBadge';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDownloadCommercialExcel } from '../../hooks/usePayments';
-import { useArchiveQuotationMutation, useQuotation, useQuotations } from '../../hooks/useQuotations';
+import { useArchiveQuotationMutation, useQuotation, useQuotations, useUnarchiveQuotationMutation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate, formatTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
@@ -44,7 +43,28 @@ const firstDayOfMonth = (): string => {
 };
 
 const QuotationSkeleton = () => (
-  <>{Array.from({ length: 6 }, (_, index) => <tr key={index} className="border-b border-brand-line">{Array.from({ length: 9 }, (_, cell) => <td key={cell} className="px-4 py-5"><div className="h-4 animate-pulse rounded bg-brand-pale" /></td>)}</tr>)}</>
+  <>
+    {Array.from({ length: 6 }, (_, index) => (
+      <tr key={index} className="border-b border-brand-line">
+        {Array.from({ length: 9 }, (_, cell) => (
+          <td
+            key={cell}
+            className={`px-3 py-3.5 ${
+              cell === 0
+                ? 'hidden sm:table-cell'
+                : cell === 4
+                  ? 'hidden lg:table-cell'
+                  : cell === 6
+                    ? 'hidden md:table-cell'
+                    : ''
+            }`}
+          >
+            <div className="h-4 animate-pulse rounded bg-brand-pale" />
+          </td>
+        ))}
+      </tr>
+    ))}
+  </>
 );
 
 export const QuotationsPage = () => {
@@ -55,13 +75,14 @@ export const QuotationsPage = () => {
   const [page, setPage] = useState(1);
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
-  const [quotationToConvert, setQuotationToConvert] = useState<Quotation | null>(null);
   const [previewQuotationId, setPreviewQuotationId] = useState<number | null>(null);
   const [paymentQuotation, setPaymentQuotation] = useState<{ id: number; codigo: string; saldoPendiente: number } | null>(null);
   const [detailQuotationId, setDetailQuotationId] = useState<number | null>(null);
   const [editQuotationId, setEditQuotationId] = useState<number | null>(null);
   const [quotationToArchive, setQuotationToArchive] = useState<Quotation | null>(null);
   const archiveMutation = useArchiveQuotationMutation();
+  const [quotationToUnarchive, setQuotationToUnarchive] = useState<Quotation | null>(null);
+  const unarchiveMutation = useUnarchiveQuotationMutation();
   const debouncedSearch = useDebouncedValue(search, 350);
   const quotationsQuery = useQuotations({
     page,
@@ -125,7 +146,7 @@ export const QuotationsPage = () => {
                     type="button"
                     role="tab"
                     aria-selected={isSelected}
-                    title={filter.value === 'archived' ? `Archivadas manualmente o sin OT ni abonos con ${QUOTATION_ARCHIVE_DAYS} días desde su emisión` : undefined}
+                    title={filter.value === 'archived' ? 'Archivadas manualmente o con vigencia vencida, sin OT ni abonos' : undefined}
                   className={`relative min-h-10 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
                     isSelected ? 'text-white' : 'bg-brand-pale text-brand-muted hover:bg-brand-line'
                   }`}
@@ -163,27 +184,38 @@ export const QuotationsPage = () => {
             </div>
           </div>
         )}
-        <div className="max-w-full">
-          <table className="w-full table-fixed text-left text-sm max-xl:block [&_td]:break-words [&_td]:whitespace-normal [&_td]:px-2 [&_th]:px-2 [&_th]:whitespace-normal [&_th]:text-[11px] max-xl:[&_td]:block max-xl:[&_td]:border-none max-xl:[&_td]:py-2 max-xl:[&_td]:text-left max-xl:[&_td]:before:mb-1 max-xl:[&_td]:before:block max-xl:[&_td]:before:text-[10px] max-xl:[&_td]:before:font-semibold max-xl:[&_td]:before:uppercase max-xl:[&_td]:before:text-brand-muted max-xl:[&_td]:before:content-[attr(data-label)]">
-            <colgroup className="max-xl:hidden">
-              <col className="w-[4%]" /><col className="w-[13%]" /><col className="w-[23%]" />
-              <col className="w-[11%]" /><col className="w-[9%]" /><col className="w-[10%]" />
-              <col className="w-[9%]" /><col className="w-[10%]" /><col className="w-[11%]" />
-            </colgroup>
-            <thead className="bg-brand-line/40 text-[11px] uppercase text-brand-muted max-xl:hidden">
+        {quotationToUnarchive && (
+          <div role="region" aria-label="Confirmar desarchivo" className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-line bg-brand-pale p-4">
+            <div className="min-w-0 text-sm text-brand-ink">
+              <p className="font-semibold">¿Desarchivar {quotationToUnarchive.codigo}?</p>
+              <p className="text-brand-muted">Volverá al listado de cotizaciones activas.</p>
+              {unarchiveMutation.isError && <p role="alert" className="mt-1 text-brand-coralInk">{getApiErrorMessage(unarchiveMutation.error)}</p>}
+            </div>
+            <div className="flex gap-2">
+              <button type="button" className="secondary-button" disabled={unarchiveMutation.isPending} onClick={() => setQuotationToUnarchive(null)}>Cancelar</button>
+              <button type="button" className="primary-button" disabled={unarchiveMutation.isPending} onClick={() => unarchiveMutation.mutate(quotationToUnarchive.id, { onSuccess: () => setQuotationToUnarchive(null) })}>
+                {unarchiveMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArchiveRestore className="h-4 w-4" aria-hidden="true" />}
+                Confirmar desarchivo
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="overflow-x-auto rounded-xl border border-brand-line bg-white shadow-sm">
+          <table className="w-full min-w-[640px] text-left text-sm md:min-w-[760px] lg:min-w-full">
+            <thead className="bg-brand-line/40 text-[11px] uppercase text-brand-muted">
               <tr>
-                <th className="px-4 py-4 font-semibold">N°</th>
-                <th className="px-4 py-4 font-semibold">Código COT</th>
-                <th className="px-4 py-4 font-semibold">Cliente</th>
-                <th className="px-4 py-4 font-semibold">Estado pago</th>
-                <th className="px-4 py-4 font-semibold">Emitida</th>
-                <th className="px-4 py-4 text-right font-semibold">Total</th>
-                <th className="px-4 py-4 text-right font-semibold">Pagado</th>
-                <th className="px-4 py-4 text-right font-semibold">Saldo</th>
-                <th className="px-4 py-4 text-right font-semibold">Acciones</th>
+                <th className="hidden sm:table-cell px-3.5 py-3 font-semibold">N°</th>
+                <th className="px-3.5 py-3 font-semibold">Código COT</th>
+                <th className="px-3.5 py-3 font-semibold">Cliente</th>
+                <th className="px-3.5 py-3 font-semibold">Estado pago</th>
+                <th className="hidden lg:table-cell px-3.5 py-3 font-semibold">Emitida</th>
+                <th className="px-3.5 py-3 text-right font-semibold">Total</th>
+                <th className="hidden md:table-cell px-3.5 py-3 text-right font-semibold">Pagado</th>
+                <th className="px-3.5 py-3 text-right font-semibold">Saldo</th>
+                <th className="px-3.5 py-3 text-right font-semibold">Acciones</th>
               </tr>
             </thead>
-            <tbody className="max-xl:block">
+            <tbody>
               {quotationsQuery.isPending ? <QuotationSkeleton /> : quotationsQuery.data?.items.map((quotation, index) => {
                 const balance = Math.max(0, Number(quotation.total) - Number(quotation.pagado));
                 const rowNumber = (page - 1) * (quotationsQuery.data?.pageSize ?? 20) + index + 1;
@@ -198,87 +230,133 @@ export const QuotationsPage = () => {
                         ? 'bg-yellow-50/80 hover:bg-yellow-100/70'
                         : 'hover:bg-brand-pale/50';
                 return (
-                  <AnimatedTableRow key={quotation.id} delay={index * 0.02} enableHover={false} className={`border-b border-brand-line transition-colors last:border-0 max-xl:grid max-xl:grid-cols-2 max-xl:p-3 ${rowStyle}`}>
-                    <td data-label="N°" className={`border-l-4 px-4 py-5 font-mono text-sm font-bold text-brand-muted ${status === 'archived' ? 'border-slate-300' : attention?.kind === 'linked' ? 'border-orange-400' : attention ? 'border-yellow-400' : 'border-transparent'}`}>{rowNumber}</td>
-                    <td data-label="Código COT" className="px-4 py-5">
-                      <Link to={`/quotations/${quotation.id}`} className="font-mono text-[15px] font-bold text-brand-primaryInk hover:underline">{quotation.codigo}</Link>
+                  <AnimatedTableRow
+                    key={quotation.id}
+                    delay={index * 0.02}
+                    enableHover={false}
+                    className={`border-b border-brand-line transition-colors last:border-0 ${rowStyle}`}
+                  >
+                    <td className={`hidden sm:table-cell border-l-4 px-3.5 py-3 font-mono text-xs font-bold text-brand-muted ${status === 'archived' ? 'border-slate-300' : attention?.kind === 'linked' ? 'border-orange-400' : attention ? 'border-yellow-400' : 'border-transparent'}`}>
+                      {rowNumber}
+                    </td>
+                    <td className="px-3.5 py-3">
+                      <Link to={`/quotations/${quotation.id}`} className="font-mono text-sm font-bold text-brand-primaryInk hover:underline">
+                        {quotation.codigo}
+                      </Link>
                       {quotation.workOrder && (
-                        <Link to={`/work-orders/${quotation.workOrder.id}`} className="mt-1 block font-mono text-sm font-bold text-emerald-700 hover:underline">
+                        <Link to={`/work-orders/${quotation.workOrder.id}`} className="mt-0.5 block font-mono text-xs font-bold text-emerald-700 hover:underline">
                           {quotation.workOrder.codigo}
                         </Link>
                       )}
                       {quotation.asesor?.nombre && <span className="block text-xs text-brand-muted">{quotation.asesor.nombre}</span>}
-                      {status === 'archived' ? <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-600"><Archive className="h-3 w-3 shrink-0" aria-hidden="true" />{quotation.archivedAt ? 'Archivada manualmente' : 'Vigencia vencida'}</span> : attention && <span className={`mt-1 block text-xs font-semibold ${attention.kind === 'linked' ? 'text-orange-800' : 'text-amber-800'}`}>{attention.kind === 'linked' ? `OT sin actividad: ${attention.days} días` : attention.kind === 'fading' ? `Se archivará en ${QUOTATION_ARCHIVE_DAYS - attention.days} días` : `Sin OT: ${attention.days} días`}</span>}
+                      <span className="mt-0.5 block text-[11px] text-brand-muted lg:hidden">{formatDate(quotation.createdAt)}</span>
+                      {status === 'archived' ? (
+                        <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
+                          <Archive className="h-3 w-3 shrink-0" aria-hidden="true" />
+                          {quotation.archivedAt ? 'Archivada manualmente' : 'Vigencia vencida'}
+                        </span>
+                      ) : (
+                        attention && (
+                          <span className={`mt-1 block text-xs font-semibold ${
+                            attention.kind === 'linked' ? 'text-orange-800' : 'text-amber-800'
+                          }`}>
+                            {attention.kind === 'linked' ? `OT sin actividad: ${attention.days} días` : attention.kind === 'fading' ? `Se archivará en ${(quotation.validezDias ?? QUOTATION_ARCHIVE_DAYS) - attention.days} días` : `Sin OT: ${attention.days} días`}
+                          </span>
+                        )
+                      )}
                     </td>
-                    <td data-label="Cliente" className="px-4 py-5 max-xl:col-span-2">
+                    <td className="px-3.5 py-3">
                       <span className="block break-words text-sm font-semibold text-brand-ink">{quotation.client?.nombre ?? 'Sin cliente'}</span>
-                      <span className="block text-xs text-brand-muted">{quotation.client?.rut ?? 'Sin identificación'}</span>
-                      {quotation.vehicle?.patente && <span className="mt-1 inline-block rounded border border-brand-line bg-brand-pale px-1.5 py-0.5 font-mono text-xs font-bold text-brand-primaryInk">{quotation.vehicle.patente}</span>}
+                      <span className="block text-xs font-mono text-brand-muted">{quotation.client?.rut ?? 'Sin identificación'}</span>
+                      {quotation.vehicle?.patente && (
+                        <span className="mt-1 inline-block rounded border border-brand-line bg-brand-pale px-1.5 py-0.5 font-mono text-xs font-bold text-brand-primaryInk">
+                          {quotation.vehicle.patente}
+                        </span>
+                      )}
                     </td>
-                    <td data-label="Estado pago" className="px-4 py-5"><QuotationStatusBadge status={quotation.estadoPago} /></td>
-                    <td data-label="Emitida" className="px-4 py-5 text-xs text-brand-muted">
+                    <td className="px-3.5 py-3 whitespace-nowrap">
+                      <QuotationStatusBadge status={quotation.estadoPago} />
+                    </td>
+                    <td className="hidden lg:table-cell px-3.5 py-3 text-xs text-brand-muted whitespace-nowrap">
                       <span className="block">{formatDate(quotation.createdAt)}</span>
                       <span className="mt-0.5 block text-[11px]">{formatTime(quotation.createdAt)}</span>
                     </td>
-                    <td data-label="Total" className="px-4 py-5 text-right text-sm font-semibold text-brand-ink">{formatClp(quotation.total)}</td>
-                    <td data-label="Pagado" className="px-4 py-5 text-right text-brand-muted">{formatClp(quotation.pagado)}</td>
-                    <td data-label="Saldo" className="px-4 py-5 text-right text-sm font-bold text-brand-primaryInk">{formatClp(balance)}</td>
-                    <td data-label="Acciones" className="px-4 py-5 max-xl:col-span-2"><div className="flex flex-wrap items-center justify-end gap-1 max-xl:justify-start [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg">
-                      {canEdit && status !== 'archived' && quotation.workOrderId === null && Number(quotation.pagado) === 0 && quotation.estadoPago === 'por_pagar' && (
-                        <button type="button" className="flex items-center justify-center text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk" title="Archivar cotización" aria-label={`Archivar ${quotation.codigo}`} onClick={() => { archiveMutation.reset(); setQuotationToArchive(quotation); }}>
-                          <Archive className="h-4 w-4" aria-hidden="true" />
+                    <td className="px-3.5 py-3 text-right text-sm font-semibold text-brand-ink whitespace-nowrap">
+                      {formatClp(quotation.total)}
+                    </td>
+                    <td className="hidden md:table-cell px-3.5 py-3 text-right text-sm text-brand-muted whitespace-nowrap">
+                      {formatClp(quotation.pagado)}
+                    </td>
+                    <td className="px-3.5 py-3 text-right text-sm font-bold text-brand-primaryInk whitespace-nowrap">
+                      {formatClp(balance)}
+                    </td>
+                    <td className="px-3.5 py-3 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1 [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg">
+                        {canEdit && status === 'archived' && quotation.archivedAt && (
+                          <button type="button" className="flex items-center justify-center text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk" title="Desarchivar cotización" aria-label={`Desarchivar ${quotation.codigo}`} onClick={() => { unarchiveMutation.reset(); setQuotationToUnarchive(quotation); }}>
+                            <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        )}
+                        {canEdit && status !== 'archived' && quotation.workOrderId === null && Number(quotation.pagado) === 0 && quotation.estadoPago === 'por_pagar' && (
+                          <button type="button" className="flex items-center justify-center text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk" title="Archivar cotización" aria-label={`Archivar ${quotation.codigo}`} onClick={() => { archiveMutation.reset(); setQuotationToArchive(quotation); }}>
+                            <Archive className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        )}
+                        {balance > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setPaymentQuotation({ id: quotation.id, codigo: quotation.codigo, saldoPendiente: balance })}
+                            className="inline-flex items-center justify-center rounded-lg bg-brand-mintPale text-brand-mintInk ring-1 ring-inset ring-brand-line transition-all hover:bg-brand-mintPale active:scale-95"
+                            aria-label={`Abonar a ${quotation.codigo}`}
+                            title="Registrar abono"
+                          >
+                            <AnimateIcon variant="bounce" animateOnHover>
+                              <DollarSign className="h-4 w-4" aria-hidden="true" />
+                            </AnimateIcon>
+                          </button>
+                        )}
+                        {canEdit && (
+                          quotation.estadoPago === 'total' ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="flex items-center justify-center rounded-lg text-brand-muted/30"
+                              aria-label={`Editar ${quotation.codigo} deshabilitado`}
+                              title="Cotización pagada"
+                            >
+                              <Pencil className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="group flex items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primary disabled:opacity-50"
+                              aria-label={`Editar ${quotation.codigo}`}
+                              title="Editar"
+                              onClick={() => setEditQuotationId(quotation.id)}
+                              disabled={editQuery.isPending && editQuotationId === quotation.id}
+                            >
+                              {editQuery.isPending && editQuotationId === quotation.id
+                                ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                : <AnimateIcon variant="wiggle" animateOnHover><Pencil className="h-4 w-4" aria-hidden="true" /></AnimateIcon>
+                              }
+                            </button>
+                          )
+                        )}
+                        {canConvert && quotation.workOrderId === null && !quotation.archivedAt && (
+                          <button type="button" className="group flex items-center justify-center rounded-lg text-brand-muted hover:bg-brand-mintPale hover:text-brand-mintInk" onClick={() => navigate(`/quotations/${quotation.id}/convert-to-ot`)} aria-label={`Convertir ${quotation.codigo} a OT`} title="Convertir a OT">
+                            <AnimateIcon variant="spin" animateOnHover><Wrench className="h-4 w-4" aria-hidden="true" /></AnimateIcon>
+                          </button>
+                        )}
+                        <button type="button" className="group flex items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primary disabled:opacity-50" onClick={() => setPreviewQuotationId(quotation.id)} disabled={previewQuery.isPending && previewQuotationId === quotation.id} aria-label={`Vista previa PDF de ${quotation.codigo}`} title="Vista previa / Descargar PDF (mismo diseño)">
+                          {previewQuery.isPending && previewQuotationId === quotation.id ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon variant="bounce" animateOnHover><Download className="h-4 w-4" aria-hidden="true" /></AnimateIcon>}
                         </button>
-                      )}
-                      {balance > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setPaymentQuotation({ id: quotation.id, codigo: quotation.codigo, saldoPendiente: balance })}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-mintPale text-brand-mintInk ring-1 ring-inset ring-brand-line transition-all hover:bg-brand-mintPale active:scale-95"
-                          aria-label={`Abonar a ${quotation.codigo}`}
-                          title="Registrar abono"
-                        >
-                          <AnimateIcon variant="bounce" animateOnHover>
-                            <DollarSign className="h-4 w-4" aria-hidden="true" />
+                        <button type="button" className="group flex items-center justify-center rounded-lg bg-brand-pale text-brand-primaryInk hover:bg-brand-primaryHover hover:text-white" onClick={() => setDetailQuotationId(quotation.id)} aria-label={`Ver detalle de ${quotation.codigo}`} title="Ver detalle">
+                          <AnimateIcon variant="hover-lift" animateOnHover>
+                            <FileText className="h-4 w-4" aria-hidden="true" />
                           </AnimateIcon>
                         </button>
-                      )}
-                      {canEdit && (
-                        quotation.estadoPago === 'total' ? (
-                          <button
-                            type="button"
-                            disabled
-                            className="flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted/30"
-                            aria-label={`Editar ${quotation.codigo} deshabilitado`}
-                            title="Cotización pagada"
-                          >
-                            <Pencil className="h-4 w-4" aria-hidden="true" />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-pale hover:text-brand-primary disabled:opacity-50"
-                            aria-label={`Editar ${quotation.codigo}`}
-                            title="Editar"
-                            onClick={() => setEditQuotationId(quotation.id)}
-                            disabled={editQuery.isPending && editQuotationId === quotation.id}
-                          >
-                            {editQuery.isPending && editQuotationId === quotation.id
-                              ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                              : <AnimateIcon variant="wiggle" animateOnHover><Pencil className="h-4 w-4" aria-hidden="true" /></AnimateIcon>
-                            }
-                          </button>
-                        )
-                      )}
-                      {canConvert && quotation.workOrderId === null && <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-mintPale hover:text-brand-mintInk" onClick={() => setQuotationToConvert(quotation)} aria-label={`Convertir ${quotation.codigo} a OT`} title="Convertir a OT"><AnimateIcon variant="spin" animateOnHover><Wrench className="h-4 w-4" aria-hidden="true" /></AnimateIcon></button>}
-                      <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl text-brand-muted hover:bg-brand-pale hover:text-brand-primary disabled:opacity-50" onClick={() => setPreviewQuotationId(quotation.id)} disabled={previewQuery.isPending && previewQuotationId === quotation.id} aria-label={`Vista previa PDF de ${quotation.codigo}`} title="Vista previa / Descargar PDF (mismo diseño)">
-                        {previewQuery.isPending && previewQuotationId === quotation.id ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon variant="bounce" animateOnHover><Download className="h-4 w-4" aria-hidden="true" /></AnimateIcon>}
-                      </button>
-                      <button type="button" className="group flex h-10 w-10 items-center justify-center rounded-xl bg-brand-pale text-brand-primaryInk hover:bg-brand-primaryHover hover:text-white" onClick={() => setDetailQuotationId(quotation.id)} aria-label={`Ver detalle de ${quotation.codigo}`} title="Ver detalle">
-                        <AnimateIcon variant="hover-lift" animateOnHover>
-                          <FileText className="h-4 w-4" aria-hidden="true" />
-                        </AnimateIcon>
-                      </button>
-                    </div></td>
+                      </div>
+                    </td>
                   </AnimatedTableRow>
                 );
               })}
@@ -289,7 +367,6 @@ export const QuotationsPage = () => {
         <Pagination page={page} totalPages={quotationsQuery.data?.totalPages ?? 0} total={quotationsQuery.data?.total ?? 0} onPageChange={setPage} />
       </section>
 
-      {quotationToConvert && <ConvertQuotationModal quotationId={quotationToConvert.id} codigo={quotationToConvert.codigo} notas={quotationToConvert.notas} onClose={() => setQuotationToConvert(null)} onConverted={(workOrderId) => navigate(`/work-orders/${workOrderId}`)} />}
 
       {editQuotationId !== null && editQuery.data && (
         <QuotationEditModal
@@ -311,7 +388,6 @@ export const QuotationsPage = () => {
         <QuotationDetailModal
           quotationId={detailQuotationId}
           onClose={() => setDetailQuotationId(null)}
-          onConverted={(workOrderId) => navigate(`/work-orders/${workOrderId}`)}
         />
       )}
 

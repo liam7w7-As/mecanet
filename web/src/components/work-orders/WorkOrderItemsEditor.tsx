@@ -1,4 +1,4 @@
-import { ITEM_OPERATIONAL_STATUS, UNIT_MEASURES, UNIT_MEASURE_LABELS } from '@unithor/shared';
+import { calculateQuotationPricing, ITEM_OPERATIONAL_STATUS, UNIT_MEASURES, UNIT_MEASURE_LABELS } from '@unithor/shared';
 import { Check, ChevronLeft, ChevronRight, LoaderCircle, Minus, Plus, Search, Trash2, Undo2 } from 'lucide-react';
 import { useId, useState } from 'react';
 
@@ -7,7 +7,7 @@ import { formatClp } from '../../lib/formatters';
 import CurrencyInput from '../common/CurrencyInput';
 
 import type { CatalogItem } from '../../types/entities';
-import type { ItemOperationalStatus, UnitMeasure } from '@unithor/shared';
+import type { DiscountType, ItemOperationalStatus, UnitMeasure } from '@unithor/shared';
 
 let itemSequence = 0;
 
@@ -23,6 +23,8 @@ export interface EditableWorkOrderItem {
   precioUnitario: string;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string;
+  descuentoTipo?: DiscountType | null;
+  descuentoValor?: string;
 }
 
 export const createEmptyWorkOrderItem = (): EditableWorkOrderItem => ({
@@ -61,17 +63,36 @@ interface WorkOrderItemsEditorProps {
   totalLabel?: string;
   totalTestId?: string;
   showExecution?: boolean;
+  showDiscounts?: boolean;
+  showTotal?: boolean;
+  /**
+   * Si es true, los descuentos por línea quedan detrás de un check
+   * ("Descuento por línea", apagado por defecto) y solo se ve el descuento
+   * general. Al apagar se limpian los descuentos por línea ya puestos para
+   * que el total coincida con lo visible.
+   */
+  discountToggle?: boolean;
 }
 
 export const WorkOrderItemsEditor = ({
   items, onChange, errors = {}, title = 'Trabajos y repuestos',
   emptyMessage = 'Sin servicios ni repuestos seleccionados.',
   totalLabel = 'Total estimado', totalTestId = 'work-order-total', showExecution = true,
+  showDiscounts = false, showTotal = true, discountToggle = false,
 }: WorkOrderItemsEditorProps) => {
   const headingId = useId();
   const [activeType, setActiveType] = useState<CatalogItem['tipo']>('estandar');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [lineDiscountsOn, setLineDiscountsOn] = useState(false);
+  const showLineDiscounts = showDiscounts && (!discountToggle || lineDiscountsOn);
+
+  const toggleLineDiscounts = (enabled: boolean): void => {
+    setLineDiscountsOn(enabled);
+    if (!enabled) {
+      onChange(items.map((item) => ({ ...item, descuentoTipo: null, descuentoValor: '0' })));
+    }
+  };
   const [removed, setRemoved] = useState<{ item: EditableWorkOrderItem; index: number } | null>(null);
   const catalogQuery = useCatalogItems(search, activeType, page);
 
@@ -113,7 +134,9 @@ export const WorkOrderItemsEditor = ({
     <section className="min-w-0 space-y-4" aria-labelledby={headingId}>
       <h2 id={headingId} className="text-lg font-bold text-brand-primaryInk">{title}</h2>
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)]">
-        <div className="min-w-0">
+        {/* Columna fija: al hacer scroll por una selección larga el catálogo
+            queda visible para seguir agregando sin volver arriba. */}
+        <div className="min-w-0 xl:sticky xl:top-4 xl:self-start">
           <h3 className="mb-3 text-sm font-bold text-brand-ink">Catálogo</h3>
           <div className="flex flex-wrap gap-1 border-b border-brand-line" role="group" aria-label="Tipo de catálogo">
             {(['estandar', 'especifico', 'parte'] as const).map((type) => (
@@ -164,13 +187,26 @@ export const WorkOrderItemsEditor = ({
             </div>
           </div>}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 xl:max-h-[calc(100dvh-14rem)] xl:overflow-y-auto xl:pr-1">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-line pb-3">
             <h3 className="text-sm font-bold text-brand-ink">Selección ({items.length})</h3>
-            <button type="button" className="inline-flex h-9 items-center gap-1 rounded-lg border border-brand-primaryInk px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-line/40"
-              onClick={() => onChange([...items, { ...createEmptyWorkOrderItem(), tipoLinea: activeType }])}>
-              <Plus className="h-4 w-4" aria-hidden="true" /> Ítem libre
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {showDiscounts && discountToggle && (
+                <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-brand-line px-3 text-xs font-semibold text-brand-muted transition-colors hover:bg-brand-pale has-[:checked]:border-brand-primaryInk has-[:checked]:bg-brand-pale has-[:checked]:text-brand-primaryInk">
+                  <input
+                    type="checkbox"
+                    checked={lineDiscountsOn}
+                    onChange={(event) => toggleLineDiscounts(event.target.checked)}
+                    className="h-4 w-4 accent-brand-primaryInk"
+                  />
+                  Descuento por línea
+                </label>
+              )}
+              <button type="button" className="inline-flex h-9 items-center gap-1 rounded-lg border border-brand-primaryInk px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-line/40"
+                onClick={() => onChange([...items, { ...createEmptyWorkOrderItem(), tipoLinea: activeType }])}>
+                <Plus className="h-4 w-4" aria-hidden="true" /> Ítem libre
+              </button>
+            </div>
           </div>
           {removed && <div className="flex items-center justify-between gap-2 border-b border-brand-line py-2 text-sm" role="status">
             <span className="truncate text-brand-muted">Quitado: {removed.item.descripcion || 'Ítem libre'}</span>
@@ -190,15 +226,18 @@ export const WorkOrderItemsEditor = ({
                   <button type="button" className="mt-5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-coralPale hover:text-brand-coralInk"
                     onClick={() => removeItem(item.key)} aria-label={`Eliminar ítem ${index + 1}`} title="Quitar ítem"><Trash2 className="h-4 w-4" aria-hidden="true" /></button>
                 </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {/* Cantidad y unidad van angostos (3 dígitos como máximo en la
+                    práctica); el precio unitario es el único campo largo porque
+                    los montos en CLP ocupan varios dígitos. */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-[7rem_8.5rem_minmax(0,1fr)]">
                   <div className="grid gap-1 text-xs font-semibold text-brand-muted"><span>Cantidad</span>
                     <div className="flex h-10 min-w-0 rounded-lg border border-brand-line">
-                      <button type="button" className="w-8 shrink-0 text-brand-muted hover:bg-brand-pale disabled:opacity-30" disabled={Number(item.cantidad) <= 1}
+                      <button type="button" className="w-7 shrink-0 text-brand-muted hover:bg-brand-pale disabled:opacity-30" disabled={Number(item.cantidad) <= 1}
                         aria-label={`Reducir cantidad ${index + 1}`} title="Reducir cantidad" onClick={() => updateItem(item.key, { cantidad: String(Math.max(1, Number(item.cantidad) - 1)) })}><Minus className="mx-auto h-3 w-3" aria-hidden="true" /></button>
                       <input type="number" min="1" step="1" value={item.cantidad} aria-label={`Cantidad ${index + 1}`}
-                        className="w-full min-w-0 bg-transparent text-center text-sm text-brand-ink outline-brand-primary [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        className="w-full min-w-0 bg-transparent text-center text-sm tabular-nums text-brand-ink outline-brand-primary [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         onChange={(event) => updateItem(item.key, { cantidad: event.target.value })} />
-                      <button type="button" className="w-8 shrink-0 text-brand-muted hover:bg-brand-pale" aria-label={`Aumentar cantidad ${index + 1}`} title="Aumentar cantidad"
+                      <button type="button" className="w-7 shrink-0 text-brand-muted hover:bg-brand-pale" aria-label={`Aumentar cantidad ${index + 1}`} title="Aumentar cantidad"
                         onClick={() => updateItem(item.key, { cantidad: String(Math.max(1, Math.floor(Number(item.cantidad) || 0) + 1)) })}><Plus className="mx-auto h-3 w-3" aria-hidden="true" /></button>
                     </div>
                   </div>
@@ -207,10 +246,21 @@ export const WorkOrderItemsEditor = ({
                       {UNIT_MEASURES.map((unit) => <option key={unit} value={unit}>{UNIT_MEASURE_LABELS[unit]}</option>)}
                     </select>
                   </label>
-                  <label className="grid gap-1 text-xs font-semibold text-brand-muted">Precio unitario
-                    <CurrencyInput value={item.precioUnitario} onChange={(value) => updateItem(item.key, { precioUnitario: value })} className={inputClass} aria-label={`Precio unitario ${index + 1}`} />
+                  <label className="grid gap-1 text-xs font-semibold text-brand-muted max-sm:col-span-2">Precio unitario
+                    <CurrencyInput value={item.precioUnitario} onChange={(value) => updateItem(item.key, { precioUnitario: value })} className={`${inputClass} font-semibold tabular-nums`} aria-label={`Precio unitario ${index + 1}`} />
                   </label>
                 </div>
+                {showLineDiscounts && <div className="grid grid-cols-2 gap-3">
+                  <label className="grid gap-1 text-xs font-semibold text-brand-muted">Descuento
+                    <select className={inputClass} aria-label={`Tipo de descuento ${index + 1}`} value={item.descuentoTipo ?? ''} onChange={(event) => updateItem(item.key, { descuentoTipo: event.target.value ? event.target.value as DiscountType : null, descuentoValor: '0' })}>
+                      <option value="">Sin descuento</option><option value="porcentaje">Porcentaje (%)</option><option value="fijo">Monto fijo ($)</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs font-semibold text-brand-muted">{item.descuentoTipo === 'porcentaje' ? 'Porcentaje' : 'Monto por línea'}
+                    {item.descuentoTipo === 'porcentaje' ? <input type="number" min={0} max={100} step="0.01" className={inputClass} aria-label={`Descuento ${index + 1}`} value={item.descuentoValor ?? '0'} onChange={(event) => updateItem(item.key, { descuentoValor: event.target.value })} />
+                      : <CurrencyInput className={`${inputClass} disabled:bg-brand-pale`} aria-label={`Descuento ${index + 1}`} disabled={!item.descuentoTipo} value={item.descuentoValor ?? '0'} onChange={(next) => updateItem(item.key, { descuentoValor: next })} />}
+                  </label>
+                </div>}
                 {Object.entries(errors).filter(([path]) => path.startsWith(`items.${index}.`)).map(([path, message]) => <p key={path} className="text-xs text-brand-coralInk" role="alert">{message}</p>)}
                 {showExecution && <div className="grid gap-3 sm:grid-cols-2">
                   <label className="grid gap-1 text-xs font-semibold text-brand-muted">Avance
@@ -224,16 +274,18 @@ export const WorkOrderItemsEditor = ({
                 </div>}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs text-brand-muted">{item.tipoLinea === 'parte' && item.catalogStock !== null ? `Stock disponible: ${item.catalogStock}` : item.catalogItemId ? 'Del catálogo' : 'Ítem libre'}</span>
-                  <span className="text-sm font-bold text-brand-primaryInk" data-testid={`item-subtotal-${index}`}>{formatClp(getWorkOrderItemSubtotal(item))}</span>
+                  <span className="text-sm font-bold text-brand-primaryInk" data-testid={`item-subtotal-${index}`}>{(() => {
+                    try { return formatClp(showDiscounts ? calculateQuotationPricing([item]).total : getWorkOrderItemSubtotal(item)); } catch { return 'Descuento inválido'; }
+                  })()}</span>
                 </div>
                 {showExecution && item.catalogStock !== null && item.tipoLinea === 'parte' && item.estadoOperativo === 'completado' && Number(item.cantidad) > item.catalogStock && <p className="text-xs text-brand-goldInk">La cantidad supera el stock disponible. Se verificará el consumo al guardar.</p>}
               </div>
             ))}
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-brand-primaryInk bg-brand-line/40 px-3 py-4">
+          {showTotal && <div className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-brand-primaryInk bg-brand-line/40 px-3 py-4">
             <p className="text-sm font-semibold text-brand-muted">{totalLabel}</p>
             <p className="text-xl font-bold text-brand-primaryInk" data-testid={totalTestId}>{formatClp(calculateItemsTotal(items))}</p>
-          </div>
+          </div>}
         </div>
       </div>
     </section>

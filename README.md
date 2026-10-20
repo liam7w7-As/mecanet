@@ -60,3 +60,10 @@ npm run dev
 - `npm run format`: Formatea el código con Prettier.
 - `npm run test`: Ejecuta la suite de pruebas automatizadas con Vitest.
 - `npm run typecheck`: Comprueba la consistencia de tipos TypeScript en todo el monorepo.
+
+## Fotos y Archivos en Produccion
+
+En Hostinger las fotos y comprobantes no deben depender de la carpeta del
+despliegue. El backend admite almacenamiento privado S3/Cloudflare R2 y conserva
+el disco local para desarrollo. Configurar las variables antes de desplegar:
+[guia de almacenamiento persistente](docs/private-file-storage.md).

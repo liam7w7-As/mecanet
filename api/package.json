@@ -9,11 +9,15 @@
     "start": "node dist/main.js",
     "test": "vitest run --no-file-parallelism",
     "typecheck": "tsc --noEmit",
+    "storage:check": "tsx src/scripts/storage-check.ts",
+    "storage:audit": "tsx src/scripts/storage-migrate.ts --audit",
+    "storage:migrate": "tsx src/scripts/storage-migrate.ts",
     "db:migrate": "sequelize-cli db:migrate",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:seed": "sequelize-cli db:seed:all"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1154.0",
     "@types/bcrypt": "^5.0.2",
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",

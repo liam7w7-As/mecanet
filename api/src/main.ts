@@ -1,5 +1,4 @@
 import 'reflect-metadata';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,6 +16,7 @@ import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
 import { requestIdMiddleware } from './middlewares/request-id.js';
 import { apiRouter } from './routes/index.js';
+import { initializeFileStorage } from './services/file-storage.service.js';
 import { logger } from './utils/logger.js';
 
 import type { Logger } from 'pino';
@@ -164,12 +164,6 @@ app.use(errorHandler);
 
 // Iniciar servidor y base de datos cuando no esté en modo test
 if (env.NODE_ENV !== 'test') {
-  try {
-    fs.mkdirSync(path.resolve(env.UPLOAD_DIR), { recursive: true });
-  } catch (err) {
-    logger.warn({ err }, 'Aviso: No se pudo verificar la carpeta de uploads');
-  }
-
   sequelize
     .authenticate()
     .then(async () => {
@@ -191,8 +185,13 @@ if (env.NODE_ENV !== 'test') {
       );
     });
 
-  app.listen(env.PORT, () => {
-    logger.info(`Servidor API UNITHOR escuchando en http://localhost:${env.PORT}`);
+  void initializeFileStorage().then(() => {
+    app.listen(env.PORT, () => {
+      logger.info(`Servidor API UNITHOR escuchando en http://localhost:${env.PORT}`);
+    });
+  }).catch(() => {
+    logger.fatal('No se inicia la API: revisa la configuracion y el acceso al almacenamiento');
+    process.exit(1);
   });
 }
 

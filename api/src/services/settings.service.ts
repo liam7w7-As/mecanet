@@ -1,13 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { sequelize } from '../config/database.js';
-import { env } from '../config/env.js';
 import { CompanySettings } from '../models/CompanySettings.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
-import { logger } from '../utils/logger.js';
 
 import type {
   CompanyLogoPublic,
@@ -35,7 +33,6 @@ export interface CompanyLogoFile {
 
 const SINGLETON_ID = 1;
 const LOGO_FOLDER = 'branding';
-const uploadRoot = path.resolve(env.UPLOAD_DIR);
 
 const isPng = (buffer: Buffer): boolean =>
   buffer.length >= 8 &&
@@ -74,26 +71,6 @@ const detectImage = (buffer: Buffer): DetectedImage => {
   throw ApiError.badRequest(
     'El contenido del archivo no corresponde a una imagen válida (JPEG, PNG, WebP o SVG)',
   );
-};
-
-const resolveStoragePath = (storageKey: string): string => {
-  const resolved = path.resolve(uploadRoot, ...storageKey.split('/'));
-  const rootPrefix = uploadRoot.endsWith(path.sep) ? uploadRoot : `${uploadRoot}${path.sep}`;
-  if (!resolved.startsWith(rootPrefix)) {
-    throw ApiError.internal('Ruta de almacenamiento de marca inválida');
-  }
-  return resolved;
-};
-
-const removeStoredFile = async (storageKey: string): Promise<void> => {
-  try {
-    await unlink(resolveStoragePath(storageKey));
-  } catch (error: unknown) {
-    const fileError = error as NodeJS.ErrnoException;
-    if (fileError.code !== 'ENOENT') {
-      logger.warn({ err: error, storageKey }, 'No se pudo eliminar el logo de la empresa');
-    }
-  }
 };
 
 const getOrCreateRow = async (transaction?: Transaction): Promise<CompanySettings> => {
@@ -194,17 +171,7 @@ export const saveCompanyLogo = async (
   }
 
   const storageKey = path.posix.join(LOGO_FOLDER, `logo-${randomUUID()}.${detected.extension}`);
-  const finalPath = resolveStoragePath(storageKey);
-  const temporaryPath = `${finalPath}.tmp`;
-
-  await mkdir(path.dirname(finalPath), { recursive: true });
-  await writeFile(temporaryPath, file.buffer, { flag: 'wx' });
-  try {
-    await rename(temporaryPath, finalPath);
-  } catch (error) {
-    await removeStoredFile(`${storageKey}.tmp`);
-    throw error;
-  }
+  await storeFile(storageKey, file.buffer, detected.mimeType);
 
   let previousStorageKey: string | null = null;
   try {
@@ -223,11 +190,11 @@ export const saveCompanyLogo = async (
       );
     });
   } catch (error) {
-    await removeStoredFile(storageKey);
+    await removeStoredFile(storageKey, false);
     throw error;
   }
 
-  // Solo se borra el anterior cuando la transacción ya confirmó.
+  // El anterior se retira a recuperacion solo despues del commit.
   if (previousStorageKey) {
     await removeStoredFile(previousStorageKey);
   }
@@ -266,16 +233,8 @@ export const readCompanyLogo = async (): Promise<CompanyLogoFile> => {
     throw ApiError.notFound('No hay un logo configurado');
   }
 
-  try {
-    return {
-      bytes: await readFile(resolveStoragePath(settings.logoStorageKey)),
-      mimeType: settings.logoMimeType ?? 'application/octet-stream',
-    };
-  } catch (error: unknown) {
-    const fileError = error as NodeJS.ErrnoException;
-    if (fileError.code === 'ENOENT') {
-      throw ApiError.notFound('El archivo del logo no existe en el servidor');
-    }
-    throw error;
-  }
+  return {
+    bytes: await readStoredFile(settings.logoStorageKey, 'El archivo del logo no existe en el almacenamiento'),
+    mimeType: settings.logoMimeType ?? 'application/octet-stream',
+  };
 };

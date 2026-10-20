@@ -64,7 +64,7 @@ export class CompanySettings extends Model<
   @Column({ type: DataType.STRING(200), allowNull: true })
   declare sitioWeb: string | null;
 
-  /** Clave relativa dentro de UPLOAD_DIR. Nunca se expone la ruta de disco. */
+  /** Clave logica en almacenamiento local o S3. No contiene una URL publica. */
   @Column({ type: DataType.STRING(200), allowNull: true })
   declare logoStorageKey: CreationOptional<string | null>;
 

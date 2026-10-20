@@ -1,20 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { Op, Transaction } from 'sequelize';
 
 import { assertAccountingDateOpen } from './cash-closure.service.js';
+import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { notifyByType } from './notification.service.js';
 import { sequelize } from '../config/database.js';
-import { env } from '../config/env.js';
 import { Client } from '../models/Client.js';
 import { Payment } from '../models/Payment.js';
 import { Quotation } from '../models/Quotation.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 import { formatClpAmount } from '../utils/formatters.js';
-import { logger } from '../utils/logger.js';
 import { getPagination } from '../utils/paginate.js';
 
 import type {
@@ -126,8 +124,6 @@ const quotationInclude = {
 
 const paymentIncludes = [creatorInclude, reviewerInclude, quotationInclude];
 
-const uploadRoot = path.resolve(env.UPLOAD_DIR);
-
 const numberValue = (value: number | string | null): number => Number(value ?? 0);
 const moneyValue = (value: number): number => Math.round(value * 100) / 100;
 const toDateOrNow = (value: string | undefined): Date =>
@@ -179,28 +175,6 @@ const detectReceiptFile = (file: Express.Multer.File): { mimeType: string; exten
   return detected;
 };
 
-const resolveStoragePath = (storageKey: string): string => {
-  const resolved = path.resolve(uploadRoot, ...storageKey.split('/'));
-  const rootPrefix = uploadRoot.endsWith(path.sep) ? uploadRoot : uploadRoot + path.sep;
-
-  if (!resolved.startsWith(rootPrefix)) {
-    throw ApiError.internal('Ruta de comprobante de pago inválida');
-  }
-
-  return resolved;
-};
-
-const removeStoredReceipt = async (storageKey: string): Promise<void> => {
-  try {
-    await unlink(resolveStoragePath(storageKey));
-  } catch (error: unknown) {
-    const fileError = error as NodeJS.ErrnoException;
-    if (fileError.code !== 'ENOENT') {
-      logger.warn({ err: error, storageKey }, 'No se pudo eliminar un comprobante de pago');
-    }
-  }
-};
-
 const storePaymentReceipt = async (file: Express.Multer.File): Promise<string> => {
   const detected = detectReceiptFile(file);
   const now = new Date();
@@ -210,17 +184,7 @@ const storePaymentReceipt = async (file: Express.Multer.File): Promise<string> =
     String(now.getUTCMonth() + 1).padStart(2, '0'),
     randomUUID() + '.' + detected.extension,
   );
-  const finalPath = resolveStoragePath(storageKey);
-  const temporaryPath = finalPath + '.tmp';
-  await mkdir(path.dirname(finalPath), { recursive: true });
-  await writeFile(temporaryPath, file.buffer, { flag: 'wx' });
-
-  try {
-    await rename(temporaryPath, finalPath);
-  } catch (error: unknown) {
-    await removeStoredReceipt(storageKey + '.tmp');
-    throw error;
-  }
+  await storeFile(storageKey, file.buffer, detected.mimeType);
 
   return storageKey;
 };
@@ -382,6 +346,7 @@ export const createPayment = async (
   receiptFile?: Express.Multer.File,
 ): Promise<CreatePaymentResult> => {
   const storedReceiptKey = receiptFile ? await storePaymentReceipt(receiptFile) : null;
+  let paymentCommitted = false;
 
   try {
     const result = await sequelize.transaction(async (transaction) => {
@@ -440,6 +405,7 @@ export const createPayment = async (
       return { paymentId: payment.id, quotationId: quotation.id };
     });
 
+    paymentCommitted = true;
     const [payment, quotation] = await Promise.all([
       getPaymentById(result.paymentId),
       Quotation.findByPk(result.quotationId),
@@ -464,8 +430,8 @@ export const createPayment = async (
 
     return { payment, quotation: toQuotationSummary(quotation) };
   } catch (error: unknown) {
-    if (storedReceiptKey) {
-      await removeStoredReceipt(storedReceiptKey);
+    if (storedReceiptKey && !paymentCommitted) {
+      await removeStoredFile(storedReceiptKey, false);
     }
     throw error;
   }
@@ -476,21 +442,13 @@ export const getPaymentReceipt = async (paymentId: number): Promise<PaymentRecei
   if (!payment) throw ApiError.notFound('Pago no encontrado');
   if (!payment.comprobantePago) throw ApiError.notFound('Comprobante de pago no encontrado');
 
-  try {
-    const bytes = await readFile(resolveStoragePath(payment.comprobantePago));
-    return {
-      payment: toPaymentPublic(payment),
-      bytes,
-      mimeType: getReceiptMimeType(payment.comprobantePago, bytes),
-      filename: path.basename(payment.comprobantePago),
-    };
-  } catch (error: unknown) {
-    const fileError = error as NodeJS.ErrnoException;
-    if (fileError.code === 'ENOENT') {
-      throw ApiError.notFound('Archivo de comprobante no encontrado');
-    }
-    throw error;
-  }
+  const bytes = await readStoredFile(payment.comprobantePago, 'Archivo de comprobante no encontrado');
+  return {
+    payment: toPaymentPublic(payment),
+    bytes,
+    mimeType: getReceiptMimeType(payment.comprobantePago, bytes),
+    filename: path.basename(payment.comprobantePago),
+  };
 };
 
 export const verifyPayment = async (
@@ -612,7 +570,7 @@ export const deletePayment = async (paymentId: number): Promise<DeletePaymentRes
   });
 
   if (result.receiptKey) {
-    await removeStoredReceipt(result.receiptKey);
+    await removeStoredFile(result.receiptKey);
   }
 
   return { message: 'Pago anulado correctamente', quotation: result.quotation };

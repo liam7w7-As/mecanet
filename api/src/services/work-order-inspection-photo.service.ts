@@ -1,16 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { Transaction } from 'sequelize';
 
+import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { sequelize } from '../config/database.js';
-import { env } from '../config/env.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
 import { ApiError } from '../utils/ApiError.js';
-import { logger } from '../utils/logger.js';
 
 import type { WorkOrderInspectionPhotoSlot } from '@unithor/shared';
 
@@ -34,8 +32,6 @@ export interface InspectionPhotoFile {
   photo: InspectionPhotoPublic;
   bytes: Buffer;
 }
-
-const uploadRoot = path.resolve(env.UPLOAD_DIR);
 
 const isPng = (buffer: Buffer): boolean =>
   buffer.length >= 20 &&
@@ -86,39 +82,8 @@ const toPublic = (
   url: `/api/work-orders/${workOrderId}/inspection/photos/${photo.slot}`,
 });
 
-const resolveStoragePath = (storageKey: string): string => {
-  const resolved = path.resolve(uploadRoot, ...storageKey.split('/'));
-  const rootPrefix = uploadRoot.endsWith(path.sep) ? uploadRoot : `${uploadRoot}${path.sep}`;
-
-  if (!resolved.startsWith(rootPrefix)) {
-    throw ApiError.internal('Ruta de almacenamiento de inspección inválida');
-  }
-
-  return resolved;
-};
-
-export const readInspectionPhotoBytes = async (storageKey: string): Promise<Buffer> => {
-  try {
-    return await readFile(resolveStoragePath(storageKey));
-  } catch (error: unknown) {
-    const fileError = error as NodeJS.ErrnoException;
-    if (fileError.code === 'ENOENT') {
-      throw ApiError.notFound('Archivo de inspección no encontrado');
-    }
-    throw error;
-  }
-};
-
-const removeStoredFile = async (storageKey: string): Promise<void> => {
-  try {
-    await unlink(resolveStoragePath(storageKey));
-  } catch (error: unknown) {
-    const fileError = error as NodeJS.ErrnoException;
-    if (fileError.code !== 'ENOENT') {
-      logger.warn({ err: error, storageKey }, 'No se pudo eliminar un archivo de inspección');
-    }
-  }
-};
+export const readInspectionPhotoBytes = (storageKey: string): Promise<Buffer> =>
+  readStoredFile(storageKey, 'Archivo de inspección no encontrado');
 
 const assertEditable = (workOrder: WorkOrder): void => {
   if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') {
@@ -169,17 +134,7 @@ export const saveInspectionPhoto = async (
     String(workOrderId),
     `${slot}-${randomUUID()}.${detected.extension}`,
   );
-  const finalPath = resolveStoragePath(storageKey);
-  const temporaryPath = `${finalPath}.tmp`;
-  await mkdir(path.dirname(finalPath), { recursive: true });
-  await writeFile(temporaryPath, file.buffer, { flag: 'wx' });
-
-  try {
-    await rename(temporaryPath, finalPath);
-  } catch (error: unknown) {
-    await removeStoredFile(`${storageKey}.tmp`);
-    throw error;
-  }
+  await storeFile(storageKey, file.buffer, detected.mimeType);
 
   let previousStorageKey: string | null = null;
   let savedPhoto: WorkOrderInspectionPhoto;
@@ -221,7 +176,7 @@ export const saveInspectionPhoto = async (
       );
     });
   } catch (error: unknown) {
-    await removeStoredFile(storageKey);
+    await removeStoredFile(storageKey, false);
     throw error;
   }
 
@@ -270,18 +225,10 @@ export const getInspectionPhoto = async (
 ): Promise<InspectionPhotoFile> => {
   const photo = await findPhoto(workOrderId, slot);
 
-  try {
-    return {
-      photo: toPublic(photo, workOrderId),
-      bytes: await readInspectionPhotoBytes(photo.storageKey),
-    };
-  } catch (error: unknown) {
-    const fileError = error as NodeJS.ErrnoException;
-    if (fileError.code === 'ENOENT') {
-      throw ApiError.notFound('Archivo de inspección no encontrado');
-    }
-    throw error;
-  }
+  return {
+    photo: toPublic(photo, workOrderId),
+    bytes: await readInspectionPhotoBytes(photo.storageKey),
+  };
 };
 
 export const deleteInspectionPhoto = async (

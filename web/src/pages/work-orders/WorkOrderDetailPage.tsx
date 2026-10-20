@@ -57,7 +57,7 @@ import {
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { validateInspectionFile } from '../../lib/inspection-photos';
-import { hasUserPermission } from '../../lib/permissions';
+import { canUploadWorkOrderInspectionPhotos, hasUserPermission } from '../../lib/permissions';
 import { buildPdfShareText } from '../../lib/whatsapp';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
@@ -191,6 +191,8 @@ export const WorkOrderDetailPage = () => {
   const canEditInspection = Boolean(
     workOrder && canManage && workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada',
   );
+  const inspectionClosed = workOrder?.estado === 'entregada' || workOrder?.estado === 'cancelada';
+  const canUploadPhotos = canUploadWorkOrderInspectionPhotos(user) && !inspectionClosed;
   const itemProgress = useMemo(() => {
     const items = workOrder?.items ?? [];
     return {
@@ -232,7 +234,7 @@ export const WorkOrderDetailPage = () => {
   };
 
   const uploadInspectionPhoto = (slot: WorkOrderInspectionPhotoSlot, file: File | undefined): void => {
-    if (!file) return;
+    if (!file || !canUploadPhotos) return;
     const validationError = validateInspectionFile(file);
     if (validationError) {
       notifyError(`${photoSlotLabels[slot]}: ${validationError}`);
@@ -429,10 +431,9 @@ export const WorkOrderDetailPage = () => {
               <p className="mt-1 text-sm text-brand-muted">Estado físico, inventario interno y registro fotográfico tomado en recepción.</p>
             </div>
           </div>
-          {!canEditInspection && <span className="rounded-md bg-brand-pale px-3 py-1.5 text-xs font-semibold text-brand-muted">Inspección bloqueada por estado</span>}
+          {!canEditInspection && <span className="rounded-md bg-brand-pale px-3 py-1.5 text-xs font-semibold text-brand-muted">{inspectionClosed ? 'Inspección bloqueada por estado' : 'Ficha de inspección de solo lectura'}</span>}
         </div>
         {workOrder.inspection ? (
-          <>
             <div className="grid gap-5 p-5 xl:grid-cols-[0.95fr_1.05fr]">
               <div className="space-y-4">
                 <div className="rounded-lg border border-brand-line p-4">
@@ -475,6 +476,9 @@ export const WorkOrderDetailPage = () => {
                 </div>
               </div>
             </div>
+        ) : (
+          <p className="px-5 py-8 text-center text-sm text-brand-muted">Esta orden aún no tiene inspección registrada.</p>
+        )}
             <div className="border-t border-brand-line px-5 py-4">
               <div className="flex items-center gap-2">
                 <Camera className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
@@ -503,11 +507,11 @@ export const WorkOrderDetailPage = () => {
                       {photo ? (
                         <div className="relative">
                           <img src={photo.url} alt={photoSlotLabels[slot]} className="h-40 w-full object-cover" loading="lazy" />
-                          {canEditInspection && (
+                          {canUploadPhotos && (
                             <PhotoSlotInput
                               slotLabel={photoSlotLabels[slot]}
                               variant="replace"
-                              disabled={!canEditInspection}
+                              disabled={!canUploadPhotos}
                               busy={busy}
                               onSelect={(file) => uploadInspectionPhoto(slot, file)}
                             />
@@ -515,7 +519,7 @@ export const WorkOrderDetailPage = () => {
                         </div>
                       ) : (
                         <div>
-                          {canEditInspection ? (
+                          {canUploadPhotos ? (
                             <PhotoSlotInput
                               slotLabel={photoSlotLabels[slot]}
                               variant="empty"
@@ -533,10 +537,6 @@ export const WorkOrderDetailPage = () => {
                 })}
               </div>
             </div>
-          </>
-        ) : (
-          <p className="px-5 py-8 text-center text-sm text-brand-muted">Esta orden aún no tiene inspección registrada.</p>
-        )}
       </section>
 
       <section className="rounded-lg border border-brand-line bg-white p-5" aria-labelledby="status-control-title">

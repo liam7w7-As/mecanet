@@ -107,6 +107,14 @@ export const hasUserPermission = (
 export const getRolePermissionEntries = (role: Role): [Module, readonly Action[]][] =>
   Object.entries(ROLE_PERMISSIONS[role]) as [Module, readonly Action[]][];
 
+export const canUploadWorkOrderInspectionPhotos = (user: UserPublic | null): boolean =>
+  Boolean(
+    user && user.role !== 'mecanico' && (
+      hasUserPermission(user, 'taller', 'update') ||
+      (user.role === 'vendedor' && hasUserPermission(user, 'taller', 'read'))
+    ),
+  );
+
 export const getUserPermissionEntries = (user: UserPublic): [Module, readonly Action[]][] => {
   if (!user.permissions) return getRolePermissionEntries(user.role);
 

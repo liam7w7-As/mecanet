@@ -836,6 +836,37 @@ describe('WorkOrdersPage', () => {
     });
   });
 
+  it.each([true, false])('permite al vendedor sin edicion subir fotos desde el detalle (inspeccion: %s)', async (hasInspection) => {
+    useAuthStore.setState({ user: {
+      id: 2, nombre: 'Vendedor', email: 'vendedor@unithor.local', role: 'vendedor',
+      permissions: [{ modulo: 'taller', accion: 'read' }],
+    } });
+    vi.mocked(api.get).mockResolvedValue({ data: { workOrder: { ...workOrder, inspection: hasInspection ? workOrder.inspection : null } } } as AxiosResponse);
+    vi.mocked(api.post).mockResolvedValue({ data: { photo: { ...workOrder.inspection?.photos[0], id: 2, slot: 'trasera' } } } as AxiosResponse);
+    createWrapper(<Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>, `/work-orders/${workOrder.id}`);
+    expect(await screen.findByText('Registro fotográfico')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Editar ficha/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Eliminar foto Frontal' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Inspección bloqueada por estado')).not.toBeInTheDocument();
+    if (hasInspection) expect(screen.getByLabelText('Reemplazar foto Frontal')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Subir foto Trasera'), { target: { files: [new File(['photo'], 'foto.png', { type: 'image/png' })] } });
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/work-orders/12/inspection/photos/trasera', expect.any(FormData), expect.objectContaining({ onUploadProgress: expect.any(Function) })));
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
+  it.each(['entregada', 'cancelada'] as const)('no muestra subida de fotos al vendedor en una OT %s', async (estado) => {
+    useAuthStore.setState({ user: {
+      id: 2, nombre: 'Vendedor', email: 'vendedor@unithor.local', role: 'vendedor',
+      permissions: [{ modulo: 'taller', accion: 'read' }],
+    } });
+    vi.mocked(api.get).mockResolvedValue({ data: { workOrder: { ...workOrder, estado } } } as AxiosResponse);
+    createWrapper(<Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>, `/work-orders/${workOrder.id}`);
+    expect(await screen.findByText('Inspección bloqueada por estado')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Subir foto Trasera')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Reemplazar foto Frontal')).not.toBeInTheDocument();
+  });
+
   it('edita la ficha de recepción e inspección desde el detalle', async () => {
     vi.mocked(api.patch).mockResolvedValue({
       data: {
@@ -965,7 +996,11 @@ describe('WorkOrdersPage', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
-  it('crea una OT desde el wizard y sube fotos de inspección', async () => {
+  it.each(['desarrollador', 'vendedor'] as const)('crea una OT desde el wizard y sube fotos de inspección (%s)', async (role) => {
+    if (role === 'vendedor') useAuthStore.setState({ user: {
+      id: 2, nombre: 'Vendedor', email: 'vendedor@unithor.local', role,
+      permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'taller', accion: 'create' }],
+    } });
     const createObjectUrl = vi.fn(() => 'blob:inspection-photo');
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });

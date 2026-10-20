@@ -50,7 +50,7 @@ import {
   MAX_INSPECTION_PHOTO_MB,
   validateInspectionFile,
 } from '../../lib/inspection-photos';
-import { hasUserPermission } from '../../lib/permissions';
+import { canUploadWorkOrderInspectionPhotos, hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
@@ -337,7 +337,7 @@ export const WorkOrderCreatePage = () => {
   const uploadPhotosMutation = useUploadWorkOrderInspectionPhotosMutation();
   const user = useAuthStore((state) => state.user);
   const canAssignMechanic = Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role));
-  const canUploadPhotos = Boolean(user && hasUserPermission(user, 'taller', 'update'));
+  const canUploadPhotos = canUploadWorkOrderInspectionPhotos(user);
   const canReadWorkOrders = Boolean(user && hasUserPermission(user, 'taller', 'read'));
   const mechanicsQuery = useMechanics(canAssignMechanic);
   const [assignedMechanicId, setAssignedMechanicId] = useState<number | null>(null);

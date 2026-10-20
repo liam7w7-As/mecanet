@@ -35,9 +35,12 @@ import {
   updateWorkOrderExecutionHandler,
 } from '../controllers/work-order.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
+import { authorizeAny } from '../middlewares/authorize-any.js';
 import { authorize } from '../middlewares/authorize.js';
 import { inspectionPhotoUpload } from '../middlewares/inspection-photo-upload.js';
 import { validate } from '../middlewares/validate.js';
+
+import type { RequestHandler } from 'express';
 
 export const workOrderRouter = Router();
 
@@ -52,6 +55,17 @@ const inspectionPhotoParamSchema = idParamSchema.extend({
 const requestParamSchema = idParamSchema.extend({
   requestId: z.coerce.number().int().positive('ID de solicitud inválido'),
 });
+
+const authorizePhotoUpload: RequestHandler = (req, res, next) => {
+  // Attaching evidence does not grant permission to edit the work order.
+  if (req.user?.role === 'vendedor') {
+    return authorizeAny([
+      { modulo: 'taller', accion: 'read' },
+      { modulo: 'taller', accion: 'update' },
+    ])(req, res, next);
+  }
+  return authorize('taller', 'update')(req, res, next);
+};
 
 workOrderRouter.use(authenticate);
 
@@ -73,7 +87,7 @@ workOrderRouter.get(
 
 workOrderRouter.post(
   '/:id/inspection/photos/:slot',
-  authorize('taller', 'update'),
+  authorizePhotoUpload,
   validate({ params: inspectionPhotoParamSchema }),
   inspectionPhotoUpload,
   uploadWorkOrderInspectionPhotoHandler,

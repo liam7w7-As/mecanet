@@ -10,6 +10,7 @@ import { sequelize } from '../../config/database.js';
 import { env } from '../../config/env.js';
 import { app } from '../../main.js';
 import { Client } from '../../models/Client.js';
+import { Permission } from '../../models/Permission.js';
 import { Quotation } from '../../models/Quotation.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
@@ -17,6 +18,7 @@ import { User } from '../../models/User.js';
 import { Vehicle } from '../../models/Vehicle.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
 import { WorkOrderInspectionPhoto } from '../../models/WorkOrderInspectionPhoto.js';
+import { getRolePermissions, updateRolePermissions } from '../../services/permission.service.js';
 import { hashPassword } from '../../utils/password.js';
 
 import type { Response as SuperAgentResponse } from 'superagent';
@@ -80,6 +82,11 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
   let financeUserId: number;
   let financeCookies: LoginCookies;
   let cookies: LoginCookies;
+  let salesUserId: number;
+  let salesRoleId: number;
+  let salesPermissionIds: number[];
+  let workshopReadId: number;
+  let salesCookies: LoginCookies;
 
   beforeAll(async () => {
     await sequelize.authenticate();
@@ -162,9 +169,28 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
       accessToken: loginCookies.access_token,
       csrfToken: loginCookies.csrf_token,
     };
+
+    const salesRole = await Role.findOne({ where: { nombre: 'vendedor' } });
+    const workshopRead = await Permission.findOne({ where: { modulo: 'taller', accion: 'read' } });
+    if (!salesRole || !workshopRead) throw new Error('Faltan rol vendedor o permiso de lectura');
+    salesRoleId = salesRole.id;
+    workshopReadId = workshopRead.id;
+    salesPermissionIds = (await getRolePermissions(salesRoleId)).map((permission) => permission.id);
+    await updateRolePermissions(salesRoleId, [workshopReadId]);
+    const salesUser = await User.create({
+      nombre: 'Vendedor Fotos', email: 'phase842-sales@unithor.local',
+      passwordHash: await hashPassword(TEST_PASSWORD), roleId: salesRoleId, activo: true,
+    });
+    salesUserId = salesUser.id;
+    const salesLogin = await request(app).post('/api/auth/login')
+      .send({ email: salesUser.email, password: TEST_PASSWORD });
+    expect(salesLogin.status).toBe(200);
+    const salesLoginCookies = extractCookies(salesLogin);
+    salesCookies = { accessToken: salesLoginCookies.access_token, csrfToken: salesLoginCookies.csrf_token };
   });
 
   afterAll(async () => {
+    if (salesPermissionIds) await updateRolePermissions(salesRoleId, salesPermissionIds);
     await Quotation.destroy({ where: { id: quotationId }, force: true });
     await WorkOrder.destroy({
       where: { id: [editableWorkOrderId, closedWorkOrderId] },
@@ -172,8 +198,8 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
     });
     await Vehicle.destroy({ where: { id: vehicleId }, force: true });
     await Client.destroy({ where: { id: clientId }, force: true });
-    await RefreshToken.destroy({ where: { userId: [devUserId, financeUserId] }, force: true });
-    await User.destroy({ where: { id: financeUserId }, force: true });
+    await RefreshToken.destroy({ where: { userId: [devUserId, financeUserId, salesUserId] }, force: true });
+    await User.destroy({ where: { id: [financeUserId, salesUserId] }, force: true });
 
     const photoRoot = path.resolve(env.UPLOAD_DIR, 'work-orders');
     await rm(path.join(photoRoot, String(editableWorkOrderId)), { recursive: true, force: true });
@@ -351,5 +377,67 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
     expect(response.body.error.message).toBe(
       'No se puede modificar la inspección de una orden cerrada',
     );
+  });
+
+  it('permite al vendedor con solo lectura adjuntar y reemplazar fotos sin editar la OT', async () => {
+    const original = await WorkOrder.findByPk(editableWorkOrderId);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const uploaded = await request(app)
+        .post(`/api/work-orders/${editableWorkOrderId}/inspection/photos/frontal`)
+        .set('Cookie', authCookie(salesCookies))
+        .set('X-CSRF-Token', salesCookies.csrfToken)
+        .attach('photo', PNG_BYTES, { filename: 'vendedor.png', contentType: 'image/png' });
+      expect(uploaded.status).toBe(201);
+      expect(uploaded.body.photo.uploadedBy).toBe(salesUserId);
+    }
+    const read = await request(app).get(`/api/work-orders/${editableWorkOrderId}/inspection/photos/frontal`)
+      .set('Cookie', authCookie(salesCookies));
+    expect(read.status).toBe(200);
+    expect(read.body).toEqual(PNG_BYTES);
+    for (const [url, data] of [
+      [`/api/work-orders/${editableWorkOrderId}`, { descripcion: 'Cambio no autorizado' }],
+      [`/api/work-orders/${editableWorkOrderId}/status`, { nuevoEstado: 'finalizada' }],
+    ] as const) {
+      expect((await request(app).patch(url).set('Cookie', authCookie(salesCookies))
+        .set('X-CSRF-Token', salesCookies.csrfToken).send(data)).status).toBe(403);
+    }
+    expect((await request(app).delete(`/api/work-orders/${editableWorkOrderId}/inspection/photos/frontal`)
+      .set('Cookie', authCookie(salesCookies)).set('X-CSRF-Token', salesCookies.csrfToken)).status).toBe(403);
+    const unchanged = await WorkOrder.findByPk(editableWorkOrderId);
+    expect(unchanged?.descripcion).toBe(original?.descripcion);
+    expect(unchanged?.estado).toBe(original?.estado);
+  });
+
+  it('no permite al vendedor subir fotos sin CSRF, sin lectura o en una OT cerrada', async () => {
+    const upload = (id: number) => request(app)
+      .post(`/api/work-orders/${id}/inspection/photos/frontal`)
+      .set('Cookie', authCookie(salesCookies));
+    expect((await upload(editableWorkOrderId)
+      .attach('photo', PNG_BYTES, { filename: 'foto.png', contentType: 'image/png' })).status).toBe(403);
+    expect((await upload(closedWorkOrderId).set('X-CSRF-Token', salesCookies.csrfToken)
+      .attach('photo', PNG_BYTES, { filename: 'foto.png', contentType: 'image/png' })).status).toBe(400);
+    await updateRolePermissions(salesRoleId, []);
+    try {
+      expect((await upload(editableWorkOrderId).set('X-CSRF-Token', salesCookies.csrfToken)
+        .attach('photo', PNG_BYTES, { filename: 'foto.png', contentType: 'image/png' })).status).toBe(403);
+    } finally {
+      await updateRolePermissions(salesRoleId, [workshopReadId]);
+    }
+  });
+
+  it('no extiende la excepcion de carga al rol finanzas', async () => {
+    const financeRole = await Role.findOne({ where: { nombre: 'finanzas' } });
+    if (!financeRole) throw new Error('Falta rol finanzas');
+    const previous = (await getRolePermissions(financeRole.id)).map((permission) => permission.id);
+    await updateRolePermissions(financeRole.id, [workshopReadId]);
+    try {
+      expect((await request(app).get(`/api/work-orders/${editableWorkOrderId}`)
+        .set('Cookie', authCookie(financeCookies))).status).toBe(200);
+      expect((await request(app).post(`/api/work-orders/${editableWorkOrderId}/inspection/photos/frontal`)
+        .set('Cookie', authCookie(financeCookies)).set('X-CSRF-Token', financeCookies.csrfToken)
+        .attach('photo', PNG_BYTES, { filename: 'foto.png', contentType: 'image/png' })).status).toBe(403);
+    } finally {
+      await updateRolePermissions(financeRole.id, previous);
+    }
   });
 });

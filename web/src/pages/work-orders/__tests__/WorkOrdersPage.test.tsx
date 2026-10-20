@@ -740,10 +740,13 @@ describe('WorkOrdersPage', () => {
     expect(screen.getAllByText('OT-2026-0012').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('separa la OT oficial del comprobante de recepción', async () => {
+  it('separa la OT oficial del comprobante de recepción y comparte por WhatsApp', async () => {
     const anchorClick = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => undefined);
+    const open = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       value: vi.fn(() => 'blob:reception-pdf'),
@@ -765,6 +768,8 @@ describe('WorkOrdersPage', () => {
     );
 
     expect(await screen.findByRole('button', { name: 'OT oficial / Imprimir' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'WhatsApp nota' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'WhatsApp OT' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Comprobante de recepción' }));
 
     await waitFor(() => {
@@ -773,9 +778,19 @@ describe('WorkOrdersPage', () => {
       });
     });
 
+    fireEvent.click(screen.getByRole('button', { name: 'WhatsApp nota' }));
+    await waitFor(() => {
+      expect(open).toHaveBeenCalledWith(
+        'https://wa.me/56912345678?text=Hola%20Cliente%20Demo%2C%20le%20compartimos%20el%20comprobante%20de%20recepci%C3%B3n%20OT-2026-0012%20del%20veh%C3%ADculo%20ABCD12.',
+        '_blank',
+        'noopener,noreferrer',
+      );
+    });
+
     fireEvent.click(screen.getByRole('button', { name: 'OT oficial / Imprimir' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     anchorClick.mockRestore();
+    open.mockRestore();
   });
 
   it('muestra recepción, facturación e inspección y permite reemplazar o eliminar fotos', async () => {

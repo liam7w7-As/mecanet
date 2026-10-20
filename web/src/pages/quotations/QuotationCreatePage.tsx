@@ -122,16 +122,6 @@ export const QuotationCreatePage = () => {
               <span className="max-sm:sr-only">Nuevo cliente</span>
             </button>
           </div>
-          {showClientModal && (
-            <ClientFormModal
-              onClose={() => setShowClientModal(false)}
-              onSaved={(saved) => {
-                setClient({ id: saved.id, nombre: saved.nombre, rut: saved.rut });
-                setErrors({});
-                setShowClientModal(false);
-              }}
-            />
-          )}
           {client ? (
             <div className="mt-3 flex items-center gap-3 rounded-lg border border-brand-mint/40 bg-brand-mintPale px-4 py-3" role="status">
               <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-mintInk" aria-hidden="true" />
@@ -179,6 +169,16 @@ export const QuotationCreatePage = () => {
           </button>
         </footer>
       </form>
+      {showClientModal && (
+        <ClientFormModal
+          onClose={() => setShowClientModal(false)}
+          onSaved={(saved) => {
+            setClient({ id: saved.id, nombre: saved.nombre, rut: saved.rut });
+            setErrors({});
+            setShowClientModal(false);
+          }}
+        />
+      )}
       {confirmData && client && (
         <QuotationCreateConfirm
           clientName={client.nombre}

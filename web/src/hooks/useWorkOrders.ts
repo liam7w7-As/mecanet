@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 
 import { useDebouncedValue } from './useDebouncedValue';
 import { api } from '../lib/api';
+import { sharePdfOnWhatsApp } from '../lib/whatsapp';
 
 import type {
   CatalogItem,
@@ -395,4 +396,28 @@ export const useDownloadWorkOrderReceptionPdf = () => {
       mutation.mutate({ id, codigo, mode: 'open', previewWindow });
     },
   };
+};
+
+interface ShareReceptionPdfRequest {
+  id: number;
+  codigo: string;
+  phone?: string | null;
+  text: string;
+}
+
+export const useShareWorkOrderReceptionPdf = () => {
+  return useMutation({
+    mutationFn: async ({ id, codigo, phone, text }: ShareReceptionPdfRequest) => {
+      const response = await api.get<Blob>(`/work-orders/${id}/reception-pdf`, {
+        responseType: 'blob',
+      });
+      return sharePdfOnWhatsApp({
+        blob: response.data,
+        filename: `${codigo}-comprobante-recepcion.pdf`,
+        title: `Comprobante de recepción ${codigo}`,
+        text,
+        phone,
+      });
+    },
+  });
 };

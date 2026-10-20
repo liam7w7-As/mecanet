@@ -390,7 +390,7 @@ describe('Work Order PDF Routes (E2E)', () => {
     const imageCounts = document.getPages().map((page) =>
       page.node.Resources()?.lookupMaybe(PDFName.of('XObject'), PDFDict)?.keys().length ?? 0,
     );
-    expect(imageCounts).toContain(9);
+    expect(imageCounts.some((count) => count >= 9)).toBe(true);
     expect(body.length).toBeGreaterThan(5000);
   });
 

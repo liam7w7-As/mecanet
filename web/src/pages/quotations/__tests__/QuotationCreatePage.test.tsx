@@ -119,6 +119,29 @@ describe('QuotationCreatePage', () => {
     expect(await screen.findByText('Cotización guardada')).toBeInTheDocument();
   });
 
+  it('crea un cliente desde el botón Nuevo cliente sin anidar formularios', async () => {
+    vi.mocked(api.post).mockImplementation((url) => {
+      if (url === '/clients') return Promise.resolve({ data: { client: newClient } });
+      return Promise.resolve({ data: { quotation: { id: 99 } } });
+    });
+    renderCreate();
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo cliente/ }));
+    expect(await screen.findByRole('dialog', { name: 'Nuevo cliente' })).toBeInTheDocument();
+    expect(document.querySelector('form form')).toBeNull();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre completo' }), {
+      target: { value: 'Cliente Nuevo' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cliente' }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(
+        '/clients',
+        expect.objectContaining({ nombre: 'Cliente Nuevo', tipo: 'cliente' }),
+      ),
+    );
+    expect(await screen.findByText('Cliente Nuevo')).toBeInTheDocument();
+    expect(document.querySelector('form form')).toBeNull();
+  });
+
   it('precarga el RUN/RUT en el formulario cuando lo escrito tiene formato de RUT', async () => {
     renderCreate();
     const input = screen.getByRole('combobox', { name: 'Buscar cliente' });

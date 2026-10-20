@@ -343,20 +343,54 @@ describe('PdfPreviewModal', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it.each(['work-order', 'quotation'] as const)('includes all nine photos in the %s preview and print copy', (type) => {
+  it('incluye las nueve fotos dentro del anverso de la OT y mantiene solo dos hojas', () => {
     const photos = WORK_ORDER_INSPECTION_PHOTO_SLOTS.map((slot, index) => ({
       id: index + 1, slot, mimeType: 'image/png', sizeBytes: 1024, uploadedBy: 1,
       createdAt: mockWorkOrder.createdAt, updatedAt: mockWorkOrder.updatedAt,
-      url: `/api/${type === 'quotation' ? 'quotations/202' : 'work-orders/101'}/inspection/photos/${slot}`,
+      url: `/api/work-orders/101/inspection/photos/${slot}`,
     }));
-    render(<PdfPreviewModal type={type} onClose={onClose}
-      workOrder={{ ...mockWorkOrder, inspection: { ...mockWorkOrder.inspection!, photos } }}
+    render(<PdfPreviewModal type="work-order" onClose={onClose}
+      workOrder={{ ...mockWorkOrder, inspection: { ...mockWorkOrder.inspection!, photos } }} />);
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getAllByRole('img', { name: /^Foto / })).toHaveLength(9);
+    expect(within(dialog).queryByRole('button', { name: /Fotos de recepción/ })).not.toBeInTheDocument();
+    expect(within(dialog).getAllByText('Página 1 de 2').length).toBeGreaterThanOrEqual(1);
+
+    const printPortal = document.getElementById('unithor-print-portal')!;
+    expect(printPortal.querySelectorAll('img[alt^="Foto "]')).toHaveLength(9);
+    expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
+  });
+
+  it('mantiene el anexo fotográfico separado en la cotización', () => {
+    const photos = WORK_ORDER_INSPECTION_PHOTO_SLOTS.map((slot, index) => ({
+      id: index + 1, slot, mimeType: 'image/png', sizeBytes: 1024, uploadedBy: 1,
+      createdAt: mockWorkOrder.createdAt, updatedAt: mockWorkOrder.updatedAt,
+      url: `/api/quotations/202/inspection/photos/${slot}`,
+    }));
+    render(<PdfPreviewModal type="quotation" onClose={onClose}
       quotation={{ ...mockQuotation, workOrder: { ...mockQuotation.workOrder!, inspectionPhotos: photos } }} />);
+
     expect(within(screen.getByRole('dialog')).queryAllByRole('img', { name: /^Foto / })).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Fotos de recepción (9)' }));
     expect(within(screen.getByRole('dialog')).getAllByRole('img', { name: /^Foto / })).toHaveLength(9);
+
     const printPortal = document.getElementById('unithor-print-portal')!;
     expect(printPortal.querySelectorAll('img[alt^="Foto "]')).toHaveLength(9);
-    expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(type === 'work-order' ? 3 : 2);
+    expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
+  });
+
+  it('mantiene todos los servicios y solo dos hojas en una OT extensa', () => {
+    const items = Array.from({ length: 40 }, (_, index) => ({
+      ...mockWorkOrder.items![0],
+      id: index + 1,
+      descripcion: `Servicio ${index + 1}: ${'Trabajo de mantenimiento y revisión. '.repeat(3)}`,
+    }));
+    render(<PdfPreviewModal type="work-order" onClose={onClose}
+      workOrder={{ ...mockWorkOrder, items }} />);
+
+    const printPortal = document.getElementById('unithor-print-portal')!;
+    expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
+    expect(printPortal.querySelectorAll('tbody tr')).toHaveLength(40);
   });
 });

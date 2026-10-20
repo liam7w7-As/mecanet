@@ -3,11 +3,12 @@ import { jsPDF } from 'jspdf';
 import {
   Download,
   LoaderCircle,
+  MessageCircle,
   Printer,
   X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useCompanyBranding } from './BrandingContext';
@@ -15,8 +16,10 @@ import BrandLogo from './BrandLogo';
 import InspectionPhotoGallery from './InspectionPhotoGallery';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { preparePdfImages } from '../../lib/pdf-images';
+import { buildPdfShareText, sharePdfOnWhatsApp } from '../../lib/whatsapp';
 import QuotationDocument, { getQuotationDocumentPages } from '../quotations/QuotationDocument';
 
+import type { PdfShareResult } from '../../lib/whatsapp';
 import type { Quotation, WorkOrder, WorkOrderInspectionPhoto } from '../../types/entities';
 
 export type PdfDocType = 'work-order' | 'quotation';
@@ -27,6 +30,8 @@ export interface PdfPreviewModalProps {
   quotation?: Quotation | null;
   onClose: () => void;
   onDownload?: () => void;
+  shareOnOpen?: boolean;
+  onShared?: (result: PdfShareResult) => void;
 }
 
 const INVENTORY_ALL_ITEMS: Array<{ key: string; label: string }> = [
@@ -66,6 +71,54 @@ const FUEL_LABELS: Record<string, string> = {
   lleno: 'Lleno',
 };
 
+const useFitToPage = (
+  measureKey: string,
+  onScaleChange?: (scale: number) => void,
+) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [measuredScale, setMeasuredScale] = useState(1);
+
+  useLayoutEffect(() => {
+    if (!onScaleChange) return;
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    const measure = () => {
+      const available = container.clientHeight;
+      const natural = content.scrollHeight;
+      if (available <= 0 || natural <= 0) {
+        setMeasuredScale(1);
+        onScaleChange(1);
+        return;
+      }
+      const nextScale = natural > available
+        ? Math.min(1, (available - 4) / natural)
+        : 1;
+      setMeasuredScale(nextScale);
+      onScaleChange(nextScale);
+    };
+
+    measure();
+    const observer = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(measure)
+      : null;
+    observer?.observe(container);
+    observer?.observe(content);
+    window.addEventListener('resize', measure);
+    const fontsReady = document.fonts?.ready;
+    if (fontsReady) void fontsReady.then(measure).catch(() => undefined);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [measureKey, onScaleChange]);
+
+  return { containerRef, contentRef, scale: measuredScale };
+};
+
 // ==========================================
 // SUBCOMPONENTES DE HOJAS FÍSICAS (PAPER SHEETS)
 // Reutilizados para pantalla, portal de impresión y exportación a PDF
@@ -78,6 +131,9 @@ interface WorkOrderSheetPage1Props {
   rawIVA: number;
   rawTotal: number;
   totalPages: number;
+  photos: WorkOrderInspectionPhoto[];
+  scale?: number;
+  onScaleChange?: (scale: number) => void;
 }
 
 const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
@@ -87,17 +143,34 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
   rawIVA,
   rawTotal,
   totalPages,
+  photos,
+  scale: externalScale = 1,
+  onScaleChange,
 }) => {
   const items = workOrder.items ?? [];
   const company = useCompanyBranding();
+  const density = items.length > 20 ? 2 : items.length > 10 ? 1 : 0;
+  const fit = useFitToPage(
+    `${workOrder.id}-${items.length}-${photos.length}`,
+    onScaleChange,
+  );
+  const contentScale = onScaleChange ? fit.scale : externalScale;
+
+  const cellPadding = density === 2 ? 'px-1 py-[2px]' : density === 1 ? 'px-1 py-0.5' : 'px-1.5 py-1';
+  const tableText = density === 2 ? 'text-[8px]' : density === 1 ? 'text-[9px]' : 'text-[10px]';
+  const totalsText = density === 2 ? 'text-[8.5px]' : density === 1 ? 'text-[9.5px]' : 'text-[10px]';
+  const totalText = density === 2 ? 'text-[10px]' : 'text-[11px]';
+  const inspectionText = density === 2 ? 'text-[8px]' : density === 1 ? 'text-[9px]' : 'text-[9.5px]';
+  const photoHeight = density === 2 ? 44 : density === 1 ? 56 : 74;
+  const descriptionClamp = density === 2 ? 2 : 3;
 
   return (
     <div
       id="pdf-sheet-page-1"
-      className="pdf-paper-sheet mx-auto mb-6 flex flex-col justify-between bg-white text-slate-800 shadow-2xl"
+      className="pdf-paper-sheet mx-auto mb-6 flex flex-col bg-white text-slate-800 shadow-2xl"
       style={{
         width: '816px',
-        minHeight: '1056px',
+        height: '1056px',
         padding: '26px 34px',
         boxSizing: 'border-box',
         fontFamily: "'Segoe UI', Arial, sans-serif",
@@ -128,7 +201,7 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
         {/* 4 Cards Grid Info OT */}
         <div className="mt-2.5 grid grid-cols-4 gap-2 text-[10.5px] leading-tight">
           {/* Cliente */}
-          <div className="rounded border border-slate-200 bg-white p-2">
+          <div className="min-w-0 break-words rounded border border-slate-200 bg-white p-2">
             <div className="mb-1 text-[9px] font-black uppercase text-[#0E2B4E]">
               INFORMACIÓN CLIENTE
             </div>
@@ -139,7 +212,7 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
           </div>
 
           {/* Facturación */}
-          <div className="rounded border border-slate-200 bg-white p-2">
+          <div className="min-w-0 break-words rounded border border-slate-200 bg-white p-2">
             <div className="mb-1 text-[9px] font-black uppercase text-[#0E2B4E]">
               DATOS DE FACTURACIÓN
             </div>
@@ -150,7 +223,7 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
           </div>
 
           {/* Vehículo */}
-          <div className="rounded border border-slate-200 bg-white p-2">
+          <div className="min-w-0 break-words rounded border border-slate-200 bg-white p-2">
             <div className="mb-1 text-[9px] font-black uppercase text-[#0E2B4E]">
               INFORMACIÓN VEHÍCULO
             </div>
@@ -163,7 +236,7 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
           </div>
 
           {/* Recepción */}
-          <div className="rounded border border-slate-200 bg-white p-2">
+          <div className="min-w-0 break-words rounded border border-slate-200 bg-white p-2">
             <div className="mb-1 text-[9px] font-black uppercase text-[#0E2B4E]">
               DATOS DE RECEPCIÓN
             </div>
@@ -178,30 +251,51 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
           </div>
         </div>
 
-        {/* Tabla: TRABAJOS A REALIZAR */}
-        <div className="mt-3">
+      </div>
+
+      {/* Cuerpo adaptativo: trabajos, inspección y fotos caben siempre en el anverso */}
+      <div ref={fit.containerRef} className="mt-3 min-h-0 flex-1 overflow-hidden">
+        <div
+          ref={fit.contentRef}
+          style={{
+            transform: contentScale !== 1 ? `scale(${contentScale})` : undefined,
+            transformOrigin: 'top center',
+          }}
+        >
+          {/* Tabla: TRABAJOS A REALIZAR */}
           <div className="mb-1 text-[10px] font-black uppercase tracking-wider text-[#0E2B4E]">
             TRABAJOS A REALIZAR / REPUESTOS
           </div>
-          <table className="w-full border-collapse text-[10px]">
+          <table className={`w-full border-collapse ${tableText}`}>
             <thead>
               <tr className="bg-[#0E2B4E] text-white">
-                <th className="p-1.5 text-center font-bold">#</th>
-                <th className="p-1.5 text-left font-bold">DESCRIPCIÓN</th>
-                <th className="p-1.5 text-center font-bold">CANT.</th>
-                <th className="p-1.5 text-right font-bold">PRECIO</th>
-                <th className="p-1.5 text-right font-bold">SUBT.</th>
+                <th className={`${cellPadding} text-center font-bold`}>#</th>
+                <th className={`${cellPadding} text-left font-bold`}>DESCRIPCIÓN</th>
+                <th className={`${cellPadding} text-center font-bold`}>CANT.</th>
+                <th className={`${cellPadding} text-right font-bold`}>PRECIO</th>
+                <th className={`${cellPadding} text-right font-bold`}>SUBT.</th>
               </tr>
             </thead>
             <tbody>
               {items.length > 0 ? (
                 items.map((item, idx) => (
                   <tr key={item.id ?? idx} className="border-b border-slate-200">
-                    <td className="p-1.5 text-center text-slate-500">{idx + 1}</td>
-                    <td className="p-1.5 font-bold text-[#0E2B4E]">{item.descripcion}</td>
-                    <td className="p-1.5 text-center">{item.cantidad}</td>
-                    <td className="p-1.5 text-right">{formatClp(item.precioUnitario)}</td>
-                    <td className="p-1.5 text-right font-bold text-[#0E2B4E]">{formatClp(item.subtotal)}</td>
+                    <td className={`${cellPadding} text-center text-slate-500`}>{idx + 1}</td>
+                    <td className={`${cellPadding} font-bold text-[#0E2B4E]`}>
+                      <span
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: descriptionClamp,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {item.descripcion}
+                      </span>
+                    </td>
+                    <td className={`${cellPadding} text-center`}>{item.cantidad}</td>
+                    <td className={`${cellPadding} text-right`}>{formatClp(item.precioUnitario)}</td>
+                    <td className={`${cellPadding} text-right font-bold text-[#0E2B4E]`}>{formatClp(item.subtotal)}</td>
                   </tr>
                 ))
               ) : (
@@ -216,7 +310,7 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
 
           {/* Resumen Totales */}
           <div className="mt-1 flex justify-end">
-            <div className="w-48 text-[10px]">
+            <div className={`w-48 ${totalsText}`}>
               <div className="flex justify-between py-0.5">
                 <span className="text-slate-600">Subtotal:</span>
                 <span className="font-bold">{formatClp(rawSubtotal)}</span>
@@ -225,65 +319,69 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
                 <span className="text-slate-600">IVA (19%):</span>
                 <span className="font-bold">{formatClp(rawIVA)}</span>
               </div>
-              <div className="flex justify-between border-t border-slate-300 py-0.5 text-[11px] font-black text-[#0E2B4E]">
+              <div className={`flex justify-between border-t border-slate-300 py-0.5 ${totalText} font-black text-[#0E2B4E]`}>
                 <span>TOTAL:</span>
                 <span>{formatClp(rawTotal)}</span>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* BLOQUE INSPECCIÓN DE RECEPCIÓN */}
-        <div className="mt-2.5 rounded border border-slate-300 bg-slate-50/50 p-2 text-[9.5px]">
-          <div className="mb-1.5 flex items-center justify-between border-b border-slate-200 pb-1">
-            <span className="font-black uppercase tracking-wider text-[#0E2B4E]">
-              INSPECCIÓN DE INGRESO
-            </span>
-            <div className="flex items-center gap-3 font-semibold text-slate-700">
-              <span>
-                Llantas: DI: <strong>{TIRE_LABELS[workOrder.inspection?.llantaDelanteraIzquierda ?? '']?.text ?? '-'}</strong> |
-                DD: <strong>{TIRE_LABELS[workOrder.inspection?.llantaDelanteraDerecha ?? '']?.text ?? '-'}</strong> |
-                TI: <strong>{TIRE_LABELS[workOrder.inspection?.llantaTraseraIzquierda ?? '']?.text ?? '-'}</strong> |
-                TD: <strong>{TIRE_LABELS[workOrder.inspection?.llantaTraseraDerecha ?? '']?.text ?? '-'}</strong>
+          {/* BLOQUE INSPECCIÓN DE RECEPCIÓN */}
+          <div className={`mt-2.5 rounded border border-slate-300 bg-slate-50/50 p-2 ${inspectionText}`}>
+            <div className="mb-1.5 flex items-center justify-between border-b border-slate-200 pb-1">
+              <span className="font-black uppercase tracking-wider text-[#0E2B4E]">
+                INSPECCIÓN DE INGRESO
               </span>
+              <div className="flex items-center gap-3 font-semibold text-slate-700">
+                <span>
+                  Llantas: DI: <strong>{TIRE_LABELS[workOrder.inspection?.llantaDelanteraIzquierda ?? '']?.text ?? '-'}</strong> |
+                  DD: <strong>{TIRE_LABELS[workOrder.inspection?.llantaDelanteraDerecha ?? '']?.text ?? '-'}</strong> |
+                  TI: <strong>{TIRE_LABELS[workOrder.inspection?.llantaTraseraIzquierda ?? '']?.text ?? '-'}</strong> |
+                  TD: <strong>{TIRE_LABELS[workOrder.inspection?.llantaTraseraDerecha ?? '']?.text ?? '-'}</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Inventario 18 items */}
+            <div className={`grid grid-cols-6 gap-x-2 ${density === 0 ? 'gap-y-1' : 'gap-y-0.5'}`}>
+              {INVENTORY_ALL_ITEMS.map((inv) => {
+                const checked = inventorySet.has(inv.key);
+                return (
+                  <div key={inv.key} className="flex items-center gap-1">
+                    <span
+                      className={`flex h-3 w-3 items-center justify-center rounded-sm border text-[8px] font-black ${
+                        checked
+                          ? 'border-[#0E2B4E] bg-[#0E2B4E] text-white'
+                          : 'border-slate-300 bg-white text-transparent'
+                      }`}
+                    >
+                      ✓
+                    </span>
+                    <span className={`truncate ${checked ? 'font-bold text-slate-900' : 'text-slate-400'}`}>
+                      {inv.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Observaciones y Objetos de Valor */}
+            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-200 pt-1.5">
+              <div>
+                <strong className="text-[#0E2B4E]">Objetos de valor:</strong>{' '}
+                <span className="text-slate-700">{workOrder.inspection?.objetosValor || 'Ninguno'}</span>
+              </div>
+              <div>
+                <strong className="text-[#0E2B4E]">Observaciones:</strong>{' '}
+                <span className="text-slate-700">{workOrder.inspection?.observaciones || workOrder.descripcion || 'Sin observaciones'}</span>
+              </div>
             </div>
           </div>
 
-          {/* Inventario 18 items */}
-          <div className="grid grid-cols-6 gap-x-2 gap-y-1">
-            {INVENTORY_ALL_ITEMS.map((inv) => {
-              const checked = inventorySet.has(inv.key);
-              return (
-                <div key={inv.key} className="flex items-center gap-1">
-                  <span
-                    className={`flex h-3 w-3 items-center justify-center rounded-sm border text-[8px] font-black ${
-                      checked
-                        ? 'border-[#0E2B4E] bg-[#0E2B4E] text-white'
-                        : 'border-slate-300 bg-white text-transparent'
-                    }`}
-                  >
-                    ✓
-                  </span>
-                  <span className={`truncate ${checked ? 'font-bold text-slate-900' : 'text-slate-400'}`}>
-                    {inv.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Observaciones y Objetos de Valor */}
-          <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-200 pt-1.5">
-            <div>
-              <strong className="text-[#0E2B4E]">Objetos de valor:</strong>{' '}
-              <span className="text-slate-700">{workOrder.inspection?.objetosValor || 'Ninguno'}</span>
-            </div>
-            <div>
-              <strong className="text-[#0E2B4E]">Observaciones:</strong>{' '}
-              <span className="text-slate-700">{workOrder.inspection?.observaciones || workOrder.descripcion || 'Sin observaciones'}</span>
-            </div>
-          </div>
-
+          {/* Registro fotográfico de recepción dentro del anverso */}
+          {photos.length > 0 && (
+            <InspectionPhotoGallery photos={photos} width={748} maxPhotoHeight={photoHeight} />
+          )}
         </div>
       </div>
 
@@ -453,11 +551,17 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   quotation,
   onClose,
   onDownload,
+  shareOnOpen = false,
+  onShared,
 }) => {
   const [activeTab, setActiveTab] = useState<'pag1' | 'pag2' | 'photos'>('pag1');
   const [isGrayscale, setIsGrayscale] = useState<boolean>(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+  const [isSharing, setIsSharing] = useState<boolean>(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [page1Scale, setPage1Scale] = useState(1);
+  const shareTriggeredRef = useRef(false);
+  const shareInFlightRef = useRef(false);
   const company = useCompanyBranding();
 
   const isOT = type === 'work-order';
@@ -466,13 +570,14 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
     : quotation?.codigo ?? 'COT-S/N';
   const photos = isOT ? workOrder?.inspection?.photos ?? [] : quotation?.workOrder?.inspectionPhotos ?? [];
   const hasPhotos = photos.length > 0;
-  const totalPages = (isOT ? 2 : quotation ? getQuotationDocumentPages(quotation).length : 1) + (hasPhotos ? 1 : 0);
-  const photosSheet = hasPhotos ? <InspectionPhotosSheet photos={photos} code={displayCode}
-    workOrderCode={(isOT ? workOrder?.codigo : quotation?.workOrder?.codigo) ?? displayCode}
-    clientName={(isOT ? workOrder?.client?.nombre : quotation?.client?.nombre) ?? 'Sin cliente'}
-    vehicle={[(isOT ? workOrder?.vehicle?.patente : quotation?.vehicle?.patente),
-      (isOT ? workOrder?.vehicle?.marca : quotation?.vehicle?.marca),
-      (isOT ? workOrder?.vehicle?.modelo : quotation?.vehicle?.modelo)].filter(Boolean).join(' ') || 'Sin vehículo'}
+  const totalPages = isOT
+    ? 2
+    : (quotation ? getQuotationDocumentPages(quotation).length : 1) + (hasPhotos ? 1 : 0);
+  const photosSheet = !isOT && hasPhotos ? <InspectionPhotosSheet photos={photos} code={displayCode}
+    workOrderCode={quotation?.workOrder?.codigo ?? displayCode}
+    clientName={quotation?.client?.nombre ?? 'Sin cliente'}
+    vehicle={[quotation?.vehicle?.patente, quotation?.vehicle?.marca, quotation?.vehicle?.modelo]
+      .filter(Boolean).join(' ') || 'Sin vehículo'}
     totalPages={totalPages} /> : null;
 
   // Cerrar con Escape
@@ -522,16 +627,11 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   // Descarga directa como archivo PDF con el mismo diseño de la vista previa.
   // Usa html-to-image (SVG foreignObject, soporta Tailwind grid/flex) + jsPDF.
   // html2canvas/html2pdf generaba hojas en blanco, por eso se cambió de librería.
-  const handleDownloadPdf = async () => {
-    if (onDownload) {
-      onDownload();
-      return;
-    }
-
+  const createPdfFile = async (): Promise<{ blob: Blob; filename: string } | null> => {
     const portal = document.getElementById('unithor-print-portal');
     if (!portal) {
       window.print();
-      return;
+      return null;
     }
 
     const sheets = Array.from(
@@ -539,7 +639,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
     );
     if (sheets.length === 0) {
       window.print();
-      return;
+      return null;
     }
 
     setIsGeneratingPdf(true);
@@ -596,10 +696,11 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
           SHEET_WIDTH * scale, sheetHeight * scale, undefined, 'FAST');
       }
 
-      pdf.save(`${displayCode}.pdf`);
+      return { blob: pdf.output('blob'), filename: `${displayCode}.pdf` };
     } catch (err) {
       console.error('Error al generar PDF directo:', err);
       setPdfError('No se pudo preparar el PDF. Comprueba que las fotos estén cargadas y reintenta.');
+      return null;
     } finally {
       portal.style.removeProperty('display');
       portal.style.removeProperty('position');
@@ -612,6 +713,59 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
       setIsGeneratingPdf(false);
     }
   };
+
+  const handleDownloadPdf = async () => {
+    if (onDownload) {
+      onDownload();
+      return;
+    }
+    const file = await createPdfFile();
+    if (!file) return;
+    const url = URL.createObjectURL(file.blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.filename;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  };
+
+  const handleSharePdf = async () => {
+    if (shareInFlightRef.current) return;
+    shareInFlightRef.current = true;
+    setIsSharing(true);
+    try {
+      const file = await createPdfFile();
+      if (!file) return;
+      const result = await sharePdfOnWhatsApp({
+        blob: file.blob,
+        filename: file.filename,
+        title: `${isOT ? 'Orden de trabajo' : 'Cotización'} ${displayCode}`,
+        text: buildPdfShareText({
+          documentLabel: isOT ? 'la orden de trabajo' : 'la cotización',
+          code: displayCode,
+          clientName: isOT ? workOrder?.client?.nombre : quotation?.client?.nombre,
+          patente: isOT ? workOrder?.vehicle?.patente : quotation?.vehicle?.patente,
+        }),
+        phone: isOT
+          ? workOrder?.client?.telefono ?? workOrder?.contact?.telefono
+          : quotation?.client?.telefono,
+      });
+      onShared?.(result);
+    } finally {
+      shareInFlightRef.current = false;
+      setIsSharing(false);
+      shareTriggeredRef.current = true;
+    }
+  };
+
+  useEffect(() => {
+    if (!shareOnOpen || shareTriggeredRef.current) return;
+    shareTriggeredRef.current = true;
+    const timer = window.setTimeout(() => {
+      void handleSharePdf();
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [shareOnOpen]);
 
   return (
     <div
@@ -757,7 +911,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
 
               {!isOT && hasPhotos && <button type="button" onClick={() => setActiveTab('pag1')}
                 className={`rounded-md px-3 py-1 text-xs font-bold ${activeTab === 'pag1' ? 'bg-brand-blue text-white' : 'text-slate-400'}`}>Cotización</button>}
-              {hasPhotos && <button type="button" onClick={() => setActiveTab('photos')}
+              {!isOT && hasPhotos && <button type="button" onClick={() => setActiveTab('photos')}
                 className={`rounded-md px-3 py-1 text-xs font-bold ${activeTab === 'photos' ? 'bg-brand-blue text-white' : 'text-slate-400'}`}>Fotos de recepción ({photos.length})</button>}
 
               {/* Selector Color / B&N */}
@@ -802,8 +956,23 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
 
               <button
                 type="button"
+                onClick={handleSharePdf}
+                disabled={isGeneratingPdf || isSharing}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-bold text-[#073B1E] transition hover:bg-[#1fbe5a] disabled:opacity-75"
+                title="Compartir el PDF por WhatsApp"
+              >
+                {isSharing ? (
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <MessageCircle className="h-3.5 w-3.5" />
+                )}
+                <span>WhatsApp</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleDownloadPdf}
-                disabled={isGeneratingPdf}
+                disabled={isGeneratingPdf || isSharing}
                 className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#00A8E8] px-3 text-xs font-bold text-white transition hover:bg-sky-500 disabled:opacity-75"
                 title="Descargar archivo PDF directamente a tu equipo"
               >
@@ -841,6 +1010,8 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                   rawIVA={rawIVA}
                   rawTotal={rawTotal}
                   totalPages={totalPages}
+                  photos={photos}
+                  onScaleChange={setPage1Scale}
                 />
               ) : (
                 <WorkOrderSheetPage2 workOrder={workOrder} totalPages={totalPages} />
@@ -875,9 +1046,10 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                 rawIVA={rawIVA}
                 rawTotal={rawTotal}
                 totalPages={totalPages}
+                photos={photos}
+                scale={page1Scale}
               />
               <WorkOrderSheetPage2 workOrder={workOrder} totalPages={totalPages} />
-              {photosSheet}
             </div>
           )}
 

@@ -17,6 +17,7 @@ import {
   Gauge,
   History,
   LoaderCircle,
+  MessageCircle,
   Pencil,
   Mail,
   PackageCheck,
@@ -37,6 +38,7 @@ import { PageLoader, ProgressBar } from '../../components/common/LoadingIndicato
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
 import PhotoSlotInput from '../../components/work-orders/PhotoSlotInput';
+import RevertStatusModal from '../../components/work-orders/RevertStatusModal';
 import WorkOrderDeliveryModal from '../../components/work-orders/WorkOrderDeliveryModal';
 import WorkOrderDeliveryReceiptModal from '../../components/work-orders/WorkOrderDeliveryReceiptModal';
 import WorkOrderItemsModal from '../../components/work-orders/WorkOrderItemsModal';
@@ -44,11 +46,11 @@ import WorkOrderMechanicPanel from '../../components/work-orders/WorkOrderMechan
 import WorkOrderReceptionInspectionModal from '../../components/work-orders/WorkOrderReceptionInspectionModal';
 import WorkOrderReentryModal from '../../components/work-orders/WorkOrderReentryModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
-import RevertStatusModal from '../../components/work-orders/RevertStatusModal';
 import {
   useChangeWorkOrderStatusMutation,
   useDeleteWorkOrderInspectionPhotoMutation,
   useDownloadWorkOrderReceptionPdf,
+  useShareWorkOrderReceptionPdf,
   useUploadWorkOrderInspectionPhotosMutation,
   useWorkOrder,
 } from '../../hooks/useWorkOrders';
@@ -56,6 +58,7 @@ import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { validateInspectionFile } from '../../lib/inspection-photos';
 import { hasUserPermission } from '../../lib/permissions';
+import { buildPdfShareText } from '../../lib/whatsapp';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
@@ -164,6 +167,7 @@ export const WorkOrderDetailPage = () => {
   const uploadPhotosMutation = useUploadWorkOrderInspectionPhotosMutation();
   const deletePhotoMutation = useDeleteWorkOrderInspectionPhotoMutation();
   const receptionPdfMutation = useDownloadWorkOrderReceptionPdf();
+  const shareReceptionPdfMutation = useShareWorkOrderReceptionPdf();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReceptionModal, setShowReceptionModal] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
@@ -171,6 +175,7 @@ export const WorkOrderDetailPage = () => {
   const [showDeliveryReceipt, setShowDeliveryReceipt] = useState(false);
   const [showReentryModal, setShowReentryModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
+  const [shareOtOnOpen, setShareOtOnOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Partial<Record<WorkOrderInspectionPhotoSlot, number>>>({});
   const user = useAuthStore((state) => state.user);
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
@@ -317,16 +322,65 @@ export const WorkOrderDetailPage = () => {
             )}
             Comprobante de recepción
           </button>
+          <button
+            type="button"
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 shadow-sm transition-all hover:bg-emerald-100 hover:shadow"
+            disabled={shareReceptionPdfMutation.isPending}
+            onClick={() => {
+              shareReceptionPdfMutation.mutate(
+                {
+                  id: workOrder.id,
+                  codigo: workOrder.codigo,
+                  phone: workOrder.client?.telefono ?? workOrder.contact?.telefono,
+                  text: buildPdfShareText({
+                    documentLabel: 'el comprobante de recepción',
+                    code: workOrder.codigo,
+                    clientName: workOrder.client?.nombre,
+                    patente: workOrder.vehicle?.patente,
+                  }),
+                },
+                {
+                  onSuccess: (result) => {
+                    if (result === 'shared') notifySuccess('PDF compartido por WhatsApp.');
+                    if (result === 'fallback') {
+                      notifySuccess('PDF descargado. Adjúntalo en el chat de WhatsApp.');
+                    }
+                  },
+                  onError: (error) => {
+                    notifyError(getApiErrorMessage(error, 'No se pudo compartir la nota de recepción.'));
+                  },
+                },
+              );
+            }}
+          >
+            {shareReceptionPdfMutation.isPending ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+            )}
+            WhatsApp nota
+          </button>
           <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow" onClick={() => setShowPdfModal(true)}>
             <AnimateIcon variant="bounce" animateOnHover>
               <Eye className="h-4 w-4" aria-hidden="true" />
             </AnimateIcon>
             OT oficial / Imprimir
           </button>
+          <button
+            type="button"
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 shadow-sm transition-all hover:bg-emerald-100 hover:shadow"
+            onClick={() => {
+              setShareOtOnOpen(true);
+              setShowPdfModal(true);
+            }}
+          >
+            <MessageCircle className="h-4 w-4" aria-hidden="true" />
+            WhatsApp OT
+          </button>
         </div>
       </header>
 
-      {(statusMutation.isError || uploadPhotosMutation.isError || deletePhotoMutation.isError || receptionPdfMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(statusMutation.error ?? uploadPhotosMutation.error ?? deletePhotoMutation.error ?? receptionPdfMutation.error)}</div>}
+      {(statusMutation.isError || uploadPhotosMutation.isError || deletePhotoMutation.isError || receptionPdfMutation.isError || shareReceptionPdfMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(statusMutation.error ?? uploadPhotosMutation.error ?? deletePhotoMutation.error ?? receptionPdfMutation.error ?? shareReceptionPdfMutation.error)}</div>}
 
       <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="work-order-summary-title">
         <div className="border-b border-brand-line px-5 py-4"><h2 id="work-order-summary-title" className="font-bold text-brand-primaryInk">Resumen de la orden</h2></div>
@@ -617,7 +671,18 @@ export const WorkOrderDetailPage = () => {
         <PdfPreviewModal
           type="work-order"
           workOrder={workOrder}
-          onClose={() => setShowPdfModal(false)}
+          shareOnOpen={shareOtOnOpen}
+          onShared={(result) => {
+            setShareOtOnOpen(false);
+            if (result === 'shared') notifySuccess('PDF compartido por WhatsApp.');
+            if (result === 'fallback') {
+              notifySuccess('PDF descargado. Adjúntalo en el chat de WhatsApp.');
+            }
+          }}
+          onClose={() => {
+            setShowPdfModal(false);
+            setShareOtOnOpen(false);
+          }}
         />
       )}
     </div>

@@ -1,6 +1,5 @@
 import {
   VEHICLE_INVENTORY_ITEMS,
-  layoutInspectionPhotos,
   WORK_ORDER_INSPECTION_PHOTO_SLOTS,
   getWorkOrderStatusLabel,
   type FuelLevel,
@@ -17,6 +16,7 @@ import {
   type PDFPage,
 } from 'pdf-lib';
 
+import { getReportBranding, type ReportBranding } from './reports/report-branding.js';
 import { readInspectionPhotoBytes } from './work-order-inspection-photo.service.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -35,7 +35,7 @@ const MARGIN = 38;
 const CONTENT_WIDTH = A4_WIDTH - MARGIN * 2;
 const CONTENT_BOTTOM = 52;
 const PRIMARY = rgb(14 / 255, 43 / 255, 78 / 255);
-const ACCENT = rgb(1, 214 / 255, 0);
+const ACCENT = rgb(0, 168 / 255, 232 / 255);
 const TEXT = rgb(32 / 255, 40 / 255, 50 / 255);
 const MUTED = rgb(100 / 255, 112 / 255, 126 / 255);
 const BORDER = rgb(216 / 255, 224 / 255, 232 / 255);
@@ -53,6 +53,8 @@ interface PdfContext {
   page: PDFPage;
   fonts: PdfFonts;
   workOrderCode: string;
+  branding: ReportBranding;
+  logo: PDFImage | null;
 }
 
 interface InfoEntry {
@@ -218,33 +220,98 @@ const drawLines = (
   return cursorY;
 };
 
+const drawBrandLogo = (
+  ctx: PdfContext,
+  x: number,
+  y: number,
+  maxWidth: number,
+  maxHeight: number,
+): void => {
+  if (ctx.logo) {
+    const scale = Math.min(maxWidth / ctx.logo.width, maxHeight / ctx.logo.height);
+    const width = ctx.logo.width * scale;
+    const height = ctx.logo.height * scale;
+    ctx.page.drawImage(ctx.logo, {
+      x: x + (maxWidth - width) / 2,
+      y: y + (maxHeight - height) / 2,
+      width,
+      height,
+    });
+    return;
+  }
+  ctx.page.drawText(ctx.branding.companyName.toUpperCase(), {
+    x,
+    y: y + maxHeight / 2 - 5,
+    size: Math.min(13, maxHeight * 0.55),
+    font: ctx.fonts.bold,
+    color: PRIMARY,
+  });
+};
+
 const drawDocumentHeader = (ctx: PdfContext, section?: string): number => {
-  const { page, fonts, workOrderCode } = ctx;
-  const height = section ? 58 : 94;
+  const { page, fonts, workOrderCode, branding } = ctx;
+  const height = section ? 52 : 96;
   page.drawRectangle({ x: 0, y: A4_HEIGHT - height, width: A4_WIDTH, height, color: PRIMARY });
   page.drawRectangle({ x: 0, y: A4_HEIGHT - height - 4, width: A4_WIDTH, height: 4, color: ACCENT });
-  page.drawText('UNITHOR', {
-    x: MARGIN,
-    y: A4_HEIGHT - (section ? 27 : 38),
-    size: section ? 16 : 22,
-    font: fonts.bold,
+
+  const logoWidth = section ? 84 : 132;
+  const logoHeight = section ? 20 : 32;
+  const logoX = MARGIN;
+  const logoY = A4_HEIGHT - (section ? 39 : 66);
+  page.drawRectangle({
+    x: logoX - 6,
+    y: logoY - 6,
+    width: logoWidth + 12,
+    height: logoHeight + 12,
     color: rgb(1, 1, 1),
   });
-  page.drawText(section ?? 'ORDEN DE TRABAJO', {
-    x: MARGIN,
-    y: A4_HEIGHT - (section ? 45 : 65),
-    size: section ? 9 : 12,
-    font: fonts.regular,
-    color: section ? rgb(0.82, 0.87, 0.92) : ACCENT,
-  });
+  drawBrandLogo(ctx, logoX, logoY, logoWidth, logoHeight);
+
+  if (section) {
+    page.drawText(section.toUpperCase(), {
+      x: logoX + logoWidth + 24,
+      y: A4_HEIGHT - 31,
+      size: 10.5,
+      font: fonts.bold,
+      color: rgb(1, 1, 1),
+    });
+  } else {
+    page.drawText('COMPROBANTE DE RECEPCIÓN', {
+      x: logoX + logoWidth + 28,
+      y: A4_HEIGHT - 38,
+      size: 16,
+      font: fonts.bold,
+      color: rgb(1, 1, 1),
+    });
+    page.drawText('Recepción, diagnóstico inicial y valorización', {
+      x: logoX + logoWidth + 28,
+      y: A4_HEIGHT - 55,
+      size: 9,
+      font: fonts.regular,
+      color: rgb(0.82, 0.87, 0.92),
+    });
+  }
+
+  const codeSize = section ? 10 : 14;
   page.drawText(workOrderCode, {
-    x: A4_WIDTH - MARGIN - fonts.bold.widthOfTextAtSize(workOrderCode, 13),
-    y: A4_HEIGHT - (section ? 34 : 48),
-    size: 13,
+    x: A4_WIDTH - MARGIN - fonts.bold.widthOfTextAtSize(workOrderCode, codeSize),
+    y: A4_HEIGHT - (section ? 31 : 36),
+    size: codeSize,
     font: fonts.bold,
     color: rgb(1, 1, 1),
   });
-  return A4_HEIGHT - height - 22;
+  if (!section) {
+    const companySize = 7.5;
+    page.drawText(branding.legalName, {
+      x: A4_WIDTH - MARGIN - fonts.regular.widthOfTextAtSize(branding.legalName, companySize),
+      y: A4_HEIGHT - 53,
+      size: companySize,
+      font: fonts.regular,
+      color: rgb(0.82, 0.87, 0.92),
+    });
+  }
+
+  return A4_HEIGHT - height - 20;
 };
 
 const addPage = (ctx: PdfContext, section: string): number => {
@@ -488,23 +555,25 @@ const drawPhotoCard = (
 };
 
 const drawReceptionAndVehicle = (ctx: PdfContext, workOrder: WorkOrder, startY: number): number => {
-  let cursorY = drawSectionTitle(ctx, 'Recepción, facturación y vehículo', startY);
+  let cursorY = drawSectionTitle(ctx, 'Datos de la orden', startY);
   const gap = 10;
   const width = (CONTENT_WIDTH - gap) / 2;
-  const contactEntries: InfoEntry[] = [
+  const vehicle = workOrder.vehicle;
+  const inspection = workOrder.inspection;
+
+  const clientEntries: InfoEntry[] = [
+    { label: 'Cliente', value: valueOrFallback(workOrder.client?.nombre) },
     {
       label: 'Persona que entrega',
       value: valueOrFallback(workOrder.contactName, workOrder.client?.nombre),
     },
+    { label: 'RUT', value: valueOrFallback(workOrder.contactRut, workOrder.client?.rut) },
     {
-      label: 'RUT / Identificación',
-      value: valueOrFallback(workOrder.contactRut, workOrder.client?.rut),
+      label: 'Contacto',
+      value:
+        [workOrder.contactPhone, workOrder.contactEmail].filter(Boolean).join(' / ') ||
+        valueOrFallback(workOrder.client?.telefono),
     },
-    {
-      label: 'Teléfono',
-      value: valueOrFallback(workOrder.contactPhone, workOrder.client?.telefono),
-    },
-    { label: 'Email', value: valueOrFallback(workOrder.contactEmail, workOrder.client?.email) },
   ];
   const billingAddress = [workOrder.billingAddress, workOrder.billingComuna, workOrder.billingRegion]
     .filter(Boolean)
@@ -515,23 +584,22 @@ const drawReceptionAndVehicle = (ctx: PdfContext, workOrder: WorkOrder, startY: 
       value: valueOrFallback(workOrder.billingName, workOrder.client?.nombre),
     },
     { label: 'RUT', value: valueOrFallback(workOrder.billingRut, workOrder.client?.rut) },
-    { label: 'Tipo', value: valueOrFallback(workOrder.billingType, workOrder.client?.tipo) },
     {
       label: 'Contacto',
       value:
         [workOrder.billingPhone, workOrder.billingEmail].filter(Boolean).join(' / ') ||
-        valueOrFallback(workOrder.client?.telefono),
+        valueOrFallback(workOrder.client?.email),
     },
     {
       label: 'Dirección',
       value: billingAddress || valueOrFallback(workOrder.client?.direccion),
     },
   ];
-  const cardHeight = Math.max(
-    measureInfoCard(contactEntries, ctx.fonts, width),
+  const rowOneHeight = Math.max(
+    measureInfoCard(clientEntries, ctx.fonts, width),
     measureInfoCard(billingEntries, ctx.fonts, width),
   );
-  drawInfoCard(ctx, 'Contacto de recepción', contactEntries, MARGIN, cursorY, width, cardHeight);
+  drawInfoCard(ctx, 'Cliente y recepción', clientEntries, MARGIN, cursorY, width, rowOneHeight);
   drawInfoCard(
     ctx,
     'Datos de facturación',
@@ -539,11 +607,10 @@ const drawReceptionAndVehicle = (ctx: PdfContext, workOrder: WorkOrder, startY: 
     MARGIN + width + gap,
     cursorY,
     width,
-    cardHeight,
+    rowOneHeight,
   );
-  cursorY -= cardHeight + 14;
+  cursorY -= rowOneHeight + 10;
 
-  const vehicle = workOrder.vehicle;
   const vehicleEntries: InfoEntry[] = [
     { label: 'Patente', value: valueOrFallback(vehicle?.patente) },
     {
@@ -554,11 +621,9 @@ const drawReceptionAndVehicle = (ctx: PdfContext, workOrder: WorkOrder, startY: 
       label: 'Año / Color',
       value: `${valueOrFallback(vehicle?.ano)} / ${valueOrFallback(vehicle?.color)}`,
     },
-    { label: 'VIN / Chasis', value: valueOrFallback(vehicle?.vinChasis) },
-    { label: 'Motor', value: valueOrFallback(vehicle?.motor) },
     {
-      label: 'Combustible / Transmisión',
-      value: `${valueOrFallback(vehicle?.combustible)} / ${valueOrFallback(vehicle?.transmision)}`,
+      label: 'VIN / Motor',
+      value: `${valueOrFallback(vehicle?.vinChasis)} / ${valueOrFallback(vehicle?.motor)}`,
     },
     {
       label: 'Kilometraje de ingreso',
@@ -568,9 +633,33 @@ const drawReceptionAndVehicle = (ctx: PdfContext, workOrder: WorkOrder, startY: 
           : `${formatNumber(workOrder.kilometrajeIngreso)} km`,
     },
   ];
-  const vehicleHeight = measureInfoCard(vehicleEntries, ctx.fonts, CONTENT_WIDTH);
-  drawInfoCard(ctx, 'Vehículo recibido', vehicleEntries, MARGIN, cursorY, CONTENT_WIDTH, vehicleHeight);
-  return cursorY - vehicleHeight - 15;
+  const receptionEntries: InfoEntry[] = [
+    { label: 'Ingreso', value: formatDate(workOrder.fechaIngreso, true) },
+    { label: 'Entrega', value: formatDate(workOrder.fechaEntrega, true) },
+    { label: 'Asesor', value: valueOrFallback(workOrder.creator?.nombre) },
+    {
+      label: 'Combustible',
+      value: inspection?.nivelCombustible
+        ? FUEL_LABELS[inspection.nivelCombustible]
+        : 'No registrado',
+    },
+    { label: 'Estado', value: getWorkOrderStatusLabel(workOrder.estado) },
+  ];
+  const rowTwoHeight = Math.max(
+    measureInfoCard(vehicleEntries, ctx.fonts, width),
+    measureInfoCard(receptionEntries, ctx.fonts, width),
+  );
+  drawInfoCard(ctx, 'Vehículo recibido', vehicleEntries, MARGIN, cursorY, width, rowTwoHeight);
+  drawInfoCard(
+    ctx,
+    'Recepción',
+    receptionEntries,
+    MARGIN + width + gap,
+    cursorY,
+    width,
+    rowTwoHeight,
+  );
+  return cursorY - rowTwoHeight - 16;
 };
 
 const drawInspection = (ctx: PdfContext, workOrder: WorkOrder, startY: number): number => {
@@ -618,6 +707,7 @@ const drawInspection = (ctx: PdfContext, workOrder: WorkOrder, startY: number): 
   cursorY -= inspectionHeight + 15;
 
   const inventory = parseInventory(inspection.getDataValue('inventario'));
+  if (cursorY - 100 < CONTENT_BOTTOM) cursorY = addPage(ctx, 'INSPECCIÓN DE RECEPCIÓN');
   ctx.page.drawText('INVENTARIO INTERIOR', {
     x: MARGIN,
     y: cursorY,
@@ -625,32 +715,54 @@ const drawInspection = (ctx: PdfContext, workOrder: WorkOrder, startY: number): 
     font: ctx.fonts.bold,
     color: MUTED,
   });
-  cursorY -= 15;
-  const inventoryText =
-    inventory.length > 0
-      ? inventory.map((item) => INVENTORY_LABELS[item]).join('  |  ')
-      : 'Sin elementos declarados';
-  const inventoryLines = wrapText(inventoryText, ctx.fonts.regular, 9, CONTENT_WIDTH - 18);
-  const inventoryHeight = Math.max(30, inventoryLines.length * 12 + 14);
+  cursorY -= 14;
+
+  const inventoryColumns = 4;
+  const inventoryRowHeight = 14;
+  const inventoryRows = Math.ceil(VEHICLE_INVENTORY_ITEMS.length / inventoryColumns);
+  const inventoryHeight = inventoryRows * inventoryRowHeight + 10;
+  const inventoryCellWidth = CONTENT_WIDTH / inventoryColumns;
   ctx.page.drawRectangle({
     x: MARGIN,
-    y: cursorY - inventoryHeight + 4,
+    y: cursorY - inventoryHeight,
     width: CONTENT_WIDTH,
     height: inventoryHeight,
     color: SOFT,
     borderColor: BORDER,
     borderWidth: 0.6,
   });
-  drawLines(
-    ctx.page,
-    inventoryLines,
-    MARGIN + 9,
-    cursorY - 9,
-    ctx.fonts.regular,
-    9,
-    TEXT,
-    12,
-  );
+  VEHICLE_INVENTORY_ITEMS.forEach((item, index) => {
+    const column = index % inventoryColumns;
+    const row = Math.floor(index / inventoryColumns);
+    const x = MARGIN + 8 + column * inventoryCellWidth;
+    const y = cursorY - 16 - row * inventoryRowHeight;
+    const checked = inventory.includes(item);
+    ctx.page.drawRectangle({
+      x,
+      y: y - 2,
+      width: 8,
+      height: 8,
+      color: checked ? PRIMARY : rgb(1, 1, 1),
+      borderColor: checked ? PRIMARY : BORDER,
+      borderWidth: 0.7,
+    });
+    if (checked) {
+      ctx.page.drawText('X', {
+        x: x + 2,
+        y: y,
+        size: 5.5,
+        font: ctx.fonts.bold,
+        color: rgb(1, 1, 1),
+      });
+    }
+    ctx.page.drawText(INVENTORY_LABELS[item], {
+      x: x + 12,
+      y,
+      size: 7,
+      font: checked ? ctx.fonts.bold : ctx.fonts.regular,
+      color: checked ? TEXT : MUTED,
+    });
+  });
   cursorY -= inventoryHeight + 12;
 
   for (const [label, text] of [
@@ -704,23 +816,18 @@ const drawPhotos = async (ctx: PdfContext, workOrder: WorkOrder): Promise<void> 
   );
   let cursorY = addPage(ctx, 'EVIDENCIA FOTOGRÁFICA');
   const gap = 10;
-  const rows = layoutInspectionPhotos(
-    embedded.map(({ image }) => image ? image.width / image.height : 4 / 3),
-    CONTENT_WIDTH - 16 * 3,
-    164,
-    gap,
-  );
+  const columns = 3;
+  const cardWidth = (CONTENT_WIDTH - gap * (columns - 1)) / columns;
+  const cardHeight = 190;
 
-  for (const row of rows) {
-    const cardHeight = row.height + 40;
+  for (let index = 0; index < embedded.length; index += columns) {
     if (cursorY - cardHeight < CONTENT_BOTTOM) {
       cursorY = addPage(ctx, 'EVIDENCIA FOTOGRÁFICA');
     }
-    const rowWidth = row.widths.reduce((sum, width) => sum + width + 16, 0) + gap * (row.widths.length - 1);
+    const row = embedded.slice(index, index + columns);
+    const rowWidth = row.length * cardWidth + gap * (row.length - 1);
     let x = MARGIN + (CONTENT_WIDTH - rowWidth) / 2;
-    for (let index = 0; index < row.widths.length; index += 1) {
-      const entry = embedded[row.startIndex + index];
-      const cardWidth = row.widths[index] + 16;
+    for (const entry of row) {
       drawPhotoCard(ctx, entry.photo, entry.image, x, cursorY, cardWidth, cardHeight);
       x += cardWidth + gap;
     }
@@ -784,6 +891,7 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
     cursorY -= 42;
   }
 
+  let rowIndex = 0;
   for (const item of items) {
     const description = item.notasOperativas
       ? `${item.descripcion}\nNota: ${item.notasOperativas}`
@@ -793,6 +901,7 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
     if (cursorY - rowHeight < CONTENT_BOTTOM + 70) {
       cursorY = addPage(ctx, 'SERVICIOS Y REPUESTOS');
       drawTableHeader();
+      rowIndex = 0;
     }
 
     const type =
@@ -814,7 +923,7 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
       y: cursorY - rowHeight,
       width: CONTENT_WIDTH,
       height: rowHeight,
-      color: rgb(1, 1, 1),
+      color: rowIndex % 2 === 0 ? rgb(1, 1, 1) : SOFT,
       borderColor: BORDER,
       borderWidth: 0.5,
     });
@@ -878,6 +987,7 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
       color: TEXT,
     });
     cursorY -= rowHeight;
+    rowIndex += 1;
   }
 
   if (cursorY < 210) cursorY = addPage(ctx, 'RESUMEN Y CONFORMIDAD');
@@ -972,25 +1082,42 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
 
 const drawFooters = (ctx: PdfContext): void => {
   const pages = ctx.pdfDoc.getPages();
+  const { branding } = ctx;
+  const companyLine = [branding.companyName, branding.contact].filter(Boolean).join(' | ');
   pages.forEach((page, index) => {
     page.drawLine({
-      start: { x: MARGIN, y: 35 },
-      end: { x: A4_WIDTH - MARGIN, y: 35 },
-      thickness: 0.5,
+      start: { x: MARGIN, y: 38 },
+      end: { x: A4_WIDTH - MARGIN, y: 38 },
+      thickness: 0.6,
       color: BORDER,
     });
-    page.drawText('Documento operativo UNITHOR - La recepción no implica diagnóstico definitivo.', {
+    page.drawText(companyLine, {
       x: MARGIN,
-      y: 20,
+      y: 26,
       size: 6.8,
+      font: ctx.fonts.bold,
+      color: PRIMARY,
+    });
+    const address = branding.address || 'La recepción no implica diagnóstico definitivo.';
+    page.drawText(address, {
+      x: MARGIN,
+      y: 16,
+      size: 6.5,
       font: ctx.fonts.regular,
       color: MUTED,
     });
     const pageText = `Página ${index + 1} de ${pages.length}`;
     page.drawText(pageText, {
       x: A4_WIDTH - MARGIN - ctx.fonts.regular.widthOfTextAtSize(pageText, 7),
-      y: 20,
+      y: 26,
       size: 7,
+      font: ctx.fonts.regular,
+      color: MUTED,
+    });
+    page.drawText('Documento operativo', {
+      x: A4_WIDTH - MARGIN - ctx.fonts.regular.widthOfTextAtSize('Documento operativo', 6.5),
+      y: 16,
+      size: 6.5,
       font: ctx.fonts.regular,
       color: MUTED,
     });
@@ -1000,57 +1127,51 @@ const drawFooters = (ctx: PdfContext): void => {
 export async function generateWorkOrderReceptionPdf(
   workOrderId: number,
 ): Promise<Uint8Array> {
-  const workOrder = await getWorkOrderForPdf(workOrderId);
+  const [workOrder, branding] = await Promise.all([
+    getWorkOrderForPdf(workOrderId),
+    getReportBranding(),
+  ]);
   const pdfDoc = await PDFDocument.create();
   const fonts: PdfFonts = {
     regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
     bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
   };
+  const logo = branding.logoPng ? await pdfDoc.embedPng(branding.logoPng) : null;
   const ctx: PdfContext = {
     pdfDoc,
     page: pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]),
     fonts,
     workOrderCode: workOrder.codigo,
+    branding,
+    logo,
   };
 
   let cursorY = drawDocumentHeader(ctx);
+  ctx.page.drawRectangle({
+    x: MARGIN,
+    y: cursorY - 20,
+    width: CONTENT_WIDTH,
+    height: 22,
+    color: SOFT,
+    borderColor: BORDER,
+    borderWidth: 0.6,
+  });
+  ctx.page.drawText(`Emitido: ${formatDate(new Date(), true)}`, {
+    x: MARGIN + 10,
+    y: cursorY - 13,
+    size: 7.5,
+    font: fonts.regular,
+    color: MUTED,
+  });
   const stateText = getWorkOrderStatusLabel(workOrder.estado).toUpperCase();
   ctx.page.drawText(stateText, {
-    x: MARGIN,
-    y: cursorY,
-    size: 11,
+    x: A4_WIDTH - MARGIN - fonts.bold.widthOfTextAtSize(stateText, 8),
+    y: cursorY - 13,
+    size: 8,
     font: fonts.bold,
     color: PRIMARY,
   });
-  ctx.page.drawText(`Emisión: ${formatDate(new Date(), true)}`, {
-    x: MARGIN + 155,
-    y: cursorY,
-    size: 8,
-    font: fonts.regular,
-    color: MUTED,
-  });
-  ctx.page.drawText(`Ingreso: ${formatDate(workOrder.fechaIngreso, true)}`, {
-    x: MARGIN + 300,
-    y: cursorY,
-    size: 8,
-    font: fonts.regular,
-    color: MUTED,
-  });
-  ctx.page.drawText(`Responsable: ${valueOrFallback(workOrder.creator?.nombre)}`, {
-    x: MARGIN,
-    y: cursorY - 17,
-    size: 8,
-    font: fonts.regular,
-    color: MUTED,
-  });
-  ctx.page.drawText(`Entrega: ${formatDate(workOrder.fechaEntrega, true)}`, {
-    x: MARGIN + 300,
-    y: cursorY - 17,
-    size: 8,
-    font: fonts.regular,
-    color: MUTED,
-  });
-  cursorY -= 41;
+  cursorY -= 32;
 
   cursorY = drawReceptionAndVehicle(ctx, workOrder, cursorY);
   drawInspection(ctx, workOrder, cursorY);

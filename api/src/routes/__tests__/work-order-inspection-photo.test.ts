@@ -182,6 +182,8 @@ describe('Work Order Inspection Photos Routes (E2E)', () => {
       passwordHash: await hashPassword(TEST_PASSWORD), roleId: salesRoleId, activo: true,
     });
     salesUserId = salesUser.id;
+    await WorkOrder.update({ createdBy: salesUserId }, { where: { id: [editableWorkOrderId, closedWorkOrderId] } });
+    await Quotation.update({ asesorId: salesUserId }, { where: { id: quotationId } });
     const salesLogin = await request(app).post('/api/auth/login')
       .send({ email: salesUser.email, password: TEST_PASSWORD });
     expect(salesLogin.status).toBe(200);

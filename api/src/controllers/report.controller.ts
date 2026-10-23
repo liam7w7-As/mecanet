@@ -30,8 +30,11 @@ import type {
 import type { Request, Response } from 'express';
 
 export const getCommercialReportExcelHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
-    const filters = res.locals.validatedQuery as CommercialReportFilters;
+  async (req: Request, res: Response): Promise<void> => {
+    const filters = {
+      ...(res.locals.validatedQuery as CommercialReportFilters),
+      ...(req.user?.role === 'vendedor' ? { asesorId: req.user.id, salesUserId: req.user.id } : {}),
+    };
     const reportBuffer = await generateDetailedCommercialReportExcel(filters);
 
     res.setHeader(
@@ -48,8 +51,11 @@ export const getCommercialReportExcelHandler = asyncHandler(
 );
 
 export const getCommercialReportPdfHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
-    const filters = res.locals.validatedQuery as CommercialReportFilters;
+  async (req: Request, res: Response): Promise<void> => {
+    const filters = {
+      ...(res.locals.validatedQuery as CommercialReportFilters),
+      ...(req.user?.role === 'vendedor' ? { asesorId: req.user.id, salesUserId: req.user.id } : {}),
+    };
     const pdfBytes = await generateCommercialReportPdf(filters);
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -63,8 +69,11 @@ export const getCommercialReportPdfHandler = asyncHandler(
 );
 
 export const getWorkshopReportExcelHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
-    const filters = res.locals.validatedQuery as WorkshopReportFilters;
+  async (req: Request, res: Response): Promise<void> => {
+    const filters = {
+      ...(res.locals.validatedQuery as WorkshopReportFilters),
+      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+    };
     const reportBuffer = await generateWorkshopReportExcel(filters);
 
     res.setHeader(
@@ -81,8 +90,11 @@ export const getWorkshopReportExcelHandler = asyncHandler(
 );
 
 export const getWorkshopReportPdfHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
-    const filters = res.locals.validatedQuery as WorkshopReportFilters;
+  async (req: Request, res: Response): Promise<void> => {
+    const filters = {
+      ...(res.locals.validatedQuery as WorkshopReportFilters),
+      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+    };
     const pdfBytes = await generateWorkshopReportPdf(filters);
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -129,8 +141,11 @@ export const getInventoryReportPdfHandler = asyncHandler(
 );
 
 export const getCatalogReportExcelHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
-    const filters = res.locals.validatedQuery as CatalogReportFilters;
+  async (req: Request, res: Response): Promise<void> => {
+    const filters = {
+      ...(res.locals.validatedQuery as CatalogReportFilters),
+      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+    };
     const reportBuffer = await generateCatalogReportExcel(filters);
 
     res.setHeader(
@@ -147,8 +162,11 @@ export const getCatalogReportExcelHandler = asyncHandler(
 );
 
 export const getCatalogReportPdfHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
-    const filters = res.locals.validatedQuery as CatalogReportFilters;
+  async (req: Request, res: Response): Promise<void> => {
+    const filters = {
+      ...(res.locals.validatedQuery as CatalogReportFilters),
+      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+    };
     const pdfBytes = await generateCatalogReportPdf(filters);
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -162,8 +180,11 @@ export const getCatalogReportPdfHandler = asyncHandler(
 );
 
 export const getFleetReportExcelHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
-    const filters = res.locals.validatedQuery as FleetReportFilters;
+  async (req: Request, res: Response): Promise<void> => {
+    const filters = {
+      ...(res.locals.validatedQuery as FleetReportFilters),
+      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+    };
     const reportBuffer = await generateFleetReportExcel(filters);
 
     res.setHeader(
@@ -180,8 +201,11 @@ export const getFleetReportExcelHandler = asyncHandler(
 );
 
 export const getFleetReportPdfHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
-    const filters = res.locals.validatedQuery as FleetReportFilters;
+  async (req: Request, res: Response): Promise<void> => {
+    const filters = {
+      ...(res.locals.validatedQuery as FleetReportFilters),
+      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+    };
     const pdfBytes = await generateFleetReportPdf(filters);
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -231,8 +255,7 @@ export const getFinancialReportExcelHandler = asyncHandler(
   async (_req: Request, res: Response): Promise<void> => {
     const filters = res.locals.validatedQuery as FinancialReportFilters;
     const reportBuffer = await generateFinancialReportExcel(filters);
-    const filename =
-      `Informe_Financiero_UNITHOR_${filters.fechaDesde}_${filters.fechaHasta}.xlsx`;
+    const filename = `Informe_Financiero_UNITHOR_${filters.fechaDesde}_${filters.fechaHasta}.xlsx`;
 
     res.setHeader(
       'Content-Type',
@@ -248,8 +271,7 @@ export const getFinancialReportPdfHandler = asyncHandler(
   async (_req: Request, res: Response): Promise<void> => {
     const filters = res.locals.validatedQuery as FinancialReportFilters;
     const pdfBytes = await generateFinancialReportPdf(filters);
-    const filename =
-      `Informe_Financiero_UNITHOR_${filters.fechaDesde}_${filters.fechaHasta}.pdf`;
+    const filename = `Informe_Financiero_UNITHOR_${filters.fechaDesde}_${filters.fechaHasta}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

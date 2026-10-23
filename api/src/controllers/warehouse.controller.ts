@@ -85,9 +85,9 @@ export const getStockMovementsHandler = asyncHandler(
 );
 
 export const getWarehouseRequestsHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     const query = res.locals.validatedQuery as WarehouseRequestQueryInput;
-    const result = await warehouseService.listWorkOrderRequests(query);
+    const result = await warehouseService.listWorkOrderRequests(query, getCurrentUserId(req));
     res.status(200).json(result);
   },
 );

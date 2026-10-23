@@ -2,6 +2,7 @@ import { getWorkOrderStatusLabel } from '@unithor/shared';
 import ExcelJS from 'exceljs';
 import { Op } from 'sequelize';
 
+import { scopeSalesAssociations } from './sales-access.service.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
 import { Payment } from '../models/Payment.js';
@@ -35,6 +36,8 @@ import type { Includeable, InferAttributes, WhereOptions } from 'sequelize';
 type QuotationWhere = WhereOptions<InferAttributes<Quotation>> & {
   [Op.or]?: WhereOptions<InferAttributes<Quotation>>[];
 };
+
+export interface SalesReportScope { salesUserId?: number }
 type WorkOrderWhere = WhereOptions<InferAttributes<WorkOrder>> & {
   [Op.or]?: WhereOptions<InferAttributes<WorkOrder>>[];
 };
@@ -123,11 +126,12 @@ const buildCommercialWhere = (
   return where;
 };
 
-const buildWorkshopWhere = (filters: WorkshopReportFilters): WorkOrderWhere => {
+const buildWorkshopWhere = (filters: WorkshopReportFilters & SalesReportScope): WorkOrderWhere => {
   const where: WorkOrderWhere = {
     fechaIngreso: { [Op.between]: [startOfDayUtc(filters.fechaDesde), endOfDayUtc(filters.fechaHasta)] },
   };
   if (filters.estado !== undefined) where.estado = filters.estado;
+  if (filters.salesUserId !== undefined) where.createdBy = filters.salesUserId;
   if (filters.mechanicId !== undefined) where.assignedMechanicId = filters.mechanicId;
   if (filters.clientId !== undefined) where.clientId = filters.clientId;
   if (filters.vehicleId !== undefined) where.vehicleId = filters.vehicleId;
@@ -244,10 +248,10 @@ const workshopIncludes: Includeable[] = [
   },
 ];
 
-const getCommercialQuotations = (filters: CommercialReportFilters): Promise<Quotation[]> =>
+const getCommercialQuotations = (filters: CommercialReportFilters & SalesReportScope): Promise<Quotation[]> =>
   Quotation.findAll({
     where: buildCommercialWhere(filters),
-    include: commercialIncludes,
+    include: scopeSalesAssociations(commercialIncludes, filters.salesUserId),
     order: [
       ['createdAt', 'ASC'],
       ['id', 'ASC'],
@@ -281,10 +285,10 @@ const getCommercialPayments = (filters: CommercialReportFilters): Promise<Paymen
     ],
   });
 
-const getWorkshopWorkOrders = (filters: WorkshopReportFilters): Promise<WorkOrder[]> =>
+const getWorkshopWorkOrders = (filters: WorkshopReportFilters & SalesReportScope): Promise<WorkOrder[]> =>
   WorkOrder.findAll({
     where: buildWorkshopWhere(filters),
-    include: workshopIncludes,
+    include: scopeSalesAssociations(workshopIncludes, filters.salesUserId),
     order: [
       ['fechaIngreso', 'ASC'],
       ['id', 'ASC'],
@@ -438,7 +442,7 @@ const workshopSubtitle = (filters: WorkshopReportFilters): string =>
     filters.search ? `Búsqueda: ${filters.search}` : null,
   ].filter((value): value is string => Boolean(value)).join(' | ');
 
-export async function generateDetailedCommercialReportExcel(filters: CommercialReportFilters): Promise<Buffer> {
+export async function generateDetailedCommercialReportExcel(filters: CommercialReportFilters & SalesReportScope): Promise<Buffer> {
   const [quotations, payments] = await Promise.all([
     getCommercialQuotations(filters),
     getCommercialPayments(filters),
@@ -549,7 +553,7 @@ export async function generateDetailedCommercialReportExcel(filters: CommercialR
   return serializeWorkbook(workbook);
 }
 
-export async function generateCommercialReportPdf(filters: CommercialReportFilters): Promise<Uint8Array> {
+export async function generateCommercialReportPdf(filters: CommercialReportFilters & SalesReportScope): Promise<Uint8Array> {
   const [quotations, payments] = await Promise.all([
     getCommercialQuotations(filters),
     getCommercialPayments(filters),
@@ -636,7 +640,7 @@ const workOrderProgress = (workOrder: WorkOrder): number => {
   return Math.round((completed / items.length) * 100);
 };
 
-export async function generateWorkshopReportExcel(filters: WorkshopReportFilters): Promise<Buffer> {
+export async function generateWorkshopReportExcel(filters: WorkshopReportFilters & SalesReportScope): Promise<Buffer> {
   const workOrders = await getWorkshopWorkOrders(filters);
   const workbook = setupWorkbook();
   const subtitle = workshopSubtitle(filters);
@@ -792,7 +796,7 @@ export async function generateWorkshopReportExcel(filters: WorkshopReportFilters
   return serializeWorkbook(workbook);
 }
 
-export async function generateWorkshopReportPdf(filters: WorkshopReportFilters): Promise<Uint8Array> {
+export async function generateWorkshopReportPdf(filters: WorkshopReportFilters & SalesReportScope): Promise<Uint8Array> {
   const workOrders = await getWorkshopWorkOrders(filters);
   const active = workOrders.filter((order) => !['entregada', 'cancelada'].includes(order.estado)).length;
   const linkedQuotationTotal = workOrders.reduce((sum, order) => sum + asNumber(order.quotation?.total), 0);
@@ -1188,7 +1192,7 @@ export async function generateInventoryReportPdf(filters: InventoryReportFilters
   return doc.finalize();
 }
 
-const getCatalogUsageData = async (filters: CatalogReportFilters) => {
+const getCatalogUsageData = async (filters: CatalogReportFilters & SalesReportScope) => {
   const catalogWhere = buildCatalogWhere(filters);
   const [items, quotedItems, workItems] = await Promise.all([
     CatalogItem.findAll({
@@ -1203,6 +1207,7 @@ const getCatalogUsageData = async (filters: CatalogReportFilters) => {
           attributes: ['id', 'codigo', 'createdAt'],
           where: {
             createdAt: { [Op.between]: [startOfDayUtc(filters.fechaDesde), endOfDayUtc(filters.fechaHasta)] },
+            ...(filters.salesUserId !== undefined ? { asesorId: filters.salesUserId } : {}),
           },
           required: true,
         },
@@ -1224,6 +1229,7 @@ const getCatalogUsageData = async (filters: CatalogReportFilters) => {
           attributes: ['id', 'codigo', 'fechaIngreso'],
           where: {
             fechaIngreso: { [Op.between]: [startOfDayUtc(filters.fechaDesde), endOfDayUtc(filters.fechaHasta)] },
+            ...(filters.salesUserId !== undefined ? { createdBy: filters.salesUserId } : {}),
           },
           required: true,
         },
@@ -1282,7 +1288,7 @@ const summarizeUsage = (
   return summary;
 };
 
-export async function generateCatalogReportExcel(filters: CatalogReportFilters): Promise<Buffer> {
+export async function generateCatalogReportExcel(filters: CatalogReportFilters & SalesReportScope): Promise<Buffer> {
   const { items, quotedItems, workItems } = await getCatalogUsageData(filters);
   const usage = summarizeUsage(items, quotedItems, workItems);
   const workbook = setupWorkbook();
@@ -1380,7 +1386,7 @@ export async function generateCatalogReportExcel(filters: CatalogReportFilters):
   return serializeWorkbook(workbook);
 }
 
-export async function generateCatalogReportPdf(filters: CatalogReportFilters): Promise<Uint8Array> {
+export async function generateCatalogReportPdf(filters: CatalogReportFilters & SalesReportScope): Promise<Uint8Array> {
   const { items, quotedItems, workItems } = await getCatalogUsageData(filters);
   const usage = summarizeUsage(items, quotedItems, workItems);
   const critical = items.filter((item) => item.tipo === 'parte' && Number(item.stock) <= Math.max(5, Number(item.stockMinimo))).length;
@@ -1456,7 +1462,7 @@ const bumpDate = (current: Date | null, candidate: Date | null | undefined): Dat
   return current;
 };
 
-const getFleetData = async (filters: FleetReportFilters) => {
+const getFleetData = async (filters: FleetReportFilters & SalesReportScope) => {
   const clientWhere: ClientWhere = {};
   const vehicleWhere: VehicleWhere = {};
   const activityRange = {
@@ -1490,7 +1496,7 @@ const getFleetData = async (filters: FleetReportFilters) => {
       order: [['patente', 'ASC']],
     }),
     WorkOrder.findAll({
-      where: { fechaIngreso: activityRange },
+      where: { fechaIngreso: activityRange, ...(filters.salesUserId !== undefined ? { createdBy: filters.salesUserId } : {}) },
       include: [
         { model: Client, as: 'client', attributes: ['id', 'rut', 'nombre'], required: false },
         { model: Vehicle, as: 'vehicle', attributes: ['id', 'patente', 'marca', 'modelo'], required: false },
@@ -1498,7 +1504,7 @@ const getFleetData = async (filters: FleetReportFilters) => {
       order: [['fechaIngreso', 'ASC']],
     }),
     Quotation.findAll({
-      where: { createdAt: activityRange },
+      where: { createdAt: activityRange, ...(filters.salesUserId !== undefined ? { asesorId: filters.salesUserId } : {}) },
       include: [
         { model: Client, as: 'client', attributes: ['id', 'rut', 'nombre'], required: false },
         { model: Vehicle, as: 'vehicle', attributes: ['id', 'patente', 'marca', 'modelo'], required: false },
@@ -1562,7 +1568,7 @@ const getFleetData = async (filters: FleetReportFilters) => {
   return { clients: filteredClients, vehicles: filteredVehicles, workOrders, quotations, clientCounters, vehicleCounters };
 };
 
-export async function generateFleetReportExcel(filters: FleetReportFilters): Promise<Buffer> {
+export async function generateFleetReportExcel(filters: FleetReportFilters & SalesReportScope): Promise<Buffer> {
   const { clients, vehicles, workOrders, quotations, clientCounters, vehicleCounters } = await getFleetData(filters);
   const workbook = setupWorkbook();
   const subtitle = fleetSubtitle(filters);
@@ -1698,7 +1704,7 @@ export async function generateFleetReportExcel(filters: FleetReportFilters): Pro
   return serializeWorkbook(workbook);
 }
 
-export async function generateFleetReportPdf(filters: FleetReportFilters): Promise<Uint8Array> {
+export async function generateFleetReportPdf(filters: FleetReportFilters & SalesReportScope): Promise<Uint8Array> {
   const { clients, vehicles, workOrders, quotations, clientCounters, vehicleCounters } = await getFleetData(filters);
   const quotedTotal = quotations.reduce((sum, quotation) => sum + asNumber(quotation.total), 0);
   const doc = await createReportDocument(

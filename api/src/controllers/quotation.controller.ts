@@ -22,16 +22,16 @@ const getCurrentUserId = (req: Request): number => {
 };
 
 export const getQuotationsHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     const query = res.locals.validatedQuery as QuotationQueryInput;
-    const result = await quotationService.listQuotations(query);
+    const result = await quotationService.listQuotations(query, getCurrentUserId(req));
     res.status(200).json(result);
   },
 );
 
 export const getQuotationByIdHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const quotation = await quotationService.getQuotationById(getParamId(req));
+    const quotation = await quotationService.getQuotationById(getParamId(req), getCurrentUserId(req));
     res.status(200).json({ quotation });
   },
 );
@@ -41,10 +41,11 @@ export const getQuotationInspectionPhotoHandler = asyncHandler(
     const { photo, bytes } = await quotationService.getQuotationInspectionPhoto(
       getParamId(req),
       req.params.slot as WorkOrderInspectionPhotoSlot,
+      getCurrentUserId(req),
     );
     res.setHeader('Content-Type', photo.mimeType);
     res.setHeader('Content-Length', String(bytes.length));
-    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('Content-Disposition', `inline; filename="inspeccion-${photo.slot}"`);
     res.end(bytes);
   },
@@ -91,14 +92,14 @@ export const deleteQuotationHandler = asyncHandler(
 
 export const archiveQuotationHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const quotation = await quotationService.archiveQuotation(getParamId(req));
+    const quotation = await quotationService.archiveQuotation(getParamId(req), getCurrentUserId(req));
     res.status(200).json({ quotation });
   },
 );
 
 export const unarchiveQuotationHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const quotation = await quotationService.unarchiveQuotation(getParamId(req));
+    const quotation = await quotationService.unarchiveQuotation(getParamId(req), getCurrentUserId(req));
     res.status(200).json({ quotation });
   },
 );

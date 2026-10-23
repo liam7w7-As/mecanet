@@ -1,6 +1,7 @@
 import { NOTIFICATION_RECIPIENT_ROLES } from '@unithor/shared';
-import { Op } from 'sequelize';
+import { literal, Op } from 'sequelize';
 
+import { getSalesUserId } from './sales-access.service.js';
 import { Notification } from '../models/Notification.js';
 import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
@@ -190,7 +191,18 @@ export const notifyByType = async (
 };
 
 export const getUnreadCount = async (userId: number): Promise<number> =>
-  Notification.count({ where: { userId, leidaAt: null } });
+  Notification.count({ where: { ...await notificationScope(userId), leidaAt: null } });
+
+const notificationScope = async (userId: number) => {
+  const salesId = await getSalesUserId(userId);
+  if (salesId === undefined) return { userId };
+  // salesId comes from the authenticated user's integer database PK, not query input.
+  return { userId, [Op.and]: [
+    literal(`(Notification.work_order_id IS NULL OR EXISTS (SELECT 1 FROM work_orders own_ot WHERE own_ot.id = Notification.work_order_id AND own_ot.created_by = ${salesId} AND own_ot.deleted_at IS NULL))`),
+    literal(`(Notification.quotation_id IS NULL OR EXISTS (SELECT 1 FROM quotations own_cot WHERE own_cot.id = Notification.quotation_id AND own_cot.asesor_id = ${salesId} AND own_cot.deleted_at IS NULL))`),
+    literal(`(Notification.payment_id IS NULL OR EXISTS (SELECT 1 FROM payments own_payment JOIN quotations own_payment_cot ON own_payment_cot.id = own_payment.quotation_id WHERE own_payment.id = Notification.payment_id AND own_payment_cot.asesor_id = ${salesId} AND own_payment_cot.deleted_at IS NULL))`),
+  ] };
+};
 
 export const listNotifications = async (
   userId: number,
@@ -198,7 +210,7 @@ export const listNotifications = async (
 ): Promise<NotificationListResult> => {
   const { limit, offset, meta } = getPagination({ page: query.page, pageSize: query.pageSize });
   const where = {
-    userId,
+    ...await notificationScope(userId),
     ...(query.soloNoLeidas ? { leidaAt: null } : {}),
   };
 
@@ -211,7 +223,7 @@ export const listNotifications = async (
       offset,
     }),
     Notification.count({ where }),
-    Notification.count({ where: { userId, leidaAt: null } }),
+    Notification.count({ where: { ...await notificationScope(userId), leidaAt: null } }),
   ]);
 
   const pagination = meta(total);

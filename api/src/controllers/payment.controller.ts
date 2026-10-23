@@ -16,9 +16,9 @@ const getCurrentUserId = (req: Request): number => {
 };
 
 export const getPaymentsHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     const query = res.locals.validatedQuery as PaymentQueryInput;
-    const result = await paymentService.listPayments(query);
+    const result = await paymentService.listPayments(query, getCurrentUserId(req));
     res.status(200).json(result);
   },
 );
@@ -47,7 +47,7 @@ export const getPaymentReceiptHandler = asyncHandler(
 
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Length', String(bytes.length));
-    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     res.end(bytes);
   },

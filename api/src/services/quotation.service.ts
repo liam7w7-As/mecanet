@@ -2,6 +2,7 @@ import { col, literal, Op, Transaction, where as sequelizeWhere } from 'sequeliz
 
 import { notifyByType } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
+import { assertSalesWorkOrderAccess, getSalesUserId, scopeSalesAssociations } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getInspectionPhoto } from './work-order-inspection-photo.service.js';
 import { createWorkOrderInTransaction, getWorkOrderById, type WorkOrderPublic } from './work-order.service.js';
@@ -460,6 +461,8 @@ const syncLinkedWorkOrderFromQuotation = async (
     return;
   }
 
+  await assertSalesWorkOrderAccess(quotation.workOrderId, userId, transaction);
+
   const workOrder = await WorkOrder.findByPk(quotation.workOrderId, {
     transaction,
     lock: Transaction.LOCK.UPDATE,
@@ -532,9 +535,11 @@ const assertCatalogItemsExist = async (
 const getCompleteQuotation = async (
   id: number,
   transaction?: Transaction,
+  salesId?: number,
 ): Promise<Quotation> => {
-  const quotation = await Quotation.findByPk(id, {
-    include: [
+  const quotation = await Quotation.findOne({
+    where: { id, ...(salesId !== undefined ? { asesorId: salesId } : {}) },
+    include: scopeSalesAssociations([
       clientInclude,
       vehicleInclude,
       asesorInclude,
@@ -550,7 +555,7 @@ const getCompleteQuotation = async (
         }],
       },
       itemsInclude,
-    ],
+    ], salesId),
     transaction,
   });
 
@@ -576,9 +581,12 @@ const copyWorkOrderItems = (items: WorkOrderItem[]): QuotationItemInput[] => {
 
 export const listQuotations = async (
   query: QuotationQueryInput,
+  userId?: number,
 ): Promise<ListQuotationsResult> => {
   const pagination = getPagination(query);
   const where: QuotationWhere = {};
+  const salesId = await getSalesUserId(userId);
+  if (salesId !== undefined) where.asesorId = salesId;
 
   if (query.search) {
     const searchPattern = `%${query.search}%`;
@@ -637,7 +645,7 @@ export const listQuotations = async (
 
   const { rows, count } = await Quotation.findAndCountAll({
     where,
-    include: [clientInclude, vehicleInclude, asesorInclude, workOrderInclude],
+    include: scopeSalesAssociations([clientInclude, vehicleInclude, asesorInclude, workOrderInclude], salesId),
     limit: pagination.limit,
     offset: pagination.offset,
     order: [['createdAt', 'DESC']],
@@ -652,12 +660,12 @@ export const listQuotations = async (
   };
 };
 
-export const getQuotationById = async (id: number): Promise<QuotationPublic> => {
-  const quotation = await getCompleteQuotation(id);
+export const getQuotationById = async (id: number, userId?: number): Promise<QuotationPublic> => {
+  const quotation = await getCompleteQuotation(id, undefined, await getSalesUserId(userId));
   return toQuotationPublic(quotation);
 };
 
-export const archiveQuotation = async (id: number): Promise<QuotationPublic> => {
+export const archiveQuotation = async (id: number, userId?: number): Promise<QuotationPublic> => {
   await sequelize.transaction(async (transaction) => {
     const quotation = await Quotation.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
     if (!quotation) throw ApiError.notFound('Cotización no encontrada');
@@ -670,26 +678,28 @@ export const archiveQuotation = async (id: number): Promise<QuotationPublic> => 
     }
     await quotation.update({ archivedAt: new Date() }, { transaction });
   });
-  return getQuotationById(id);
+  return getQuotationById(id, userId);
 };
 
-export const unarchiveQuotation = async (id: number): Promise<QuotationPublic> => {
+export const unarchiveQuotation = async (id: number, userId?: number): Promise<QuotationPublic> => {
   await sequelize.transaction(async (transaction) => {
     const quotation = await Quotation.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
     if (!quotation) throw ApiError.notFound('Cotización no encontrada');
     if (!quotation.archivedAt) return;
     await quotation.update({ archivedAt: null }, { transaction });
   });
-  return getQuotationById(id);
+  return getQuotationById(id, userId);
 };
 
 export const getQuotationInspectionPhoto = async (
   id: number,
   slot: WorkOrderInspectionPhotoSlot,
+  userId?: number,
 ): Promise<InspectionPhotoFile> => {
   const quotation = await Quotation.findByPk(id, { attributes: ['id', 'workOrderId'] });
   if (!quotation) throw ApiError.notFound('Cotización no encontrada');
   if (quotation.workOrderId === null) throw ApiError.notFound('Foto de inspección no encontrada');
+  if (userId !== undefined) await assertSalesWorkOrderAccess(quotation.workOrderId, userId);
   return getInspectionPhoto(quotation.workOrderId, slot);
 };
 
@@ -703,6 +713,7 @@ export const createQuotation = async (
     let items = data.items;
 
     if (data.workOrderId !== undefined && data.workOrderId !== null) {
+      await assertSalesWorkOrderAccess(data.workOrderId, asesorId, transaction);
       const workOrder = await WorkOrder.findByPk(data.workOrderId, {
         include: [{ model: WorkOrderItem }],
         transaction,
@@ -784,7 +795,7 @@ export const createQuotation = async (
     { excludeUserId: asesorId },
   );
 
-  return getQuotationById(result.quotationId);
+  return getQuotationById(result.quotationId, asesorId);
 };
 
 export const updateQuotation = async (
@@ -868,7 +879,7 @@ export const updateQuotation = async (
     return quotation.id;
   });
 
-  return getQuotationById(quotationId);
+  return getQuotationById(quotationId, userId);
 };
 
 export const convertQuotationToWorkOrder = async (
@@ -931,8 +942,8 @@ export const convertQuotationToWorkOrder = async (
   });
 
   const [quotation, workOrder] = await Promise.all([
-    getQuotationById(converted.quotationId),
-    getWorkOrderById(converted.workOrderId),
+    getQuotationById(converted.quotationId, userId),
+    getWorkOrderById(converted.workOrderId, userId),
   ]);
 
   const converter = await User.findByPk(userId, { attributes: ['nombre'] });

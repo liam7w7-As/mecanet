@@ -1,5 +1,6 @@
 import { Op, Transaction } from 'sequelize';
 
+import { getSalesUserId } from './sales-access.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -693,12 +694,15 @@ const toWarehouseRequestPublic = (
 
 export const listWorkOrderRequests = async (
   query: WarehouseRequestQueryInput,
+  userId?: number,
 ): Promise<ListWarehouseWorkOrderRequestsResult> => {
   const pagination = getPagination(query);
   type RequestWhere = WhereOptions<InferAttributes<WorkOrderRequest>> & {
     [Op.or]?: Array<Record<string, unknown>>;
   };
   const where: RequestWhere = { tipo: 'repuesto', estado: query.estado };
+  const salesId = await getSalesUserId(userId);
+  if (salesId !== undefined) where['$workOrder.created_by$'] = salesId;
 
   if (query.search) {
     const pattern = `%${query.search}%`;

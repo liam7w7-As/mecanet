@@ -38,6 +38,7 @@ import { authenticate } from '../middlewares/authenticate.js';
 import { authorizeAny } from '../middlewares/authorize-any.js';
 import { authorize } from '../middlewares/authorize.js';
 import { inspectionPhotoUpload } from '../middlewares/inspection-photo-upload.js';
+import { salesRecordAccess } from '../middlewares/sales-record-access.js';
 import { validate } from '../middlewares/validate.js';
 
 import type { RequestHandler } from 'express';
@@ -68,6 +69,7 @@ const authorizePhotoUpload: RequestHandler = (req, res, next) => {
 };
 
 workOrderRouter.use(authenticate);
+workOrderRouter.use(salesRecordAccess('work-order'));
 
 workOrderRouter.get(
   '/',

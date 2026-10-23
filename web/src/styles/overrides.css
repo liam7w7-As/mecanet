@@ -42,6 +42,56 @@
   --gold-ink: #9c6400;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: clip;
+}
+
+body,
+#root,
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app-shell,
+.shell-main,
+.shell-main > .container {
+  min-width: 0;
+}
+
+.shell-main > .container {
+  width: 100%;
+}
+
+@media (max-width: 899.98px) {
+  /* Keep Safari from zooming form controls; pinch-to-zoom remains available. */
+  input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  .topbar {
+    height: calc(64px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+
+  .sidebar {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    max-width: calc(100vw - 24px);
+  }
+
+  .shell-main > .container {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+}
+
 .nav-item.active,
 .primary-button,
 .settings-trigger,
@@ -177,7 +227,7 @@
   inset: auto 0 0 0;
   z-index: 36;
   display: none;
-  padding: 6px 8px calc(4px + env(safe-area-inset-bottom, 0px));
+  padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(14px) saturate(1.6);
   -webkit-backdrop-filter: blur(14px) saturate(1.6);

@@ -113,7 +113,7 @@ export const DashboardPage = () => {
               Dar de alta cliente
             </button>
           )}
-          <div className="min-w-[240px] flex-1">
+          <div className="min-w-0 flex-1">
             <QuickVehicleSearch
               placeholder="Consultar patente, RUT o cliente"
               onSelectVehicle={(vehicle) => navigate(`/vehicles?search=${encodeURIComponent(vehicle.patente)}`)}

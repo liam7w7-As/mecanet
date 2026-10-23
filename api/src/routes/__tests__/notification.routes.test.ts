@@ -215,7 +215,7 @@ describe('Notificaciones por rol (E2E)', () => {
       descripcion: 'Orden para probar notificaciones',
       assignedMechanicId: mecanicoId,
       vehicleId: vehicle.id,
-      createdBy: devUser.id,
+      createdBy: vendedorId,
     });
     workOrderId = workOrder.id;
 

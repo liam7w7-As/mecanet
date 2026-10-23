@@ -46,6 +46,8 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     include: [{ model: Role, as: 'role', attributes: ['nombre'] }],
   });
   const role: RoleName = user?.role?.nombre ?? 'mecanico';
+  const quotationScope = role === 'vendedor' ? { asesorId: userId } : {};
+  Object.assign(pendingQuotationWhere, quotationScope);
   const isMechanic = role === 'mecanico';
   const isAdministrator = role === 'desarrollador' || role === 'admin';
   const canReviewWorkshop = isAdministrator || role === 'jefe';
@@ -53,7 +55,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
   const canVerifyPayments = isAdministrator || role === 'finanzas';
   const canFollowQuotations = isAdministrator || role === 'vendedor';
   const shouldWatchStock = isAdministrator || role === 'jefe' || role === 'bodeguero';
-  const workOrderScope = isMechanic ? { assignedMechanicId: userId } : {};
+  const workOrderScope = isMechanic ? { assignedMechanicId: userId } : role === 'vendedor' ? { createdBy: userId } : {};
 
   const [
     activeWorkOrders,
@@ -82,9 +84,10 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     isMechanic ? Promise.resolve(0) : Quotation.sum('pagado', { where: pendingQuotationWhere }),
     isMechanic ? Promise.resolve(0) : Payment.sum('monto', {
       where: { estado: 'confirmado', fecha: { [Op.gte]: monthStart } },
+      ...(role === 'vendedor' ? { include: [{ model: Quotation, attributes: [], required: true, where: quotationScope }] } : {}),
     }),
     CatalogItem.count({ where: criticalStockWhere }),
-    isMechanic ? Promise.resolve(0) : Quotation.count({ where: { workOrderId: null } }),
+    isMechanic ? Promise.resolve(0) : Quotation.count({ where: { ...quotationScope, workOrderId: null } }),
     WorkOrder.findAll({
       where: workOrderScope,
       attributes: ['id', 'codigo', 'estado', 'fechaIngreso', 'updatedAt'],
@@ -105,7 +108,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
       limit: 5,
     }),
     isMechanic ? Promise.resolve([]) : Quotation.findAll({
-      where: { workOrderId: null },
+      where: { ...quotationScope, workOrderId: null },
       attributes: ['id', 'codigo', 'total', 'estadoPago'],
       include: [{ model: Client, attributes: ['id', 'nombre'] }],
       order: [['updatedAt', 'DESC']],

@@ -322,7 +322,7 @@ describe('Sincronización OT → COT espejo (E2E)', () => {
     const quotation = await Quotation.findOne({ where: { workOrderId } });
     expect(quotation).not.toBeNull();
 
-    const comercialCookies = await loginAs(`${TEST_EMAIL_PREFIX}comercial@unithor.local`);
+    const comercialCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const response = await request(app)
       .patch(`/api/quotations/${quotation?.id}`)
       .set('Cookie', authCookie(comercialCookies))

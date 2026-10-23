@@ -217,7 +217,7 @@ export const AppLayout = () => {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="app-shell">
       <aside className="sidebar">
         <SidebarContent />
       </aside>

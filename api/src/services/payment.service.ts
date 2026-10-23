@@ -6,6 +6,7 @@ import { Op, Transaction } from 'sequelize';
 import { assertAccountingDateOpen } from './cash-closure.service.js';
 import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { notifyByType } from './notification.service.js';
+import { assertSalesQuotationAccess, getSalesUserId } from './sales-access.service.js';
 import { sequelize } from '../config/database.js';
 import { Client } from '../models/Client.js';
 import { Payment } from '../models/Payment.js';
@@ -279,7 +280,7 @@ const getPaymentById = async (id: number, transaction?: Transaction): Promise<Pa
   return toPaymentPublic(payment);
 };
 
-export const listPayments = async (query: PaymentQueryInput): Promise<ListPaymentsResult> => {
+export const listPayments = async (query: PaymentQueryInput, userId?: number): Promise<ListPaymentsResult> => {
   const pagination = getPagination(query);
   const where: PaymentWhere = {};
 
@@ -295,7 +296,10 @@ export const listPayments = async (query: PaymentQueryInput): Promise<ListPaymen
 
   const { rows, count } = await Payment.findAndCountAll({
     where,
-    include: paymentIncludes,
+    include: [creatorInclude, reviewerInclude, {
+      ...quotationInclude,
+      ...((await getSalesUserId(userId)) !== undefined ? { required: true, where: { asesorId: userId } } : {}),
+    }],
     distinct: true,
     limit: pagination.limit,
     offset: pagination.offset,
@@ -345,6 +349,7 @@ export const createPayment = async (
   userId: number,
   receiptFile?: Express.Multer.File,
 ): Promise<CreatePaymentResult> => {
+  await assertSalesQuotationAccess(data.quotationId, userId);
   const storedReceiptKey = receiptFile ? await storePaymentReceipt(receiptFile) : null;
   let paymentCommitted = false;
 

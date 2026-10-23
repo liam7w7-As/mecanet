@@ -23,6 +23,7 @@ import {
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorizeAny } from '../middlewares/authorize-any.js';
 import { authorize } from '../middlewares/authorize.js';
+import { salesRecordAccess } from '../middlewares/sales-record-access.js';
 import { validate } from '../middlewares/validate.js';
 
 export const quotationRouter = Router();
@@ -32,6 +33,7 @@ const idParamSchema = z.object({
 });
 
 quotationRouter.use(authenticate);
+quotationRouter.use(salesRecordAccess('quotation'));
 
 quotationRouter.get(
   '/',

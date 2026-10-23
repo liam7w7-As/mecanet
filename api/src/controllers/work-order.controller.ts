@@ -125,7 +125,7 @@ export const getWorkOrderInspectionPhotoHandler = asyncHandler(
 
     res.setHeader('Content-Type', photo.mimeType);
     res.setHeader('Content-Length', String(bytes.length));
-    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('Content-Disposition', `inline; filename="inspeccion-${photo.slot}"`);
     res.end(bytes);
   },

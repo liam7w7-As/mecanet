@@ -196,7 +196,7 @@ describe('Quotation Routes (E2E)', () => {
       vehicleId,
       estado: 'en_progreso',
       descripcion: 'OT espejo para cotización fase 51',
-      createdBy: devUserId,
+      createdBy: vendedorUserId,
     });
     workOrderId = workOrder.id;
 
@@ -341,7 +341,7 @@ describe('Quotation Routes (E2E)', () => {
       vehicleId,
       estado: 'en_progreso',
       descripcion: 'OT para sincronización inversa COT',
-      createdBy: devUserId,
+      createdBy: vendedorUserId,
     });
     await WorkOrderItem.bulkCreate([
       {
@@ -469,6 +469,7 @@ describe('Quotation Routes (E2E)', () => {
     const marker = 'Filtro relacional fase 81';
     await Quotation.create({
       codigo: `COT-${TEST_YEAR}-9100`,
+      asesorId: vendedorUserId,
       clientId,
       estadoPago: 'por_pagar',
       subtotal: 0,
@@ -506,6 +507,7 @@ describe('Quotation Routes (E2E)', () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const linked = await Quotation.create({
       codigo: `COT-${TEST_YEAR}-9300`,
+      asesorId: vendedorUserId,
       workOrderId,
       clientId,
       vehicleId,
@@ -517,6 +519,7 @@ describe('Quotation Routes (E2E)', () => {
     });
     const unlinked = await Quotation.create({
       codigo: `COT-${TEST_YEAR}-9301`,
+      asesorId: vendedorUserId,
       clientId,
       vehicleId,
       estadoPago: 'por_pagar',
@@ -549,6 +552,7 @@ describe('Quotation Routes (E2E)', () => {
     const marker = 'Archivo automático fase 51';
     const archived = await Quotation.create({
       codigo: `COT-${TEST_YEAR}-9400`,
+      asesorId: vendedorUserId,
       clientId,
       estadoPago: 'por_pagar',
       subtotal: 10000,
@@ -560,6 +564,7 @@ describe('Quotation Routes (E2E)', () => {
     });
     const linked = await Quotation.create({
       codigo: `COT-${TEST_YEAR}-9401`,
+      asesorId: vendedorUserId,
       workOrderId,
       clientId,
       estadoPago: 'por_pagar',
@@ -572,6 +577,7 @@ describe('Quotation Routes (E2E)', () => {
     });
     const paid = await Quotation.create({
       codigo: `COT-${TEST_YEAR}-9402`,
+      asesorId: vendedorUserId,
       clientId,
       estadoPago: 'parcial',
       subtotal: 10000,
@@ -583,6 +589,7 @@ describe('Quotation Routes (E2E)', () => {
     });
     const fresh = await Quotation.create({
       codigo: `COT-${TEST_YEAR}-9403`,
+      asesorId: vendedorUserId,
       clientId,
       estadoPago: 'por_pagar',
       subtotal: 10000,
@@ -618,7 +625,7 @@ describe('Quotation Routes (E2E)', () => {
   it('archiva manualmente sin eliminar datos, con permisos y CSRF, y conserva la fecha al repetir', async () => {
     const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const denied = await loginAs(`${TEST_EMAIL_PREFIX}bodeguero@unithor.local`);
-    const quotation = await Quotation.create({ codigo: `COT-${TEST_YEAR}-9500`, clientId, notas: 'Archivo manual', total: 1000 });
+    const quotation = await Quotation.create({ asesorId: vendedorUserId, codigo: `COT-${TEST_YEAR}-9500`, clientId, notas: 'Archivo manual', total: 1000 });
     const url = `/api/quotations/${quotation.id}/archive`;
     expect((await request(app).patch(url).set('Cookie', [`csrf_token=${cookies.csrfToken}`]).set('X-CSRF-Token', cookies.csrfToken)).status).toBe(401);
     expect((await request(app).patch(url).set('Cookie', authCookie(cookies))).status).toBe(403);
@@ -638,9 +645,9 @@ describe('Quotation Routes (E2E)', () => {
 
   it('impide archivar manualmente con OT o abonos, incluyendo transferencias pendientes', async () => {
     const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
-    const linked = await Quotation.create({ codigo: `COT-${TEST_YEAR}-9501`, clientId, workOrderId, total: 1000 });
-    const paid = await Quotation.create({ codigo: `COT-${TEST_YEAR}-9502`, clientId, total: 1000, pagado: 500, estadoPago: 'parcial' });
-    const pending = await Quotation.create({ codigo: `COT-${TEST_YEAR}-9503`, clientId, total: 1000, createdAt: new Date(Date.now() - 6 * 86_400_000) });
+    const linked = await Quotation.create({ asesorId: vendedorUserId, codigo: `COT-${TEST_YEAR}-9501`, clientId, workOrderId, total: 1000 });
+    const paid = await Quotation.create({ asesorId: vendedorUserId, codigo: `COT-${TEST_YEAR}-9502`, clientId, total: 1000, pagado: 500, estadoPago: 'parcial' });
+    const pending = await Quotation.create({ asesorId: vendedorUserId, codigo: `COT-${TEST_YEAR}-9503`, clientId, total: 1000, createdAt: new Date(Date.now() - 6 * 86_400_000) });
     await Payment.create({ quotationId: pending.id, monto: 500, metodo: 'transferencia', estado: 'por_verificar', fecha: new Date(), createdBy: vendedorUserId });
     for (const quotation of [linked, paid, pending]) {
       const response = await request(app).patch(`/api/quotations/${quotation.id}/archive`).set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken);
@@ -655,7 +662,7 @@ describe('Quotation Routes (E2E)', () => {
   it('desarchiva una cotización manual y es idempotente si ya está activa', async () => {
     const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const denied = await loginAs(`${TEST_EMAIL_PREFIX}bodeguero@unithor.local`);
-    const quotation = await Quotation.create({ codigo: `COT-${TEST_YEAR}-9504`, clientId, total: 1000 });
+    const quotation = await Quotation.create({ asesorId: vendedorUserId, codigo: `COT-${TEST_YEAR}-9504`, clientId, total: 1000 });
     const url = `/api/quotations/${quotation.id}/unarchive`;
     expect((await request(app).patch(url).set('Cookie', [`csrf_token=${cookies.csrfToken}`]).set('X-CSRF-Token', cookies.csrfToken)).status).toBe(401);
     expect((await request(app).patch(url).set('Cookie', authCookie(denied)).set('X-CSRF-Token', denied.csrfToken)).status).toBe(403);
@@ -700,6 +707,7 @@ describe('Quotation Routes (E2E)', () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
     const quotation = await Quotation.create({
       codigo: `COT-${TEST_YEAR}-9200`,
+      asesorId: vendedorUserId,
       clientId,
       estadoPago: 'por_pagar',
       subtotal: 10000,
@@ -726,6 +734,7 @@ describe('Quotation Routes (E2E)', () => {
     expect(specialStatus.body.quotation.estadoPago).toBe('por_verificar');
 
     const partiallyPaid = await Quotation.create({
+      asesorId: vendedorUserId,
       codigo: `COT-${TEST_YEAR}-9201`,
       clientId,
       estadoPago: 'parcial',

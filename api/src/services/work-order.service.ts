@@ -7,6 +7,7 @@ import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
 import { notifyByType, notifyUsers } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
+import { getSalesUserId, scopeSalesAssociations } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -1367,6 +1368,9 @@ export const assertWorkOrderAccess = async (
   transaction?: Transaction,
 ): Promise<void> => {
   const role = await getActorRole(userId, transaction);
+  if (role === 'vendedor' && !await WorkOrder.count({ where: { id, createdBy: userId }, transaction })) {
+    throw ApiError.notFound('Orden de trabajo no encontrada');
+  }
   if (role !== 'mecanico') return;
 
   const assigned = await WorkOrder.count({
@@ -1389,9 +1393,11 @@ export const assertWorkOrderManagementAccess = async (
 const getCompleteWorkOrder = async (
   id: number,
   transaction?: Transaction,
+  salesId?: number,
 ): Promise<WorkOrder> => {
-  const workOrder = await WorkOrder.findByPk(id, {
-    include: [
+  const workOrder = await WorkOrder.findOne({
+    where: { id, ...(salesId !== undefined ? { createdBy: salesId } : {}) },
+    include: scopeSalesAssociations([
       clientInclude,
       vehicleInclude,
       creatorInclude,
@@ -1405,7 +1411,7 @@ const getCompleteWorkOrder = async (
       eventsInclude,
       progressReportsInclude,
       requestsInclude,
-    ],
+    ], salesId),
     transaction,
   });
 
@@ -1423,7 +1429,9 @@ export const listWorkOrders = async (
   const pagination = getPagination(query);
   const where: WorkOrderWhere = {};
 
-  if ((await getActorRole(userId)) === 'mecanico') {
+  const actorRole = await getActorRole(userId);
+  if (actorRole === 'vendedor') where.createdBy = userId;
+  if (actorRole === 'mecanico') {
     where.assignedMechanicId = userId;
   }
 
@@ -1466,13 +1474,13 @@ export const listWorkOrders = async (
     // itemsInclude alimenta las cards del taller (progreso por tareas + total).
     // separate:true evita que el JOIN hasMany rompa el conteo y los filtros
     // por cliente/vehículo (los trae en una segunda consulta con IN).
-    include: [
+    include: scopeSalesAssociations([
       clientInclude,
       vehicleInclude,
       assignedMechanicInclude,
       quotationInclude,
       { ...itemsInclude, separate: true },
-    ],
+    ], actorRole === 'vendedor' ? userId : undefined),
     limit: pagination.limit,
     offset: pagination.offset,
     order: [['createdAt', 'DESC']],
@@ -1494,7 +1502,7 @@ export const getWorkOrderById = async (
   if (userId !== undefined) {
     await assertWorkOrderAccess(id, userId);
   }
-  const workOrder = await getCompleteWorkOrder(id);
+  const workOrder = await getCompleteWorkOrder(id, undefined, await getSalesUserId(userId));
   return toWorkOrderPublic(workOrder);
 };
 
@@ -1629,7 +1637,7 @@ export const createWorkOrder = async (
   const workOrder = await sequelize.transaction((transaction) =>
     createWorkOrderInTransaction(data, userId, transaction),
   );
-  return getWorkOrderById(workOrder.id);
+  return getWorkOrderById(workOrder.id, userId);
 };
 
 export const updateWorkOrder = async (
@@ -1794,7 +1802,7 @@ export const updateWorkOrder = async (
     return workOrder.id;
   });
 
-  return getWorkOrderById(workOrderId);
+  return getWorkOrderById(workOrderId, userId);
 };
 
 export const changeStatus = async (
@@ -1890,7 +1898,7 @@ export const changeStatus = async (
     return workOrder.id;
   });
 
-  return getWorkOrderById(workOrderId);
+  return getWorkOrderById(workOrderId, userId);
 };
 
 export const deliverWorkOrder = async (
@@ -2004,7 +2012,7 @@ export const deliverWorkOrder = async (
     return workOrder.id;
   });
 
-  return getWorkOrderById(workOrderId);
+  return getWorkOrderById(workOrderId, userId);
 };
 
 export const createWorkOrderReentry = async (
@@ -2154,7 +2162,7 @@ export const createWorkOrderReentry = async (
     return workOrder.id;
   });
 
-  return getWorkOrderById(newWorkOrderId);
+  return getWorkOrderById(newWorkOrderId, userId);
 };
 
 export const listMechanics = async (userId: number): Promise<WorkOrderMechanicPublic[]> => {
@@ -2264,7 +2272,7 @@ export const assignMechanic = async (
     }
   });
 
-  return getWorkOrderById(id);
+  return getWorkOrderById(id, userId);
 };
 
 const assertExecutionAccess = async (
@@ -2714,7 +2722,7 @@ export const reviewWorkOrderRequest = async (
     }
   });
 
-  return getWorkOrderById(id);
+  return getWorkOrderById(id, userId);
 };
 
 export const deleteWorkOrder = async (id: number, userId: number): Promise<void> => {

@@ -13,6 +13,7 @@ import { authenticate } from '../middlewares/authenticate.js';
 import { authorizeAny } from '../middlewares/authorize-any.js';
 import { authorize } from '../middlewares/authorize.js';
 import { paymentReceiptUpload } from '../middlewares/payment-receipt-upload.js';
+import { salesRecordAccess } from '../middlewares/sales-record-access.js';
 import { validate } from '../middlewares/validate.js';
 
 export const paymentRouter = Router();
@@ -22,6 +23,7 @@ const idParamSchema = z.object({
 });
 
 paymentRouter.use(authenticate);
+paymentRouter.use(salesRecordAccess('payment'));
 
 paymentRouter.get(
   '/',

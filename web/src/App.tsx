@@ -146,6 +146,7 @@ export const App = () => (
               requiredAnyPermission={[
                 { modulo: 'taller', accion: 'read' },
                 { modulo: 'comercial', accion: 'read' },
+                { modulo: 'flota', accion: 'read' },
               ]}
             >
               <VehiclesPage />

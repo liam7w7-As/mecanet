@@ -1,8 +1,10 @@
 import { beforeAll } from 'vitest';
 
 import { sequelize } from '../config/database.js';
+import { ensureFleetPermissions } from '../database/bootstrap.js';
 import { up as ensureQuotationCommercial } from '../database/migrations/038-quotation-commercial-conditions.js';
 import { up as ensureStartedWorkOrders } from '../database/migrations/039-start-work-orders-without-draft.js';
+import { up as ensureFleetVehicles } from '../database/migrations/040-create-fleet-vehicles.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -20,6 +22,9 @@ import { up as ensureStartedWorkOrders } from '../database/migrations/039-start-
  * suite en rojo sin cambiar una linea de codigo.
  */
 const TRANSIENT = [
+  'fleet_document_versions',
+  'fleet_documents',
+  'fleet_vehicles',
   'work_order_inspection_photos',
   'work_order_inspections',
   'work_order_events',
@@ -42,6 +47,8 @@ beforeAll(async () => {
   if (sequelize.getDatabaseName() !== 'unithor_test') throw new Error('Las pruebas requieren unithor_test');
   await ensureQuotationCommercial(sequelize.getQueryInterface());
   await ensureStartedWorkOrders(sequelize.getQueryInterface());
+  await ensureFleetVehicles(sequelize.getQueryInterface());
+  await ensureFleetPermissions();
   await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
   try {
     for (const table of TRANSIENT) {

@@ -5,6 +5,7 @@ import { catalogRouter } from './catalog.routes.js';
 import { clientRouter } from './client.routes.js';
 import { dashboardRouter } from './dashboard.routes.js';
 import { financeRouter } from './finance.routes.js';
+import { fleetVehicleRouter } from './fleet-vehicle.routes.js';
 import { healthRouter } from './health.js';
 import { notificationRouter } from './notification.routes.js';
 import { paymentRouter } from './payment.routes.js';
@@ -49,6 +50,9 @@ apiRouter.use('/clients', clientRouter);
 
 // Módulo de vehículos (/api/vehicles)
 apiRouter.use('/vehicles', vehicleRouter);
+
+// Vehículos de flota interna (/api/fleet-vehicles)
+apiRouter.use('/fleet-vehicles', fleetVehicleRouter);
 
 // Búsqueda rápida (/api/search)
 apiRouter.use('/search', searchRouter);

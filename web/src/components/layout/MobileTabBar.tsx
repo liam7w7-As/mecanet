@@ -6,11 +6,11 @@ import { hasUserPermission } from '../../lib/permissions';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth.store';
 
-import type { LucideIcon } from 'lucide-react';
 import type { PermissionDefinition } from '@unithor/shared';
+import type { LucideIcon } from 'lucide-react';
 
 /** Contadores del inbox operativo, misma semántica que los badges del cajón. */
-type BadgeKey = 'dashboard' | 'workOrders' | 'quotations';
+type BadgeKey = 'dashboard' | 'workOrders' | 'quotations' | 'vehicles';
 
 interface MobileTab {
   label: string;
@@ -57,7 +57,9 @@ const mobileTabs: MobileTab[] = [
     permissions: [
       { modulo: 'taller', accion: 'read' },
       { modulo: 'comercial', accion: 'read' },
+      { modulo: 'flota', accion: 'read' },
     ],
+    badge: 'vehicles',
   },
 ];
 
@@ -76,6 +78,7 @@ export const MobileTabBar = ({ onOpenMenu }: MobileTabBarProps) => {
     dashboard: inbox?.total ?? 0,
     workOrders: (inbox?.counts.approvals ?? 0) + (inbox?.counts.assignedWorkOrders ?? 0),
     quotations: inbox?.counts.quotationFollowUps ?? 0,
+    vehicles: inbox?.counts.fleetDocumentAlerts ?? 0,
   };
 
   const tabs = mobileTabs.filter((tab) =>

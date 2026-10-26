@@ -24,6 +24,83 @@ export interface Vehicle {
   client?: VehicleOwner | null;
 }
 
+export type FleetVehicleStatus = import('@unithor/shared').FleetVehicleStatus;
+export type FleetExpiryInfo = import('@unithor/shared').FleetExpiryInfo;
+
+export interface FleetVehicleNextExpiry {
+  documentId: number;
+  nombre: string;
+  fechaVencimiento: string;
+  state: import('@unithor/shared').FleetExpiryState;
+  daysRemaining: number | null;
+}
+
+export interface FleetVehicleDocumentSummary {
+  total: number;
+  expired: number;
+  expiringSoon: number;
+  nextExpiry: FleetVehicleNextExpiry | null;
+}
+
+export interface FleetDocument {
+  id: number;
+  fleetVehicleId: number;
+  nombre: string;
+  referencia: string | null;
+  notas: string | null;
+  fechaEmision: string | null;
+  fechaVencimiento: string | null;
+  archivoNombre: string | null;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  version: number;
+  tieneArchivo: boolean;
+  subidoPor: number | null;
+  expiry: FleetExpiryInfo;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FleetDocumentVersion {
+  id: number;
+  version: number;
+  archivoNombre: string;
+  mimeType: string;
+  sizeBytes: number;
+  fechaEmision: string | null;
+  fechaVencimiento: string | null;
+  referencia: string | null;
+  notas: string | null;
+  subidoPor: number | null;
+  createdAt: string;
+  esActual: false;
+}
+
+export interface FleetVehicle {
+  id: number;
+  patente: string;
+  codigoInterno: string | null;
+  marca: string | null;
+  modelo: string | null;
+  ano: number | null;
+  color: string | null;
+  vinChasis: string | null;
+  motor: string | null;
+  kilometraje: number | null;
+  combustible: string | null;
+  transmision: string | null;
+  estadoOperativo: FleetVehicleStatus;
+  sucursal: string | null;
+  responsable: string | null;
+  createdAt: string;
+  updatedAt: string;
+  documentSummary: FleetVehicleDocumentSummary;
+}
+
+export interface FleetVehicleDetail extends FleetVehicle {
+  documents: FleetDocument[];
+}
+
 export interface ClientVehicleSummary {
   id: number;
   patente: string;

@@ -38,7 +38,7 @@ import type { PermissionDefinition } from '@unithor/shared';
 import type { LucideIcon } from 'lucide-react';
 
 /** Contadores del inbox operativo que se pintan como badge en la navegación. */
-type BadgeKey = 'dashboard' | 'workOrders' | 'quotations' | 'finance' | 'warehouses';
+type BadgeKey = 'dashboard' | 'workOrders' | 'quotations' | 'finance' | 'warehouses' | 'vehicles';
 
 interface NavigationItem {
   label: string;
@@ -66,7 +66,7 @@ const navigationGroups: NavigationGroup[] = [
     heading: 'Taller',
     items: [
       { label: 'Taller / OT', path: '/work-orders', icon: ClipboardList, variant: 'bounce', badge: 'workOrders', permissions: [{ modulo: 'taller', accion: 'read' }] },
-      { label: 'Vehículos', path: '/vehicles', icon: Car, variant: 'slide-right', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
+      { label: 'Vehículos', path: '/vehicles', icon: Car, variant: 'slide-right', badge: 'vehicles', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }, { modulo: 'flota', accion: 'read' }] },
       { label: 'Almacenes', path: '/warehouses', icon: Warehouse, variant: 'bounce', badge: 'warehouses', permissions: [{ modulo: 'almacen', accion: 'read' }] },
     ],
   },
@@ -104,6 +104,7 @@ const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
     quotations: inbox?.counts.quotationFollowUps ?? 0,
     finance: inbox?.counts.paymentVerifications ?? 0,
     warehouses: (inbox?.counts.warehouseDeliveries ?? 0) + (inbox?.counts.stockAlerts ?? 0),
+    vehicles: inbox?.counts.fleetDocumentAlerts ?? 0,
   };
 
   // Se filtran por permiso y se descartan los grupos que quedan vacíos, para no

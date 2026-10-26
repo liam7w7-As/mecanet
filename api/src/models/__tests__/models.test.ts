@@ -7,6 +7,9 @@ import {
   CashClosure,
   CashMovement,
   Client,
+  FleetDocument,
+  FleetDocumentVersion,
+  FleetVehicle,
   Payment,
   Permission,
   Quotation,
@@ -86,6 +89,9 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     await WorkOrderInspection.destroy({ where: {}, force: true });
     await WorkOrder.destroy({ where: {}, force: true });
     await CatalogItem.destroy({ where: {}, force: true });
+    await FleetDocumentVersion.destroy({ where: {}, force: true });
+    await FleetDocument.destroy({ where: {}, force: true });
+    await FleetVehicle.destroy({ where: {}, force: true });
     await Vehicle.destroy({ where: {}, force: true });
     await Client.destroy({ where: {}, force: true });
     await RefreshToken.destroy({ where: {}, force: true });
@@ -95,8 +101,8 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     await Role.destroy({ where: {}, force: true });
   });
 
-  it('verifica que los 26 modelos se registran correctamente en la instancia Sequelize', () => {
-    expect(models.length).toBe(26);
+  it('verifica que los 29 modelos se registran correctamente en la instancia Sequelize', () => {
+    expect(models.length).toBe(29);
 
     const registeredModelNames = Object.keys(testSequelize.models);
     expect(registeredModelNames).toContain('Role');
@@ -106,6 +112,9 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     expect(registeredModelNames).toContain('RefreshToken');
     expect(registeredModelNames).toContain('Client');
     expect(registeredModelNames).toContain('Vehicle');
+    expect(registeredModelNames).toContain('FleetVehicle');
+    expect(registeredModelNames).toContain('FleetDocument');
+    expect(registeredModelNames).toContain('FleetDocumentVersion');
     expect(registeredModelNames).toContain('CatalogItem');
     expect(registeredModelNames).toContain('CashClosure');
     expect(registeredModelNames).toContain('CashMovement');

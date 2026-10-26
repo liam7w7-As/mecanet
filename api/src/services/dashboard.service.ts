@@ -1,7 +1,15 @@
+import {
+  FLEET_EXPIRY_WARNING_DAYS,
+  getFleetExpiryInfo,
+  toFleetDateOnly,
+} from '@unithor/shared';
 import { Op, col } from 'sequelize';
 
+import { hasPermission } from './permission.service.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
+import { FleetDocument } from '../models/FleetDocument.js';
+import { FleetVehicle } from '../models/FleetVehicle.js';
 import { Payment } from '../models/Payment.js';
 import { Quotation } from '../models/Quotation.js';
 import { Role } from '../models/Role.js';
@@ -20,6 +28,12 @@ import type {
 const pendingQuotationStatuses: QuotationStatus[] = ['por_pagar', 'parcial', 'por_verificar'];
 
 const toIsoString = (value: Date | null): string | null => value?.toISOString() ?? null;
+
+const addDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
 
 const taskPriorityOrder: Record<OperationalTask['priority'], number> = {
   high: 0,
@@ -55,7 +69,12 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
   const canVerifyPayments = isAdministrator || role === 'finanzas';
   const canFollowQuotations = isAdministrator || role === 'vendedor';
   const shouldWatchStock = isAdministrator || role === 'jefe' || role === 'bodeguero';
+  const canReadFleet = await hasPermission(userId, 'flota', 'read');
   const workOrderScope = isMechanic ? { assignedMechanicId: userId } : role === 'vendedor' ? { createdBy: userId } : {};
+
+  const fleetWarningLimit = toFleetDateOnly(
+    addDays(now, FLEET_EXPIRY_WARNING_DAYS),
+  );
 
   const [
     activeWorkOrders,
@@ -74,6 +93,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     assignedWorkOrderResult,
     paymentVerificationResult,
     quotationFollowUpResult,
+    fleetDocumentResult,
   ] = await Promise.all([
     WorkOrder.count({
       where: { ...workOrderScope, estado: { [Op.in]: ['en_progreso', 'esperando_repuesto'] } },
@@ -194,6 +214,24 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
           limit: 5,
         })
       : Promise.resolve({ count: 0, rows: [] as Quotation[] }),
+    canReadFleet
+      ? FleetDocument.findAndCountAll({
+          where: {
+            fechaVencimiento: { [Op.ne]: null, [Op.lte]: fleetWarningLimit },
+          },
+          attributes: ['id', 'fleetVehicleId', 'nombre', 'fechaVencimiento', 'updatedAt'],
+          include: [
+            {
+              model: FleetVehicle,
+              attributes: ['id', 'patente', 'codigoInterno'],
+              required: true,
+            },
+          ],
+          distinct: true,
+          order: [['fechaVencimiento', 'ASC']],
+          limit: 5,
+        })
+      : Promise.resolve({ count: 0, rows: [] as FleetDocument[] }),
   ]);
 
   const operationalTasks: OperationalTask[] = [
@@ -253,6 +291,37 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
           priority: item.stock === 0 ? 'high' : 'medium',
         }))
       : []),
+    ...fleetDocumentResult.rows.map((document): OperationalTask => {
+      const expiry = getFleetExpiryInfo(document.fechaVencimiento);
+      const daysRemaining = expiry.daysRemaining ?? 0;
+      const vehicleLabel = document.fleetVehicle?.patente ?? 'Flota';
+      const timing =
+        expiry.state === 'vencido'
+          ? `Venció hace ${Math.abs(daysRemaining)} día(s)`
+          : expiry.state === 'vence_hoy'
+            ? 'Vence hoy'
+            : `Vence en ${daysRemaining} día(s)`;
+
+      return {
+        id: `fleet-document-${document.id}`,
+        type: 'fleet_document_expiring',
+        title:
+          expiry.state === 'vencido'
+            ? `Documento vencido: ${document.nombre}`
+            : expiry.state === 'vence_hoy'
+              ? `Documento vence hoy: ${document.nombre}`
+              : `Documento por vencer: ${document.nombre}`,
+        description: `${vehicleLabel} · ${timing}`,
+        href: `/vehicles?tab=flota&fleetVehicleId=${document.fleetVehicleId}`,
+        createdAt: document.updatedAt.toISOString(),
+        priority:
+          expiry.state === 'vencido' ||
+          expiry.state === 'vence_hoy' ||
+          expiry.state === 'critico'
+            ? 'high'
+            : 'medium',
+      };
+    }),
   ].sort((left, right) => {
     const priorityDifference = taskPriorityOrder[left.priority] - taskPriorityOrder[right.priority];
     return priorityDifference || left.createdAt.localeCompare(right.createdAt);
@@ -265,6 +334,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     paymentVerifications: paymentVerificationResult.count,
     quotationFollowUps: quotationFollowUpResult.count,
     stockAlerts: shouldWatchStock ? lowStockCount : 0,
+    fleetDocumentAlerts: canReadFleet ? fleetDocumentResult.count : 0,
   };
 
   return {

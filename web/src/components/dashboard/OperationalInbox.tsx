@@ -2,6 +2,7 @@ import {
   ArrowRight,
   BadgeDollarSign,
   BellRing,
+  CalendarClock,
   ClipboardCheck,
   PackageCheck,
   PackageX,
@@ -59,6 +60,11 @@ const taskPresentation: Record<
     iconClassName: 'bg-brand-coralPale text-brand-coralInk',
     action: 'Revisar stock',
   },
+  fleet_document_expiring: {
+    icon: CalendarClock,
+    iconClassName: 'bg-brand-goldPale text-brand-goldInk',
+    action: 'Ver flota',
+  },
 };
 
 const countLabels: Array<{
@@ -71,6 +77,7 @@ const countLabels: Array<{
   { key: 'paymentVerifications', label: 'Abonos por verificar' },
   { key: 'quotationFollowUps', label: 'COT sin OT' },
   { key: 'stockAlerts', label: 'Stock crítico' },
+  { key: 'fleetDocumentAlerts', label: 'Docs de flota' },
 ];
 
 const formatTaskDate = (value: string): string =>

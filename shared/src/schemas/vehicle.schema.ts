@@ -19,7 +19,7 @@ export const normalizeChilePatente = (value: string): string =>
 export const isValidChilePatente = (value: string): boolean =>
   /^[A-Z]{2}(?:\d{4}|[A-Z]{2}\d{2})$/.test(normalizeChilePatente(value));
 
-const patenteSchema = z
+export const chilePatenteSchema = z
   .string()
   .trim()
   .min(1, 'La patente es requerida')
@@ -41,7 +41,7 @@ const vinChasisSchema = z
   .optional();
 
 export const createVehicleSchema = z.object({
-  patente: patenteSchema,
+  patente: chilePatenteSchema,
   marca: optionalString(80),
   modelo: optionalString(80),
   ano: z.coerce

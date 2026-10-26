@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 
 import { Client } from '../models/Client.js';
+import { FleetVehicle } from '../models/FleetVehicle.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -106,9 +107,14 @@ const assertPatenteAvailable = async (
     where.id = { [Op.ne]: ignoreVehicleId };
   }
 
-  const existing = await Vehicle.findOne({ where });
+  const existing = await Vehicle.findOne({ where, paranoid: false });
   if (existing) {
     throw ApiError.conflict('Ya existe un vehículo con esa patente');
+  }
+
+  const fleetVehicle = await FleetVehicle.findOne({ where: { patente }, paranoid: false });
+  if (fleetVehicle) {
+    throw ApiError.conflict('Ya existe un vehículo de flota con esa patente');
   }
 };
 

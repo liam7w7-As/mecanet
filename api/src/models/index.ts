@@ -3,6 +3,9 @@ import { CashMovement } from './CashMovement.js';
 import { CatalogItem } from './CatalogItem.js';
 import { Client } from './Client.js';
 import { CompanySettings } from './CompanySettings.js';
+import { FleetDocument } from './FleetDocument.js';
+import { FleetDocumentVersion } from './FleetDocumentVersion.js';
+import { FleetVehicle } from './FleetVehicle.js';
 import { Notification } from './Notification.js';
 import { Payment } from './Payment.js';
 import { Permission } from './Permission.js';
@@ -35,6 +38,9 @@ export const models = [
   RefreshToken,
   Client,
   Vehicle,
+  FleetVehicle,
+  FleetDocument,
+  FleetDocumentVersion,
   CatalogItem,
   CashClosure,
   CashMovement,
@@ -68,6 +74,9 @@ export {
   RefreshToken,
   Client,
   Vehicle,
+  FleetVehicle,
+  FleetDocument,
+  FleetDocumentVersion,
   CatalogItem,
   CashClosure,
   CashMovement,

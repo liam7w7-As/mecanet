@@ -41,6 +41,7 @@ const envSchema = z
     CORS_ORIGIN: z.string().default('http://localhost:5173'),
     UPLOAD_DIR: z.string().min(1).default('./storage/uploads'),
     MAX_INSPECTION_PHOTO_SIZE_MB: z.coerce.number().int().min(1).max(20).default(8),
+    MAX_FLEET_DOCUMENT_SIZE_MB: z.coerce.number().int().min(1).max(25).default(10),
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),

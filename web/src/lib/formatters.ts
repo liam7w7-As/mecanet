@@ -14,14 +14,24 @@ export const formatClp = (value: number): string =>
     maximumFractionDigits: 0,
   }).format(value);
 
+const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Las fechas sin hora (`YYYY-MM-DD`) se interpretan en UTC solo para formatear.
+ * Así no retroceden un día en zonas como Chile cuando el navegador las recibe
+ * como medianoche UTC.
+ */
 export const formatDate = (value: string | null | undefined): string => {
   if (!value) return 'Sin fecha';
+
+  const isDateOnly = dateOnlyPattern.test(value);
 
   return new Intl.DateTimeFormat('es-CL', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-  }).format(new Date(value));
+    ...(isDateOnly ? { timeZone: 'UTC' } : {}),
+  }).format(new Date(isDateOnly ? `${value}T00:00:00.000Z` : value));
 };
 
 export const formatDateTime = (value: string | null | undefined): string => {

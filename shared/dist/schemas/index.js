@@ -4,6 +4,8 @@ export * from './pagination.schema.js';
 export * from './client.schema.js';
 export * from './dashboard.schema.js';
 export * from './vehicle.schema.js';
+export * from './fleet-vehicle.schema.js';
+export * from './fleet-document.schema.js';
 export * from './catalog-item.schema.js';
 export * from './work-order.schema.js';
 export * from './quotation.schema.js';

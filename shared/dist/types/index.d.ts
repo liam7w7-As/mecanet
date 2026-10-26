@@ -5,6 +5,8 @@ export type { CreateUserInput, UpdateUserInput, UserQueryInput, ChangePasswordIn
 export type PaginationInput = z.infer<typeof paginationSchema>;
 export type { CreateClientInput, UpdateClientInput, ClientQueryInput } from '../schemas/index.js';
 export type { CreateVehicleInput, UpdateVehicleInput, VehicleQueryInput } from '../schemas/index.js';
+export type { CreateFleetVehicleInput, UpdateFleetVehicleInput, FleetVehicleQueryInput, } from '../schemas/index.js';
+export type { CreateFleetDocumentInput, UpdateFleetDocumentInput, FleetDocumentVersionInput, } from '../schemas/index.js';
 export type { CreateCatalogItemInput, UpdateCatalogItemInput, UpdateStockInput, CatalogItemQueryInput, } from '../schemas/index.js';
 export type { WorkOrderItemInput, CreateWorkOrderInput, UpdateWorkOrderInput, WorkOrderQueryInput, ChangeWorkOrderStatusInput, } from '../schemas/index.js';
 export type { ConvertQuotationInput, QuotationItemInput, CreateQuotationInput, UpdateQuotationInput, QuotationQueryInput, } from '../schemas/index.js';

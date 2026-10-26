@@ -10,6 +10,7 @@ export const OPERATIONAL_TASK_TYPES = [
     'payment_verification',
     'quotation_follow_up',
     'stock_alert',
+    'fleet_document_expiring',
 ];
 export const operationalTaskSchema = z.object({
     id: z.string().min(1),
@@ -63,6 +64,7 @@ export const dashboardSummarySchema = z.object({
             paymentVerifications: z.number().int().nonnegative(),
             quotationFollowUps: z.number().int().nonnegative(),
             stockAlerts: z.number().int().nonnegative(),
+            fleetDocumentAlerts: z.number().int().nonnegative(),
         }),
         items: z.array(operationalTaskSchema),
     }),

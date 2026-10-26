@@ -27,6 +27,18 @@ export type { CreateClientInput, UpdateClientInput, ClientQueryInput } from '../
 // Vehículos
 export type { CreateVehicleInput, UpdateVehicleInput, VehicleQueryInput } from '../schemas/index.js';
 
+// Flota
+export type {
+  CreateFleetVehicleInput,
+  UpdateFleetVehicleInput,
+  FleetVehicleQueryInput,
+} from '../schemas/index.js';
+export type {
+  CreateFleetDocumentInput,
+  UpdateFleetDocumentInput,
+  FleetDocumentVersionInput,
+} from '../schemas/index.js';
+
 // Catálogos
 export type {
   CreateCatalogItemInput,

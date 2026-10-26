@@ -141,18 +141,24 @@ describe('VehicleDetailPage', () => {
   it('muestra ficha técnica, propietario e historiales relacionados', async () => {
     renderRoutes();
 
-    const detail = within(await screen.findByRole('dialog', { name: 'Ficha del vehículo' }));
+    const detailDialog = await screen.findByRole('dialog', { name: 'Ficha del vehículo' });
+    const detail = within(detailDialog);
     expect(await detail.findByRole('heading', { name: 'ABCD12' })).toBeInTheDocument();
     expect(screen.getAllByText('Cliente Demo')).toHaveLength(2);
-    expect(screen.getByRole('tab', { name: 'Ficha' })).toHaveAttribute('aria-selected', 'true');
-    fireEvent.click(screen.getByRole('tab', { name: /Taller/ }));
+    expect(within(detailDialog).getByRole('tab', { name: 'Ficha' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    fireEvent.click(within(detailDialog).getByRole('tab', { name: /Taller/ }));
     expect(await screen.findByText('OT-2026-0031')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /OT-2026-0031/ })).toHaveAttribute(
       'href',
       '/work-orders/31',
     );
-    fireEvent.keyDown(screen.getByRole('tab', { name: /Taller/ }), { key: 'ArrowRight' });
-    expect(screen.getByRole('tab', { name: /Cotizaciones/ })).toHaveFocus();
+    fireEvent.keyDown(within(detailDialog).getByRole('tab', { name: /Taller/ }), {
+      key: 'ArrowRight',
+    });
+    expect(within(detailDialog).getByRole('tab', { name: /Cotizaciones/ })).toHaveFocus();
     expect(await screen.findByText('COT-2026-0041')).toBeInTheDocument();
     expect(screen.queryByText('OT-2026-0031')).not.toBeInTheDocument();
     expect(screen.getByText('$100.000')).toBeInTheDocument();

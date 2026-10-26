@@ -56,7 +56,7 @@ const summary: DashboardSummary = {
   ],
   operationalInbox: {
     role: 'desarrollador',
-    total: 3,
+    total: 4,
     counts: {
       approvals: 1,
       warehouseDeliveries: 1,
@@ -64,6 +64,7 @@ const summary: DashboardSummary = {
       paymentVerifications: 1,
       quotationFollowUps: 0,
       stockAlerts: 0,
+      fleetDocumentAlerts: 1,
     },
     items: [
       {
@@ -72,6 +73,15 @@ const summary: DashboardSummary = {
         title: 'Aprobar solicitud de repuesto',
         description: 'OT-2026-0021 · Filtro de aceite',
         href: '/work-orders/21',
+        createdAt: '2026-09-15T12:00:00.000Z',
+        priority: 'high',
+      },
+      {
+        id: 'fleet-document-12',
+        type: 'fleet_document_expiring',
+        title: 'Documento vence hoy: Revisión técnica',
+        description: 'FLT-001 · Vence hoy',
+        href: '/vehicles?tab=flota&fleetVehicleId=3',
         createdAt: '2026-09-15T12:00:00.000Z',
         priority: 'high',
       },
@@ -144,6 +154,11 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('link', { name: /Aprobar solicitud de repuesto/ })).toHaveAttribute(
       'href',
       '/work-orders/21',
+    );
+    expect(screen.getByText('1 Docs de flota')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Documento vence hoy/ })).toHaveAttribute(
+      'href',
+      '/vehicles?tab=flota&fleetVehicleId=3',
     );
   });
 });

@@ -4,6 +4,7 @@ import { DataTypes } from 'sequelize';
 import { up as ensureQuotationArchive } from './migrations/037-add-quotation-archive.js';
 import { up as ensureQuotationCommercial } from './migrations/038-quotation-commercial-conditions.js';
 import { up as ensureStartedWorkOrders } from './migrations/039-start-work-orders-without-draft.js';
+import { up as ensureFleetVehicles } from './migrations/040-create-fleet-vehicles.js';
 import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -75,6 +76,13 @@ const ROLE_PERMISSIONS_MATRIX: Record<RoleName, Partial<Record<Module, readonly 
   },
 };
 
+const FLEET_ROLE_MATRIX: Partial<Record<RoleName, readonly Action[]>> = {
+  desarrollador: ACTIONS,
+  admin: ACTIONS,
+  jefe: ['read'],
+  vendedor: ['read'],
+  bodeguero: ['read'],
+};
 const CATALOG_ITEMS_SEED = [
   { tipo: 'estandar' as const, codigo: null, nombre: 'Cambio de aceite', descripcion: 'Servicio estándar de cambio de aceite para motor', precio: 25000, stock: 0 },
   { tipo: 'estandar' as const, codigo: null, nombre: 'Cambio de filtro de aire', descripcion: 'Reemplazo e instalación de filtro de aire', precio: 12000, stock: 0 },
@@ -87,11 +95,52 @@ const CATALOG_ITEMS_SEED = [
   { tipo: 'parte' as const, codigo: 'BUJ-IRID-001', nombre: 'Bujía de Iridio NGK', descripcion: 'Bujía de alto rendimiento con electrodo de iridio', precio: 12500, stock: 40 },
 ];
 
+/**
+ * Garantiza las filas de permisos de flota y su matriz por rol en bases ya
+ * existentes. El seed general solo actúa cuando role_permissions está vacío.
+ */
+export async function ensureFleetPermissions(): Promise<void> {
+  const permissionIds = new Map<Action, number>();
+
+  for (const accion of ACTIONS) {
+    const [permission] = await Permission.findOrCreate({
+      where: { modulo: 'flota', accion },
+      defaults: { modulo: 'flota', accion },
+    });
+    permissionIds.set(accion, permission.id);
+  }
+
+  const roles = await Role.findAll();
+  const roleIds = new Map(roles.map((role) => [role.nombre, role.id]));
+
+  for (const [roleName, actions] of Object.entries(FLEET_ROLE_MATRIX) as Array<
+    [RoleName, readonly Action[] | undefined]
+  >) {
+    const roleId = roleIds.get(roleName);
+    if (!roleId || !actions) {
+      continue;
+    }
+
+    for (const accion of actions) {
+      const permissionId = permissionIds.get(accion);
+      if (!permissionId) {
+        continue;
+      }
+
+      await RolePermission.findOrCreate({
+        where: { roleId, permissionId },
+        defaults: { roleId, permissionId },
+      });
+    }
+  }
+}
+
 async function ensureSchemaUpToDate(): Promise<void> {
   const qi = sequelize.getQueryInterface();
   await ensureQuotationArchive(qi);
   await ensureQuotationCommercial(qi);
   await ensureStartedWorkOrders(qi);
+  await ensureFleetVehicles(qi);
   try {
     const woCols = await qi.describeTable('work_orders');
     if (!woCols.vehicle_owner_client_id) {
@@ -217,6 +266,10 @@ export async function ensureDatabaseBootstrapped(): Promise<void> {
         }
       }
     }
+
+    // 3b. Flota: los permisos ya existen en el modelo, pero las bases creadas
+    // antes del módulo pueden no tener todas las filas de la matriz.
+    await ensureFleetPermissions();
 
     // 4. Usuario Administrador Inicial
     const userCount = await User.count();

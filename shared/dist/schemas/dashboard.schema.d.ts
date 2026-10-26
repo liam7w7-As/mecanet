@@ -1,15 +1,15 @@
 import { z } from 'zod';
-export declare const OPERATIONAL_TASK_TYPES: readonly ["work_order_approval", "warehouse_delivery", "assigned_work_order", "payment_verification", "quotation_follow_up", "stock_alert"];
+export declare const OPERATIONAL_TASK_TYPES: readonly ["work_order_approval", "warehouse_delivery", "assigned_work_order", "payment_verification", "quotation_follow_up", "stock_alert", "fleet_document_expiring"];
 export declare const operationalTaskSchema: z.ZodObject<{
     id: z.ZodString;
-    type: z.ZodEnum<["work_order_approval", "warehouse_delivery", "assigned_work_order", "payment_verification", "quotation_follow_up", "stock_alert"]>;
+    type: z.ZodEnum<["work_order_approval", "warehouse_delivery", "assigned_work_order", "payment_verification", "quotation_follow_up", "stock_alert", "fleet_document_expiring"]>;
     title: z.ZodString;
     description: z.ZodString;
     href: z.ZodString;
     createdAt: z.ZodString;
     priority: z.ZodEnum<["high", "medium", "normal"]>;
 }, "strip", z.ZodTypeAny, {
-    type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+    type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert" | "fleet_document_expiring";
     id: string;
     title: string;
     description: string;
@@ -17,7 +17,7 @@ export declare const operationalTaskSchema: z.ZodObject<{
     createdAt: string;
     priority: "normal" | "high" | "medium";
 }, {
-    type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+    type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert" | "fleet_document_expiring";
     id: string;
     title: string;
     description: string;
@@ -167,6 +167,7 @@ export declare const dashboardSummarySchema: z.ZodObject<{
             paymentVerifications: z.ZodNumber;
             quotationFollowUps: z.ZodNumber;
             stockAlerts: z.ZodNumber;
+            fleetDocumentAlerts: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
             approvals: number;
             warehouseDeliveries: number;
@@ -174,6 +175,7 @@ export declare const dashboardSummarySchema: z.ZodObject<{
             paymentVerifications: number;
             quotationFollowUps: number;
             stockAlerts: number;
+            fleetDocumentAlerts: number;
         }, {
             approvals: number;
             warehouseDeliveries: number;
@@ -181,17 +183,18 @@ export declare const dashboardSummarySchema: z.ZodObject<{
             paymentVerifications: number;
             quotationFollowUps: number;
             stockAlerts: number;
+            fleetDocumentAlerts: number;
         }>;
         items: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
-            type: z.ZodEnum<["work_order_approval", "warehouse_delivery", "assigned_work_order", "payment_verification", "quotation_follow_up", "stock_alert"]>;
+            type: z.ZodEnum<["work_order_approval", "warehouse_delivery", "assigned_work_order", "payment_verification", "quotation_follow_up", "stock_alert", "fleet_document_expiring"]>;
             title: z.ZodString;
             description: z.ZodString;
             href: z.ZodString;
             createdAt: z.ZodString;
             priority: z.ZodEnum<["high", "medium", "normal"]>;
         }, "strip", z.ZodTypeAny, {
-            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert" | "fleet_document_expiring";
             id: string;
             title: string;
             description: string;
@@ -199,7 +202,7 @@ export declare const dashboardSummarySchema: z.ZodObject<{
             createdAt: string;
             priority: "normal" | "high" | "medium";
         }, {
-            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert" | "fleet_document_expiring";
             id: string;
             title: string;
             description: string;
@@ -217,9 +220,10 @@ export declare const dashboardSummarySchema: z.ZodObject<{
             paymentVerifications: number;
             quotationFollowUps: number;
             stockAlerts: number;
+            fleetDocumentAlerts: number;
         };
         items: {
-            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert" | "fleet_document_expiring";
             id: string;
             title: string;
             description: string;
@@ -237,9 +241,10 @@ export declare const dashboardSummarySchema: z.ZodObject<{
             paymentVerifications: number;
             quotationFollowUps: number;
             stockAlerts: number;
+            fleetDocumentAlerts: number;
         };
         items: {
-            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert" | "fleet_document_expiring";
             id: string;
             title: string;
             description: string;
@@ -300,9 +305,10 @@ export declare const dashboardSummarySchema: z.ZodObject<{
             paymentVerifications: number;
             quotationFollowUps: number;
             stockAlerts: number;
+            fleetDocumentAlerts: number;
         };
         items: {
-            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert" | "fleet_document_expiring";
             id: string;
             title: string;
             description: string;
@@ -363,9 +369,10 @@ export declare const dashboardSummarySchema: z.ZodObject<{
             paymentVerifications: number;
             quotationFollowUps: number;
             stockAlerts: number;
+            fleetDocumentAlerts: number;
         };
         items: {
-            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert";
+            type: "work_order_approval" | "warehouse_delivery" | "assigned_work_order" | "payment_verification" | "quotation_follow_up" | "stock_alert" | "fleet_document_expiring";
             id: string;
             title: string;
             description: string;

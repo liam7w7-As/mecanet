@@ -7,12 +7,18 @@ export type CustomerEmailStatus =
   | 'disabled'
   | 'missing_recipient'
   | 'waiting_photos'
+  | 'waiting_documents'
   | 'pending'
   | 'sending'
   | 'sent'
   | 'failed'
   | 'cancelled';
+export interface CustomerEmailDocument { kind: CustomerEmailKind; entityId: number; filename: string; storageKey: string; sha256: string; }
+
 export interface CustomerEmailPayload {
+  documentTemplate?: string;
+  documentRevision?: string;
+  documents?: CustomerEmailDocument[];
   expectedPhotoSlots?: string[];
   includeQuotation?: boolean;
   message?: string;

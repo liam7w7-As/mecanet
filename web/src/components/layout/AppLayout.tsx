@@ -31,6 +31,7 @@ import { AnimateIcon } from '../animate-ui/animate-icon';
 import { PageTransition } from '../animate-ui/page';
 import { getRoleLabel } from '../auth/UserProfileModal';
 import BrandLogo from '../common/BrandLogo';
+import CustomerEmailPreparation from '../common/CustomerEmailPreparation';
 import ToastViewport from '../common/Toast';
 import UserAvatar from '../common/UserAvatar';
 import PwaInstallButton from '../pwa/PwaInstallButton';
@@ -281,6 +282,7 @@ export const AppLayout = () => {
 
       <MobileTabBar onOpenMenu={() => setSidebarOpen(true)} />
 
+      <CustomerEmailPreparation />
       <ToastViewport />
     </div>
   );

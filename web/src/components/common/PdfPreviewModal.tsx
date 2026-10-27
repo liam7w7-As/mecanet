@@ -1,5 +1,3 @@
-import { toPng } from 'html-to-image';
-import { jsPDF } from 'jspdf';
 import {
   Download,
   LoaderCircle,
@@ -15,6 +13,7 @@ import { useCompanyBranding } from './BrandingContext';
 import BrandLogo from './BrandLogo';
 import InspectionPhotoGallery from './InspectionPhotoGallery';
 import { formatClp, formatDateTime } from '../../lib/formatters';
+import { renderOfficialPdf } from '../../lib/official-pdf';
 import { preparePdfImages } from '../../lib/pdf-images';
 import { buildPdfShareText, sharePdfOnWhatsApp } from '../../lib/whatsapp';
 import QuotationDocument, { getQuotationDocumentPages } from '../quotations/QuotationDocument';
@@ -545,6 +544,35 @@ const InspectionPhotosSheet = ({ photos, code, workOrderCode, clientName, vehicl
 // COMPONENTE PRINCIPAL
 // ==========================================
 
+
+export const OfficialDocumentSheets = ({
+  type, workOrder, quotation, measure = true, scale = 1,
+}: Pick<PdfPreviewModalProps, 'type' | 'workOrder' | 'quotation'> & { measure?: boolean; scale?: number }) => {
+  const [measuredScale, setMeasuredScale] = useState(1);
+  if (type === 'work-order' && workOrder) {
+    const subtotal = (workOrder.items ?? []).reduce((sum, item) => sum + Number(item.subtotal ?? 0), 0);
+    const iva = Math.round(subtotal * 0.19);
+    return <div data-official-template="work-order">
+      <WorkOrderSheetPage1 workOrder={workOrder} inventorySet={new Set(workOrder.inspection?.inventario ?? [])}
+        rawSubtotal={subtotal} rawIVA={iva} rawTotal={subtotal + iva} totalPages={2}
+        photos={workOrder.inspection?.photos ?? []} scale={measure ? measuredScale : scale}
+        onScaleChange={measure ? setMeasuredScale : undefined} />
+      <WorkOrderSheetPage2 workOrder={workOrder} totalPages={2} />
+    </div>;
+  }
+  if (!quotation) return null;
+  const photos = quotation.workOrder?.inspectionPhotos ?? [];
+  const totalPages = getQuotationDocumentPages(quotation).length + (photos.length ? 1 : 0);
+  return <div data-official-template="quotation">
+    <QuotationDocument quotation={quotation} totalPages={totalPages} />
+    {photos.length > 0 && <InspectionPhotosSheet photos={photos} code={quotation.codigo}
+      workOrderCode={quotation.workOrder?.codigo ?? quotation.codigo}
+      clientName={quotation.client?.nombre ?? 'Sin cliente'}
+      vehicle={[quotation.vehicle?.patente, quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin vehículo'}
+      totalPages={totalPages} />}
+  </div>;
+};
+
 export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   type,
   workOrder,
@@ -604,8 +632,6 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
 
   // Medidas del papel: Letter a 96DPI (8.5in x 11in). Debe coincidir con
   // el estilo inline de .pdf-paper-sheet (width 816px, minHeight 1056px).
-  const SHEET_WIDTH = 816;
-  const SHEET_HEIGHT = 1056;
 
   // Impresión nativa del navegador.
   // Usa el mismo portal (#unithor-print-portal) que la vista previa,
@@ -634,82 +660,14 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
       return null;
     }
 
-    const sheets = Array.from(
-      portal.querySelectorAll<HTMLElement>('.pdf-paper-sheet'),
-    );
-    if (sheets.length === 0) {
-      window.print();
-      return null;
-    }
-
     setIsGeneratingPdf(true);
     setPdfError(null);
-
-    // El portal está oculto en pantalla (display:none). Lo mostramos in-place
-    // detrás del backdrop (z-40 vs z-50 del modal) para que el navegador
-    // calcule layout real antes de rasterizar. Se restaura en finally.
-    portal.style.setProperty('display', 'block', 'important');
-    portal.style.setProperty('position', 'fixed', 'important');
-    portal.style.setProperty('top', '0', 'important');
-    portal.style.setProperty('left', '0', 'important');
-    portal.style.setProperty('width', `${SHEET_WIDTH}px`, 'important');
-    portal.style.setProperty('z-index', '40', 'important');
-    portal.style.setProperty('background-color', '#ffffff', 'important');
-    portal.style.setProperty('pointer-events', 'none', 'important');
-
     try {
-      await preparePdfImages(portal);
-      if (document.fonts?.ready) {
-        try {
-          await document.fonts.ready;
-        } catch {
-          // Las fuentes son mejora progresiva, no bloquean la descarga
-        }
-      }
-
-      const pdf = new jsPDF({
-        unit: 'px',
-        format: [SHEET_WIDTH, SHEET_HEIGHT],
-        orientation: 'portrait',
-        hotfixes: ['px_scaling'],
-        compress: true,
-      });
-
-      for (let index = 0; index < sheets.length; index += 1) {
-        const sheet = sheets[index];
-        // Las fotos de inspección usan cookies de sesión (same-origin /api),
-        // por eso se reenvían credenciales al inlinear imágenes.
-        const dataUrl = await toPng(sheet, {
-          cacheBust: true,
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
-          style: isGrayscale ? { filter: 'grayscale(100%)' } : {},
-          fetchRequestInit: { credentials: 'include' },
-        });
-
-        if (index > 0) {
-          pdf.addPage([SHEET_WIDTH, SHEET_HEIGHT], 'portrait');
-        }
-        const sheetHeight = sheet.getBoundingClientRect().height || SHEET_HEIGHT;
-        const scale = Math.min(1, SHEET_HEIGHT / sheetHeight);
-        pdf.addImage(dataUrl, 'PNG', (SHEET_WIDTH - SHEET_WIDTH * scale) / 2, 0,
-          SHEET_WIDTH * scale, sheetHeight * scale, undefined, 'FAST');
-      }
-
-      return { blob: pdf.output('blob'), filename: `${displayCode}.pdf` };
-    } catch (err) {
-      console.error('Error al generar PDF directo:', err);
-      setPdfError('No se pudo preparar el PDF. Comprueba que las fotos estén cargadas y reintenta.');
+      return { blob: await renderOfficialPdf(portal, { grayscale: isGrayscale }), filename: displayCode + '.pdf' };
+    } catch {
+      setPdfError('No se pudo preparar el PDF. Comprueba que todas las fotos estén cargadas y reintenta.');
       return null;
     } finally {
-      portal.style.removeProperty('display');
-      portal.style.removeProperty('position');
-      portal.style.removeProperty('top');
-      portal.style.removeProperty('left');
-      portal.style.removeProperty('width');
-      portal.style.removeProperty('z-index');
-      portal.style.removeProperty('background-color');
-      portal.style.removeProperty('pointer-events');
       setIsGeneratingPdf(false);
     }
   };
@@ -1032,38 +990,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
           oculten los elementos al apagar #root. Siempre incluye todas las páginas. */}
       {createPortal(
         <div id="unithor-print-portal" aria-hidden="true">
-          {isOT && workOrder && (
-            <div
-              className="pdf-print-wrapper"
-              style={{
-                filter: isGrayscale ? 'grayscale(100%)' : 'none',
-              }}
-            >
-              <WorkOrderSheetPage1
-                workOrder={workOrder}
-                inventorySet={inventorySet}
-                rawSubtotal={rawSubtotal}
-                rawIVA={rawIVA}
-                rawTotal={rawTotal}
-                totalPages={totalPages}
-                photos={photos}
-                scale={page1Scale}
-              />
-              <WorkOrderSheetPage2 workOrder={workOrder} totalPages={totalPages} />
-            </div>
-          )}
-
-          {!isOT && quotation && (
-            <div
-              className="pdf-print-wrapper"
-              style={{
-                filter: isGrayscale ? 'grayscale(100%)' : 'none',
-              }}
-            >
-<QuotationDocument quotation={quotation} totalPages={totalPages} />
-              {photosSheet}
-            </div>
-          )}
+          <div className="pdf-print-wrapper" style={{ filter: isGrayscale ? 'grayscale(100%)' : 'none' }}><OfficialDocumentSheets type={type} workOrder={workOrder} quotation={quotation} measure={false} scale={page1Scale} /></div>
         </div>,
         document.body,
       )}

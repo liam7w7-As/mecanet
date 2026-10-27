@@ -3,7 +3,10 @@ import { randomUUID } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { Op } from 'sequelize';
 
-import { generateCustomerDocumentAttachments } from './customer-document-pdf.service.js';
+import {
+  loadCustomerDocumentAttachments,
+  OFFICIAL_DOCUMENT_TEMPLATE,
+} from './customer-document-pdf.service.js';
 import { setEmailQueueWakeup } from './customer-email-queue.service.js';
 import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
@@ -99,6 +102,17 @@ const claimEmail = async (): Promise<CustomerEmail | null> =>
         return null;
       }
     }
+    if (
+      email.category === 'document' &&
+      (email.payload.documentTemplate !== OFFICIAL_DOCUMENT_TEMPLATE ||
+        !email.payload.documents?.length)
+    ) {
+      await email.update(
+        { status: 'waiting_documents', nextAttemptAt: new Date(), lastError: null },
+        { transaction },
+      );
+      return null;
+    }
     await email.update(
       {
         status: 'sending',
@@ -134,13 +148,7 @@ export const processCustomerEmailQueue = async (maxJobs = 10): Promise<number> =
       if (!email.recipient)
         throw Object.assign(new Error('Missing recipient'), { code: 'MISSING_RECIPIENT' });
       const attachments =
-        email.category === 'document'
-          ? await generateCustomerDocumentAttachments(
-              email.kind,
-              email.entityId,
-              email.payload.includeQuotation ?? false,
-            )
-          : [];
+        email.category === 'document' ? await loadCustomerDocumentAttachments(email) : [];
       // Leave room for MIME/base64 overhead under Gmail's attachment limit.
       if (attachments.reduce((sum, file) => sum + file.content.length, 0) > 18 * 1024 * 1024) {
         throw Object.assign(new Error('Attachments too large'), { code: 'ATTACHMENTS_TOO_LARGE' });

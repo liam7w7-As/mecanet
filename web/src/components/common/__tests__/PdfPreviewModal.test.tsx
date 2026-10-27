@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { WORK_ORDER_INSPECTION_PHOTO_SLOTS } from '@unithor/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import PdfPreviewModal from '../PdfPreviewModal';
+import PdfPreviewModal, { OfficialDocumentSheets } from '../PdfPreviewModal';
 
 import type { Quotation, WorkOrder } from '../../../types/entities';
 
@@ -262,6 +262,7 @@ describe('PdfPreviewModal', () => {
 
     document.querySelectorAll('img').forEach((image) => {
       Object.defineProperty(image, 'complete', { value: true });
+      Object.defineProperty(image, 'naturalWidth', { value: 200 });
     });
     fireEvent.click(screen.getByRole('button', { name: /Imprimir/i }));
     await waitFor(() => expect(printSpy).toHaveBeenCalled());
@@ -405,4 +406,25 @@ describe('PdfPreviewModal', () => {
     expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
     expect(printPortal.querySelectorAll('tbody tr')).toHaveLength(40);
   });
+});
+
+describe('Shared approved document templates', () => {
+  it('renders the identical OT pages for email and the existing preview portal', () => {
+    const manual = render(<PdfPreviewModal type="work-order" workOrder={mockWorkOrder} onClose={() => undefined} />);
+    const expected = document.querySelector('#unithor-print-portal [data-official-template]')?.innerHTML;
+    expect(expected).toContain('CONDICIONES GENERALES DEL SERVICIO');
+    manual.unmount();
+    const automatic = render(<OfficialDocumentSheets type="work-order" workOrder={mockWorkOrder} measure={false} />);
+    expect(automatic.container.querySelector('[data-official-template]')?.innerHTML).toBe(expected);
+    expect(automatic.container.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
+  });
+  it('renders the identical quotation for email and its approved preview portal', () => {
+    const manual = render(<PdfPreviewModal type="quotation" quotation={mockQuotation} onClose={() => undefined} />);
+    const expected = document.querySelector('#unithor-print-portal [data-official-template]')?.innerHTML;
+    expect(expected).toContain('COTIZACIÓN');
+    manual.unmount();
+    const automatic = render(<OfficialDocumentSheets type="quotation" quotation={mockQuotation} measure={false} />);
+    expect(automatic.container.querySelector('[data-official-template]')?.innerHTML).toBe(expected);
+  });
+
 });

@@ -211,4 +211,19 @@ describe('QuotationCreatePage', () => {
     expect(api.post).not.toHaveBeenCalled();
     expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('descuento no puede superar'))).toBe(true);
   });
+  it('muestra Guardando mientras la API confirma la cotización y evita envíos repetidos', async () => {
+    let finish!: (value: { data: { quotation: { id: number } } }) => void;
+    vi.mocked(api.post).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    renderCreate();
+    await selectClient();
+    await selectPart();
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar y crear' }));
+    expect(await screen.findByRole('status', { name: 'Guardando cotización…' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Creando/ })).toBeDisabled();
+    finish({ data: { quotation: { id: 99 } } });
+    expect(await screen.findByText('Cotización guardada')).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
 });

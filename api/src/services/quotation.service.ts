@@ -515,11 +515,12 @@ const syncLinkedWorkOrderFromQuotation = async (
   if (completedChanged) await enqueueWorkOrderProgress(workOrder.id, userId, transaction, `quotation-progress:${quotation.id}:${randomUUID()}`);
 };
 
-const assertClientExists = async (clientId: number, transaction: Transaction): Promise<void> => {
+const assertClientExists = async (clientId: number, transaction: Transaction): Promise<Client> => {
   const client = await Client.findByPk(clientId, { transaction });
   if (!client) {
     throw ApiError.badRequest('El cliente especificado no existe');
   }
+  return client;
 };
 
 const assertVehicleExists = async (vehicleId: number, transaction: Transaction): Promise<Vehicle> => {
@@ -767,9 +768,7 @@ export const createQuotation = async (
       }
     }
 
-    if (clientId !== null) {
-      await assertClientExists(clientId, transaction);
-    }
+    const emailClient = clientId === null ? null : await assertClientExists(clientId, transaction);
     if (vehicleId !== null) {
       await assertVehicleExists(vehicleId, transaction);
     }
@@ -806,7 +805,7 @@ export const createQuotation = async (
       await ensureQuotationItemLinks(quotation.id, quotation.workOrderId, transaction);
     }
 
-    await enqueueCustomerEmail({ kind: 'quotation', entityId: quotation.id, userId: asesorId, dedupeKey: `created:quotation:${quotation.id}` }, transaction);
+    await enqueueCustomerEmail({ kind: 'quotation', entityId: quotation.id, userId: asesorId, dedupeKey: `created:quotation:${quotation.id}`, target: { recipient: emailClient?.email ?? null, name: emailClient?.nombre ?? 'Cliente', code: quotation.codigo } }, transaction);
     return { quotationId: quotation.id, codigo, total, workOrderId: data.workOrderId ?? null };
   });
 

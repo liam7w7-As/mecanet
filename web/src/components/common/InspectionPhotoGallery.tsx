@@ -71,11 +71,12 @@ export const InspectionPhotoGallery = ({
                     style={{ height: row.height }}
                   >
                     {failedPhotos[source] ? (
-                      <span className="flex h-full items-center justify-center text-center text-[8px] text-brand-muted">
+                      <span data-pdf-image-error className="flex h-full items-center justify-center text-center text-[8px] text-brand-muted">
                         Imagen no disponible
                       </span>
                     ) : (
                       <img
+                        data-inspection-photo
                         src={source}
                         alt={`Foto ${labels[photo.slot]}`}
                         className="block h-full w-full object-contain"

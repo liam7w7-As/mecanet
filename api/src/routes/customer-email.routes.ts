@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { Op } from 'sequelize';
 import { z } from 'zod';
 
@@ -10,10 +11,8 @@ import { validate } from '../middlewares/validate.js';
 import { CustomerEmail } from '../models/CustomerEmail.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
-import {
-  generateOfficialWorkOrderEmailPdf,
-  generateQuotationEmailPdf,
-} from '../services/customer-document-pdf.service.js';
+import { loadCustomerDocumentAttachments } from '../services/customer-document-pdf.service.js';
+import { getEmailPreparation, listEmailPreparations, savePreparedEmailDocuments, reportEmailPreparationError } from '../services/customer-document-preparation.service.js';
 import {
   enqueueCustomerEmail,
   enqueueWorkOrderProgress,
@@ -28,6 +27,30 @@ import type { CustomerEmailKind } from '../models/CustomerEmail.js';
 
 export const customerEmailRouter = Router();
 customerEmailRouter.use(authenticate);
+
+const prepareParams = z.object({ emailId: z.coerce.number().int().positive() });
+const documentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 18 * 1024 * 1024, files: 2, fields: 1, fieldSize: 1000 },
+}).array('documents', 2);
+
+customerEmailRouter.get('/preparation', asyncHandler(async (req, res) => {
+  res.json(await listEmailPreparations(req.user!.id, req.user!.role));
+}));
+customerEmailRouter.get('/preparation/:emailId', validate({ params: prepareParams }), asyncHandler(async (req, res) => {
+  res.json(await getEmailPreparation(Number(req.params.emailId), req.user!.id));
+}));
+customerEmailRouter.post('/preparation/:emailId', validate({ params: prepareParams }), documentUpload, asyncHandler(async (req, res) => {
+  const revision = z.string().regex(/^[a-f0-9]{64}$/).safeParse(req.body.revision);
+  if (!revision.success) throw ApiError.badRequest('La revisión del documento no es válida');
+  await savePreparedEmailDocuments(Number(req.params.emailId), req.user!.id, revision.data, Array.isArray(req.files) ? req.files : []);
+  res.status(202).json({ message: 'PDF oficial preparado para envío' });
+}));
+customerEmailRouter.post('/preparation/:emailId/error', validate({ params: prepareParams }), asyncHandler(async (req, res) => {
+  await reportEmailPreparationError(Number(req.params.emailId), req.user!.id);
+  res.status(204).send();
+}));
+
 const params = z.object({ id: z.coerce.number().int().positive() });
 const body = z
   .object({
@@ -123,7 +146,7 @@ for (const [path, kind, module] of [
             kind,
             entityId: id,
             category: data.category,
-            status: { [Op.in]: ['pending', 'sending', 'waiting_photos'] },
+            status: { [Op.in]: ['pending', 'sending', 'waiting_photos', 'waiting_documents'] },
           },
           transaction,
           lock: transaction.LOCK.UPDATE,
@@ -173,10 +196,11 @@ for (const [path, kind, module] of [
       const id = Number(req.params.id);
       await assertAccess(id, req.user!.id);
       const target = await resolveCustomerEmail(kind, id);
-      const bytes =
-        kind === 'quotation'
-          ? await generateQuotationEmailPdf(id)
-          : await generateOfficialWorkOrderEmailPdf(id);
+      const email = await CustomerEmail.findOne({ where: { kind, entityId: id, category: 'document' }, order: [['id', 'DESC']] });
+      if (!email) throw ApiError.conflict('El PDF oficial todavía no está preparado');
+      const document = (await loadCustomerDocumentAttachments(email)).find((file) => file.filename === target?.code + '.pdf');
+      if (!document) throw ApiError.conflict('El PDF oficial todavía no está preparado');
+      const bytes = document.content;
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'inline; filename="' + target?.code + '.pdf"');
       res.setHeader('Cache-Control', 'private, no-store');

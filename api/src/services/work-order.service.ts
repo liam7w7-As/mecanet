@@ -1764,7 +1764,7 @@ export const createWorkOrderInTransaction = async (
     transaction,
   );
 
-  await enqueueCustomerEmail({ kind: 'work_order', entityId: workOrder.id, userId, dedupeKey: `created:work_order:${workOrder.id}`, payload: { expectedPhotoSlots: data.emailPhotoSlots ?? [], includeQuotation: createQuotation } }, transaction);
+  await enqueueCustomerEmail({ kind: 'work_order', entityId: workOrder.id, userId, dedupeKey: `created:work_order:${workOrder.id}`, target: { recipient: (contactClient ?? client)?.email ?? null, name: (contactClient ?? client)?.nombre ?? 'Cliente', code: workOrder.codigo }, payload: { expectedPhotoSlots: data.emailPhotoSlots ?? [], includeQuotation: createQuotation } }, transaction);
   return workOrder;
 };
 

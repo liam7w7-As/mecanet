@@ -95,6 +95,11 @@ const toValue = (branding: PublicBranding | undefined): CompanyBrandingValue => 
   };
 };
 
+export const BrandingSnapshotProvider = ({ branding, children }: { branding: PublicBranding; children: ReactNode }) => {
+  const value = useMemo(() => toValue(branding), [branding]);
+  return <BrandingContext.Provider value={value}>{children}</BrandingContext.Provider>;
+};
+
 export const BrandingProvider = ({ children }: { children: ReactNode }) => {
   const brandingQuery = useBranding();
   const value = useMemo(() => toValue(brandingQuery.data), [brandingQuery.data]);

@@ -70,39 +70,51 @@ export const enqueueCustomerEmail = async (
     category?: 'document' | 'progress';
     dedupeKey?: string;
     payload?: CustomerEmailPayload;
+    target?: { recipient: string | null; name: string; code: string };
   },
   transaction: Transaction,
 ): Promise<CustomerEmail | null> => {
-  const target = await resolveCustomerEmail(input.kind, input.entityId, transaction);
+  const target =
+    input.target ?? (await resolveCustomerEmail(input.kind, input.entityId, transaction));
   if (!target) return null;
   const recipient = z.string().email().safeParse(target.recipient?.trim());
   const category = input.category ?? 'document';
   const payload = input.payload ?? {};
-  const dedupeKey = input.dedupeKey ?? `manual:${randomUUID()}`;
-  const [email] = await CustomerEmail.findOrCreate({
-    where: { dedupeKey },
-    defaults: {
-      dedupeKey,
-      kind: input.kind,
-      entityId: input.entityId,
-      category,
-      recipient: recipient.success ? recipient.data : null,
-      recipientName: target.name,
-      subject: `${category === 'progress' ? 'Avance de trabajo' : input.kind === 'quotation' ? 'Cotización' : 'Orden de trabajo'} ${target.code} | UNITHOR`,
-      payload,
-      requestedBy: input.userId,
-      status: !env.MAIL_ENABLED
-        ? 'disabled'
-        : !recipient.success
-          ? 'missing_recipient'
-          : payload.expectedPhotoSlots?.length
-            ? 'waiting_photos'
-            : 'pending',
-      nextAttemptAt: new Date(),
-    },
-    transaction,
-  });
-  // Sequelize waits for this callback, so it only schedules background work.
+  const dedupeKey = input.dedupeKey ?? 'manual:' + randomUUID();
+  const defaults = {
+    dedupeKey,
+    kind: input.kind,
+    entityId: input.entityId,
+    category,
+    recipient: recipient.success ? recipient.data : null,
+    recipientName: target.name,
+    subject:
+      (category === 'progress'
+        ? 'Avance de trabajo'
+        : input.kind === 'quotation'
+          ? 'Cotización'
+          : 'Orden de trabajo') +
+      ' ' +
+      target.code +
+      ' | UNITHOR',
+    payload,
+    requestedBy: input.userId,
+    status: !env.MAIL_ENABLED
+      ? ('disabled' as const)
+      : !recipient.success
+        ? ('missing_recipient' as const)
+        : payload.expectedPhotoSlots?.length
+          ? ('waiting_photos' as const)
+          : category === 'document'
+            ? ('waiting_documents' as const)
+            : ('pending' as const),
+    nextAttemptAt: new Date(),
+  };
+  // A newly created entity has exactly one creation job in this transaction.
+  // Avoid the extra lookup/savepoint used for idempotent manual resends.
+  const email = dedupeKey.startsWith('created:')
+    ? await CustomerEmail.create(defaults, { transaction })
+    : (await CustomerEmail.findOrCreate({ where: { dedupeKey }, defaults, transaction }))[0];
   transaction.afterCommit(() => {
     wakeEmailQueue();
   });

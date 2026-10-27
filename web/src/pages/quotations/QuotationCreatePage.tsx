@@ -8,6 +8,7 @@ import { AnimateIcon } from '../../components/animate-ui';
 import ClientFormModal from '../../components/clients/ClientFormModal';
 import ModalHeader from '../../components/common/ModalHeader';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
+import SavingOverlay from '../../components/common/SavingOverlay';
 import QuotationCommercialFields, { createCommercialDraft } from '../../components/quotations/QuotationCommercialFields';
 import QuotationDiscountSummary from '../../components/quotations/QuotationDiscountSummary';
 import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
@@ -85,7 +86,8 @@ export const QuotationCreatePage = () => {
   };
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="min-w-0 space-y-5" aria-busy={createMutation.isPending}>
+      {createMutation.isPending && <SavingOverlay message="Guardando cotización…" detail="El correo se preparará automáticamente después de guardar." />}
       <header className="flex items-start gap-3">
         <Link to="/quotations" className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:bg-brand-pale" aria-label="Volver a cotizaciones">
           <AnimateIcon variant="slide-left" animateOnHover>

@@ -1,8 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 
-import { WORK_ORDER_INSPECTION_PHOTO_SLOTS } from '@unithor/shared';
 import { PDFDocument } from 'pdf-lib';
 import sharp from 'sharp';
 import request from 'supertest';
@@ -19,10 +16,7 @@ import { User } from '../../models/User.js';
 import { Vehicle } from '../../models/Vehicle.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
 import { WorkOrderItem } from '../../models/WorkOrderItem.js';
-import {
-  generateOfficialWorkOrderEmailPdf,
-  generateQuotationEmailPdf,
-} from '../../services/customer-document-pdf.service.js';
+import { getEmailPreparation } from '../../services/customer-document-preparation.service.js';
 import { enqueueCustomerEmail } from '../../services/customer-email-queue.service.js';
 import { processCustomerEmailQueue } from '../../services/customer-email-worker.service.js';
 import { saveInspectionPhoto } from '../../services/work-order-inspection-photo.service.js';
@@ -164,152 +158,190 @@ describe('Customer email outbox and SMTP workflow', () => {
     return Number(result.body.workOrder.id);
   };
 
-  it('requires authentication, CSRF and ownership; mechanics cannot resend financial documents', async () => {
+  type Bundle = Awaited<ReturnType<typeof getEmailPreparation>>;
+  const pdfBytes = async (filename: string, pages: number) => {
+    const pdf = await PDFDocument.create();
+    for (let page = 0; page < pages; page += 1)
+      pdf.addPage([612, 792]).drawText('Official fixture ' + filename + ' page ' + (page + 1));
+    return Buffer.from(await pdf.save());
+  };
+  const upload = async (bundle: Bundle, buffers?: Buffer[]) => {
+    let pending = request(app)
+      .post('/api/customer-emails/preparation/' + bundle.id)
+      .set('Cookie', cookies[0])
+      .set('X-CSRF-Token', cookies[0].find((value) => value.startsWith('csrf_token='))!.slice(11))
+      .field('revision', bundle.revision);
+    for (const [index, document] of bundle.documents.entries()) {
+      const bytes =
+        buffers?.[index] ??
+        (await pdfBytes(document.filename, document.type === 'work-order' ? 2 : 1));
+      pending = pending.attach('documents', bytes, {
+        filename: document.filename,
+        contentType: 'application/pdf',
+      });
+    }
+    return pending;
+  };
+  const prepare = async (id: number) => {
+    const response = await get('/api/customer-emails/preparation/' + id);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    const bundle = response.body as Bundle;
+    const buffers = await Promise.all(
+      bundle.documents.map((document) =>
+        pdfBytes(document.filename, document.type === 'work-order' ? 2 : 1),
+      ),
+    );
+    const result = await upload(bundle, buffers);
+    expect(result.status, JSON.stringify(result.body)).toBe(202);
+    return { bundle, buffers };
+  };
+  const jobFor = async (kind: 'quotation' | 'work_order', entityId: number) => {
+    const job = await CustomerEmail.findOne({ where: { kind, entityId }, order: [['id', 'DESC']] });
+    if (!job) throw new Error('Missing job');
+    return job;
+  };
+
+  it('requires authentication, CSRF and ownership; mechanics cannot prepare or resend documents', async () => {
     const id = await createOrder();
-    const path = '/api/customer-emails/work-orders/' + id;
-    expect((await request(app).get(path)).status).toBe(401);
+    const job = await jobFor('work_order', id);
+    const route = '/api/customer-emails/preparation/' + job.id;
+    expect((await request(app).get(route)).status).toBe(401);
+    expect((await request(app).post(route).set('Cookie', cookies[0])).status).toBe(403);
+    expect((await get(route, 1)).status).toBe(404);
+    await WorkOrder.update({ assignedMechanicId: mechanic.id }, { where: { id } });
+    expect((await get(route, 2)).status).toBe(403);
+    const quotationId = await createQuotation();
     expect(
       (
-        await request(app)
-          .post(path + '/send')
-          .set('Cookie', cookies[0])
-          .send({ requestId: randomUUID() })
+        await get(
+          '/api/customer-emails/preparation/' + (await jobFor('quotation', quotationId)).id,
+          1,
+        )
       ).status,
-    ).toBe(403);
-    expect((await get(path, 1)).status).toBe(404);
-    await WorkOrder.update({ assignedMechanicId: mechanic.id }, { where: { id } });
-    expect((await get(path, 2)).status).toBe(403);
-    const cot = await createQuotation();
-    expect((await get('/api/customer-emails/quotations/' + cot, 1)).status).toBe(404);
+    ).toBe(404);
     expect(seller.id).not.toBe(admin.id);
   });
 
-  it('automatically enqueues an independent quote and sends its PDF without frontend action', async () => {
+  it('returns from saving before PDF/SMTP work, then emails exactly the approved uploaded bytes', async () => {
     const id = await createQuotation();
-    const queued = await CustomerEmail.findOne({ where: { kind: 'quotation', entityId: id } });
-    expect(queued?.status).toBe('pending');
+    const job = await jobFor('quotation', id);
+    expect(job.status).toBe('waiting_documents');
+    expect(await processCustomerEmailQueue()).toBe(0);
+    expect(smtp.send).not.toHaveBeenCalled();
+    const { buffers } = await prepare(job.id);
     expect(await processCustomerEmailQueue()).toBe(1);
     const mail = smtp.send.mock.calls[0][0];
     expect(mail.to).toBe(client.email);
     expect(mail.attachments).toHaveLength(1);
-    expect(mail.attachments[0].content.subarray(0, 5).toString()).toBe('%PDF-');
-    const pdf = await PDFDocument.load(mail.attachments[0].content);
-    expect(pdf.getTitle()).toMatch(/^Cotización COT-/);
-    await queued!.reload();
-    expect(queued!.status).toBe('sent');
-    expect(queued!.acceptedAt).toBeInstanceOf(Date);
+    expect(mail.attachments[0].content.equals(buffers[0])).toBe(true);
+    await job.reload();
+    expect(job.status).toBe('sent');
+    expect(job.acceptedAt).toBeInstanceOf(Date);
   });
 
-  it('enqueues one OT message with OT and mirror COT PDFs, addressed to the reception contact', async () => {
+  it('sends the approved OT and its mirror COT in one message to the designated contact', async () => {
     const id = await createOrder();
     expect(await CustomerEmail.count()).toBe(1);
+    const { bundle, buffers } = await prepare((await jobFor('work_order', id)).id);
+    expect(bundle.documents.map((document) => document.type)).toEqual(['work-order', 'quotation']);
     expect(await processCustomerEmailQueue()).toBe(1);
     const mail = smtp.send.mock.calls[0][0];
     expect(mail.to).toBe(contact.email);
-    expect(mail.attachments.map((file: { filename: string }) => file.filename)).toEqual([
-      expect.stringMatching(/^OT-/),
-      expect.stringMatching(/^COT-/),
-    ]);
-    const pdf = await PDFDocument.load(mail.attachments[0].content);
-    expect(pdf.getPageCount()).toBe(2);
-    expect(pdf.getTitle()).toMatch(/^Orden de trabajo/);
-    expect((await get('/api/customer-emails/work-orders/' + id)).body.history[0].status).toBe(
-      'sent',
-    );
+    expect(mail.attachments).toHaveLength(2);
+    for (const [index, file] of buffers.entries())
+      expect(mail.attachments[index].content.equals(file)).toBe(true);
+    expect((await PDFDocument.load(mail.attachments[0].content)).getPageCount()).toBe(2);
   });
 
-  it('waits for all initially selected photos and then sends automatically', async () => {
+  it('waits for every initially selected photo before preparing either official document', async () => {
     const id = await createOrder({ emailPhotoSlots: ['frontal', 'trasera'] });
-    expect(await processCustomerEmailQueue()).toBe(0);
-    expect(smtp.send).not.toHaveBeenCalled();
-    const photoBytes = await sharp({
+    const job = await jobFor('work_order', id);
+    expect(job.status).toBe('waiting_photos');
+    expect((await get('/api/customer-emails/preparation/' + job.id)).status).toBe(409);
+    const bytes = await sharp({
       create: { width: 200, height: 320, channels: 3, background: '#0E2B4E' },
     })
       .png()
       .toBuffer();
     const file = {
-      buffer: photoBytes,
+      buffer: bytes,
       mimetype: 'image/png',
-      size: photoBytes.length,
+      size: bytes.length,
     } as Express.Multer.File;
     await saveInspectionPhoto(id, 'frontal', file, admin.id);
-    await CustomerEmail.update(
-      { nextAttemptAt: new Date(0) },
-      { where: { entityId: id, kind: 'work_order' } },
-    );
+    expect((await get('/api/customer-emails/preparation/' + job.id)).status).toBe(409);
     expect(await processCustomerEmailQueue()).toBe(0);
     await saveInspectionPhoto(id, 'trasera', file, admin.id);
-    await CustomerEmail.update(
-      { nextAttemptAt: new Date(0) },
-      { where: { entityId: id, kind: 'work_order' } },
-    );
+    const { bundle } = await prepare(job.id);
+    const ot = bundle.documents.find((document) => document.type === 'work-order');
+    const cot = bundle.documents.find((document) => document.type === 'quotation');
+    expect(ot?.workOrder?.inspection?.photos).toHaveLength(2);
+    expect(cot?.quotation?.workOrder?.inspectionPhotos).toHaveLength(2);
     expect(await processCustomerEmailQueue()).toBe(1);
-    expect(smtp.send).toHaveBeenCalledTimes(1);
   });
 
-  it('does not send when disabled or silently send old disabled jobs after activation', async () => {
+  it('does not send old disabled records after activating mail', async () => {
     env.MAIL_ENABLED = false;
     const id = await createQuotation();
-    expect(
-      (await CustomerEmail.findOne({ where: { entityId: id, kind: 'quotation' } }))?.status,
-    ).toBe('disabled');
+    expect((await jobFor('quotation', id)).status).toBe('disabled');
     env.MAIL_ENABLED = true;
     expect(await processCustomerEmailQueue()).toBe(0);
-    expect(smtp.send).not.toHaveBeenCalled();
+    expect((await get('/api/customer-emails/preparation')).body.jobs).toHaveLength(0);
   });
 
-  it('preserves the document when no email exists and exposes an actionable status', async () => {
+  it('keeps missing-recipient records saved and allows preparing after correcting the contact', async () => {
     await contact.update({ email: null });
     const id = await createOrder();
     expect(await WorkOrder.findByPk(id)).not.toBeNull();
-    const overview = await get('/api/customer-emails/work-orders/' + id);
-    expect(overview.body.recipient).toBeNull();
-    expect(overview.body.history[0].status).toBe('missing_recipient');
-    expect(
-      (await post('/api/customer-emails/work-orders/' + id + '/send', { requestId: randomUUID() }))
-        .status,
-    ).toBe(400);
+    expect((await jobFor('work_order', id)).status).toBe('missing_recipient');
     await contact.update({ email: 'contact@example.com' });
     expect(
       (await post('/api/customer-emails/work-orders/' + id + '/send', { requestId: randomUUID() }))
         .status,
     ).toBe(202);
+    await prepare((await jobFor('work_order', id)).id);
     expect(await processCustomerEmailQueue()).toBe(1);
   });
 
-  it('retains failed jobs with backoff and reuses the stable message ID on retry', async () => {
+  it('preserves prepared PDFs through SMTP failures and reuses the message ID on retry', async () => {
     const id = await createQuotation();
+    const job = await jobFor('quotation', id);
+    await prepare(job.id);
     smtp.send.mockRejectedValueOnce(
-      Object.assign(new Error('secret SMTP transcript'), { code: 'EAUTH' }),
+      Object.assign(new Error('private transcript'), { code: 'EAUTH' }),
     );
     expect(await processCustomerEmailQueue()).toBe(0);
-    const job = (await CustomerEmail.findOne({ where: { kind: 'quotation', entityId: id } }))!;
+    await job.reload();
     expect(job.status).toBe('failed');
     expect(job.lastError).toBe('EAUTH');
-    expect(job.attempts).toBe(1);
     expect(await processCustomerEmailQueue()).toBe(0);
     await job.update({ nextAttemptAt: new Date(0) });
     expect(await processCustomerEmailQueue()).toBe(1);
     expect(smtp.send.mock.calls[0][0].messageId).toBe(smtp.send.mock.calls[1][0].messageId);
-    expect(await Quotation.findByPk(id)).not.toBeNull();
+    expect(
+      smtp.send.mock.calls[0][0].attachments[0].content.equals(
+        smtp.send.mock.calls[1][0].attachments[0].content,
+      ),
+    ).toBe(true);
   });
 
-  it('claims a pending job once across concurrent workers and manual duplicate requests', async () => {
+  it('deduplicates manual requests and claims prepared jobs once across concurrent workers', async () => {
     const id = await createQuotation();
-    const path = '/api/customer-emails/quotations/' + id + '/send';
+    const route = '/api/customer-emails/quotations/' + id + '/send';
     const requestId = randomUUID();
-    const replies = await Promise.all([post(path, { requestId }), post(path, { requestId })]);
-    expect(replies.map((reply) => reply.status)).toEqual([202, 202]);
+    const results = await Promise.all([post(route, { requestId }), post(route, { requestId })]);
+    expect(results.map((result) => result.status)).toEqual([202, 202]);
     expect(await CustomerEmail.count()).toBe(1);
+    await prepare((await jobFor('quotation', id)).id);
     await Promise.all([processCustomerEmailQueue(), processCustomerEmailQueue()]);
     expect(smtp.send).toHaveBeenCalledTimes(1);
-    const resendId = randomUUID();
-    await post(path, { requestId: resendId });
-    await post(path, { requestId: resendId });
+    const resend = randomUUID();
+    await post(route, { requestId: resend });
+    await post(route, { requestId: resend });
     expect(await CustomerEmail.count()).toBe(2);
   });
 
-  it('rolls back email enqueue when the business transaction rolls back', async () => {
+  it('rolls back the queued job with the business transaction', async () => {
     const id = await createQuotation();
     await CustomerEmail.destroy({ where: {} });
     await expect(
@@ -324,7 +356,7 @@ describe('Customer email outbox and SMTP workflow', () => {
     expect(await CustomerEmail.count()).toBe(0);
   });
 
-  it('converts a quote without resending its COT, and sends only the new OT', async () => {
+  it('converts a quote and prepares only the newly created OT', async () => {
     const id = await createQuotation();
     await CustomerEmail.destroy({ where: {} });
     const result = await post('/api/quotations/' + id + '/convert-to-ot', {
@@ -333,13 +365,14 @@ describe('Customer email outbox and SMTP workflow', () => {
       vehicleId: vehicle.id,
     });
     expect(result.status, JSON.stringify(result.body)).toBe(201);
-    orderIds.push(Number(result.body.workOrder.id));
-    expect(await CustomerEmail.count()).toBe(1);
+    const otId = Number(result.body.workOrder.id);
+    orderIds.push(otId);
+    const { bundle } = await prepare((await jobFor('work_order', otId)).id);
+    expect(bundle.documents.map((document) => document.type)).toEqual(['work-order']);
     expect(await processCustomerEmailQueue()).toBe(1);
-    expect(smtp.send.mock.calls[0][0].attachments).toHaveLength(1);
   });
 
-  it('sends customer-safe progress when a service is completed, without prices or internal notes', async () => {
+  it('sends safe progress without waiting for PDF generation or exposing internal notes', async () => {
     const id = await createOrder();
     await CustomerEmail.destroy({ where: {} });
     const item = (await WorkOrderItem.findOne({ where: { workOrderId: id } }))!;
@@ -348,93 +381,80 @@ describe('Customer email outbox and SMTP workflow', () => {
       .set('Cookie', cookies[0])
       .set('X-CSRF-Token', cookies[0].find((value) => value.startsWith('csrf_token='))!.slice(11))
       .send({
-        items: [
-          {
-            id: item.id,
-            estadoOperativo: 'completado',
-            notasOperativas: 'INTERNO: costo 12345 proveedor',
-          },
-        ],
+        items: [{ id: item.id, estadoOperativo: 'completado', notasOperativas: 'INTERNO 12345' }],
       });
-    expect(result.status, JSON.stringify(result.body)).toBe(200);
-    const job = (await CustomerEmail.findOne({ where: { kind: 'work_order', entityId: id } }))!;
-    expect(job.category).toBe('progress');
+    expect(result.status).toBe(200);
+    const job = await jobFor('work_order', id);
     expect(job.payload.message).toContain('Revisión motor');
     expect(job.payload.message).not.toContain('INTERNO');
-    expect(job.payload.message).not.toContain('12345');
     expect(await processCustomerEmailQueue()).toBe(1);
     expect(smtp.send.mock.calls[0][0].attachments).toHaveLength(0);
   });
 
-  it('recovers an interrupted sending job after restart', async () => {
+  it('recovers a prepared job interrupted during SMTP delivery', async () => {
     const id = await createQuotation();
-    await CustomerEmail.update(
-      {
-        status: 'sending',
-        lockedAt: new Date(Date.now() - 6 * 60000),
-        lockToken: randomUUID(),
-        attempts: 1,
-      },
-      { where: { entityId: id, kind: 'quotation' } },
-    );
+    const job = await jobFor('quotation', id);
+    await prepare(job.id);
+    await job.update({
+      status: 'sending',
+      lockedAt: new Date(Date.now() - 6 * 60000),
+      lockToken: randomUUID(),
+      attempts: 1,
+    });
     expect(await processCustomerEmailQueue()).toBe(1);
-    expect(smtp.send).toHaveBeenCalledTimes(1);
   });
 
-  it('preserves the two-sided official OT and all nine mixed-orientation photos', async () => {
-    const id = await createOrder({
-      items: Array.from({ length: 12 }, (_, i) => ({
-        descripcion: 'Servicio preventivo número ' + (i + 1),
-        cantidad: 1,
-        precioUnitario: 12500,
-      })),
-      inspection: {
-        nivelCombustible: 'medio',
-        inventario: ['radio', 'rueda_repuesto'],
-        observaciones: 'Recepción documentada con fotos verticales y horizontales.',
-      },
-    });
-    for (const [index, slot] of WORK_ORDER_INSPECTION_PHOTO_SLOTS.entries()) {
-      const dimensions = index % 2 ? { width: 500, height: 200 } : { width: 200, height: 450 };
-      const image = await sharp({
-        create: { ...dimensions, channels: 3, background: index % 2 ? '#FFD600' : '#0E2B4E' },
-      })
-        .png()
-        .toBuffer();
-      await saveInspectionPhoto(
-        id,
-        slot,
-        { buffer: image, mimetype: 'image/png', size: image.length } as Express.Multer.File,
-        admin.id,
-      );
-    }
-    const quotation = (await Quotation.findOne({ where: { workOrderId: id } }))!;
-    await quotation.update({
-      notas: 'Garantía y condiciones comerciales del presupuesto.',
-      disponibilidadTrabajo: 'Disponibilidad en 48 horas',
-      validezDias: 5,
-    });
-    const [ot, cot] = await Promise.all([
-      generateOfficialWorkOrderEmailPdf(id),
-      generateQuotationEmailPdf(quotation.id),
-    ]);
-    expect((await PDFDocument.load(ot)).getPageCount()).toBe(2);
-    expect((await PDFDocument.load(cot)).getPageCount()).toBeGreaterThanOrEqual(2);
-    if (process.env.PDF_QA === '1') {
-      const directory = path.resolve(process.cwd(), '../tmp/pdfs');
-      await mkdir(directory, { recursive: true });
-      await writeFile(path.join(directory, 'smtp-ot.pdf'), ot);
-      await writeFile(path.join(directory, 'smtp-cot.pdf'), cot);
-    }
-  });
-
-  it('does not email soft-deleted records', async () => {
+  it('rejects stale documents when the quote changes while its PDF is prepared', async () => {
     const id = await createQuotation();
-    await Quotation.destroy({ where: { id } });
+    const job = await jobFor('quotation', id);
+    const bundle = (await get('/api/customer-emails/preparation/' + job.id)).body as Bundle;
+    await Quotation.update({ notas: 'Nueva condición comercial' }, { where: { id } });
+    expect((await upload(bundle)).status).toBe(409);
     expect(await processCustomerEmailQueue()).toBe(0);
     expect(smtp.send).not.toHaveBeenCalled();
-    expect(
-      (await CustomerEmail.findOne({ where: { kind: 'quotation', entityId: id } }))?.status,
-    ).toBe('cancelled');
+    expect((await job.reload()).payload.documents).toBeUndefined();
+  });
+
+  it('rejects a PDF with missing pages instead of sending an incomplete OT', async () => {
+    const id = await createOrder();
+    const job = await jobFor('work_order', id);
+    const bundle = (await get('/api/customer-emails/preparation/' + job.id)).body as Bundle;
+    const buffers = await Promise.all(
+      bundle.documents.map((document) => pdfBytes(document.filename, 1)),
+    );
+    expect((await upload(bundle, buffers)).status).toBe(400);
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
+
+  it('moves old jobs away from the alternate generator and waits for the approved PDF', async () => {
+    const id = await createQuotation();
+    const job = await jobFor('quotation', id);
+    await job.update({ status: 'pending', payload: {} });
+    expect(await processCustomerEmailQueue()).toBe(0);
+    expect((await job.reload()).status).toBe('waiting_documents');
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
+
+  it('retains preparation failures for automatic retry while keeping the business document intact', async () => {
+    const id = await createQuotation();
+    const job = await jobFor('quotation', id);
+    expect((await post('/api/customer-emails/preparation/' + job.id + '/error', {})).status).toBe(
+      204,
+    );
+    await job.reload();
+    expect(job.status).toBe('waiting_documents');
+    expect(job.lastError).toBe('PDF_PREPARATION_FAILED');
+    expect(await Quotation.findByPk(id)).not.toBeNull();
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
+
+  it('cancels prepared email for a soft-deleted record', async () => {
+    const id = await createQuotation();
+    const job = await jobFor('quotation', id);
+    await prepare(job.id);
+    await Quotation.destroy({ where: { id } });
+    expect(await processCustomerEmailQueue()).toBe(0);
+    expect((await job.reload()).status).toBe('cancelled');
+    expect(smtp.send).not.toHaveBeenCalled();
   });
 });

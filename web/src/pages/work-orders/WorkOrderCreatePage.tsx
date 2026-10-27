@@ -31,6 +31,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AnimateIcon } from '../../components/animate-ui';
 import ClientFormModal from '../../components/clients/ClientFormModal';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
+import SavingOverlay from '../../components/common/SavingOverlay';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
 import WorkOrderItemsEditor from '../../components/work-orders/WorkOrderItemsEditor';
 import { useClient, useClients } from '../../hooks/useClients';
@@ -553,11 +554,11 @@ export const WorkOrderCreatePage = () => {
 
   const buildPayload = (): ReturnType<typeof createWorkOrderSchema.safeParse> => {
     if (!client || !contactClient || !billingClient || !vehicle) {
-      return createWorkOrderSchema.safeParse({
-      emailPhotoSlots: photos.map((photo) => photo.slot),});
+      return createWorkOrderSchema.safeParse({});
     }
 
     return createWorkOrderSchema.safeParse({
+      emailPhotoSlots: photos.map((photo) => photo.slot),
       clientId: client.id,
       contactClientId: contactClient.id,
       billingClientId: billingClient.id,
@@ -674,7 +675,8 @@ export const WorkOrderCreatePage = () => {
   }
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="min-w-0 space-y-5" aria-busy={isSubmitting}>
+      {isSubmitting && <SavingOverlay message={uploadPhotosMutation.isPending ? 'Guardando fotos de la OT…' : 'Guardando orden de trabajo…'} detail="El correo se preparará automáticamente con el documento completo." />}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-3">
           <Link

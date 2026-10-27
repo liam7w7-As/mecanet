@@ -94,6 +94,7 @@ const updateWorkOrderCaches = (
   void queryClient.invalidateQueries({ queryKey: ['quotations'] });
   void queryClient.invalidateQueries({ queryKey: ['catalog'] });
   void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
 };
 
 /**
@@ -191,6 +192,7 @@ export const useCreateWorkOrderMutation = () => {
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.all });
       void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };
@@ -208,6 +210,7 @@ export const useUpdateWorkOrderMutation = () => {
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['catalog'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };
@@ -224,6 +227,7 @@ export const useChangeWorkOrderStatusMutation = () => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };
@@ -241,6 +245,7 @@ export const useDeliverWorkOrderMutation = () => {
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };
@@ -259,6 +264,7 @@ export const useCreateWorkOrderReentryMutation = () => {
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };
@@ -306,6 +312,7 @@ export const useUploadWorkOrderInspectionPhotosMutation = () => {
     onSettled: (_photos, _error, variables) => {
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(variables.id) });
       void queryClient.invalidateQueries({ queryKey: ['quotations', 'detail'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };

@@ -12,6 +12,7 @@ describe('preparePdfImages', () => {
     const root = document.createElement('div');
     const image = document.createElement('img');
     Object.defineProperty(image, 'complete', { value: false });
+    Object.defineProperty(image, 'naturalWidth', { value: 200 });
     root.append(image);
     const ready = vi.fn();
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
@@ -39,4 +40,19 @@ describe('preparePdfImages', () => {
     await vi.advanceTimersByTimeAsync(15000);
     await assertion;
   });
+  it('rejects a broken image instead of exporting a PDF without it', async () => {
+    const root = document.createElement('div');
+    const image = document.createElement('img');
+    Object.defineProperty(image, 'complete', { value: true });
+    Object.defineProperty(image, 'naturalWidth', { value: 0 });
+    root.append(image);
+    await expect(preparePdfImages(root)).rejects.toThrow('No se pudo cargar una imagen');
+  });
+
+  it('rejects a gallery placeholder after a photo failed to load', async () => {
+    const root = document.createElement('div');
+    root.innerHTML = '<span data-pdf-image-error>Imagen no disponible</span>';
+    await expect(preparePdfImages(root)).rejects.toThrow('Una foto no está disponible');
+  });
+
 });

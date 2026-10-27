@@ -13,6 +13,7 @@ type Status =
   | 'disabled'
   | 'missing_recipient'
   | 'waiting_photos'
+  | 'waiting_documents'
   | 'pending'
   | 'sending'
   | 'sent'
@@ -50,6 +51,7 @@ const overviewSchema = z.object({
         'disabled',
         'missing_recipient',
         'waiting_photos',
+        'waiting_documents',
         'pending',
         'sending',
         'sent',
@@ -68,6 +70,7 @@ const LABEL: Record<Status, string> = {
   disabled: 'Correo desactivado',
   missing_recipient: 'Falta correo del destinatario',
   waiting_photos: 'Esperando fotos de recepción',
+  waiting_documents: 'Preparando PDF oficial',
   pending: 'Pendiente de envío',
   sending: 'Enviando',
   sent: 'Aceptado por el servidor de correo',
@@ -88,7 +91,7 @@ export default function CustomerEmailPanel({ kind, id }: { kind: Kind; id: numbe
     refetchInterval: (state) =>
       state.state.data?.history.some(
         (email) =>
-          ['pending', 'sending', 'waiting_photos'].includes(email.status) ||
+          ['pending', 'sending', 'waiting_photos', 'waiting_documents'].includes(email.status) ||
           (email.status === 'failed' && email.attempts < 5),
       )
         ? 3_000
@@ -99,6 +102,7 @@ export default function CustomerEmailPanel({ kind, id }: { kind: Kind; id: numbe
       api.post(path + '/send', { requestId: crypto.randomUUID(), category }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: key });
+      void client.invalidateQueries({ queryKey: ['customer-email-preparation'] });
       setShowProgress(false);
       notifySuccess('Correo en cola para envío inmediato.');
     },
@@ -126,7 +130,7 @@ export default function CustomerEmailPanel({ kind, id }: { kind: Kind; id: numbe
   const documentInQueue = data.history.some(
     (email) =>
       email.category === 'document' &&
-      ['pending', 'sending', 'waiting_photos'].includes(email.status),
+      ['pending', 'sending', 'waiting_photos', 'waiting_documents'].includes(email.status),
   );
   const hasSent = data.history.some(
     (email) => email.category === 'document' && email.status === 'sent',
@@ -136,7 +140,9 @@ export default function CustomerEmailPanel({ kind, id }: { kind: Kind; id: numbe
     : !data.recipient
       ? LABEL.missing_recipient
       : latest
-        ? LABEL[latest.status]
+        ? latest.lastError === 'PDF_PREPARATION_FAILED'
+          ? 'No se pudo preparar el PDF completo. Se reintentará automáticamente.'
+          : LABEL[latest.status]
         : 'Sin envíos registrados';
 
   return (

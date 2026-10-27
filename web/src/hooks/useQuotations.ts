@@ -64,6 +64,7 @@ export const useCreateQuotationMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };
@@ -109,6 +110,7 @@ export const useUpdateQuotationMutation = () => {
       void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };
@@ -128,6 +130,7 @@ export const useConvertToWorkOrderMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       void queryClient.invalidateQueries({ queryKey: ['clients'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };

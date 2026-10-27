@@ -1077,6 +1077,7 @@ describe('WorkOrdersPage', () => {
         billingClientId: 7,
         vehicleId: 4,
         inspection: expect.objectContaining({ llantaDelanteraIzquierda: 'no_revisado' }),
+        emailPhotoSlots: ['frontal'],
       }));
       expect(api.post).toHaveBeenCalledWith(
         '/work-orders/77/inspection/photos/frontal',

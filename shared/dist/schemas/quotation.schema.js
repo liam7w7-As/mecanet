@@ -30,6 +30,7 @@ const commercialFields = {
     validezDias: z.coerce.number().int().min(1).max(365).optional(),
 };
 export const quotationItemInputSchema = z.object({
+    id: z.number().int().positive().optional(),
     ...discountFields,
     catalogItemId: z.coerce.number().int().positive().nullable().optional(),
     tipoLinea: z.enum(CATALOG_TYPES).default('estandar'),

@@ -12,6 +12,7 @@ import {
 
 import { CatalogItem } from './CatalogItem.js';
 import { Quotation } from './Quotation.js';
+import { WorkOrderItem } from './WorkOrderItem.js';
 
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 
@@ -39,6 +40,10 @@ export class QuotationItem extends Model<
     onUpdate: 'CASCADE',
   })
   declare quotationId: number;
+
+  @ForeignKey(() => WorkOrderItem)
+  @Column({ type: DataType.INTEGER, allowNull: true, onDelete: 'SET NULL', onUpdate: 'CASCADE' })
+  declare workOrderItemId: CreationOptional<number | null>;
 
   @ForeignKey(() => CatalogItem)
   @Column({
@@ -117,6 +122,9 @@ export class QuotationItem extends Model<
 
   @BelongsTo(() => Quotation)
   declare quotation?: Quotation;
+
+  @BelongsTo(() => WorkOrderItem)
+  declare workOrderItem?: WorkOrderItem;
 
   @BelongsTo(() => CatalogItem)
   declare catalogItem?: CatalogItem;

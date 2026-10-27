@@ -23,6 +23,7 @@ import {
   roundHours,
   toDateOnly,
 } from './work-order-labor-events.js';
+import { closeSession, getSessionMinutes, getSessionMinutesInRange, recalculateItemHours } from './work-order-labor-sessions.js';
 import {
   assertWorkOrderAccess,
   consumeCompletedPartStock,
@@ -102,7 +103,10 @@ const findWorkOrderForLabor = async (
   workOrderId: number,
   transaction?: Transaction,
 ): Promise<WorkOrder> => {
-  const workOrder = await WorkOrder.findByPk(workOrderId, { transaction });
+  const workOrder = await WorkOrder.findByPk(workOrderId, {
+    transaction,
+    ...(transaction ? { lock: Transaction.LOCK.UPDATE } : {}),
+  });
   if (!workOrder) {
     throw ApiError.notFound('Orden de trabajo no encontrada');
   }
@@ -140,57 +144,6 @@ const findItem = async (
     throw ApiError.notFound('Trabajo no encontrado en esta orden');
   }
   return item;
-};
-
-const getSessionMinutes = (session: WorkOrderItemSession, now = new Date()): number => {
-  if (session.durationMinutes !== null && session.durationMinutes !== undefined) {
-    return Number(session.durationMinutes);
-  }
-  const startedAt = new Date(session.startedAt).getTime();
-  const endedAt = session.endedAt ? new Date(session.endedAt).getTime() : now.getTime();
-  return Math.max(0, Math.floor((endedAt - startedAt) / 60000));
-};
-
-const recalculateItemHours = async (
-  item: WorkOrderItem,
-  transaction: Transaction,
-): Promise<number | null> => {
-  const sessions = await WorkOrderItemSession.findAll({
-    where: { workOrderItemId: item.id },
-    transaction,
-  });
-  if (sessions.length === 0) {
-    await item.update({ horasHombreReales: null }, { transaction });
-    return null;
-  }
-  const totalMinutes = sessions.reduce(
-    (sum, session) => sum + getSessionMinutes(session),
-    0,
-  );
-  const hours = minutesToHours(totalMinutes);
-  await item.update({ horasHombreReales: hours }, { transaction });
-  return hours;
-};
-
-const closeSession = async (
-  session: WorkOrderItemSession,
-  reason: 'pausa' | 'completado' | 'omitido' | 'cierre_manual' | 'sistema',
-  transaction: Transaction,
-  note?: string | null,
-): Promise<number> => {
-  const endedAt = new Date();
-  const minutes = Math.max(0, Math.floor((endedAt.getTime() - new Date(session.startedAt).getTime()) / 60000));
-  await session.update(
-    {
-      status: 'cerrada',
-      endedAt,
-      durationMinutes: session.kind === 'ajuste' ? session.durationMinutes : minutes,
-      closeReason: reason,
-      ...(note !== undefined ? { note } : {}),
-    },
-    { transaction },
-  );
-  return minutes;
 };
 
 export interface WorksheetItem {
@@ -653,7 +606,7 @@ export const startItemTimer = async (
         transaction,
       );
     }
-
+    await syncMirrorQuotationFromWorkOrder(workOrderId, transaction, true);
     return paused;
   });
 
@@ -749,6 +702,7 @@ export const completeItemTimer = async (
       },
       transaction,
     );
+    await syncMirrorQuotationFromWorkOrder(workOrderId, transaction, true);
   });
 
   return getWorkOrderWorksheet(workOrderId, userId);
@@ -1288,7 +1242,8 @@ export const getWorkshopDailyReport = async (
     throw ApiError.badRequest('La fecha debe tener formato YYYY-MM-DD');
   }
   const dayStart = new Date(`${day}T00:00:00.000Z`);
-  const dayEnd = new Date(`${day}T23:59:59.999Z`);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const now = new Date();
 
   const users = await User.findAll({
     where: { activo: true },
@@ -1304,11 +1259,9 @@ export const getWorkshopDailyReport = async (
     WorkOrderItemSession.findAll({
       where: {
         userId: { [Op.in]: trackedIds.length > 0 ? trackedIds : [-1] },
-        [Op.or]: [
-          { startedAt: { [Op.between]: [dayStart, dayEnd] } },
-          { endedAt: { [Op.between]: [dayStart, dayEnd] } },
-          { status: 'abierta', startedAt: { [Op.lte]: dayEnd } },
-        ],
+        startedAt: { [Op.lt]: dayEnd },
+        [Op.or]: [{ endedAt: { [Op.gt]: dayStart } }, ...(now > dayStart ? [{ status: 'abierta' as const }] : []),
+          { kind: 'ajuste', startedAt: { [Op.gte]: dayStart } }],
       },
       include: [
         { model: WorkOrder, as: 'workOrder', attributes: ['id', 'codigo'] },
@@ -1336,7 +1289,6 @@ export const getWorkshopDailyReport = async (
     }),
   ]);
 
-  const now = new Date();
   const orderIdsWithActivity = new Set<number>();
   const usersById = new Map(trackedUsers.map((user) => [user.id, user]));
   const reportUsers = new Map<number, DailyReportUser>();
@@ -1359,10 +1311,10 @@ export const getWorkshopDailyReport = async (
     if (session.userId === null) continue;
     const entry = reportUsers.get(session.userId);
     if (!entry) continue;
-    const minutes = getSessionMinutes(session, now);
+    const minutes = getSessionMinutesInRange(session, dayStart, dayEnd, now);
     entry.minutos += minutes;
     entry.sesiones += 1;
-    if (session.status === 'abierta') entry.enCurso = true;
+    if (session.status === 'abierta' && now >= dayStart && now < dayEnd) entry.enCurso = true;
     if (session.workOrderId) orderIdsWithActivity.add(session.workOrderId);
     entry.detalle.push({
       workOrderId: session.workOrderId,
@@ -1406,7 +1358,7 @@ export const getWorkshopDailyReport = async (
         patente: order.vehicle?.patente ?? null,
         estado: order.estado,
         horas: minutesToHours(
-          orderSessions.reduce((sum, session) => sum + getSessionMinutes(session, now), 0),
+          orderSessions.reduce((sum, session) => sum + getSessionMinutesInRange(session, dayStart, dayEnd, now), 0),
         ),
         completados: orderEvents.filter(
           (event) => event.toStatus === 'completado' && event.fromStatus !== 'completado',

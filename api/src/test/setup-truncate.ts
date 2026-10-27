@@ -7,6 +7,7 @@ import { up as ensureStartedWorkOrders } from '../database/migrations/039-start-
 import { up as ensureFleetVehicles } from '../database/migrations/040-create-fleet-vehicles.js';
 import { up as ensurePurchases } from '../database/migrations/041-create-purchases.js';
 import { up as ensureWorkOrderLabor } from '../database/migrations/042-create-work-order-labor.js';
+import { up as ensureQuotationWorkItemLinks } from '../database/migrations/043-link-quotation-work-items.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -60,6 +61,7 @@ beforeAll(async () => {
   await ensureFleetVehicles(sequelize.getQueryInterface());
   await ensurePurchases(sequelize.getQueryInterface());
   await ensureWorkOrderLabor(sequelize.getQueryInterface());
+  await ensureQuotationWorkItemLinks(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
   await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');

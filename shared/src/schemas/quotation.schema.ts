@@ -35,6 +35,7 @@ const commercialFields = {
 };
 
 export const quotationItemInputSchema = z.object({
+  id: z.number().int().positive().optional(),
   ...discountFields,
   catalogItemId: z.coerce.number().int().positive().nullable().optional(),
   tipoLinea: z.enum(CATALOG_TYPES).default('estandar'),

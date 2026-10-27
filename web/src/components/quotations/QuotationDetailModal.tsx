@@ -182,6 +182,7 @@ export const QuotationDetailModal = ({
     const updatedItems: QuotationItemInput[] = rawItems.map((item, idx) =>
       idx === itemIndex
         ? {
+            id: item.id,
             catalogItemId: item.catalogItemId,
             descripcion: item.descripcion,
             tipoLinea: item.tipoLinea,
@@ -192,6 +193,7 @@ export const QuotationDetailModal = ({
             notasOperativas: item.notasOperativas,
           }
         : {
+            id: item.id,
             catalogItemId: item.catalogItemId,
             descripcion: item.descripcion,
             tipoLinea: item.tipoLinea,
@@ -230,6 +232,7 @@ export const QuotationDetailModal = ({
     const updatedItems: QuotationItemInput[] = rawItems.map((item, idx) =>
       idx === itemIndex
         ? {
+            id: item.id,
             catalogItemId: item.catalogItemId,
             descripcion: item.descripcion,
             tipoLinea: item.tipoLinea,
@@ -240,6 +243,7 @@ export const QuotationDetailModal = ({
             notasOperativas: item.notasOperativas,
           }
         : {
+            id: item.id,
             catalogItemId: item.catalogItemId,
             descripcion: item.descripcion,
             tipoLinea: item.tipoLinea,
@@ -278,6 +282,7 @@ export const QuotationDetailModal = ({
       updatedItems = rawItems.map((item, idx) =>
         idx === itemIndex
           ? {
+              id: item.id,
               catalogItemId: item.catalogItemId,
               descripcion: item.descripcion,
               tipoLinea: item.tipoLinea,
@@ -290,6 +295,7 @@ export const QuotationDetailModal = ({
               notasOperativas: newNote,
             }
           : {
+              id: item.id,
               catalogItemId: item.catalogItemId,
               descripcion: item.descripcion,
               tipoLinea: item.tipoLinea,
@@ -305,6 +311,7 @@ export const QuotationDetailModal = ({
       updatedItems = rawItems.map((item, idx) =>
         idx === itemIndex
           ? {
+              id: item.id,
               catalogItemId: item.catalogItemId,
               descripcion: item.descripcion,
               tipoLinea: item.tipoLinea,
@@ -315,6 +322,7 @@ export const QuotationDetailModal = ({
               notasOperativas: newNote,
             }
           : {
+              id: item.id,
               catalogItemId: item.catalogItemId,
               descripcion: item.descripcion,
               tipoLinea: item.tipoLinea,
@@ -380,6 +388,7 @@ export const QuotationDetailModal = ({
 
     const updatedItems: QuotationItemInput[] = [
       ...rawItems.map((item) => ({
+        id: item.id,
         catalogItemId: item.catalogItemId,
         descripcion: item.descripcion,
         tipoLinea: item.tipoLinea,

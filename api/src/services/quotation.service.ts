@@ -5,6 +5,8 @@ import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { assertSalesWorkOrderAccess, getSalesUserId, scopeSalesAssociations } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getInspectionPhoto } from './work-order-inspection-photo.service.js';
+import { assertWorkItemsRemovable, ensureQuotationItemLinks, itemIdentity } from './work-order-item-links.js';
+import { closeWorkOrderTimers } from './work-order-labor-sessions.js';
 import { createWorkOrderInTransaction, getWorkOrderById, type WorkOrderPublic } from './work-order.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -297,9 +299,10 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
 
 const buildItemsPayload = (
   quotationId: number,
-  items: QuotationItemInput[],
+  items: Array<QuotationItemInput & { workOrderItemId?: number | null }>,
 ): Array<{
   quotationId: number;
+  workOrderItemId: number | null;
   catalogItemId: number | null;
   descripcion: string;
   tipoLinea: CatalogType;
@@ -319,6 +322,7 @@ const buildItemsPayload = (
 
     return {
       quotationId,
+      workOrderItemId: item.workOrderItemId ?? null,
       catalogItemId: item.catalogItemId ?? null,
       descripcion: item.descripcion,
       tipoLinea: item.tipoLinea,
@@ -453,7 +457,6 @@ const consumeCompletedWorkOrderPartStock = async (
 
 const syncLinkedWorkOrderFromQuotation = async (
   quotation: Quotation,
-  items: QuotationItemInput[],
   userId: number,
   transaction: Transaction,
 ): Promise<void> => {
@@ -474,21 +477,36 @@ const syncLinkedWorkOrderFromQuotation = async (
     throw ApiError.badRequest('No se puede sincronizar una orden entregada o cancelada');
   }
 
-  const existingItems = await WorkOrderItem.findAll({
-    where: { workOrderId: workOrder.id },
-    transaction,
-    lock: Transaction.LOCK.UPDATE,
-  });
+  const { quotationItems, workOrderItems: existingItems } = await ensureQuotationItemLinks(
+    quotation.id, workOrder.id, transaction,
+  );
+  const linkedIds = new Set(quotationItems.map((item) => item.workOrderItemId));
+  const removed = existingItems.filter((item) => !linkedIds.has(item.id));
+  await assertWorkItemsRemovable(removed, transaction);
   await restoreConsumedWorkOrderStock(existingItems, transaction, userId, workOrder.codigo);
-  await WorkOrderItem.destroy({ where: { workOrderId: workOrder.id }, transaction });
-
-  if (items.length > 0) {
-    const createdItems = await WorkOrderItem.bulkCreate(
-      buildWorkOrderItemsPayload(workOrder.id, items),
-      { transaction },
-    );
-    await consumeCompletedWorkOrderPartStock(createdItems, transaction, userId, workOrder.codigo);
+  if (removed.length > 0) {
+    await WorkOrderItem.destroy({ where: { id: removed.map((item) => item.id) }, transaction });
   }
+  const persisted: WorkOrderItem[] = [];
+  for (const line of quotationItems) {
+    const payload = buildWorkOrderItemsPayload(workOrder.id, [line])[0];
+    const existing = existingItems.find((item) => item.id === line.workOrderItemId);
+    if (existing) {
+      if (existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea) {
+        await assertWorkItemsRemovable([existing], transaction);
+      }
+      await existing.update({ ...payload, stockConsumidoWarehouseId: null }, { transaction });
+      if (existing.estadoOperativo === 'completado' || existing.estadoOperativo === 'omitido') {
+        await closeWorkOrderTimers(workOrder.id, transaction, existing.id);
+      }
+      persisted.push(existing);
+    } else {
+      const created = await WorkOrderItem.create(payload, { transaction });
+      await line.update({ workOrderItemId: created.id }, { transaction });
+      persisted.push(created);
+    }
+  }
+  await consumeCompletedWorkOrderPartStock(persisted, transaction, userId, workOrder.codigo);
 };
 
 const assertClientExists = async (clientId: number, transaction: Transaction): Promise<void> => {
@@ -566,8 +584,9 @@ const getCompleteQuotation = async (
   return quotation;
 };
 
-const copyWorkOrderItems = (items: WorkOrderItem[]): QuotationItemInput[] => {
+const copyWorkOrderItems = (items: WorkOrderItem[]): Array<QuotationItemInput & { workOrderItemId: number }> => {
   return items.map((item) => ({
+    workOrderItemId: item.id,
     catalogItemId: item.catalogItemId,
     descripcion: item.descripcion,
     tipoLinea: item.tipoLinea,
@@ -777,6 +796,9 @@ export const createQuotation = async (
     if (items.length > 0) {
       await QuotationItem.bulkCreate(buildItemsPayload(quotation.id, items), { transaction });
     }
+    if (quotation.workOrderId !== null) {
+      await ensureQuotationItemLinks(quotation.id, quotation.workOrderId, transaction);
+    }
 
     return { quotationId: quotation.id, codigo, total, workOrderId: data.workOrderId ?? null };
   });
@@ -837,9 +859,33 @@ export const updateQuotation = async (
 
       if (data.items) {
         const nextItems = preserveLineDiscounts(data.items, previous);
-        await QuotationItem.destroy({ where: { quotationId: id }, transaction });
-        if (nextItems.length > 0) await QuotationItem.bulkCreate(buildItemsPayload(id, nextItems), { transaction });
-        await syncLinkedWorkOrderFromQuotation(quotation, nextItems, userId, transaction);
+        if (quotation.workOrderId !== null) {
+          await ensureQuotationItemLinks(quotation.id, quotation.workOrderId, transaction);
+          for (const old of previous) await old.reload({ transaction });
+        }
+        const remaining = [...previous];
+        const usedIds = new Set<number>();
+        const payloads = buildItemsPayload(id, nextItems);
+        for (const [index, line] of nextItems.entries()) {
+          if (line.id !== undefined && (usedIds.has(line.id) || !previous.some((old) => old.id === line.id))) {
+            throw ApiError.badRequest('Uno o más ítems de la cotización no existen o están duplicados');
+          }
+          const candidates = remaining.filter((old) => line.id !== undefined
+            ? old.id === line.id : itemIdentity(old) === itemIdentity(line));
+          const old = candidates.length === 1 ? candidates[0] : undefined;
+          if (old) {
+            usedIds.add(old.id);
+            remaining.splice(remaining.indexOf(old), 1);
+            const { workOrderItemId: _link, ...payload } = payloads[index];
+            await old.update(payload, { transaction });
+          } else {
+            await QuotationItem.create(payloads[index], { transaction });
+          }
+        }
+        if (remaining.length > 0) {
+          await QuotationItem.destroy({ where: { id: remaining.map((line) => line.id) }, transaction });
+        }
+        await syncLinkedWorkOrderFromQuotation(quotation, userId, transaction);
       }
 
       updatePayload.subtotal = pricing.subtotal;
@@ -933,6 +979,12 @@ export const convertQuotationToWorkOrder = async (
     );
 
     await quotation.update({ workOrderId: workOrder.id, vehicleId: workOrder.vehicleId, clientId: quotation.clientId ?? clientId }, { transaction });
+    const createdItems = await WorkOrderItem.findAll({
+      where: { workOrderId: workOrder.id }, order: [['id', 'ASC']], transaction,
+    });
+    for (const [index, line] of (quotation.items ?? []).entries()) {
+      await line.update({ workOrderItemId: createdItems[index].id }, { transaction });
+    }
 
     return {
       quotationId: quotation.id,

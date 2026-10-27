@@ -9,7 +9,9 @@ import { notifyByType, notifyUsers } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { getSalesUserId, scopeSalesAssociations } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
+import { assertWorkItemsRemovable, ensureQuotationItemLinks } from './work-order-item-links.js';
 import { recordItemProgressEvent } from './work-order-labor-events.js';
+import { closeWorkOrderTimers } from './work-order-labor-sessions.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -25,8 +27,6 @@ import { WorkOrderEvent } from '../models/WorkOrderEvent.js';
 import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
-import { WorkOrderItemProgressEvent } from '../models/WorkOrderItemProgressEvent.js';
-import { WorkOrderItemSession } from '../models/WorkOrderItemSession.js';
 import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -296,6 +296,7 @@ export interface ListWorkOrdersResult {
 }
 
 type WorkOrderWhere = WhereOptions<InferAttributes<WorkOrder>> & {
+  [Op.and]?: WhereOptions<InferAttributes<WorkOrder>>[];
   [Op.or]?: WhereOptions<InferAttributes<WorkOrder>>[];
 };
 
@@ -1097,9 +1098,13 @@ const createMirrorQuotation = async (
   );
 
   if (items.length > 0) {
+    const persistedItems = await WorkOrderItem.findAll({
+      where: { workOrderId: workOrder.id }, order: [['id', 'ASC']], transaction,
+    });
     await QuotationItem.bulkCreate(
-      buildItemsPayload(quotation.id, items).map((item) => ({
+      buildItemsPayload(quotation.id, items).map((item, index) => ({
         quotationId: quotation.id,
+        workOrderItemId: persistedItems[index].id,
         catalogItemId: item.catalogItemId,
         descripcion: item.descripcion,
         tipoLinea: item.tipoLinea,
@@ -1118,9 +1123,22 @@ const createMirrorQuotation = async (
 export const syncMirrorQuotationFromWorkOrder = async (
   workOrderId: number,
   transaction: Transaction,
+  operationalOnly = false,
 ): Promise<void> => {
   const quotation = await Quotation.findOne({ where: { workOrderId }, transaction, lock: transaction.LOCK.UPDATE });
   if (!quotation) {
+    return;
+  }
+  const { quotationItems: previous, workOrderItems } = await ensureQuotationItemLinks(
+    quotation.id, workOrderId, transaction,
+  );
+  if (operationalOnly) {
+    for (const item of workOrderItems) {
+      const line = previous.find((old) => old.workOrderItemId === item.id);
+      if (line) {
+        await line.update({ estadoOperativo: item.estadoOperativo, notasOperativas: item.notasOperativas }, { transaction });
+      }
+    }
     return;
   }
   if (quotation.estadoPago === 'total') {
@@ -1129,14 +1147,9 @@ export const syncMirrorQuotationFromWorkOrder = async (
     );
   }
 
-  const workOrderItems = await WorkOrderItem.findAll({
-    where: { workOrderId },
-    order: [['id', 'ASC']],
-    transaction,
-  });
-  const previous = await QuotationItem.findAll({ where: { quotationId: quotation.id }, order: [['id', 'ASC']], transaction });
   const nextItems = preserveLineDiscounts(workOrderItems.map((item) => ({
     quotationId: quotation.id,
+    workOrderItemId: item.id,
     catalogItemId: item.catalogItemId,
     descripcion: item.descripcion,
     tipoLinea: item.tipoLinea,
@@ -1155,12 +1168,20 @@ export const syncMirrorQuotationFromWorkOrder = async (
     );
   }
 
-  await QuotationItem.destroy({ where: { quotationId: quotation.id }, transaction });
-  if (workOrderItems.length > 0) {
-    await QuotationItem.bulkCreate(
-      nextItems.map((item, index) => ({ ...item, subtotal: pricing.lines[index].subtotal })),
-      { transaction },
-    );
+  const kept = new Set<number>();
+  for (const [index, item] of nextItems.entries()) {
+    const payload = { ...item, subtotal: pricing.lines[index].subtotal };
+    const existing = previous.find((old) => old.workOrderItemId === item.workOrderItemId);
+    if (existing) {
+      await existing.update(payload, { transaction });
+      kept.add(existing.id);
+    } else {
+      await QuotationItem.create(payload, { transaction });
+    }
+  }
+  const removed = previous.filter((item) => !kept.has(item.id));
+  if (removed.length > 0) {
+    await QuotationItem.destroy({ where: { id: removed.map((item) => item.id) }, transaction });
   }
 
   await quotation.update(
@@ -1536,12 +1557,14 @@ export const listWorkOrders = async (
       where: { assignedUserId: userId },
       group: ['workOrderId'],
     });
-    where[Op.or] = [
-      { assignedMechanicId: userId },
-      ...(assignedItemOrders.length > 0
-        ? [{ id: { [Op.in]: assignedItemOrders.map((item) => item.workOrderId) } }]
-        : []),
-    ];
+    where[Op.and] = [{
+      [Op.or]: [
+        { assignedMechanicId: userId },
+        ...(assignedItemOrders.length > 0
+          ? [{ id: { [Op.in]: assignedItemOrders.map((item) => item.workOrderId) } }]
+          : []),
+      ],
+    }];
   }
 
   if (query.search) {
@@ -1801,6 +1824,8 @@ export const updateWorkOrder = async (
 
     if (data.items !== undefined) {
       await assertCatalogItemsExist(data.items, transaction);
+      const mirror = await Quotation.findOne({ where: { workOrderId: id }, transaction });
+      if (mirror) await ensureQuotationItemLinks(mirror.id, id, transaction);
       const existingItems = await WorkOrderItem.findAll({
         where: { workOrderId: id },
         transaction,
@@ -1819,17 +1844,7 @@ export const updateWorkOrder = async (
       );
 
       const removedItems = existingItems.filter((item) => !incomingIds.has(item.id));
-      for (const removed of removedItems) {
-        const [sessions, events] = await Promise.all([
-          WorkOrderItemSession.count({ where: { workOrderItemId: removed.id }, transaction }),
-          WorkOrderItemProgressEvent.count({ where: { workOrderItemId: removed.id }, transaction }),
-        ]);
-        if (sessions > 0 || events > 0 || removed.horasHombreReales !== null) {
-          throw ApiError.badRequest(
-            `No se puede quitar "${removed.descripcion}": ya tiene horas o historial de trabajo registrado`,
-          );
-        }
-      }
+      await assertWorkItemsRemovable(removedItems, transaction);
 
       if (removedItems.length > 0) {
         await WorkOrderItem.destroy({
@@ -1898,6 +1913,11 @@ export const updateWorkOrder = async (
         userId,
         referencia: workOrder.codigo,
       });
+      for (const item of persistedItems) {
+        if (item.estadoOperativo === 'completado' || item.estadoOperativo === 'omitido') {
+          await closeWorkOrderTimers(id, transaction, item.id);
+        }
+      }
     }
 
     if (data.inspection !== undefined) {
@@ -2011,6 +2031,9 @@ export const changeStatus = async (
     }
 
     if (workOrder.estado === nuevoEstado) {
+      if (nuevoEstado === 'cancelada' || nuevoEstado === 'finalizada' || nuevoEstado === 'entregada') {
+        await closeWorkOrderTimers(id, transaction);
+      }
       return workOrder.id;
     }
 
@@ -2058,6 +2081,9 @@ export const changeStatus = async (
         : cancellationNote;
     }
 
+    if (nuevoEstado === 'cancelada' || nuevoEstado === 'finalizada') {
+      await closeWorkOrderTimers(id, transaction);
+    }
     await workOrder.update(updatePayload, { transaction });
 
     await recordWorkOrderEvent(
@@ -2112,6 +2138,7 @@ export const deliverWorkOrder = async (
     });
 
     if (workOrder.estado === 'entregada' && existingDelivery) {
+      await closeWorkOrderTimers(id, transaction);
       return workOrder.id;
     }
 
@@ -2143,6 +2170,7 @@ export const deliverWorkOrder = async (
     }
 
     const deliveredAt = new Date();
+    await closeWorkOrderTimers(id, transaction);
     await WorkOrderDelivery.create(
       {
         workOrderId: id,
@@ -2555,6 +2583,10 @@ export const updateWorkOrderExecution = async (
       }
 
       const previousStatus = item.estadoOperativo;
+      if (itemUpdate.estadoOperativo === 'completado' || itemUpdate.estadoOperativo === 'omitido') {
+        await closeWorkOrderTimers(id, transaction, item.id);
+        await item.reload({ transaction });
+      }
       await item.update(
         {
           estadoOperativo: itemUpdate.estadoOperativo,
@@ -2594,7 +2626,7 @@ export const updateWorkOrderExecution = async (
     }
 
     if (itemUpdates.length > 0) {
-      await syncMirrorQuotationFromWorkOrder(id, transaction);
+      await syncMirrorQuotationFromWorkOrder(id, transaction, true);
     }
 
     if (data.reporte) {

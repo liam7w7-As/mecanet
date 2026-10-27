@@ -11,6 +11,8 @@ export const priceQuotation = (items: readonly QuotationPriceLine[], discount: D
 };
 
 interface MatchingLine extends DiscountInput {
+  id?: number;
+  workOrderItemId?: number | null;
   catalogItemId?: number | null;
   descripcion: string;
   tipoLinea: string;
@@ -20,8 +22,14 @@ interface MatchingLine extends DiscountInput {
 export function preserveLineDiscounts<T extends MatchingLine>(items: T[], previous: MatchingLine[]): Array<T & { descuentoTipo: DiscountType | null; descuentoValor: number }> {
   const remaining = [...previous];
   return items.map((item) => {
-    const match = remaining.findIndex((old) => old.tipoLinea === item.tipoLinea &&
-      (item.catalogItemId != null ? old.catalogItemId === item.catalogItemId : old.catalogItemId == null && old.descripcion === item.descripcion));
+    let match = remaining.findIndex((old) => (item.workOrderItemId != null
+      ? old.workOrderItemId === item.workOrderItemId
+      : item.id !== undefined ? old.id === item.id : old.tipoLinea === item.tipoLinea &&
+      (item.catalogItemId != null ? old.catalogItemId === item.catalogItemId : old.catalogItemId == null && old.descripcion === item.descripcion)));
+    if (match < 0) {
+      match = remaining.findIndex((old) => old.tipoLinea === item.tipoLinea &&
+        (item.catalogItemId != null ? old.catalogItemId === item.catalogItemId : old.catalogItemId == null && old.descripcion === item.descripcion));
+    }
     const old = match < 0 ? undefined : remaining.splice(match, 1)[0];
     return {
       ...item,

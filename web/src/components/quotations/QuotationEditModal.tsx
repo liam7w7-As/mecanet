@@ -20,6 +20,7 @@ import type { EditableWorkOrderItem } from '../work-orders/WorkOrderItemsEditor'
 const toEditableItems = (quotation: Quotation): EditableWorkOrderItem[] =>
   quotation.items?.map((item) => ({
     ...createEmptyWorkOrderItem(),
+    id: item.id,
     catalogItemId: item.catalogItemId,
     descripcion: item.descripcion,
     tipoLinea: item.tipoLinea,
@@ -57,6 +58,7 @@ export const QuotationEditModal = ({ quotation, onClose, onSaved }: QuotationEdi
       ...commercial,
       notas,
       items: items.map((item) => ({
+        id: item.id ?? undefined,
         catalogItemId: item.catalogItemId,
         descripcion: item.descripcion,
         tipoLinea: item.tipoLinea,

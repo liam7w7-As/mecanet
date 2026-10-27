@@ -10,6 +10,7 @@ export declare const quotationItemInputSchema: z.ZodEffects<z.ZodObject<{
     notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
     descuentoValor: z.ZodOptional<z.ZodNumber>;
+    id: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     cantidad: number;
     precioUnitario: number;
@@ -17,6 +18,7 @@ export declare const quotationItemInputSchema: z.ZodEffects<z.ZodObject<{
     descripcion: string;
     unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
     tipoLinea: "parte" | "estandar" | "especifico";
+    id?: number | undefined;
     catalogItemId?: number | null | undefined;
     notasOperativas?: string | null | undefined;
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -25,6 +27,7 @@ export declare const quotationItemInputSchema: z.ZodEffects<z.ZodObject<{
     descripcion: string;
     cantidad?: number | undefined;
     precioUnitario?: number | undefined;
+    id?: number | undefined;
     estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
     unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     catalogItemId?: number | null | undefined;
@@ -39,6 +42,7 @@ export declare const quotationItemInputSchema: z.ZodEffects<z.ZodObject<{
     descripcion: string;
     unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
     tipoLinea: "parte" | "estandar" | "especifico";
+    id?: number | undefined;
     catalogItemId?: number | null | undefined;
     notasOperativas?: string | null | undefined;
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -47,6 +51,7 @@ export declare const quotationItemInputSchema: z.ZodEffects<z.ZodObject<{
     descripcion: string;
     cantidad?: number | undefined;
     precioUnitario?: number | undefined;
+    id?: number | undefined;
     estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
     unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     catalogItemId?: number | null | undefined;
@@ -71,6 +76,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
         descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
         descuentoValor: z.ZodOptional<z.ZodNumber>;
+        id: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         cantidad: number;
         precioUnitario: number;
@@ -78,6 +84,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        id?: number | undefined;
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -86,6 +93,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        id?: number | undefined;
         estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
@@ -100,6 +108,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        id?: number | undefined;
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -108,6 +117,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        id?: number | undefined;
         estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
@@ -129,6 +139,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        id?: number | undefined;
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -149,6 +160,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        id?: number | undefined;
         estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
@@ -173,6 +185,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        id?: number | undefined;
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -193,6 +206,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        id?: number | undefined;
         estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
@@ -217,6 +231,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        id?: number | undefined;
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -237,6 +252,7 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        id?: number | undefined;
         estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
@@ -267,6 +283,7 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
         descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
         descuentoValor: z.ZodOptional<z.ZodNumber>;
+        id: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         cantidad: number;
         precioUnitario: number;
@@ -274,6 +291,7 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        id?: number | undefined;
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -282,6 +300,7 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        id?: number | undefined;
         estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
@@ -296,6 +315,7 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        id?: number | undefined;
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -304,6 +324,7 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        id?: number | undefined;
         estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
@@ -328,6 +349,7 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        id?: number | undefined;
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -345,6 +367,7 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        id?: number | undefined;
         estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;
@@ -368,6 +391,7 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        id?: number | undefined;
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
@@ -385,6 +409,7 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        id?: number | undefined;
         estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
         unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
         catalogItemId?: number | null | undefined;

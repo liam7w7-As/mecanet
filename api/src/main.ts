@@ -13,6 +13,7 @@ import { ensureDatabaseBootstrapped } from './database/bootstrap.js';
 import { up as ensureStartedWorkOrders } from './database/migrations/039-start-work-orders-without-draft.js';
 import { up as ensureFleetVehicles } from './database/migrations/040-create-fleet-vehicles.js';
 import { up as ensureWorkOrderLabor } from './database/migrations/042-create-work-order-labor.js';
+import { up as ensureQuotationWorkItemLinks } from './database/migrations/043-link-quotation-work-items.js';
 import { csrfProtection } from './middlewares/csrf-protection.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
@@ -173,6 +174,7 @@ if (env.NODE_ENV !== 'test') {
       await ensureStartedWorkOrders(sequelize.getQueryInterface());
       await ensureFleetVehicles(sequelize.getQueryInterface());
       await ensureWorkOrderLabor(sequelize.getQueryInterface());
+      await ensureQuotationWorkItemLinks(sequelize.getQueryInterface());
       try {
         await sequelize.sync({ alter: true });
         logger.info('Modelos sincronizados con la base de datos (alter: true).');

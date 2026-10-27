@@ -8,6 +8,7 @@ import { up as ensureFleetVehicles } from '../database/migrations/040-create-fle
 import { up as ensurePurchases } from '../database/migrations/041-create-purchases.js';
 import { up as ensureWorkOrderLabor } from '../database/migrations/042-create-work-order-labor.js';
 import { up as ensureQuotationWorkItemLinks } from '../database/migrations/043-link-quotation-work-items.js';
+import { up as ensureCustomerEmails } from '../database/migrations/044-create-customer-emails.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -25,6 +26,7 @@ import { up as ensureQuotationWorkItemLinks } from '../database/migrations/043-l
  * suite en rojo sin cambiar una linea de codigo.
  */
 const TRANSIENT = [
+  'customer_emails',
   'work_order_observation_files',
   'work_order_observations',
   'work_order_price_suggestions',
@@ -62,6 +64,7 @@ beforeAll(async () => {
   await ensurePurchases(sequelize.getQueryInterface());
   await ensureWorkOrderLabor(sequelize.getQueryInterface());
   await ensureQuotationWorkItemLinks(sequelize.getQueryInterface());
+  await ensureCustomerEmails(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
   await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');

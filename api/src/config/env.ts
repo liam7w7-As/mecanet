@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
+import { mailEnvSchema } from './mail.js';
 import { storageEnvSchema } from './storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -50,7 +51,7 @@ const envSchema = z
     message: 'JWT_REFRESH_SECRET debe ser distinto de JWT_ACCESS_SECRET',
     path: ['JWT_REFRESH_SECRET'],
   })
-  .and(storageEnvSchema);
+  .and(storageEnvSchema).and(mailEnvSchema);
 
 const parseEnv = () => {
   const result = envSchema.safeParse(process.env);

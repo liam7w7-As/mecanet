@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { AnimateIcon } from '../../components/animate-ui';
+import CustomerEmailPanel from '../../components/common/CustomerEmailPanel';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import PaymentFormModal, { PAYMENT_METHOD_LABELS } from '../../components/quotations/PaymentFormModal';
 import QuotationEditModal from '../../components/quotations/QuotationEditModal';
@@ -102,6 +103,7 @@ export const QuotationDetailPage = () => {
           )}
         </div>
       </header>
+      <CustomerEmailPanel kind="quotation" id={quotation.id} />
 
       {(paymentsQuery.isError || deletePaymentMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(paymentsQuery.error ?? deletePaymentMutation.error)}</div>}
 

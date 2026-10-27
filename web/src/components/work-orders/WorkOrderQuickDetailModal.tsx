@@ -33,6 +33,7 @@ import {
   getWorkOrderProgress,
 } from '../../lib/work-order-progress';
 import { useAuthStore } from '../../stores/auth.store';
+import CustomerEmailPanel from '../common/CustomerEmailPanel';
 
 import type { WorkOrder } from '../../types/entities';
 import type { CatalogType, ItemOperationalStatus } from '@unithor/shared';
@@ -220,6 +221,7 @@ export const WorkOrderQuickDetailModal = ({
             </div>
           )}
         </header>
+        {workOrder && user?.role !== 'mecanico' && <div className="px-5 pt-4 sm:px-6"><CustomerEmailPanel kind="work_order" id={workOrder.id} /></div>}
 
         {workOrder && canOperate && view !== 'summary' && (
           <div className="p-4 sm:p-6"><WorkOrderMechanicPanel workOrder={workOrder} section={view} /></div>

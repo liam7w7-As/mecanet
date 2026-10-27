@@ -15,6 +15,7 @@ import {
 } from '@unithor/shared';
 import { Op, Transaction } from 'sequelize';
 
+import { enqueueWorkOrderProgress } from './customer-email-queue.service.js';
 import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { notifyUsers } from './notification.service.js';
 import {
@@ -703,6 +704,7 @@ export const completeItemTimer = async (
       transaction,
     );
     await syncMirrorQuotationFromWorkOrder(workOrderId, transaction, true);
+    if (previousStatus !== 'completado') await enqueueWorkOrderProgress(workOrderId, userId, transaction, `completed:${item.id}:${randomUUID()}`);
   });
 
   return getWorkOrderWorksheet(workOrderId, userId);

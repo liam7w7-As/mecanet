@@ -14,11 +14,13 @@ import { up as ensureStartedWorkOrders } from './database/migrations/039-start-w
 import { up as ensureFleetVehicles } from './database/migrations/040-create-fleet-vehicles.js';
 import { up as ensureWorkOrderLabor } from './database/migrations/042-create-work-order-labor.js';
 import { up as ensureQuotationWorkItemLinks } from './database/migrations/043-link-quotation-work-items.js';
+import { up as ensureCustomerEmails } from './database/migrations/044-create-customer-emails.js';
 import { csrfProtection } from './middlewares/csrf-protection.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
 import { requestIdMiddleware } from './middlewares/request-id.js';
 import { apiRouter } from './routes/index.js';
+import { startCustomerEmailWorker } from './services/customer-email-worker.service.js';
 import { initializeFileStorage } from './services/file-storage.service.js';
 import { logger } from './utils/logger.js';
 
@@ -175,6 +177,7 @@ if (env.NODE_ENV !== 'test') {
       await ensureFleetVehicles(sequelize.getQueryInterface());
       await ensureWorkOrderLabor(sequelize.getQueryInterface());
       await ensureQuotationWorkItemLinks(sequelize.getQueryInterface());
+  await ensureCustomerEmails(sequelize.getQueryInterface());
       try {
         await sequelize.sync({ alter: true });
         logger.info('Modelos sincronizados con la base de datos (alter: true).');
@@ -183,6 +186,9 @@ if (env.NODE_ENV !== 'test') {
         await sequelize.sync({ alter: false });
       }
       await ensureDatabaseBootstrapped();
+      const stopEmailWorker = startCustomerEmailWorker();
+      process.once('SIGTERM', stopEmailWorker);
+      process.once('SIGINT', stopEmailWorker);
     })
     .catch((err: unknown) => {
       logger.warn(

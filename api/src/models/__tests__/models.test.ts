@@ -101,8 +101,8 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     await Role.destroy({ where: {}, force: true });
   });
 
-  it('verifica que los 37 modelos se registran correctamente en la instancia Sequelize', () => {
-    expect(models.length).toBe(37);
+  it('verifica que los 38 modelos se registran correctamente en la instancia Sequelize', () => {
+    expect(models.length).toBe(38);
 
     const registeredModelNames = Object.keys(testSequelize.models);
     expect(registeredModelNames).toContain('Role');
@@ -136,6 +136,7 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     expect(registeredModelNames).toContain('Payment');
     expect(registeredModelNames).toContain('Notification');
     expect(registeredModelNames).toContain('CompanySettings');
+    expect(registeredModelNames).toContain('CustomerEmail');
     expect(registeredModelNames).toContain('Supplier');
     expect(registeredModelNames).toContain('Purchase');
     expect(registeredModelNames).toContain('PurchaseItem');

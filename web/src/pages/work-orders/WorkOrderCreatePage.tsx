@@ -553,7 +553,8 @@ export const WorkOrderCreatePage = () => {
 
   const buildPayload = (): ReturnType<typeof createWorkOrderSchema.safeParse> => {
     if (!client || !contactClient || !billingClient || !vehicle) {
-      return createWorkOrderSchema.safeParse({});
+      return createWorkOrderSchema.safeParse({
+      emailPhotoSlots: photos.map((photo) => photo.slot),});
     }
 
     return createWorkOrderSchema.safeParse({

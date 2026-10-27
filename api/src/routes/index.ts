@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { authRouter } from './auth.routes.js';
 import { catalogRouter } from './catalog.routes.js';
 import { clientRouter } from './client.routes.js';
+import { customerEmailRouter } from './customer-email.routes.js';
 import { dashboardRouter } from './dashboard.routes.js';
 import { financeRouter } from './finance.routes.js';
 import { fleetVehicleRouter } from './fleet-vehicle.routes.js';
@@ -21,6 +22,7 @@ import { warehouseRouter } from './warehouse.routes.js';
 import { workOrderRouter } from './work-order.routes.js';
 
 export const apiRouter = Router();
+apiRouter.use('/customer-emails', customerEmailRouter);
 
 // Health check endpoint (/api/health)
 apiRouter.use(healthRouter);

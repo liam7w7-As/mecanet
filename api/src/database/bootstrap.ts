@@ -8,6 +8,7 @@ import { up as ensureFleetVehicles } from './migrations/040-create-fleet-vehicle
 import { up as ensurePurchases } from './migrations/041-create-purchases.js';
 import { up as ensureWorkOrderLabor } from './migrations/042-create-work-order-labor.js';
 import { up as ensureQuotationWorkItemLinks } from './migrations/043-link-quotation-work-items.js';
+import { up as ensureCustomerEmails } from './migrations/044-create-customer-emails.js';
 import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -192,6 +193,7 @@ async function ensureSchemaUpToDate(): Promise<void> {
   await ensurePurchases(qi);
   await ensureWorkOrderLabor(qi);
   await ensureQuotationWorkItemLinks(qi);
+  await ensureCustomerEmails(qi);
   try {
     const woCols = await qi.describeTable('work_orders');
     if (!woCols.vehicle_owner_client_id) {

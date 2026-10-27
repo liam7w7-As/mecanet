@@ -15,6 +15,7 @@ import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 import CurrencyInput from '../common/CurrencyInput';
+import CustomerEmailPanel from '../common/CustomerEmailPanel';
 import ModalHeader from '../common/ModalHeader';
 import PdfPreviewModal from '../common/PdfPreviewModal';
 
@@ -561,6 +562,8 @@ export const QuotationDetailModal = ({
                   </div>
                 </div>
               </div>
+
+              <CustomerEmailPanel kind="quotation" id={quotation.id} />
 
               {/* Items Management Section */}
               <div className="rounded-xl border border-brand-line bg-white overflow-hidden shadow-2xs">

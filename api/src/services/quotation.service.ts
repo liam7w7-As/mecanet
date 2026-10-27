@@ -1,5 +1,8 @@
+import { randomUUID } from 'node:crypto';
+
 import { col, literal, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
+import { enqueueCustomerEmail, enqueueWorkOrderProgress } from './customer-email-queue.service.js';
 import { notifyByType } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { assertSalesWorkOrderAccess, getSalesUserId, scopeSalesAssociations } from './sales-access.service.js';
@@ -488,10 +491,12 @@ const syncLinkedWorkOrderFromQuotation = async (
     await WorkOrderItem.destroy({ where: { id: removed.map((item) => item.id) }, transaction });
   }
   const persisted: WorkOrderItem[] = [];
+  let completedChanged = false;
   for (const line of quotationItems) {
     const payload = buildWorkOrderItemsPayload(workOrder.id, [line])[0];
     const existing = existingItems.find((item) => item.id === line.workOrderItemId);
     if (existing) {
+      if (existing.estadoOperativo !== 'completado' && payload.estadoOperativo === 'completado') completedChanged = true;
       if (existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea) {
         await assertWorkItemsRemovable([existing], transaction);
       }
@@ -507,6 +512,7 @@ const syncLinkedWorkOrderFromQuotation = async (
     }
   }
   await consumeCompletedWorkOrderPartStock(persisted, transaction, userId, workOrder.codigo);
+  if (completedChanged) await enqueueWorkOrderProgress(workOrder.id, userId, transaction, `quotation-progress:${quotation.id}:${randomUUID()}`);
 };
 
 const assertClientExists = async (clientId: number, transaction: Transaction): Promise<void> => {
@@ -800,6 +806,7 @@ export const createQuotation = async (
       await ensureQuotationItemLinks(quotation.id, quotation.workOrderId, transaction);
     }
 
+    await enqueueCustomerEmail({ kind: 'quotation', entityId: quotation.id, userId: asesorId, dedupeKey: `created:quotation:${quotation.id}` }, transaction);
     return { quotationId: quotation.id, codigo, total, workOrderId: data.workOrderId ?? null };
   });
 

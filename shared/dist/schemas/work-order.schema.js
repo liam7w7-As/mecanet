@@ -6,7 +6,7 @@ import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js
 import { UNIT_MEASURES } from '../constants/unit-measures.js';
 import { WORK_ORDER_DELIVERY_CHECKLIST } from '../constants/work-order-delivery.js';
 import { WORK_ORDER_ENTRY_TYPES } from '../constants/work-order-entry-type.js';
-import { FUEL_LEVELS, TIRE_CONDITIONS, VEHICLE_INVENTORY_ITEMS, } from '../constants/work-order-inspection.js';
+import { FUEL_LEVELS, WORK_ORDER_INSPECTION_PHOTO_SLOTS, TIRE_CONDITIONS, VEHICLE_INVENTORY_ITEMS, } from '../constants/work-order-inspection.js';
 import { WORK_ORDER_PRICE_SUGGESTION_SCOPES, } from '../constants/work-order-labor.js';
 import { WORK_ORDER_STATUS } from '../constants/work-order-status.js';
 const optionalText = (maxLength) => {
@@ -62,6 +62,7 @@ export const workOrderItemInputSchema = z.object({
     notasOperativas: optionalText(1000),
 });
 export const createWorkOrderSchema = z.object({
+    emailPhotoSlots: z.array(z.enum(WORK_ORDER_INSPECTION_PHOTO_SLOTS)).max(9).refine((slots) => new Set(slots).size === slots.length, 'No se pueden repetir fotos').optional(),
     clientId: nullablePositiveId,
     contactClientId: nullablePositiveId,
     billingClientId: nullablePositiveId,

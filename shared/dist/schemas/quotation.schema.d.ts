@@ -487,6 +487,7 @@ export declare const quotationQuerySchema: z.ZodEffects<z.ZodObject<{
     archiveStatus?: "active" | "archived" | undefined;
 }>;
 export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
+    emailPhotoSlots: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodEnum<["frontal", "trasera", "lateral_izquierdo", "lateral_derecho", "frontal_izquierdo", "frontal_derecho", "trasero_izquierdo", "trasero_derecho", "interior"]>, "many">, ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[], ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[]>>;
     clientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     contactClientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     billingClientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -563,6 +564,7 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
     fechaIngreso?: string | null | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
+    emailPhotoSlots?: ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[] | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     assignedMechanicId?: number | null | undefined;
@@ -583,6 +585,7 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
     fechaIngreso?: string | null | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
+    emailPhotoSlots?: ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[] | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     assignedMechanicId?: number | null | undefined;

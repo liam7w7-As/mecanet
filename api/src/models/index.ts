@@ -3,6 +3,7 @@ import { CashMovement } from './CashMovement.js';
 import { CatalogItem } from './CatalogItem.js';
 import { Client } from './Client.js';
 import { CompanySettings } from './CompanySettings.js';
+import { CustomerEmail } from './CustomerEmail.js';
 import { FleetDocument } from './FleetDocument.js';
 import { FleetDocumentVersion } from './FleetDocumentVersion.js';
 import { FleetVehicle } from './FleetVehicle.js';
@@ -39,6 +40,7 @@ import { WorkOrderRequest } from './WorkOrderRequest.js';
 import type { Sequelize } from 'sequelize-typescript';
 
 export const models = [
+  CustomerEmail,
   Role,
   Permission,
   RolePermission,
@@ -83,6 +85,7 @@ export function initModels(sequelize: Sequelize): void {
 }
 
 export {
+  CustomerEmail,
   Role,
   Permission,
   RolePermission,

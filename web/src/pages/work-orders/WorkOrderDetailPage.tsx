@@ -34,6 +34,7 @@ import { useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 
 import { AnimateIcon } from '../../components/animate-ui';
+import CustomerEmailPanel from '../../components/common/CustomerEmailPanel';
 import { PageLoader, ProgressBar } from '../../components/common/LoadingIndicator';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
@@ -396,6 +397,7 @@ export const WorkOrderDetailPage = () => {
           </button>
         </div>
       </header>
+      <CustomerEmailPanel kind="work_order" id={workOrder.id} />
 
       {(statusMutation.isError || uploadPhotosMutation.isError || deletePhotoMutation.isError || receptionPdfMutation.isError || shareReceptionPdfMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(statusMutation.error ?? uploadPhotosMutation.error ?? deletePhotoMutation.error ?? receptionPdfMutation.error ?? shareReceptionPdfMutation.error)}</div>}
 

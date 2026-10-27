@@ -9,6 +9,7 @@ import { WORK_ORDER_DELIVERY_CHECKLIST } from '../constants/work-order-delivery.
 import { WORK_ORDER_ENTRY_TYPES } from '../constants/work-order-entry-type.js';
 import {
   FUEL_LEVELS,
+  WORK_ORDER_INSPECTION_PHOTO_SLOTS,
   TIRE_CONDITIONS,
   VEHICLE_INVENTORY_ITEMS,
 } from '../constants/work-order-inspection.js';
@@ -81,6 +82,7 @@ export const workOrderItemInputSchema = z.object({
 });
 
 export const createWorkOrderSchema = z.object({
+  emailPhotoSlots: z.array(z.enum(WORK_ORDER_INSPECTION_PHOTO_SLOTS)).max(9).refine((slots) => new Set(slots).size === slots.length, 'No se pueden repetir fotos').optional(),
   clientId: nullablePositiveId,
   contactClientId: nullablePositiveId,
   billingClientId: nullablePositiveId,

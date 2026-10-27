@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import {
   isValidWorkOrderTransition,
   VEHICLE_INVENTORY_ITEMS,
@@ -5,6 +7,7 @@ import {
 } from '@unithor/shared';
 import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
+import { enqueueCustomerEmail, enqueueWorkOrderProgress } from './customer-email-queue.service.js';
 import { notifyByType, notifyUsers } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { getSalesUserId, scopeSalesAssociations } from './sales-access.service.js';
@@ -1761,6 +1764,7 @@ export const createWorkOrderInTransaction = async (
     transaction,
   );
 
+  await enqueueCustomerEmail({ kind: 'work_order', entityId: workOrder.id, userId, dedupeKey: `created:work_order:${workOrder.id}`, payload: { expectedPhotoSlots: data.emailPhotoSlots ?? [], includeQuotation: createQuotation } }, transaction);
   return workOrder;
 };
 
@@ -2095,6 +2099,7 @@ export const changeStatus = async (
       transaction,
     );
 
+    await enqueueWorkOrderProgress(id, userId, transaction, `status:${id}:${randomUUID()}`);
     const actor = await User.findByPk(userId, { attributes: ['nombre'], transaction });
     await notifyByType(
       'ot_estado_cambiado',
@@ -2212,6 +2217,7 @@ export const deliverWorkOrder = async (
       transaction,
     );
 
+    await enqueueWorkOrderProgress(id, userId, transaction, `delivered:${id}`);
     const deliverer = await User.findByPk(userId, { attributes: ['nombre'], transaction });
     await notifyByType(
       'ot_entregada',
@@ -2375,6 +2381,7 @@ export const createWorkOrderReentry = async (
       await vehicle.update({ kilometraje: kilometrajeIngreso }, { transaction });
     }
 
+    await enqueueCustomerEmail({ kind: 'work_order', entityId: workOrder.id, userId, dedupeKey: `created:work_order:${workOrder.id}`, payload: { includeQuotation: true } }, transaction);
     return workOrder.id;
   });
 
@@ -2539,6 +2546,7 @@ export const updateWorkOrderExecution = async (
       throw ApiError.badRequest('No se puede actualizar el mismo trabajo más de una vez');
     }
 
+    let completedChanged = false;
     for (const itemUpdate of itemUpdates) {
       const item = await WorkOrderItem.findOne({
         where: { id: itemUpdate.id, workOrderId: id },
@@ -2583,6 +2591,7 @@ export const updateWorkOrderExecution = async (
       }
 
       const previousStatus = item.estadoOperativo;
+      if (previousStatus !== 'completado' && itemUpdate.estadoOperativo === 'completado') completedChanged = true;
       if (itemUpdate.estadoOperativo === 'completado' || itemUpdate.estadoOperativo === 'omitido') {
         await closeWorkOrderTimers(id, transaction, item.id);
         await item.reload({ transaction });
@@ -2663,6 +2672,7 @@ export const updateWorkOrderExecution = async (
       );
     }
 
+    if (completedChanged || data.reporte) await enqueueWorkOrderProgress(id, userId, transaction, `progress:${id}:${randomUUID()}`, data.reporte?.porcentaje);
     await recordWorkOrderEvent(
       id,
       userId,

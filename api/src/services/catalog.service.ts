@@ -24,6 +24,7 @@ export interface CatalogItemPublic {
   precio: number;
   stock: number;
   stockMinimo: number;
+  horasHombreEstandar: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,6 +59,10 @@ const toCatalogItemPublic = (item: CatalogItem): CatalogItemPublic => ({
   precio: Number(item.precio),
   stock: Number(item.stock),
   stockMinimo: Number(item.stockMinimo ?? 0),
+  horasHombreEstandar:
+    item.horasHombreEstandar === null || item.horasHombreEstandar === undefined
+      ? null
+      : Number(item.horasHombreEstandar),
   createdAt: item.createdAt,
   updatedAt: item.updatedAt,
 });
@@ -155,6 +160,7 @@ export const createCatalogItem = async (
     precio: data.precio,
     stock: data.tipo === 'parte' ? data.stock : 0,
     stockMinimo: data.tipo === 'parte' ? data.stockMinimo : 0,
+    horasHombreEstandar: data.horasHombreEstandar ?? null,
   });
 
   return toCatalogItemPublic(item);
@@ -171,7 +177,7 @@ export const updateCatalogItem = async (
 
   const nextType = data.tipo ?? item.tipo;
   const updatePayload: Partial<
-    Pick<CatalogItem, 'tipo' | 'codigo' | 'nombre' | 'descripcion' | 'unidadMedida' | 'precio' | 'stock' | 'stockMinimo'>
+    Pick<CatalogItem, 'tipo' | 'codigo' | 'nombre' | 'descripcion' | 'unidadMedida' | 'precio' | 'stock' | 'stockMinimo' | 'horasHombreEstandar'>
   > = {};
 
   if (data.tipo !== undefined) {
@@ -200,6 +206,10 @@ export const updateCatalogItem = async (
 
   if (data.precio !== undefined) {
     updatePayload.precio = data.precio;
+  }
+
+  if (data.horasHombreEstandar !== undefined) {
+    updatePayload.horasHombreEstandar = data.horasHombreEstandar;
   }
 
   if (nextType !== 'parte') {

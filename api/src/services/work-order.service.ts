@@ -9,6 +9,7 @@ import { notifyByType, notifyUsers } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { getSalesUserId, scopeSalesAssociations } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
+import { recordItemProgressEvent } from './work-order-labor-events.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -24,6 +25,8 @@ import { WorkOrderEvent } from '../models/WorkOrderEvent.js';
 import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
+import { WorkOrderItemProgressEvent } from '../models/WorkOrderItemProgressEvent.js';
+import { WorkOrderItemSession } from '../models/WorkOrderItemSession.js';
 import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -98,11 +101,19 @@ interface WorkOrderItemPublic {
   subtotal: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
+  horasHombreEstimadas: number | null;
+  horasHombreReales: number | null;
+  assignedUserId: number | null;
+  laborValidatedBy: number | null;
+  laborValidatedAt: Date | null;
+  laborValidationNote: string | null;
   stockConsumido: boolean;
   stockConsumidoCantidad: number;
   stockConsumidoAt: Date | null;
   stockConsumidoWarehouseId: number | null;
   catalogItem?: WorkOrderItemCatalogPublic | null;
+  assignedUser?: { id: number; nombre: string } | null;
+  validator?: { id: number; nombre: string } | null;
 }
 
 interface WorkOrderItemCatalogPublic {
@@ -200,6 +211,7 @@ interface WorkOrderProgressReportPublic {
   porcentaje: number;
   comentario: string;
   bloqueos: string | null;
+  horasCerradas: number | null;
   createdAt: Date;
   mechanic?: { id: number; nombre: string } | null;
 }
@@ -325,6 +337,12 @@ const itemsInclude = {
     'subtotal',
     'estadoOperativo',
     'notasOperativas',
+    'horasHombreEstimadas',
+    'horasHombreReales',
+    'assignedUserId',
+    'laborValidatedBy',
+    'laborValidatedAt',
+    'laborValidationNote',
     'stockConsumido',
     'stockConsumidoCantidad',
     'stockConsumidoAt',
@@ -335,6 +353,16 @@ const itemsInclude = {
       model: CatalogItem,
       as: 'catalogItem',
       attributes: ['id', 'tipo', 'codigo', 'nombre', 'stock'],
+    },
+    {
+      model: User,
+      as: 'assignedUser',
+      attributes: ['id', 'nombre'],
+    },
+    {
+      model: User,
+      as: 'validator',
+      attributes: ['id', 'nombre'],
     },
   ],
 };
@@ -654,6 +682,14 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
       subtotal: toNumber(item.subtotal),
       estadoOperativo: item.estadoOperativo,
       notasOperativas: item.notasOperativas,
+      horasHombreEstimadas:
+        item.horasHombreEstimadas === null ? null : toNumber(item.horasHombreEstimadas),
+      horasHombreReales:
+        item.horasHombreReales === null ? null : toNumber(item.horasHombreReales),
+      assignedUserId: item.assignedUserId,
+      laborValidatedBy: item.laborValidatedBy,
+      laborValidatedAt: item.laborValidatedAt,
+      laborValidationNote: item.laborValidationNote,
       stockConsumido: item.stockConsumido,
       stockConsumidoCantidad: item.stockConsumidoCantidad,
       stockConsumidoAt: item.stockConsumidoAt,
@@ -667,6 +703,16 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
             stock: item.catalogItem.stock,
           }
         : item.catalogItem === null
+          ? null
+          : undefined,
+      assignedUser: item.assignedUser
+        ? { id: item.assignedUser.id, nombre: item.assignedUser.nombre }
+        : item.assignedUserId === null
+          ? null
+          : undefined,
+      validator: item.validator
+        ? { id: item.validator.id, nombre: item.validator.nombre }
+        : item.laborValidatedBy === null
           ? null
           : undefined,
     })),
@@ -787,6 +833,10 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
       porcentaje: report.porcentaje,
       comentario: report.comentario,
       bloqueos: report.bloqueos,
+      horasCerradas:
+        report.horasCerradas === null || report.horasCerradas === undefined
+          ? null
+          : toNumber(report.horasCerradas),
       createdAt: report.createdAt,
       mechanic: report.mechanic
         ? { id: report.mechanic.id, nombre: report.mechanic.nombre }
@@ -890,6 +940,7 @@ const buildItemsPayload = (
   subtotal: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
+  horasHombreEstimadas: number | null;
   stockConsumido: boolean;
   stockConsumidoCantidad: number;
   stockConsumidoAt: null;
@@ -909,6 +960,7 @@ const buildItemsPayload = (
       subtotal: cantidad * precioUnitario,
       estadoOperativo: item.estadoOperativo ?? 'pendiente',
       notasOperativas: item.notasOperativas ?? null,
+      horasHombreEstimadas: item.horasHombreEstimadas ?? null,
       stockConsumido: false,
       stockConsumidoCantidad: 0,
       stockConsumidoAt: null,
@@ -973,7 +1025,7 @@ const restoreConsumedStock = async (
   }
 };
 
-const consumeCompletedPartStock = async (
+export const consumeCompletedPartStock = async (
   items: WorkOrderItem[],
   transaction: Transaction,
   ctx: StockConsumptionContext,
@@ -1063,7 +1115,7 @@ const createMirrorQuotation = async (
   }
 };
 
-const syncMirrorQuotationFromWorkOrder = async (
+export const syncMirrorQuotationFromWorkOrder = async (
   workOrderId: number,
   transaction: Transaction,
 ): Promise<void> => {
@@ -1325,6 +1377,47 @@ const assertCatalogItemsExist = async (
   }
 };
 
+const applyCatalogLaborDefaults = async (
+  items: WorkOrderItemInput[],
+  transaction: Transaction,
+): Promise<WorkOrderItemInput[]> => {
+  const catalogItemIds = [
+    ...new Set(
+      items
+        .filter((item) => item.horasHombreEstimadas === undefined && item.catalogItemId != null)
+        .map((item) => item.catalogItemId as number),
+    ),
+  ];
+
+  if (catalogItemIds.length === 0) {
+    return items;
+  }
+
+  const catalogItems = await CatalogItem.findAll({
+    where: { id: catalogItemIds },
+    attributes: ['id', 'horasHombreEstandar'],
+    transaction,
+  });
+  const hoursByCatalogId = new Map(
+    catalogItems.map((catalogItem) => [
+      catalogItem.id,
+      catalogItem.horasHombreEstandar === null
+        ? null
+        : Number(catalogItem.horasHombreEstandar),
+    ]),
+  );
+
+  return items.map((item) => {
+    if (item.horasHombreEstimadas !== undefined || item.catalogItemId == null) {
+      return item;
+    }
+    const standardHours = hoursByCatalogId.get(item.catalogItemId);
+    return standardHours === undefined
+      ? item
+      : { ...item, horasHombreEstimadas: standardHours };
+  });
+};
+
 const SUPERVISOR_ROLES: RoleName[] = ['desarrollador', 'admin', 'jefe'];
 
 const getActorRole = async (
@@ -1373,11 +1466,17 @@ export const assertWorkOrderAccess = async (
   }
   if (role !== 'mecanico') return;
 
-  const assigned = await WorkOrder.count({
+  const directAssignment = await WorkOrder.count({
     where: { id, assignedMechanicId: userId },
     transaction,
   });
-  if (assigned === 0) {
+  if (directAssignment > 0) return;
+
+  const itemAssignment = await WorkOrderItem.count({
+    where: { workOrderId: id, assignedUserId: userId },
+    transaction,
+  });
+  if (itemAssignment === 0) {
     throw ApiError.notFound('Orden de trabajo no encontrada');
   }
 };
@@ -1432,7 +1531,17 @@ export const listWorkOrders = async (
   const actorRole = await getActorRole(userId);
   if (actorRole === 'vendedor') where.createdBy = userId;
   if (actorRole === 'mecanico') {
-    where.assignedMechanicId = userId;
+    const assignedItemOrders = await WorkOrderItem.findAll({
+      attributes: ['workOrderId'],
+      where: { assignedUserId: userId },
+      group: ['workOrderId'],
+    });
+    where[Op.or] = [
+      { assignedMechanicId: userId },
+      ...(assignedItemOrders.length > 0
+        ? [{ id: { [Op.in]: assignedItemOrders.map((item) => item.workOrderId) } }]
+        : []),
+    ];
   }
 
   if (query.search) {
@@ -1569,6 +1678,7 @@ export const createWorkOrderInTransaction = async (
     clientId !== null && vehicleOwner.clientId !== null && vehicleOwner.clientId !== clientId;
 
   await assertCatalogItemsExist(data.items, transaction);
+  const itemsWithLaborDefaults = await applyCatalogLaborDefaults(data.items, transaction);
 
   const codigo = await generateWorkOrderCode(transaction);
   const workOrder = await WorkOrder.create(
@@ -1593,9 +1703,10 @@ export const createWorkOrderInTransaction = async (
   );
 
   if (data.items.length > 0) {
-    const createdItems = await WorkOrderItem.bulkCreate(buildItemsPayload(workOrder.id, data.items), {
-      transaction,
-    });
+    const createdItems = await WorkOrderItem.bulkCreate(
+      buildItemsPayload(workOrder.id, itemsWithLaborDefaults),
+      { transaction },
+    );
     await consumeCompletedPartStock(createdItems, transaction, {
       userId,
       referencia: workOrder.codigo,
@@ -1699,17 +1810,94 @@ export const updateWorkOrder = async (
         userId,
         referencia: workOrder.codigo,
       });
-      await WorkOrderItem.destroy({ where: { workOrderId: id }, transaction });
 
-      if (data.items.length > 0) {
-        const createdItems = await WorkOrderItem.bulkCreate(buildItemsPayload(id, data.items), {
+      const existingById = new Map(existingItems.map((item) => [item.id, item]));
+      const incomingIds = new Set(
+        data.items
+          .map((item) => item.id)
+          .filter((itemId): itemId is number => itemId !== undefined),
+      );
+
+      const removedItems = existingItems.filter((item) => !incomingIds.has(item.id));
+      for (const removed of removedItems) {
+        const [sessions, events] = await Promise.all([
+          WorkOrderItemSession.count({ where: { workOrderItemId: removed.id }, transaction }),
+          WorkOrderItemProgressEvent.count({ where: { workOrderItemId: removed.id }, transaction }),
+        ]);
+        if (sessions > 0 || events > 0 || removed.horasHombreReales !== null) {
+          throw ApiError.badRequest(
+            `No se puede quitar "${removed.descripcion}": ya tiene horas o historial de trabajo registrado`,
+          );
+        }
+      }
+
+      if (removedItems.length > 0) {
+        await WorkOrderItem.destroy({
+          where: { id: removedItems.map((item) => item.id) },
           transaction,
         });
-        await consumeCompletedPartStock(createdItems, transaction, {
-          userId,
-          referencia: workOrder.codigo,
-        });
       }
+
+      for (const item of existingItems) {
+        if (incomingIds.has(item.id) && item.stockConsumido) {
+          await item.update(
+            {
+              stockConsumido: false,
+              stockConsumidoCantidad: 0,
+              stockConsumidoAt: null,
+              stockConsumidoWarehouseId: null,
+            },
+            { transaction },
+          );
+        }
+      }
+
+      const persistedItems: WorkOrderItem[] = [];
+      const itemsToCreate: WorkOrderItemInput[] = [];
+
+      for (const item of data.items) {
+        const existing = item.id !== undefined ? existingById.get(item.id) : undefined;
+
+        if (!existing) {
+          itemsToCreate.push(item);
+          continue;
+        }
+
+        const cantidad = Number(item.cantidad);
+        const precioUnitario = Number(item.precioUnitario);
+        await existing.update(
+          {
+            catalogItemId: item.catalogItemId ?? null,
+            descripcion: item.descripcion,
+            tipoLinea: item.tipoLinea,
+            unidadMedida: item.unidadMedida,
+            cantidad,
+            precioUnitario,
+            subtotal: cantidad * precioUnitario,
+            estadoOperativo: item.estadoOperativo ?? existing.estadoOperativo,
+            notasOperativas: item.notasOperativas ?? null,
+            horasHombreEstimadas:
+              item.horasHombreEstimadas !== undefined
+                ? item.horasHombreEstimadas
+                : existing.horasHombreEstimadas,
+          },
+          { transaction },
+        );
+        persistedItems.push(existing);
+      }
+
+      if (itemsToCreate.length > 0) {
+        const createdItems = await WorkOrderItem.bulkCreate(
+          buildItemsPayload(id, await applyCatalogLaborDefaults(itemsToCreate, transaction)),
+          { transaction },
+        );
+        persistedItems.push(...createdItems);
+      }
+
+      await consumeCompletedPartStock(persistedItems, transaction, {
+        userId,
+        referencia: workOrder.codigo,
+      });
     }
 
     if (data.inspection !== undefined) {
@@ -2282,7 +2470,12 @@ const assertExecutionAccess = async (
 ): Promise<RoleName> => {
   const role = await getActorRole(userId, transaction);
   if (role === 'mecanico') {
-    if (workOrder.assignedMechanicId !== userId) {
+    if (workOrder.assignedMechanicId === userId) return role;
+    const assignedItems = await WorkOrderItem.count({
+      where: { workOrderId: workOrder.id, assignedUserId: userId },
+      transaction,
+    });
+    if (assignedItems === 0) {
       throw ApiError.notFound('Orden de trabajo no encontrada');
     }
     return role;
@@ -2307,6 +2500,7 @@ export const updateWorkOrderExecution = async (
       throw ApiError.notFound('Orden de trabajo no encontrada');
     }
     await assertExecutionAccess(workOrder, userId, transaction);
+    const actorRole = await getActorRole(userId, transaction);
 
     if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') {
       throw ApiError.badRequest('No se puede registrar ejecución en una orden cerrada');
@@ -2325,6 +2519,13 @@ export const updateWorkOrderExecution = async (
       });
       if (!item) {
         throw ApiError.badRequest('Uno o más trabajos no pertenecen a esta orden');
+      }
+      if (
+        actorRole === 'mecanico' &&
+        item.assignedUserId !== null &&
+        item.assignedUserId !== userId
+      ) {
+        throw ApiError.forbidden('Este trabajo está asignado a otro mecánico');
       }
       if (
         item.stockConsumido &&
@@ -2353,6 +2554,7 @@ export const updateWorkOrderExecution = async (
         }
       }
 
+      const previousStatus = item.estadoOperativo;
       await item.update(
         {
           estadoOperativo: itemUpdate.estadoOperativo,
@@ -2367,6 +2569,28 @@ export const updateWorkOrderExecution = async (
         userId,
         referencia: workOrder.codigo,
       });
+
+      if (previousStatus !== itemUpdate.estadoOperativo) {
+        await recordItemProgressEvent(
+          {
+            workOrderId: id,
+            workOrderItemId: item.id,
+            itemDescripcion: item.descripcion,
+            fromStatus: previousStatus,
+            toStatus: itemUpdate.estadoOperativo,
+            performedByUserId: userId,
+            assignedUserId: item.assignedUserId,
+            horasEstimadas:
+              item.horasHombreEstimadas === null
+                ? null
+                : toNumber(item.horasHombreEstimadas) * toNumber(item.cantidad),
+            horasReales:
+              item.horasHombreReales === null ? null : toNumber(item.horasHombreReales),
+            source: itemUpdate.estadoOperativo === 'completado' ? 'check' : 'reverso',
+          },
+          transaction,
+        );
+      }
     }
 
     if (itemUpdates.length > 0) {
@@ -2374,6 +2598,16 @@ export const updateWorkOrderExecution = async (
     }
 
     if (data.reporte) {
+      const reportItems = await WorkOrderItem.findAll({
+        where: { workOrderId: id },
+        order: [['id', 'ASC']],
+        transaction,
+      });
+      const horasCerradas = reportItems.reduce(
+        (sum, item) =>
+          sum + (item.horasHombreReales === null ? 0 : toNumber(item.horasHombreReales)),
+        0,
+      );
       await WorkOrderProgressReport.create(
         {
           workOrderId: id,
@@ -2381,6 +2615,17 @@ export const updateWorkOrderExecution = async (
           porcentaje: data.reporte.porcentaje,
           comentario: data.reporte.comentario,
           bloqueos: data.reporte.bloqueos ?? null,
+          horasCerradas: Math.round(horasCerradas * 100) / 100,
+          itemsSnapshot: reportItems.map((item) => ({
+            id: item.id,
+            descripcion: item.descripcion,
+            estadoOperativo: item.estadoOperativo,
+            cantidad: toNumber(item.cantidad),
+            horasEstimadas:
+              item.horasHombreEstimadas === null ? null : toNumber(item.horasHombreEstimadas),
+            horasReales: item.horasHombreReales === null ? null : toNumber(item.horasHombreReales),
+            assignedUserId: item.assignedUserId,
+          })),
         },
         { transaction },
       );
@@ -2420,6 +2665,9 @@ export const createWorkOrderRequest = async (
     await assertExecutionAccess(workOrder, userId, transaction);
     if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') {
       throw ApiError.badRequest('No se pueden crear solicitudes en una orden cerrada');
+    }
+    if (data.tipo === 'aumento_precio') {
+      await assertSupervisor(userId, transaction);
     }
 
     let catalogItemId: number | null = null;

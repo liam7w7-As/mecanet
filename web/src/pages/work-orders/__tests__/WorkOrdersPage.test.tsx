@@ -74,6 +74,12 @@ const workOrder: WorkOrder = {
       subtotal: 50000,
       estadoOperativo: 'pendiente',
       notasOperativas: null,
+      horasHombreEstimadas: null,
+      horasHombreReales: null,
+      assignedUserId: null,
+      laborValidatedBy: null,
+      laborValidatedAt: null,
+      laborValidationNote: null,
       stockConsumido: false,
       stockConsumidoCantidad: 0,
       stockConsumidoAt: null,
@@ -436,7 +442,7 @@ describe('WorkOrdersPage', () => {
   it('agrega, quita y restaura un servicio conservando cantidad y precio', async () => {
     const service: CatalogItem = {
       id: 80, tipo: 'estandar', codigo: 'SRV-80', nombre: 'Cambio de aceite',
-      descripcion: null, unidadMedida: 'unidad', precio: 15000, stock: 0, stockMinimo: 0,
+      descripcion: null, unidadMedida: 'unidad', precio: 15000, horasHombreEstandar: 0.5, stock: 0, stockMinimo: 0,
       createdAt: workOrder.createdAt, updatedAt: workOrder.updatedAt,
     };
     vi.mocked(api.get).mockResolvedValue({ data: { ...emptyCatalog, items: [service], total: 1, totalPages: 1 } });

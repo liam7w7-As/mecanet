@@ -251,8 +251,33 @@ describe('Notificaciones por rol (E2E)', () => {
 
   it('entrega al jefe la notificación de la solicitud creada por el mecánico', async () => {
     // La solicitud se crea por la API para que el servicio dispare el evento.
+    // El mecánico solo puede pedir repuestos; el aumento de precio es exclusivo
+    // del jefe de taller y de administración.
     const mecanicoCookies = await loginAs(`${TEST_EMAIL_PREFIX}mecanico@unithor.local`);
     const created = await request(app)
+      .post(`/api/work-orders/${workOrderId}/requests`)
+      .set('Cookie', authCookie(mecanicoCookies))
+      .set('X-CSRF-Token', mecanicoCookies.csrfToken)
+      .send({
+        tipo: 'repuesto',
+        catalogItemId: catalogPartId,
+        cantidad: 1,
+        motivo: 'Requiere más tiempo de taller',
+      });
+    expect(created.status).toBe(201);
+    // El mecánico recibe su ficha restringida, no la orden completa.
+    expect(created.body.workOrder).toBeUndefined();
+    expect(created.body.worksheet).toBeDefined();
+
+    const partRequest = await WorkOrderRequest.findOne({
+      where: { workOrderId, tipo: 'repuesto', estado: 'pendiente' },
+      order: [['id', 'DESC']],
+    });
+    if (!partRequest) throw new Error('No se creó la solicitud de repuesto');
+    requestId = partRequest.id;
+
+    // El mecánico no puede proponer aumentos de precio: es exclusivo del jefe.
+    const priceRequest = await request(app)
       .post(`/api/work-orders/${workOrderId}/requests`)
       .set('Cookie', authCookie(mecanicoCookies))
       .set('X-CSRF-Token', mecanicoCookies.csrfToken)
@@ -260,12 +285,9 @@ describe('Notificaciones por rol (E2E)', () => {
         tipo: 'aumento_precio',
         workOrderItemId: serviceItemId,
         precioSugerido: 35000,
-        motivo: 'Requiere más tiempo de taller',
+        motivo: 'Intento no autorizado',
       });
-    expect(created.status).toBe(201);
-    requestId = created.body.workOrder.requests.find(
-      (candidate: { tipo: string }) => candidate.tipo === 'aumento_precio',
-    ).id;
+    expect(priceRequest.status).toBe(403);
 
     const jefeCookies = await loginAs(`${TEST_EMAIL_PREFIX}jefe@unithor.local`);
     const response = await request(app)
@@ -377,17 +399,20 @@ describe('Notificaciones por rol (E2E)', () => {
       .set('Cookie', authCookie(mecanicoCookies))
       .set('X-CSRF-Token', mecanicoCookies.csrfToken)
       .send({
-        tipo: 'aumento_precio',
-        workOrderItemId: serviceItemId,
-        precioSugerido: 42000,
+        tipo: 'repuesto',
+        catalogItemId: catalogPartId,
+        cantidad: 2,
         motivo: 'Segundo pedido para probar el rechazo',
       });
     expect(created.status).toBe(201);
-    const rejectedRequestId = created.body.workOrder.requests.find(
-      (candidate: { tipo: string; estado: string }) =>
-        candidate.tipo === 'aumento_precio' && candidate.estado === 'pendiente',
-    )?.id;
-    expect(rejectedRequestId).toBeDefined();
+    expect(created.body.workOrder).toBeUndefined();
+
+    const pendingRequest = await WorkOrderRequest.findOne({
+      where: { workOrderId, tipo: 'repuesto', estado: 'pendiente' },
+      order: [['id', 'DESC']],
+    });
+    if (!pendingRequest) throw new Error('No se creó la solicitud para rechazar');
+    const rejectedRequestId = pendingRequest.id;
 
     const review = await request(app)
       .patch(`/api/work-orders/${workOrderId}/requests/${rejectedRequestId}`)

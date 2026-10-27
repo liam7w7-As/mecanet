@@ -1,4 +1,5 @@
 import * as inspectionPhotoService from '../services/work-order-inspection-photo.service.js';
+import * as laborService from '../services/work-order-labor.service.js';
 import { generateWorkOrderPdf } from '../services/work-order-pdf.service.js';
 import { generateWorkOrderReceptionPdf } from '../services/work-order-reception-pdf.service.js';
 import * as workOrderService from '../services/work-order.service.js';
@@ -43,10 +44,13 @@ export const getWorkOrdersHandler = asyncHandler(
 
 export const getWorkOrderByIdHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const workOrder = await workOrderService.getWorkOrderById(
-      getParamId(req),
-      getCurrentUserId(req),
-    );
+    const id = getParamId(req);
+    const userId = getCurrentUserId(req);
+    await workOrderService.assertWorkOrderAccess(id, userId);
+    if (req.user?.role === 'mecanico') {
+      throw ApiError.forbidden('El mecánico accede al detalle desde su ficha de trabajo');
+    }
+    const workOrder = await workOrderService.getWorkOrderById(id, userId);
     res.status(200).json({ workOrder });
   },
 );
@@ -216,23 +220,37 @@ export const assignWorkOrderMechanicHandler = asyncHandler(
 
 export const updateWorkOrderExecutionHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const workOrder = await workOrderService.updateWorkOrderExecution(
-      getParamId(req),
+    const id = getParamId(req);
+    const userId = getCurrentUserId(req);
+    await workOrderService.updateWorkOrderExecution(
+      id,
       req.body as UpdateWorkOrderExecutionInput,
-      getCurrentUserId(req),
+      userId,
     );
-    res.status(200).json({ workOrder });
+    if (req.user?.role === 'mecanico') {
+      const worksheet = await laborService.getWorkOrderWorksheet(id, userId);
+      res.status(200).json({ worksheet });
+      return;
+    }
+    res.status(200).json({ workOrder: await workOrderService.getWorkOrderById(id, userId) });
   },
 );
 
 export const createWorkOrderRequestHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const workOrder = await workOrderService.createWorkOrderRequest(
-      getParamId(req),
+    const id = getParamId(req);
+    const userId = getCurrentUserId(req);
+    await workOrderService.createWorkOrderRequest(
+      id,
       req.body as CreateWorkOrderRequestInput,
-      getCurrentUserId(req),
+      userId,
     );
-    res.status(201).json({ workOrder });
+    if (req.user?.role === 'mecanico') {
+      const worksheet = await laborService.getWorkOrderWorksheet(id, userId);
+      res.status(201).json({ worksheet });
+      return;
+    }
+    res.status(201).json({ workOrder: await workOrderService.getWorkOrderById(id, userId) });
   },
 );
 

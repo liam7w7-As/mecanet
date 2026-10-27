@@ -61,13 +61,13 @@ export declare const createStockMovementSchema: z.ZodObject<{
     motivo: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     cantidad: number;
-    tipo: "ingreso" | "salida" | "ajuste";
+    tipo: "ajuste" | "ingreso" | "salida";
     motivo: string;
     catalogItemId: number;
     warehouseId: number;
 }, {
     cantidad: number;
-    tipo: "ingreso" | "salida" | "ajuste";
+    tipo: "ajuste" | "ingreso" | "salida";
     motivo: string;
     catalogItemId: number;
     warehouseId: number;
@@ -115,7 +115,7 @@ export declare const stockMovementQuerySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     page: number;
     pageSize: number;
-    tipo?: "ingreso" | "salida" | "ajuste" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
+    tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
     catalogItemId?: number | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
@@ -123,7 +123,7 @@ export declare const stockMovementQuerySchema: z.ZodObject<{
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
-    tipo?: "ingreso" | "salida" | "ajuste" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
+    tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
     catalogItemId?: number | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;

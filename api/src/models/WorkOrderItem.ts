@@ -5,14 +5,19 @@ import {
   Column,
   DataType,
   ForeignKey,
+  HasMany,
   Model,
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
 
 import { CatalogItem } from './CatalogItem.js';
+import { User } from './User.js';
 import { Warehouse } from './Warehouse.js';
 import { WorkOrder } from './WorkOrder.js';
+import { WorkOrderItemProgressEvent } from './WorkOrderItemProgressEvent.js';
+import { WorkOrderItemSession } from './WorkOrderItemSession.js';
+import { WorkOrderObservation } from './WorkOrderObservation.js';
 
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 
@@ -139,6 +144,26 @@ export class WorkOrderItem extends Model<
   @Column(DataType.DATE)
   declare updatedAt: CreationOptional<Date>;
 
+  @Column({ type: DataType.DECIMAL(6, 2), allowNull: true })
+  declare horasHombreEstimadas: number | null;
+
+  @Column({ type: DataType.DECIMAL(6, 2), allowNull: true })
+  declare horasHombreReales: number | null;
+
+  @ForeignKey(() => User)
+  @Column({ type: DataType.INTEGER, allowNull: true, onDelete: 'SET NULL', onUpdate: 'CASCADE' })
+  declare assignedUserId: number | null;
+
+  @ForeignKey(() => User)
+  @Column({ type: DataType.INTEGER, allowNull: true, onDelete: 'SET NULL', onUpdate: 'CASCADE' })
+  declare laborValidatedBy: number | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare laborValidatedAt: Date | null;
+
+  @Column({ type: DataType.TEXT, allowNull: true })
+  declare laborValidationNote: string | null;
+
   @BelongsTo(() => WorkOrder)
   declare workOrder?: WorkOrder;
 
@@ -147,4 +172,19 @@ export class WorkOrderItem extends Model<
 
   @BelongsTo(() => Warehouse)
   declare consumedWarehouse?: Warehouse;
+
+  @BelongsTo(() => User, 'assignedUserId')
+  declare assignedUser?: User;
+
+  @BelongsTo(() => User, 'laborValidatedBy')
+  declare validator?: User;
+
+  @HasMany(() => WorkOrderItemSession)
+  declare sessions?: WorkOrderItemSession[];
+
+  @HasMany(() => WorkOrderItemProgressEvent)
+  declare progressEvents?: WorkOrderItemProgressEvent[];
+
+  @HasMany(() => WorkOrderObservation)
+  declare observations?: WorkOrderObservation[];
 }

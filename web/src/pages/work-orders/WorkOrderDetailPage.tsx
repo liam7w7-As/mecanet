@@ -31,7 +31,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 
 import { AnimateIcon } from '../../components/animate-ui';
 import { PageLoader, ProgressBar } from '../../components/common/LoadingIndicator';
@@ -181,6 +181,7 @@ export const WorkOrderDetailPage = () => {
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
   const canManage = Boolean(canUpdate && user?.role !== 'mecanico');
   const isAdmin = Boolean(user && ['desarrollador', 'admin'].includes(user.role));
+  const canManageWorksheet = Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role));
   const canCreate = Boolean(user && hasUserPermission(user, 'taller', 'create'));
   const workOrder = workOrderQuery.data;
   const validTransitions = useMemo(
@@ -283,6 +284,12 @@ export const WorkOrderDetailPage = () => {
     return <PageLoader label="Cargando orden de trabajo..." />;
   }
 
+  // El mecánico no puede ver el detalle general (precios, documentos); su
+  // acceso es la ficha de trabajo restringida.
+  if (user?.role === 'mecanico' && Number.isInteger(workOrderId) && workOrderId > 0) {
+    return <Navigate to={`/work-orders/${workOrderId}/ficha`} replace />;
+  }
+
   if (workOrderQuery.isError || !workOrder) {
     return <div className="rounded-lg border border-brand-coral/30 bg-brand-coralPale p-5 text-brand-coralInk" role="alert"><p className="font-semibold">No fue posible cargar la orden</p><p className="mt-1 text-sm">{getApiErrorMessage(workOrderQuery.error, 'Orden de trabajo no encontrada.')}</p><Link to="/work-orders" className="mt-4 inline-flex text-sm font-semibold underline">Volver al listado</Link></div>;
   }
@@ -306,6 +313,14 @@ export const WorkOrderDetailPage = () => {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canManageWorksheet && (
+            <Link to={`/work-orders/${workOrder.id}/ficha`} className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-primaryInk bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow">
+              <AnimateIcon variant="pulse" animateOnHover>
+                <Wrench className="h-4 w-4" aria-hidden="true" />
+              </AnimateIcon>
+              Ficha de taller
+            </Link>
+          )}
           {canEditInspection && (
             <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink shadow-sm transition-all hover:bg-brand-pale hover:shadow" onClick={() => setShowReceptionModal(true)}>
               <AnimateIcon variant="wiggle" animateOnHover>

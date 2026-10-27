@@ -1,7 +1,6 @@
 import { ITEM_OPERATIONAL_STATUS } from '@unithor/shared';
 import {
   AlertCircle,
-  ArrowRight,
   Check,
   CheckCircle2,
   ClipboardPen,
@@ -120,8 +119,20 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all' }: Props) =>
     ? Boolean(catalogItemId) && Number.isInteger(Number(quantity)) && Number(quantity) > 0 && Number(quantity) <= 9999
     : Boolean(selectedService) && Number(suggestedPrice) > Number(selectedService?.precioUnitario ?? 0));
   const pendingRequests = useMemo(
-    () => (workOrder.requests ?? []).filter((request) => request.estado === 'pendiente'),
-    [workOrder.requests],
+    () =>
+      (workOrder.requests ?? []).filter(
+        (request) =>
+          request.estado === 'pendiente' &&
+          (isSupervisor || request.tipo !== 'aumento_precio'),
+      ),
+    [workOrder.requests, isSupervisor],
+  );
+  const visibleRequests = useMemo(
+    () =>
+      (workOrder.requests ?? []).filter(
+        (request) => isSupervisor || request.tipo !== 'aumento_precio',
+      ),
+    [workOrder.requests, isSupervisor],
   );
 
   const handleAssignment = (value: string): void => {
@@ -339,7 +350,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all' }: Props) =>
                             {isPart ? 'Repuesto' : 'Servicio'}
                           </span>
                           <span className="text-xs font-semibold text-brand-muted">
-                            {formatClp(item.precioUnitario)}
+                            {isSupervisor ? formatClp(item.precioUnitario) : 'Precio no disponible'}
                           </span>
                         </div>
                         <h4 className="mt-1.5 break-words text-sm font-bold text-brand-ink sm:text-base">
@@ -515,7 +526,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all' }: Props) =>
               <p className="mt-0.5 text-xs text-brand-muted">
                 Petición de insumos o actualización de presupuesto.
               </p>
-              <div className="mt-4 grid grid-cols-2 rounded-xl bg-brand-pale/70 p-1">
+              <div className={`mt-4 grid ${isSupervisor ? 'grid-cols-2' : 'grid-cols-1'} rounded-xl bg-brand-pale/70 p-1`}>
                 <button
                   type="button"
                   className={`h-9 rounded-lg text-xs font-bold transition ${
@@ -527,17 +538,19 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all' }: Props) =>
                 >
                   Nuevo repuesto
                 </button>
-                <button
-                  type="button"
-                  className={`h-9 rounded-lg text-xs font-bold transition ${
-                    requestType === 'aumento_precio'
-                      ? 'bg-white text-brand-primary shadow-xs'
-                      : 'text-brand-muted hover:text-brand-ink'
-                  }`}
-                  onClick={() => setRequestType('aumento_precio')}
-                >
-                  Sugerir aumento
-                </button>
+                {isSupervisor && (
+                  <button
+                    type="button"
+                    className={`h-9 rounded-lg text-xs font-bold transition ${
+                      requestType === 'aumento_precio'
+                        ? 'bg-white text-brand-primary shadow-xs'
+                        : 'text-brand-muted hover:text-brand-ink'
+                    }`}
+                    onClick={() => setRequestType('aumento_precio')}
+                  >
+                    Sugerir aumento
+                  </button>
+                )}
               </div>
 
               {requestType === 'repuesto' ? (
@@ -610,7 +623,8 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all' }: Props) =>
                         ?.filter((item) => item.tipoLinea !== 'parte')
                         .map((item) => (
                           <option key={item.id} value={item.id}>
-                            {item.descripcion} · actual {formatClp(item.precioUnitario)}
+                            {item.descripcion}
+                            {isSupervisor ? ` · actual ${formatClp(item.precioUnitario)}` : ''}
                           </option>
                         ))}
                     </select>
@@ -675,7 +689,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all' }: Props) =>
           )}
         </div>
         <div className="mt-3 divide-y divide-brand-line rounded-2xl border border-brand-line bg-[#fbfcfd]">
-          {(workOrder.requests ?? []).map((request) => (
+          {visibleRequests.map((request) => (
             <div key={request.id} className="grid gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -693,7 +707,9 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all' }: Props) =>
                   Solicita {request.requester?.nombre ?? 'Usuario'} · {formatDateTime(request.createdAt)}
                   {request.tipo === 'repuesto'
                     ? ` · Cantidad ${request.cantidad ?? 0}`
-                    : ` · Sugerido ${formatClp(request.precioSugerido ?? 0)}`}
+                    : isSupervisor
+                      ? ` · Sugerido ${formatClp(request.precioSugerido ?? 0)}`
+                      : ''}
                 </p>
               </div>
               {isSupervisor && !isClosed && request.estado === 'pendiente' && (
@@ -720,7 +736,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all' }: Props) =>
               )}
             </div>
           ))}
-          {(workOrder.requests?.length ?? 0) === 0 && (
+          {visibleRequests.length === 0 && (
             <p className="py-6 text-center text-sm text-brand-muted">No hay solicitudes registradas.</p>
           )}
         </div>

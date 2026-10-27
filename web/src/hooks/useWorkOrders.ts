@@ -9,6 +9,7 @@ import type {
   PaginatedResponse,
   WorkOrder,
   WorkOrderInspectionPhoto,
+  WorkOrderWorksheet,
 } from '../types/entities';
 import type {
   ChangeWorkOrderStatusInput,
@@ -26,6 +27,12 @@ import type {
 
 interface WorkOrderResponse {
   workOrder: WorkOrder;
+}
+
+/** El mecánico recibe la ficha restringida en vez del detalle completo. */
+interface WorkOrderExecutionResponse {
+  workOrder?: WorkOrder;
+  worksheet?: WorkOrderWorksheet;
 }
 
 export interface WorkOrderMechanic {
@@ -89,6 +96,26 @@ const updateWorkOrderCaches = (
   void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 };
 
+/**
+ * Aplica la respuesta de ejecución/solicitud: los roles internos reciben la OT
+ * completa; el mecánico recibe únicamente su ficha, que no debe cachearse como
+ * detalle general.
+ */
+const applyExecutionResponse = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  workOrderId: number,
+  response: WorkOrderExecutionResponse,
+): void => {
+  if (response.workOrder) {
+    updateWorkOrderCaches(queryClient, response.workOrder);
+    return;
+  }
+  queryClient.setQueryData(['work-order-labor', 'worksheet', workOrderId], response.worksheet);
+  void queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(workOrderId) });
+  void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+  void queryClient.invalidateQueries({ queryKey: ['work-order-labor'] });
+};
+
 export const useAssignWorkOrderMechanicMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -104,10 +131,14 @@ export const useUpdateWorkOrderExecutionMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: UpdateWorkOrderExecutionInput }) => {
-      const response = await api.patch<WorkOrderResponse>(`/work-orders/${id}/execution`, data);
-      return response.data.workOrder;
+      const response = await api.patch<WorkOrderExecutionResponse>(
+        `/work-orders/${id}/execution`,
+        data,
+      );
+      return response.data;
     },
-    onSuccess: (workOrder) => updateWorkOrderCaches(queryClient, workOrder),
+    onSuccess: (response, variables) =>
+      applyExecutionResponse(queryClient, variables.id, response),
   });
 };
 
@@ -115,10 +146,14 @@ export const useCreateWorkOrderRequestMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CreateWorkOrderRequestInput }) => {
-      const response = await api.post<WorkOrderResponse>(`/work-orders/${id}/requests`, data);
-      return response.data.workOrder;
+      const response = await api.post<WorkOrderExecutionResponse>(
+        `/work-orders/${id}/requests`,
+        data,
+      );
+      return response.data;
     },
-    onSuccess: (workOrder) => updateWorkOrderCaches(queryClient, workOrder),
+    onSuccess: (response, variables) =>
+      applyExecutionResponse(queryClient, variables.id, response),
   });
 };
 

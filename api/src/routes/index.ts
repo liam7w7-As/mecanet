@@ -10,6 +10,7 @@ import { healthRouter } from './health.js';
 import { notificationRouter } from './notification.routes.js';
 import { paymentRouter } from './payment.routes.js';
 import { permissionRouter } from './permission.routes.js';
+import { purchaseRouter, supplierRouter } from './purchase.routes.js';
 import { quotationRouter } from './quotation.routes.js';
 import { reportRouter } from './report.routes.js';
 import { searchRouter } from './search.routes.js';
@@ -74,3 +75,7 @@ apiRouter.use('/catalog', catalogRouter);
 
 // Almacenes y movimientos de stock (/api/warehouses)
 apiRouter.use('/warehouses', warehouseRouter);
+
+// Compras con comprobante y proveedores (/api/purchases, /api/suppliers)
+apiRouter.use('/purchases', purchaseRouter);
+apiRouter.use('/suppliers', supplierRouter);

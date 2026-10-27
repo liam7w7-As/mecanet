@@ -1,7 +1,7 @@
 import type { QueryInterface } from 'sequelize';
 
 type Role = 'desarrollador' | 'admin' | 'jefe' | 'mecanico' | 'vendedor' | 'bodeguero' | 'finanzas';
-type Module = 'taller' | 'comercial' | 'finanzas' | 'flota' | 'almacen' | 'admin';
+type Module = 'taller' | 'comercial' | 'finanzas' | 'flota' | 'almacen' | 'compras' | 'admin';
 type Action = 'read' | 'create' | 'update' | 'delete' | 'export' | 'import';
 
 type PermissionMap = Partial<Record<Module, readonly Action[]>>;
@@ -13,6 +13,7 @@ const ROLE_PERMISSIONS_MATRIX: Record<Role, PermissionMap> = {
     finanzas: ['read', 'create', 'update', 'delete', 'export', 'import'],
     flota: ['read', 'create', 'update', 'delete', 'export', 'import'],
     almacen: ['read', 'create', 'update', 'delete', 'export', 'import'],
+    compras: ['read', 'create', 'update', 'delete', 'export', 'import'],
     admin: ['read', 'create', 'update', 'delete', 'export', 'import'],
   },
   admin: {
@@ -21,6 +22,7 @@ const ROLE_PERMISSIONS_MATRIX: Record<Role, PermissionMap> = {
     finanzas: ['read', 'create', 'update', 'delete', 'export', 'import'],
     flota: ['read', 'create', 'update', 'delete', 'export', 'import'],
     almacen: ['read', 'create', 'update', 'delete', 'export', 'import'],
+    compras: ['read', 'create', 'update', 'delete', 'export', 'import'],
     admin: ['read', 'create', 'update', 'delete', 'export', 'import'],
   },
   jefe: {
@@ -28,6 +30,7 @@ const ROLE_PERMISSIONS_MATRIX: Record<Role, PermissionMap> = {
     comercial: ['read', 'create', 'update', 'delete', 'export'],
     almacen: ['read', 'create', 'update', 'export'],
     flota: ['read'],
+    compras: ['read', 'create', 'update', 'export'],
     admin: ['read'],
   },
   mecanico: {
@@ -44,10 +47,12 @@ const ROLE_PERMISSIONS_MATRIX: Record<Role, PermissionMap> = {
     comercial: ['read'],
     flota: ['read'],
     almacen: ['read', 'create', 'update', 'export'],
+    compras: ['read'],
   },
   finanzas: {
     comercial: ['read'],
     finanzas: ['read', 'create', 'update', 'delete', 'export'],
+    compras: ['read', 'export'],
   },
 };
 

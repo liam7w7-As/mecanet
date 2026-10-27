@@ -10,6 +10,9 @@ import DashboardPage from './pages/dashboard/DashboardPage';
 import FinancePage from './pages/finance/FinancePage';
 import ForbiddenPage from './pages/ForbiddenPage';
 import NotFoundPage from './pages/NotFoundPage';
+import PurchaseCreatePage from './pages/purchases/PurchaseCreatePage';
+import PurchaseDetailPage from './pages/purchases/PurchaseDetailPage';
+import PurchasesPage from './pages/purchases/PurchasesPage';
 import QuotationCreatePage from './pages/quotations/QuotationCreatePage';
 import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
@@ -19,9 +22,12 @@ import UsersPage from './pages/users/UsersPage';
 import VehicleDetailPage from './pages/vehicles/VehicleDetailPage';
 import VehiclesPage from './pages/vehicles/VehiclesPage';
 import WarehousesPage from './pages/warehouses/WarehousesPage';
+import MyWorkOrdersPage from './pages/work-orders/MyWorkOrdersPage';
 import WorkOrderCreatePage from './pages/work-orders/WorkOrderCreatePage';
 import WorkOrderDetailPage from './pages/work-orders/WorkOrderDetailPage';
 import WorkOrdersPage from './pages/work-orders/WorkOrdersPage';
+import WorkOrderWorksheetPage from './pages/work-orders/WorkOrderWorksheetPage';
+import WorkshopDailyReportPage from './pages/work-orders/WorkshopDailyReportPage';
 
 export const App = () => (
   <Routes>
@@ -58,6 +64,30 @@ export const App = () => (
           element={
             <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'create' }]}>
               <WorkOrderCreatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/work-orders/mine"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}>
+              <MyWorkOrdersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/work-orders/daily-report"
+          element={
+            <ProtectedRoute allowedRoles={['desarrollador', 'admin', 'jefe']}>
+              <WorkshopDailyReportPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/work-orders/:id/ficha"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}>
+              <WorkOrderWorksheetPage />
             </ProtectedRoute>
           }
         />
@@ -101,6 +131,30 @@ export const App = () => (
           element={
             <ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }]}>
               <QuotationDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/purchases"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'compras', accion: 'read' }]}>
+              <PurchasesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/purchases/new"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'compras', accion: 'create' }]}>
+              <PurchaseCreatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/purchases/:id"
+          element={
+            <ProtectedRoute requiredAnyPermission={[{ modulo: 'compras', accion: 'read' }]}>
+              <PurchaseDetailPage />
             </ProtectedRoute>
           }
         />

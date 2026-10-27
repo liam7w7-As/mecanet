@@ -48,6 +48,12 @@ export class WorkOrderProgressReport extends Model<
   @Column({ type: DataType.TEXT, allowNull: true })
   declare bloqueos: string | null;
 
+  @Column({ type: DataType.DECIMAL(7, 2), allowNull: true })
+  declare horasCerradas: number | null;
+
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare itemsSnapshot: unknown | null;
+
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare createdAt: CreationOptional<Date>;
 

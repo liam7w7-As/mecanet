@@ -30,6 +30,7 @@ interface CatalogFormState {
   descripcion: string;
   unidadMedida: CatalogItem['unidadMedida'];
   precio: string;
+  horasHombreEstandar: string;
   stock: string;
   stockMinimo: string;
 }
@@ -50,6 +51,10 @@ const getInitialState = (item?: CatalogItem | null): CatalogFormState => ({
    descripcion: item?.descripcion ?? '',
    unidadMedida: item?.unidadMedida ?? 'unidad',
    precio: String(item?.precio ?? 0),
+  horasHombreEstandar:
+    item?.horasHombreEstandar === null || item?.horasHombreEstandar === undefined
+      ? ''
+      : String(item.horasHombreEstandar),
   stock: String(item?.stock ?? 0),
   stockMinimo: String(item?.stockMinimo ?? 0),
 });
@@ -93,6 +98,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
        descripcion: form.descripcion,
        unidadMedida: form.unidadMedida,
        precio: form.precio,
+      horasHombreEstandar: form.tipo === 'parte' ? null : form.horasHombreEstandar,
       stock: form.tipo === 'parte' ? form.stock : '0',
       stockMinimo: form.tipo === 'parte' ? form.stockMinimo : '0',
     };
@@ -185,6 +191,16 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
                  {UNIT_MEASURES.map((unit) => <option key={unit} value={unit}>{UNIT_MEASURE_LABELS[unit]}</option>)}
                </select>
                {fieldErrors.unidadMedida && <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.unidadMedida}</span>}
+             </label>
+             <label className="text-sm font-medium text-brand-ink">
+               Horas hombre estándar (por unidad)
+               <input className={inputClassName} type="number" min="0" max="999.99" step="0.25" value={form.horasHombreEstandar} onChange={(event) => setValue('horasHombreEstandar', event.target.value)} disabled={form.tipo === 'parte'} aria-label="Horas hombre estándar por unidad" aria-invalid={Boolean(fieldErrors.horasHombreEstandar)} placeholder="Ej.: 0.5 = 30 minutos" />
+               {fieldErrors.horasHombreEstandar && <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.horasHombreEstandar}</span>}
+               <span className="mt-1 block text-xs text-brand-muted">
+                 {form.tipo === 'parte'
+                   ? 'Solo aplica a servicios y trabajos.'
+                   : 'Se usa como estimación inicial al agregar el servicio a una OT.'}
+               </span>
              </label>
             <label className="text-sm font-medium text-brand-ink">
               Stock inicial

@@ -1,0 +1,14 @@
+export declare const WORK_ORDER_LABOR_SESSION_KINDS: readonly ["cronometro", "ajuste"];
+export type WorkOrderLaborSessionKind = (typeof WORK_ORDER_LABOR_SESSION_KINDS)[number];
+export declare const WORK_ORDER_LABOR_SESSION_STATUS: readonly ["abierta", "cerrada"];
+export type WorkOrderLaborSessionStatus = (typeof WORK_ORDER_LABOR_SESSION_STATUS)[number];
+export declare const WORK_ORDER_LABOR_CLOSE_REASONS: readonly ["pausa", "completado", "omitido", "cierre_manual", "sistema"];
+export type WorkOrderLaborCloseReason = (typeof WORK_ORDER_LABOR_CLOSE_REASONS)[number];
+export declare const WORK_ORDER_PRICE_SUGGESTION_SCOPES: readonly ["ot", "catalogo", "ambos"];
+export type WorkOrderPriceSuggestionScope = (typeof WORK_ORDER_PRICE_SUGGESTION_SCOPES)[number];
+export declare const WORK_ORDER_PRICE_SUGGESTION_STATUS: readonly ["pendiente", "aprobada", "rechazada"];
+export type WorkOrderPriceSuggestionStatus = (typeof WORK_ORDER_PRICE_SUGGESTION_STATUS)[number];
+export declare const WORK_ORDER_OBSERVATION_FILE_MIME_TYPES: readonly ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+export type WorkOrderObservationFileMimeType = (typeof WORK_ORDER_OBSERVATION_FILE_MIME_TYPES)[number];
+export declare const WORK_ORDER_OBSERVATION_MAX_FILES = 5;
+export declare const WORK_ORDER_OBSERVATION_MAX_FILE_BYTES: number;

@@ -14,6 +14,8 @@ let itemSequence = 0;
 
 export interface EditableWorkOrderItem {
   key: string;
+  /** Id del ítem existente en la OT; null para ítems nuevos. */
+  id?: number | null;
   catalogItemId: number | null;
   catalogTipo: CatalogItem['tipo'] | null;
   catalogStock: number | null;
@@ -22,6 +24,7 @@ export interface EditableWorkOrderItem {
   unidadMedida: UnitMeasure;
   cantidad: string;
   precioUnitario: string;
+  horasHombreEstimadas: string;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string;
   descuentoTipo?: DiscountType | null;
@@ -30,6 +33,7 @@ export interface EditableWorkOrderItem {
 
 export const createEmptyWorkOrderItem = (): EditableWorkOrderItem => ({
   key: `work-item-${itemSequence += 1}`,
+  id: null,
   catalogItemId: null,
   catalogTipo: null,
   catalogStock: null,
@@ -38,6 +42,7 @@ export const createEmptyWorkOrderItem = (): EditableWorkOrderItem => ({
   unidadMedida: 'unidad',
   cantidad: '1',
   precioUnitario: '0',
+  horasHombreEstimadas: '',
   estadoOperativo: 'pendiente',
   notasOperativas: '',
 });
@@ -137,6 +142,8 @@ export const WorkOrderItemsEditor = ({
       ...createEmptyWorkOrderItem(), catalogItemId: catalogItem.id, catalogTipo: catalogItem.tipo,
       catalogStock: catalogItem.stock, descripcion: catalogItem.nombre, tipoLinea: catalogItem.tipo,
       unidadMedida: catalogItem.unidadMedida, precioUnitario: String(catalogItem.precio),
+      horasHombreEstimadas:
+        catalogItem.horasHombreEstandar === null ? '' : String(catalogItem.horasHombreEstandar),
     };
     // Nuevo ítem siempre al inicio. Si hay un placeholder vacío, lo reemplaza.
     const emptyIndex = items.findIndex((item) => !item.descripcion && item.catalogItemId === null
@@ -285,7 +292,7 @@ export const WorkOrderItemsEditor = ({
                       onClick={() => removeItem(item.key)} aria-label={`Eliminar ítem ${index + 1}`} title="Quitar ítem"><Trash2 className="h-4 w-4" aria-hidden="true" /></button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-[7rem_8.5rem_minmax(0,1fr)]">
+                  <div className={`grid grid-cols-2 gap-3 ${item.tipoLinea === 'parte' ? 'sm:grid-cols-[7rem_8.5rem_minmax(0,1fr)]' : 'sm:grid-cols-[6.5rem_8rem_7rem_minmax(0,1fr)]'}`}>
                     <div className="grid gap-1 text-xs font-semibold text-brand-muted"><span>Cantidad</span>
                       <div className="flex h-10 min-w-0 rounded-lg border border-brand-line">
                         <button type="button" className="w-7 shrink-0 text-brand-muted hover:bg-brand-pale disabled:opacity-30" disabled={Number(item.cantidad) <= 1}
@@ -302,6 +309,15 @@ export const WorkOrderItemsEditor = ({
                         {UNIT_MEASURES.map((unit) => <option key={unit} value={unit}>{UNIT_MEASURE_LABELS[unit]}</option>)}
                       </select>
                     </label>
+                    {item.tipoLinea !== 'parte' && (
+                      <label className="grid gap-1 text-xs font-semibold text-brand-muted">Horas / unidad
+                        <input type="number" min="0" step="0.5" value={item.horasHombreEstimadas}
+                          className={`${inputClass} tabular-nums`} placeholder="0.5"
+                          aria-label={`Horas hombre por unidad del ítem ${index + 1}`}
+                          title="Tiempo estimado por unidad. Ej.: 0.5 = 30 minutos."
+                          onChange={(event) => updateItem(item.key, { horasHombreEstimadas: event.target.value })} />
+                      </label>
+                    )}
                     <label className="grid gap-1 text-xs font-semibold text-brand-muted max-sm:col-span-2">Precio unitario
                       <CurrencyInput value={item.precioUnitario} onChange={(value) => updateItem(item.key, { precioUnitario: value })} className={`${inputClass} font-semibold tabular-nums`} aria-label={`Precio unitario ${index + 1}`} />
                     </label>

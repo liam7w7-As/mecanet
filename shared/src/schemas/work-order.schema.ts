@@ -12,6 +12,9 @@ import {
   TIRE_CONDITIONS,
   VEHICLE_INVENTORY_ITEMS,
 } from '../constants/work-order-inspection.js';
+import {
+  WORK_ORDER_PRICE_SUGGESTION_SCOPES,
+} from '../constants/work-order-labor.js';
 import { WORK_ORDER_STATUS } from '../constants/work-order-status.js';
 
 const optionalText = (maxLength?: number) => {
@@ -23,6 +26,15 @@ const optionalText = (maxLength?: number) => {
 };
 
 const nullablePositiveId = z.coerce.number().int().positive().nullable().optional();
+
+const optionalHoursSchema = z.preprocess(
+  (value) => (value === '' || value === null || value === undefined ? null : value),
+  z.coerce
+    .number()
+    .min(0, 'Las horas hombre no pueden ser negativas')
+    .max(999.99, 'Las horas hombre no pueden superar 999,99')
+    .nullable(),
+);
 
 const inventorySchema = z
   .array(z.enum(VEHICLE_INVENTORY_ITEMS))
@@ -56,12 +68,14 @@ export const updateWorkOrderInspectionSchema = z
   });
 
 export const workOrderItemInputSchema = z.object({
+  id: z.coerce.number().int().positive().optional(),
   catalogItemId: z.coerce.number().int().positive().nullable().optional(),
   tipoLinea: z.enum(CATALOG_TYPES).default('estandar'),
   descripcion: z.string().trim().min(2, 'La descripción debe tener al menos 2 caracteres').max(255),
   cantidad: z.coerce.number().int().min(1, 'La cantidad debe ser un número entero mayor a 0').default(1),
   unidadMedida: z.enum(UNIT_MEASURES).default('unidad'),
   precioUnitario: z.coerce.number().min(0, 'El precio no puede ser negativo').default(0),
+  horasHombreEstimadas: optionalHoursSchema.optional(),
   estadoOperativo: z.enum(ITEM_OPERATIONAL_STATUS).default('pendiente'),
   notasOperativas: optionalText(1000),
 });
@@ -217,6 +231,62 @@ export const reviewWorkOrderRequestSchema = z.object({
   comentario: optionalText(2000),
 });
 
+export const assignWorkOrderItemSchema = z.object({
+  assignedUserId: z.coerce.number().int().positive().nullable(),
+});
+
+export const updateWorkOrderItemEstimateSchema = z.object({
+  horasHombreEstimadas: optionalHoursSchema,
+});
+
+export const completeWorkOrderItemSchema = z.object({
+  notasOperativas: optionalText(1000),
+});
+
+export const adjustWorkOrderItemHoursSchema = z.object({
+  minutos: z.coerce
+    .number()
+    .int('El ajuste debe ser en minutos enteros')
+    .min(-1440, 'El ajuste mínimo es -1440 minutos')
+    .max(1440, 'El ajuste máximo es 1440 minutos'),
+  motivo: z.string().trim().min(2, 'Debe indicar el motivo del ajuste').max(500),
+});
+
+export const validateWorkOrderItemHoursSchema = z.object({
+  comentario: optionalText(500),
+});
+
+export const createWorkOrderObservationSchema = z.object({
+  texto: optionalText(2000),
+  workOrderItemId: z.preprocess(
+    (value) => (value === '' || value === undefined ? null : value),
+    z.coerce.number().int().positive().nullable(),
+  ),
+  progressReportId: z.preprocess(
+    (value) => (value === '' || value === undefined ? null : value),
+    z.coerce.number().int().positive().nullable(),
+  ),
+});
+
+export const createWorkOrderPriceSuggestionSchema = z.object({
+  workOrderItemId: z.coerce.number().int().positive(),
+  precioSugerido: z.coerce.number().min(0).max(999999999),
+  alcance: z.enum(WORK_ORDER_PRICE_SUGGESTION_SCOPES),
+  motivo: z.string().trim().min(2, 'Debe indicar el motivo').max(2000),
+});
+
+export const reviewWorkOrderPriceSuggestionSchema = z.object({
+  decision: z.enum(['aprobar', 'rechazar']),
+  comentario: optionalText(2000),
+});
+
+export const workshopDailyReportQuerySchema = z.object({
+  fecha: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato YYYY-MM-DD')
+    .optional(),
+});
+
 export type WorkOrderItemInput = z.infer<typeof workOrderItemInputSchema>;
 export type WorkOrderInspectionInput = z.infer<typeof workOrderInspectionSchema>;
 export type UpdateWorkOrderInspectionInput = z.infer<typeof updateWorkOrderInspectionSchema>;
@@ -231,3 +301,24 @@ export type WorkOrderProgressReportInput = z.infer<typeof workOrderProgressRepor
 export type UpdateWorkOrderExecutionInput = z.infer<typeof updateWorkOrderExecutionSchema>;
 export type CreateWorkOrderRequestInput = z.infer<typeof createWorkOrderRequestSchema>;
 export type ReviewWorkOrderRequestInput = z.infer<typeof reviewWorkOrderRequestSchema>;
+export type AssignWorkOrderItemInput = z.infer<typeof assignWorkOrderItemSchema>;
+export type UpdateWorkOrderItemEstimateInput = z.infer<
+  typeof updateWorkOrderItemEstimateSchema
+>;
+export type CompleteWorkOrderItemInput = z.infer<typeof completeWorkOrderItemSchema>;
+export type AdjustWorkOrderItemHoursInput = z.infer<typeof adjustWorkOrderItemHoursSchema>;
+export type ValidateWorkOrderItemHoursInput = z.infer<
+  typeof validateWorkOrderItemHoursSchema
+>;
+export type CreateWorkOrderObservationInput = z.infer<
+  typeof createWorkOrderObservationSchema
+>;
+export type CreateWorkOrderPriceSuggestionInput = z.infer<
+  typeof createWorkOrderPriceSuggestionSchema
+>;
+export type ReviewWorkOrderPriceSuggestionInput = z.infer<
+  typeof reviewWorkOrderPriceSuggestionSchema
+>;
+export type WorkshopDailyReportQueryInput = z.infer<
+  typeof workshopDailyReportQuerySchema
+>;

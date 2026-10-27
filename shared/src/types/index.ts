@@ -84,3 +84,15 @@ export type { UpdateRolePermissionsInput, RoleQueryInput } from '../schemas/inde
 
 // Búsqueda
 export type { QuickSearchQueryInput, LookupByPlateInput } from '../schemas/index.js';
+
+// Proveedores y compras
+export type {
+  SupplierQueryInput,
+  UpdateSupplierInput,
+  PurchaseItemInput,
+  CreatePurchaseInput,
+  PurchaseQueryInput,
+  PurchaseReportQueryInput,
+  VoidPurchaseInput,
+  RegisterPurchasePaymentInput,
+} from '../schemas/index.js';

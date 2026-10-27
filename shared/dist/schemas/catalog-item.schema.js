@@ -15,6 +15,11 @@ const optionalDescriptionSchema = z
     .transform((value) => (value === '' ? null : value))
     .nullable()
     .optional();
+const optionalHoursSchema = z.preprocess((value) => (value === '' || value === null || value === undefined ? null : value), z.coerce
+    .number()
+    .min(0, 'Las horas hombre no pueden ser negativas')
+    .max(999.99, 'Las horas hombre no pueden superar 999,99')
+    .nullable());
 const catalogItemFields = {
     tipo: z.enum(CATALOG_TYPES),
     codigo: optionalCodeSchema,
@@ -28,6 +33,7 @@ const catalogItemFields = {
     precio: z.coerce.number().min(0, 'El precio no puede ser negativo').default(0),
     stock: z.coerce.number().int().min(0, 'El stock no puede ser negativo').default(0),
     stockMinimo: z.coerce.number().int().min(0, 'El stock mínimo no puede ser negativo').default(0),
+    horasHombreEstandar: optionalHoursSchema.optional(),
 };
 export const createCatalogItemSchema = z.object(catalogItemFields).transform((data) => ({
     ...data,
@@ -43,6 +49,7 @@ export const updateCatalogItemSchema = z
     precio: z.coerce.number().min(0, 'El precio no puede ser negativo').optional(),
     stock: z.coerce.number().int().min(0, 'El stock no puede ser negativo').optional(),
     stockMinimo: z.coerce.number().int().min(0, 'El stock mínimo no puede ser negativo').optional(),
+    horasHombreEstandar: optionalHoursSchema.optional(),
 })
     .refine((data) => Object.keys(data).length > 0, {
     message: 'Debe enviar al menos un campo para actualizar',

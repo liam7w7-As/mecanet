@@ -17,3 +17,5 @@ export * from './finance.schema.js';
 export * from './warehouse.schema.js';
 export * from './notification.schema.js';
 export * from './settings.schema.js';
+export * from './supplier.schema.js';
+export * from './purchase.schema.js';

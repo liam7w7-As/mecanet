@@ -1,4 +1,4 @@
-import { Car, ClipboardList, Gauge, LayoutGrid, ReceiptText } from 'lucide-react';
+import { Car, ClipboardList, Gauge, LayoutGrid, ReceiptText, Wrench } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 import { useDashboardSummary } from '../../hooks/useDashboard';
@@ -6,7 +6,7 @@ import { hasUserPermission } from '../../lib/permissions';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth.store';
 
-import type { PermissionDefinition } from '@unithor/shared';
+import type { PermissionDefinition, Role } from '@unithor/shared';
 import type { LucideIcon } from 'lucide-react';
 
 /** Contadores del inbox operativo, misma semántica que los badges del cajón. */
@@ -18,6 +18,8 @@ interface MobileTab {
   icon: LucideIcon;
   permissions: PermissionDefinition[];
   badge?: BadgeKey;
+  /** Si se indica, la pestaña solo se muestra a esos roles. */
+  roles?: Role[];
 }
 
 /**
@@ -26,6 +28,13 @@ interface MobileTab {
  * apretar las etiquetas. El resto de secciones viven en el cajón lateral.
  */
 const mobileTabs: MobileTab[] = [
+  {
+    label: 'Mi ficha',
+    path: '/work-orders/mine',
+    icon: Wrench,
+    permissions: [{ modulo: 'taller', accion: 'read' }],
+    roles: ['mecanico'],
+  },
   {
     label: 'Inicio',
     path: '/dashboard',
@@ -81,11 +90,15 @@ export const MobileTabBar = ({ onOpenMenu }: MobileTabBarProps) => {
     vehicles: inbox?.counts.fleetDocumentAlerts ?? 0,
   };
 
-  const tabs = mobileTabs.filter((tab) =>
-    user && tab.permissions.some((permission) =>
+  const tabs = mobileTabs.filter((tab) => {
+    if (!user) return false;
+    // El mecánico solo ve su ficha de trabajo.
+    if (user.role === 'mecanico') return tab.roles?.includes('mecanico') ?? false;
+    if (tab.roles && !tab.roles.includes(user.role)) return false;
+    return tab.permissions.some((permission) =>
       hasUserPermission(user, permission.modulo, permission.accion),
-    ),
-  );
+    );
+  });
 
   // "Más" se marca activo cuando la ruta actual no corresponde a ninguna
   // pestaña, para que el usuario siempre sepa dónde está parado.

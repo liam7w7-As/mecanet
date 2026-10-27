@@ -2,13 +2,15 @@ import {
   BookOpen,
   Car,
   ClipboardList,
-  Gauge,
   FileBarChart2,
+  Gauge,
   Landmark,
   LogOut,
   Menu,
   ReceiptText,
   Settings,
+  ShoppingCart,
+  Timer,
   UserCog,
   Users,
   Warehouse,
@@ -34,7 +36,7 @@ import UserAvatar from '../common/UserAvatar';
 import PwaInstallButton from '../pwa/PwaInstallButton';
 
 import type { AnimateIconVariant } from '../animate-ui/animate-icon';
-import type { PermissionDefinition } from '@unithor/shared';
+import type { PermissionDefinition, Role } from '@unithor/shared';
 import type { LucideIcon } from 'lucide-react';
 
 /** Contadores del inbox operativo que se pintan como badge en la navegación. */
@@ -47,6 +49,10 @@ interface NavigationItem {
   variant: AnimateIconVariant;
   permissions: PermissionDefinition[];
   badge?: BadgeKey;
+  /** Si se indica, el enlace solo se muestra a esos roles. */
+  roles?: Role[];
+  /** Si se indica, el enlace se oculta a esos roles. */
+  hiddenForRoles?: Role[];
 }
 
 interface NavigationGroup {
@@ -65,7 +71,9 @@ const navigationGroups: NavigationGroup[] = [
   {
     heading: 'Taller',
     items: [
+      { label: 'Mi ficha', path: '/work-orders/mine', icon: ClipboardList, variant: 'bounce', badge: 'workOrders', permissions: [{ modulo: 'taller', accion: 'read' }], roles: ['mecanico'] },
       { label: 'Taller / OT', path: '/work-orders', icon: ClipboardList, variant: 'bounce', badge: 'workOrders', permissions: [{ modulo: 'taller', accion: 'read' }] },
+      { label: 'Reporte diario', path: '/work-orders/daily-report', icon: Timer, variant: 'pulse', permissions: [{ modulo: 'taller', accion: 'read' }], roles: ['desarrollador', 'admin', 'jefe'] },
       { label: 'Vehículos', path: '/vehicles', icon: Car, variant: 'slide-right', badge: 'vehicles', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }, { modulo: 'flota', accion: 'read' }] },
       { label: 'Almacenes', path: '/warehouses', icon: Warehouse, variant: 'bounce', badge: 'warehouses', permissions: [{ modulo: 'almacen', accion: 'read' }] },
     ],
@@ -81,6 +89,7 @@ const navigationGroups: NavigationGroup[] = [
   {
     heading: 'Administración',
     items: [
+      { label: 'Compras', path: '/purchases', icon: ShoppingCart, variant: 'bounce', permissions: [{ modulo: 'compras', accion: 'read' }] },
       { label: 'Finanzas / Contabilidad', path: '/finance', icon: Landmark, variant: 'pulse', badge: 'finance', permissions: [{ modulo: 'finanzas', accion: 'read' }] },
       { label: 'Usuarios', path: '/users', icon: UserCog, variant: 'spin', permissions: [{ modulo: 'admin', accion: 'read' }] },
       { label: 'Configuración', path: '/settings', icon: Settings, variant: 'hover-lift', permissions: [{ modulo: 'admin', accion: 'read' }] },
@@ -112,11 +121,16 @@ const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
   const groups = navigationGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) =>
-        user && item.permissions.some((permission) =>
+      items: group.items.filter((item) => {
+        if (!user) return false;
+        // El mecánico solo accede a su ficha de trabajo.
+        if (user.role === 'mecanico') return item.roles?.includes('mecanico') ?? false;
+        if (item.roles && !item.roles.includes(user.role)) return false;
+        if (item.hiddenForRoles?.includes(user.role)) return false;
+        return item.permissions.some((permission) =>
           hasUserPermission(user, permission.modulo, permission.accion),
-        ),
-      ),
+        );
+      }),
     }))
     .filter((group) => group.items.length > 0);
 

@@ -90,7 +90,7 @@ describe('auth.service', () => {
         email: 'dev@unithor.local',
         role: 'desarrollador',
       }));
-      expect(result.user.permissions).toHaveLength(36);
+      expect(result.user.permissions).toHaveLength(42);
       expect(result.user).not.toHaveProperty('passwordHash');
 
       // Verificar que se haya guardado el token hash en BD
@@ -287,7 +287,7 @@ describe('auth.service', () => {
         email: 'dev@unithor.local',
         role: 'desarrollador',
       }));
-      expect(me.permissions).toHaveLength(36);
+      expect(me.permissions).toHaveLength(42);
       expect(me).not.toHaveProperty('passwordHash');
     });
 

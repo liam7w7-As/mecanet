@@ -391,28 +391,39 @@ export const getWarehouseBalances = async (warehouseId: number): Promise<StockBa
   });
 };
 
+export interface RegisterMovementOptions {
+  /** Permite encadenar el movimiento a una transacción mayor (compras, anulaciones). */
+  transaction?: Transaction;
+  /** Referencia de trazabilidad; por ejemplo el código COMP-000001. */
+  referencia?: string | null;
+}
+
 export const registerMovement = async (
   data: CreateStockMovementInput,
   userId: number,
+  options: RegisterMovementOptions = {},
 ): Promise<StockMovementPublic> => {
-  const warehouse = await Warehouse.findByPk(data.warehouseId);
-  if (!warehouse) {
-    throw ApiError.notFound('Almacén no encontrado');
-  }
-  if (!warehouse.activo) {
-    throw ApiError.badRequest('El almacén está inactivo');
-  }
-  const catalogItem = await CatalogItem.findByPk(data.catalogItemId);
-  if (!catalogItem) {
-    throw ApiError.notFound('Ítem de catálogo no encontrado');
-  }
-  if (catalogItem.tipo !== 'parte') {
-    throw ApiError.badRequest('Solo los repuestos (tipo parte) manejan stock por almacén');
-  }
+  const run = async (transaction: Transaction): Promise<StockMovementPublic> => {
+    const warehouse = await Warehouse.findByPk(data.warehouseId, { transaction });
+    if (!warehouse) {
+      throw ApiError.notFound('Almacén no encontrado');
+    }
+    if (!warehouse.activo) {
+      throw ApiError.badRequest('El almacén está inactivo');
+    }
+    const catalogItem = await CatalogItem.findByPk(data.catalogItemId, { transaction });
+    if (!catalogItem) {
+      throw ApiError.notFound('Ítem de catálogo no encontrado');
+    }
+    if (catalogItem.tipo !== 'parte') {
+      throw ApiError.badRequest('Solo los repuestos (tipo parte) manejan stock por almacén');
+    }
 
-  const cantidad = Math.trunc(data.cantidad);
+    const cantidad = Math.trunc(Number(data.cantidad));
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      throw ApiError.badRequest('La cantidad del movimiento debe ser un entero positivo');
+    }
 
-  return sequelize.transaction(async (transaction) => {
     const balance = await getOrCreateBalance(data.warehouseId, data.catalogItemId, transaction);
     let nuevoSaldo: number;
 
@@ -439,7 +450,7 @@ export const registerMovement = async (
         cantidad,
         saldoResultante: nuevoSaldo,
         motivo: data.motivo,
-        referencia: null,
+        referencia: options.referencia ?? null,
         createdBy: userId,
       },
       { transaction },
@@ -456,7 +467,13 @@ export const registerMovement = async (
       throw ApiError.internal('No fue posible registrar el movimiento');
     }
     return toMovementPublic(full);
-  });
+  };
+
+  if (options.transaction) {
+    return run(options.transaction);
+  }
+
+  return sequelize.transaction(run);
 };
 
 export interface StockTransferResult {

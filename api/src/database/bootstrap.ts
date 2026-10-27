@@ -5,6 +5,8 @@ import { up as ensureQuotationArchive } from './migrations/037-add-quotation-arc
 import { up as ensureQuotationCommercial } from './migrations/038-quotation-commercial-conditions.js';
 import { up as ensureStartedWorkOrders } from './migrations/039-start-work-orders-without-draft.js';
 import { up as ensureFleetVehicles } from './migrations/040-create-fleet-vehicles.js';
+import { up as ensurePurchases } from './migrations/041-create-purchases.js';
+import { up as ensureWorkOrderLabor } from './migrations/042-create-work-order-labor.js';
 import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -24,7 +26,7 @@ const ROLES_SEED = [
   { nombre: 'finanzas', descripcion: 'Finanzas y contabilidad' },
 ] as const;
 
-const MODULES = ['taller', 'comercial', 'finanzas', 'flota', 'almacen', 'admin'] as const;
+const MODULES = ['taller', 'comercial', 'finanzas', 'flota', 'almacen', 'compras', 'admin'] as const;
 const ACTIONS = ['read', 'create', 'update', 'delete', 'export', 'import'] as const;
 
 type RoleName = (typeof ROLES_SEED)[number]['nombre'];
@@ -38,6 +40,7 @@ const ROLE_PERMISSIONS_MATRIX: Record<RoleName, Partial<Record<Module, readonly 
     finanzas: ACTIONS,
     flota: ACTIONS,
     almacen: ACTIONS,
+    compras: ACTIONS,
     admin: ACTIONS,
   },
   admin: {
@@ -46,6 +49,7 @@ const ROLE_PERMISSIONS_MATRIX: Record<RoleName, Partial<Record<Module, readonly 
     finanzas: ACTIONS,
     flota: ACTIONS,
     almacen: ACTIONS,
+    compras: ACTIONS,
     admin: ACTIONS,
   },
   jefe: {
@@ -53,6 +57,7 @@ const ROLE_PERMISSIONS_MATRIX: Record<RoleName, Partial<Record<Module, readonly 
     comercial: ['read', 'create', 'update', 'delete', 'export'],
     almacen: ['read', 'create', 'update', 'export'],
     flota: ['read'],
+    compras: ['read', 'create', 'update', 'export'],
     admin: ['read'],
   },
   mecanico: {
@@ -69,10 +74,12 @@ const ROLE_PERMISSIONS_MATRIX: Record<RoleName, Partial<Record<Module, readonly 
     comercial: ['read'],
     almacen: ['read', 'create', 'update', 'export'],
     flota: ['read'],
+    compras: ['read'],
   },
   finanzas: {
     comercial: ['read'],
     finanzas: ['read', 'create', 'update', 'delete', 'export'],
+    compras: ['read', 'export'],
   },
 };
 
@@ -81,6 +88,14 @@ const FLEET_ROLE_MATRIX: Partial<Record<RoleName, readonly Action[]>> = {
   admin: ACTIONS,
   jefe: ['read'],
   vendedor: ['read'],
+  bodeguero: ['read'],
+};
+
+const PURCHASE_ROLE_MATRIX: Partial<Record<RoleName, readonly Action[]>> = {
+  desarrollador: ACTIONS,
+  admin: ACTIONS,
+  jefe: ['read', 'create', 'update', 'export'],
+  finanzas: ['read', 'export'],
   bodeguero: ['read'],
 };
 const CATALOG_ITEMS_SEED = [
@@ -135,12 +150,46 @@ export async function ensureFleetPermissions(): Promise<void> {
   }
 }
 
+export async function ensurePurchasePermissions(): Promise<void> {
+  const permissionIds = new Map<Action, number>();
+
+  for (const accion of ACTIONS) {
+    const [permission] = await Permission.findOrCreate({
+      where: { modulo: 'compras', accion },
+      defaults: { modulo: 'compras', accion },
+    });
+    permissionIds.set(accion, permission.id);
+  }
+
+  const roles = await Role.findAll();
+  const roleIds = new Map(roles.map((role) => [role.nombre, role.id]));
+
+  for (const [roleName, actions] of Object.entries(PURCHASE_ROLE_MATRIX) as Array<
+    [RoleName, readonly Action[] | undefined]
+  >) {
+    const roleId = roleIds.get(roleName);
+    if (!roleId || !actions) continue;
+
+    for (const accion of actions) {
+      const permissionId = permissionIds.get(accion);
+      if (!permissionId) continue;
+
+      await RolePermission.findOrCreate({
+        where: { roleId, permissionId },
+        defaults: { roleId, permissionId },
+      });
+    }
+  }
+}
+
 async function ensureSchemaUpToDate(): Promise<void> {
   const qi = sequelize.getQueryInterface();
   await ensureQuotationArchive(qi);
   await ensureQuotationCommercial(qi);
   await ensureStartedWorkOrders(qi);
   await ensureFleetVehicles(qi);
+  await ensurePurchases(qi);
+  await ensureWorkOrderLabor(qi);
   try {
     const woCols = await qi.describeTable('work_orders');
     if (!woCols.vehicle_owner_client_id) {
@@ -270,6 +319,7 @@ export async function ensureDatabaseBootstrapped(): Promise<void> {
     // 3b. Flota: los permisos ya existen en el modelo, pero las bases creadas
     // antes del módulo pueden no tener todas las filas de la matriz.
     await ensureFleetPermissions();
+    await ensurePurchasePermissions();
 
     // 4. Usuario Administrador Inicial
     const userCount = await User.count();

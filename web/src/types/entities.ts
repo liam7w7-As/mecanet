@@ -168,6 +168,7 @@ export interface CatalogItem {
   precio: number;
   stock: number;
   stockMinimo: number;
+  horasHombreEstandar: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -227,6 +228,14 @@ export interface WorkOrderItem {
   subtotal: number;
   estadoOperativo: import('@unithor/shared').ItemOperationalStatus;
   notasOperativas: string | null;
+  horasHombreEstimadas: number | null;
+  horasHombreReales: number | null;
+  assignedUserId: number | null;
+  laborValidatedBy: number | null;
+  laborValidatedAt: string | null;
+  laborValidationNote: string | null;
+  assignedUser?: { id: number; nombre: string } | null;
+  validator?: { id: number; nombre: string } | null;
   stockConsumido: boolean;
   stockConsumidoCantidad: number;
   stockConsumidoAt: string | null;
@@ -308,6 +317,7 @@ export interface WorkOrderProgressReport {
   porcentaje: number;
   comentario: string;
   bloqueos: string | null;
+  horasCerradas?: number | null;
   createdAt: string;
   mechanic?: { id: number; nombre: string } | null;
 }
@@ -578,4 +588,294 @@ export interface PaymentQuotationSummary {
   pagado: number;
   saldoPendiente: number;
   estadoPago: import('@unithor/shared').QuotationStatus;
+}
+
+export interface Supplier {
+  id: number;
+  nombre: string;
+  rut: string | null;
+  telefono: string | null;
+  email: string | null;
+  direccion: string | null;
+  contactoNombre: string | null;
+  notas: string | null;
+  datosCompletos: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PurchaseSummary {
+  count: number;
+  neto: number;
+  iva: number;
+  total: number;
+  pendiente: number;
+}
+
+export interface PurchaseCatalogItemSummary {
+  id: number;
+  codigo: string | null;
+  nombre: string;
+}
+
+export interface PurchaseWarehouseSummary {
+  id: number;
+  codigo: string;
+  nombre: string;
+}
+
+export interface PurchaseItem {
+  id: number;
+  catalogItemId: number | null;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+  afectaStock: boolean;
+  warehouseId: number | null;
+  catalogItem: PurchaseCatalogItemSummary | null;
+  warehouse: PurchaseWarehouseSummary | null;
+}
+
+export interface PurchaseSupplier {
+  id: number;
+  nombre: string;
+  rut: string | null;
+  telefono: string | null;
+  email: string | null;
+  direccion: string | null;
+  contactoNombre: string | null;
+  datosCompletos: boolean;
+}
+
+export interface PurchaseVehicleSummary {
+  id: number;
+  patente: string;
+  marca: string | null;
+  modelo: string | null;
+}
+
+export interface PurchaseWorkOrderSummary {
+  id: number;
+  codigo: string;
+  estado: string;
+}
+
+export interface PurchaseCashMovementSummary {
+  id: number;
+  monto: number;
+  metodo: import('@unithor/shared').PaymentMethod;
+  fecha: string;
+  voidedAt: string | null;
+}
+
+export interface PurchaseCreator {
+  id: number;
+  nombre: string;
+}
+
+export interface Purchase {
+  id: number;
+  codigo: string;
+  supplierId: number;
+  vehicleId: number | null;
+  fleetVehicleId: number | null;
+  workOrderId: number | null;
+  origenVehiculo: import('@unithor/shared').PurchaseVehicleOrigin | null;
+  conIva: boolean;
+  neto: number;
+  iva: number;
+  total: number;
+  formaPago: import('@unithor/shared').PurchasePaymentType;
+  metodoPago: import('@unithor/shared').PaymentMethod;
+  estado: import('@unithor/shared').PurchaseStatus;
+  tipoDocumento: import('@unithor/shared').PurchaseDocumentType;
+  folio: string;
+  fechaEmision: string;
+  montoComprobante: number;
+  numeroOperacion: string;
+  banco: string;
+  comprobanteNombre: string;
+  comprobanteMimeType: string;
+  comprobanteSizeBytes: number;
+  observaciones: string | null;
+  cashMovementId: number | null;
+  pagadoAt: string | null;
+  createdBy: number | null;
+  voidedAt: string | null;
+  voidedBy: number | null;
+  voidReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  supplier: PurchaseSupplier;
+  vehicle: PurchaseVehicleSummary | null;
+  fleetVehicle: PurchaseVehicleSummary | null;
+  workOrder: PurchaseWorkOrderSummary | null;
+  creator: PurchaseCreator | null;
+  voider: PurchaseCreator | null;
+  cashMovement: PurchaseCashMovementSummary | null;
+  items: PurchaseItem[];
+}
+
+export interface PurchaseListResponse extends PaginatedResponse<Purchase> {
+  summary: PurchaseSummary;
+}
+
+export interface WorkOrderWorksheetItem {
+  id: number;
+  descripcion: string;
+  tipoLinea: import('@unithor/shared').CatalogType;
+  unidadMedida: import('@unithor/shared').UnitMeasure;
+  cantidad: number;
+  estadoOperativo: import('@unithor/shared').ItemOperationalStatus;
+  notasOperativas: string | null;
+  horasHombreEstimadas: number | null;
+  horasEstimadasTotales: number | null;
+  horasHombreReales: number | null;
+  excedeEstimado: boolean;
+  assignedUser: { id: number; nombre: string } | null;
+  laborValidatedAt: string | null;
+  laborValidationNote: string | null;
+  activeSession: {
+    id: number;
+    userId: number | null;
+    userName: string | null;
+    startedAt: string;
+    elapsedMinutes: number;
+    mine: boolean;
+  } | null;
+  totalMinutes: number;
+  observationsCount: number;
+}
+
+export interface WorkOrderWorksheetObservationFile {
+  id: number;
+  nombreOriginal: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+}
+
+export interface WorkOrderWorksheetObservation {
+  id: number;
+  texto: string | null;
+  createdAt: string;
+  authorName: string | null;
+  itemId: number | null;
+  itemDescripcion: string | null;
+  progressReportId: number | null;
+  files: WorkOrderWorksheetObservationFile[];
+}
+
+export interface WorkOrderWorksheet {
+  workOrder: {
+    id: number;
+    codigo: string;
+    estado: import('@unithor/shared').WorkOrderStatus;
+    fechaIngreso: string | null;
+    descripcion: string | null;
+    vehiculo: {
+      id: number | null;
+      patente: string | null;
+      marca: string | null;
+      modelo: string | null;
+    };
+  };
+  items: WorkOrderWorksheetItem[];
+  servicios: WorkOrderWorksheetItem[];
+  repuestos: WorkOrderWorksheetItem[];
+  observations: WorkOrderWorksheetObservation[];
+  progressReports: Array<{
+    id: number;
+    porcentaje: number;
+    comentario: string;
+    bloqueos: string | null;
+    horasCerradas: number | null;
+    createdAt: string;
+    mechanic: { id: number; nombre: string } | null;
+  }>;
+  activeItemId: number | null;
+  totals: {
+    items: number;
+    completados: number;
+    enProceso: number;
+    pendientes: number;
+    horasEstimadas: number;
+    horasReales: number;
+    minutosReales: number;
+  };
+  pausedOtherItems: number;
+}
+
+export interface MyLaborOrder {
+  id: number;
+  codigo: string;
+  estado: import('@unithor/shared').WorkOrderStatus;
+  fechaIngreso: string | null;
+  patente: string | null;
+  marca: string | null;
+  modelo: string | null;
+  items: number;
+  completados: number;
+  enProceso: number;
+  horasEstimadas: number;
+  horasReales: number;
+  activeItemId: number | null;
+  activeItemDescripcion: string | null;
+  activeSince: string | null;
+}
+
+export interface WorkOrderPriceSuggestion {
+  id: number;
+  workOrderId: number;
+  workOrderItemId: number | null;
+  itemDescripcion: string | null;
+  horasEstimadas: number | null;
+  horasReales: number | null;
+  precioActualOt: number | null;
+  precioActualCatalogo: number | null;
+  precioSugerido: number;
+  alcance: import('@unithor/shared').WorkOrderPriceSuggestionScope;
+  motivo: string;
+  estado: import('@unithor/shared').WorkOrderPriceSuggestionStatus;
+  createdByName: string | null;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+export interface WorkshopDailyReport {
+  fecha: string;
+  generadoEn: string;
+  totalHoras: number;
+  totalItemsCompletados: number;
+  totalSesiones: number;
+  usuarios: Array<{
+    id: number;
+    nombre: string;
+    rol: string;
+    minutos: number;
+    horas: number;
+    sesiones: number;
+    itemsCompletados: number;
+    eventos: number;
+    enCurso: boolean;
+    detalle: Array<{
+      workOrderId: number;
+      workOrderCodigo: string;
+      itemDescripcion: string;
+      minutos: number;
+      estado: string;
+    }>;
+  }>;
+  ordenes: Array<{
+    id: number;
+    codigo: string;
+    patente: string | null;
+    estado: string;
+    horas: number;
+    completados: number;
+    enProceso: number;
+    mecanicos: string[];
+  }>;
 }

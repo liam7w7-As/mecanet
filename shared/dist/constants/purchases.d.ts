@@ -1,0 +1,13 @@
+export declare const PURCHASE_STATUSES: readonly ["registrada", "anulada"];
+export type PurchaseStatus = (typeof PURCHASE_STATUSES)[number];
+export declare const PURCHASE_PAYMENT_TYPES: readonly ["contado", "credito"];
+export type PurchasePaymentType = (typeof PURCHASE_PAYMENT_TYPES)[number];
+export declare const PURCHASE_DOCUMENT_TYPES: readonly ["factura", "boleta", "recibo", "nota_credito", "otro"];
+export type PurchaseDocumentType = (typeof PURCHASE_DOCUMENT_TYPES)[number];
+export declare const PURCHASE_VEHICLE_ORIGINS: readonly ["taller", "flota"];
+export type PurchaseVehicleOrigin = (typeof PURCHASE_VEHICLE_ORIGINS)[number];
+export declare const PURCHASE_TAX_RATE = 0.19;
+export declare const PURCHASE_STATUS_LABELS: Record<PurchaseStatus, string>;
+export declare const PURCHASE_PAYMENT_TYPE_LABELS: Record<PurchasePaymentType, string>;
+export declare const PURCHASE_DOCUMENT_TYPE_LABELS: Record<PurchaseDocumentType, string>;
+export declare const PURCHASE_VEHICLE_ORIGIN_LABELS: Record<PurchaseVehicleOrigin, string>;

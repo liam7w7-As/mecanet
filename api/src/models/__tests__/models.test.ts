@@ -101,8 +101,8 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     await Role.destroy({ where: {}, force: true });
   });
 
-  it('verifica que los 29 modelos se registran correctamente en la instancia Sequelize', () => {
-    expect(models.length).toBe(29);
+  it('verifica que los 37 modelos se registran correctamente en la instancia Sequelize', () => {
+    expect(models.length).toBe(37);
 
     const registeredModelNames = Object.keys(testSequelize.models);
     expect(registeredModelNames).toContain('Role');
@@ -120,6 +120,11 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     expect(registeredModelNames).toContain('CashMovement');
     expect(registeredModelNames).toContain('WorkOrder');
     expect(registeredModelNames).toContain('WorkOrderItem');
+    expect(registeredModelNames).toContain('WorkOrderItemSession');
+    expect(registeredModelNames).toContain('WorkOrderItemProgressEvent');
+    expect(registeredModelNames).toContain('WorkOrderObservation');
+    expect(registeredModelNames).toContain('WorkOrderObservationFile');
+    expect(registeredModelNames).toContain('WorkOrderPriceSuggestion');
     expect(registeredModelNames).toContain('WorkOrderInspection');
     expect(registeredModelNames).toContain('WorkOrderInspectionPhoto');
     expect(registeredModelNames).toContain('WorkOrderDelivery');
@@ -131,6 +136,9 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     expect(registeredModelNames).toContain('Payment');
     expect(registeredModelNames).toContain('Notification');
     expect(registeredModelNames).toContain('CompanySettings');
+    expect(registeredModelNames).toContain('Supplier');
+    expect(registeredModelNames).toContain('Purchase');
+    expect(registeredModelNames).toContain('PurchaseItem');
   });
 
   it('crea un Role + User y verifica la relación de pertenencia', async () => {

@@ -14,6 +14,7 @@ import { Warehouse } from '../../models/Warehouse.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
 import { WorkOrderEvent } from '../../models/WorkOrderEvent.js';
 import { WorkOrderItem } from '../../models/WorkOrderItem.js';
+import { WorkOrderItemSession } from '../../models/WorkOrderItemSession.js';
 import { WorkOrderProgressReport } from '../../models/WorkOrderProgressReport.js';
 import { WorkOrderRequest } from '../../models/WorkOrderRequest.js';
 import { hashPassword } from '../../utils/password.js';
@@ -186,11 +187,18 @@ describe('Work order mechanic workflow (E2E)', () => {
         reporte: { porcentaje: 60, comentario: 'Diagnóstico concluido' },
       });
     expect(executionResponse.status).toBe(200);
-    expect(executionResponse.body.workOrder.items[0]).toMatchObject({
-      estadoOperativo: 'completado',
-      precioUnitario: 25000,
-    });
-    expect(executionResponse.body.workOrder.progressReports[0]).toMatchObject({ porcentaje: 60 });
+    expect(executionResponse.body.workOrder).toBeUndefined();
+    const worksheet = executionResponse.body.worksheet;
+    const updatedItem = worksheet.items.find((item: { id: number }) => item.id === serviceItemId);
+    expect(updatedItem).toMatchObject({ estadoOperativo: 'completado' });
+    // El mecánico nunca recibe precios en la ficha.
+    expect(updatedItem.precioUnitario).toBeUndefined();
+    expect(worksheet.progressReports[0]).toMatchObject({ porcentaje: 60 });
+
+    const detailResponse = await request(app)
+      .get(`/api/work-orders/${assignedWorkOrderId}`)
+      .set('Cookie', authCookie(cookies));
+    expect(detailResponse.status).toBe(403);
 
     const forbiddenResponse = await request(app)
       .patch(`/api/work-orders/${assignedWorkOrderId}`)
@@ -202,19 +210,25 @@ describe('Work order mechanic workflow (E2E)', () => {
 
   it('somete repuestos y aumentos a aprobación del jefe antes de aplicarlos', async () => {
     const mechanicCookies = await loginAs(TEST_EMAIL);
+    const devCookies = await loginAs('dev@unithor.local');
     const partRequestResponse = await request(app)
       .post(`/api/work-orders/${assignedWorkOrderId}/requests`)
       .set('Cookie', authCookie(mechanicCookies))
       .set('X-CSRF-Token', mechanicCookies.csrfToken)
       .send({ tipo: 'repuesto', catalogItemId: partId, cantidad: 2, motivo: 'Daño encontrado' });
     expect(partRequestResponse.status).toBe(201);
-    const partRequest = partRequestResponse.body.workOrder.requests.find(
-      (entry: { tipo: string }) => entry.tipo === 'repuesto',
-    );
+    expect(partRequestResponse.body.workOrder).toBeUndefined();
+    expect(partRequestResponse.body.worksheet.workOrder.id).toBe(assignedWorkOrderId);
+    const partRequest = await WorkOrderRequest.findOne({
+      where: { workOrderId: assignedWorkOrderId, tipo: 'repuesto' },
+      order: [['id', 'DESC']],
+    });
+    if (!partRequest) throw new Error('No se creó la solicitud de repuesto');
     expect(partRequest.estado).toBe('pendiente');
     expect(await WorkOrderItem.count({ where: { workOrderId: assignedWorkOrderId } })).toBe(1);
 
-    const priceRequestResponse = await request(app)
+    // El mecánico no puede sugerir aumentos de precio.
+    const mechanicPriceRequest = await request(app)
       .post(`/api/work-orders/${assignedWorkOrderId}/requests`)
       .set('Cookie', authCookie(mechanicCookies))
       .set('X-CSRF-Token', mechanicCookies.csrfToken)
@@ -224,12 +238,25 @@ describe('Work order mechanic workflow (E2E)', () => {
         precioSugerido: 35000,
         motivo: 'Mayor complejidad de la prevista',
       });
-    expect(priceRequestResponse.status).toBe(201);
-    const priceRequest = priceRequestResponse.body.workOrder.requests.find(
-      (entry: { tipo: string }) => entry.tipo === 'aumento_precio',
-    );
+    expect(mechanicPriceRequest.status).toBe(403);
 
-    const devCookies = await loginAs('dev@unithor.local');
+    const priceRequestResponse = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/requests`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({
+        tipo: 'aumento_precio',
+        workOrderItemId: serviceItemId,
+        precioSugerido: 35000,
+        motivo: 'Mayor complejidad de la prevista',
+      });
+    expect(priceRequestResponse.status).toBe(201);
+    const priceRequest = await WorkOrderRequest.findOne({
+      where: { workOrderId: assignedWorkOrderId, tipo: 'aumento_precio' },
+      order: [['id', 'DESC']],
+    });
+    if (!priceRequest) throw new Error('No se creó la solicitud de aumento');
+
     const approvePartResponse = await request(app)
       .patch(`/api/work-orders/${assignedWorkOrderId}/requests/${partRequest.id}`)
       .set('Cookie', authCookie(devCookies))
@@ -293,5 +320,220 @@ describe('Work order mechanic workflow (E2E)', () => {
       .send({ decision: 'aprobar', precioAprobado: 32000 });
     expect(approvePriceResponse.status).toBe(200);
     expect(Number((await WorkOrderItem.findByPk(serviceItemId))?.precioUnitario)).toBe(32000);
+  });
+
+  it('registra horas con cronómetro, ajusta, valida y restringe la ficha al mecánico', async () => {
+    const mechanicCookies = await loginAs(TEST_EMAIL);
+    const devCookies = await loginAs('dev@unithor.local');
+    const timerItem = await WorkOrderItem.create({
+      workOrderId: assignedWorkOrderId,
+      catalogItemId: null,
+      descripcion: 'Cambio de aceite y filtro',
+      cantidad: 2,
+      precioUnitario: 10000,
+      subtotal: 20000,
+      estadoOperativo: 'pendiente',
+      notasOperativas: null,
+      stockConsumido: false,
+      stockConsumidoCantidad: 0,
+      stockConsumidoAt: null,
+    });
+
+    const worksheetResponse = await request(app)
+      .get(`/api/work-orders/${assignedWorkOrderId}/worksheet`)
+      .set('Cookie', authCookie(mechanicCookies));
+    expect(worksheetResponse.status).toBe(200);
+    const worksheetItem = worksheetResponse.body.worksheet.items.find(
+      (item: { id: number }) => item.id === timerItem.id,
+    );
+    expect(worksheetItem).toMatchObject({ cantidad: 2, horasHombreEstimadas: null });
+    expect(worksheetItem.precioUnitario).toBeUndefined();
+    expect(worksheetItem.subtotal).toBeUndefined();
+
+    // El jefe define el tiempo estimado por unidad; el total se multiplica por cantidad.
+    const estimateResponse = await request(app)
+      .patch(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/estimate`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ horasHombreEstimadas: 0.5 });
+    expect(estimateResponse.status).toBe(200);
+    const estimatedItem = estimateResponse.body.worksheet.items.find(
+      (item: { id: number }) => item.id === timerItem.id,
+    );
+    expect(estimatedItem).toMatchObject({
+      horasHombreEstimadas: 0.5,
+      horasEstimadasTotales: 1,
+    });
+
+    // El mecánico no puede asignar ni estimar horas.
+    const mechanicAssign = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/assignment`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({ assignedUserId: mechanicId });
+    expect(mechanicAssign.status).toBe(403);
+    const mechanicEstimate = await request(app)
+      .patch(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/estimate`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({ horasHombreEstimadas: 2 });
+    expect(mechanicEstimate.status).toBe(403);
+
+    const startResponse = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/start`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken);
+    expect(startResponse.status).toBe(200);
+    const startedItem = startResponse.body.worksheet.items.find(
+      (item: { id: number }) => item.id === timerItem.id,
+    );
+    expect(startedItem).toMatchObject({ estadoOperativo: 'en_proceso' });
+    expect(startedItem.activeSession).toMatchObject({ mine: true, userId: mechanicId });
+
+    await WorkOrderItemSession.update(
+      { startedAt: new Date(Date.now() - 30 * 60_000) },
+      { where: { workOrderItemId: timerItem.id, status: 'abierta' } },
+    );
+
+    const pauseResponse = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/pause`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken);
+    expect(pauseResponse.status).toBe(200);
+    const pausedItem = pauseResponse.body.worksheet.items.find(
+      (item: { id: number }) => item.id === timerItem.id,
+    );
+    expect(pausedItem.horasHombreReales).toBe(0.5);
+    expect(pausedItem.totalMinutes).toBeGreaterThanOrEqual(30);
+
+    const completeResponse = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/complete`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({ notasOperativas: 'Aceite y filtro reemplazados' });
+    expect(completeResponse.status).toBe(200);
+    const completedItem = completeResponse.body.worksheet.items.find(
+      (item: { id: number }) => item.id === timerItem.id,
+    );
+    expect(completedItem).toMatchObject({
+      estadoOperativo: 'completado',
+      notasOperativas: 'Aceite y filtro reemplazados',
+      horasHombreReales: 0.5,
+      laborValidatedAt: null,
+    });
+
+    // El mecánico no puede ajustar ni validar horas.
+    const mechanicAdjust = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/hours/adjust`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({ minutos: 30, motivo: 'Trabajo adicional' });
+    expect(mechanicAdjust.status).toBe(403);
+    const mechanicValidate = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/hours/validate`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({ comentario: 'OK' });
+    expect(mechanicValidate.status).toBe(403);
+
+    const adjustResponse = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/hours/adjust`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ minutos: 30, motivo: 'Trabajo adicional no cronometrado' });
+    expect(adjustResponse.status).toBe(200);
+    const adjustedItem = adjustResponse.body.worksheet.items.find(
+      (item: { id: number }) => item.id === timerItem.id,
+    );
+    expect(adjustedItem.horasHombreReales).toBe(1);
+
+    const validateResponse = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/hours/validate`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ comentario: 'Horas revisadas contra el trabajo real' });
+    expect(validateResponse.status).toBe(200);
+    const validatedItem = validateResponse.body.worksheet.items.find(
+      (item: { id: number }) => item.id === timerItem.id,
+    );
+    expect(validatedItem.laborValidatedAt).toEqual(expect.any(String));
+    expect(validatedItem.laborValidationNote).toBe('Horas revisadas contra el trabajo real');
+
+    // Observaciones con texto y vínculo al trabajo, sin exponer precios.
+    const observationResponse = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/observations`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .field('texto', 'Se detectó desgaste en la correa auxiliar')
+      .field('workOrderItemId', String(timerItem.id));
+    expect(observationResponse.status).toBe(201);
+    expect(observationResponse.body.worksheet.observations[0]).toMatchObject({
+      texto: 'Se detectó desgaste en la correa auxiliar',
+      itemId: timerItem.id,
+    });
+
+    // Sugerencias de precio: solo jefe/admin, aprobación de administración.
+    const mechanicSuggestionList = await request(app)
+      .get(`/api/work-orders/${assignedWorkOrderId}/price-suggestions`)
+      .set('Cookie', authCookie(mechanicCookies));
+    expect(mechanicSuggestionList.status).toBe(403);
+    const mechanicSuggestion = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/price-suggestions`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({
+        workOrderItemId: timerItem.id,
+        precioSugerido: 30000,
+        alcance: 'ot',
+        motivo: 'Mayor tiempo real del estimado',
+      });
+    expect(mechanicSuggestion.status).toBe(403);
+
+    const suggestionResponse = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/price-suggestions`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({
+        workOrderItemId: timerItem.id,
+        precioSugerido: 30000,
+        alcance: 'ot',
+        motivo: 'Mayor tiempo real del estimado',
+      });
+    expect(suggestionResponse.status).toBe(201);
+    expect(suggestionResponse.body.suggestion).toMatchObject({
+      estado: 'pendiente',
+      horasReales: 1,
+      alcance: 'ot',
+    });
+
+    const approveSuggestion = await request(app)
+      .patch(
+        `/api/work-orders/${assignedWorkOrderId}/price-suggestions/${suggestionResponse.body.suggestion.id}`,
+      )
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .send({ decision: 'aprobar', comentario: 'Aprobado por tiempo real' });
+    expect(approveSuggestion.status).toBe(200);
+    expect(Number((await WorkOrderItem.findByPk(timerItem.id))?.precioUnitario)).toBe(30000);
+
+    // Reporte diario interno: accesible a supervisores, no al mecánico.
+    const mechanicReport = await request(app)
+      .get('/api/work-orders/reports/daily')
+      .set('Cookie', authCookie(mechanicCookies));
+    expect(mechanicReport.status).toBe(403);
+    const dailyReport = await request(app)
+      .get('/api/work-orders/reports/daily')
+      .set('Cookie', authCookie(devCookies));
+    expect(dailyReport.status).toBe(200);
+    expect(dailyReport.body.report.usuarios).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: mechanicId, rol: 'mecanico' }),
+      ]),
+    );
+    expect(dailyReport.body.report.ordenes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: assignedWorkOrderId }),
+      ]),
+    );
   });
 });

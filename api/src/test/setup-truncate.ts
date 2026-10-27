@@ -1,10 +1,12 @@
 import { beforeAll } from 'vitest';
 
 import { sequelize } from '../config/database.js';
-import { ensureFleetPermissions } from '../database/bootstrap.js';
+import { ensureFleetPermissions, ensurePurchasePermissions } from '../database/bootstrap.js';
 import { up as ensureQuotationCommercial } from '../database/migrations/038-quotation-commercial-conditions.js';
 import { up as ensureStartedWorkOrders } from '../database/migrations/039-start-work-orders-without-draft.js';
 import { up as ensureFleetVehicles } from '../database/migrations/040-create-fleet-vehicles.js';
+import { up as ensurePurchases } from '../database/migrations/041-create-purchases.js';
+import { up as ensureWorkOrderLabor } from '../database/migrations/042-create-work-order-labor.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -22,6 +24,14 @@ import { up as ensureFleetVehicles } from '../database/migrations/040-create-fle
  * suite en rojo sin cambiar una linea de codigo.
  */
 const TRANSIENT = [
+  'work_order_observation_files',
+  'work_order_observations',
+  'work_order_price_suggestions',
+  'work_order_item_progress_events',
+  'work_order_item_sessions',
+  'purchase_items',
+  'purchases',
+  'suppliers',
   'fleet_document_versions',
   'fleet_documents',
   'fleet_vehicles',
@@ -48,7 +58,10 @@ beforeAll(async () => {
   await ensureQuotationCommercial(sequelize.getQueryInterface());
   await ensureStartedWorkOrders(sequelize.getQueryInterface());
   await ensureFleetVehicles(sequelize.getQueryInterface());
+  await ensurePurchases(sequelize.getQueryInterface());
+  await ensureWorkOrderLabor(sequelize.getQueryInterface());
   await ensureFleetPermissions();
+  await ensurePurchasePermissions();
   await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
   try {
     for (const table of TRANSIENT) {

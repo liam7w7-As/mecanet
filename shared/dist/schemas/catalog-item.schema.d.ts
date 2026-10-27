@@ -8,6 +8,7 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     precio: z.ZodDefault<z.ZodNumber>;
     stock: z.ZodDefault<z.ZodNumber>;
     stockMinimo: z.ZodDefault<z.ZodNumber>;
+    horasHombreEstandar: z.ZodOptional<z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>>;
 }, "strip", z.ZodTypeAny, {
     nombre: string;
     tipo: "parte" | "estandar" | "especifico";
@@ -17,6 +18,7 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     precio: number;
     codigo?: string | null | undefined;
     descripcion?: string | null | undefined;
+    horasHombreEstandar?: number | null | undefined;
 }, {
     nombre: string;
     tipo: "parte" | "estandar" | "especifico";
@@ -26,6 +28,7 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     descripcion?: string | null | undefined;
     unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
+    horasHombreEstandar?: unknown;
 }>, {
     stock: number;
     nombre: string;
@@ -35,6 +38,7 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     precio: number;
     codigo?: string | null | undefined;
     descripcion?: string | null | undefined;
+    horasHombreEstandar?: number | null | undefined;
 }, {
     nombre: string;
     tipo: "parte" | "estandar" | "especifico";
@@ -44,6 +48,7 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     descripcion?: string | null | undefined;
     unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
+    horasHombreEstandar?: unknown;
 }>;
 export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     tipo: z.ZodOptional<z.ZodEnum<["parte", "estandar", "especifico"]>>;
@@ -54,6 +59,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     precio: z.ZodOptional<z.ZodNumber>;
     stock: z.ZodOptional<z.ZodNumber>;
     stockMinimo: z.ZodOptional<z.ZodNumber>;
+    horasHombreEstandar: z.ZodOptional<z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>>;
 }, "strip", z.ZodTypeAny, {
     nombre?: string | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
@@ -63,6 +69,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     descripcion?: string | null | undefined;
     unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
+    horasHombreEstandar?: number | null | undefined;
 }, {
     nombre?: string | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
@@ -72,6 +79,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     descripcion?: string | null | undefined;
     unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
+    horasHombreEstandar?: unknown;
 }>, {
     nombre?: string | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
@@ -81,6 +89,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     descripcion?: string | null | undefined;
     unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
+    horasHombreEstandar?: number | null | undefined;
 }, {
     nombre?: string | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
@@ -90,6 +99,7 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     descripcion?: string | null | undefined;
     unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
     precio?: number | undefined;
+    horasHombreEstandar?: unknown;
 }>;
 export declare const updateStockSchema: z.ZodObject<{
     delta: z.ZodNumber;

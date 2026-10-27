@@ -26,6 +26,9 @@ import { WorkOrderDelivery } from './WorkOrderDelivery.js';
 import { WorkOrderEvent } from './WorkOrderEvent.js';
 import { WorkOrderInspection } from './WorkOrderInspection.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
+import { WorkOrderItemSession } from './WorkOrderItemSession.js';
+import { WorkOrderObservation } from './WorkOrderObservation.js';
+import { WorkOrderPriceSuggestion } from './WorkOrderPriceSuggestion.js';
 import { WorkOrderProgressReport } from './WorkOrderProgressReport.js';
 import { WorkOrderRequest } from './WorkOrderRequest.js';
 
@@ -246,6 +249,15 @@ export class WorkOrder extends Model<
 
   @HasMany(() => WorkOrderRequest)
   declare requests?: WorkOrderRequest[];
+
+  @HasMany(() => WorkOrderObservation)
+  declare observations?: WorkOrderObservation[];
+
+  @HasMany(() => WorkOrderPriceSuggestion)
+  declare priceSuggestions?: WorkOrderPriceSuggestion[];
+
+  @HasMany(() => WorkOrderItemSession)
+  declare laborSessions?: WorkOrderItemSession[];
 
   @HasOne(() => WorkOrderInspection)
   declare inspection?: WorkOrderInspection;

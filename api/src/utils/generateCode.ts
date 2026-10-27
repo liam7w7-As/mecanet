@@ -1,5 +1,7 @@
+import { formatPurchaseCode } from '@unithor/shared';
 import { Op, Sequelize, Transaction } from 'sequelize';
 
+import { Purchase } from '../models/Purchase.js';
 import { Quotation } from '../models/Quotation.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 
@@ -87,6 +89,22 @@ export const generateQuotationCode = async (
     year,
     transaction,
   });
+};
+
+/**
+ * Genera el siguiente código de compra con formato COMP-000001.
+ */
+export const generatePurchaseCode = async (transaction?: Transaction): Promise<string> => {
+  const lastRecord = await Purchase.findOne({
+    where: { codigo: { [Op.like]: 'COMP-%' } },
+    order: [[Sequelize.literal('CAST(SUBSTRING(codigo, 6) AS UNSIGNED)'), 'DESC']],
+    transaction,
+    lock: transaction ? Transaction.LOCK.UPDATE : undefined,
+  });
+
+  const lastNumber = lastRecord ? parseInt(lastRecord.codigo.slice(5), 10) : 0;
+  const nextNumber = Number.isNaN(lastNumber) ? 1 : lastNumber + 1;
+  return formatPurchaseCode(nextNumber);
 };
 
 /**

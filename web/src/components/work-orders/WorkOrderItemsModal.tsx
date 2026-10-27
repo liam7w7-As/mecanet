@@ -22,6 +22,7 @@ interface WorkOrderItemsModalProps {
 const toEditableItems = (workOrder: WorkOrder): EditableWorkOrderItem[] =>
   workOrder.items?.map((item) => ({
     ...createEmptyWorkOrderItem(),
+    id: item.id,
     catalogItemId: item.catalogItemId,
     catalogTipo: item.catalogItem?.tipo ?? null,
     catalogStock: item.catalogItem?.stock ?? null,
@@ -30,6 +31,8 @@ const toEditableItems = (workOrder: WorkOrder): EditableWorkOrderItem[] =>
     unidadMedida: item.unidadMedida,
     cantidad: String(item.cantidad),
     precioUnitario: String(item.precioUnitario),
+    horasHombreEstimadas:
+      item.horasHombreEstimadas === null ? '' : String(item.horasHombreEstimadas),
     estadoOperativo: item.estadoOperativo,
     notasOperativas: item.notasOperativas ?? '',
   })) ?? [];
@@ -47,12 +50,14 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
       items: items
         .filter((item) => item.descripcion.trim().length > 0)
         .map((item) => ({
+          ...(item.id ? { id: item.id } : {}),
           catalogItemId: item.catalogItemId,
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,
           unidadMedida: item.unidadMedida,
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
+          horasHombreEstimadas: item.horasHombreEstimadas,
           estadoOperativo: item.estadoOperativo,
           notasOperativas: item.notasOperativas,
         })),

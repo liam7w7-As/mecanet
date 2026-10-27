@@ -1,4 +1,13 @@
 import {
+  adjustWorkOrderItemHoursSchema,
+  assignWorkOrderItemSchema,
+  completeWorkOrderItemSchema,
+  createWorkOrderObservationSchema,
+  createWorkOrderPriceSuggestionSchema,
+  reviewWorkOrderPriceSuggestionSchema,
+  updateWorkOrderItemEstimateSchema,
+  validateWorkOrderItemHoursSchema,
+  workshopDailyReportQuerySchema,
   changeWorkOrderStatusSchema,
   deliverWorkOrderSchema,
   createWorkOrderSchema,
@@ -14,6 +23,25 @@ import {
 import { Router } from 'express';
 import { z } from 'zod';
 
+import {
+  adjustItemHoursHandler,
+  assignWorkOrderItemHandler,
+  completeItemTimerHandler,
+  createObservationHandler,
+  createPriceSuggestionHandler,
+  getMyLaborWorkOrdersHandler,
+  getObservationFileHandler,
+  getObservationsHandler,
+  getWorksheetHandler,
+  getWorkshopDailyReportHandler,
+  getWorkshopDailyReportPdfHandler,
+  listPriceSuggestionsHandler,
+  pauseItemTimerHandler,
+  reviewPriceSuggestionHandler,
+  startItemTimerHandler,
+  updateItemEstimateHandler,
+  validateItemHoursHandler,
+} from '../controllers/work-order-labor.controller.js';
 import {
   createWorkOrderHandler,
   createWorkOrderReentryHandler,
@@ -36,8 +64,10 @@ import {
 } from '../controllers/work-order.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorizeAny } from '../middlewares/authorize-any.js';
+import { authorizeRoles } from '../middlewares/authorize-roles.js';
 import { authorize } from '../middlewares/authorize.js';
 import { inspectionPhotoUpload } from '../middlewares/inspection-photo-upload.js';
+import { observationUpload } from '../middlewares/observation-upload.js';
 import { salesRecordAccess } from '../middlewares/sales-record-access.js';
 import { validate } from '../middlewares/validate.js';
 
@@ -56,6 +86,34 @@ const inspectionPhotoParamSchema = idParamSchema.extend({
 const requestParamSchema = idParamSchema.extend({
   requestId: z.coerce.number().int().positive('ID de solicitud inválido'),
 });
+
+const itemParamSchema = idParamSchema.extend({
+  itemId: z.coerce.number().int().positive('ID de trabajo inválido'),
+});
+
+const observationFileParamSchema = idParamSchema.extend({
+  observationId: z.coerce.number().int().positive('ID de observación inválido'),
+  fileId: z.coerce.number().int().positive('ID de archivo inválido'),
+});
+
+const suggestionParamSchema = idParamSchema.extend({
+  suggestionId: z.coerce.number().int().positive('ID de sugerencia inválido'),
+});
+
+/**
+ * Los documentos de la OT (PDF, comprobante de recepción y fotos de inspección)
+ * incluyen precios o datos comerciales. El mecánico trabaja solo con su ficha.
+ */
+const documentRoles = authorizeRoles(
+  'desarrollador',
+  'admin',
+  'jefe',
+  'vendedor',
+  'bodeguero',
+  'finanzas',
+);
+const workshopSupervisorRoles = authorizeRoles('desarrollador', 'admin', 'jefe');
+const priceApproverRoles = authorizeRoles('desarrollador', 'admin');
 
 const authorizePhotoUpload: RequestHandler = (req, res, next) => {
   // Attaching evidence does not grant permission to edit the work order.
@@ -81,8 +139,138 @@ workOrderRouter.get(
 workOrderRouter.get('/mechanics', authorize('taller', 'update'), getMechanicsHandler);
 
 workOrderRouter.get(
+  '/mine',
+  authorize('taller', 'read'),
+  getMyLaborWorkOrdersHandler,
+);
+
+workOrderRouter.get(
+  '/reports/daily',
+  authorize('taller', 'read'),
+  workshopSupervisorRoles,
+  validate({ query: workshopDailyReportQuerySchema }),
+  getWorkshopDailyReportHandler,
+);
+
+workOrderRouter.get(
+  '/reports/daily/pdf',
+  authorize('taller', 'export'),
+  workshopSupervisorRoles,
+  validate({ query: workshopDailyReportQuerySchema }),
+  getWorkshopDailyReportPdfHandler,
+);
+
+workOrderRouter.get(
+  '/:id/worksheet',
+  authorize('taller', 'read'),
+  validate({ params: idParamSchema }),
+  getWorksheetHandler,
+);
+
+workOrderRouter.get(
+  '/:id/observations',
+  authorize('taller', 'read'),
+  validate({ params: idParamSchema }),
+  getObservationsHandler,
+);
+
+workOrderRouter.post(
+  '/:id/observations',
+  authorize('taller', 'update'),
+  validate({ params: idParamSchema }),
+  observationUpload,
+  validate({ body: createWorkOrderObservationSchema }),
+  createObservationHandler,
+);
+
+workOrderRouter.get(
+  '/:id/observations/:observationId/files/:fileId',
+  authorize('taller', 'read'),
+  validate({ params: observationFileParamSchema }),
+  getObservationFileHandler,
+);
+
+workOrderRouter.post(
+  '/:id/items/:itemId/assignment',
+  authorize('taller', 'update'),
+  workshopSupervisorRoles,
+  validate({ params: itemParamSchema, body: assignWorkOrderItemSchema }),
+  assignWorkOrderItemHandler,
+);
+
+workOrderRouter.patch(
+  '/:id/items/:itemId/estimate',
+  authorize('taller', 'update'),
+  workshopSupervisorRoles,
+  validate({ params: itemParamSchema, body: updateWorkOrderItemEstimateSchema }),
+  updateItemEstimateHandler,
+);
+
+workOrderRouter.post(
+  '/:id/items/:itemId/start',
+  authorize('taller', 'update'),
+  validate({ params: itemParamSchema }),
+  startItemTimerHandler,
+);
+
+workOrderRouter.post(
+  '/:id/items/:itemId/pause',
+  authorize('taller', 'update'),
+  validate({ params: itemParamSchema }),
+  pauseItemTimerHandler,
+);
+
+workOrderRouter.post(
+  '/:id/items/:itemId/complete',
+  authorize('taller', 'update'),
+  validate({ params: itemParamSchema, body: completeWorkOrderItemSchema }),
+  completeItemTimerHandler,
+);
+
+workOrderRouter.post(
+  '/:id/items/:itemId/hours/adjust',
+  authorize('taller', 'update'),
+  workshopSupervisorRoles,
+  validate({ params: itemParamSchema, body: adjustWorkOrderItemHoursSchema }),
+  adjustItemHoursHandler,
+);
+
+workOrderRouter.post(
+  '/:id/items/:itemId/hours/validate',
+  authorize('taller', 'update'),
+  workshopSupervisorRoles,
+  validate({ params: itemParamSchema, body: validateWorkOrderItemHoursSchema }),
+  validateItemHoursHandler,
+);
+
+workOrderRouter.get(
+  '/:id/price-suggestions',
+  authorize('taller', 'read'),
+  workshopSupervisorRoles,
+  validate({ params: idParamSchema }),
+  listPriceSuggestionsHandler,
+);
+
+workOrderRouter.post(
+  '/:id/price-suggestions',
+  authorize('taller', 'update'),
+  workshopSupervisorRoles,
+  validate({ params: idParamSchema, body: createWorkOrderPriceSuggestionSchema }),
+  createPriceSuggestionHandler,
+);
+
+workOrderRouter.patch(
+  '/:id/price-suggestions/:suggestionId',
+  authorize('taller', 'update'),
+  priceApproverRoles,
+  validate({ params: suggestionParamSchema, body: reviewWorkOrderPriceSuggestionSchema }),
+  reviewPriceSuggestionHandler,
+);
+
+workOrderRouter.get(
   '/:id/inspection/photos/:slot',
   authorize('taller', 'read'),
+  documentRoles,
   validate({ params: inspectionPhotoParamSchema }),
   getWorkOrderInspectionPhotoHandler,
 );
@@ -105,6 +293,7 @@ workOrderRouter.delete(
 workOrderRouter.get(
   '/:id/reception-pdf',
   authorize('taller', 'read'),
+  documentRoles,
   validate({ params: idParamSchema }),
   getWorkOrderReceptionPdfHandler,
 );
@@ -112,6 +301,7 @@ workOrderRouter.get(
 workOrderRouter.get(
   '/:id/pdf',
   authorize('taller', 'read'),
+  documentRoles,
   validate({ params: idParamSchema }),
   getWorkOrderPdfHandler,
 );

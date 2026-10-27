@@ -106,12 +106,12 @@ export declare const inventoryReportQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde: string;
     fechaHasta: string;
     search?: string | undefined;
-    tipo?: "ingreso" | "salida" | "ajuste" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
+    tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
     catalogItemId?: number | undefined;
     warehouseId?: number | undefined;
 }, {
     search?: string | undefined;
-    tipo?: "ingreso" | "salida" | "ajuste" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
+    tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
     stock?: "todos" | "con_stock" | "sin_stock" | "critico" | undefined;
     catalogItemId?: number | undefined;
     fechaDesde?: string | undefined;
@@ -122,12 +122,12 @@ export declare const inventoryReportQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde: string;
     fechaHasta: string;
     search?: string | undefined;
-    tipo?: "ingreso" | "salida" | "ajuste" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
+    tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
     catalogItemId?: number | undefined;
     warehouseId?: number | undefined;
 }, {
     search?: string | undefined;
-    tipo?: "ingreso" | "salida" | "ajuste" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
+    tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
     stock?: "todos" | "con_stock" | "sin_stock" | "critico" | undefined;
     catalogItemId?: number | undefined;
     fechaDesde?: string | undefined;
@@ -270,7 +270,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     comparar: boolean;
     estadoPago?: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado" | undefined;
     clientId?: number | undefined;
-    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | undefined;
     asesorId?: number | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;
     movimientoTipo?: "ingreso" | "egreso" | undefined;
@@ -280,7 +280,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     clientId?: number | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
-    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | undefined;
     asesorId?: number | undefined;
     agruparPor?: "dia" | "semana" | "mes" | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;
@@ -294,7 +294,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     comparar: boolean;
     estadoPago?: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado" | undefined;
     clientId?: number | undefined;
-    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | undefined;
     asesorId?: number | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;
     movimientoTipo?: "ingreso" | "egreso" | undefined;
@@ -304,7 +304,7 @@ export declare const financialReportQuerySchema: z.ZodEffects<z.ZodObject<{
     clientId?: number | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
-    metodo?: "transferencia" | "efectivo" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | "otro" | undefined;
+    metodo?: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque" | undefined;
     asesorId?: number | undefined;
     agruparPor?: "dia" | "semana" | "mes" | undefined;
     catalogType?: "parte" | "estandar" | "especifico" | undefined;

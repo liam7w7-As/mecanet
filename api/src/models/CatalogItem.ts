@@ -87,6 +87,9 @@ export class CatalogItem extends Model<
   })
   declare stockMinimo: CreationOptional<number>;
 
+  @Column({ type: DataType.DECIMAL(6, 2), allowNull: true })
+  declare horasHombreEstandar: number | null;
+
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;
 

@@ -431,6 +431,7 @@ export const WorkOrderCreatePage = () => {
         unidadMedida: item.unidadMedida,
         cantidad: String(item.cantidad),
         precioUnitario: String(item.precioUnitario),
+        horasHombreEstimadas: '',
         estadoOperativo: item.estadoOperativo,
         notasOperativas: item.notasOperativas ?? '',
       })));
@@ -585,6 +586,7 @@ export const WorkOrderCreatePage = () => {
           unidadMedida: item.unidadMedida,
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
+          horasHombreEstimadas: item.horasHombreEstimadas,
           estadoOperativo: item.estadoOperativo,
           notasOperativas: item.notasOperativas,
         })),

@@ -202,7 +202,7 @@ describe('Auth Routes (E2E)', () => {
         email: 'dev@unithor.local',
         role: 'desarrollador',
       }));
-      expect(meRes.body.user.permissions).toHaveLength(36);
+      expect(meRes.body.user.permissions).toHaveLength(42);
       expect(meRes.body.user.permissions).toContainEqual({ modulo: 'admin', accion: 'read' });
     });
 

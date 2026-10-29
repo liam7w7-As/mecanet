@@ -282,14 +282,25 @@ export const useUploadWorkOrderInspectionPhotosMutation = () => {
       id,
       photos,
       onProgress,
+      onUploaded,
+      onFailed,
+      continueOnError = false,
+      signal,
     }: {
       id: number;
       photos: InspectionPhotoUpload[];
       onProgress?: (slot: WorkOrderInspectionPhotoSlot, percent: number) => void;
+      onUploaded?: (photo: WorkOrderInspectionPhoto) => void | Promise<void>;
+      onFailed?: (slot: WorkOrderInspectionPhotoSlot, error: unknown) => void;
+      continueOnError?: boolean;
+      signal?: AbortSignal;
     }) => {
       const uploaded: WorkOrderInspectionPhoto[] = [];
+      const failed: WorkOrderInspectionPhotoSlot[] = [];
 
       for (const photo of photos) {
+        if (signal?.aborted) throw new Error('La subida quedó pendiente');
+        try {
         const formData = new FormData();
         formData.append('photo', photo.file);
         onProgress?.(photo.slot, 0);
@@ -297,6 +308,7 @@ export const useUploadWorkOrderInspectionPhotosMutation = () => {
           `/work-orders/${id}/inspection/photos/${photo.slot}`,
           formData,
           {
+            ...(signal ? { signal } : {}),
             onUploadProgress: (event) => {
               if (!event.total) return;
               onProgress?.(photo.slot, Math.round((event.loaded / event.total) * 100));
@@ -305,8 +317,15 @@ export const useUploadWorkOrderInspectionPhotosMutation = () => {
         );
         onProgress?.(photo.slot, 100);
         uploaded.push(response.data.photo);
+        await onUploaded?.(response.data.photo);
+        } catch (error) {
+          onFailed?.(photo.slot, error);
+          if (!continueOnError) throw error;
+          failed.push(photo.slot);
+        }
       }
 
+      if (failed.length) throw new Error(`${failed.length} foto(s) pendientes de subir. Las demás fotos ya están guardadas.`);
       return uploaded;
     },
     onSettled: (_photos, _error, variables) => {

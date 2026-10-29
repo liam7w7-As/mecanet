@@ -1,9 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { api } from '../../../lib/api';
+import { flushFormDrafts, loadFormDraft } from '../../../lib/form-recovery';
+import { quotationRecoverySchema } from '../../../lib/form-recovery.schemas';
+import { useAuthStore } from '../../../stores/auth.store';
 import QuotationCreatePage from '../QuotationCreatePage';
 
 vi.mock('../../../lib/api', () => ({
@@ -55,6 +58,7 @@ const selectPart = async () => {
 describe('QuotationCreatePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useAuthStore.setState({ user: null });
     vi.mocked(api.get).mockImplementation((url) => {
       if (url === '/search/quick') return Promise.resolve({ data: { clients: [client], vehicles: [vehicle] } });
       if (url === '/catalog') return Promise.resolve({ data: {
@@ -224,6 +228,83 @@ describe('QuotationCreatePage', () => {
     finish({ data: { quotation: { id: 99 } } });
     expect(await screen.findByText('Cotización guardada')).toBeInTheDocument();
     expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('recupera cliente, condiciones, descuentos e ítems después de volver al formulario', async () => {
+    useAuthStore.setState({ user: { id: 7, nombre: 'Vendedor', email: 'v@example.com', role: 'vendedor' } });
+    const first = renderCreate();
+    await selectClient(); await selectPart();
+    fireEvent.click(screen.getByLabelText('Descuento por línea'));
+    fireEvent.change(screen.getByLabelText('Tipo de descuento 1'), { target: { value: 'porcentaje' } });
+    fireEvent.change(screen.getByLabelText('Descuento 1'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Tipo de descuento general'), { target: { value: 'fijo' } });
+    fireEvent.change(screen.getByLabelText('Descuento general'), { target: { value: '500' } });
+    fireEvent.change(screen.getByLabelText('Notas comerciales o garantía'), { target: { value: 'Garantía acordada' } });
+    fireEvent.change(screen.getByLabelText('Disponibilidad del trabajo'), { target: { value: 'El lunes' } });
+    fireEvent.change(screen.getByLabelText('Validez (días)'), { target: { value: '8' } });
+    await act(async () => { await flushFormDrafts(); });
+    first.unmount();
+    renderCreate();
+    fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
+    expect(screen.getByText('Cliente Repuestos')).toBeInTheDocument();
+    expect(screen.getByText('Filtro de aceite')).toBeInTheDocument();
+    expect(screen.getByLabelText('Notas comerciales o garantía')).toHaveValue('Garantía acordada');
+    expect(screen.getByLabelText('Disponibilidad del trabajo')).toHaveValue('El lunes');
+    expect(screen.getByLabelText('Validez (días)')).toHaveValue(8);
+    expect(screen.getByLabelText('Descuento por línea')).toBeChecked();
+    expect(screen.getByLabelText('Descuento 1')).toHaveValue(10);
+    expect(screen.getByLabelText('Descuento general')).toHaveValue('500');
+    expect(screen.getByTestId('quotation-total')).toHaveTextContent('$4.000');
+    expect(api.post).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar y crear' }));
+    expect(await screen.findByText('Cotización guardada')).toBeInTheDocument();
+    await act(async () => { await flushFormDrafts(); });
+    expect(await loadFormDraft(7, 'quotation:new', quotationRecoverySchema)).toBeNull();
+  });
+
+  it('no recupera la captura de otro usuario y confirma antes de descartarla', async () => {
+    useAuthStore.setState({ user: { id: 7, nombre: 'Vendedor', email: 'v@example.com', role: 'vendedor' } });
+    const first = renderCreate();
+    await selectClient();
+    fireEvent.change(screen.getByLabelText('Notas comerciales o garantía'), { target: { value: 'Sólo usuario 7' } });
+    await act(async () => { await flushFormDrafts(); });
+    first.unmount();
+    useAuthStore.setState({ user: { id: 8, nombre: 'Otro', email: 'otro@example.com', role: 'vendedor' } });
+    const second = renderCreate();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Crear cotización' })).not.toBeDisabled());
+    expect(screen.queryByText('Tienes un formulario pendiente')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Notas comerciales o garantía')).toHaveValue('');
+    second.unmount();
+    useAuthStore.setState({ user: { id: 7, nombre: 'Vendedor', email: 'v@example.com', role: 'vendedor' } });
+    renderCreate();
+    fireEvent.click(await screen.findByRole('button', { name: 'Empezar de nuevo' }));
+    expect(screen.getByRole('button', { name: 'Conservar captura' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar captura' }));
+    await waitFor(() => expect(screen.queryByText('Tienes un formulario pendiente')).not.toBeInTheDocument());
+    expect(screen.getByLabelText('Notas comerciales o garantía')).toHaveValue('');
+    expect(await loadFormDraft(7, 'quotation:new', quotationRecoverySchema)).toBeNull();
+  });
+
+  it('registra la confirmación del servidor aunque se abandone la pantalla durante el guardado', async () => {
+    useAuthStore.setState({ user: { id: 7, nombre: 'Vendedor', email: 'v@example.com', role: 'vendedor' } });
+    let finish!: (value: { data: { quotation: { id: number } } }) => void;
+    vi.mocked(api.post).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const first = renderCreate();
+    await selectClient(); await selectPart();
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar y crear' }));
+    expect(await screen.findByRole('status', { name: 'Guardando cotización…' })).toBeInTheDocument();
+    const leave = new Event('beforeunload', { cancelable: true });
+    act(() => { window.dispatchEvent(leave); });
+    expect(leave.defaultPrevented).toBe(true);
+    first.unmount();
+    await act(async () => { finish({ data: { quotation: { id: 99 } } }); });
+    await waitFor(async () => expect(await loadFormDraft(7, 'quotation:new', quotationRecoverySchema)).toBeNull());
+    expect(api.post).toHaveBeenCalledTimes(1);
+    renderCreate();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Crear cotización' })).not.toBeDisabled());
+    expect(screen.queryByText('Tienes un formulario pendiente')).not.toBeInTheDocument();
   });
 
 });

@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from '../../../components/work-orders/WorkOrderItemsEditor';
 import { api } from '../../../lib/api';
+import { flushFormDrafts, loadFormDraft, saveFormDraft } from '../../../lib/form-recovery';
+import { workOrderRecoverySchema } from '../../../lib/form-recovery.schemas';
 import { useAuthStore } from '../../../stores/auth.store';
 import WorkOrderCreatePage from '../WorkOrderCreatePage';
 import WorkOrderDetailPage from '../WorkOrderDetailPage';
@@ -1086,4 +1088,113 @@ describe('WorkOrdersPage', () => {
       );
     });
   });
+  it('recupera el paso, la inspección y las fotos sin crear una OT anticipadamente', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:recovery') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/clients') return Promise.resolve({ data: clientsResponse });
+      if (url === '/search/quick') return Promise.resolve({ data: quickSearchResponse });
+      if (url === '/catalog') return Promise.resolve({ data: emptyCatalog });
+      return Promise.resolve({ data: { mechanics: [] } });
+    });
+    const first = createWrapper(<WorkOrderCreatePage />, '/work-orders/new');
+    fireEvent.click(await screen.findByText('Cliente Demo'));
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    const search = screen.getByRole('combobox', { name: 'Búsqueda rápida de vehículos y clientes' });
+    fireEvent.focus(search); fireEvent.change(search, { target: { value: 'AB' } });
+    fireEvent.click(await screen.findByText('ABCD12'));
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    fireEvent.change(screen.getByLabelText('Kilometraje de entrada'), { target: { value: '12345' } });
+    fireEvent.change(screen.getByLabelText('Observaciones de inspección'), { target: { value: 'Rayón lateral' } });
+    fireEvent.change(screen.getByLabelText('Subir foto Frontal'), { target: { files: [new File(['original'], 'frente.png', { type: 'image/png' })] } });
+    await act(async () => { await flushFormDrafts(); });
+    first.unmount();
+    createWrapper(<WorkOrderCreatePage />, '/work-orders/new');
+    fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
+    expect(screen.getByLabelText('Kilometraje de entrada')).toHaveValue(12345);
+    expect(screen.getByLabelText('Observaciones de inspección')).toHaveValue('Rayón lateral');
+    expect(screen.getByRole('img', { name: 'Frontal' })).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('conserva las fotos exitosas, recupera la OT creada y reintenta sólo la foto fallida', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:pending') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/clients') return Promise.resolve({ data: clientsResponse });
+      if (url === '/search/quick') return Promise.resolve({ data: quickSearchResponse });
+      if (url === '/catalog') return Promise.resolve({ data: emptyCatalog });
+      return Promise.resolve({ data: { mechanics: [] } });
+    });
+    let rejectRear = true;
+    vi.mocked(api.post).mockImplementation(async (url) => {
+      if (url === '/work-orders') return { data: { workOrder: { ...workOrder, id: 77 } } };
+      const slot = String(url).split('/').pop();
+      if (slot === 'trasera' && rejectRear) throw new Error('Sin conexión');
+      return { data: { photo: { id: 1, slot } } };
+    });
+    const routes = <Routes><Route path="/work-orders/new" element={<WorkOrderCreatePage />} /><Route path="/work-orders/:id" element={<p>OT con fotos completas</p>} /></Routes>;
+    const first = createWrapper(routes, '/work-orders/new');
+    fireEvent.click(await screen.findByText('Cliente Demo'));
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    const search = screen.getByRole('combobox', { name: 'Búsqueda rápida de vehículos y clientes' });
+    fireEvent.focus(search); fireEvent.change(search, { target: { value: 'AB' } });
+    fireEvent.click(await screen.findByText('ABCD12'));
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    for (const name of ['Frontal', 'Trasera', 'Lateral izquierdo']) {
+      fireEvent.change(screen.getByLabelText('Subir foto ' + name), { target: { files: [new File([name], name + '.png', { type: 'image/png' })] } });
+    }
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar y crear orden' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar y crear orden' }));
+    expect(await screen.findByText(/2 de 3 fotos guardadas/)).toBeInTheDocument();
+    await act(async () => { await flushFormDrafts(); });
+    const pending = await loadFormDraft(1, 'work-order:new', workOrderRecoverySchema);
+    expect(pending?.payload.createdOrder?.id).toBe(77);
+    expect(pending?.payload.uploadedSlots).toEqual(['frontal', 'lateral_izquierdo']);
+    first.unmount();
+    rejectRear = false;
+    createWrapper(routes, '/work-orders/new');
+    fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
+    expect(screen.getByText(/2 de 3 fotos guardadas/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar fotos pendientes' }));
+    expect(await screen.findByText('OT con fotos completas')).toBeInTheDocument();
+    expect(vi.mocked(api.post).mock.calls.filter(([url]) => url === '/work-orders')).toHaveLength(1);
+    for (const slot of ['frontal', 'lateral_izquierdo']) expect(vi.mocked(api.post).mock.calls.filter(([url]) => url === '/work-orders/77/inspection/photos/' + slot)).toHaveLength(1);
+    expect(vi.mocked(api.post).mock.calls.filter(([url]) => url === '/work-orders/77/inspection/photos/trasera')).toHaveLength(2);
+    expect(await loadFormDraft(1, 'work-order:new', workOrderRecoverySchema)).toBeNull();
+  });
+
+  it('recupera fotos de una conversión ya realizada sin volver a convertir la COT', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:converted') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    const file = new File(['original'], 'frontal.png', { type: 'image/png' });
+    const draft = workOrderRecoverySchema.parse({
+      activeStep: 4, client, contactClient: client, billingClient: client,
+      vehicle: quickSearchResponse.vehicles[0], assignedMechanicId: null,
+      kilometrajeIngreso: '45000', descripcion: 'Recepción convertida', fechaIngreso: '2026-10-29T09:30', fechaEntrega: '',
+      items: [], inspection: workOrder.inspection,
+      photos: [{ slot: 'frontal', file, name: file.name, lastModified: file.lastModified }],
+      createdOrder: { id: 77, codigo: 'OT-26-77' }, uploadedSlots: [],
+    });
+    await saveFormDraft(1, 'work-order:convert:44', draft, 'converted');
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/quotations/44') return Promise.resolve({ data: { quotation: { id: 44, codigo: 'COT-26-44', clientId: 7, vehicleId: null, workOrderId: 77, items: [], total: 0 } } });
+      if (url === '/clients/7') return Promise.resolve({ data: { client } });
+      if (url === '/clients') return Promise.resolve({ data: clientsResponse });
+      if (url === '/catalog') return Promise.resolve({ data: emptyCatalog });
+      return Promise.resolve({ data: { mechanics: [] } });
+    });
+    vi.mocked(api.post).mockResolvedValue({ data: { photo: { id: 1, slot: 'frontal' } } });
+    createWrapper(<Routes><Route path="/quotations/:quotationId/convert-to-ot" element={<WorkOrderCreatePage />} /><Route path="/work-orders/:id" element={<p>OT convertida recuperada</p>} /></Routes>, '/quotations/44/convert-to-ot');
+    fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
+    expect(screen.getByText('La OT OT-26-77 ya está guardada')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar fotos pendientes' }));
+    expect(await screen.findByText('OT convertida recuperada')).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith('/work-orders/77/inspection/photos/frontal', expect.any(FormData), expect.any(Object));
+  });
+
 });

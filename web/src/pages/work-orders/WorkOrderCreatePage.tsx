@@ -26,16 +26,19 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { AnimateIcon } from '../../components/animate-ui';
 import ClientFormModal from '../../components/clients/ClientFormModal';
+import FormRecoveryBanner from '../../components/common/FormRecoveryBanner';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import SavingOverlay from '../../components/common/SavingOverlay';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
+import PendingInspectionPhotos from '../../components/work-orders/PendingInspectionPhotos';
 import WorkOrderItemsEditor from '../../components/work-orders/WorkOrderItemsEditor';
 import { useClient, useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useFormRecovery } from '../../hooks/useFormRecovery';
 import { useConvertToWorkOrderMutation, useQuotation } from '../../hooks/useQuotations';
 import { useVehicle } from '../../hooks/useVehicles';
 import {
@@ -45,6 +48,7 @@ import {
 } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { workOrderRecoverySchema } from '../../lib/form-recovery.schemas';
 import { formatClp } from '../../lib/formatters';
 import {
   INSPECTION_PHOTO_ACCEPT,
@@ -55,7 +59,9 @@ import { canUploadWorkOrderInspectionPhotos, hasUserPermission } from '../../lib
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
+import type { PhotoTransferState } from '../../components/work-orders/PendingInspectionPhotos';
 import type { EditableWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
+import type { WorkOrderRecovery } from '../../lib/form-recovery.schemas';
 import type { Client, QuickSearchClient, QuickSearchVehicle, Vehicle } from '../../types/entities';
 import type {
   FuelLevel,
@@ -318,7 +324,7 @@ const ClientSearchPicker = ({
   );
 };
 
-export const WorkOrderCreatePage = () => {
+const WorkOrderCreateForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { quotationId: quotationIdParam } = useParams();
@@ -370,11 +376,66 @@ export const WorkOrderCreatePage = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const prefillApplied = useRef(false);
   const submissionInFlight = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
   const preselectedVehicleQuery = useVehicle(preselectedVehicleId);
   const initialClientId = preselectedClientId ?? preselectedVehicleQuery.data?.clientId ?? null;
   const preselectedClientQuery = useClient(initialClientId);
 
-  const isSubmitting = createMutation.isPending || conversionMutation.isPending || uploadPhotosMutation.isPending;
+
+  const [createdOrderCode, setCreatedOrderCode] = useState('');
+  const [uploadedSlots, setUploadedSlots] = useState<WorkOrderInspectionPhotoSlot[]>([]);
+  const [photoTransfers, setPhotoTransfers] = useState<Partial<Record<WorkOrderInspectionPhotoSlot, PhotoTransferState>>>({});
+  const pageMounted = useRef(true);
+  const requestPending = useRef(false);
+  const uploadController = useRef<AbortController | null>(null);
+  const currentPhotos = useRef(photos);
+  currentPhotos.current = photos;
+  useEffect(() => {
+    pageMounted.current = true;
+    const warn = (event: BeforeUnloadEvent) => { if (requestPending.current) { event.preventDefault(); event.returnValue = ''; } };
+    window.addEventListener('beforeunload', warn);
+    return () => {
+      window.removeEventListener('beforeunload', warn);
+      pageMounted.current = false;
+      uploadController.current?.abort();
+      currentPhotos.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
+    };
+  }, []);
+  const draftValue = useMemo<WorkOrderRecovery>(() => ({
+    activeStep, client, contactClient, billingClient, vehicle, assignedMechanicId,
+    kilometrajeIngreso, descripcion, fechaIngreso, fechaEntrega, items, inspection,
+    photos: photos.map((photo) => ({ slot: photo.slot, file: photo.file, name: photo.file.name, lastModified: photo.file.lastModified })),
+    createdOrder: createdOrderId ? { id: createdOrderId, codigo: createdOrderCode } : null,
+    uploadedSlots,
+  }), [activeStep, client, contactClient, billingClient, vehicle, assignedMechanicId,
+    kilometrajeIngreso, descripcion, fechaIngreso, fechaEntrega, items, inspection, photos,
+    createdOrderId, createdOrderCode, uploadedSlots]);
+  const recovery = useFormRecovery<WorkOrderRecovery>({
+    userId: user?.id, form: isConversion ? 'work-order:convert:' + quotationId : 'work-order:new',
+    schema: workOrderRecoverySchema, value: draftValue, paused: submissionInFlight.current || createdOrderId !== null,
+    hasContent: Boolean(client || vehicle || descripcion || kilometrajeIngreso || photos.length || activeStep ||
+      items.length || inspection.nivelCombustible || inspection.inventario.length || inspection.objetosValor || inspection.observaciones ||
+      assignedMechanicId || createdOrderId || fechaEntrega ||
+      [inspection.llantaDelanteraIzquierda, inspection.llantaDelanteraDerecha, inspection.llantaTraseraIzquierda, inspection.llantaTraseraDerecha].some((value) => value !== 'no_revisado')),
+    onRestore: (draft): void => {
+      prefillApplied.current = true;
+      setActiveStep(draft.activeStep as StepIndex);
+      setClient(draft.client); setContactClient(draft.contactClient); setBillingClient(draft.billingClient);
+      setVehicle(draft.vehicle); setAssignedMechanicId(canAssignMechanic ? draft.assignedMechanicId : null);
+      setKilometrajeIngreso(draft.kilometrajeIngreso); setDescripcion(draft.descripcion);
+      setFechaIngreso(draft.fechaIngreso); setFechaEntrega(draft.fechaEntrega);
+      setItems(draft.items.map((item) => ({ ...item, key: "recovered-" + crypto.randomUUID() }))); setInspection(draft.inspection);
+      setPhotos(draft.photos.map((photo) => {
+        const file = new File([photo.file], photo.name, { type: photo.file.type, lastModified: photo.lastModified });
+        return { slot: photo.slot, file, previewUrl: URL.createObjectURL(file) };
+      }));
+      setCreatedOrderId(draft.createdOrder?.id ?? null);
+      setCreatedOrderCode(draft.createdOrder?.codigo ?? '');
+      setUploadedSlots(draft.uploadedSlots);
+    },
+  });
+
+  const isSubmitting = submitting || createMutation.isPending || conversionMutation.isPending || uploadPhotosMutation.isPending;
   const submissionError = isConversion ? conversionMutation.error : createMutation.error;
   const returnPath = isConversion ? `/quotations/${quotationId}` : '/work-orders';
   const vehicleOwnerIsDifferent = Boolean(
@@ -399,7 +460,7 @@ export const WorkOrderCreatePage = () => {
   };
 
   useEffect(() => {
-    if (prefillApplied.current || (!isConversion && preselectedClientId === null && preselectedVehicleId === null))
+    if (!recovery.ready || createdOrderId || prefillApplied.current || (!isConversion && preselectedClientId === null && preselectedVehicleId === null))
       return;
     if (isConversion && !quotationQuery.data) return;
     if (preselectedVehicleId !== null && preselectedVehicleQuery.isPending) return;
@@ -440,6 +501,8 @@ export const WorkOrderCreatePage = () => {
     }
     prefillApplied.current = true;
   }, [
+    recovery.ready,
+    createdOrderId,
     isConversion,
     quotationQuery.data,
     initialClientId,
@@ -498,17 +561,27 @@ export const WorkOrderCreatePage = () => {
         return;
       }
     }
+    const nextPhoto = file ? { slot, file, previewUrl: URL.createObjectURL(file) } : null;
     setPhotos((current) => {
       const previous = current.find((photo) => photo.slot === slot);
       if (previous) {
         URL.revokeObjectURL(previous.previewUrl);
       }
       const withoutSlot = current.filter((photo) => photo.slot !== slot);
-      if (!file) {
+      if (!nextPhoto) {
         return withoutSlot;
       }
-      return [...withoutSlot, { slot, file, previewUrl: URL.createObjectURL(file) }];
+      return [...withoutSlot, nextPhoto];
     });
+  };
+
+  const replacePendingPhoto = (slot: WorkOrderInspectionPhotoSlot, file: File): void => {
+    if (submissionInFlight.current || uploadedSlots.includes(slot)) return;
+    const validationError = validateInspectionFile(file);
+    if (validationError) { notifyError(validationError); return; }
+    setInspectionPhoto(slot, file);
+    setPhotoTransfers((current) => ({ ...current, [slot]: { percent: 0 } }));
+    void recovery.persist({ ...draftValue, photos: [...draftValue.photos.filter((photo) => photo.slot !== slot), { slot, file, name: file.name, lastModified: file.lastModified }] });
   };
 
   const photoMap = useMemo(() => new Map(photos.map((photo) => [photo.slot, photo])), [photos]);
@@ -616,8 +689,53 @@ export const WorkOrderCreatePage = () => {
     setShowConfirm(true);
   };
 
+  const uploadPendingPhotos = async (snapshot: WorkOrderRecovery): Promise<void> => {
+    const order = snapshot.createdOrder;
+    if (!order) return;
+    const completed = new Set(snapshot.uploadedSlots);
+    const pending = snapshot.photos.filter((photo) => !completed.has(photo.slot));
+    const controller = new AbortController();
+    uploadController.current = controller;
+    try {
+      if (pending.length > 0) {
+        await uploadPhotosMutation.mutateAsync({
+          id: order.id,
+          photos: pending.map((photo) => ({ slot: photo.slot, file: new File([photo.file], photo.name, { type: photo.file.type, lastModified: photo.lastModified }) })),
+          continueOnError: true, signal: controller.signal,
+          onProgress: (slot, percent) => {
+            if (pageMounted.current) setPhotoTransfers((current) => ({ ...current, [slot]: { percent } }));
+          },
+          onFailed: (slot, error) => {
+            if (pageMounted.current) setPhotoTransfers((current) => ({ ...current, [slot]: { percent: 0, error: getApiErrorMessage(error, 'No se pudo subir. Puedes reintentar.') } }));
+          },
+          onUploaded: async (photo) => {
+            completed.add(photo.slot);
+            const saved = [...completed];
+            await recovery.persist({ ...snapshot, uploadedSlots: saved });
+            if (pageMounted.current) setUploadedSlots(saved);
+          },
+        });
+      }
+      await recovery.clear();
+      if (pageMounted.current) {
+        notifySuccess('Orden ' + order.codigo + ' guardada con todas sus fotos.');
+        navigate(isConversion && !canReadWorkOrders ? returnPath : '/work-orders/' + order.id);
+      }
+    } catch (error) {
+      if (pageMounted.current) notifyError(getApiErrorMessage(error, 'La OT está guardada. Puedes reintentar las fotos pendientes.'));
+    } finally {
+      if (uploadController.current === controller) uploadController.current = null;
+    }
+  };
+  const retryPendingPhotos = (): void => {
+    if (submissionInFlight.current || !createdOrderId || !canUploadPhotos) return;
+    submissionInFlight.current = true;
+    setSubmitting(true);
+    void uploadPendingPhotos(draftValue).finally(() => { submissionInFlight.current = false; if (pageMounted.current) setSubmitting(false); });
+  };
+
   const handleConfirmCreate = (): void => {
-    if (submissionInFlight.current || createdOrderId) return;
+    if (!recovery.ready || submissionInFlight.current || createdOrderId) return;
     const result = buildPayload();
     if (!result.success) {
       setErrors(getFieldErrors(result.error.issues));
@@ -630,6 +748,8 @@ export const WorkOrderCreatePage = () => {
     conversionMutation.reset();
     uploadPhotosMutation.reset();
     submissionInFlight.current = true;
+    setSubmitting(true);
+    requestPending.current = true;
     void (async () => {
       try {
         const workOrder = isConversion
@@ -638,20 +758,20 @@ export const WorkOrderCreatePage = () => {
               data: convertQuotationToWorkOrderSchema.strip().parse(result.data),
             })).workOrder
           : await createMutation.mutateAsync(result.data);
+        const checkpoint: WorkOrderRecovery = { ...draftValue, createdOrder: { id: workOrder.id, codigo: workOrder.codigo }, uploadedSlots: [] };
+        await recovery.persist(checkpoint);
+        requestPending.current = false;
+        if (!pageMounted.current) return;
         setCreatedOrderId(workOrder.id);
-        if (photos.length > 0) {
-          await uploadPhotosMutation.mutateAsync({
-            id: workOrder.id,
-            photos: photos.map((photo) => ({ slot: photo.slot, file: photo.file })),
-          });
-        }
-        notifySuccess(`Orden ${workOrder.codigo} creada.`);
+        setCreatedOrderCode(workOrder.codigo);
         setShowConfirm(false);
-        navigate(isConversion && !canReadWorkOrders ? returnPath : `/work-orders/${workOrder.id}`);
+        await uploadPendingPhotos(checkpoint);
       } catch (error) {
         notifyError(getApiErrorMessage(error, 'No fue posible crear la orden.'));
       } finally {
+        requestPending.current = false;
         submissionInFlight.current = false;
+        if (pageMounted.current) setSubmitting(false);
       }
     })();
   };
@@ -667,8 +787,9 @@ export const WorkOrderCreatePage = () => {
     (preselectedVehicleId !== null && preselectedVehicleQuery.isPending))) {
     return <div role="status" className="flex items-center gap-2 p-6 text-brand-muted"><LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />Cargando cotización...</div>;
   }
+  const recoverableOrderId = createdOrderId ?? recovery.candidate?.payload.createdOrder?.id;
   if (isConversion && (!Number.isInteger(quotationId) || quotationId <= 0 || quotationQuery.isError ||
-    !quotationQuery.data || quotationQuery.data.workOrderId !== null || quotationQuery.data.archivedAt)) {
+    !quotationQuery.data || (quotationQuery.data.workOrderId !== null && quotationQuery.data.workOrderId !== recoverableOrderId) || quotationQuery.data.archivedAt)) {
     return <section className="space-y-4 p-6"><p role="alert" className="text-brand-coralInk">
       {quotationQuery.data?.workOrderId ? 'Esta cotización ya tiene una OT vinculada.' : quotationQuery.data?.archivedAt ? 'La cotización está archivada.' : 'No se pudo cargar la cotización para recepción.'}
     </p><Link to="/quotations" className="font-semibold text-brand-primaryInk">Volver a cotizaciones</Link></section>;
@@ -676,7 +797,7 @@ export const WorkOrderCreatePage = () => {
 
   return (
     <div className="min-w-0 space-y-5" aria-busy={isSubmitting}>
-      {isSubmitting && <SavingOverlay message={uploadPhotosMutation.isPending ? 'Guardando fotos de la OT…' : 'Guardando orden de trabajo…'} detail="El correo se preparará automáticamente con el documento completo." />}
+      {isSubmitting && <SavingOverlay message={uploadPhotosMutation.isPending ? 'Guardando fotos de la OT…' : 'Guardando orden de trabajo…'} detail={uploadPhotosMutation.isPending ? uploadedSlots.length + " de " + photos.length + " fotos confirmadas. Las fotos guardadas se conservan." : "El correo se preparará automáticamente con el documento completo."} />}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-3">
           <Link
@@ -698,10 +819,14 @@ export const WorkOrderCreatePage = () => {
         </div>
       </header>
 
-      <form
+      <FormRecoveryBanner candidateAt={recovery.candidate?.updatedAt ?? null} ready={recovery.ready} saving={recovery.saving} savedAt={recovery.savedAt} error={recovery.error} onRecover={recovery.recover} onDiscard={() => void recovery.discard()} onRetry={() => void recovery.retry()} />
+      {createdOrderId && photos.length > uploadedSlots.length && <PendingInspectionPhotos code={createdOrderCode} photos={photos.map((photo) => ({ slot: photo.slot, previewUrl: photo.previewUrl, label: photoSlotLabels[photo.slot] }))} savedSlots={uploadedSlots} transfers={photoTransfers} busy={isSubmitting} canUpload={canUploadPhotos} onRetry={retryPendingPhotos} onReplace={replacePendingPhoto} />}
+      {createdOrderId && <Link to={isConversion && !canReadWorkOrders ? returnPath : '/work-orders/' + createdOrderId} className="inline-flex min-h-10 items-center font-semibold text-brand-primaryInk">Ver la OT guardada</Link>}
+      {!createdOrderId && <form
         onSubmit={submit}
         className="overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm"
       >
+        <fieldset disabled={!recovery.ready || isSubmitting || createdOrderId !== null} className="min-w-0">
         {/* Stepper Línea de Tiempo Continua (Estilo Unithor 1.0) */}
         <nav
           className="border-b border-brand-line bg-brand-line/60 px-4 py-6 sm:px-8"
@@ -1297,15 +1422,6 @@ export const WorkOrderCreatePage = () => {
           </div>
         )}
 
-        {uploadPhotosMutation.isError && createdOrderId && (
-          <div
-            className="mx-5 mb-5 rounded-lg border border-brand-line bg-brand-goldPale px-4 py-3 text-sm text-brand-goldInk"
-            role="alert"
-          >
-            La OT fue creada, pero una o más fotos no se pudieron subir. Puede abrir el detalle de
-            la orden y continuar el seguimiento.
-          </div>
-        )}
 
         <footer className="flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Link
@@ -1358,7 +1474,8 @@ export const WorkOrderCreatePage = () => {
             )}
           </div>
         </footer>
-      </form>
+        </fieldset>
+      </form>}
 
       {clientModalTarget && (
         <ClientFormModal onClose={() => setClientModalTarget(null)} onSaved={handleClientSaved} />
@@ -1518,6 +1635,12 @@ export const WorkOrderCreatePage = () => {
       )}
     </div>
   );
+};
+
+export const WorkOrderCreatePage = () => {
+  const userId = useAuthStore((state) => state.user?.id);
+  const location = useLocation();
+  return <WorkOrderCreateForm key={String(userId) + ':' + location.pathname + location.search} />;
 };
 
 export default WorkOrderCreatePage;

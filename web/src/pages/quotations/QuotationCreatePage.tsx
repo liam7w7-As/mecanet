@@ -1,31 +1,45 @@
 import { calculateQuotationPricing, createQuotationSchema } from '@unithor/shared';
 import { AlertCircle, ArrowLeft, CheckCircle2, LoaderCircle, Plus, ReceiptText, Save } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { AnimateIcon } from '../../components/animate-ui';
 import ClientFormModal from '../../components/clients/ClientFormModal';
+import FormRecoveryBanner from '../../components/common/FormRecoveryBanner';
 import ModalHeader from '../../components/common/ModalHeader';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import SavingOverlay from '../../components/common/SavingOverlay';
 import QuotationCommercialFields, { createCommercialDraft } from '../../components/quotations/QuotationCommercialFields';
 import QuotationDiscountSummary from '../../components/quotations/QuotationDiscountSummary';
 import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
+import { useFormRecovery } from '../../hooks/useFormRecovery';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useCreateQuotationMutation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { quotationRecoverySchema } from '../../lib/form-recovery.schemas';
 import { formatClp } from '../../lib/formatters';
+import { useAuthStore } from '../../stores/auth.store';
 
 import type { CommercialDraft } from '../../components/quotations/QuotationCommercialFields';
 import type { EditableWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
+import type { QuotationRecovery } from '../../lib/form-recovery.schemas';
 import type { QuickSearchClient } from '../../types/entities';
 import type { CreateQuotationInput } from '@unithor/shared';
 
-export const QuotationCreatePage = () => {
+const QuotationCreateForm = () => {
   const navigate = useNavigate();
   const createMutation = useCreateQuotationMutation();
+  const mounted = useRef(true);
+  const submissionInFlight = useRef(false);
+  const requestPending = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    const warn = (event: BeforeUnloadEvent) => { if (requestPending.current) { event.preventDefault(); event.returnValue = ''; } };
+    window.addEventListener('beforeunload', warn);
+    return () => { mounted.current = false; window.removeEventListener('beforeunload', warn); };
+  }, []);
   const [client, setClient] = useState<Pick<QuickSearchClient, 'id' | 'nombre' | 'rut'> | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [notas, setNotas] = useState('');
@@ -33,6 +47,16 @@ export const QuotationCreatePage = () => {
   const [items, setItems] = useState<EditableWorkOrderItem[]>([createEmptyWorkOrderItem()]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmData, setConfirmData] = useState<CreateQuotationInput | null>(null);
+  const userId = useAuthStore((state) => state.user?.id);
+  const draftValue = useMemo(() => ({ client, notas, commercial, items, createdQuotationId: null }), [client, notas, commercial, items]);
+  const recovery = useFormRecovery<QuotationRecovery>({
+    userId, form: 'quotation:new', schema: quotationRecoverySchema, value: draftValue, paused: submissionInFlight.current,
+    hasContent: Boolean(client || notas || items.some((item) => item.descripcion || item.catalogItemId) || JSON.stringify(commercial) !== JSON.stringify(createCommercialDraft())),
+    onRestore: (draft): void => {
+      if (draft.createdQuotationId) { void recovery.clear(); navigate('/quotations/' + draft.createdQuotationId); return; }
+      setClient(draft.client); setNotas(draft.notas); setCommercial(draft.commercial); setItems(draft.items.map((item) => ({ ...item, key: "recovered-" + crypto.randomUUID() })));
+    },
+  });
 
   const closeConfirm = (): void => {
     if (!createMutation.isPending) setConfirmData(null);
@@ -41,6 +65,7 @@ export const QuotationCreatePage = () => {
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     createMutation.reset();
+    if (!recovery.ready || createMutation.isPending) return;
     if (!client) {
       setErrors({ _form: 'Seleccione un cliente para emitir la cotización.' });
       return;
@@ -75,14 +100,23 @@ export const QuotationCreatePage = () => {
   };
 
   const confirmCreate = (): void => {
-    if (!confirmData || createMutation.isPending) return;
-    createMutation.mutate(confirmData, {
-      onSuccess: (quotation) => {
-        setConfirmData(null);
-        navigate(`/quotations/${quotation.id}`);
-      },
-      onError: () => setConfirmData(null),
-    });
+    if (!confirmData || createMutation.isPending || submissionInFlight.current) return;
+    submissionInFlight.current = true;
+    requestPending.current = true;
+    const payload = confirmData;
+    void (async () => {
+      try {
+        const quotation = await createMutation.mutateAsync(payload);
+        await recovery.persist({ ...draftValue, createdQuotationId: quotation.id });
+        requestPending.current = false;
+        await recovery.clear();
+        if (mounted.current) { setConfirmData(null); navigate('/quotations/' + quotation.id); }
+      } catch {
+        requestPending.current = false;
+        submissionInFlight.current = false;
+        if (mounted.current) setConfirmData(null);
+      }
+    })();
   };
 
   return (
@@ -99,7 +133,9 @@ export const QuotationCreatePage = () => {
           <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">Nueva Cotización</h1>
         </div>
       </header>
+      <FormRecoveryBanner candidateAt={recovery.candidate?.updatedAt ?? null} ready={recovery.ready} saving={recovery.saving} savedAt={recovery.savedAt} error={recovery.error} onRecover={recovery.recover} onDiscard={() => void recovery.discard()} onRetry={() => void recovery.retry()} />
       <form onSubmit={submit} className="overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm">
+        <fieldset disabled={!recovery.ready || createMutation.isPending} className="min-w-0">
         <section className="p-5 sm:p-6">
           <h2 className="font-bold text-brand-primaryInk">Cliente</h2>
           <div className="mt-3 flex max-w-2xl items-start gap-2">
@@ -170,6 +206,7 @@ export const QuotationCreatePage = () => {
             Crear cotización
           </button>
         </footer>
+        </fieldset>
       </form>
       {showClientModal && (
         <ClientFormModal
@@ -193,6 +230,11 @@ export const QuotationCreatePage = () => {
       )}
     </div>
   );
+};
+
+export const QuotationCreatePage = () => {
+  const userId = useAuthStore((state) => state.user?.id);
+  return <QuotationCreateForm key={userId ?? 'no-session'} />;
 };
 
 export default QuotationCreatePage;

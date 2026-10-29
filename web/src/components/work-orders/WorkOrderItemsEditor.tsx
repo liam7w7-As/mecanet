@@ -1,7 +1,7 @@
 import { calculateQuotationPricing, ITEM_OPERATIONAL_STATUS, UNIT_MEASURES, UNIT_MEASURE_LABELS } from '@unithor/shared';
 import { Check, ChevronLeft, ChevronRight, LoaderCircle, Minus, Plus, Search, Trash2, Undo2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import { useCatalogItems } from '../../hooks/useWorkOrders';
 import { formatClp } from '../../lib/formatters';
@@ -91,6 +91,9 @@ export const WorkOrderItemsEditor = ({
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [lineDiscountsOn, setLineDiscountsOn] = useState(false);
+  useEffect(() => {
+    if (items.some((item) => item.descuentoTipo && Number(item.descuentoValor ?? 0) > 0)) setLineDiscountsOn(true);
+  }, [items]);
   const showLineDiscounts = showDiscounts && (!discountToggle || lineDiscountsOn);
 
   // Flash de entrada: guarda las keys recién agregadas durante 1.2 s

@@ -1,9 +1,11 @@
 import { AlertTriangle, Boxes, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, DollarSign, Download, FileText, LoaderCircle, Lock, Pencil, Plus, ThumbsDown, ThumbsUp, Wrench, X, Zap } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 
 import PaymentFormModal from './PaymentFormModal';
+import PaymentStatusBadge from './PaymentStatusBadge';
 import QuotationStatusBadge from './QuotationStatusBadge';
 import { useCatalogItems } from '../../hooks/useCatalog';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
@@ -115,6 +117,7 @@ export const QuotationDetailModal = ({
     user?.role === 'jefe' || user?.role === 'admin' || user?.role === 'desarrollador';
   const isSales = user?.role === 'vendedor';
   const canUpdate = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
+  const canPay = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
   const canCheckDelivery = isWorkshopLead || isSales || canUpdate;
   const canEditPrice = isWorkshopLead;
   const canSuggest = isWorkshopLead || isSales || canUpdate;
@@ -427,15 +430,16 @@ export const QuotationDetailModal = ({
     setSuggestedType(item.tipo);
   };
 
-  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
-  return (
+  const close = (): void => { if (!updateMutation.isPending && !showPaymentModal && !showPdfModal) onClose(); };
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose: close, isPending: updateMutation.isPending });
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
       {/* Backdrop */}
       <button
         type="button"
         className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
         aria-label="Cerrar modal de detalle"
-        onClick={onClose}
+        onClick={close} disabled={updateMutation.isPending}
       />
 
       {/* Modal Dialog */}
@@ -444,8 +448,9 @@ export const QuotationDetailModal = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 16 }}
         transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-        className="relative z-10 flex max-h-[92vh] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-brand-line"
+        className="commercial-detail-dialog relative z-10 flex max-h-[92vh] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-brand-line"
         role="dialog"
+        tabIndex={-1}
         ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="quotation-detail-title"
@@ -454,7 +459,7 @@ export const QuotationDetailModal = ({
   id="quotation-detail-title"
   badge={<FileText className="h-6 w-6" aria-hidden="true" />}
   title={quotation?.codigo ?? 'Cargando cotización...'}
-  onClose={onClose}
+  onClose={close}
   closeLabel="Cerrar cotización"
 >
   {quotation && <QuotationStatusBadge status={quotation.estadoPago} />}
@@ -471,7 +476,7 @@ export const QuotationDetailModal = ({
 </ModalHeader>
 
         {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className="commercial-detail-body min-h-0 flex-1 overflow-y-auto p-5 space-y-5">
           {quotationQuery.isPending && (
             <div className="flex min-h-64 items-center justify-center">
               <LoaderCircle className="h-8 w-8 animate-spin text-brand-primaryInk" aria-label="Cargando datos" />
@@ -798,7 +803,7 @@ export const QuotationDetailModal = ({
 
                 {/* Items Table */}
                 <div className="max-w-full overflow-x-auto overscroll-x-contain">
-                  <table className="w-full min-w-[720px] text-left text-xs">
+                  <table className="commercial-concepts-table w-full text-left text-xs">
                     <thead className="bg-brand-line/40 text-[11px] uppercase font-bold text-brand-muted border-b border-brand-line">
                       <tr>
                         <th className="px-3.5 py-2.5 w-10 text-center">Aplicado</th>
@@ -838,7 +843,7 @@ export const QuotationDetailModal = ({
                               }`}
                             >
                               {/* 1. Check de Entrega / Aplicación al Vehículo */}
-                              <td className="px-3.5 py-3 text-center">
+                              <td data-label="Aplicado" className="px-3.5 py-3 text-center">
                                 {canCheckDelivery && !isRejected ? (
                                   <button
                                     type="button"
@@ -865,7 +870,7 @@ export const QuotationDetailModal = ({
                               </td>
 
                               {/* 2. Concept Description & Category Badge */}
-                              <td className="px-3.5 py-3">
+                              <td data-label="Concepto" className="px-3.5 py-3">
                                 <div className="flex flex-col gap-1">
                                   <div className="flex items-center gap-2">
                                     <span className="font-semibold text-brand-ink">{item.descripcion}</span>
@@ -906,7 +911,7 @@ export const QuotationDetailModal = ({
                               </td>
 
                               {/* 3. Customer Approval Status & Decision Actions */}
-                              <td className="px-3.5 py-3">
+                              <td data-label="Aprobación" className="px-3.5 py-3">
                                 {isPendingApproval ? (
                                   <div className="flex flex-col gap-1.5">
                                     <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 font-bold text-amber-700 border border-amber-200">
@@ -953,12 +958,12 @@ export const QuotationDetailModal = ({
                               </td>
 
                               {/* 4. Quantity */}
-                              <td className="px-3.5 py-3 text-center font-mono font-medium text-brand-ink">
+                              <td data-label="Cantidad" className="px-3.5 py-3 text-center font-mono font-medium text-brand-ink">
                                 {item.cantidad}
                               </td>
 
                               {/* 5. Unit Price & Jefe de Taller Adjustment */}
-                              <td className="px-3.5 py-3 text-right">
+                              <td data-label="Precio unitario" className="px-3.5 py-3 text-right">
                                 {isEditingPrice ? (
                                   <div className="flex items-center justify-end gap-1">
                                      <CurrencyInput
@@ -1019,7 +1024,7 @@ export const QuotationDetailModal = ({
                               </td>
 
                               {/* 6. Subtotal */}
-                              <td className="px-3.5 py-3 text-right font-mono font-bold text-brand-ink">
+                              <td data-label="Subtotal" className="px-3.5 py-3 text-right font-mono font-bold text-brand-ink">
                                 {formatClp(item.subtotal)}
                               </td>
                             </tr>
@@ -1068,9 +1073,7 @@ export const QuotationDetailModal = ({
                                 {formatDateTime(p.fecha)} por {p.creator?.nombre ?? 'Sistema'}
                               </p>
                             </div>
-                            <span className="rounded bg-brand-mintPale px-2 py-0.5 font-mono text-[10px] font-bold text-brand-mintInk">
-                              Registrado
-                            </span>
+                            <PaymentStatusBadge status={p.estado ?? 'confirmado'} />
                           </div>
                         ))}
                       </div>
@@ -1090,10 +1093,11 @@ export const QuotationDetailModal = ({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-line bg-brand-line/60 px-5 py-3.5">
           {/* Left Actions: Abono & Convertir */}
           <div className="flex items-center gap-2">
-            {balance > 0 && (
+            {canPay && balance > 0 && (
               <button
                 type="button"
                 onClick={() => setShowPaymentModal(true)}
+                disabled={updateMutation.isPending}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-brand-mintInk px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-mintInk transition-colors"
               >
                 <DollarSign className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1104,7 +1108,7 @@ export const QuotationDetailModal = ({
             {quotation && canConvert && quotation.workOrderId === null && !quotation.archivedAt && (
               <Link
                 to={`/quotations/${quotation.id}/convert-to-ot`}
-                onClick={onClose}
+                onClick={(event) => { if (updateMutation.isPending) event.preventDefault(); else close(); }}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-primaryHover transition-colors"
               >
                 <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1126,7 +1130,8 @@ export const QuotationDetailModal = ({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={close}
+              disabled={updateMutation.isPending}
               className="rounded-lg bg-brand-line px-4 py-2 text-xs font-bold text-brand-ink hover:bg-brand-line transition-colors"
             >
               Cerrar
@@ -1154,7 +1159,7 @@ export const QuotationDetailModal = ({
         />
       )}
     </div>
-  );
+  , document.body);
 };
 
 export default QuotationDetailModal;

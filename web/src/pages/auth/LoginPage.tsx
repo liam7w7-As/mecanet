@@ -9,6 +9,7 @@ import { useCompanyBranding } from '../../components/common/BrandingContext';
 import BrandLogo from '../../components/common/BrandLogo';
 import { useLoginMutation } from '../../hooks/useAuth';
 import { getFieldErrors } from '../../lib/form-errors';
+import { getPostLoginPath } from '../../lib/session-navigation';
 
 interface ApiErrorBody {
   error?: {
@@ -103,8 +104,8 @@ export const LoginPage = () => {
     }
 
     loginMutation.mutate(result.data, {
-      onSuccess: () => {
-        navigate(locationState?.from ?? '/dashboard', { replace: true });
+      onSuccess: (user) => {
+        navigate(getPostLoginPath(user, locationState?.from), { replace: true });
       },
     });
   };

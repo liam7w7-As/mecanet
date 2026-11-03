@@ -583,16 +583,16 @@ export const FinanceAnalyticsDashboard = () => {
               </div>
               <div className="max-w-full overflow-x-auto overscroll-x-contain">
                 {data.topItems.length === 0 ? <EmptyRows label="No hay ítems vendidos." /> : (
-                  <table className="w-full min-w-[28rem] text-left text-sm">
-                    <thead className="bg-brand-line/40 text-xs uppercase text-brand-muted">
-                      <tr><th className="px-4 py-3">Ítem</th><th className="px-3 py-3 text-right">Cantidad</th><th className="px-4 py-3 text-right">Venta</th></tr>
+                  <table role="table" className="workspace-table w-full min-w-[28rem] text-left text-sm">
+                    <thead role="rowgroup" className="bg-brand-line/40 text-xs uppercase text-brand-muted">
+                      <tr role="row"><th role="columnheader" className="px-4 py-3">Ítem</th><th role="columnheader" className="px-3 py-3 text-right">Cantidad</th><th role="columnheader" className="px-4 py-3 text-right">Venta</th></tr>
                     </thead>
-                    <tbody className="divide-y divide-brand-line">
+                    <tbody role="rowgroup" className="divide-y divide-brand-line">
                       {data.topItems.slice(0, 8).map((item) => (
-                        <tr key={`${item.catalogItemId ?? 'libre'}-${item.nombre}`}>
-                          <td className="px-4 py-3"><span className="block font-semibold text-brand-ink">{item.nombre}</span><span className="text-xs text-brand-muted">{item.codigo ?? humanize(item.tipo)}</span></td>
-                          <td className="px-3 py-3 text-right font-semibold">{item.quantity.toLocaleString('es-CL')}</td>
-                          <td className="px-4 py-3 text-right font-bold text-brand-primaryInk">{formatClp(item.revenue)}</td>
+                        <tr role="row" key={`${item.catalogItemId ?? 'libre'}-${item.nombre}`}>
+                          <td role="cell" data-label="Ítem" className="px-4 py-3"><span className="block font-semibold text-brand-ink">{item.nombre}</span><span className="text-xs text-brand-muted">{item.codigo ?? humanize(item.tipo)}</span></td>
+                          <td role="cell" data-label="Cantidad" className="px-3 py-3 text-right font-semibold">{item.quantity.toLocaleString('es-CL')}</td>
+                          <td role="cell" data-label="Venta" className="px-4 py-3 text-right font-bold text-brand-primaryInk">{formatClp(item.revenue)}</td>
                         </tr>
                       ))}
                     </tbody>

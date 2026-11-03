@@ -39,7 +39,7 @@ export const ProtectedRoute = ({
   }
 
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search + location.hash }} />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {

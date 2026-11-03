@@ -133,7 +133,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
         onClick={onClose}
       />
       <section
-        className="relative max-h-full w-full max-w-[520px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="workspace-form-dialog workspace-dialog relative max-h-full w-full max-w-[520px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="catalog-form-title"
@@ -145,7 +145,8 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
   onClose={onClose}
 />
 
-        <form className="space-y-5 p-5 sm:p-6" noValidate onSubmit={handleSubmit}>
+        <form className="workspace-form" noValidate onSubmit={handleSubmit}>
+          <div className="workspace-form-body space-y-5 p-5 sm:p-6">
           <fieldset>
             <legend className="mb-2 text-sm font-medium text-brand-ink">Tipo de item</legend>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -227,7 +228,8 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
             </div>
           )}
 
-          <footer className="dialog-buttons border-t border-brand-line pt-5">
+          </div>
+          <footer className="workspace-form-footer dialog-buttons border-t border-brand-line pt-5">
             <button type="button" className="secondary-button" onClick={onClose} disabled={activeMutation.isPending}>Cancelar</button>
             <button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-60" disabled={activeMutation.isPending}>
               {activeMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Boxes className="h-4 w-4" aria-hidden="true" />}

@@ -75,7 +75,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative w-full max-w-[620px] overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="workspace-form-dialog workspace-dialog relative w-full max-w-[620px] overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="user-form-title"
@@ -88,7 +88,8 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
           badge={user ? <UserAvatar user={user} size="md" /> : undefined}
           onClose={onClose}
         />
-        <form onSubmit={submit} className="space-y-4 px-7 pb-7 pt-2">
+        <form onSubmit={submit} className="workspace-form">
+          <div className="workspace-form-body space-y-4 px-7 pb-7 pt-2">
           {mutation.isError && (
             <div className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk" role="alert">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -126,7 +127,8 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
               {errors.password && <span className="mt-1 block text-xs font-normal text-brand-coralInk">{errors.password}</span>}
             </label>
           )}
-          <footer className="dialog-buttons pt-4">
+          </div>
+          <footer className="workspace-form-footer dialog-buttons pt-4">
             <button type="button" className="secondary-button" onClick={onClose}>
               Cancelar
             </button>

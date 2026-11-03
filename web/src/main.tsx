@@ -15,6 +15,14 @@ import './styles/modernize.css';
 // Va último a propósito: `modernize.css` se carga después de `shell.css`, así
 // que una variante definida en shell.css no podría ganarle a `.status-chip`.
 import './styles/overrides.css';
+// Nueva presentación acotada al shell; los documentos aprobados conservan sus estilos.
+import './styles/redesign.css';
+import './styles/workshop.css';
+import './styles/reception.css';
+import './styles/commercial.css';
+import './styles/workspaces.css';
+import './styles/mobile-navigation.css';
+import './styles/module-reference.css';
 import { MotionProvider } from './components/animate-ui/motion-config';
 import { BrandingProvider } from './components/common/BrandingContext';
 import { OfflineIndicator } from './components/pwa/OfflineIndicator';

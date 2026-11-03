@@ -2,6 +2,7 @@ import { calculateQuotationPricing, createQuotationSchema } from '@unithor/share
 import { AlertCircle, ArrowLeft, CheckCircle2, LoaderCircle, Plus, ReceiptText, Save } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { AnimateIcon } from '../../components/animate-ui';
@@ -120,9 +121,9 @@ const QuotationCreateForm = () => {
   };
 
   return (
-    <div className="min-w-0 space-y-5" aria-busy={createMutation.isPending}>
+    <div className="commercial-create-page min-w-0 space-y-5" aria-busy={createMutation.isPending}>
       {createMutation.isPending && <SavingOverlay message="Guardando cotización…" detail="El correo se preparará automáticamente después de guardar." />}
-      <header className="flex items-start gap-3">
+      <header className="commercial-create-heading flex items-start gap-3">
         <Link to="/quotations" className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:bg-brand-pale" aria-label="Volver a cotizaciones">
           <AnimateIcon variant="slide-left" animateOnHover>
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -134,9 +135,10 @@ const QuotationCreateForm = () => {
         </div>
       </header>
       <FormRecoveryBanner candidateAt={recovery.candidate?.updatedAt ?? null} ready={recovery.ready} saving={recovery.saving} savedAt={recovery.savedAt} error={recovery.error} onRecover={recovery.recover} onDiscard={() => void recovery.discard()} onRetry={() => void recovery.retry()} />
-      <form onSubmit={submit} className="overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm">
+      <form onSubmit={submit} className="commercial-create-form overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm">
         <fieldset disabled={!recovery.ready || createMutation.isPending} className="min-w-0">
-        <section className="p-5 sm:p-6">
+        <div className="commercial-create-scroll">
+        <section className="commercial-customer p-5 sm:p-6">
           <h2 className="font-bold text-brand-primaryInk">Cliente</h2>
           <div className="mt-3 flex max-w-2xl items-start gap-2">
             <div className="min-w-0 flex-1">
@@ -161,7 +163,7 @@ const QuotationCreateForm = () => {
             </button>
           </div>
           {client ? (
-            <div className="mt-3 flex items-center gap-3 rounded-lg border border-brand-mint/40 bg-brand-mintPale px-4 py-3" role="status">
+            <div className="commercial-client-selection mt-3 flex items-center gap-3 rounded-lg border border-brand-mint/40 bg-brand-mintPale px-4 py-3" role="status">
               <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-mintInk" aria-hidden="true" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold uppercase tracking-wide text-brand-mintInk">
@@ -185,15 +187,20 @@ const QuotationCreateForm = () => {
           )}
           {errors._form && <p className="mt-3 text-sm text-brand-coralInk" role="alert">{errors._form}</p>}
         </section>
-        <section className="space-y-5 border-t border-brand-line p-5 sm:p-6">
-          <QuotationCommercialFields value={commercial} onChange={setCommercial} errors={errors} />
-          <WorkOrderItemsEditor items={items} onChange={setItems} errors={errors} title="Conceptos cotizados" emptyMessage="La cotización se emitirá sin conceptos y con total cero." showExecution={false} showDiscounts discountToggle showTotal={false} />
-          <QuotationDiscountSummary items={items} value={commercial} onChange={setCommercial} />
-          {errors.descuentoValor && <p role="alert" className="text-sm text-brand-coralInk">{errors.descuentoValor}</p>}
-          <label className="block text-sm font-semibold text-brand-ink">Notas comerciales o garantía<textarea rows={3} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" /></label>
-        </section>
+        <div className="commercial-create-workspace">
+          <section className="commercial-create-items">
+            <WorkOrderItemsEditor presentation="reception" items={items} onChange={setItems} errors={errors} title="Conceptos cotizados" emptyMessage="La cotización se emitirá sin conceptos y con total cero." showExecution={false} showDiscounts discountToggle showTotal={false} />
+          </section>
+          <aside className="commercial-create-terms" aria-label="Condiciones y total">
+            <QuotationCommercialFields value={commercial} onChange={setCommercial} errors={errors} />
+            <QuotationDiscountSummary items={items} value={commercial} onChange={setCommercial} />
+            {errors.descuentoValor && <p role="alert" className="text-sm text-brand-coralInk">{errors.descuentoValor}</p>}
+            <label className="block text-sm font-semibold text-brand-ink">Notas comerciales o garantía<textarea rows={3} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" /></label>
+          </aside>
+        </div>
+        </div>
         {createMutation.isError && <div className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(createMutation.error)}</div>}
-        <footer className="flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 p-4 sm:flex-row sm:justify-end">
+        <footer className="commercial-create-footer flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 p-4 sm:flex-row sm:justify-end">
           <Link to="/quotations" className="inline-flex h-10 items-center justify-center rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink transition-colors hover:bg-brand-pale">Cancelar</Link>
           <button type="submit" className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow disabled:opacity-60" disabled={createMutation.isPending}>
             {createMutation.isPending ? (
@@ -271,7 +278,7 @@ const QuotationCreateConfirm = ({
     subtotal = total;
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
       <button
         type="button"
@@ -285,7 +292,8 @@ const QuotationCreateConfirm = ({
         initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative w-full max-w-md overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
+        tabIndex={-1}
+        className="commercial-confirm-dialog relative w-full max-w-md overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog"
         ref={setPanelNode}
         aria-modal="true"
@@ -334,5 +342,5 @@ const QuotationCreateConfirm = ({
         </footer>
       </motion.section>
     </div>
-  );
+  , document.body);
 };

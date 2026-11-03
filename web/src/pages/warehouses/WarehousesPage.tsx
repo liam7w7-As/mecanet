@@ -1,7 +1,7 @@
 import { AlertCircle, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Boxes, CheckCircle2, Clock3, History, LoaderCircle, PackageCheck, Pencil, Plus, Search, Truck, Warehouse as WarehouseIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { AnimateIcon, AnimatedCard, Stagger, StaggerItem } from '../../components/animate-ui';
+import { AnimateIcon } from '../../components/animate-ui';
 import Pagination from '../../components/common/Pagination';
 import {
   useCatalogParts,
@@ -109,7 +109,7 @@ const PartPicker = ({
 
 export const WarehousesPage = () => {
   const user = useAuthStore((state) => state.user);
-  const [search, setSearch] = useState('');
+  const [search] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [balanceSearch, setBalanceSearch] = useState('');
   const [movementPage, setMovementPage] = useState(1);
@@ -169,7 +169,7 @@ export const WarehousesPage = () => {
   }, [balancesQuery.data, balanceSearch]);
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="workspace-page workspace-warehouses min-w-0 space-y-5">
       <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-sm font-medium text-brand-muted">Inventario por bodega</p>
@@ -232,6 +232,77 @@ export const WarehousesPage = () => {
         <InventoryMetric icon={AlertCircle} label="Bajo mínimo" value={(balancesQuery.data ?? []).filter((balance) => balance.bajoMinimo).length} tone="red" />
       </section>
 
+      <section aria-label="Almacenes">
+        {warehousesQuery.isPending ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="h-32 animate-pulse rounded-xl border border-brand-line bg-white" />
+            ))}
+          </div>
+        ) : warehouses.length === 0 ? (
+          <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed border-brand-line bg-white px-4 text-center">
+            <WarehouseIcon className="h-10 w-10 text-brand-muted/40" aria-hidden="true" />
+            <p className="mt-3 font-semibold text-brand-ink">Sin almacenes registrados</p>
+            <p className="mt-1 text-sm text-brand-muted">Cree la primera bodega para llevar stock por ubicación.</p>
+          </div>
+        ) : (
+          <div className="warehouse-selector">
+            <label><span className="sr-only">Seleccionar almacén</span>
+              <select value={selectedId ?? ''} onChange={(event) => setSelectedId(Number(event.target.value))}>
+                {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.nombre}</option>)}
+              </select>
+            </label>
+            {selected && <><span className="warehouse-selector-code">{selected.codigo}</span><span className="warehouse-selector-summary">{selected.totalItems} ítems · {selected.totalUnidades} uds. · {selected.activo ? 'Activo' : 'Inactivo'}</span></>}
+            {canUpdate && selected && <button type="button" aria-label={'Editar ' + selected.codigo} onClick={() => { setEditingWarehouse(selected); setShowWarehouseModal(true); }}><Pencil aria-hidden="true" />Editar almacén</button>}
+          </div>
+        )}
+      </section>
+
+      {selected !== null && (
+        <section className="overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm" aria-label={`Stock de ${selected.codigo}`}>
+          <div className="flex flex-col gap-3 border-b border-brand-line p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-bold text-brand-primaryInk">Stock · {selected.nombre}</h2>
+              <p className="mt-0.5 text-xs text-brand-muted">Saldos por repuesto en este almacén.</p>
+            </div>
+            <label className="relative sm:w-72">
+              <span className="sr-only">Buscar en stock</span>
+              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" />
+              <input
+                value={balanceSearch}
+                onChange={(event) => setBalanceSearch(event.target.value)}
+                className="h-10 w-full rounded-lg border border-brand-line pl-9 pr-3 text-sm outline-none focus:border-brand-primary"
+                placeholder="Buscar repuesto o código"
+              />
+            </label>
+          </div>
+          <div className="max-w-full overflow-x-auto overscroll-x-contain">
+            <table role="table" className="workspace-table w-full min-w-[640px] text-left text-sm">
+              <thead role="rowgroup" className="bg-brand-line/40 text-xs uppercase text-brand-muted">
+                <tr role="row"><th role="columnheader" className="px-4 py-3 font-semibold">Código</th><th role="columnheader" className="px-4 py-3 font-semibold">Repuesto</th><th role="columnheader" className="px-4 py-3 text-right font-semibold">Precio</th><th role="columnheader" className="px-4 py-3 text-right font-semibold">Cantidad</th></tr>
+              </thead>
+              <tbody role="rowgroup">
+                {balancesQuery.isPending ? (
+                  <tr role="row"><td role="cell" colSpan={4} className="px-4 py-8 text-center text-sm text-brand-muted">Cargando stock...</td></tr>
+                ) : filteredBalances.length === 0 ? (
+                  <tr role="row"><td role="cell" colSpan={4} className="px-4 py-8 text-center text-sm text-brand-muted"><Boxes className="mx-auto h-8 w-8 text-brand-muted/40" aria-hidden="true" /><p className="mt-2">Sin saldos registrados.</p></td></tr>
+                ) : filteredBalances.map((balance) => (
+                  <tr role="row" key={balance.catalogItemId} className="border-t border-brand-line">
+                    <td role="cell" data-label="Código" className="px-4 py-3 font-mono text-xs font-bold text-brand-ink">{balance.codigo ?? '—'}</td>
+                    <td role="cell" data-label="Repuesto" className="px-4 py-3 font-medium text-brand-ink">{balance.nombre}</td>
+                    <td role="cell" data-label="Precio" className="whitespace-nowrap px-4 py-3 text-right text-brand-muted">{formatClp(balance.precio)}</td>
+                    <td role="cell" data-label="Cantidad" className="px-4 py-3 text-right">
+                      <span className={`rounded-md px-2 py-1 text-sm font-bold ${balance.cantidad > 0 ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-coralPale text-brand-coralInk'}`}>{balance.cantidad}</span>
+                      {balance.bajoMinimo && <span className="ml-1 rounded-md bg-brand-goldPale px-2 py-1 text-[11px] font-bold text-brand-goldInk" title={`Mínimo configurado: ${balance.stockMinimo}`}>Bajo mínimo</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       <section className="overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm" aria-label="Solicitudes de repuestos para órdenes de trabajo">
         {/* Banda sobre `surfaceDark`, no sobre el índigo: el subtítulo usa
           `text-brand-muted` (4.3:1 sobre `#255DFF`) y el icono dorado 2.9:1. Sobre
@@ -279,121 +350,6 @@ export const WarehousesPage = () => {
         </div>
       </section>
 
-      <section aria-label="Almacenes">
-        {warehousesQuery.isPending ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }, (_, index) => (
-              <div key={index} className="h-32 animate-pulse rounded-xl border border-brand-line bg-white" />
-            ))}
-          </div>
-        ) : warehouses.length === 0 ? (
-          <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed border-brand-line bg-white px-4 text-center">
-            <WarehouseIcon className="h-10 w-10 text-brand-muted/40" aria-hidden="true" />
-            <p className="mt-3 font-semibold text-brand-ink">Sin almacenes registrados</p>
-            <p className="mt-1 text-sm text-brand-muted">Cree la primera bodega para llevar stock por ubicación.</p>
-          </div>
-        ) : (
-          <Stagger className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" stagger={0.05}>
-            {warehouses.map((warehouse) => {
-              const active = warehouse.id === selectedId;
-              return (
-                <StaggerItem key={warehouse.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(warehouse.id)}
-                    aria-pressed={active}
-                    className={`w-full rounded-xl border bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
-                      active ? 'border-brand-primaryInk ring-2 ring-brand-primary/30' : 'border-brand-line'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="rounded-md bg-brand-ink px-2 py-1 font-mono text-xs font-bold text-white">{warehouse.codigo}</span>
-                      {warehouse.activo ? (
-                        <span className="rounded-full bg-brand-mintPale px-2 py-0.5 text-[11px] font-bold text-brand-mintInk">Activo</span>
-                      ) : (
-                        <span className="rounded-full bg-brand-line px-2 py-0.5 text-[11px] font-bold text-brand-muted">Inactivo</span>
-                      )}
-                    </div>
-                    <p className="mt-2 truncate font-bold text-brand-primaryInk">{warehouse.nombre}</p>
-                    <p className="mt-1 text-sm text-brand-muted">
-                      <strong className="text-brand-ink">{warehouse.totalItems}</strong> ítems ·{' '}
-                      <strong className="text-brand-ink">{warehouse.totalUnidades}</strong> uds.
-                    </p>
-                    {canUpdate && (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Editar ${warehouse.codigo}`}
-                        className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-muted hover:text-brand-primaryInk"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setEditingWarehouse(warehouse);
-                          setShowWarehouseModal(true);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.stopPropagation();
-                            setEditingWarehouse(warehouse);
-                            setShowWarehouseModal(true);
-                          }
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Editar
-                      </span>
-                    )}
-                  </button>
-                </StaggerItem>
-              );
-            })}
-          </Stagger>
-        )}
-      </section>
-
-      {selected !== null && (
-        <section className="overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm" aria-label={`Stock de ${selected.codigo}`}>
-          <div className="flex flex-col gap-3 border-b border-brand-line p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-bold text-brand-primaryInk">Stock · {selected.nombre}</h2>
-              <p className="mt-0.5 text-xs text-brand-muted">Saldos por repuesto en este almacén.</p>
-            </div>
-            <label className="relative sm:w-72">
-              <span className="sr-only">Buscar en stock</span>
-              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" />
-              <input
-                value={balanceSearch}
-                onChange={(event) => setBalanceSearch(event.target.value)}
-                className="h-10 w-full rounded-lg border border-brand-line pl-9 pr-3 text-sm outline-none focus:border-brand-primary"
-                placeholder="Buscar repuesto o código"
-              />
-            </label>
-          </div>
-          <div className="max-w-full overflow-x-auto overscroll-x-contain">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="bg-brand-line/40 text-xs uppercase text-brand-muted">
-                <tr><th className="px-4 py-3 font-semibold">Código</th><th className="px-4 py-3 font-semibold">Repuesto</th><th className="px-4 py-3 text-right font-semibold">Precio</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th></tr>
-              </thead>
-              <tbody>
-                {balancesQuery.isPending ? (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-brand-muted">Cargando stock...</td></tr>
-                ) : filteredBalances.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-brand-muted"><Boxes className="mx-auto h-8 w-8 text-brand-muted/40" aria-hidden="true" /><p className="mt-2">Sin saldos registrados.</p></td></tr>
-                ) : filteredBalances.map((balance) => (
-                  <tr key={balance.catalogItemId} className="border-t border-brand-line">
-                    <td className="px-4 py-3 font-mono text-xs font-bold text-brand-ink">{balance.codigo ?? '—'}</td>
-                    <td className="px-4 py-3 font-medium text-brand-ink">{balance.nombre}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-brand-muted">{formatClp(balance.precio)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`rounded-md px-2 py-1 text-sm font-bold ${balance.cantidad > 0 ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-coralPale text-brand-coralInk'}`}>{balance.cantidad}</span>
-                      {balance.bajoMinimo && <span className="ml-1 rounded-md bg-brand-goldPale px-2 py-1 text-[11px] font-bold text-brand-goldInk" title={`Mínimo configurado: ${balance.stockMinimo}`}>Bajo mínimo</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
       <section className="overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm" aria-label="Kardex de movimientos">
         <div className="grid gap-3 border-b border-brand-line p-4 lg:grid-cols-[170px_170px_1fr]">
           <label className="text-xs font-semibold uppercase text-brand-muted">Fecha desde<input type="date" value={fechaDesde} onChange={(event) => setFechaDesde(event.target.value)} className="h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal text-brand-ink" aria-label="Fecha desde" /></label>
@@ -401,24 +357,24 @@ export const WarehousesPage = () => {
           <div className="flex items-end gap-2 text-sm text-brand-muted"><History className="mb-2.5 h-4 w-4" aria-hidden="true" /><p className="pb-2">Kardex: cada ingreso, salida y ajuste con su saldo resultante.</p></div>
         </div>
         <div className="max-w-full overflow-x-auto overscroll-x-contain">
-          <table className="w-full min-w-[860px] text-left text-sm">
-            <thead className="bg-brand-line/40 text-xs uppercase text-brand-muted">
-              <tr><th className="px-4 py-3 font-semibold">Fecha</th><th className="px-4 py-3 font-semibold">Tipo</th><th className="px-4 py-3 font-semibold">Repuesto</th><th className="px-4 py-3 font-semibold">Almacén</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th><th className="px-4 py-3 text-right font-semibold">Saldo</th><th className="px-4 py-3 font-semibold">Motivo</th></tr>
+          <table role="table" className="workspace-table w-full min-w-[860px] text-left text-sm">
+            <thead role="rowgroup" className="bg-brand-line/40 text-xs uppercase text-brand-muted">
+              <tr role="row"><th role="columnheader" className="px-4 py-3 font-semibold">Fecha</th><th role="columnheader" className="px-4 py-3 font-semibold">Tipo</th><th role="columnheader" className="px-4 py-3 font-semibold">Repuesto</th><th role="columnheader" className="px-4 py-3 font-semibold">Almacén</th><th role="columnheader" className="px-4 py-3 text-right font-semibold">Cantidad</th><th role="columnheader" className="px-4 py-3 text-right font-semibold">Saldo</th><th role="columnheader" className="px-4 py-3 font-semibold">Motivo</th></tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {movementsQuery.isPending ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-brand-muted">Cargando movimientos...</td></tr>
+                <tr role="row"><td role="cell" colSpan={7} className="px-4 py-8 text-center text-sm text-brand-muted">Cargando movimientos...</td></tr>
               ) : (movementsQuery.data?.items.length ?? 0) === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-brand-muted">Sin movimientos en el período.</td></tr>
+                <tr role="row"><td role="cell" colSpan={7} className="px-4 py-8 text-center text-sm text-brand-muted">Sin movimientos en el período.</td></tr>
               ) : movementsQuery.data?.items.map((movement) => (
-                <tr key={movement.id} className="border-t border-brand-line">
-                  <td className="whitespace-nowrap px-4 py-3 text-brand-muted">{formatDateTime(movement.fecha)}</td>
-                  <td className="px-4 py-3"><span className={`rounded-md px-2 py-1 text-xs font-bold ${MOVEMENT_TYPE_STYLES[movement.tipo]}`}>{MOVEMENT_TYPE_LABELS[movement.tipo]}</span></td>
-                  <td className="px-4 py-3"><span className="font-medium text-brand-ink">{movement.nombre}</span><span className="block font-mono text-xs text-brand-muted">{movement.codigo ?? 'Sin código'}</span></td>
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs font-bold text-brand-ink">{movement.warehouseCodigo}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-brand-ink">{movement.tipo === 'salida' ? `-${movement.cantidad}` : `+${movement.cantidad}`}</td>
-                  <td className="px-4 py-3 text-right font-bold text-brand-primaryInk">{movement.saldoResultante}</td>
-                  <td className="max-w-64 truncate px-4 py-3 text-brand-muted" title={movement.motivo}>{movement.motivo}</td>
+                <tr role="row" key={movement.id} className="border-t border-brand-line">
+                  <td role="cell" data-label="Fecha" className="whitespace-nowrap px-4 py-3 text-brand-muted">{formatDateTime(movement.fecha)}</td>
+                  <td role="cell" data-label="Tipo" className="px-4 py-3"><span className={`rounded-md px-2 py-1 text-xs font-bold ${MOVEMENT_TYPE_STYLES[movement.tipo]}`}>{MOVEMENT_TYPE_LABELS[movement.tipo]}</span></td>
+                  <td role="cell" data-label="Repuesto" className="px-4 py-3"><span className="font-medium text-brand-ink">{movement.nombre}</span><span className="block font-mono text-xs text-brand-muted">{movement.codigo ?? 'Sin código'}</span></td>
+                  <td role="cell" data-label="Almacén" className="whitespace-nowrap px-4 py-3 font-mono text-xs font-bold text-brand-ink">{movement.warehouseCodigo}</td>
+                  <td role="cell" data-label="Cantidad" className="px-4 py-3 text-right font-semibold text-brand-ink">{movement.tipo === 'salida' ? `-${movement.cantidad}` : `+${movement.cantidad}`}</td>
+                  <td role="cell" data-label="Saldo" className="px-4 py-3 text-right font-bold text-brand-primaryInk">{movement.saldoResultante}</td>
+                  <td role="cell" data-label="Motivo" className="max-w-64 truncate px-4 py-3 text-brand-muted" title={movement.motivo}>{movement.motivo}</td>
                 </tr>
               ))}
             </tbody>
@@ -515,7 +471,7 @@ const WarehouseDeliveryModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-brand-scrim/60 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="max-h-[94vh] w-full overflow-y-auto rounded-t-xl bg-white shadow-2xl sm:max-w-xl sm:rounded-xl" role="dialog" aria-modal="true" aria-labelledby="warehouse-delivery-title">
+      <section className="workspace-dialog max-h-[94vh] w-full overflow-y-auto rounded-t-xl bg-white shadow-2xl sm:max-w-xl sm:rounded-xl" role="dialog" aria-modal="true" aria-labelledby="warehouse-delivery-title">
         {/* Igual que la banda superior: este header lleva un badge dorado, que
           sobre índigo queda en 2.9:1. */}
       <header className="border-b border-brand-line bg-brand-page px-5 py-5 text-brand-ink sm:rounded-t-xl">
@@ -589,7 +545,7 @@ const WarehouseFormModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-brand-scrim/55" aria-label="Cerrar almacén" onClick={onClose} />
-      <section className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="warehouse-modal-title">
+      <section className="workspace-dialog relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="warehouse-modal-title">
         <h2 id="warehouse-modal-title" className="text-xl font-bold text-brand-primaryInk">
           {warehouse ? `Editar ${warehouse.codigo}` : 'Nuevo almacén'}
         </h2>
@@ -660,7 +616,7 @@ const StockMovementModal = ({ warehouse, onClose }: { warehouse: Warehouse; onCl
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-brand-scrim/55" aria-label="Cerrar movimiento" onClick={onClose} />
-      <section className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="movement-modal-title">
+      <section className="workspace-dialog relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="movement-modal-title">
         <h2 id="movement-modal-title" className="text-xl font-bold text-brand-primaryInk">Movimiento · {warehouse.codigo}</h2>
         <p className="mt-1 text-sm text-brand-muted">{warehouse.nombre}</p>
         <form onSubmit={submit} className="mt-4 space-y-4">
@@ -764,7 +720,7 @@ const StockTransferModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button type="button" className="absolute inset-0 bg-brand-scrim/55" aria-label="Cerrar traslado" onClick={onClose} />
-      <section className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="transfer-modal-title">
+      <section className="workspace-dialog relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="transfer-modal-title">
         <h2 id="transfer-modal-title" className="text-xl font-bold text-brand-primaryInk">Trasladar stock</h2>
         <p className="mt-1 text-sm text-brand-muted">Salida en origen e ingreso en destino con la misma referencia.</p>
         <form onSubmit={submit} className="mt-4 space-y-4">

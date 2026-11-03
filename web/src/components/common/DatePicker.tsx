@@ -13,6 +13,7 @@ interface DatePickerProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  autoOpen?: boolean;
 }
 
 const toDateValue = (date: Date): string =>
@@ -23,8 +24,8 @@ const CalendarChevron = ({ orientation }: { orientation?: string }) => {
   return <Icon className="h-4 w-4" aria-hidden="true" />;
 };
 
-const DatePicker = ({ label, value, onChange }: DatePickerProps) => {
-  const [open, setOpen] = useState(false);
+const DatePicker = ({ label, value, onChange, autoOpen = false }: DatePickerProps) => {
+  const [open, setOpen] = useState(autoOpen);
   const [position, setPosition] = useState<CSSProperties>({ position: 'fixed', width: 304, visibility: 'hidden' });
   const anchorRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -41,8 +42,8 @@ const DatePicker = ({ label, value, onChange }: DatePickerProps) => {
   };
 
   const selectDate = (date: Date | undefined): void => {
-    onChange(date ? toDateValue(date) : '');
     close();
+    onChange(date ? toDateValue(date) : '');
   };
 
   useLayoutEffect(() => {
@@ -76,6 +77,16 @@ const DatePicker = ({ label, value, onChange }: DatePickerProps) => {
       window.removeEventListener('scroll', updatePosition, true);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open || position.visibility !== 'visible') return;
+    const frame = requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      const day = panel?.querySelector<HTMLButtonElement>('[role="grid"] button[tabindex="0"]');
+      (day ?? panel?.querySelector<HTMLButtonElement>('button'))?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open, position.visibility]);
 
   useEffect(() => {
     if (!open) return undefined;

@@ -102,7 +102,7 @@ export const ClientsPage = () => {
   };
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="workspace-page workspace-clients min-w-0 space-y-5">
       <header className="page-banner">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Gestión comercial</p>
@@ -175,7 +175,7 @@ export const ClientsPage = () => {
       </div>
 
       <section
-        className="min-w-0 border-y border-brand-line bg-white"
+        className="workspace-directory min-w-0 border-y border-brand-line bg-white"
         aria-label="Listado de clientes"
       >
         {clientsQuery.isError && (
@@ -213,7 +213,7 @@ export const ClientsPage = () => {
               return (
                 <li
                   key={client.id}
-                  className={`${rowClassName} group relative min-h-[84px] py-3 transition-colors hover:bg-brand-pale/60 focus-within:bg-brand-pale/60`}
+                  className={`workspace-directory-row ${rowClassName} group relative min-h-[84px] py-3 transition-colors hover:bg-brand-pale/60 focus-within:bg-brand-pale/60`}
                 >
                   <button
                     type="button"

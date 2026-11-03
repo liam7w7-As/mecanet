@@ -135,6 +135,39 @@ describe('QuotationDetailModal', () => {
     } as AxiosResponse);
   });
 
+
+
+  it('distingue confirmados, pendientes y rechazados en el historial del modal', async () => {
+    const payments = (['confirmado', 'por_verificar', 'rechazado'] as const).map((estado, index) => ({
+      id: index + 50, quotationId: 42, monto: 10000, metodo: 'transferencia', estado,
+      fecha: '2026-11-03T12:00:00Z', createdBy: 1, createdAt: '2026-11-03T12:00:00Z', updatedAt: '2026-11-03T12:00:00Z',
+    }));
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/quotations/42'
+      ? { quotation: mockQuotation } : url === '/quotations/42/payments' ? { ...mockPaymentSummary, payments } : { items: [], total: 0 } } as AxiosResponse));
+    renderModal();
+    fireEvent.click(await screen.findByRole('button', { name: /Historial de Abonos y Pagos/ }));
+    expect(await screen.findByText('Por verificar')).toBeInTheDocument();
+    expect(screen.getByText('Confirmado')).toBeInTheDocument();
+    expect(screen.getByText('Rechazado')).toBeInTheDocument();
+    expect(screen.queryByText('Registrado')).not.toBeInTheDocument();
+  });
+
+  it('protege el abono anidado al presionar Escape sin cerrar el detalle padre', async () => {
+    const onClose = vi.fn();
+    renderModal({ onClose });
+    fireEvent.click(await screen.findByRole('button', { name: 'Registrar Abono' }));
+    const payment = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    fireEvent.change(within(payment).getByLabelText('Monto del abono'), { target: { value: '1000' } });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(within(payment).getByRole('alertdialog', { name: 'Descartar edición' })).toBeInTheDocument();
+    fireEvent.click(within(payment).getByRole('button', { name: 'Descartar cambios' }));
+    expect(screen.queryByRole('dialog', { name: 'Registrar abono' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'COT-2026-0042' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('renderiza cabecera, datos de cliente/vehículo y categorías de conceptos', async () => {
     renderModal();
 

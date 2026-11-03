@@ -46,7 +46,7 @@ const DetailItem = ({ label, children }: { label: string; children: ReactNode })
 );
 
 const DetailSkeleton = () => (
-  <div className="min-w-0 space-y-5" aria-label="Cargando compra">
+  <div className="workspace-page workspace-purchases min-w-0 space-y-5" aria-label="Cargando compra">
     <div className="h-20 animate-pulse rounded-xl bg-brand-pale" />
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {Array.from({ length: 4 }, (_, index) => (
@@ -78,7 +78,7 @@ export const PurchaseDetailPage = () => {
 
   if (purchaseQuery.isError || !purchase) {
     return (
-      <div className="min-w-0 space-y-5">
+      <div className="workspace-page workspace-purchases min-w-0 space-y-5">
         <Link
           to="/purchases"
           className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
@@ -120,7 +120,7 @@ export const PurchaseDetailPage = () => {
         : 'Pendiente';
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="workspace-page workspace-purchases min-w-0 space-y-5">
       <header className="flex flex-col gap-4">
         <div className="flex items-start gap-3">
           <Link
@@ -282,7 +282,7 @@ export const PurchaseDetailPage = () => {
       </section>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="min-w-0 space-y-5">
+        <div className="workspace-page workspace-purchases min-w-0 space-y-5">
           <section className="overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-line p-4 sm:p-5">
               <div>
@@ -296,22 +296,22 @@ export const PurchaseDetailPage = () => {
               </span>
             </div>
             <div className="max-w-full overflow-x-auto overscroll-x-contain">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="bg-brand-line/40 text-[11px] uppercase text-brand-muted">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">#</th>
-                    <th className="px-4 py-3 font-semibold">Descripción</th>
-                    <th className="px-4 py-3 text-right font-semibold">Cantidad</th>
-                    <th className="px-4 py-3 text-right font-semibold">Unitario neto</th>
-                    <th className="px-4 py-3 text-right font-semibold">Subtotal</th>
-                    <th className="px-4 py-3 font-semibold">Stock</th>
+              <table role="table" className="workspace-table w-full min-w-[720px] text-left text-sm">
+                <thead role="rowgroup" className="bg-brand-line/40 text-[11px] uppercase text-brand-muted">
+                  <tr role="row">
+                    <th role="columnheader" className="px-4 py-3 font-semibold">#</th>
+                    <th role="columnheader" className="px-4 py-3 font-semibold">Descripción</th>
+                    <th role="columnheader" className="px-4 py-3 text-right font-semibold">Cantidad</th>
+                    <th role="columnheader" className="px-4 py-3 text-right font-semibold">Unitario neto</th>
+                    <th role="columnheader" className="px-4 py-3 text-right font-semibold">Subtotal</th>
+                    <th role="columnheader" className="px-4 py-3 font-semibold">Stock</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody role="rowgroup">
                   {purchase.items.map((item, index) => (
-                    <tr key={item.id} className="border-t border-brand-line align-top">
-                      <td className="px-4 py-3 text-xs text-brand-muted">{index + 1}</td>
-                      <td className="px-4 py-3">
+                    <tr role="row" key={item.id} className="border-t border-brand-line align-top">
+                      <td role="cell" data-label="#" className="px-4 py-3 text-xs text-brand-muted">{index + 1}</td>
+                      <td role="cell" data-label="Descripción" className="px-4 py-3">
                         <span className="block font-semibold text-brand-ink">
                           {item.descripcion}
                         </span>
@@ -321,16 +321,16 @@ export const PurchaseDetailPage = () => {
                           </span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right text-brand-ink">
+                      <td role="cell" data-label="Cantidad" className="whitespace-nowrap px-4 py-3 text-right text-brand-ink">
                         {item.cantidad.toLocaleString('es-CL')}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right text-brand-ink">
+                      <td role="cell" data-label="Unitario neto" className="whitespace-nowrap px-4 py-3 text-right text-brand-ink">
                         {formatClp(item.precioUnitario)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-brand-primaryInk">
+                      <td role="cell" data-label="Subtotal" className="whitespace-nowrap px-4 py-3 text-right font-semibold text-brand-primaryInk">
                         {formatClp(item.subtotal)}
                       </td>
-                      <td className="px-4 py-3 text-xs">
+                      <td role="cell" data-label="Stock" className="px-4 py-3 text-xs">
                         {item.afectaStock ? (
                           <span className="inline-flex items-start gap-1 rounded bg-brand-mintPale px-2 py-1 font-semibold text-brand-mintInk">
                             <Boxes className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -346,30 +346,30 @@ export const PurchaseDetailPage = () => {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="border-t border-brand-line bg-brand-pale/30">
-                  <tr>
-                    <td colSpan={4} className="px-4 py-3 text-right text-xs font-semibold uppercase text-brand-muted">
+                <tfoot role="rowgroup" className="border-t border-brand-line bg-brand-pale/30">
+                  <tr role="row">
+                    <td role="cell" colSpan={4} className="px-4 py-3 text-right text-xs font-semibold uppercase text-brand-muted">
                       Neto
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-brand-ink">
+                    <td role="cell" className="px-4 py-3 text-right font-semibold text-brand-ink">
                       {formatClp(purchase.neto)}
                     </td>
                     <td />
                   </tr>
-                  <tr>
-                    <td colSpan={4} className="px-4 py-3 text-right text-xs font-semibold uppercase text-brand-muted">
+                  <tr role="row">
+                    <td role="cell" colSpan={4} className="px-4 py-3 text-right text-xs font-semibold uppercase text-brand-muted">
                       IVA 19%
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-brand-ink">
+                    <td role="cell" className="px-4 py-3 text-right font-semibold text-brand-ink">
                       {formatClp(purchase.iva)}
                     </td>
                     <td />
                   </tr>
-                  <tr className="border-t border-brand-line">
-                    <td colSpan={4} className="px-4 py-3 text-right text-sm font-bold uppercase text-brand-primaryInk">
+                  <tr role="row" className="border-t border-brand-line">
+                    <td role="cell" colSpan={4} className="px-4 py-3 text-right text-sm font-bold uppercase text-brand-primaryInk">
                       Total
                     </td>
-                    <td className="px-4 py-3 text-right text-base font-bold text-brand-primaryInk">
+                    <td role="cell" className="px-4 py-3 text-right text-base font-bold text-brand-primaryInk">
                       {formatClp(purchase.total)}
                     </td>
                     <td />

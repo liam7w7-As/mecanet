@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -147,6 +147,154 @@ describe('QuotationsPage', () => {
       }
       return Promise.resolve({ data: listResponse } as AxiosResponse<PaginatedResponse<Quotation>>);
     });
+  });
+
+
+  it('abre el detalle desde la fila con teclado y mantiene el listado', async () => {
+    renderWithProviders(<QuotationsPage />);
+    const row = await screen.findByRole('row', { name: 'Cotización COT-2026-0031' });
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(await screen.findByRole('dialog', { name: 'COT-2026-0031' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Cotizaciones' })).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('conserva el abono, banco, referencia y comprobante al fallar y reintentar', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('Sin conexión')).mockResolvedValueOnce({ data: { payment: initialPayment, quotation: { id: quotation.id } } });
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    await within(dialog).findByTestId('payment-confirmed');
+    fireEvent.change(within(dialog).getByLabelText('Monto del abono'), { target: { value: '5000' } });
+    fireEvent.change(within(dialog).getByLabelText('Método de pago'), { target: { value: 'transferencia' } });
+    fireEvent.change(within(dialog).getByLabelText('Banco de procedencia'), { target: { value: 'BCI' } });
+    fireEvent.change(within(dialog).getByLabelText('Número de transacción'), { target: { value: 'TRX-REINTENTO' } });
+    const receipt = new File(['comprobante'], 'pago.pdf', { type: 'application/pdf' });
+    fireEvent.change(within(dialog).getByLabelText('Comprobante de pago'), { target: { files: [receipt] } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Registrar abono' }));
+    await within(dialog).findByRole('alert');
+    expect(within(dialog).getByLabelText('Monto del abono')).toHaveValue('5.000');
+    expect(within(dialog).getByLabelText('Número de transacción')).toHaveValue('TRX-REINTENTO');
+    expect(within(dialog).getByLabelText('Banco de procedencia')).toHaveValue('BCI');
+    expect(within(dialog).getByRole('button', { name: 'Quitar comprobante' })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Registrar abono' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    for (const [, body] of vi.mocked(api.post).mock.calls) {
+      expect(body).toBeInstanceOf(FormData);
+      const payload = body as FormData;
+      expect(payload.get('quotationId')).toBe('31');
+      expect(payload.get('monto')).toBe('5000');
+      expect(payload.get('bancoOrigen')).toBe('BCI');
+      expect(payload.get('numeroTransaccion')).toBe('TRX-REINTENTO');
+      expect(payload.get('comprobantePago')).toBe(receipt);
+    }
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Registrar abono' })).not.toBeInTheDocument());
+    expect(screen.getByRole('table', { name: 'Cotizaciones' })).toBeInTheDocument();
+  });
+
+  it('confirma antes de descartar un abono y permite quitar el archivo seleccionado', async () => {
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    const receipt = new File(['recibo'], 'recibo.pdf', { type: 'application/pdf' });
+    fireEvent.change(within(dialog).getByLabelText('Comprobante de pago'), { target: { files: [receipt] } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+    expect(within(dialog).getByRole('alertdialog', { name: 'Descartar edición' })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Seguir editando' }));
+    expect(within(dialog).getByText('recibo.pdf', { selector: 'strong' })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Quitar comprobante' }));
+    expect(within(dialog).queryByRole('button', { name: 'Quitar comprobante' })).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+    expect(screen.queryByRole('dialog', { name: 'Registrar abono' })).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(document.body.style.overflow).not.toBe('hidden');
+  });
+
+  it('bloquea cierre y cambios mientras se registra el abono', async () => {
+    let complete: () => void = () => { throw new Error('Pago no iniciado'); };
+    vi.mocked(api.post).mockImplementation(() => new Promise((resolve) => { complete = () => resolve({ data: { payment: initialPayment, quotation: { id: quotation.id } } } as AxiosResponse); }));
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    await within(dialog).findByTestId('payment-confirmed');
+    fireEvent.change(within(dialog).getByLabelText('Monto del abono'), { target: { value: '1000' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Registrar abono' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(within(dialog).getByLabelText('Monto del abono')).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Cerrar' })).toBeDisabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(dialog).toBeInTheDocument();
+    await act(async () => { complete(); });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Registrar abono' })).not.toBeInTheDocument());
+  });
+
+
+  it('oculta el abono en listado y detalle para un usuario comercial de solo lectura', async () => {
+    useAuthStore.setState({ user: { id: 9, nombre: 'Bodega', email: 'bodega@demo.cl', role: 'bodeguero' } });
+    renderWithProviders(<QuotationsPage />);
+    const row = await screen.findByRole('row', { name: 'Cotización COT-2026-0031' });
+    expect(screen.queryByRole('button', { name: 'Abonar a COT-2026-0031' })).not.toBeInTheDocument();
+    fireEvent.keyDown(row, { key: 'Enter' });
+    const dialog = await screen.findByRole('dialog', { name: 'COT-2026-0031' });
+    expect(within(dialog).queryByRole('button', { name: 'Registrar Abono' })).not.toBeInTheDocument();
+  });
+
+  it('mantiene descuentos e identidad de líneas al reintentar una edición fallida', async () => {
+    const discounted: Quotation = { ...quotation, descuentoTipo: 'porcentaje', descuentoValor: 10,
+      items: quotation.items?.map((item) => ({ ...item, descuentoTipo: 'fijo', descuentoValor: 1000 })) };
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/quotations/31' ? { quotation: discounted } : url === '/catalog' ? { items: [], total: 0 } : listResponse } as AxiosResponse));
+    vi.mocked(api.patch).mockRejectedValueOnce(new Error('Sin conexión')).mockResolvedValueOnce({ data: { quotation: discounted } });
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar COT-2026-0031' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar cotización' });
+    fireEvent.change(within(dialog).getByLabelText('Notas comerciales'), { target: { value: 'Conservar condiciones' } });
+    expect(within(dialog).getByTestId('quotation-edit-total')).toHaveTextContent('44.100');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
+    await within(dialog).findByRole('alert');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+    expect(within(dialog).getByRole('alertdialog', { name: 'Descartar edición' })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Seguir editando' }));
+    expect(within(dialog).getByLabelText('Notas comerciales')).toHaveValue('Conservar condiciones');
+    expect(within(dialog).getByLabelText('Descuento general')).toHaveValue(10);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2));
+    expect(api.patch).toHaveBeenLastCalledWith('/quotations/31', expect.objectContaining({
+      notas: 'Conservar condiciones', descuentoTipo: 'porcentaje', descuentoValor: 10,
+      items: [expect.objectContaining({ id: 1, descuentoTipo: 'fijo', descuentoValor: 1000 })],
+    }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar cotización' })).not.toBeInTheDocument());
+    expect(screen.getByRole('table', { name: 'Cotizaciones' })).toBeInTheDocument();
+  });
+
+
+  it('conserva el registro de abonos para Finanzas con permiso de creación financiero', async () => {
+    useAuthStore.setState({ user: { id: 8, nombre: 'Contabilidad', email: 'finanzas@demo.cl', role: 'finanzas' } });
+    renderWithProviders(<QuotationsPage />);
+    expect(await screen.findByRole('button', { name: 'Abonar a COT-2026-0031' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Nueva Cotización' })).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('row', { name: 'Cotización COT-2026-0031' }), { key: 'Enter' });
+    const dialog = await screen.findByRole('dialog', { name: 'COT-2026-0031' });
+    expect(within(dialog).getByRole('button', { name: 'Registrar Abono' })).toBeInTheDocument();
+  });
+
+
+  it('protege la anulación en curso y actualiza el saldo al confirmarse', async () => {
+    let finish: () => void = () => { throw new Error('Anulación no iniciada'); };
+    vi.mocked(api.delete).mockImplementation(() => new Promise((resolve) => { finish = () => {
+      paymentSummary = createPaymentSummary(0, []);
+      resolve({ data: { message: 'Anulado', quotation: { id: 31, codigo: quotation.codigo, total: 50000, pagado: 0, saldoPendiente: 50000, estadoPago: 'por_pagar' } } } as AxiosResponse);
+    }; }));
+    renderDetail('/quotations/31');
+    fireEvent.click(await screen.findByRole('button', { name: 'Anular pago de $10.000' }));
+    const dialog = screen.getByRole('dialog', { name: 'Anular pago' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Anular pago' }));
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/payments/5'));
+    expect(within(dialog).getByRole('button', { name: 'Cerrar' })).toBeDisabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(dialog).toBeInTheDocument();
+    await act(async () => { finish(); });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Anular pago' })).not.toBeInTheDocument());
+    expect(screen.getByTestId('quotation-balance')).toHaveTextContent('50.000');
   });
 
   it('renderiza cotizaciones con estado y saldos calculados', async () => {

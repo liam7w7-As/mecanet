@@ -1,0 +1,31 @@
+.mobile-more-overlay { position: fixed; inset: 0; z-index: 70; display: flex; align-items: flex-end; justify-content: center; }
+.mobile-more-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; background: rgb(27 43 66 / 32%); backdrop-filter: blur(3px); }
+.mobile-more-sheet { position: relative; display: flex; flex-direction: column; width: min(560px, 100%); max-height: min(760px, 90dvh); padding: 0; border: 0; border-radius: 24px 24px 0 0; background: #fff; color: #1d396a; box-shadow: 0 -12px 60px #142b5020; overflow: hidden; outline: none; }
+.mobile-more-handle { flex: none; width: 38px; height: 4px; margin: 10px auto 0; border-radius: 4px; background: #dce3ed; }
+.mobile-more-sheet > header { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 17px 22px 12px; }
+.mobile-more-sheet h2 { margin: 0; font-size: 19px; line-height: 1.4; letter-spacing: -.3px; font-weight: 600; color: #1d396a; }
+.mobile-more-sheet > header p { margin-top: 3px; font-size: 11px; color: #7d90ac; }
+.mobile-more-sheet > header button { display: grid; place-items: center; width: 36px; height: 36px; flex: none; padding: 0; border-radius: 50%; background: #f2f5f9; color: #7d90ac; }
+.mobile-more-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 18px max(22px, env(safe-area-inset-bottom)); scrollbar-width: thin; }
+.mobile-more-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 0; }
+.mobile-more-grid a { display: flex; align-items: center; gap: 11px; min-width: 0; min-height: 54px; padding: 12px 13px; border-radius: 14px; background: transparent; color: #637c9c; font-size: 12px; font-weight: 500; line-height: 1.4; text-decoration: none; }
+.mobile-more-grid a.active { background: #eef3fa; color: #1d396a; }
+.mobile-more-sheet svg { display: block; flex: none; width: 21px; height: 21px; padding: 0; stroke-width: 1.7; }
+.mobile-more-grid a > span { min-width: 0; overflow-wrap: anywhere; }
+.mobile-more-account { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; margin: 10px 0 0; padding: 5px; border-radius: 13px; background: #f6f8fb; }
+.mobile-more-account > button, .mobile-more-notifications { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 56px; margin: 0; padding: 6px 2px; border: 0; border-radius: 9px; background: transparent; color: #7a8ea9; font-size: 9px; font-weight: 400; line-height: 13px; text-align: center; box-shadow: none; }
+.mobile-more-notifications { position: relative; gap: 0; }
+.mobile-more-notifications > div > button { width: 28px; height: 28px; min-height: 28px; padding: 4px; background: none; color: inherit; }
+.mobile-more-account svg { width: 18px; height: 18px; }
+.mobile-more-sheet :is(a, button):focus-visible { outline: 2px solid #91afd7; outline-offset: 1px; }
+.mobile-more-sheet .popover-notifications { position: fixed; inset: max(16px, env(safe-area-inset-top)) 12px auto; z-index: 90; width: auto; max-height: 65dvh; overflow-y: auto; }
+.workshop-card-information { border: 2px solid #38b277; border-top: 0; border-radius: 0 0 22px 22px; box-shadow: 0 13px 22px #24314215; background: #fff; }
+.workshop-card[data-panel=information] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+.workshop-card-information.workshop-state-esperando_repuesto { border-color: #f7eb2d; }
+.workshop-card-information.workshop-information-overdue { border-color: #e05858; }
+.workshop-card-information.workshop-state-entregada { border-color: #e8eaee; }
+.workshop-card-information.workshop-state-cancelada { border-color: #bcc3cc; }
+@media (hover: hover) { .mobile-more-grid a:hover, .mobile-more-account > button:hover { background: #f0f4fa; color: #1d396a; } }
+@media (prefers-reduced-motion: no-preference) { .mobile-more-sheet { animation: more-sheet-in .2s ease-out; } }
+@keyframes more-sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@media print { .mobile-more-overlay { display: none; } }

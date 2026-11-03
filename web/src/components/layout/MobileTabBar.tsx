@@ -25,7 +25,7 @@ interface MobileTab {
 /**
  * Pestañas fijas para móvil. Es el subconjunto más usado de `navigationGroups`
  * (AppLayout): como máximo 4 enlaces + "Más", para que quepan en 320px sin
- * apretar las etiquetas. El resto de secciones viven en el cajón lateral.
+ * apretar las etiquetas. El resto de secciones viven en el panel inferior de Más.
  */
 const mobileTabs: MobileTab[] = [
   {
@@ -73,11 +73,12 @@ const mobileTabs: MobileTab[] = [
 ];
 
 interface MobileTabBarProps {
-  /** Abre el cajón lateral con el resto de secciones. */
+  /** Abre el panel inferior con el resto de secciones. */
   onOpenMenu: () => void;
+  isMenuOpen?: boolean;
 }
 
-export const MobileTabBar = ({ onOpenMenu }: MobileTabBarProps) => {
+export const MobileTabBar = ({ onOpenMenu, isMenuOpen = false }: MobileTabBarProps) => {
   const user = useAuthStore((state) => state.user);
   const { pathname } = useLocation();
   const dashboardQuery = useDashboardSummary();
@@ -103,11 +104,12 @@ export const MobileTabBar = ({ onOpenMenu }: MobileTabBarProps) => {
   // "Más" se marca activo cuando la ruta actual no corresponde a ninguna
   // pestaña, para que el usuario siempre sepa dónde está parado.
   const moreIsActive = !tabs.some(
-    (tab) => pathname === tab.path || pathname.startsWith(`${tab.path}/`),
+    (tab) => !(tab.path === '/work-orders' && pathname === '/work-orders/daily-report')
+      && (pathname === tab.path || pathname.startsWith(`${tab.path}/`)),
   );
 
   return (
-    <nav className="tabbar" aria-label="Navegación principal (móvil)">
+    <nav className="tabbar" aria-label="Navegación principal (móvil)" {...(isMenuOpen ? { inert: '', 'aria-hidden': true as const } : {})}>
       <div className="tabbar-inner">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -116,6 +118,7 @@ export const MobileTabBar = ({ onOpenMenu }: MobileTabBarProps) => {
             <NavLink
               key={tab.path}
               to={tab.path}
+              end={tab.path === '/work-orders' && ['/work-orders/mine', '/work-orders/daily-report'].includes(pathname)}
               className={({ isActive }) => cn('tab-item', isActive && 'active')}
             >
               <span className="tab-icon">
@@ -133,6 +136,8 @@ export const MobileTabBar = ({ onOpenMenu }: MobileTabBarProps) => {
           type="button"
           className={cn('tab-item', moreIsActive && 'active')}
           aria-label="Abrir todas las secciones"
+          aria-controls="mobile-more"
+          aria-expanded={isMenuOpen}
           onClick={onOpenMenu}
         >
           <span className="tab-icon">

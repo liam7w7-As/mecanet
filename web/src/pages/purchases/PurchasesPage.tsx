@@ -133,7 +133,7 @@ export const PurchasesPage = () => {
   const purchases = purchasesQuery.data?.items ?? [];
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="workspace-page workspace-purchases min-w-0 space-y-5">
       <header className="page-banner max-sm:!h-auto max-sm:flex-col max-sm:items-start max-sm:gap-3">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Egresos con comprobante</p>
@@ -347,26 +347,26 @@ export const PurchasesPage = () => {
         )}
 
         <div className="max-w-full overflow-x-auto overscroll-x-contain">
-          <table className="w-full min-w-[1040px] text-left text-sm">
-            <thead className="bg-brand-line/40 text-[11px] uppercase text-brand-muted">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Compra</th>
-                <th className="px-4 py-3 font-semibold">Registro</th>
-                <th className="px-4 py-3 font-semibold">Proveedor</th>
-                <th className="px-4 py-3 font-semibold">Comprobante</th>
-                <th className="px-4 py-3 font-semibold">Asociación</th>
-                <th className="px-4 py-3 font-semibold">Pago</th>
-                <th className="px-4 py-3 text-right font-semibold">Total</th>
-                <th className="px-4 py-3 font-semibold">Estado</th>
-                <th className="px-4 py-3 text-right font-semibold">Acciones</th>
+          <table role="table" className="workspace-table w-full min-w-[1040px] text-left text-sm">
+            <thead role="rowgroup" className="bg-brand-line/40 text-[11px] uppercase text-brand-muted">
+              <tr role="row">
+                <th role="columnheader" className="px-4 py-3 font-semibold">Compra</th>
+                <th role="columnheader" className="px-4 py-3 font-semibold">Registro</th>
+                <th role="columnheader" className="px-4 py-3 font-semibold">Proveedor</th>
+                <th role="columnheader" className="px-4 py-3 font-semibold">Comprobante</th>
+                <th role="columnheader" className="px-4 py-3 font-semibold">Asociación</th>
+                <th role="columnheader" className="px-4 py-3 font-semibold">Pago</th>
+                <th role="columnheader" className="px-4 py-3 text-right font-semibold">Total</th>
+                <th role="columnheader" className="px-4 py-3 font-semibold">Estado</th>
+                <th role="columnheader" className="px-4 py-3 text-right font-semibold">Acciones</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {purchasesQuery.isPending ? (
                 <PurchaseSkeleton />
               ) : purchases.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-4 py-14 text-center text-brand-muted">
+                <tr role="row">
+                  <td role="cell" colSpan={9} className="px-4 py-14 text-center text-brand-muted">
                     <ShoppingCart
                       className="mx-auto h-10 w-10 text-brand-muted/40"
                       aria-hidden="true"
@@ -388,11 +388,11 @@ export const PurchasesPage = () => {
                   const vehicle = purchase.vehicle ?? purchase.fleetVehicle;
 
                   return (
-                    <tr
+                    <tr role="row"
                       key={purchase.id}
                       className="border-t border-brand-line align-top transition-colors hover:bg-brand-pale/30"
                     >
-                      <td className="px-4 py-3">
+                      <td role="cell" data-label="Compra" className="px-4 py-3">
                         <Link
                           to={`/purchases/${purchase.id}`}
                           className="font-mono text-xs font-bold text-brand-primaryInk hover:underline"
@@ -404,10 +404,10 @@ export const PurchasesPage = () => {
                           {purchase.items.length === 1 ? 'ítem' : 'ítems'}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-brand-muted">
+                      <td role="cell" data-label="Registro" className="whitespace-nowrap px-4 py-3 text-xs text-brand-muted">
                         {formatDateTime(purchase.createdAt)}
                       </td>
-                      <td className="max-w-[210px] px-4 py-3">
+                      <td role="cell" data-label="Proveedor" className="max-w-[210px] px-4 py-3">
                         <span className="block truncate font-semibold text-brand-ink">
                           {purchase.supplier.nombre}
                         </span>
@@ -417,14 +417,14 @@ export const PurchasesPage = () => {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-brand-muted">
+                      <td role="cell" data-label="Comprobante" className="px-4 py-3 text-xs text-brand-muted">
                         <span className="block font-semibold text-brand-ink">
                           {PURCHASE_DOCUMENT_TYPE_LABELS[purchase.tipoDocumento]}
                         </span>
                         <span className="block font-mono">Folio {purchase.folio}</span>
                         <span className="block">Emitido {formatDate(purchase.fechaEmision)}</span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-brand-muted">
+                      <td role="cell" data-label="Asociación" className="px-4 py-3 text-xs text-brand-muted">
                         {vehicle ? (
                           <>
                             <span className="block font-mono font-bold uppercase text-brand-ink">
@@ -444,7 +444,7 @@ export const PurchasesPage = () => {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-brand-muted">
+                      <td role="cell" data-label="Pago" className="px-4 py-3 text-xs text-brand-muted">
                         <span className="block font-semibold text-brand-ink">
                           {PURCHASE_PAYMENT_TYPE_LABELS[purchase.formaPago]}
                         </span>
@@ -462,7 +462,7 @@ export const PurchasesPage = () => {
                           </span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <td role="cell" data-label="Total" className="whitespace-nowrap px-4 py-3 text-right">
                         <span className="block font-semibold text-brand-primaryInk">
                           {formatClp(purchase.total)}
                         </span>
@@ -470,8 +470,8 @@ export const PurchasesPage = () => {
                           Neto {formatClp(purchase.neto)}
                         </span>
                       </td>
-                      <td className="px-4 py-3">{statusBadge(purchase)}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td role="cell" data-label="Estado" className="px-4 py-3">{statusBadge(purchase)}</td>
+                      <td role="cell" data-label="Acciones" className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Link
                             to={`/purchases/${purchase.id}`}

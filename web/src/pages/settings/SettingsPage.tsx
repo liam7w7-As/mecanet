@@ -183,7 +183,7 @@ export const SettingsPage = () => {
   const logoBusy = uploadMutation.isPending || deleteMutation.isPending;
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="workspace-page workspace-settings min-w-0 space-y-5">
       <header className="page-banner">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Administración</p>

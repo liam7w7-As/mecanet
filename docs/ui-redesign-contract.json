@@ -1,0 +1,480 @@
+{
+  "reference": "UNITHOR_ultimo_dashboard_reportes.html",
+  "date": "2026-11-03",
+  "scope": "Adaptar la presentación y acortar acciones conservando la operación actual",
+  "baseline": {
+    "typecheck": "shared, api y web: sin errores",
+    "webTests": 275,
+    "apiOperationalTests": 39,
+    "apiTestDatabase": "unithor_test"
+  },
+  "phases": [
+    {
+      "id": 1,
+      "name": "Adaptación y protección de flujos",
+      "status": "complete"
+    },
+    {
+      "id": 2,
+      "name": "Navegación y componentes visuales comunes",
+      "status": "complete"
+    },
+    {
+      "id": 3,
+      "name": "Taller: cards y gestión rápida",
+      "status": "complete"
+    },
+    {
+      "id": 4,
+      "name": "Creación y edición de OT",
+      "status": "complete"
+    },
+    {
+      "id": 5,
+      "name": "Cotizaciones y conexión con Taller",
+      "status": "complete"
+    },
+    {
+      "id": 6,
+      "name": "Resto de módulos y dashboard",
+      "status": "complete"
+    },
+    {
+      "id": 7,
+      "name": "Verificación integrada y entrega",
+      "status": "validated_locally"
+    }
+  ],
+  "screens": [
+    {
+      "area": "Navegación",
+      "adapt": [
+        "Sidebar plegable",
+        "Grupos de navegación",
+        "Cuenta y notificaciones inferiores",
+        "Barra móvil"
+      ],
+      "preserve": [
+        "Filtrado por permisos",
+        "Rutas existentes",
+        "Marca configurada",
+        "Sesión y cierre de sesión",
+        "Preparación automática de documentos"
+      ]
+    },
+    {
+      "area": "Taller",
+      "adapt": [
+        "Cards compactas",
+        "Información desplegable",
+        "Resumen, avances y solicitudes",
+        "Estados de guardado"
+      ],
+      "preserve": [
+        "Sincronización OT-COT",
+        "Transiciones compartidas",
+        "Servicios omitidos",
+        "IDs de líneas y horas",
+        "Aprobación del jefe",
+        "Entrega de bodega",
+        "OT asignadas por mecánico"
+      ]
+    },
+    {
+      "area": "Recepción de OT",
+      "adapt": [
+        "Presentación de pasos",
+        "Reutilización de datos",
+        "Selección de catálogo y cantidades"
+      ],
+      "preserve": [
+        "Responsable, contacto y facturación diferenciados",
+        "Vehículo obligatorio",
+        "Inspección y nueve fotos",
+        "Recuperación de formularios",
+        "Reintento de fotos sobre la OT creada",
+        "Estado inicial en_progreso"
+      ]
+    },
+    {
+      "area": "Cotizaciones",
+      "adapt": [
+        "Listado y modales",
+        "Abonos sin abandonar la vista",
+        "Acciones directas"
+      ],
+      "preserve": [
+        "Repuestos sin vehículo",
+        "Conversión mediante recepción",
+        "Pagos asociados a COT",
+        "Verificación de transferencias",
+        "Descuentos y condiciones",
+        "Archivado según vigencia",
+        "Aislamiento por vendedor"
+      ]
+    },
+    {
+      "area": "Vehículos, clientes, catálogo y almacenes",
+      "adapt": [
+        "Cards, tablas, filtros y modales coherentes"
+      ],
+      "preserve": [
+        "Clientes y vehículos compartidos",
+        "Documentos y vencimientos de flota",
+        "Inventario por almacén",
+        "Transferencias y trazabilidad",
+        "Soft delete",
+        "R2"
+      ]
+    },
+    {
+      "area": "Dashboard, finanzas y reportes",
+      "adapt": [
+        "Jerarquía visual",
+        "KPIs compactos",
+        "Vistas previas"
+      ],
+      "preserve": [
+        "Métricas reales y alcance por rol",
+        "Reportes por área",
+        "Filtros actuales",
+        "PDF y Excel completos"
+      ]
+    }
+  ],
+  "documentBoundary": {
+    "presentationScope": ".redesign-shell y clases explícitas de componentes",
+    "approvedTemplates": [
+      "OT oficial: anverso operativo y reverso legal",
+      "Cotización con condiciones e imágenes"
+    ],
+    "rule": "Conservar los componentes aprobados y el exportador compartido con el correo; no importar el documento simplificado del prototipo"
+  },
+  "phase2Verification": {
+    "webTests": 280,
+    "apiReferenceTests": 39,
+    "lintErrors": 0,
+    "preexistingLintWarnings": 7,
+    "productionBuild": "pass",
+    "browserWidths": [
+      320,
+      390,
+      768,
+      1024
+    ],
+    "browserScope": "Dashboard, sidebar, menús de cuenta y notificaciones, scroll y navegación móvil",
+    "physicalIphoneTest": "pending",
+    "checks": [
+      "Plegado de escritorio y recuperación de la preferencia",
+      "Grupos desplegables",
+      "Acceso del mecánico limitado a Mi ficha",
+      "Menú móvil con fondo inert y restauración de scroll",
+      "Menú de usuario y notificaciones dentro de la pantalla",
+      "Sin desborde de documento a 320px tras retirar el mínimo heredado del layout",
+      "Tamaño habitual del navegador restaurado después de la revisión"
+    ]
+  },
+  "phase3Verification": {
+    "webTests": 286,
+    "workshopTests": 48,
+    "typecheck": "web: sin errores",
+    "lintErrors": 0,
+    "preexistingLintWarnings": 7,
+    "productionBuild": "pass",
+    "buildNote": "Advertencia existente de chunks mayores a 500 kB",
+    "browserWidths": [
+      320,
+      390
+    ],
+    "browserScope": "Tablero, información flotante, resumen y checklist; tamaño habitual restaurado",
+    "physicalIphoneTest": "pending",
+    "apiScope": "Sin cambios; referencia de 39 pruebas de la fase anterior",
+    "checks": [
+      "Cards compactas con expansión sin desplazar a las demás",
+      "Sólo transiciones válidas desde el menú de estado",
+      "Notas, avances y solicitudes conservados al cambiar de vista",
+      "Confirmación antes de descartar cambios o abrir otra vista",
+      "Checklist confirmado por servidor, bloqueo de edición durante el guardado y reintento tras fallo",
+      "Importes y PDF ocultos al mecánico; acceso a ficha y horas conservado",
+      "Sin desborde horizontal del documento ni del diálogo a 320px",
+      "Sin modificaciones de registros durante la revisión visual"
+    ]
+  },
+  "phase4Verification": {
+    "webTests": 290,
+    "workshopTests": 52,
+    "typecheck": "web: sin errores",
+    "lintErrors": 0,
+    "preexistingLintWarnings": 7,
+    "productionBuild": "pass",
+    "browserWidths": [
+      320,
+      390,
+      768,
+      1024
+    ],
+    "browserScope": "Recepción, navegación validada, selección de vehículo y catálogo, confirmación y dos modales de edición; tamaño habitual restaurado",
+    "physicalIphoneTest": "pending",
+    "apiScope": "Sin cambios en backend ni shared; se conservan contratos e identificadores",
+    "checks": [
+      "Mismos cinco pasos de recepción y confirmación explícita antes de crear",
+      "Resumen lateral en escritorio y referencia compacta en móvil",
+      "Responsable, contacto, facturación y propietario conservados como datos distintos",
+      "Acciones visibles mientras el contenido largo se desplaza dentro del formulario",
+      "Nueve espacios de fotos con vista completa, recuperación y reintentos existentes",
+      "Edición con confirmación de descarte, bloqueo durante guardado y conservación tras errores",
+      "Prueba de IDs y horas estimadas conservados; horas reales excluidas del payload de edición",
+      "Sin creaciones ni modificaciones de registros durante QA visual; captura local de prueba descartada"
+    ]
+  },
+  "phase5Verification": {
+    "webTests": 300,
+    "quotationTests": 47,
+    "typecheck": "web: sin errores",
+    "lintErrors": 0,
+    "preexistingLintWarnings": 6,
+    "productionBuild": "pass",
+    "buildNote": "Advertencia existente de chunks mayores a 500 kB",
+    "browserWidths": [
+      320,
+      390,
+      768,
+      1024
+    ],
+    "browserScope": "Listado, emisión, condiciones, descuentos, edición, detalle, controles de precio y abono; tamaño habitual restaurado",
+    "physicalIphoneTest": "pending",
+    "apiScope": "Sin cambios en backend, shared ni diseños de PDF; contratos OT-COT conservados",
+    "checks": [
+      "Filas activables con teclado y acciones independientes; listado adaptable sin scroll horizontal",
+      "Numeración, OT bajo código y patente bajo cliente conservadas",
+      "Alta y edición con condiciones, descuentos por línea y generales, recuperación y confirmación",
+      "Abono desde el listado con resumen de trabajos terminados y saldo desplegable en móvil",
+      "Comprobante con vista previa y posibilidad de quitarlo; banco y número de transacción conservados",
+      "Reintento tras error conserva datos y archivo; bloqueo de cierre durante abono, edición y anulación",
+      "Permisos comerciales o financieros de creación para registrar pagos; lectura de bodega sin acción de abono",
+      "Historial distingue pagos confirmados, pendientes de verificación y rechazados",
+      "Conversión sigue pasando por recepción y los PDFs aprobados no se modifican",
+      "Sin pagos, creaciones ni modificaciones de registros durante la revisión visual"
+    ]
+  },
+  "regressionSuites": [
+    "api/src/routes/__tests__/work-order-quotation-sync.test.ts",
+    "api/src/routes/__tests__/work-order-labor-regressions.test.ts",
+    "api/src/routes/__tests__/sales-isolation.test.ts",
+    "api/src/routes/__tests__/quotation-convert.test.ts",
+    "web/src/pages/work-orders/__tests__/WorkOrdersPage.test.tsx",
+    "web/src/pages/quotations/__tests__/QuotationCreatePage.test.tsx",
+    "web/src/components/common/__tests__/CustomerEmailPreparation.test.tsx",
+    "web/src/lib/__tests__/official-pdf.test.ts",
+    "web/src/hooks/__tests__/useFormRecovery.test.tsx"
+  ],
+  "phase6Verification": {
+    "webTests": 300,
+    "testFiles": 43,
+    "typecheck": "web: sin errores",
+    "lintErrors": 0,
+    "preexistingLintWarnings": 5,
+    "productionBuild": "pass",
+    "buildNote": "Advertencia existente de chunks mayores a 500 kB",
+    "browserWidths": [
+      320,
+      390,
+      768,
+      1024
+    ],
+    "browserScope": "Clientes y ficha, vehículos de taller y edición, flota y documentación, catálogo, almacenes, finanzas, reportes, usuarios y permisos, configuración, compras y dashboard; tamaño habitual restaurado",
+    "physicalIphoneTest": "pending",
+    "apiScope": "Sin cambios en API, shared, permisos, consultas ni plantillas de documentos aprobados",
+    "checks": [
+      "Jerarquía y KPIs compactos con métricas reales y accesos operativos existentes",
+      "Presentación común y acotada a los módulos restantes, incluidos modales montados en portales",
+      "Diecinueve tablas con etiquetas reales y semántica explícita para la presentación móvil",
+      "Seis formularios con cabecera y acciones fijas, desplazamiento sólo del contenido",
+      "Vehículos de clientes y flota interna conservan sus vistas, permisos, documentos y vencimientos separados",
+      "Búsquedas, filtros, paginación, existencias, despacho y kardex conservados",
+      "Sin desborde horizontal del documento en las vistas revisadas; tablas anchas contenidas en su panel en tablet",
+      "Configuración del logo y datos de cuenta adaptados a pantallas estrechas",
+      "Sin creación, modificación de registros ni envíos de correo durante la revisión visual"
+    ]
+  },
+  "visualFidelityReview": {
+    "date": "2026-11-03",
+    "reference": "UNITHOR_ultimo_dashboard_reportes.html",
+    "scope": "Taller, superficies y controles compartidos y medidas del modal de abono",
+    "request": "Seguir el diseño propuesto manteniendo la operación actual; máximo cuatro cards por fila",
+    "referenceTokens": {
+      "canvas": "#f2f2f3",
+      "primary": "#003570",
+      "controlHeight": 44,
+      "cardRadius": 22,
+      "active": "#38b277",
+      "waiting": "#f7eb2d",
+      "overdue": "#e05858"
+    },
+    "changes": [
+      "Grilla explícita de cuatro columnas, con adaptación a tres, dos y una según ancho disponible",
+      "Hover y foco con borde, fondo y sombra derivados del estado; animación reducida respetada",
+      "Estados terminales y espera con sus variantes visuales de referencia",
+      "Barra compacta con búsqueda, seis estados con iconos, periodo y alta de OT",
+      "Periodos existentes y calendario conservados; búsqueda limpiable y filtro de canceladas",
+      "Fondo gris continuo, superficies blancas y controles de 44px",
+      "Modal de abono ajustado a ancho y esquinas de la referencia"
+    ],
+    "preserved": [
+      "Consultas y cálculo de fechas",
+      "Roles, permisos y alcance de datos",
+      "Gestión y sincronización OT-COT",
+      "Pagos, horas y formularios",
+      "Plantillas PDF y preparación de correos"
+    ],
+    "verification": {
+      "webTests": 303,
+      "latestWorkshopAndCalendarTests": 60,
+      "typecheck": "pass",
+      "productionBuild": "pass",
+      "lintErrors": 0,
+      "preexistingLintWarnings": 5,
+      "browserWidths": [
+        320,
+        390,
+        768,
+        1024,
+        1440,
+        1864
+      ],
+      "desktopColumns": 4,
+      "browserChecks": [
+        "Hover real confirmado en DOM y captura",
+        "Ningún desborde horizontal del documento en los anchos revisados",
+        "Menú de periodos y calendario seleccionables sin modificar registros",
+        "Vista de cotizaciones revisada tras cambios comunes",
+        "Tamaño habitual del navegador restaurado"
+      ],
+      "keyboardFocus": "Cobertura automatizada; comprobación de foco del navegador en segundo plano no concluyente",
+      "physicalIphoneTest": "pending"
+    },
+    "publishedReference": "https://ubiquitous-travesseiro-b8d4c0.netlify.app",
+    "followUp": {
+      "date": "2026-11-03",
+      "scope": "Comparación directa del prototipo publicado con los módulos reales antes de la fase 7",
+      "modulesCompared": [
+        "Dashboard",
+        "Taller / OT",
+        "Cotizaciones",
+        "Clientes",
+        "Vehículos / flota",
+        "Catálogo",
+        "Almacenes",
+        "Finanzas",
+        "Reportes",
+        "Usuarios",
+        "Configuración"
+      ],
+      "changes": [
+        "Hover automático de información en OT (70 ms), cruce entre card y panel y cierre al salir (180 ms); interacción por toque y teclado conservada",
+        "Navegación móvil sin sidebar ni hamburguesa: Más abre una hoja inferior con secciones autorizadas, perfil y notificaciones",
+        "Navegación lateral de escritorio con enlaces inactivos transparentes, logo y grupos de la referencia",
+        "Vehículos y flota en filas compactas con numeración, acciones, ficha modal y alertas de vencimiento",
+        "Toolbar de vehículos sin cabecera duplicada; búsquedas y filtros conservados",
+        "Almacenes con selector compacto e inventario antes del despacho a OT; traslados y kardex conservados",
+        "Cabeceras, botones, filtros, tabla comercial y catálogo ajustados a medidas y colores observados en el prototipo",
+        "Dashboard con accesos equivalentes y tarjetas uniformes conservando métricas e información operativa reales",
+        "Cabeceras móviles de taller, vehículos y almacenes con logo en la misma franja"
+      ],
+      "verification": {
+        "webTests": 307,
+        "webTestFiles": 43,
+        "typecheck": "pass",
+        "productionBuild": "pass",
+        "lintErrors": 0,
+        "preexistingLintWarnings": 4,
+        "testedViewportWidths": [
+          320,
+          390,
+          768,
+          1864
+        ],
+        "desktopColumns": 4,
+        "browserChecks": [
+          "Hover sin pulsar el botón de información; panel permanece al entrar el cursor y se cierra al salir",
+          "Más muestra solo navegación autorizada; perfil y permisos cubiertos con pruebas de vendedor y mecánico",
+          "Sin sidebar en móvil/tablet; cambio de sección cierra Más y restaura el scroll",
+          "Sin desborde horizontal del documento en clientes, catálogo, finanzas, reportes, almacenes y vehículos a 320 px",
+          "La fila de vehículo abre la ficha modal y permite cerrarla",
+          "Grilla de cuatro columnas comprobada a 1864 px"
+        ],
+        "physicalIphoneTest": "pending",
+        "liveBusinessMutations": "No se crearon ni modificaron registros durante la revisión visual"
+      },
+      "nextPhase": 7
+    }
+  },
+  "phase7Verification": {
+    "date": "2026-11-03",
+    "status": "validated_locally_pending_physical_device",
+    "scope": "Regresión integrada de contratos, API, interfaz y navegación por roles",
+    "fixes": [
+      "Inicio, login y dashboard del mecánico conducen a sus órdenes asignadas; los enlaces a su ficha conservan el destino operativo",
+      "El regreso desde login conserva búsqueda, filtros y fragmento de URL",
+      "Las dos redirecciones de sesión usan el mismo destino y no anulan el enlace solicitado"
+    ],
+    "tests": {
+      "shared": 61,
+      "api": 404,
+      "web": 331,
+      "total": 796,
+      "files": 99,
+      "database": "unithor_test",
+      "newNavigationRegressions": 24
+    },
+    "roles": [
+      "desarrollador",
+      "admin",
+      "jefe",
+      "mecanico",
+      "vendedor",
+      "bodeguero",
+      "finanzas"
+    ],
+    "regressionCoverage": [
+      "Rutas por permisos y permisos dinámicos recibidos de la API",
+      "Listados, filtros, paginación, documentos y mutaciones aislados por vendedor",
+      "OT asignadas por orden o por tarea; acceso ajeno rechazado para mecánicos",
+      "Sincronización OT-COT sin pérdida de IDs, horas, asignaciones ni validaciones",
+      "Solicitudes de repuestos y sugerencias de precio sujetas a aprobación",
+      "Pagos concurrentes, saldos, anulación y protección CSRF",
+      "Conversión desde COT con recepción y vehículo obligatorio",
+      "Recuperación de formularios y reintento sólo de fotos fallidas",
+      "Documentos oficiales, fotos compartidas, adjuntos y cola de correo",
+      "Adaptadores local/remoto de archivos mediante pruebas aisladas; no se probó un bucket real en esta fase",
+      "Navegación PWA excluye rutas API para comprobantes y PDF"
+    ],
+    "checks": {
+      "typecheck": "shared, api y web: sin errores; web verificado después de la corrección final",
+      "build": "shared y api compilados; compilación final web y generación de service worker correctas",
+      "lintErrors": 0,
+      "preexistingRootLintWarnings": 9,
+      "buildNote": "Advertencia existente de tamaño de chunks mayor a 500 kB",
+      "webHttpStatus": 200,
+      "apiHealthViaViteStatus": 200
+    },
+    "safety": {
+      "databaseGuard": "La suite rechaza bases distintas de unithor_test",
+      "testMailEnabled": false,
+      "testStorage": "local",
+      "liveBusinessMutations": false,
+      "productionDeploymentPerformed": false
+    },
+    "browserScope": "En esta fase se verificaron rutas y roles de forma automatizada y respuestas HTTP locales; la revisión visual de escritorio/tablet/móvil quedó registrada en visualFidelityReview.followUp. No se realizó una nueva comprobación visual con usuarios reales.",
+    "pendingAcceptance": [
+      "Desplegar los cambios revisados antes de comprobarlos desde el teléfono",
+      "PWA en iPhone físico: orientación vertical/horizontal, Más, navegación, scroll tras cerrar modales y teclado del formulario",
+      "Aceptación final del usuario con sus perfiles y datos de operación"
+    ],
+    "evidence": [
+      "phase7-tests.log: 61 shared, 404 API y ejecución web inicial",
+      "phase7-web-final.log: 331 pruebas web sobre la implementación final",
+      "phase7-web-build-final.log: compilación web final"
+    ]
+  }
+}

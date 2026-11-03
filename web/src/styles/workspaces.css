@@ -1,0 +1,477 @@
+/* Remaining application workspaces. PDF templates and document exporters are
+   intentionally outside these opt-in scopes, including dialogs in portals. */
+.workspace-page,
+.workspace-dialog {
+  --workspace-blue: #003570;
+  --workspace-ink: #33465b;
+  --workspace-muted: #66788b;
+  --workspace-line: #e5eaf0;
+  --workspace-soft: #f5f7f9;
+  color: var(--workspace-ink);
+  min-width: 0;
+}
+
+.workspace-page {
+  container: workspace / inline-size;
+}
+
+.workspace-page > header:first-child,
+.workspace-page .page-banner {
+  height: auto;
+  min-height: 74px;
+  margin-bottom: 0;
+  padding: 0 0 18px;
+  border: 0;
+  border-bottom: 1px solid var(--workspace-line);
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  gap: 14px;
+}
+
+.workspace-page > header:first-child h1 {
+  max-width: none;
+  font-size: clamp(22px, 2.1vw, 28px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -.025em;
+  color: var(--workspace-blue);
+}
+
+.workspace-page > header:first-child p {
+  font-size: 12px;
+  color: var(--workspace-muted);
+}
+
+:is(.workspace-page, .workspace-dialog) :is(.primary-button, .secondary-button) {
+  min-height: 44px;
+  height: auto;
+  max-width: 100%;
+  padding: 9px 16px;
+  border-radius: 22px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+:is(.workspace-page, .workspace-dialog) .primary-button {
+  border-color: var(--workspace-blue);
+  background: var(--workspace-blue);
+  color: #fff;
+  box-shadow: none;
+}
+
+:is(.workspace-page, .workspace-dialog) .primary-button:hover:not(:disabled) {
+  background: #002b5b;
+}
+
+:is(.workspace-page, .workspace-dialog) .secondary-button {
+  border: 1px solid var(--workspace-line);
+  background: #fff;
+  color: var(--workspace-blue);
+  box-shadow: none;
+}
+
+:is(.workspace-page, .workspace-dialog) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]), select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  border-color: #dce3eb;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.workspace-page :is(input[type=search], input[placeholder*="Buscar"], input[placeholder*="Código"], input[placeholder*="Patente"]) {
+  border-radius: 22px;
+}
+
+:is(.workspace-page, .workspace-dialog) :is(input, select, textarea):focus-visible {
+  outline: 2px solid #003570;
+  outline-offset: 2px;
+}
+
+.workspace-page :is([role=tablist], nav[aria-label="Áreas de reportes"]) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  overflow: visible;
+  border: 0;
+}
+
+.workspace-page :is([role=tab], nav[aria-label="Áreas de reportes"] button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 8px 15px;
+  border: 0;
+  border-radius: 22px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--workspace-muted);
+  white-space: normal;
+}
+
+.workspace-page :is([role=tab][aria-selected=true], nav[aria-label="Áreas de reportes"] button[aria-current=page]) {
+  background: var(--workspace-blue);
+  color: #fff;
+}
+
+.workspace-page [role=tab] > span.absolute {
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+.workspace-page :is(button, a).bg-brand-primaryInk {
+  min-height: 44px;
+  height: auto;
+  padding: 9px 16px;
+  border-radius: 22px;
+  background: var(--workspace-blue);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.workspace-page :is(.view-panel, .workspace-panel, section.rounded-lg, section.rounded-xl, section.border-y) {
+  min-width: 0;
+  border: 1px solid var(--workspace-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.workspace-page :is(.view-panel-title, .view-panel-body) {
+  padding: 18px;
+}
+
+.workspace-page .view-panel-title h2 {
+  font-size: 14px;
+  text-transform: none;
+  color: var(--workspace-blue);
+}
+
+.workspace-page .view-panel-title p {
+  font-size: 12px;
+}
+
+.workspace-page :is(.data-scroll, .overflow-x-auto) {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+}
+
+.workspace-page .workspace-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.workspace-page .workspace-table thead {
+  background: var(--workspace-soft);
+  color: var(--workspace-muted);
+}
+
+.workspace-page .workspace-table th {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--workspace-line);
+  background: transparent;
+  color: var(--workspace-muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .025em;
+}
+
+.workspace-page .workspace-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--workspace-line);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.workspace-page .workspace-table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+.workspace-page .workspace-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.workspace-clients .workspace-directory,
+.workspace-catalog [aria-label="Listado de catálogo"] {
+  overflow: hidden;
+  border: 1px solid var(--workspace-line);
+  border-radius: 18px;
+}
+
+.workspace-clients .workspace-directory-row {
+  min-height: 78px;
+  padding-block: 12px;
+}
+
+.workspace-catalog .workspace-catalog-heading {
+  background: var(--workspace-soft);
+  color: var(--workspace-muted);
+  font-size: 10px;
+}
+
+.workspace-catalog .workspace-catalog-row {
+  padding-block: 12px;
+}
+
+.workspace-catalog-row > div:nth-child(2) > span:last-child > span:first-child {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.workspace-settings [aria-labelledby=settings-logo-title] .w-64 { max-width: 100%; }
+
+.workspace-catalog .workspace-catalog-row > div:first-child > span {
+  background: var(--workspace-soft);
+  color: var(--workspace-muted);
+  border-radius: 50%;
+}
+
+.workspace-vehicle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 275px), 1fr));
+  gap: 12px;
+}
+
+.workspace-vehicle-card {
+  min-height: 0;
+  padding: 16px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.workspace-vehicle-card:hover {
+  transform: none;
+  border-color: #a5bad3;
+  box-shadow: 0 4px 18px #00357008;
+}
+
+.workspace-vehicle-plate {
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: .035em;
+  color: var(--workspace-blue);
+}
+
+.workspace-vehicle-card .workspace-vehicle-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--workspace-soft);
+}
+
+.workspace-vehicle-icon svg { width: 19px; height: 19px; }
+.workspace-vehicle-card h3 { font-size: 13px; line-height: 1.4; }
+.workspace-vehicle-card .workspace-vehicle-facts { margin-top: 12px; padding: 9px; }
+.workspace-vehicle-card .workspace-vehicle-actions { margin-top: 12px; padding-top: 10px; }
+
+.workspace-warehouse-card {
+  min-height: 126px;
+  padding: 16px;
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.workspace-warehouse-card[aria-pressed=true] {
+  border-color: #003570;
+  background: #f3f7fc;
+  box-shadow: inset 0 0 0 1px #003570;
+}
+
+.workspace-dashboard .dashboard-shortcuts { background: var(--workspace-soft); border: 0; }
+.dashboard-shortcuts .view-panel-title { padding-bottom: 0; border: 0; }
+.dashboard-shortcuts .view-panel-body { padding-top: 10px; }
+.dashboard-shortcuts .view-panel-body > div:last-child { flex-basis: auto; }
+
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-kpi {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  gap: 8px 10px;
+  min-width: 0;
+  min-height: 142px;
+  padding: 18px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 18px;
+  background: #fff;
+  color: var(--workspace-blue);
+}
+
+.dashboard-kpi-icon {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #edf3fa;
+  color: #003570;
+}
+
+.dashboard-kpi-icon svg { width: 19px; height: 19px; }
+.dashboard-kpi-label { grid-column: 1; grid-row: 1; font-size: 12px; font-weight: 550; color: var(--workspace-muted); }
+.dashboard-kpi-value { grid-column: 1 / -1; grid-row: 2; margin-top: 12px; padding-right: 0; font-size: clamp(20px, 2.3vw, 29px); font-weight: 650; line-height: 1.25; letter-spacing: -.035em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.dashboard-kpi-detail { grid-column: 1 / -1; font-size: 11px; line-height: 1.5; color: var(--workspace-muted); }
+.dashboard-kpi-amber .dashboard-kpi-icon { background: #fff5df; color: #9e6500; }
+.dashboard-kpi-green .dashboard-kpi-icon { background: #e8f7ef; color: #177349; }
+.dashboard-kpi-coral .dashboard-kpi-icon { background: #fff0ed; color: #b14f39; }
+
+.workspace-finance .workspace-finance-metric {
+  min-height: 130px;
+  padding: 16px;
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.workspace-finance article.rounded-lg,
+.workspace-purchases article.rounded-xl,
+.workspace-warehouses [aria-label="Resumen de almacenes"] > div {
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.workspace-reports > nav { padding: 0; }
+.workspace-reports [aria-label^="Reporte"] > div.grid { border-radius: 18px; background: var(--workspace-soft); }
+.workspace-reports [aria-label^="Reporte"] > div:first-child { padding: 4px 0 15px; }
+.workspace-reports [aria-label^="Reporte"] h2 { font-size: 17px; font-weight: 650; }
+.workspace-reports [aria-label^="Reporte"] .overflow-x-auto { border-radius: 16px; }
+
+.workspace-dialog {
+  border: 1px solid var(--workspace-line);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 80px #0e2b4e24;
+}
+
+.workspace-form-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+}
+
+.workspace-form-dialog > :not(form) { flex-shrink: 0; }
+.workspace-form { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+.workspace-form-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.workspace-form-footer { flex-shrink: 0; margin: 0; padding: 14px 22px; border-top: 1px solid var(--workspace-line); background: #fff; }
+.workspace-form-dialog label { min-width: 0; }
+
+@container workspace (min-width: 1500px) {
+  .dashboard-metrics { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+@container workspace (min-width: 1000px) {
+  .dashboard-shortcuts .view-panel-body > div:last-child { flex-basis: 240px; }
+}
+
+@container workspace (max-width: 1000px) {
+  .workspace-catalog-heading,
+  .workspace-catalog-row {
+    grid-template-columns: 36px minmax(0, 1.6fr) 105px 95px 115px 100px;
+    gap: 8px;
+    padding-inline: 12px;
+  }
+}
+
+@container workspace (max-width: 720px) {
+  /* Cell labels are real column headings from each table, kept in the markup.
+     The table semantics remain intact for assistive technology. */
+  .workspace-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+  .workspace-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .workspace-table :is(tbody, tfoot) { display: block; width: 100%; }
+  .workspace-table :is(tbody, tfoot) > tr { display: block; padding: 8px 14px; border-bottom: 1px solid var(--workspace-line); }
+  .workspace-table :is(tbody, tfoot) > tr:last-child { border-bottom: 0; }
+  .workspace-table :is(tbody, tfoot) > tr > td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    padding: 6px 0;
+    border: 0;
+    text-align: right;
+    white-space: normal;
+  }
+  .workspace-table td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 31%;
+    min-width: 0;
+    color: var(--workspace-muted);
+    text-align: left;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .workspace-table td > * { min-width: 0; max-width: 100%; }
+  .workspace-table td :is(.truncate, .whitespace-nowrap) { white-space: normal; overflow-wrap: anywhere; }
+  .workspace-table td[colspan] { justify-content: center; text-align: center; }
+  .workspace-table td[colspan]::before { display: none; }
+  .workspace-users .workspace-table td[data-label=Usuario] { display: block; padding-block: 10px; text-align: left; }
+  .workspace-users .workspace-table td[data-label=Usuario]::before { display: none; }
+  .workspace-users .workspace-table td[data-label=Usuario] > div { width: 100%; }
+  .workspace-catalog-heading { display: none; }
+  .workspace-catalog-row { grid-template-columns: 30px minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 15px 12px; }
+  .workspace-catalog-row > :nth-child(2) { grid-column: 2 / -1; }
+  .workspace-catalog-row > :nth-child(n+3) { grid-column: 2 / -1; justify-self: stretch; text-align: left; }
+  .workspace-catalog-row > :last-child { justify-content: flex-start; }
+  .dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .dashboard-kpi { min-height: 142px; padding: 14px; gap: 6px; }
+  .dashboard-kpi-icon { grid-row: 1; width: 30px; height: 30px; border-radius: 10px; }
+  .dashboard-kpi-icon svg { width: 16px; height: 16px; }
+  .dashboard-kpi-label { align-self: center; font-size: 11px; }
+  .dashboard-kpi-value { margin-top: 5px; font-size: clamp(18px, 6cqw, 23px); }
+  .dashboard-kpi-detail { font-size: 10px; }
+  .workspace-warehouses [aria-label="Resumen de almacenes"] { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .workspace-warehouses [aria-label="Resumen de almacenes"] > div { position: relative; display: block; min-width: 0; min-height: 108px; padding: 12px; }
+  .workspace-warehouses [aria-label="Resumen de almacenes"] > div > span { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; }
+  .workspace-warehouses [aria-label="Resumen de almacenes"] > div > span svg { width: 15px; height: 15px; }
+  .workspace-warehouses [aria-label="Resumen de almacenes"] p:first-child { padding-right: 26px; font-size: 24px; }
+  .workspace-warehouses [aria-label="Resumen de almacenes"] p:last-child { margin-top: 14px; white-space: normal; font-size: 11px; }
+}
+
+@media (max-width: 640px) {
+  .workspace-page > header:first-child { align-items: flex-start; flex-wrap: wrap; min-height: 0; padding-bottom: 15px; }
+  .workspace-page > header:first-child h1 { font-size: 23px; }
+  .workspace-page > header:first-child > .primary-button { margin-left: 0; }
+  .workspace-page :is(.view-panel-title, .view-panel-body) { padding: 15px; }
+  .workspace-page [role=tab] { flex: 0 1 auto; padding: 8px 12px; font-size: 11px; }
+  :is(.workspace-page, .workspace-dialog) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea) { font-size: 16px; }
+  :is(.workspace-page, .workspace-dialog) :is(.table-action, button[title]) { min-width: 38px; min-height: 38px; }
+  .workspace-dialog { border-radius: 18px; }
+  .workspace-catalog .workspace-catalog-row button { min-width: 40px; min-height: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-vehicle-card { transition: none; }
+}

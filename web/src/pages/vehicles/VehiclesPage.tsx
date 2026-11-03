@@ -58,7 +58,7 @@ export const VehiclesPage = () => {
   };
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="workspace-page workspace-vehicles min-w-0 space-y-5">
       <header className="page-banner">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Parque vehicular</p>

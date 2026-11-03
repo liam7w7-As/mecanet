@@ -18,11 +18,13 @@ import {
   X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import WorkOrderMechanicPanel from './WorkOrderMechanicPanel';
 import WorkOrderStatusBadge from './WorkOrderStatusBadge';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useWorkOrder } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
@@ -34,6 +36,7 @@ import {
 } from '../../lib/work-order-progress';
 import { useAuthStore } from '../../stores/auth.store';
 import CustomerEmailPanel from '../common/CustomerEmailPanel';
+import { QUOTATION_STATUS_LABELS } from '../quotations/QuotationStatusBadge';
 
 import type { WorkOrder } from '../../types/entities';
 import type { CatalogType, ItemOperationalStatus } from '@unithor/shared';
@@ -65,6 +68,8 @@ interface WorkOrderQuickDetailModalProps {
   onPreviewPdf: (workOrder: WorkOrder) => void;
   initialView?: 'summary' | 'execution';
 }
+
+type LeaveAction = 'close' | 'pdf' | 'detail' | 'worksheet';
 
 const SummaryRow = ({
   icon,
@@ -110,23 +115,41 @@ export const WorkOrderQuickDetailModal = ({
 }: WorkOrderQuickDetailModalProps) => {
   const [view, setView] = useState<'summary' | 'execution' | 'requests'>(initialView);
   const user = useAuthStore((state) => state.user);
-  const dialogRef = useRef<HTMLElement>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const navigate = useNavigate();
+  const [hasOpenedExecution, setOpenedExecution] = useState(initialView === 'execution');
+  const [hasDirtyChanges, setDirtyChanges] = useState(false);
+  const [savePending, setSavePending] = useState(false);
+  const [leaveAction, setLeaveAction] = useState<LeaveAction | null>(null);
+  const showFinancials = user?.role !== 'mecanico';
   const workOrderQuery = useWorkOrder(workOrderId);
   const workOrder = workOrderQuery.data;
   const canOperate = Boolean(user && workOrder && (
     ['desarrollador', 'admin', 'jefe'].includes(user.role)
     || (user.role === 'mecanico' && workOrder.assignedMechanicId === user.id)
   ));
+  const performLeave = (action: LeaveAction): void => {
+    if (action === 'pdf' && workOrder) { onPreviewPdf(workOrder); return; }
+    onClose();
+    if (action === 'detail') navigate(`/work-orders/${workOrderId}`);
+    if (action === 'worksheet') navigate(`/work-orders/${workOrderId}/ficha`);
+  };
+  const requestLeave = (action: LeaveAction): void => {
+    if (savePending) return;
+    if (hasDirtyChanges) { setLeaveAction(action); return; }
+    performLeave(action);
+  };
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose: () => requestLeave('close'), isPending: savePending });
+  const setDialogNode = useCallback((node: HTMLElement | null) => {
+    dialogRef.current = node;
+    setPanelNode(node);
+  }, [setPanelNode]);
   useEffect(() => {
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    dialogRef.current?.focus();
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus instanceof HTMLElement) previousFocus.focus();
-    };
-  }, []);
+    if (!hasDirtyChanges && !savePending) return;
+    const warn = (event: BeforeUnloadEvent): void => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasDirtyChanges, savePending]);
   const now = Date.now();
 
   const grouped = useMemo(() => {
@@ -144,17 +167,16 @@ export const WorkOrderQuickDetailModal = ({
     0,
   );
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button type="button" className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity" aria-label="Cerrar detalle" onClick={onClose} />
+  return createPortal(
+    <div className="workshop-dialog-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
+      <button type="button" className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity" aria-label="Cerrar detalle" onClick={() => requestLeave('close')} disabled={savePending} />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        ref={dialogRef}
+        ref={setDialogNode}
         tabIndex={-1}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
           if (event.key !== 'Tab') return;
           const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'))
             .filter((element) => !element.closest('[hidden]'));
@@ -166,12 +188,12 @@ export const WorkOrderQuickDetailModal = ({
             event.preventDefault(); first?.focus();
           }
         }}
-        className="relative max-h-full w-full max-w-[850px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl outline-none"
+        className="workshop-dialog relative max-h-full w-full max-w-[1080px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl outline-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="work-order-quick-detail-title"
       >
-        <header className="sticky top-0 z-10 border-b border-brand-line bg-white px-5 py-4 sm:px-6">
+        <header className="workshop-dialog-header sticky top-0 z-10 border-b border-brand-line bg-white px-5 py-4 sm:px-6">
           {workOrderQuery.isPending && (
             <>
               <p className="text-xs font-semibold uppercase text-brand-muted">Orden de trabajo</p>
@@ -180,7 +202,7 @@ export const WorkOrderQuickDetailModal = ({
               </h2>
             </>
           )}
-          {!workOrder && <button type="button" onClick={onClose} aria-label="Cerrar" className="absolute right-4 top-4 rounded-lg p-2 text-brand-muted"><X className="h-4 w-4" aria-hidden="true" /></button>}
+          {!workOrder && <button type="button" onClick={() => requestLeave('close')} aria-label="Cerrar" className="absolute right-4 top-4 rounded-lg p-2 text-brand-muted"><X className="h-4 w-4" aria-hidden="true" /></button>}
           {workOrder && (
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
@@ -200,7 +222,8 @@ export const WorkOrderQuickDetailModal = ({
                 <button
                   type="button"
                   className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale"
-                  onClick={onClose}
+                  onClick={() => requestLeave('close')}
+                  disabled={savePending}
                   aria-label="Cerrar"
                   title="Cerrar"
                 >
@@ -212,7 +235,7 @@ export const WorkOrderQuickDetailModal = ({
           {workOrder && canOperate && (
             <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Vista de la orden">
               {([{ value: 'summary', label: 'Resumen' }, { value: 'execution', label: 'Avances y Checklist' }, { value: 'requests', label: 'Solicitudes' }] as const).map((option) => (
-                <button key={option.value} type="button" aria-pressed={view === option.value} onClick={() => setView(option.value)}
+                <button key={option.value} type="button" aria-pressed={view === option.value} onClick={() => { setView(option.value); if (option.value !== 'summary') setOpenedExecution(true); }}
                   className={`inline-flex min-h-9 items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${view === option.value ? 'bg-brand-primary text-white shadow-xs ring-2 ring-brand-primary/20' : 'bg-brand-pale/70 text-brand-muted hover:bg-brand-pale hover:text-brand-ink'}`}>
                   {option.label}
                   {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${view === option.value ? 'bg-white text-brand-primary' : 'bg-brand-primary text-white'}`}>{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
@@ -221,10 +244,11 @@ export const WorkOrderQuickDetailModal = ({
             </div>
           )}
         </header>
-        {workOrder && user?.role !== 'mecanico' && <div className="px-5 pt-4 sm:px-6"><CustomerEmailPanel kind="work_order" id={workOrder.id} /></div>}
+        <div className="workshop-dialog-body">
+        {workOrder && user?.role !== 'mecanico' && <div className="workshop-communication px-5 pt-4 sm:px-6"><CustomerEmailPanel kind="work_order" id={workOrder.id} /></div>}
 
-        {workOrder && canOperate && view !== 'summary' && (
-          <div className="p-4 sm:p-6"><WorkOrderMechanicPanel workOrder={workOrder} section={view} /></div>
+        {workOrder && canOperate && hasOpenedExecution && (
+          <div className="workshop-execution-view p-4 sm:p-6" hidden={view === 'summary'}><WorkOrderMechanicPanel workOrder={workOrder} section={view === 'requests' ? 'requests' : 'execution'} onDirtyChange={setDirtyChanges} onPendingChange={setSavePending} /></div>
         )}
 
         {workOrderQuery.isPending && (
@@ -242,14 +266,14 @@ export const WorkOrderQuickDetailModal = ({
         )}
 
         {workOrder && progress && tier && elapsed && (view === 'summary' || !canOperate) && (
-          <div className="space-y-5 p-5 sm:p-6">
+          <div className="workshop-summary space-y-5 p-5 sm:p-6">
             {workOrder.descripcion && (
-              <p className="rounded-lg border border-brand-line bg-brand-line/40 px-4 py-3 text-sm text-brand-ink">
+              <p className="workshop-description rounded-lg border border-brand-line bg-brand-line/40 px-4 py-3 text-sm text-brand-ink">
                 {workOrder.descripcion}
               </p>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="workshop-summary-people grid gap-3 sm:grid-cols-2">
               <SummaryRow
                 icon={<Car className="h-4 w-4" aria-hidden="true" />}
                 label="Vehículo"
@@ -277,7 +301,7 @@ export const WorkOrderQuickDetailModal = ({
             </div>
 
             {workOrder.vehicleOwner && workOrder.vehicleOwner.nombre !== workOrder.client?.nombre && (
-              <div className="flex items-start gap-2 rounded-lg border border-brand-line bg-brand-goldPale px-4 py-3 text-sm text-brand-ink">
+              <div className="workshop-owner-note flex items-start gap-2 rounded-lg border border-brand-line bg-brand-goldPale px-4 py-3 text-sm text-brand-ink">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>
                   Vehículo de <strong>{workOrder.vehicleOwner.nombre}</strong>
@@ -286,7 +310,7 @@ export const WorkOrderQuickDetailModal = ({
               </div>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="workshop-summary-metrics grid gap-3 sm:grid-cols-4">
               <MetricTile
                 label="Avance"
                 value={progress.total === 0 ? '—' : `${progress.percent}%`}
@@ -304,16 +328,16 @@ export const WorkOrderQuickDetailModal = ({
                 value={workOrder.kilometrajeIngreso === null ? '—' : `${Number(workOrder.kilometrajeIngreso).toLocaleString('es-CL')} km`}
                 hint="Kilometraje de ingreso"
               />
-              <MetricTile
+              {showFinancials && <MetricTile
                 label="Total estimado"
                 value={formatClp(estimatedTotal)}
-                hint={workOrder.quotation ? `COT ${workOrder.quotation.estadoPago}` : 'Sin cotización espejo'}
+                hint={workOrder.quotation ? `COT ${QUOTATION_STATUS_LABELS[workOrder.quotation.estadoPago]}` : 'Sin cotización espejo'}
                 tone="text-brand-primaryInk"
-              />
+              />}
             </div>
 
             {progress.total > 0 && (
-              <div>
+              <div className="workshop-summary-progress">
                 <div className="flex items-center justify-between gap-2">
                   <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-ink">
                     <Gauge className="h-4 w-4" aria-hidden="true" /> Avance operativo
@@ -336,7 +360,7 @@ export const WorkOrderQuickDetailModal = ({
             )}
 
             {grouped.length > 0 && (
-              <div>
+              <div className="workshop-summary-items">
                 <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-ink">
                   <ListChecks className="h-4 w-4" aria-hidden="true" />
                   Trabajos y repuestos ({workOrder.items?.length ?? 0})
@@ -348,9 +372,9 @@ export const WorkOrderQuickDetailModal = ({
                         <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">
                           {TYPE_LABELS[group.type]}
                         </p>
-                        <p className="text-xs font-semibold text-brand-muted">
+                        {showFinancials && <p className="text-xs font-semibold text-brand-muted">
                           {formatClp(group.items.reduce((sum, item) => sum + Number(item.subtotal), 0))}
-                        </p>
+                        </p>}
                       </div>
                       <ul className="divide-y divide-brand-line">
                         {group.items.map((item) => (
@@ -378,24 +402,24 @@ export const WorkOrderQuickDetailModal = ({
                                 <p className="mt-1 text-xs italic text-brand-muted">{item.notasOperativas}</p>
                               )}
                             </div>
-                            <div className="shrink-0 text-right">
+                            {showFinancials && <div className="shrink-0 text-right">
                               <p className="text-sm font-semibold text-brand-ink">{formatClp(item.subtotal)}</p>
                               <p className="text-[11px] text-brand-muted">{formatClp(item.precioUnitario)} c/u</p>
-                            </div>
+                            </div>}
                           </li>
                         ))}
                       </ul>
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 flex items-center justify-between border-t-2 border-brand-primaryInk pt-2 text-sm font-bold text-brand-primaryInk">
+                {showFinancials && <div className="mt-3 flex items-center justify-between border-t-2 border-brand-primaryInk pt-2 text-sm font-bold text-brand-primaryInk">
                   <span>Total estimado</span>
                   <span>{formatClp(estimatedTotal)}</span>
-                </div>
+                </div>}
               </div>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="workshop-summary-context grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-brand-line px-3 py-3">
                 <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-muted">
                   <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" /> Inspección
@@ -414,9 +438,9 @@ export const WorkOrderQuickDetailModal = ({
                 <p className="mt-1 text-sm font-semibold text-brand-ink">
                   {workOrder.quotation?.codigo ?? 'Sin cotización'}
                 </p>
-                {workOrder.quotation && (
+                {showFinancials && workOrder.quotation && (
                   <p className="mt-0.5 text-xs text-brand-muted">
-                    {workOrder.quotation.estadoPago} · saldo {formatClp(workOrder.quotation.saldoPendiente)}
+                    {QUOTATION_STATUS_LABELS[workOrder.quotation.estadoPago]} · saldo {formatClp(workOrder.quotation.saldoPendiente)}
                   </p>
                 )}
               </div>
@@ -436,7 +460,7 @@ export const WorkOrderQuickDetailModal = ({
             </div>
 
             {workOrder.inspection?.inventario && workOrder.inspection.inventario.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="workshop-summary-inventory flex flex-wrap items-center gap-1.5">
                 <Wrench className="h-3.5 w-3.5 text-brand-muted" aria-hidden="true" />
                 {workOrder.inspection.inventario.map((entry) => (
                   <span key={entry} className="rounded-full bg-brand-pale px-2 py-0.5 text-[11px] font-semibold text-brand-muted">
@@ -447,34 +471,31 @@ export const WorkOrderQuickDetailModal = ({
             )}
 
             {workOrder.contact?.telefono && (
-              <p className="flex items-center gap-2 text-sm text-brand-muted">
+              <p className="workshop-summary-contact flex items-center gap-2 text-sm text-brand-muted">
                 <Phone className="h-4 w-4 text-brand-muted" aria-hidden="true" />
                 Contacto: {workOrder.contact.nombre} · {workOrder.contact.telefono}
               </p>
             )}
 
-            <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-brand-line pt-4">
-              <button
-                type="button"
-                onClick={() => onPreviewPdf(workOrder)}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border border-brand-line bg-white px-4 text-xs font-bold text-brand-ink transition hover:bg-brand-pale"
-              >
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Vista previa PDF
-              </button>
-              <Link
-                to={`/work-orders/${workOrder.id}`}
-                onClick={onClose}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand-primary px-4 text-xs font-bold text-white shadow-xs hover:bg-brand-primaryHover transition"
-              >
-                Abrir detalle completo
-                <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </footer>
           </div>
         )}
+        </div>
+        {workOrder && <footer className="workshop-dialog-footer">
+          {leaveAction && <div role="alertdialog" aria-label="Cambios sin guardar" className="workshop-discard-confirmation">
+            <p>Tienes cambios sin guardar en esta orden. ¿Deseas descartarlos?</p>
+            <button type="button" onClick={() => setLeaveAction(null)}>Seguir editando</button>
+            <button type="button" disabled={savePending} onClick={() => performLeave(leaveAction)}>Descartar cambios</button>
+          </div>}
+          <span className="workshop-save-state" role="status">{savePending ? 'Guardando cambios…' : hasDirtyChanges ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span>
+          <div className="workshop-dialog-footer-actions">
+            {canOperate && <Link to={`/work-orders/${workOrder.id}/ficha`} onClick={(event) => { event.preventDefault(); requestLeave('worksheet'); }} className="workshop-secondary-action"><Wrench aria-hidden="true" />Ficha y horas</Link>}
+            {showFinancials && <button type="button" disabled={savePending} className="workshop-secondary-action" onClick={() => requestLeave('pdf')}><Download aria-hidden="true" />Vista previa PDF</button>}
+            {user?.role !== 'mecanico' && <Link to={`/work-orders/${workOrder.id}`} onClick={(event) => { event.preventDefault(); requestLeave('detail'); }} className="workshop-primary-action">Abrir detalle completo<ArrowUpRight aria-hidden="true" /></Link>}
+          </div>
+        </footer>}
       </motion.section>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

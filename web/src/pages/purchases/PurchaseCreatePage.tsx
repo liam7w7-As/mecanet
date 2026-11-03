@@ -199,7 +199,7 @@ export const PurchaseCreatePage = () => {
   const today = todayInputValue();
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="workspace-page workspace-purchases min-w-0 space-y-5">
       <header className="flex items-start gap-3">
         <Link
           to="/purchases"
@@ -225,7 +225,7 @@ export const PurchaseCreatePage = () => {
         onSubmit={submit}
         className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]"
       >
-        <div className="min-w-0 space-y-5">
+        <div className="workspace-page workspace-purchases min-w-0 space-y-5">
           <section className="rounded-xl border border-brand-line bg-white p-4 shadow-sm sm:p-5">
             <SectionHeading
               title="Proveedor"

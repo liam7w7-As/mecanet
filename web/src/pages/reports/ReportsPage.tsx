@@ -99,7 +99,7 @@ export const ReportsPage = () => {
   };
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="workspace-page workspace-reports min-w-0 space-y-5">
       <header className="page-banner">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Análisis por área</p>

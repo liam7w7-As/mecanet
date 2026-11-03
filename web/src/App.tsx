@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import PublicRoute from './components/layout/PublicRoute';
+import { getSessionHomePath } from './lib/session-navigation';
 import LoginPage from './pages/auth/LoginPage';
 import CatalogPage from './pages/catalog/CatalogPage';
 import ClientsPage from './pages/clients/ClientsPage';
@@ -28,6 +29,17 @@ import WorkOrderDetailPage from './pages/work-orders/WorkOrderDetailPage';
 import WorkOrdersPage from './pages/work-orders/WorkOrdersPage';
 import WorkOrderWorksheetPage from './pages/work-orders/WorkOrderWorksheetPage';
 import WorkshopDailyReportPage from './pages/work-orders/WorkshopDailyReportPage';
+import { useAuthStore } from './stores/auth.store';
+
+const HomeRedirect = () => {
+  const user = useAuthStore((state) => state.user);
+  return <Navigate to={getSessionHomePath(user)} replace />;
+};
+
+const DashboardEntry = () => {
+  const user = useAuthStore((state) => state.user);
+  return user?.role === 'mecanico' ? <HomeRedirect /> : <DashboardPage />;
+};
 
 export const App = () => (
   <Routes>
@@ -37,7 +49,7 @@ export const App = () => (
 
     <Route element={<ProtectedRoute />}>
       <Route element={<AppLayout />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<HomeRedirect />} />
         <Route
           path="/dashboard"
           element={
@@ -47,7 +59,7 @@ export const App = () => (
                 { modulo: 'comercial', accion: 'read' },
               ]}
             >
-              <DashboardPage />
+              <DashboardEntry />
             </ProtectedRoute>
           }
         />

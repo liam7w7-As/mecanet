@@ -38,20 +38,17 @@ interface KpiCardProps {
 
 const KpiCard = ({ title, value, detail, icon: Icon, testId }: KpiCardProps) => (
   <>
-    {/* El icono va a 50px como en la referencia y hereda el color de la tarjeta.
-        Lucide renderiza `<svg>`, así que la regla `.stat img` no lo alcanza y
-        el tamaño sale de las utilidades sin pelearse con el diseño. */}
-    <Icon className="mb-4 h-[50px] w-[50px] shrink-0" strokeWidth={1.4} aria-hidden="true" />
-    <p className="stat-label text-center">{title}</p>
-    <p className="stat-value text-center" data-testid={testId}>{value}</p>
-    <p className="stat-detail text-center text-brand-muted">{detail}</p>
+    <span className="dashboard-kpi-icon"><Icon strokeWidth={1.7} aria-hidden="true" /></span>
+    <p className="dashboard-kpi-label">{title}</p>
+    <p className="dashboard-kpi-value" data-testid={testId}>{value}</p>
+    <p className="dashboard-kpi-detail">{detail}</p>
   </>
 );
 
 const DashboardSkeleton = () => (
   <div className="space-y-5" aria-label="Cargando resumen del dashboard">
-    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-      {Array.from({ length: 6 }, (_, index) => <div key={index} className="stat stat-auto animate-pulse"><div className="h-[50px] w-[50px] rounded-lg bg-white/60" /><div className="stat-label mt-4 h-4 w-28 rounded bg-white/60" /><div className="mt-2 h-6 w-20 rounded bg-white/60" /></div>)}
+    <div className="dashboard-metrics">
+      {Array.from({ length: 6 }, (_, index) => <div key={index} className="dashboard-kpi animate-pulse"><div className="dashboard-kpi-icon bg-slate-100" /><div className="h-3 w-20 rounded bg-slate-100" /><div className="mt-2 h-7 w-24 rounded bg-slate-100" /><div className="mt-2 h-3 w-28 rounded bg-slate-100" /></div>)}
     </div>
     <div className="grid gap-5 xl:grid-cols-[3fr_2fr]"><div className="h-80 animate-pulse rounded-lg border border-brand-line bg-white" /><div className="h-80 animate-pulse rounded-lg border border-brand-line bg-white" /></div>
   </div>
@@ -81,7 +78,7 @@ export const DashboardPage = () => {
   const summary = dashboardQuery.data;
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="workspace-page workspace-dashboard min-w-0 space-y-6">
       <header className="page-banner">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Panel operativo</p>
@@ -90,27 +87,27 @@ export const DashboardPage = () => {
         <p className="relative z-[1] ml-auto hidden self-end pb-1 text-sm text-brand-muted sm:block">{formatCurrentDate()}</p>
       </header>
 
-      <section className="view-panel mb-6" aria-labelledby="quick-actions-title">
+      <section className="dashboard-shortcuts view-panel" aria-labelledby="quick-actions-title">
         <div className="view-panel-title">
           <h2 id="quick-actions-title" className="text-sm font-semibold uppercase text-brand-muted">Acciones rápidas</h2>
         </div>
         <div className="view-panel-body flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
           {canCreateWorkOrder && (
-            <Link to="/work-orders/new" className="primary-button">
+            <Link to="/work-orders/new" className="primary-button" aria-label="Ingresar vehículo / Nueva OT">
               <Wrench className="h-4 w-4" aria-hidden="true" />
-              Ingresar vehículo / Nueva OT
+              Nueva OT
             </Link>
           )}
           {canCreateQuotation && (
-            <Link to="/quotations/new" className="primary-button">
+            <Link to="/quotations/new" className="primary-button" aria-label="Nueva cotización">
               <FilePlus2 className="h-4 w-4" aria-hidden="true" />
-              Nueva cotización
+              Cotización
             </Link>
           )}
           {canCreateClient && (
-            <button type="button" className="secondary-button inline-flex items-center gap-2 text-sm font-medium text-brand-ink transition-colors hover:border-brand-primary hover:text-brand-primaryInk" onClick={() => setShowClientForm(true)}>
+            <button type="button" className="secondary-button inline-flex items-center gap-2 text-sm font-medium text-brand-ink transition-colors hover:border-brand-primary hover:text-brand-primaryInk" aria-label="Dar de alta cliente" onClick={() => setShowClientForm(true)}>
               <UserPlus className="h-4 w-4" aria-hidden="true" />
-              Dar de alta cliente
+              Cliente
             </button>
           )}
           <div className="min-w-0 flex-1">
@@ -127,23 +124,17 @@ export const DashboardPage = () => {
 
       {dashboardQuery.isPending ? <DashboardSkeleton /> : summary && (
         <>
-          {/* Seis tarjetas en la grilla de 6 columnas de la referencia, una por
-              tinte. La sexta es "COT sin OT", que ya existed en los datos y
-              operaba en un encabezado de sección. */}
-          <Stagger className="stats mb-6" aria-label="Indicadores principales">
-            <StaggerItem className="stat stat-auto"><KpiCard title="OTs en taller" value={String(summary.metrics.activeWorkOrders)} detail="Iniciadas o esperando repuesto" icon={Wrench} testId="active-work-orders" /></StaggerItem>
-            <StaggerItem className="stat stat-auto gold"><KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} testId="waiting-for-parts" /></StaggerItem>
-            <StaggerItem className="stat stat-auto green"><KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} testId="monthly-revenue" /></StaggerItem>
-            <StaggerItem className="stat stat-auto sky"><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} testId="pending-balance" /></StaggerItem>
-            <StaggerItem className={cn('stat stat-auto', summary.lowStockCount > 0 ? 'coral' : 'green')}><KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} testId="low-stock-count" /></StaggerItem>
-            <StaggerItem className="stat stat-auto blue"><KpiCard title="COT sin OT" value={String(summary.metrics.quotationsWithoutWorkOrder)} detail="Pendientes de convertir a orden" icon={FileText} testId="quotations-without-work-order" /></StaggerItem>
+          <Stagger className="dashboard-metrics" aria-label="Indicadores principales">
+            <StaggerItem className="dashboard-kpi"><KpiCard title="OTs en taller" value={String(summary.metrics.activeWorkOrders)} detail="Iniciadas o esperando repuesto" icon={Wrench} testId="active-work-orders" /></StaggerItem>
+            <StaggerItem className="dashboard-kpi dashboard-kpi-amber"><KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} testId="waiting-for-parts" /></StaggerItem>
+            <StaggerItem className="dashboard-kpi dashboard-kpi-green"><KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} testId="monthly-revenue" /></StaggerItem>
+            <StaggerItem className="dashboard-kpi"><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} testId="pending-balance" /></StaggerItem>
+            <StaggerItem className={cn('dashboard-kpi', summary.lowStockCount > 0 ? 'dashboard-kpi-coral' : 'dashboard-kpi-green')}><KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} testId="low-stock-count" /></StaggerItem>
+            <StaggerItem className="dashboard-kpi"><KpiCard title="COT sin OT" value={String(summary.metrics.quotationsWithoutWorkOrder)} detail="Pendientes de convertir a orden" icon={FileText} testId="quotations-without-work-order" /></StaggerItem>
           </Stagger>
 
           <OperationalInbox inbox={summary.operationalInbox} />
 
-          {/* Proporcion 2:1 como en la referencia (`.revenue` span 8 y
-              `.products` span 4). Con el 3:2 anterior la tabla de seis columnas
-              no entraba y la columna "Detalle" quedaba cortada. */}
           <section className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="view-panel">
               <div className="view-panel-title flex flex-wrap items-center justify-between gap-2">
@@ -158,22 +149,22 @@ export const DashboardPage = () => {
               </div>
               {summary.recentWorkOrders.length === 0 ? <p className="empty-row">Aún no hay órdenes de trabajo registradas.</p> : (
                 <div className="data-scroll">
-                  <table className="data-table">
-                    <thead>
-                      <tr><th>Orden</th><th>Patente</th><th>Cliente</th><th>Estado</th><th>Ingreso</th><th className="text-right">Detalle</th></tr>
+                  <table role="table" className="workspace-table data-table">
+                    <thead role="rowgroup">
+                      <tr role="row"><th role="columnheader">Orden</th><th role="columnheader">Patente</th><th role="columnheader">Cliente</th><th role="columnheader">Estado</th><th role="columnheader">Ingreso</th><th role="columnheader" className="text-right">Detalle</th></tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                       {summary.recentWorkOrders.map((workOrder) => (
-                        <tr key={workOrder.id}>
+                        <tr role="row" key={workOrder.id}>
                           {/* Sin `.order-id`: fija la columna en 98px y "OT-2026-0003"
                               se partía a la mitad. El nowrap del diseño deja que la
                               columna mida su contenido. */}
-                          <td className="nowrap font-semibold text-brand-ink">{workOrder.codigo}</td>
-                          <td className="nowrap font-mono font-semibold text-brand-ink">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</td>
-                          <td className="max-w-44"><span className="block truncate text-brand-ink">{workOrder.client?.nombre ?? 'Sin cliente'}</span></td>
-                          <td><WorkOrderStatusBadge status={workOrder.estado} /></td>
-                          <td className="whitespace-nowrap text-brand-muted">{formatDate(workOrder.fechaIngreso)}</td>
-                          <td className="text-right">
+                          <td role="cell" data-label="Orden" className="nowrap font-semibold text-brand-ink">{workOrder.codigo}</td>
+                          <td role="cell" data-label="Patente" className="nowrap font-mono font-semibold text-brand-ink">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</td>
+                          <td role="cell" data-label="Cliente" className="max-w-44"><span className="block truncate text-brand-ink">{workOrder.client?.nombre ?? 'Sin cliente'}</span></td>
+                          <td role="cell" data-label="Estado"><WorkOrderStatusBadge status={workOrder.estado} /></td>
+                          <td role="cell" data-label="Ingreso" className="whitespace-nowrap text-brand-muted">{formatDate(workOrder.fechaIngreso)}</td>
+                          <td role="cell" data-label="Detalle" className="text-right">
                             <Link to={`/work-orders/${workOrder.id}`} className="table-action" aria-label={`Ver ${workOrder.codigo}`}>Ver</Link>
                           </td>
                         </tr>

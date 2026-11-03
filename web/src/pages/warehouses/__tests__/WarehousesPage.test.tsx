@@ -234,6 +234,7 @@ describe('WarehousesPage', () => {
           data: { items: [warehouse, second], total: 2, page: 1, pageSize: 50, totalPages: 1 } as PaginatedResponse<Warehouse>,
         } as AxiosResponse<PaginatedResponse<Warehouse>>);
       }
+      if (url === '/warehouses/2/balances') return Promise.resolve({ data: { balances: [] as StockBalance[] } } as AxiosResponse<{ balances: StockBalance[] }>);
       if (url === '/warehouses/1/balances') {
         return Promise.resolve({ data: { balances: [balance] } } as AxiosResponse<{ balances: StockBalance[] }>);
       }
@@ -249,6 +250,10 @@ describe('WarehousesPage', () => {
     });
     renderPage();
     await screen.findByText('Bodega Central');
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Seleccionar almacén' }), { target: { value: '2' } });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/warehouses/2/balances'));
+    expect(screen.getByRole('button', { name: 'Editar NORTE' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Trasladar' }));
     expect(await screen.findByRole('dialog', { name: 'Trasladar stock' })).toBeInTheDocument();

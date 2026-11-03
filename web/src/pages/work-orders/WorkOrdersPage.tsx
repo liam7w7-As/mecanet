@@ -1,31 +1,18 @@
-import { WORK_ORDER_STATUS, isValidWorkOrderTransition } from '@unithor/shared';
 import {
   AlertCircle,
-  CalendarDays,
   ClipboardList,
-  Download,
-  Eye,
-  ListChecks,
-  PackageCheck,
-  Plus,
-  ReceiptText,
-  Search,
-  UserCog,
-  UserRound,
 } from 'lucide-react';
-import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 
-import { AnimateIcon, AnimatedCard, Stagger, StaggerItem } from '../../components/animate-ui';
-import DatePicker from '../../components/common/DatePicker';
+import { Stagger, StaggerItem } from '../../components/animate-ui';
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
 import RevertStatusModal from '../../components/work-orders/RevertStatusModal';
+import WorkOrderCard from '../../components/work-orders/WorkOrderCard';
 import WorkOrderDeliveryModal from '../../components/work-orders/WorkOrderDeliveryModal';
+import WorkOrderFilters from '../../components/work-orders/WorkOrderFilters';
 import WorkOrderQuickDetailModal from '../../components/work-orders/WorkOrderQuickDetailModal';
-import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   useChangeWorkOrderStatusMutation,
@@ -33,22 +20,15 @@ import {
   useWorkOrders,
 } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { formatClp, formatDate } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
-import {
-  PROGRESS_TIER_STYLES,
-  getElapsedInfo,
-  getWorkOrderProgress,
-  useNow,
-} from '../../lib/work-order-progress';
+import { useNow } from '../../lib/work-order-progress';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError } from '../../stores/toast.store';
 
+import type { WorkOrderCardExpansion } from '../../components/work-orders/WorkOrderCard';
+import type { WorkOrderDateFilter as DateFilter, WorkOrderStatusFilter as StatusFilter } from '../../components/work-orders/WorkOrderFilters';
 import type { WorkOrder } from '../../types/entities';
 import type { WorkOrderStatus } from '@unithor/shared';
-
-type StatusFilter = WorkOrderStatus | 'all';
-type DateFilter = 'all' | '3_days' | '15_days' | 'month' | 'date';
 
 const getDateRange = (period: DateFilter, month: string, date: string, now: number) => {
   if (period === 'all' || (period === 'month' && !month)) return {};
@@ -68,26 +48,6 @@ const getDateRange = (period: DateFilter, month: string, date: string, now: numb
     fechaHasta: end.toISOString().slice(0, 10),
   };
 };
-
-const DATE_FILTERS: Array<{ value: Exclude<DateFilter, 'date'>; label: string }> = [
-  { value: 'all', label: 'Todas las fechas' },
-  { value: '3_days', label: '3 días' },
-  { value: '15_days', label: '15 días' },
-  { value: 'month', label: 'Por mes' },
-];
-
-const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
-  { value: 'all', label: 'Todas' },
-  { value: 'en_progreso', label: WORK_ORDER_STATUS_LABELS.en_progreso },
-  { value: 'esperando_repuesto', label: 'Esperando repuesto' },
-  { value: 'finalizada', label: 'Finalizadas' },
-  { value: 'entregada', label: 'Entregadas' },
-];
-
-const getEstimatedTotal = (workOrder: WorkOrder): number | null =>
-  workOrder.items
-    ? workOrder.items.reduce((total, item) => total + Number(item.subtotal), 0)
-    : null;
 
 const WorkOrdersSkeleton = () => (
   <>
@@ -142,288 +102,9 @@ const isStatusRegression = (from: WorkOrderStatus, to: WorkOrderStatus): boolean
   return fi > ti && fi !== -1 && ti !== -1;
 };
 
-const WorkOrderCard = ({
-  workOrder,
-  now,
-  canManage,
-  statusPending,
-  onChangeStatus,
-  onDeliver,
-  onOpenDetail,
-  onPreviewPdf,
-  onOpenExecution,
-}: {
-  workOrder: WorkOrder;
-  now: number;
-  canManage: boolean;
-  statusPending: boolean;
-  onChangeStatus: (workOrder: WorkOrder, nuevoEstado: WorkOrderStatus) => void;
-  onDeliver: () => void;
-  onOpenDetail: () => void;
-  onPreviewPdf: () => void;
-  onOpenExecution?: () => void;
-}) => {
-  const progress = getWorkOrderProgress(workOrder);
-  const tier = PROGRESS_TIER_STYLES[progress.tier];
-  const elapsed = getElapsedInfo(workOrder, now);
-  const estimatedTotal = getEstimatedTotal(workOrder);
-  const validTransitions = WORK_ORDER_STATUS.filter((candidate) =>
-    candidate !== 'entregada' &&
-    isValidWorkOrderTransition(workOrder.estado, candidate),
-  );
-  const vehicleLabel = [workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ');
-  const quotation = workOrder.quotation ?? null;
-  const paymentPercent = quotation && quotation.total > 0
-    ? Math.min(100, Math.round((quotation.pagado / quotation.total) * 100))
-    : 0;
-  // Aviso inteligente de cierre: si ya no quedan tareas por hacer y la OT
-  // sigue en progreso, la tarjeta lo canta. Con saldo pendiente pide cobrar;
-  // sin deuda invita a marcarla finalizada. Solo en `en_progreso` porque es
-  // el único estado desde el que se puede pasar a `finalizada`.
-  const items = workOrder.items ?? [];
-  const allTasksDone = items.length > 0
-    && items.every((item) => item.estadoOperativo === 'completado' || item.estadoOperativo === 'omitido');
-  const readyToFinish = workOrder.estado === 'en_progreso' && allTasksDone;
-  const balanceDue = quotation ? Math.max(0, quotation.saldoPendiente) : 0;
-
-  const stats = [
-    {
-      key: 'tiempo',
-      label: 'En taller',
-      value: elapsed.running
-        ? elapsed.text.replace('En taller ', '')
-        : elapsed.text.replace('Duración total: ', ''),
-      tone: elapsed.overdue ? 'text-brand-coralInk' : 'text-brand-ink',
-    },
-    {
-      key: 'avance',
-      label: 'Avance',
-      value: progress.total === 0 ? '—' : `${progress.percent}%`,
-      tone: progress.percent === 100 ? 'text-brand-mintInk' : 'text-brand-primaryInk',
-    },
-    {
-      key: 'total',
-      label: 'Total est.',
-      value: estimatedTotal === null ? '—' : formatClp(estimatedTotal),
-      tone: 'text-brand-primaryInk',
-    },
-  ];
-
-  return (
-    <AnimatedCard
-      className={`group flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-within:shadow-md ring-1 ring-inset ${tier.ring}`}
-    >
-      <div className={`h-1 w-full ${tier.bar}`} aria-hidden="true" />
-
-      <div className="flex flex-1 flex-col">
-        <div className="bg-gradient-to-br from-white via-brand-line/40 to-brand-line/60 px-3.5 pb-3 pt-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <button
-                type="button"
-                onClick={onOpenDetail}
-                className="truncate font-mono text-sm font-black text-brand-primaryInk underline-offset-4 hover:underline focus:outline-none focus-visible:underline"
-                aria-label={`Ver detalle de ${workOrder.codigo}`}
-              >
-                {workOrder.codigo}
-              </button>
-              <p className="mt-1 text-[11px] font-semibold text-brand-muted">
-                Ingreso {formatDate(workOrder.fechaIngreso)}
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-col items-end gap-1">
-              {elapsed.overdue && (
-                <span className="rounded bg-brand-coralInk px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Vencida</span>
-              )}
-              <WorkOrderStatusBadge status={workOrder.estado} />
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-end justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="whitespace-nowrap font-mono text-2xl font-black leading-tight tracking-widest text-slate-900 transition-colors group-hover:text-brand-primary">
-                {workOrder.vehicle?.patente ?? 'SIN PATENTE'}
-              </p>
-              <p className="mt-0.5 truncate text-xs font-medium text-brand-muted">
-                {vehicleLabel || 'Vehículo sin datos'}
-              </p>
-            </div>
-            {workOrder.coberturaGarantia && (
-              <span className="shrink-0 rounded-full bg-brand-pale px-2.5 py-1 text-[10px] font-black uppercase text-brand-primaryInk ring-1 ring-brand-line">
-                Garantía
-              </span>
-            )}
-          </div>
-        </div>
-
-        {readyToFinish && (
-          <div
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold ${
-              balanceDue > 0
-                ? 'bg-brand-goldPale text-brand-goldInk'
-                : 'bg-brand-mintPale text-brand-mintInk'
-            }`}
-          >
-            <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
-              <span className={`absolute inline-flex h-full w-full rounded-full opacity-60 motion-safe:animate-ping ${balanceDue > 0 ? 'bg-brand-gold' : 'bg-brand-mint'}`} />
-              <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${balanceDue > 0 ? 'bg-brand-gold' : 'bg-brand-mint'}`} />
-            </span>
-            {balanceDue > 0 ? (
-              <span>Trabajo listo — falta abonar {formatClp(balanceDue)}</span>
-            ) : (
-              <span>Ya puede finalizar esta OT</span>
-            )}
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-x-3 border-y border-brand-line px-3.5 py-2">
-          <p className="flex min-w-0 items-center gap-1.5 text-xs text-brand-muted" title={workOrder.client?.nombre ?? undefined}>
-            <UserRound className="h-3.5 w-3.5 shrink-0 text-brand-muted" aria-hidden="true" />
-            <span className="truncate font-semibold text-brand-ink">{workOrder.client?.nombre ?? 'Sin cliente'}</span>
-          </p>
-          <p className="flex min-w-0 items-center gap-1.5 text-xs" title={workOrder.assignedMechanic?.nombre ?? undefined}>
-            <UserCog
-              className={`h-3.5 w-3.5 shrink-0 ${workOrder.assignedMechanic ? 'text-brand-mintInk' : 'text-brand-goldInk'}`}
-              aria-hidden="true"
-            />
-            <span className={`truncate ${workOrder.assignedMechanic ? 'font-semibold text-brand-ink' : 'text-brand-muted'}`}>
-              {workOrder.assignedMechanic?.nombre ?? 'Sin mecánico'}
-            </span>
-          </p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-px bg-brand-pale">
-          {stats.map((stat) => (
-            <div key={stat.key} className="bg-white px-3.5 py-1.5">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-brand-muted">{stat.label}</p>
-              <p className={`truncate text-sm font-bold leading-tight ${stat.tone}`}>{stat.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="px-3.5 pb-2.5 pt-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="flex items-center gap-1 text-[11px] font-semibold text-brand-muted">
-              <ListChecks className="h-3 w-3" aria-hidden="true" />
-              Tareas {progress.completed}/{progress.total}
-            </p>
-            <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${tier.chip}`}>
-              {progress.total === 0 ? tier.label : tier.label}
-            </span>
-          </div>
-          <div
-            className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-brand-pale"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={progress.percent}
-            aria-label={`Avance de ${workOrder.codigo}`}
-          >
-            <div className={`h-full rounded-full ${tier.bar}`} style={{ width: `${progress.percent}%` }} />
-          </div>
-        </div>
-
-        <div className="border-t border-brand-line px-3.5 py-2.5">
-          {quotation ? (
-            <div className="rounded-xl bg-brand-line/40 p-2.5 ring-1 ring-brand-line">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-primaryInk/10 text-brand-primaryInk">
-                    <ReceiptText className="h-3.5 w-3.5" aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate font-mono text-xs font-black text-brand-primaryInk">{quotation.codigo}</p>
-                    <p className="text-[10px] font-semibold text-brand-muted">
-                      Pagado {formatClp(quotation.pagado)} de {formatClp(quotation.total)}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={`text-xs font-black ${quotation.saldoPendiente <= 0 ? 'text-brand-mintInk' : 'text-brand-goldInk'}`}>
-                    {quotation.saldoPendiente <= 0 ? 'Pagada' : formatClp(quotation.saldoPendiente)}
-                  </p>
-                  <p className="text-[10px] text-brand-muted">saldo</p>
-                </div>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-line">
-                {/* La barra codifica estado, no acción: verde cuando el saldo
-                    está cancelado y dorado cuando queda por cobrar. Aplanar
-                    ambos al índigo dejaba dos tonos de azul sin significado.
-                    Ojo: este comentario va en posicion de HIJOS. En la de
-                    atributos hay que usar `//` sobre el elemento. */}
-                <div
-                  className={`h-full rounded-full ${quotation.saldoPendiente <= 0 ? 'bg-brand-mintInk' : 'bg-brand-gold'}`}
-                  style={{ width: `${paymentPercent}%` }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-brand-line bg-brand-line/40 px-3 py-2 text-xs font-semibold text-brand-muted">
-              Sin cotización vinculada
-            </div>
-          )}
-        </div>
-
-        <div className="mt-auto flex items-center gap-1.5 border-t border-brand-line px-3.5 py-2.5">
-          {onOpenExecution && <button type="button" onClick={onOpenExecution}
-            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-primaryInk px-2 py-1 text-xs font-bold text-white hover:bg-brand-primaryInkHover">
-            <ListChecks className="h-4 w-4 shrink-0" aria-hidden="true" />Gestionar trabajo
-          </button>}
-          <button
-            type="button"
-            onClick={onOpenDetail}
-            aria-label="Ver detalle"
-            title="Ver detalle"
-            className={onOpenExecution ? 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-line text-brand-primaryInk hover:bg-brand-pale' : 'inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-primaryInk px-3 text-xs font-bold text-white hover:bg-brand-primaryInkHover'}
-          >
-            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-            {!onOpenExecution && 'Ver detalle'}
-          </button>
-          <button
-            type="button"
-            onClick={onPreviewPdf}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-primaryInk transition-colors hover:bg-brand-pale"
-            aria-label={`Previsualizar PDF de ${workOrder.codigo}`}
-            title="PDF"
-          >
-            <Download className="h-4 w-4" aria-hidden="true" />
-          </button>
-          {canManage && workOrder.estado === 'finalizada' && (
-            <button
-              type="button"
-              onClick={onDeliver}
-              aria-label={`Entregar vehículo de ${workOrder.codigo}`}
-              title="Registrar entrega del vehículo"
-              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-mintInk px-3 text-xs font-bold text-white hover:brightness-95"
-            >
-              <PackageCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-              Entregar
-            </button>
-          )}
-          {canManage && (
-            <select
-              aria-label={`Cambiar estado de ${workOrder.codigo}`}
-              className="h-9 max-w-28 rounded-lg border border-brand-line bg-white px-1.5 text-[11px] font-bold text-brand-muted"
-              value=""
-              onChange={(event) => onChangeStatus(workOrder, event.target.value as WorkOrderStatus)}
-              disabled={statusPending || validTransitions.length === 0}
-            >
-              <option value="">
-                {validTransitions.length === 0 ? 'Terminal' : 'Estado'}
-              </option>
-              {validTransitions.map((candidate) => (
-                <option key={candidate} value={candidate}>{WORK_ORDER_STATUS_LABELS[candidate]}</option>
-              ))}
-            </select>
-          )}
-        </div>
-      </div>
-    </AnimatedCard>
-  );
-};
-
 export const WorkOrdersPage = () => {
   const [search, setSearch] = useState('');
+  const [cardExpansion, setCardExpansion] = useState<WorkOrderCardExpansion>(null);
   const [status, setStatus] = useState<StatusFilter>('all');
   const [period, setPeriod] = useState<DateFilter>('all');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
@@ -457,7 +138,8 @@ export const WorkOrdersPage = () => {
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
   const canManage = Boolean(canUpdate && user?.role !== 'mecanico');
 
-  useEffect(() => setPage(1), [debouncedSearch, status, fechaDesde, fechaHasta]);
+  useEffect(() => { setPage(1); setCardExpansion(null); }, [debouncedSearch, status, fechaDesde, fechaHasta]);
+  useEffect(() => setCardExpansion(null), [page]);
 
   const changeStatus = (workOrder: WorkOrder, nuevoEstado: WorkOrderStatus): void => {
     statusMutation.reset();
@@ -485,104 +167,28 @@ export const WorkOrdersPage = () => {
   };
 
   return (
-    <div className="min-w-0 space-y-5">
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="workshop-board min-w-0 space-y-5">
+      <header className="workshop-board-heading flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-medium text-brand-muted">Operación de taller</p>
           <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">{user?.role === 'mecanico' ? 'Mis órdenes asignadas' : 'Taller - Órdenes de Trabajo'}</h1>
         </div>
-        {canCreate && (
-          <Link to="/work-orders/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow-md">
-            <AnimateIcon variant="spin" animateOnHover>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-            </AnimateIcon>
-            Nueva Orden de Trabajo
-          </Link>
-        )}
       </header>
 
-      <section className="overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm" aria-label="Listado de órdenes de trabajo">
-        <div className="border-b border-brand-line p-4">
-          <div className="relative min-w-0">
-            <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-10 w-full rounded-lg border border-brand-line pl-9 pr-3 text-sm outline-none transition-shadow focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" placeholder="Buscar código OT, patente o cliente" aria-label="Buscar órdenes de trabajo" />
-          </div>
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filtrar por estado">
-            {STATUS_FILTERS.map((filter) => {
-              const isSelected = status === filter.value;
-              return (
-                <button
-                  key={filter.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSelected}
-                  className={`relative min-h-9 whitespace-nowrap rounded-lg px-3 text-sm font-semibold transition-colors ${
-                    isSelected ? 'text-white' : 'bg-brand-pale text-brand-muted hover:bg-brand-line'
-                  }`}
-                  onClick={() => setStatus(filter.value)}
-                >
-                  {isSelected && (
-                    <motion.span
-                      layoutId="workOrdersStatusPill"
-                      className="absolute inset-0 rounded-lg bg-brand-primaryInk"
-                      transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                    />
-                  )}
-                  <span className="relative z-10">{filter.label}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-brand-line pt-3">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-muted">
-              <CalendarDays className="h-4 w-4" aria-hidden="true" />
-              Ingreso
-            </span>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por fecha de ingreso">
-              {DATE_FILTERS.map((filter) => {
-                const isSelected = period === filter.value;
-                return (
-                  <button
-                    key={filter.value}
-                    type="button"
-                    aria-pressed={isSelected}
-                    className={`relative min-h-9 whitespace-nowrap rounded-lg px-3 text-sm font-semibold transition-colors ${
-                      isSelected ? 'text-white' : 'bg-brand-pale text-brand-muted hover:bg-brand-line'
-                    }`}
-                    onClick={() => { setPage(1); setSelectedDate(''); setPeriod(filter.value); }}
-                  >
-                    {isSelected && (
-                      <motion.span
-                        layoutId="workOrdersDatePill"
-                        className="absolute inset-0 rounded-lg bg-brand-primaryInk"
-                        transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                      />
-                    )}
-                    <span className="relative z-10">{filter.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {period === 'month' && (
-              <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold text-brand-muted">
-                Mes de ingreso
-                <input type="month" value={selectedMonth} onChange={(event) => { setPage(1); setSelectedMonth(event.target.value); }} className="h-9 w-44 min-w-0 rounded-lg border border-brand-line bg-white px-2 text-sm font-normal text-brand-ink outline-none focus:border-brand-primary" />
-              </label>
-            )}
-            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold text-brand-muted">
-              <span>Fecha específica</span>
-              <DatePicker
-                label="Fecha específica"
-                value={selectedDate}
-                onChange={(date) => {
-                  setPage(1);
-                  setSelectedDate(date);
-                  setPeriod(date ? 'date' : 'all');
-                }}
-              />
-            </div>
-          </div>
-        </div>
+      <section className="workshop-list" aria-label="Listado de órdenes de trabajo">
+        <WorkOrderFilters
+          search={search}
+          onSearch={setSearch}
+          status={status}
+          onStatus={setStatus}
+          period={period}
+          onPeriod={(next) => { setPage(1); if (next !== 'date') setSelectedDate(''); setPeriod(next); }}
+          selectedMonth={selectedMonth}
+          onMonth={(month) => { setPage(1); setSelectedMonth(month); }}
+          selectedDate={selectedDate}
+          onDate={(date) => { setPage(1); setSelectedDate(date); setPeriod(date ? 'date' : 'all'); }}
+          canCreate={canCreate}
+        />
 
         {(workOrdersQuery.isError || statusMutation.isError || previewQuery.isError || deliveryQuery.isError) && (
           <div className="flex items-center gap-2 border-b border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">
@@ -591,9 +197,9 @@ export const WorkOrdersPage = () => {
           </div>
         )}
 
-        <div className="bg-brand-line/60 p-4">
+        <div className="workshop-canvas">
           {workOrdersQuery.isPending ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="workshop-card-grid">
               <WorkOrdersSkeleton />
             </div>
           ) : (workOrdersQuery.data?.items.length ?? 0) === 0 ? (
@@ -603,12 +209,15 @@ export const WorkOrdersPage = () => {
               <p className="mt-1 text-sm text-brand-muted">Cambie los filtros o registre el primer ingreso del taller.</p>
             </div>
           ) : (
-            <Stagger className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" stagger={0.05}>
+            <Stagger className="workshop-card-grid" stagger={0.05}>
               {workOrdersQuery.data?.items.map((workOrder) => (
                 <StaggerItem key={workOrder.id}>
                   <WorkOrderCard
                     workOrder={workOrder}
                     now={now}
+                    expansion={cardExpansion}
+                    onExpand={setCardExpansion}
+                    showFinancials={user?.role !== 'mecanico'}
                     canManage={canManage}
                     statusPending={statusMutation.isPending}
                     onChangeStatus={changeStatus}

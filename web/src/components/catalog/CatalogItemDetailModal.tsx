@@ -95,7 +95,7 @@ export const CatalogItemDetailModal = ({
         initial={{ opacity: 0, scale: 0.98, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 360, damping: 32 }}
-        className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]"
+        className="workspace-dialog relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="catalog-detail-title"

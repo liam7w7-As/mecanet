@@ -101,6 +101,7 @@ export const QuotationsPage = () => {
   // Detalle completo para edición: igual que previewQuery, la lista no incluye ítems.
   const editQuery = useQuotation(editQuotationId ?? 0);
   const canCreate = Boolean(user && hasUserPermission(user, 'comercial', 'create'));
+  const canPay = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
   const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
   const canConvert = Boolean(user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'create')));
   const canExport = Boolean(user && hasUserPermission(user, 'comercial', 'export'));
@@ -108,8 +109,8 @@ export const QuotationsPage = () => {
   useEffect(() => setPage(1), [debouncedSearch, fechaDesde, fechaHasta, status]);
 
   return (
-    <div className="min-w-0 space-y-5">
-      <header className="page-banner max-sm:!h-auto max-sm:flex-col max-sm:items-start max-sm:gap-3">
+    <div className="commercial-board min-w-0 space-y-5">
+      <header className="commercial-heading flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Gestión comercial</p>
           <h1 className="mt-1">Comercial - Cotizaciones</h1>
@@ -130,8 +131,8 @@ export const QuotationsPage = () => {
         </div>
       </header>
 
-      <section className="overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm" aria-label="Listado de cotizaciones">
-        <div className="border-b border-brand-line p-4 sm:p-5">
+      <section className="commercial-register overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm" aria-label="Listado de cotizaciones">
+        <div className="commercial-filters border-b border-brand-line p-4 sm:p-5">
           <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_170px_170px]">
             <label className="relative"><span className="sr-only">Buscar cotizaciones</span><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-brand-line pl-9 pr-3 text-sm outline-none transition-shadow focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" placeholder="Buscar código COT o cliente" /></label>
             <label className="text-xs font-semibold uppercase text-brand-muted"><span className="sr-only">Fecha desde</span><input type="date" value={fechaDesde} onChange={(event) => setFechaDesde(event.target.value)} className="h-11 w-full rounded-xl border border-brand-line px-3 text-sm font-normal text-brand-ink outline-none transition-shadow focus:border-brand-primary" aria-label="Fecha desde" /></label>
@@ -200,8 +201,8 @@ export const QuotationsPage = () => {
             </div>
           </div>
         )}
-        <div className="overflow-x-auto rounded-xl border border-brand-line bg-white shadow-sm">
-          <table className="w-full min-w-[640px] text-left text-sm md:min-w-[760px] lg:min-w-full">
+        <div className="commercial-table-frame rounded-xl border border-brand-line bg-white shadow-sm">
+          <table className="commercial-table w-full text-left text-sm" aria-label="Cotizaciones">
             <thead className="bg-brand-line/40 text-[11px] uppercase text-brand-muted">
               <tr>
                 <th className="hidden sm:table-cell px-3.5 py-3 font-semibold">N°</th>
@@ -234,12 +235,16 @@ export const QuotationsPage = () => {
                     key={quotation.id}
                     delay={index * 0.02}
                     enableHover={false}
+                    tabIndex={0}
+                    aria-label={`Cotización ${quotation.codigo}`}
+                    onClick={(event) => { if (event.target instanceof Element && !event.target.closest('button, a, input, select')) setDetailQuotationId(quotation.id); }}
+                    onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setDetailQuotationId(quotation.id); } }}
                     className={`border-b border-brand-line transition-colors last:border-0 ${rowStyle}`}
                   >
-                    <td className={`hidden sm:table-cell border-l-4 px-3.5 py-3 font-mono text-xs font-bold text-brand-muted ${status === 'archived' ? 'border-slate-300' : attention?.kind === 'linked' ? 'border-orange-400' : attention ? 'border-yellow-400' : 'border-transparent'}`}>
+                    <td data-label="N°" className={`hidden sm:table-cell border-l-4 px-3.5 py-3 font-mono text-xs font-bold text-brand-muted ${status === 'archived' ? 'border-slate-300' : attention?.kind === 'linked' ? 'border-orange-400' : attention ? 'border-yellow-400' : 'border-transparent'}`}>
                       {rowNumber}
                     </td>
-                    <td className="px-3.5 py-3">
+                    <td data-label="Código COT" className="px-3.5 py-3">
                       <Link to={`/quotations/${quotation.id}`} className="font-mono text-sm font-bold text-brand-primaryInk hover:underline">
                         {quotation.codigo}
                       </Link>
@@ -265,7 +270,7 @@ export const QuotationsPage = () => {
                         )
                       )}
                     </td>
-                    <td className="px-3.5 py-3">
+                    <td data-label="Cliente" className="px-3.5 py-3">
                       <span className="block break-words text-sm font-semibold text-brand-ink">{quotation.client?.nombre ?? 'Sin cliente'}</span>
                       <span className="block text-xs font-mono text-brand-muted">{quotation.client?.rut ?? 'Sin identificación'}</span>
                       {quotation.vehicle?.patente && (
@@ -274,23 +279,23 @@ export const QuotationsPage = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-3.5 py-3 whitespace-nowrap">
+                    <td data-label="Estado pago" className="px-3.5 py-3 whitespace-nowrap">
                       <QuotationStatusBadge status={quotation.estadoPago} />
                     </td>
-                    <td className="hidden lg:table-cell px-3.5 py-3 text-xs text-brand-muted whitespace-nowrap">
+                    <td data-label="Emitida" className="hidden lg:table-cell px-3.5 py-3 text-xs text-brand-muted whitespace-nowrap">
                       <span className="block">{formatDate(quotation.createdAt)}</span>
                       <span className="mt-0.5 block text-[11px]">{formatTime(quotation.createdAt)}</span>
                     </td>
-                    <td className="px-3.5 py-3 text-right text-sm font-semibold text-brand-ink whitespace-nowrap">
+                    <td data-label="Total" className="px-3.5 py-3 text-right text-sm font-semibold text-brand-ink whitespace-nowrap">
                       {formatClp(quotation.total)}
                     </td>
-                    <td className="hidden md:table-cell px-3.5 py-3 text-right text-sm text-brand-muted whitespace-nowrap">
+                    <td data-label="Pagado" className="hidden md:table-cell px-3.5 py-3 text-right text-sm text-brand-muted whitespace-nowrap">
                       {formatClp(quotation.pagado)}
                     </td>
-                    <td className="px-3.5 py-3 text-right text-sm font-bold text-brand-primaryInk whitespace-nowrap">
+                    <td data-label="Saldo" className="px-3.5 py-3 text-right text-sm font-bold text-brand-primaryInk whitespace-nowrap">
                       {formatClp(balance)}
                     </td>
-                    <td className="px-3.5 py-3 text-right whitespace-nowrap">
+                    <td data-label="Acciones" className="px-3.5 py-3 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1 [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg">
                         {canEdit && status === 'archived' && quotation.archivedAt && (
                           <button type="button" className="flex items-center justify-center text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk" title="Desarchivar cotización" aria-label={`Desarchivar ${quotation.codigo}`} onClick={() => { unarchiveMutation.reset(); setQuotationToUnarchive(quotation); }}>
@@ -302,7 +307,7 @@ export const QuotationsPage = () => {
                             <Archive className="h-4 w-4" aria-hidden="true" />
                           </button>
                         )}
-                        {balance > 0 && (
+                        {canPay && balance > 0 && status !== 'archived' && (
                           <button
                             type="button"
                             onClick={() => setPaymentQuotation({ id: quotation.id, codigo: quotation.codigo, saldoPendiente: balance })}

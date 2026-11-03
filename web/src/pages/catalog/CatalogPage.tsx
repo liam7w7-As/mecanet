@@ -148,7 +148,7 @@ export const CatalogPage = () => {
   };
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="workspace-page workspace-catalog min-w-0 space-y-5">
       <header className="page-banner">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Servicios, trabajos y repuestos</p>
@@ -240,7 +240,7 @@ export const CatalogPage = () => {
           </div>
         )}
 
-        <div className="hidden grid-cols-[48px_minmax(0,1.5fr)_130px_130px_130px_110px] items-center gap-3 bg-brand-primaryInk px-4 py-3 text-xs font-semibold uppercase text-white md:grid">
+        <div className="workspace-catalog-heading hidden grid-cols-[48px_minmax(0,1.5fr)_130px_130px_130px_110px] items-center gap-3 bg-brand-primaryInk px-4 py-3 text-xs font-semibold uppercase text-white md:grid">
           <span>Nº</span>
           <span>Item</span>
           <span>Tipo</span>
@@ -262,7 +262,7 @@ export const CatalogPage = () => {
                   key={item.id}
                   role="button"
                   tabIndex={0}
-                  className="group grid cursor-pointer gap-3 px-4 py-4 outline-none transition-colors hover:bg-brand-line/40 focus-visible:bg-brand-pale focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary md:grid-cols-[48px_minmax(0,1.5fr)_130px_130px_130px_110px] md:items-center"
+                  className="workspace-catalog-row group grid cursor-pointer gap-3 px-4 py-4 outline-none transition-colors hover:bg-brand-line/40 focus-visible:bg-brand-pale focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary md:grid-cols-[48px_minmax(0,1.5fr)_130px_130px_130px_110px] md:items-center"
                   onClick={() => setDetailItem(item)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {

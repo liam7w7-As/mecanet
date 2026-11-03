@@ -1,13 +1,12 @@
 import { updateWorkOrderSchema } from '@unithor/shared';
-import { AlertCircle, LoaderCircle, Save } from 'lucide-react';
-import { useState } from 'react';
+import { AlertCircle } from 'lucide-react';
+import { useRef, useState } from 'react';
 
+import WorkOrderEditDialog from './WorkOrderEditDialog';
 import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from './WorkOrderItemsEditor';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useUpdateWorkOrderMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
-import ModalHeader from '../common/ModalHeader';
 
 import type { EditableWorkOrderItem } from './WorkOrderItemsEditor';
 import type { WorkOrder } from '../../types/entities';
@@ -40,6 +39,7 @@ const toEditableItems = (workOrder: WorkOrder): EditableWorkOrderItem[] =>
 export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalProps) => {
   const updateMutation = useUpdateWorkOrderMutation();
   const [items, setItems] = useState<EditableWorkOrderItem[]>(() => toEditableItems(workOrder));
+  const initialItems = useRef(JSON.stringify(items));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
@@ -72,25 +72,14 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
     updateMutation.mutate({ id: workOrder.id, data: result.data }, { onSuccess: onClose });
   };
 
-  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button
-        type="button"
-        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
-        aria-label="Cerrar trabajos y repuestos"
-        onClick={onClose}
-      />
-      <section className="relative max-h-[92vh] w-full max-w-[850px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="edit-work-items-title">
-        <ModalHeader
-  id="edit-work-items-title"
-  title={"Editar trabajos y repuestos"}
-  description={workOrder.codigo}
-  onClose={onClose}
-/>
-        <form onSubmit={submit}>
-          <div className="p-5">
+    <WorkOrderEditDialog id="edit-work-items-title" title="Editar trabajos y repuestos" code={workOrder.codigo}
+      context={workOrder.vehicle?.patente ?? 'Taller'} submitLabel="Guardar trabajos"
+      dirty={JSON.stringify(items) !== initialItems.current} pending={updateMutation.isPending}
+      onClose={onClose} onSubmit={submit}>
+          <div>
             <WorkOrderItemsEditor
+              presentation="reception"
               items={items}
               onChange={setItems}
               errors={errors}
@@ -105,16 +94,7 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
               {errors._form ?? getApiErrorMessage(updateMutation.error)}
             </div>
           )}
-          <footer className="flex justify-end gap-2 border-t border-brand-line bg-brand-line/40 p-4">
-            <button type="button" className="h-10 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
-              Guardar trabajos
-            </button>
-          </footer>
-        </form>
-      </section>
-    </div>
+    </WorkOrderEditDialog>
   );
 };
 

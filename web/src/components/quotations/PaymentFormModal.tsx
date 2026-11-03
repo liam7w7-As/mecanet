@@ -1,10 +1,8 @@
 import { PAYMENT_BANKS, PAYMENT_METHODS, createPaymentSchema } from '@unithor/shared';
-import { AlertCircle, Banknote, LoaderCircle, Pencil } from 'lucide-react';
-import { motion } from 'motion/react';
-import { useState } from 'react';
+import { AlertCircle, Banknote, ChevronDown, Pencil, X } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import PaymentWorkSummary from './PaymentWorkSummary';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useCreatePaymentMutation, useQuotationPayments } from '../../hooks/usePayments';
 import { useQuotation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -12,7 +10,7 @@ import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 import CurrencyInput from '../common/CurrencyInput';
-import ModalHeader from '../common/ModalHeader';
+import FormDialog from '../common/FormDialog';
 
 import type { PaymentBank, PaymentMethod } from '@unithor/shared';
 
@@ -140,37 +138,29 @@ export const PaymentFormModal = ({
     });
   };
 
-  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button
-        type="button"
-        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
-        aria-label="Cerrar registro de abono"
-        onClick={onClose}
-      />
-      <motion.section
-        initial={{ opacity: 0, scale: 0.96, y: 14 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
-        role="dialog" ref={setPanelNode}
-        aria-modal="true"
-        aria-labelledby="payment-modal-title"
-      >
-        <ModalHeader
-  id="payment-modal-title"
-  badge={<Banknote className="h-6 w-6" aria-hidden="true" />}
-  title="Registrar abono"
-  description={<span className="font-mono text-xs">{codigo}</span>}
-  onClose={onClose}
-  closeLabel="Cerrar"
-/>
+  const initialDate = useRef(fecha);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const summaryId = useId();
+  const receiptInput = useRef<HTMLInputElement>(null);
+  const [receiptPreview, setReceiptPreview] = useState('');
+  useEffect(() => {
+    if (!receiptFile?.type.startsWith('image/') || typeof URL.createObjectURL !== 'function') { setReceiptPreview(''); return; }
+    const url = URL.createObjectURL(receiptFile);
+    setReceiptPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [receiptFile]);
+  const dirty = Boolean(monto || metodo !== 'efectivo' || fecha !== initialDate.current || referencia || bancoOrigen !== 'Banco de Chile' || numeroTransaccion || receiptFile);
 
-        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-          {/* Solo esta sección hace scroll: encabezado y botones quedan fijos. */}
-          <div className="grid min-w-0 flex-1 overflow-y-auto overscroll-contain md:grid-cols-2">
-          <div className="min-w-0 border-b border-brand-line bg-brand-line/60 p-5 sm:p-6 md:border-b-0 md:border-r">
+  return <FormDialog id="payment-modal-title" title="Registrar abono" code={codigo}
+    context={quotationQuery.data?.client?.nombre ?? 'Cotización'} submitLabel="Registrar abono"
+    dirty={dirty} pending={createMutation.isPending} onClose={onClose} onSubmit={submit}
+    className="commercial-form-dialog commercial-payment-dialog" headerIcon={<Banknote aria-hidden="true" />}
+    submitDisabled={loadingSummary || summaryError || availableBalance <= 0}
+    statusText={metodo === 'transferencia' ? 'Sujeto a verificación de Finanzas' : 'El abono se asociará a esta cotización'}>
+          <div className="commercial-payment-grid">
+          <div className="commercial-payment-work">
+            <button type="button" className="commercial-work-toggle" aria-expanded={summaryExpanded} aria-controls={summaryId} onClick={() => setSummaryExpanded((current) => !current)}><Banknote aria-hidden="true" />Trabajos y saldo<ChevronDown aria-hidden="true" /></button>
+            <div id={summaryId} className={summaryExpanded ? 'commercial-work-body is-expanded' : 'commercial-work-body'}>
             {loadingSummary ? (
               <div role="status" className="min-h-48 animate-pulse space-y-4">
                 <span className="sr-only">Cargando trabajos y saldo</span>
@@ -202,9 +192,10 @@ export const PaymentFormModal = ({
                 />
               )
             )}
+            </div>
           </div>
 
-          <div className="min-w-0 space-y-4 p-5 sm:p-6">
+          <div className="commercial-payment-fields min-w-0 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-brand-gold bg-brand-line/40 px-4 py-3">
               <div>
                 <p className="text-xs font-semibold text-brand-muted">Disponible para abonar</p>
@@ -234,7 +225,6 @@ export const PaymentFormModal = ({
                 onChange={setMonto}
                 className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
                 placeholder="0"
-                autoFocus
                 aria-invalid={Boolean(errors.monto)}
               />
               {errors.monto && (
@@ -321,6 +311,7 @@ export const PaymentFormModal = ({
               <label className="block text-sm font-semibold text-brand-ink">
                 Comprobante de pago
                 <input
+                  ref={receiptInput}
                   type="file"
                   accept="image/jpeg,image/png,image/webp,application/pdf"
                   aria-required={metodo === 'transferencia'}
@@ -342,6 +333,11 @@ export const PaymentFormModal = ({
                   </span>
                 )}
               </label>
+              {receiptFile && <div className="commercial-receipt-preview">
+                {receiptPreview && <img src={receiptPreview} alt="Vista previa del comprobante" />}
+                <span><strong>{receiptFile.name}</strong><small>{Math.max(1, Math.round(receiptFile.size / 1024))} KB · {receiptFile.type === 'application/pdf' ? 'PDF' : 'Imagen'}</small></span>
+                <button type="button" aria-label="Quitar comprobante" onClick={() => { setReceiptFile(null); setComprobantePago(''); if (receiptInput.current) receiptInput.current.value = ''; }}><X aria-hidden="true" /></button>
+              </div>}
               {metodo !== 'transferencia' && (
                 <p className="text-xs text-brand-muted">
                   Número y comprobante opcionales para este método de pago.
@@ -407,35 +403,7 @@ export const PaymentFormModal = ({
             )}
           </div>
           </div>
-          <footer className="flex shrink-0 justify-end gap-2 border-t border-brand-line bg-white px-5 py-4 sm:px-6">
-            <button
-              type="button"
-              className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
-              onClick={onClose}
-              disabled={createMutation.isPending}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white disabled:opacity-60"
-              disabled={
-                createMutation.isPending ||
-                loadingSummary ||
-                summaryError ||
-                availableBalance <= 0
-              }
-            >
-              {createMutation.isPending && (
-                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-              )}
-              Registrar abono
-            </button>
-          </footer>
-        </form>
-      </motion.section>
-    </div>
-  );
+  </FormDialog>;
 };
 
 export default PaymentFormModal;

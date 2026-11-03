@@ -60,6 +60,7 @@ const TYPE_LABELS = { estandar: 'Estándar', especifico: 'Específicos', parte: 
 const inputClass = 'h-10 w-full min-w-0 rounded-lg border border-brand-line bg-white px-3 text-sm text-brand-ink outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15';
 
 interface WorkOrderItemsEditorProps {
+  presentation?: 'default' | 'reception';
   items: EditableWorkOrderItem[];
   onChange: (items: EditableWorkOrderItem[]) => void;
   errors?: Record<string, string>;
@@ -81,6 +82,7 @@ interface WorkOrderItemsEditorProps {
 }
 
 export const WorkOrderItemsEditor = ({
+  presentation = 'default',
   items, onChange, errors = {}, title = 'Trabajos y repuestos',
   emptyMessage = 'Sin servicios ni repuestos seleccionados.',
   totalLabel = 'Total estimado', totalTestId = 'work-order-total', showExecution = true,
@@ -181,11 +183,11 @@ export const WorkOrderItemsEditor = ({
   };
 
   return (
-    <section className="min-w-0 space-y-4" aria-labelledby={headingId}>
+    <section className={`${presentation === 'reception' ? 'reception-items ' : ''}min-w-0 space-y-4`} aria-labelledby={headingId}>
       <h2 id={headingId} className="text-lg font-bold text-brand-primaryInk">{title}</h2>
-      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)]">
+      <div className="reception-items-layout grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)]">
         {/* Columna fija: catálogo */}
-        <div className="min-w-0 xl:sticky xl:top-4 xl:self-start">
+        <div className="reception-catalog min-w-0 xl:sticky xl:top-4 xl:self-start">
           <h3 className="mb-3 text-sm font-bold text-brand-ink">Catálogo</h3>
           <div className="flex flex-wrap gap-1 border-b border-brand-line" role="group" aria-label="Tipo de catálogo">
             {(['estandar', 'especifico', 'parte'] as const).map((type) => (
@@ -238,7 +240,7 @@ export const WorkOrderItemsEditor = ({
         </div>
 
         {/* Columna derecha: items seleccionados con scroll interno en xl */}
-        <div className="min-w-0 xl:max-h-[calc(100dvh-14rem)] xl:overflow-y-auto xl:pr-1">
+        <div className="reception-selected-items min-w-0 xl:max-h-[calc(100dvh-14rem)] xl:overflow-y-auto xl:pr-1">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-line pb-3">
             <h3 className="text-sm font-bold text-brand-ink">Selección ({items.length})</h3>
             <div className="flex flex-wrap items-center gap-2">
@@ -278,7 +280,7 @@ export const WorkOrderItemsEditor = ({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, x: 20, scale: 0.97, transition: { duration: 0.18 } }}
                   transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                  className={`min-w-0 space-y-3 border-b border-brand-line py-4 transition-colors duration-700 ${isFresh ? 'bg-brand-mintPale/60' : ''}`}
+                  className={`reception-item-row min-w-0 space-y-3 border-b border-brand-line py-4 transition-colors duration-700 ${isFresh ? 'bg-brand-mintPale/60' : ''}`}
                 >
                   <div className="flex items-start gap-2">
                     <label className="grid min-w-0 flex-1 gap-1 text-xs font-semibold text-brand-muted">
@@ -295,7 +297,7 @@ export const WorkOrderItemsEditor = ({
                       onClick={() => removeItem(item.key)} aria-label={`Eliminar ítem ${index + 1}`} title="Quitar ítem"><Trash2 className="h-4 w-4" aria-hidden="true" /></button>
                   </div>
 
-                  <div className={`grid grid-cols-2 gap-3 ${item.tipoLinea === 'parte' ? 'sm:grid-cols-[7rem_8.5rem_minmax(0,1fr)]' : 'sm:grid-cols-[6.5rem_8rem_7rem_minmax(0,1fr)]'}`}>
+                  <div className={`reception-item-values grid grid-cols-2 gap-3 ${item.tipoLinea === 'parte' ? 'sm:grid-cols-[7rem_8.5rem_minmax(0,1fr)]' : 'sm:grid-cols-[6.5rem_8rem_7rem_minmax(0,1fr)]'}`}>
                     <div className="grid gap-1 text-xs font-semibold text-brand-muted"><span>Cantidad</span>
                       <div className="flex h-10 min-w-0 rounded-lg border border-brand-line">
                         <button type="button" className="w-7 shrink-0 text-brand-muted hover:bg-brand-pale disabled:opacity-30" disabled={Number(item.cantidad) <= 1}

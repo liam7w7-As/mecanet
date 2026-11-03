@@ -107,7 +107,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
         initial={{ opacity: 0, scale: 0.97, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative w-full max-w-[720px] overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="workspace-form-dialog workspace-dialog relative w-full max-w-[720px] overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="stock-adjustment-title"
@@ -125,7 +125,8 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
   closeLabel="Cerrar ajuste"
 />
 
-        <form className="space-y-5 p-5 sm:p-6" noValidate onSubmit={handleSubmit}>
+        <form className="workspace-form" noValidate onSubmit={handleSubmit}>
+          <div className="workspace-form-body space-y-5 p-5 sm:p-6">
           <div className="grid grid-cols-2 gap-2" role="group" aria-label="Tipo de movimiento">
             <button
               type="button"
@@ -280,7 +281,8 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
             </div>
           )}
 
-          <footer className="flex flex-col-reverse gap-2 border-t border-brand-line pt-5 sm:flex-row sm:justify-end">
+          </div>
+          <footer className="workspace-form-footer flex flex-col-reverse gap-2 border-t border-brand-line pt-5 sm:flex-row sm:justify-end">
             <button
               type="button"
               className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"

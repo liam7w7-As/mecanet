@@ -1,0 +1,514 @@
+/* Presentation layer for the approved HTML reference. Keep operational rules in
+   the existing hooks/services and document styling outside this scope. */
+html:has(.redesign-shell),
+body:has(.redesign-shell) {
+  min-width: 0;
+}
+
+.redesign-shell {
+  --ui-primary: #003570;
+  --ui-primary-hover: #002b5b;
+  --ui-text: #33465b;
+  --ui-muted: #66788b;
+  --ui-line: #e8edf1;
+  --ui-soft: #f2f2f3;
+  --ui-sidebar-width: 260px;
+  --ui-sidebar-offset: 272px;
+  min-height: 100dvh;
+  background: #f2f2f3;
+}
+
+.redesign-shell > .sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 42;
+  width: var(--ui-sidebar-width);
+  height: auto;
+  max-width: calc(100dvw - 28px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #f2f2f3;
+  box-shadow: none;
+  transform: none;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.redesign-shell > .sidebar[hidden],
+.redesign-shell > .shell-topbar[hidden] {
+  display: none;
+}
+
+.redesign-shell .shell-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 88px;
+  padding: 16px 14px 18px 18px;
+}
+
+.redesign-shell .shell-brand img {
+  width: 178px;
+  max-width: calc(100% - 44px);
+  height: 48px;
+  object-fit: contain;
+}
+
+.shell-icon-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 9px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #66788b;
+  cursor: pointer;
+}
+
+.shell-icon-button > svg {
+  width: 19px;
+  height: 19px;
+}
+
+.shell-icon-button:hover {
+  background: #e5ebf1;
+  color: #003570;
+}
+
+.shell-icon-button:disabled {
+  opacity: .5;
+  cursor: wait;
+}
+
+.redesign-shell .nav-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 12px 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #ccd4dc transparent;
+}
+
+.redesign-shell .shell-nav-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 12px 0 6px;
+  padding: 8px 13px;
+  border: 0;
+  background: transparent;
+  color: var(--ui-muted);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.shell-nav-heading > svg {
+  width: 13px;
+  height: 13px;
+  transition: transform .18s ease;
+}
+
+.redesign-shell .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 42px;
+  margin: 5px 0;
+  padding: 10px 13px;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: #7b858f;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  box-shadow: none;
+}
+
+.redesign-shell .nav-item > span:nth-child(2) {
+  white-space: normal;
+}
+
+.redesign-shell .nav-item .icon {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  color: inherit;
+}
+
+.redesign-shell .nav-item:hover {
+  background: #e8edf3;
+  color: var(--ui-primary);
+}
+
+.redesign-shell .nav-item.active {
+  background: var(--ui-primary);
+  color: #fff;
+}
+
+.redesign-shell .nav-item .badge {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e8edf3;
+  color: #536578;
+  font-size: 10px;
+  line-height: 22px;
+}
+
+.redesign-shell .nav-item.active .badge {
+  background: #fff;
+  color: var(--ui-primary);
+}
+
+.shell-account {
+  flex-shrink: 0;
+  padding: 12px;
+  border-top: 1px solid #e3e7eb;
+}
+
+.shell-account-tools,
+.shell-account-profile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.shell-account-tools {
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
+
+.redesign-shell .shell-install-button {
+  min-height: 38px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #536578;
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.redesign-shell .shell-account-tools .icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ui-muted);
+}
+
+.shell-account-profile > .sidebar-user-menu {
+  flex: 1;
+}
+
+.shell-account .user-menu-trigger {
+  width: 100%;
+  min-height: 48px;
+  gap: 8px;
+  padding: 7px 9px;
+  background: #fff;
+}
+
+.shell-account .user-menu-trigger p {
+  max-width: 122px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.shell-account .user-menu-trigger > div > span {
+  padding: 0;
+  background: transparent;
+  color: var(--ui-muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.shell-account .user-menu-trigger > svg {
+  width: 13px;
+  height: 13px;
+  margin-left: auto;
+}
+
+.sidebar-user-menu .sidebar-user-popover {
+  position: absolute;
+  inset: auto auto calc(100% + 10px) 0;
+  width: min(280px, calc(100dvw - 48px));
+  margin: 0;
+  max-height: calc(100dvh - 140px);
+  overflow-y: auto;
+}
+
+.redesign-shell .shell-account .popover-notifications {
+  position: fixed;
+  inset: auto auto calc(152px + env(safe-area-inset-bottom, 0px)) 24px;
+  width: min(352px, calc(100dvw - 48px));
+  max-height: min(520px, calc(100dvh - 190px));
+  overflow-y: auto;
+}
+
+.redesign-shell > .shell-main {
+  width: auto;
+  min-width: 0;
+  margin-left: var(--ui-sidebar-offset);
+  background: #f2f2f3;
+}
+
+.redesign-shell.shell-collapsed > .shell-main {
+  margin-left: 0;
+}
+
+.redesign-shell > .shell-main > .container {
+  width: 100%;
+  max-width: 1760px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+.redesign-shell > .shell-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  height: 64px;
+  margin-left: 0;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--ui-line);
+  background: rgba(255, 255, 255, .97);
+}
+
+.redesign-shell .topbar-brand {
+  display: block;
+  width: 112px;
+  max-width: 112px;
+  height: 32px;
+  margin: 0;
+  object-fit: contain;
+}
+
+.shell-context-label {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: #66788b;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: #003570;
+  color: #fff;
+  transform: translateY(-150%);
+}
+
+.shell-skip-link:focus {
+  transform: none;
+}
+
+.redesign-shell .page-banner {
+  min-height: 0;
+  margin: 0 0 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.redesign-shell .page-banner::before,
+.redesign-shell .page-banner::after {
+  display: none;
+}
+
+.redesign-shell .page-banner h1 {
+  font-size: clamp(21px, 2vw, 26px);
+  line-height: 1.4;
+  letter-spacing: -.5px;
+}
+
+.redesign-shell :is(.primary-button, .secondary-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 9px 17px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  box-shadow: none;
+}
+
+.redesign-shell .primary-button {
+  border-color: var(--ui-primary);
+  background: var(--ui-primary);
+  color: #fff;
+}
+
+.redesign-shell .primary-button:hover {
+  border-color: var(--ui-primary-hover);
+  background: var(--ui-primary-hover);
+}
+
+.redesign-shell .secondary-button {
+  border: 1px solid var(--ui-line);
+  background: #fff;
+  color: var(--ui-text);
+}
+
+.redesign-shell .secondary-button:hover {
+  border-color: #c9d5e2;
+  background: #f3f6fa;
+}
+
+.redesign-shell .view-panel {
+  min-width: 0;
+  border: 1px solid var(--ui-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.redesign-shell :is(button, a):focus-visible,
+.ui-modal-header button:focus-visible {
+  outline: 2px solid #003570;
+  outline-offset: 3px;
+}
+
+/* Opt-in class used by the shared header, including forms mounted in portals. */
+.ui-modal-header {
+  padding: 22px 24px 18px;
+}
+
+.ui-modal-header .ui-modal-badge {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+}
+
+.ui-modal-header h2 {
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+@media (max-width: 1023.98px) {
+  .redesign-shell > .sidebar {
+    inset: max(12px, env(safe-area-inset-top, 0px)) auto max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+    width: min(296px, calc(100dvw - 32px));
+    max-width: calc(100dvw - 32px);
+    border-radius: 22px;
+  }
+
+  .redesign-shell > .shell-main,
+  .redesign-shell.shell-collapsed > .shell-main {
+    margin-left: 0;
+  }
+
+  .redesign-shell > .shell-main > .container {
+    padding: 22px max(16px, env(safe-area-inset-right, 0px)) calc(100px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+
+  .redesign-shell > .shell-topbar {
+    height: calc(64px + env(safe-area-inset-top, 0px));
+    padding: calc(10px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  }
+
+  .redesign-shell .shell-scrim {
+    z-index: 41;
+    backdrop-filter: blur(3px);
+  }
+
+  .redesign-shell .tabbar {
+    display: block;
+    border-top: 1px solid #e8edf1;
+    background: rgba(255, 255, 255, .97);
+    box-shadow: 0 -4px 24px #24314206;
+  }
+
+  .redesign-shell .tab-item {
+    min-height: 54px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .redesign-shell .tab-item.active .tab-icon {
+    background: #003570;
+  }
+
+  .redesign-shell .nav-item,
+  .redesign-shell :is(.primary-button, .secondary-button),
+  .shell-icon-button {
+    min-height: 44px;
+  }
+
+  .redesign-shell .nav-item {
+    font-size: 13px;
+  }
+
+  .redesign-shell .shell-nav-heading {
+    min-height: 36px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 599.98px) {
+  .redesign-shell .page-banner {
+    margin-bottom: 18px;
+  }
+
+  .redesign-shell .page-banner h1 {
+    font-size: 21px;
+  }
+
+  .ui-modal-header {
+    padding: 18px 18px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .redesign-shell .shell-nav-heading > svg {
+    transition: none;
+  }
+}
+
+@media print {
+  .redesign-shell > :is(.sidebar, .shell-topbar, .tabbar),
+  .shell-skip-link {
+    display: none !important;
+  }
+
+  .redesign-shell > .shell-main {
+    margin: 0;
+  }
+}

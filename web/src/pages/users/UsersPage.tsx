@@ -100,7 +100,7 @@ export const UsersPage = () => {
   const actionError = statusMutation.error ?? deleteMutation.error;
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="workspace-page workspace-users min-w-0 space-y-5">
       <header className="page-banner">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Seguridad y acceso</p>
@@ -190,14 +190,14 @@ export const UsersPage = () => {
           )}
 
           <div className="max-w-full overflow-x-auto overscroll-x-contain">
-            <table className="w-full min-w-[820px] text-left text-sm">
-              <thead className="bg-brand-primaryInk text-xs uppercase text-white"><tr><th className="px-4 py-3 font-semibold">Usuario</th><th className="px-4 py-3 font-semibold">Rol</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold">Creado</th><th className="px-4 py-3 text-right font-semibold">Acciones</th></tr></thead>
-              <tbody>
+            <table role="table" className="workspace-table w-full min-w-[820px] text-left text-sm">
+              <thead role="rowgroup" className="bg-brand-primaryInk text-xs uppercase text-white"><tr role="row"><th role="columnheader" className="px-4 py-3 font-semibold">Usuario</th><th role="columnheader" className="px-4 py-3 font-semibold">Rol</th><th role="columnheader" className="px-4 py-3 font-semibold">Estado</th><th role="columnheader" className="px-4 py-3 font-semibold">Creado</th><th role="columnheader" className="px-4 py-3 text-right font-semibold">Acciones</th></tr></thead>
+              <tbody role="rowgroup">
                 {usersQuery.isPending ? <UsersSkeleton /> : usersQuery.data?.data.map((user, index) => {
                   const isSelf = currentUser?.id === user.id;
                   return (
-                    <AnimatedTableRow key={user.id} index={index} className="border-b border-brand-line last:border-0 hover:bg-brand-pale/70 transition-colors">
-                      <td className="px-4 py-3">
+                    <AnimatedTableRow role="row" key={user.id} index={index} className="border-b border-brand-line last:border-0 hover:bg-brand-pale/70 transition-colors">
+                      <td role="cell" data-label="Usuario" className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <UserAvatar user={user} size="sm" />
                           <div className="min-w-0">
@@ -209,10 +209,10 @@ export const UsersPage = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${roleStyles[user.role.nombre]}`}>{getRoleLabel(user.role.nombre)}</span></td>
-                      <td className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${user.activo ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-line text-brand-muted'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
-                      <td className="whitespace-nowrap px-4 py-3 text-brand-muted">{formatDate(user.createdAt)}</td>
-                      <td className="px-4 py-3"><div className="flex justify-end gap-1">
+                      <td role="cell" data-label="Rol" className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${roleStyles[user.role.nombre]}`}>{getRoleLabel(user.role.nombre)}</span></td>
+                      <td role="cell" data-label="Estado" className="px-4 py-3"><span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${user.activo ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-line text-brand-muted'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
+                      <td role="cell" data-label="Creado" className="whitespace-nowrap px-4 py-3 text-brand-muted">{formatDate(user.createdAt)}</td>
+                      <td role="cell" data-label="Acciones" className="px-4 py-3"><div className="flex justify-end gap-1">
                         {canUpdate && (
                           <button
                             type="button"
@@ -290,7 +290,7 @@ export const UsersPage = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 14 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="relative w-full max-w-[480px] rounded-2xl border border-brand-line bg-white p-7 shadow-2xl"
+              className="workspace-dialog relative w-full max-w-[480px] rounded-2xl border border-brand-line bg-white p-7 shadow-2xl"
               role="dialog"
               aria-modal="true"
               aria-labelledby="status-user-title"
@@ -357,7 +357,7 @@ export const UsersPage = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 14 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="relative w-full max-w-[480px] rounded-2xl border border-brand-line bg-white p-7 shadow-2xl"
+              className="workspace-dialog relative w-full max-w-[480px] rounded-2xl border border-brand-line bg-white p-7 shadow-2xl"
               role="dialog"
               aria-modal="true"
               aria-labelledby="delete-user-title"

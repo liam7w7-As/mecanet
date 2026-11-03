@@ -4,15 +4,14 @@ import {
   VEHICLE_INVENTORY_ITEMS,
   updateWorkOrderSchema,
 } from '@unithor/shared';
-import { AlertCircle, LoaderCircle, Save, Search } from 'lucide-react';
-import { useState } from 'react';
+import { AlertCircle, LoaderCircle, Search } from 'lucide-react';
+import { useRef, useState } from 'react';
 
+import WorkOrderEditDialog from './WorkOrderEditDialog';
 import { useClients } from '../../hooks/useClients';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useUpdateWorkOrderMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
-import ModalHeader from '../common/ModalHeader';
 
 import type { Client, WorkOrder } from '../../types/entities';
 import type { FuelLevel, TireCondition, VehicleInventoryItem } from '@unithor/shared';
@@ -165,6 +164,8 @@ export const WorkOrderReceptionInspectionModal = ({
   );
   const [objetosValor, setObjetosValor] = useState(workOrder.inspection?.objetosValor ?? '');
   const [observaciones, setObservaciones] = useState(workOrder.inspection?.observaciones ?? '');
+  const draftSnapshot = JSON.stringify({ contactClientId, billingClientId, kilometrajeIngreso, fechaIngreso, fechaEntrega, descripcion, nivelCombustible, llantaDelanteraIzquierda, llantaDelanteraDerecha, llantaTraseraIzquierda, llantaTraseraDerecha, inventario, objetosValor, observaciones });
+  const initialDraft = useRef(draftSnapshot);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const toggleInventory = (item: VehicleInventoryItem): void => {
@@ -207,24 +208,12 @@ export const WorkOrderReceptionInspectionModal = ({
     updateMutation.mutate({ id: workOrder.id, data: result.data }, { onSuccess: onClose });
   };
 
-  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button
-        type="button"
-        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
-        aria-label="Cerrar recepción e inspección"
-        onClick={onClose}
-      />
-      <section className="relative max-h-[92vh] w-full max-w-[720px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="edit-reception-title">
-        <ModalHeader
-  id="edit-reception-title"
-  title={"Editar recepción e inspección"}
-  description={workOrder.codigo}
-  onClose={onClose}
-/>
-        <form onSubmit={submit}>
-          <div className="space-y-6 p-5">
+    <WorkOrderEditDialog id="edit-reception-title" title="Editar recepción e inspección" code={workOrder.codigo}
+      context={workOrder.vehicle?.patente ?? 'Taller'} submitLabel="Guardar cambios"
+      dirty={draftSnapshot !== initialDraft.current} pending={updateMutation.isPending}
+      onClose={onClose} onSubmit={submit}>
+          <div className="reception-edit-sections space-y-6">
             <div className="grid gap-4 lg:grid-cols-2">
               <ClientPicker
                 label="Contacto de recepción"
@@ -322,16 +311,7 @@ export const WorkOrderReceptionInspectionModal = ({
               </div>
             )}
           </div>
-          <footer className="flex justify-end gap-2 border-t border-brand-line bg-brand-line/40 p-4">
-            <button type="button" className="h-10 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
-              Guardar cambios
-            </button>
-          </footer>
-        </form>
-      </section>
-    </div>
+    </WorkOrderEditDialog>
   );
 };
 

@@ -1,17 +1,14 @@
 import { calculateQuotationPricing, updateQuotationSchema } from '@unithor/shared';
-import { AlertCircle, LoaderCircle, Save } from 'lucide-react';
-import { motion } from 'motion/react';
-import { useState } from 'react';
+import { AlertCircle } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 import QuotationCommercialFields, { createCommercialDraft } from './QuotationCommercialFields';
 import QuotationDiscountSummary from './QuotationDiscountSummary';
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useUpdateQuotationMutation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { notifySuccess } from '../../stores/toast.store';
-import { AnimateIcon } from '../animate-ui';
-import ModalHeader from '../common/ModalHeader';
+import FormDialog from '../common/FormDialog';
 import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from '../work-orders/WorkOrderItemsEditor';
 
 import type { Quotation } from '../../types/entities';
@@ -45,6 +42,8 @@ export const QuotationEditModal = ({ quotation, onClose, onSaved }: QuotationEdi
   const [notas, setNotas] = useState(quotation.notas ?? '');
   const [commercial, setCommercial] = useState(() => createCommercialDraft(quotation));
   const [items, setItems] = useState<EditableWorkOrderItem[]>(() => toEditableItems(quotation));
+  const snapshot = JSON.stringify({ notas, commercial, items });
+  const initialSnapshot = useRef(snapshot);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
@@ -87,61 +86,18 @@ export const QuotationEditModal = ({ quotation, onClose, onSaved }: QuotationEdi
     });
   };
 
-  const setPanelNode = useModalOverlay({
-    isOpen: true,
-    onClose,
-    isPending: updateMutation.isPending,
-  });
-
-  const close = (): void => {
-    if (!updateMutation.isPending) onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
-      <button
-        type="button"
-        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
-        aria-label="Cerrar edición de cotización"
-        onClick={close}
-        disabled={updateMutation.isPending}
-        tabIndex={-1}
-      />
-      <motion.section
-        initial={{ opacity: 0, scale: 0.96, y: 14 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl sm:max-h-[calc(100dvh-3rem)]"
-        role="dialog"
-        ref={setPanelNode}
-        aria-modal="true"
-        aria-labelledby="edit-quotation-title"
-      >
-        <ModalHeader
-          id="edit-quotation-title"
-          title="Editar cotización"
-          description={quotation.codigo}
-          onClose={close}
-        />
-        <form onSubmit={submit} className="flex min-h-0 flex-col" aria-busy={updateMutation.isPending}>
-          <div className="min-h-0 overflow-y-auto overscroll-contain p-5">
+  return <FormDialog id="edit-quotation-title" title="Editar cotización" code={quotation.codigo}
+    context={quotation.client?.nombre ?? 'Cotización'} submitLabel="Guardar cambios"
+    dirty={snapshot !== initialSnapshot.current} pending={updateMutation.isPending}
+    onClose={onClose} onSubmit={submit} className="commercial-form-dialog">
+          <div className="commercial-editor-content">
             <div className="mb-5"><QuotationCommercialFields value={commercial} onChange={setCommercial} errors={errors} /></div>
             <label className="block text-sm font-semibold text-brand-ink">Notas comerciales<textarea rows={4} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" /></label>
-            <div className="mt-5"><WorkOrderItemsEditor items={items} onChange={setItems} errors={errors} title="Ítems cotizados" emptyMessage="La cotización quedará sin ítems y con total cero." showDiscounts showTotal={false} /></div>
+            <div className="mt-5"><WorkOrderItemsEditor presentation="reception" items={items} onChange={setItems} errors={errors} title="Ítems cotizados" emptyMessage="La cotización quedará sin ítems y con total cero." showDiscounts showTotal={false} /></div>
             <QuotationDiscountSummary items={items} value={commercial} onChange={setCommercial} testId="quotation-edit-total" />
             {updateMutation.isError && <div className="mt-4 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(updateMutation.error)}</div>}
           </div>
-          <footer className="flex shrink-0 justify-end gap-2 border-t border-brand-line bg-brand-line/40 p-4">
-            <button type="button" className="h-10 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale" onClick={close} disabled={updateMutation.isPending}>Cancelar</button>
-            <button type="submit" className="group inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white transition-all hover:bg-brand-primaryInkHover active:scale-95 disabled:opacity-60" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon icon={Save} animation="bounce" size={16} />}
-              Guardar cambios
-            </button>
-          </footer>
-        </form>
-      </motion.section>
-    </div>
-  );
+  </FormDialog>;
 };
 
 export default QuotationEditModal;

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -242,7 +242,7 @@ describe('WorkOrdersPage', () => {
     // 1 tarea pendiente -> 0% -> Sin iniciar + reloj corriendo
     expect(screen.getByText(/Sin iniciar/)).toBeInTheDocument();
     expect(screen.getByText('En taller')).toBeInTheDocument();
-    expect(screen.getByText('Avance')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: `Avance de ${workOrder.codigo}` })).toHaveAttribute('aria-valuenow', '0');
     expect(screen.getByText('0%')).toBeInTheDocument();
     expect(screen.getByText('Tareas 0/1')).toBeInTheDocument();
   });
@@ -276,10 +276,158 @@ describe('WorkOrdersPage', () => {
     createWrapper(<WorkOrdersPage />);
 
     await screen.findByText('OT-2026-0012');
+    fireEvent.click(screen.getByRole('button', { name: `Ver información de ${workOrder.codigo}` }));
     expect(screen.getByText('Mecánico Turno')).toBeInTheDocument();
     expect(screen.getByText('Total est.')).toBeInTheDocument();
     expect(screen.getByText(/Pagado/)).toBeInTheDocument();
     expect(screen.getAllByText(/50\.000/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('despliega solo una card a la vez y permite cerrar con Escape sin nuevas peticiones', async () => {
+    const other = { ...workOrder, id: 13, codigo: 'OT-26-13' };
+    vi.mocked(api.get).mockResolvedValue({ data: { ...listResponse, items: [workOrder, other], total: 2 } });
+    createWrapper(<WorkOrdersPage />);
+    await screen.findByText(workOrder.codigo);
+    const queries = vi.mocked(api.get).mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: `Ver información de ${workOrder.codigo}` }));
+    expect(screen.getByRole('region', { name: `Información de ${workOrder.codigo}` })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: `Ver información de ${other.codigo}` }));
+    expect(screen.queryByRole('region', { name: `Información de ${workOrder.codigo}` })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: `Información de ${other.codigo}` })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('region', { name: `Información de ${other.codigo}` })).not.toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledTimes(queries);
+  });
+
+  it('abre la información con hover, permite entrar al panel y la cierra al salir sin mutaciones', async () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({ matches: query === '(hover: hover) and (pointer: fine)', media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(() => true) }));
+    createWrapper(<WorkOrdersPage />);
+    const card = await screen.findByRole('article', { name: 'Orden ' + workOrder.codigo });
+    const pointer = (target: Element, type: string, relatedTarget: EventTarget | null = null) => {
+      const event = new MouseEvent(type, { bubbles: true, relatedTarget });
+      Object.defineProperty(event, 'pointerType', { value: 'mouse' });
+      fireEvent(target, event);
+    };
+    pointer(card, 'pointerover');
+    const panel = await screen.findByRole('region', { name: 'Información de ' + workOrder.codigo });
+    pointer(card, 'pointerout', document.body);
+    pointer(panel, 'pointerover', card);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 210)); });
+    expect(panel).toBeInTheDocument();
+    pointer(panel, 'pointerout', document.body);
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Información de ' + workOrder.codigo })).not.toBeInTheDocument());
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('en táctil la información sigue abriéndose al tocar y no se dispara por pasar el dedo', async () => {
+    createWrapper(<WorkOrdersPage />);
+    const card = await screen.findByRole('article', { name: 'Orden ' + workOrder.codigo });
+    const event = new MouseEvent('pointerover', { bubbles: true });
+    Object.defineProperty(event, 'pointerType', { value: 'touch' });
+    fireEvent(card, event);
+    expect(screen.queryByRole('region', { name: 'Información de ' + workOrder.codigo })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver información de ' + workOrder.codigo }));
+    expect(screen.getByRole('region', { name: 'Información de ' + workOrder.codigo })).toBeInTheDocument();
+  });
+
+  it('ofrece solo las transiciones válidas en el menú de la card', async () => {
+    createWrapper(<WorkOrdersPage />);
+    fireEvent.click(await screen.findByRole('button', { name: `Cambiar estado de ${workOrder.codigo}` }));
+    const states = within(screen.getByRole('menu', { name: `Estados permitidos para ${workOrder.codigo}` }));
+    expect(states.getByRole('menuitem', { name: 'Finalizada' })).toBeInTheDocument();
+    expect(states.getByRole('menuitem', { name: 'Esperando repuesto' })).toBeInTheDocument();
+    expect(states.queryByRole('menuitem', { name: 'Entregada' })).not.toBeInTheDocument();
+    expect(states.queryByRole('menuitem', { name: 'Iniciada' })).not.toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('conserva notas y formularios al cambiar de vista y confirma antes de descartarlos', async () => {
+    createWrapper(<WorkOrdersPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Gestionar trabajo' }));
+    const noteLabel = `Nota técnica de ${workOrder.items?.[0].descripcion}`;
+    fireEvent.change(await screen.findByLabelText(noteLabel), { target: { value: 'Revisar fijación antes de entregar' } });
+    fireEvent.change(screen.getByLabelText('Comentario'), { target: { value: 'Diagnóstico en curso' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Resumen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Solicitudes' }));
+    fireEvent.change(screen.getByLabelText('Justificación'), { target: { value: 'Se requiere una pieza adicional' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Avances y Checklist' }));
+    expect(screen.getByLabelText(noteLabel)).toHaveValue('Revisar fijación antes de entregar');
+    expect(screen.getByLabelText('Comentario')).toHaveValue('Diagnóstico en curso');
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(screen.getByRole('alertdialog', { name: 'Cambios sin guardar' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Solicitudes' }));
+    expect(screen.getByLabelText('Justificación')).toHaveValue('Se requiere una pieza adicional');
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar cambios' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.body.style.overflow).not.toBe('hidden');
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('conserva la nota si falla el guardado y permite reintentar sobre el mismo ítem', async () => {
+    vi.mocked(api.patch).mockRejectedValueOnce(new Error('Sin conexión'));
+    createWrapper(<WorkOrdersPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Gestionar trabajo' }));
+    const noteLabel = `Nota técnica de ${workOrder.items?.[0].descripcion}`;
+    fireEvent.change(await screen.findByLabelText(noteLabel), { target: { value: 'Nota que debe conservarse' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar nota' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar nota' })).not.toBeDisabled());
+    expect(screen.getByLabelText(noteLabel)).toHaveValue('Nota que debe conservarse');
+    expect(api.patch).toHaveBeenCalledWith('/work-orders/12/execution', {
+      items: [{ id: 20, estadoOperativo: 'pendiente', notasOperativas: 'Nota que debe conservarse' }],
+    });
+    expect(screen.getByRole('button', { name: 'Completado' })).toHaveAttribute('aria-pressed', 'false');
+    const saved = { ...workOrder, items: workOrder.items?.map((item) => ({ ...item, notasOperativas: 'Nota que debe conservarse' })) };
+    vi.mocked(api.patch).mockResolvedValueOnce({ data: { workOrder: saved } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar nota' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Guardar nota' })).not.toBeInTheDocument());
+    expect(screen.getByLabelText(noteLabel)).toHaveValue('Nota que debe conservarse');
+    expect(api.patch).toHaveBeenCalledTimes(2);
+  });
+
+  it('espera la confirmación del servidor y actualiza la card sin sustituir ítems ni horas', async () => {
+    let current = workOrder;
+    let finish: () => void = () => { throw new Error('No hay guardado pendiente'); };
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/catalog' ? emptyCatalog : url === '/work-orders/12' ? { workOrder: current } : { ...listResponse, items: [current] } }));
+    vi.mocked(api.patch).mockImplementation(() => new Promise((resolve) => { finish = () => resolve({ data: { workOrder: current } } as AxiosResponse<{ workOrder: WorkOrder }>); }));
+    createWrapper(<WorkOrdersPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Gestionar trabajo' }));
+    const completed = await screen.findByRole('button', { name: 'Completado' });
+    fireEvent.click(completed);
+    expect(completed).toHaveAttribute('aria-pressed', 'false');
+    expect(completed).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toBeDisabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/work-orders/12/execution', {
+      items: [{ id: 20, estadoOperativo: 'completado', notasOperativas: null }],
+    }));
+    current = { ...workOrder, items: workOrder.items?.map((item) => ({ ...item, estadoOperativo: 'completado' })) };
+    await act(async () => { finish(); });
+    await waitFor(() => expect(completed).toHaveAttribute('aria-pressed', 'true'));
+    expect(api.patch).toHaveBeenCalledWith('/work-orders/12/execution', {
+      items: [{ id: 20, estadoOperativo: 'completado', notasOperativas: null }],
+    });
+    const card = within(screen.getByRole('article', { name: `Orden ${workOrder.codigo}` }));
+    await waitFor(() => expect(card.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100'));
+  });
+
+  it('oculta importes y documentos financieros al mecánico incluso en la información desplegable', async () => {
+    const assigned = { ...workOrder, assignedMechanicId: 9 };
+    useAuthStore.setState({ user: { id: 9, nombre: 'Mecánico', email: 'mecanico@demo.cl', role: 'mecanico' } });
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/catalog' ? emptyCatalog : url === '/work-orders/12' ? { workOrder: assigned } : { ...listResponse, items: [assigned] } }));
+    createWrapper(<WorkOrdersPage />);
+    fireEvent.click(await screen.findByRole('button', { name: `Ver información de ${workOrder.codigo}` }));
+    expect(screen.queryByText('Total est.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Saldo pendiente')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Gestionar trabajo' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Resumen' }));
+    expect(screen.queryByText('Total estimado')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Vista previa PDF' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ficha y horas' })).toHaveAttribute('href', '/work-orders/12/ficha');
   });
 
   it.each([false, true])('precarga el cliente desde su ficha conservando el propietario real (vehículo: %s)', async (includeVehicle) => {
@@ -302,7 +450,7 @@ describe('WorkOrdersPage', () => {
     expect(screen.getByRole('button', {name: 'Quitar contacto en taller'})).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', {name: /siguiente/i}));
     if (includeVehicle) {
-      expect(await screen.findByText('ABCD12')).toBeInTheDocument();
+      expect((await screen.findAllByText('ABCD12')).length).toBeGreaterThan(0);
       expect(screen.getByText('Propietario registrado: Propietario original')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', {name: /siguiente/i}));
       expect(await screen.findByLabelText('Kilometraje de entrada')).toHaveValue(42000);
@@ -361,8 +509,9 @@ describe('WorkOrdersPage', () => {
       createWrapper(<WorkOrdersPage />);
       await screen.findByText('OT-2026-0012');
       fireEvent.click(screen.getByRole('tab', { name: 'Iniciada' }));
-      fireEvent.click(screen.getByRole('button', { name: period }));
-      expect(screen.getByRole('button', { name: period })).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(screen.getByRole('button', { name: 'Periodo de ingreso' }));
+      fireEvent.click(screen.getByRole('menuitemradio', { name: period }));
+      expect(screen.getByRole('button', { name: 'Periodo de ingreso' })).toHaveTextContent(period);
       await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
         params: expect.objectContaining({
           page: 1,
@@ -386,12 +535,14 @@ describe('WorkOrdersPage', () => {
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
       params: expect.objectContaining({ page: 2 }),
     }));
-    fireEvent.click(screen.getByRole('button', { name: 'Por mes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Periodo de ingreso' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Por mes' }));
     fireEvent.change(screen.getByLabelText('Mes de ingreso'), { target: { value: '2024-02' } });
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
       params: expect.objectContaining({ page: 1, fechaDesde: '2024-02-01', fechaHasta: '2024-02-29' }),
     }));
-    fireEvent.click(screen.getByRole('button', { name: 'Todas las fechas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Periodo de ingreso' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Todas las fechas' }));
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
       params: expect.objectContaining({ fechaDesde: undefined, fechaHasta: undefined }),
     }));
@@ -402,27 +553,59 @@ describe('WorkOrdersPage', () => {
     createWrapper(<WorkOrdersPage />);
     await screen.findByText('OT-2026-0012');
     expect(screen.queryByRole('combobox', { name: 'Periodo de ingreso' })).not.toBeInTheDocument();
-    const datePicker = screen.getByRole('button', { name: 'Fecha específica' });
-    expect(datePicker).toHaveAttribute('aria-haspopup', 'dialog');
     fireEvent.click(screen.getByRole('tab', { name: 'Iniciada' }));
-    fireEvent.click(datePicker);
+    fireEvent.click(screen.getByRole('button', { name: 'Periodo de ingreso' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Fecha específica' }));
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Calendario: fecha específica' })).toContainElement(document.activeElement as HTMLElement));
+    expect(screen.getByRole('button', { name: 'Fecha específica' })).toHaveAttribute('aria-haspopup', 'dialog');
     fireEvent.click(screen.getByRole('button', { name: 'Hoy' }));
     const today = new Date();
-    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const date = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
       params: expect.objectContaining({ page: 1, estado: 'en_progreso', fechaDesde: date, fechaHasta: date }),
     }));
-    expect(screen.getByRole('button', { name: 'Todas las fechas' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Periodo de ingreso' })).toHaveTextContent('Fecha específica');
+    fireEvent.click(screen.getByRole('button', { name: 'Periodo de ingreso' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Fecha específica' }));
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Calendario: fecha específica' })).toContainElement(document.activeElement as HTMLElement));
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar calendario' }));
     fireEvent.click(screen.getByRole('button', { name: 'Limpiar fecha específica' }));
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
       params: expect.objectContaining({ estado: 'en_progreso', fechaDesde: undefined, fechaHasta: undefined }),
     }));
-    expect(screen.getByRole('button', { name: 'Todas las fechas' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(datePicker);
+    expect(screen.getByRole('button', { name: 'Periodo de ingreso' })).toHaveTextContent('Todas las fechas');
+    expect(screen.getByRole('button', { name: 'Periodo de ingreso' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Periodo de ingreso' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Fecha específica' }));
     fireEvent.click(screen.getByRole('button', { name: 'Hoy' }));
-    fireEvent.click(screen.getByRole('button', { name: '15 días' }));
-    expect(datePicker).toHaveTextContent('Elegir fecha');
-    expect(screen.getByRole('button', { name: '15 días' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Periodo de ingreso' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '15 días' }));
+    expect(screen.queryByRole('button', { name: 'Fecha específica' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Periodo de ingreso' })).toHaveTextContent('15 días');
+  });
+
+  it('cierra el menú de periodos con Escape y devuelve el foco al control', async () => {
+    createWrapper(<WorkOrdersPage />);
+    await screen.findByText('OT-2026-0012');
+    const trigger = screen.getByRole('button', { name: 'Periodo de ingreso' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    expect(screen.getByRole('menu', { name: 'Filtrar por fecha de ingreso' })).toBeInTheDocument();
+    fireEvent.keyDown(document.activeElement ?? document, { key: 'End' });
+    expect(screen.getByRole('menuitemradio', { name: 'Fecha específica' })).toHaveFocus();
+    fireEvent.keyDown(document.activeElement ?? document, { key: 'Escape' });
+    expect(screen.queryByRole('menu', { name: 'Filtrar por fecha de ingreso' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('permite consultar órdenes canceladas desde su filtro sin modificar estados', async () => {
+    createWrapper(<WorkOrdersPage />);
+    await screen.findByText('OT-2026-0012');
+    fireEvent.click(screen.getByRole('tab', { name: 'Canceladas' }));
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/work-orders', {
+      params: expect.objectContaining({ page: 1, estado: 'cancelada' }),
+    }));
+    expect(api.patch).not.toHaveBeenCalled();
   });
 
   it('recalcula subtotales y total al cambiar cantidad y precio', async () => {
@@ -873,6 +1056,75 @@ describe('WorkOrdersPage', () => {
     expect(await screen.findByText('Inspección bloqueada por estado')).toBeInTheDocument();
     expect(screen.queryByLabelText('Subir foto Trasera')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Reemplazar foto Frontal')).not.toBeInTheDocument();
+  });
+
+
+  it('la navegación de recepción impide saltarse responsable y vehículo', async () => {
+    createWrapper(<WorkOrderCreatePage />, '/work-orders/new');
+    const steps = within(screen.getByRole('navigation', { name: 'Línea de tiempo de orden de trabajo' }));
+    await waitFor(() => expect(steps.getByRole('button', { name: '5. Servicios' })).not.toBeDisabled());
+    fireEvent.click(steps.getByRole('button', { name: '5. Servicios' }));
+    expect(steps.getByRole('button', { name: '1. Responsable' })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByText('Seleccione o cree el responsable que entrega el vehículo.')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Cliente Demo.*123456785/ }));
+    fireEvent.click(steps.getByRole('button', { name: '5. Servicios' }));
+    expect(steps.getByRole('button', { name: '3. Vehículo' })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByText('Seleccione o cree el vehículo que ingresa al taller.')).toBeInTheDocument();
+    expect(within(screen.getByRole('complementary', { name: 'Resumen de recepción' })).getAllByText('Cliente Demo').length).toBe(3);
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('protege la edición de recepción al salir y conserva los campos al continuar', async () => {
+    createWrapper(<Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>, '/work-orders/12');
+    fireEvent.click(await screen.findByRole('button', { name: /Editar ficha/i }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar recepción e inspección' });
+    fireEvent.change(within(dialog).getByLabelText('Observaciones de inspección'), { target: { value: 'Nota sin guardar' } });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(within(dialog).getByRole('alertdialog', { name: 'Descartar edición' })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Seguir editando' }));
+    expect(within(dialog).getByLabelText('Observaciones de inspección')).toHaveValue('Nota sin guardar');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descartar cambios' }));
+    expect(screen.queryByRole('dialog', { name: 'Editar recepción e inspección' })).not.toBeInTheDocument();
+    expect(document.body.style.overflow).not.toBe('hidden');
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('reintenta la edición de trabajos sin perder IDs, notas ni estimaciones de horas', async () => {
+    const existing = { ...workOrder, items: workOrder.items?.map((item) => ({ ...item, horasHombreEstimadas: 2, horasHombreReales: 7 })) };
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/work-orders/12' ? { workOrder: existing } : url === '/catalog' ? emptyCatalog : clientsResponse } as AxiosResponse));
+    vi.mocked(api.patch).mockRejectedValueOnce(new Error('Sin conexión')).mockResolvedValueOnce({ data: { workOrder: existing } });
+    createWrapper(<Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>, '/work-orders/12');
+    fireEvent.click(await screen.findByRole('button', { name: /Editar trabajos/i }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar trabajos y repuestos' });
+    fireEvent.change(within(dialog).getByLabelText('Nota operativa 1'), { target: { value: 'Mantener esta nota' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar trabajos' }));
+    await within(dialog).findByRole('alert');
+    expect(within(dialog).getByLabelText('Nota operativa 1')).toHaveValue('Mantener esta nota');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar trabajos' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2));
+    const [url, payload] = vi.mocked(api.patch).mock.calls[1];
+    expect(url).toBe('/work-orders/12');
+    expect(payload).toEqual(expect.objectContaining({ items: [expect.objectContaining({ id: 20, horasHombreEstimadas: 2, notasOperativas: 'Mantener esta nota' })] }));
+    expect(JSON.stringify(payload)).not.toContain('horasHombreReales');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar trabajos y repuestos' })).not.toBeInTheDocument());
+  });
+
+  it('bloquea cierre y cambios durante el guardado de la ficha de recepción', async () => {
+    let finish: () => void = () => { throw new Error('Guardado no iniciado'); };
+    vi.mocked(api.patch).mockImplementation(() => new Promise((resolve) => { finish = () => resolve({ data: { workOrder } } as AxiosResponse); }));
+    createWrapper(<Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>, '/work-orders/12');
+    fireEvent.click(await screen.findByRole('button', { name: /Editar ficha/i }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar recepción e inspección' });
+    fireEvent.change(within(dialog).getByLabelText('Observaciones de inspección'), { target: { value: 'Guardado pendiente' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(1));
+    expect(within(dialog).getByLabelText('Observaciones de inspección')).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Cerrar' })).toBeDisabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(dialog).toBeInTheDocument();
+    await act(async () => { finish(); });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar recepción e inspección' })).not.toBeInTheDocument());
   });
 
   it('edita la ficha de recepción e inspección desde el detalle', async () => {

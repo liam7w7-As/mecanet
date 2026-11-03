@@ -90,7 +90,7 @@ interface MetricProps {
 }
 
 const Metric = ({ label, value, detail, icon: Icon, tone }: MetricProps) => (
-  <div className="min-h-36 min-w-0 border border-brand-line bg-white p-4 shadow-sm">
+  <div className="workspace-finance-metric min-h-36 min-w-0 border border-brand-line bg-white p-4 shadow-sm">
     <div className="flex items-start justify-between gap-3">
       <p className="text-sm font-semibold text-brand-muted">{label}</p>
       <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>
@@ -240,7 +240,7 @@ export const FinancePage = () => {
   };
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="workspace-page workspace-finance min-w-0 space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-brand-muted">Control de caja y cobranza</p>
@@ -502,24 +502,24 @@ export const FinancePage = () => {
               </p>
             ) : (
               <div className="max-w-full overflow-x-auto overscroll-x-contain">
-                <table className="w-full min-w-[900px] text-left text-sm">
-                  <thead className="bg-brand-line/40 text-xs uppercase text-brand-muted">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Tipo</th>
-                      <th className="px-4 py-3 font-semibold">Detalle</th>
-                      <th className="px-4 py-3 font-semibold">Método</th>
-                      <th className="px-4 py-3 font-semibold">Responsable</th>
-                      <th className="px-4 py-3 text-right font-semibold">Monto</th>
-                      <th className="px-4 py-3 text-right font-semibold">Acción</th>
+                <table role="table" className="workspace-table w-full min-w-[900px] text-left text-sm">
+                  <thead role="rowgroup" className="bg-brand-line/40 text-xs uppercase text-brand-muted">
+                    <tr role="row">
+                      <th role="columnheader" className="px-4 py-3 font-semibold">Tipo</th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">Detalle</th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">Método</th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">Responsable</th>
+                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">Monto</th>
+                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">Acción</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody role="rowgroup">
                     {movementsQuery.data.map((movement) => (
-                      <tr
+                      <tr role="row"
                         key={movement.id}
                         className={`border-t border-brand-line ${movement.voidedAt ? 'bg-brand-line/40 opacity-60' : ''}`}
                       >
-                        <td className="px-4 py-3">
+                        <td role="cell" data-label="Tipo" className="px-4 py-3">
                           <span
                             className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-bold ${movement.tipo === 'ingreso' ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-coralPale text-brand-coralInk'}`}
                           >
@@ -531,7 +531,7 @@ export const FinancePage = () => {
                             {movement.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td role="cell" data-label="Detalle" className="px-4 py-3">
                           <p
                             className={`font-semibold text-brand-ink ${movement.voidedAt ? 'line-through' : ''}`}
                           >
@@ -547,21 +547,21 @@ export const FinancePage = () => {
                             </p>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-brand-muted">
+                        <td role="cell" data-label="Método" className="px-4 py-3 text-brand-muted">
                           {methodLabels[movement.metodo]}
                         </td>
-                        <td className="px-4 py-3 text-brand-muted">
+                        <td role="cell" data-label="Responsable" className="px-4 py-3 text-brand-muted">
                           {movement.creator?.nombre ?? 'Usuario eliminado'}
                           <span className="block text-xs text-brand-muted">
                             {formatDateTime(movement.fecha)}
                           </span>
                         </td>
-                        <td
+                        <td role="cell" data-label="Monto"
                           className={`px-4 py-3 text-right font-bold ${movement.tipo === 'ingreso' ? 'text-brand-mintInk' : 'text-brand-coralInk'}`}
                         >
                           {movement.tipo === 'ingreso' ? '+' : '-'} {formatClp(movement.monto)}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td role="cell" data-label="Acción" className="px-4 py-3 text-right">
                           {!movement.voidedAt && !daily?.isClosed && (
                             <button
                               type="button"
@@ -609,22 +609,22 @@ export const FinancePage = () => {
               </div>
             ) : (
               <div className="max-w-full overflow-x-auto overscroll-x-contain">
-                <table className="w-full min-w-[980px] text-left text-sm">
-                  <thead className="bg-brand-line/40 text-xs uppercase text-brand-muted">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Cotización</th>
-                      <th className="px-4 py-3 font-semibold">Cliente</th>
-                      <th className="px-4 py-3 font-semibold">Fecha</th>
-                      <th className="px-4 py-3 font-semibold">Referencia</th>
-                      <th className="px-4 py-3 font-semibold">Banco / N°</th>
-                      <th className="px-4 py-3 text-right font-semibold">Monto</th>
-                      <th className="px-4 py-3 text-right font-semibold">Decisión</th>
+                <table role="table" className="workspace-table w-full min-w-[980px] text-left text-sm">
+                  <thead role="rowgroup" className="bg-brand-line/40 text-xs uppercase text-brand-muted">
+                    <tr role="row">
+                      <th role="columnheader" className="px-4 py-3 font-semibold">Cotización</th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">Cliente</th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">Fecha</th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">Referencia</th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">Banco / N°</th>
+                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">Monto</th>
+                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">Decisión</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody role="rowgroup">
                     {summary.pendingTransfers.map((payment) => (
-                      <tr key={payment.id} className="border-t border-brand-line">
-                        <td className="px-4 py-3">
+                      <tr role="row" key={payment.id} className="border-t border-brand-line">
+                        <td role="cell" data-label="Cotización" className="px-4 py-3">
                           <Link
                             to={`/quotations/${payment.quotationId}`}
                             className="font-mono font-bold text-brand-primaryInk hover:underline"
@@ -632,16 +632,16 @@ export const FinancePage = () => {
                             {payment.quotation?.codigo ?? `COT #${payment.quotationId}`}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-brand-ink">
+                        <td role="cell" data-label="Cliente" className="px-4 py-3 text-brand-ink">
                           {payment.quotation?.client?.nombre ?? 'Sin cliente'}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-brand-muted">
+                        <td role="cell" data-label="Fecha" className="whitespace-nowrap px-4 py-3 text-brand-muted">
                           {formatDateTime(payment.fecha)}
                         </td>
-                        <td className="max-w-56 px-4 py-3 text-brand-muted">
+                        <td role="cell" data-label="Referencia" className="max-w-56 px-4 py-3 text-brand-muted">
                           {payment.referencia || 'Sin referencia'}
                         </td>
-                        <td className="px-4 py-3 text-brand-muted">
+                        <td role="cell" data-label="Banco / N°" className="px-4 py-3 text-brand-muted">
                           <span className="block font-semibold text-brand-ink">
                             {payment.bancoOrigen ?? 'Sin banco'}
                           </span>
@@ -649,10 +649,10 @@ export const FinancePage = () => {
                             {payment.numeroTransaccion ?? 'Sin N°'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right font-bold text-brand-primaryInk">
+                        <td role="cell" data-label="Monto" className="px-4 py-3 text-right font-bold text-brand-primaryInk">
                           {formatClp(payment.monto)}
                         </td>
-                        <td className="px-4 py-3">
+                        <td role="cell" data-label="Decisión" className="px-4 py-3">
                           <div className="flex flex-wrap items-center justify-end gap-2">
                             <PaymentReceiptLink payment={payment} />
                             <button
@@ -781,7 +781,7 @@ export const FinancePage = () => {
             onClick={() => setShowMovement(false)}
           />
           <section
-            className="relative w-full max-w-lg rounded-lg bg-white p-6 shadow-2xl"
+            className="workspace-dialog relative w-full max-w-lg rounded-lg bg-white p-6 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="cash-movement-title"
@@ -938,7 +938,7 @@ export const FinancePage = () => {
             onClick={() => setVoidTarget(null)}
           />
           <section
-            className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
+            className="workspace-dialog relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="void-movement-title"
@@ -997,7 +997,7 @@ export const FinancePage = () => {
             onClick={() => setReview(null)}
           />
           <section
-            className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
+            className="workspace-dialog relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="review-payment-title"
@@ -1078,7 +1078,7 @@ export const FinancePage = () => {
             onClick={() => setShowClosure(false)}
           />
           <section
-            className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
+            className="workspace-dialog relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="close-cash-title"

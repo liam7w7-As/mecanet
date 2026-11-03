@@ -1,9 +1,15 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import DatePicker from '../DatePicker';
 
 describe('DatePicker', () => {
+  it('enfoca un día cuando el calendario automático ya está colocado y visible', async () => {
+    render(<DatePicker label="Fecha específica" value="2024-02-20" onChange={vi.fn()} autoOpen />);
+    const grid = screen.getByRole('grid', { name: 'febrero 2024' });
+    await waitFor(() => expect(grid).toContainElement(document.activeElement as HTMLElement));
+  });
+
   it('abre el calendario en español, selecciona un día bisiesto y devuelve el foco', () => {
     const onChange = vi.fn();
     render(<DatePicker label="Fecha específica" value="2024-02-20" onChange={onChange} />);

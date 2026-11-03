@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { AnimateIcon } from '../../components/animate-ui';
@@ -35,10 +36,13 @@ import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import SavingOverlay from '../../components/common/SavingOverlay';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
 import PendingInspectionPhotos from '../../components/work-orders/PendingInspectionPhotos';
-import WorkOrderItemsEditor from '../../components/work-orders/WorkOrderItemsEditor';
+import WorkOrderItemsEditor, { calculateItemsTotal } from '../../components/work-orders/WorkOrderItemsEditor';
+import WorkOrderReceptionNavigation, { WORK_ORDER_RECEPTION_STEPS as steps } from '../../components/work-orders/WorkOrderReceptionNavigation';
+import WorkOrderReceptionSummary from '../../components/work-orders/WorkOrderReceptionSummary';
 import { useClient, useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useFormRecovery } from '../../hooks/useFormRecovery';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useConvertToWorkOrderMutation, useQuotation } from '../../hooks/useQuotations';
 import { useVehicle } from '../../hooks/useVehicles';
 import {
@@ -61,6 +65,7 @@ import { notifyError, notifySuccess } from '../../stores/toast.store';
 
 import type { PhotoTransferState } from '../../components/work-orders/PendingInspectionPhotos';
 import type { EditableWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
+import type { ReceptionStep as StepIndex } from '../../components/work-orders/WorkOrderReceptionNavigation';
 import type { WorkOrderRecovery } from '../../lib/form-recovery.schemas';
 import type { Client, QuickSearchClient, QuickSearchVehicle, Vehicle } from '../../types/entities';
 import type {
@@ -70,7 +75,6 @@ import type {
   WorkOrderInspectionPhotoSlot,
 } from '@unithor/shared';
 
-type StepIndex = 0 | 1 | 2 | 3 | 4;
 type ClientOption = Pick<
   Client,
   'id' | 'rut' | 'nombre' | 'tipo' | 'telefono' | 'email' | 'direccion'
@@ -93,19 +97,6 @@ interface InspectionPhotoDraft {
   file: File;
   previewUrl: string;
 }
-
-const steps: Array<{ id: StepIndex; title: string; shortTitle: string; description: string }> = [
-  {
-    id: 0,
-    title: 'Responsable',
-    shortTitle: 'Responsable',
-    description: 'Quién entrega y asume la OT',
-  },
-  { id: 1, title: 'Facturación', shortTitle: 'Facturación', description: 'Contacto y factura' },
-  { id: 2, title: 'Vehículo', shortTitle: 'Vehículo', description: 'Auto que ingresa' },
-  { id: 3, title: 'Inspección', shortTitle: 'Inspección', description: 'Estado de recepción' },
-  { id: 4, title: 'Servicios', shortTitle: 'Servicios', description: 'Trabajos y repuestos' },
-];
 
 const fuelLabels: Record<FuelLevel, string> = {
   vacio: 'Vacío',
@@ -203,7 +194,7 @@ interface SelectedClientCardProps {
 }
 
 const SelectedClientCard = ({ title, client, onClear }: SelectedClientCardProps) => (
-  <div className="rounded-lg border border-brand-line bg-white p-3">
+  <div className="reception-client-card rounded-lg border border-brand-line bg-white p-3">
     <div className="flex items-start justify-between gap-3">
       <p className="text-xs font-bold uppercase text-brand-muted">{title}</p>
       {client && onClear && (
@@ -224,7 +215,7 @@ const SelectedClientCard = ({ title, client, onClear }: SelectedClientCardProps)
           <UserRound className="h-5 w-5" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="truncate font-bold text-brand-primaryInk">{client.nombre}</p>
+          <p className="break-words font-bold text-brand-primaryInk">{client.nombre}</p>
           <p className="mt-1 text-sm text-brand-muted">{clientSubtitle(client)}</p>
           {client.email && <p className="mt-1 truncate text-xs text-brand-muted">{client.email}</p>}
         </div>
@@ -260,11 +251,11 @@ const ClientSearchPicker = ({
   const clientsQuery = useClients({ page: 1, pageSize: 8, search: debouncedSearch || undefined });
 
   return (
-    <section className="rounded-lg border border-brand-line bg-white p-4" aria-label={label}>
+    <section className="reception-client-picker rounded-lg border border-brand-line bg-white p-4" aria-label={label}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-bold text-brand-primaryInk">{label}</h3>
-          {selectedClient && <p className="mt-1 text-sm text-brand-muted">{selectedClient.nombre}</p>}
+          <p className="mt-1 text-sm text-brand-muted">{selectedClient ? selectedClient.nombre : 'Busque en la lista o registre un nuevo cliente.'}</p>
         </div>
         <button
           type="button"
@@ -289,26 +280,28 @@ const ClientSearchPicker = ({
         />
       </div>
 
-      <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-brand-line">
+      <div className="reception-client-results mt-3 max-h-40 overflow-y-auto rounded-lg border border-brand-line" aria-busy={clientsQuery.isFetching}>
         {clientsQuery.isFetching && (
           <p className="px-3 py-3 text-sm text-brand-muted">Buscando clientes...</p>
         )}
         {!clientsQuery.isFetching && clientsQuery.data?.items.length === 0 && (
           <p className="px-3 py-5 text-center text-sm text-brand-muted">No se encontraron clientes</p>
         )}
+        {clientsQuery.isError && <p role="alert" className="p-3 text-sm text-brand-coralInk">No se pudo cargar la lista. <button type="button" className="underline" onClick={() => void clientsQuery.refetch()}>Reintentar</button></p>}
         {clientsQuery.data?.items.map((client) => {
           const selected = selectedClient?.id === client.id;
           return (
             <button
               key={client.id}
               type="button"
+              aria-pressed={selected}
               className={`flex w-full items-center justify-between gap-3 border-b border-brand-line px-3 py-1.5 text-left last:border-0 hover:bg-brand-pale ${
                 selected ? 'bg-brand-line/40' : ''
               }`}
               onClick={() => onSelect(toClientOption(client))}
             >
               <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-brand-ink">
+                  <span className="block break-words text-sm font-semibold text-brand-ink">
                   {client.nombre}
                 </span>
                 <span className="block text-xs text-brand-muted">{clientSubtitle(client)}</span>
@@ -436,6 +429,9 @@ const WorkOrderCreateForm = () => {
   });
 
   const isSubmitting = submitting || createMutation.isPending || conversionMutation.isPending || uploadPhotosMutation.isPending;
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const setConfirmPanel = useModalOverlay({ isOpen: showConfirm, onClose: () => setShowConfirm(false), isPending: isSubmitting });
+  useEffect(() => { stepHeadingRef.current?.focus(); }, [activeStep]);
   const submissionError = isConversion ? conversionMutation.error : createMutation.error;
   const returnPath = isConversion ? `/quotations/${quotationId}` : '/work-orders';
   const vehicleOwnerIsDifferent = Boolean(
@@ -796,9 +792,9 @@ const WorkOrderCreateForm = () => {
   }
 
   return (
-    <div className="min-w-0 space-y-5" aria-busy={isSubmitting}>
+    <div className="reception-page min-w-0 space-y-5" aria-busy={isSubmitting} data-form-active={!createdOrderId}>
       {isSubmitting && <SavingOverlay message={uploadPhotosMutation.isPending ? 'Guardando fotos de la OT…' : 'Guardando orden de trabajo…'} detail={uploadPhotosMutation.isPending ? uploadedSlots.length + " de " + photos.length + " fotos confirmadas. Las fotos guardadas se conservan." : "El correo se preparará automáticamente con el documento completo."} />}
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <header className="reception-page-heading flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-3">
           <Link
             to={returnPath}
@@ -824,139 +820,25 @@ const WorkOrderCreateForm = () => {
       {createdOrderId && <Link to={isConversion && !canReadWorkOrders ? returnPath : '/work-orders/' + createdOrderId} className="inline-flex min-h-10 items-center font-semibold text-brand-primaryInk">Ver la OT guardada</Link>}
       {!createdOrderId && <form
         onSubmit={submit}
-        className="overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm"
+        className="reception-form overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm"
       >
         <fieldset disabled={!recovery.ready || isSubmitting || createdOrderId !== null} className="min-w-0">
-        {/* Stepper Línea de Tiempo Continua (Estilo Unithor 1.0) */}
-        <nav
-          className="border-b border-brand-line bg-brand-line/60 px-4 py-6 sm:px-8"
-          aria-label="Línea de tiempo de orden de trabajo"
-        >
-          {/* Vista Desktop / Tablet: Línea continua y nodos */}
-          <div className="relative hidden md:block">
-            {/* Barra base conectora */}
-            <div className="absolute left-[10%] right-[10%] top-[18px] h-1 -translate-y-1/2 rounded-full bg-brand-line">
-              {/* Barra de progreso azul Unithor */}
-              <div
-                className="h-full rounded-full bg-brand-primaryInk transition-all duration-500 ease-out"
-                style={{
-                  width:
-                    activeStep === 0
-                      ? '0%'
-                      : activeStep === 1
-                        ? '25%'
-                        : activeStep === 2
-                          ? '50%'
-                          : activeStep === 3
-                            ? '75%'
-                            : '100%',
-                }}
-              />
-            </div>
-
-            {/* Nodos de la línea de tiempo */}
-            <ol className="relative z-10 flex justify-between">
-              {steps.map((step) => {
-                const active = step.id === activeStep;
-                const complete = step.id < activeStep;
-
-                return (
-                  <li key={step.id} className="flex flex-col items-center">
-                    <button
-                      type="button"
-                      onClick={() => goToStep(step.id)}
-                      className="group flex flex-col items-center text-center transition-all focus:outline-none"
-                      title={`${step.shortTitle}: ${step.description}`}
-                    >
-                      {/* Círculo del nodo */}
-                      <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-black transition-all duration-300 ${
-                          active
-                            ? 'scale-110 bg-brand-primaryInk text-white ring-4 ring-brand-primary/30 shadow-md'
-                            : complete
-                              ? 'bg-brand-primaryInk text-white shadow-sm ring-2 ring-brand-primary/30 group-hover:scale-105'
-                              : 'border-2 border-brand-line bg-white text-brand-muted group-hover:border-brand-primary group-hover:text-brand-muted'
-                        }`}
-                      >
-                        {complete ? (
-                          <AnimateIcon variant="bounce" animateOnHover={false} loop={false}>
-                            <Check className="h-4 w-4 stroke-[3]" aria-hidden="true" />
-                          </AnimateIcon>
-                        ) : (
-                          `${step.id + 1}.`
-                        )}
-                      </span>
-
-                      {/* Etiquetas del nodo */}
-                      <span className="mt-2.5 flex flex-col items-center">
-                        <span
-                          className={`text-xs uppercase tracking-wide transition-colors ${
-                            active
-                              ? 'font-black text-brand-primaryInk'
-                              : complete
-                                ? 'font-bold text-brand-ink group-hover:text-brand-primaryInk'
-                                : 'font-semibold text-brand-muted'
-                          }`}
-                        >
-                          {step.shortTitle}
-                        </span>
-                        <span className="mt-0.5 hidden max-w-[130px] truncate text-[11px] text-brand-muted lg:block">
-                          {step.description}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-
-          {/* Vista Móvil: Selector compacto con indicador de avance */}
-          <div className="space-y-3 md:hidden">
-            <div className="flex items-center justify-between text-xs font-bold text-brand-ink">
-              <span className="text-brand-primaryInk">PASO {activeStep + 1} DE 5</span>
-              <span>{steps[activeStep].title}</span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-brand-line">
-              <div
-                className="h-full rounded-full bg-brand-primaryInk transition-all duration-300"
-                style={{ width: `${((activeStep + 1) / 5) * 100}%` }}
-              />
-            </div>
-            <div className="grid grid-cols-5 gap-1.5 pt-1">
-              {steps.map((step) => {
-                const active = step.id === activeStep;
-                const complete = step.id < activeStep;
-                return (
-                  <button
-                    key={step.id}
-                    type="button"
-                    onClick={() => goToStep(step.id)}
-                    className={`flex h-9 items-center justify-center rounded-lg text-xs font-bold transition ${
-                      active
-                        ? 'bg-brand-primaryInk text-white shadow-sm'
-                        : complete
-                          ? 'bg-brand-primaryInk text-white'
-                          : 'border border-brand-line bg-white text-brand-muted'
-                    }`}
-                  >
-                    {complete ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : step.id + 1}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </nav>
-
+        <WorkOrderReceptionNavigation activeStep={activeStep} onStep={goToStep} />
+        <div className="reception-context-strip" aria-label="Selección actual">
+          <span><UserRound aria-hidden="true" />{client?.nombre ?? 'Seleccione responsable'}</span>
+          <span><Car aria-hidden="true" />{vehicle?.patente ?? 'Seleccione vehículo'}</span>
+        </div>
+        <div className="reception-workspace">
         <motion.div
           key={activeStep}
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="p-5 sm:p-6"
+          className="reception-step-content p-5 sm:p-6"
         >
+          <div className="reception-step-heading"><span>Paso {activeStep + 1} de 5</span><h2 ref={stepHeadingRef} tabIndex={-1}>{steps[activeStep].title}</h2><p>{steps[activeStep].description}</p></div>
           {activeStep === 0 && (
-            <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+            <div className="reception-selection-layout grid gap-5 lg:grid-cols-[360px_1fr]">
               <SelectedClientCard
                 title="Responsable del ingreso"
                 client={client}
@@ -1029,7 +911,7 @@ const WorkOrderCreateForm = () => {
           )}
 
           {activeStep === 2 && (
-            <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+            <div className="reception-selection-layout grid gap-5 lg:grid-cols-[360px_1fr]">
               <div className="rounded-lg border border-brand-line bg-white p-4">
                 <p className="text-xs font-bold uppercase text-brand-muted">Vehículo seleccionado</p>
                 {vehicle ? (
@@ -1111,7 +993,7 @@ const WorkOrderCreateForm = () => {
                       ))}
                     </select>
                     <span className="mt-1 block text-xs font-normal text-brand-muted">
-                      Podrás cambiarlo lateramente desde el detalle de la OT.
+                      Podrás cambiarlo posteriormente desde el detalle de la OT.
                     </span>
                   </label>
                 )}
@@ -1254,12 +1136,13 @@ const WorkOrderCreateForm = () => {
                 </div>
               </section>
 
-              <section aria-labelledby="photos-title">
+              <section className="reception-photos" aria-labelledby="photos-title">
                 <div className="flex items-center gap-2">
                   <Camera className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
                   <h3 id="photos-title" className="font-bold text-brand-primaryInk">
                     Registro fotográfico
                   </h3>
+                  <span className="reception-photo-count">{photos.length}/9 fotos</span>
                 </div>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {WORK_ORDER_INSPECTION_PHOTO_SLOTS.map((slot) => {
@@ -1289,7 +1172,7 @@ const WorkOrderCreateForm = () => {
                           <img
                             src={photo.previewUrl}
                             alt={photoSlotLabels[slot]}
-                            className="h-36 w-full object-cover"
+                            className="h-36 w-full object-contain"
                           />
                         ) : (
                           <div className="flex h-36 flex-col items-center justify-center gap-1.5 bg-brand-line/40 px-3 text-center">
@@ -1335,7 +1218,7 @@ const WorkOrderCreateForm = () => {
                 </div>
               </section>
 
-              <section aria-labelledby="inventory-title">
+              <section className="reception-inventory" aria-labelledby="inventory-title">
                 <h3 id="inventory-title" className="font-bold text-brand-primaryInk">
                   Inventario interno
                 </h3>
@@ -1384,10 +1267,9 @@ const WorkOrderCreateForm = () => {
 
           {activeStep === 4 && (
             <div className="space-y-4">
-              {!isConversion && <div className="rounded-lg border border-brand-primaryInk/20 bg-brand-line/60 px-4 py-3">
+              {!isConversion && <div className="reception-service-note rounded-lg border border-brand-primaryInk/20 bg-brand-line/60 px-4 py-3">
                 <p className="text-sm font-semibold text-brand-primaryInk">
-                  Agregue los trabajos a realizar y repuestos necesarios. Puede dejar esta sección
-                  vacía si el diagnóstico está pendiente.
+                  Seleccione servicios y repuestos. Puede continuar sin ítems si el diagnóstico está pendiente.
                 </p>
               </div>}
               {isConversion ? (
@@ -1406,11 +1288,21 @@ const WorkOrderCreateForm = () => {
                 items={items}
                 onChange={setItems}
                 errors={errors}
+                presentation="reception"
                 showExecution={false}
               />}
             </div>
           )}
         </motion.div>
+        <WorkOrderReceptionSummary
+          client={client?.nombre} contact={contactClient?.nombre} billing={billingClient?.nombre}
+          plate={vehicle?.patente} vehicle={[vehicle?.marca, vehicle?.modelo, vehicle?.ano].filter(Boolean).join(' ')}
+          photos={photos.length} inventory={inspection.inventario.length}
+          items={items.filter((item) => item.descripcion.trim()).length}
+          total={isConversion ? quotationQuery.data?.total ?? 0 : calculateItemsTotal(items)}
+          quotationCode={isConversion ? quotationQuery.data?.codigo : undefined} onStep={goToStep}
+        />
+        </div>
 
         {submissionError && (
           <div
@@ -1423,7 +1315,7 @@ const WorkOrderCreateForm = () => {
         )}
 
 
-        <footer className="flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <footer className="reception-footer flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Link
             to={returnPath}
             className="inline-flex h-10 items-center justify-center rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
@@ -1434,6 +1326,7 @@ const WorkOrderCreateForm = () => {
             {activeStep > 0 && (
               <button
                 type="button"
+                aria-label="Anterior"
                 className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink shadow-sm transition-all hover:bg-brand-pale hover:shadow"
                 onClick={() => setActiveStep((activeStep - 1) as StepIndex)}
                 disabled={isSubmitting}
@@ -1441,7 +1334,7 @@ const WorkOrderCreateForm = () => {
                 <AnimateIcon variant="slide-left" animateOnHover>
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                 </AnimateIcon>
-                Anterior
+                <span className="reception-back-label">Anterior</span>
               </button>
             )}
             {activeStep < 4 ? (
@@ -1458,6 +1351,7 @@ const WorkOrderCreateForm = () => {
             ) : (
               <button
                 type="button"
+                aria-label={createdOrderId ? 'Ir al detalle' : 'Revisar y crear orden'}
                 className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-mintInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-mintInk hover:shadow disabled:opacity-60"
                 disabled={isSubmitting}
                 onClick={handleOpenConfirm}
@@ -1469,7 +1363,8 @@ const WorkOrderCreateForm = () => {
                     <Save className="h-4 w-4" aria-hidden="true" />
                   </AnimateIcon>
                 )}
-                {createdOrderId ? 'Ir al detalle' : 'Revisar y crear orden'}
+                <span className="reception-review-label">{createdOrderId ? 'Ir al detalle' : 'Revisar y crear orden'}</span>
+                <span className="reception-review-short" aria-hidden="true">{createdOrderId ? 'Ver OT' : 'Revisar OT'}</span>
               </button>
             )}
           </div>
@@ -1493,8 +1388,8 @@ const WorkOrderCreateForm = () => {
         />
       )}
 
-      {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
+      {showConfirm && createPortal(
+        <div className="reception-confirm-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
           <button
             type="button"
             className="absolute inset-0 bg-brand-scrim/55"
@@ -1503,10 +1398,12 @@ const WorkOrderCreateForm = () => {
             disabled={isSubmitting}
           />
           <motion.section
+            ref={setConfirmPanel}
+            tabIndex={-1}
             initial={{ opacity: 0, scale: 0.96, y: 14 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-            className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-2xl"
+            className="reception-confirm-dialog relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="confirm-ot-title"
@@ -1632,7 +1529,7 @@ const WorkOrderCreateForm = () => {
             </div>
           </motion.section>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

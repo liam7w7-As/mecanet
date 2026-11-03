@@ -45,11 +45,11 @@ export const ModalHeader = ({
   children,
 }: ModalHeaderProps) => {
   return (
-    <div className="flex items-start justify-between gap-4 px-7 pb-5 pt-7">
+    <div className="ui-modal-header flex items-start justify-between gap-4 px-7 pb-5 pt-7">
       <div className="min-w-0">
         {badge && (
           <span
-            className={`mb-[18px] flex h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-full text-base font-semibold ${TONE[tone]}`}
+            className={`ui-modal-badge mb-[18px] flex h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-full text-base font-semibold ${TONE[tone]}`}
           >
             {badge}
           </span>

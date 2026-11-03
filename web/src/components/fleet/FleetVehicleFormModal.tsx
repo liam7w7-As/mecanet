@@ -133,7 +133,7 @@ export const FleetVehicleFormModal = ({
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="relative max-h-full w-full max-w-[760px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="workspace-form-dialog workspace-dialog relative max-h-full w-full max-w-[760px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog"
         ref={setPanelNode}
         aria-modal="true"
@@ -146,7 +146,8 @@ export const FleetVehicleFormModal = ({
           onClose={onClose}
         />
 
-        <form className="space-y-6 p-5 pt-0 sm:p-6 sm:pt-0" noValidate onSubmit={handleSubmit}>
+        <form className="workspace-form" noValidate onSubmit={handleSubmit}>
+          <div className="workspace-form-body space-y-6 p-5 pt-0 sm:p-6 sm:pt-0">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className="text-sm font-medium text-brand-ink">
               Patente
@@ -338,7 +339,8 @@ export const FleetVehicleFormModal = ({
             </div>
           )}
 
-          <footer className="dialog-buttons border-t border-brand-line pt-5">
+          </div>
+          <footer className="workspace-form-footer dialog-buttons border-t border-brand-line pt-5">
             <button
               type="button"
               className="secondary-button"

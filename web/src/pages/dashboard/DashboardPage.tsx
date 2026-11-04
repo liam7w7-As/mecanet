@@ -15,6 +15,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Stagger, StaggerItem } from '../../components/animate-ui';
 import StockAdjustmentModal from '../../components/catalog/StockAdjustmentModal';
 import ClientFormModal from '../../components/clients/ClientFormModal';
+import BrandLogo from '../../components/common/BrandLogo';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import OperationalInbox from '../../components/dashboard/OperationalInbox';
 import WorkOrderStatusBadge from '../../components/work-orders/WorkOrderStatusBadge';
@@ -75,23 +76,24 @@ export const DashboardPage = () => {
   const canCreateQuotation = Boolean(user && hasUserPermission(user, 'comercial', 'create'));
   const canCreateClient = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'taller', 'create')));
   const canAdjustStock = Boolean(user && hasUserPermission(user, 'almacen', 'create'));
+  const quickActionCount = Number(canCreateWorkOrder) + Number(canCreateQuotation) + Number(canCreateClient);
   const summary = dashboardQuery.data;
 
   return (
     <div className="workspace-page workspace-dashboard min-w-0 space-y-6">
       <header className="page-banner">
-        <div className="min-w-0">
-          <p className="text-sm text-brand-muted">Panel operativo</p>
-          <h1 className="mt-1">Bienvenido de vuelta, {firstName}</h1>
+        <div className="dashboard-heading">
+          <h1>Bienvenido de vuelta, {firstName}</h1>
+          <BrandLogo className="dashboard-heading-logo" />
         </div>
-        <p className="relative z-[1] ml-auto hidden self-end pb-1 text-sm text-brand-muted sm:block">{formatCurrentDate()}</p>
+        <p className="dashboard-date">{formatCurrentDate()}</p>
       </header>
 
       <section className="dashboard-shortcuts view-panel" aria-labelledby="quick-actions-title">
         <div className="view-panel-title">
           <h2 id="quick-actions-title" className="text-sm font-semibold uppercase text-brand-muted">Acciones rápidas</h2>
         </div>
-        <div className="view-panel-body flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
+        <div className="view-panel-body dashboard-quick-actions" data-action-count={quickActionCount}>
           {canCreateWorkOrder && (
             <Link to="/work-orders/new" className="primary-button" aria-label="Ingresar vehículo / Nueva OT">
               <Wrench className="h-4 w-4" aria-hidden="true" />
@@ -110,9 +112,10 @@ export const DashboardPage = () => {
               Cliente
             </button>
           )}
-          <div className="min-w-0 flex-1">
+          <div className="dashboard-quick-search">
             <QuickVehicleSearch
-              placeholder="Consultar patente, RUT o cliente"
+              presentation="dashboard"
+              placeholder="Patente, RUT o cliente"
               onSelectVehicle={(vehicle) => navigate(`/vehicles?search=${encodeURIComponent(vehicle.patente)}`)}
               onSelectClient={(client) => navigate(`/clients?search=${encodeURIComponent(client.rut ?? client.nombre)}`)}
             />
@@ -135,8 +138,8 @@ export const DashboardPage = () => {
 
           <OperationalInbox inbox={summary.operationalInbox} />
 
-          <section className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <div className="view-panel">
+          <section className="dashboard-content-grid">
+            <div className="view-panel dashboard-recent-work">
               <div className="view-panel-title flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-base font-semibold text-brand-ink">Últimos trabajos en taller</h2>
@@ -148,19 +151,16 @@ export const DashboardPage = () => {
                 </Link>
               </div>
               {summary.recentWorkOrders.length === 0 ? <p className="empty-row">Aún no hay órdenes de trabajo registradas.</p> : (
-                <div className="data-scroll">
-                  <table role="table" className="workspace-table data-table">
+                <div className="data-scroll dashboard-table-wrap">
+                  <table role="table" className="workspace-table data-table dashboard-recent-table">
                     <thead role="rowgroup">
                       <tr role="row"><th role="columnheader">Orden</th><th role="columnheader">Patente</th><th role="columnheader">Cliente</th><th role="columnheader">Estado</th><th role="columnheader">Ingreso</th><th role="columnheader" className="text-right">Detalle</th></tr>
                     </thead>
                     <tbody role="rowgroup">
                       {summary.recentWorkOrders.map((workOrder) => (
                         <tr role="row" key={workOrder.id}>
-                          {/* Sin `.order-id`: fija la columna en 98px y "OT-2026-0003"
-                              se partía a la mitad. El nowrap del diseño deja que la
-                              columna mida su contenido. */}
                           <td role="cell" data-label="Orden" className="nowrap font-semibold text-brand-ink">{workOrder.codigo}</td>
-                          <td role="cell" data-label="Patente" className="nowrap font-mono font-semibold text-brand-ink">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</td>
+                          <td role="cell" data-label="Patente" className="nowrap text-brand-ink">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</td>
                           <td role="cell" data-label="Cliente" className="max-w-44"><span className="block truncate text-brand-ink">{workOrder.client?.nombre ?? 'Sin cliente'}</span></td>
                           <td role="cell" data-label="Estado"><WorkOrderStatusBadge status={workOrder.estado} /></td>
                           <td role="cell" data-label="Ingreso" className="whitespace-nowrap text-brand-muted">{formatDate(workOrder.fechaIngreso)}</td>

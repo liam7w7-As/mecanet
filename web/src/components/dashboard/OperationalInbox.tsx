@@ -92,7 +92,7 @@ export const OperationalInbox = ({ inbox }: OperationalInboxProps) => {
   const visibleCounts = countLabels.filter(({ key }) => inbox.counts[key] > 0);
 
   return (
-    <section className="view-panel" aria-labelledby="operational-inbox-title">
+    <section className="view-panel dashboard-inbox" aria-labelledby="operational-inbox-title">
       <div className="view-panel-title flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-primaryInk text-white">
@@ -134,19 +134,19 @@ export const OperationalInbox = ({ inbox }: OperationalInboxProps) => {
               <Link
                 key={task.id}
                 to={task.href}
-                className={`group flex min-w-0 items-center gap-3 px-4 py-3.5 transition-colors hover:bg-brand-pale ${index >= 2 ? 'lg:border-t lg:border-brand-line' : ''} ${index % 2 === 1 ? 'lg:border-l lg:border-brand-line' : ''}`}
+                className={`dashboard-inbox-task group flex min-w-0 items-center gap-3 px-4 py-3.5 transition-colors hover:bg-brand-pale ${index >= 2 ? 'lg:border-t lg:border-brand-line' : ''} ${index % 2 === 1 ? 'lg:border-l lg:border-brand-line' : ''}`}
               >
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${presentation.iconClassName}`}>
+                <span className={`dashboard-task-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${presentation.iconClassName}`}>
                   <Icon className="h-4 w-4" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-sm font-semibold text-brand-ink">{task.title}</span>
+                    <span className="dashboard-task-title text-sm font-semibold text-brand-ink">{task.title}</span>
                     {task.priority === 'high' && <span className="h-2 w-2 shrink-0 rounded-full bg-brand-coral" title="Prioridad alta" />}
                   </span>
-                  <span className="mt-0.5 block truncate text-sm text-brand-muted">{task.description} · {formatTaskDate(task.createdAt)}</span>
+                  <span className="dashboard-task-description mt-0.5 block text-sm text-brand-muted">{task.description} · {formatTaskDate(task.createdAt)}</span>
                 </span>
-                <span className="hidden shrink-0 items-center gap-1 text-sm font-semibold text-brand-primaryInk sm:flex">
+                <span className="dashboard-task-action hidden shrink-0 items-center gap-1 text-sm font-semibold text-brand-primaryInk sm:flex">
                   {presentation.action}
                   <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                 </span>

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -160,5 +160,41 @@ describe('DashboardPage', () => {
       'href',
       '/vehicles?tab=flota&fleetVehicleId=3',
     );
+  });
+
+  it('mantiene ocultas las acciones de creación y stock sin los permisos correspondientes', async () => {
+    useAuthStore.setState({ user: { id: 2, nombre: 'Usuario de consulta', email: 'consulta@unithor.local', role: 'vendedor', permissions: [] } });
+    renderPage();
+    await screen.findByTestId('active-work-orders');
+    expect(screen.queryByRole('link', { name: /Ingresar vehículo/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Nueva cotización/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Dar de alta cliente/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ajustar' })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /Búsqueda rápida/ })).toBeInTheDocument();
+  });
+
+  it('abre el formulario existente para registrar un cliente desde la nueva barra de acciones', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Dar de alta cliente/ }));
+    expect(await screen.findByRole('dialog', { name: 'Nuevo cliente' })).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('muestra resultados reales en el buscador compacto y permite recuperarlos con la flecha', async () => {
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/search/quick'
+      ? { clients: [{ id: 7, nombre: 'Cliente de búsqueda', rut: '123456785', vehiclesCount: 1 }], vehicles: [] }
+      : summary } as AxiosResponse));
+    renderPage();
+    const input = screen.getByRole('combobox', { name: /Búsqueda rápida/ });
+    const openResults = screen.getByRole('button', { name: 'Mostrar resultados de búsqueda' });
+    expect(openResults).toBeDisabled();
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Cliente' } });
+    expect(await screen.findByRole('button', { name: /Cliente de búsqueda/ })).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/search/quick', { params: { q: 'Cliente', limit: 10 } });
+    fireEvent.blur(input);
+    expect(screen.queryByRole('button', { name: /Cliente de búsqueda/ })).not.toBeInTheDocument();
+    fireEvent.click(openResults);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Cliente de búsqueda/ })).toBeInTheDocument());
   });
 });

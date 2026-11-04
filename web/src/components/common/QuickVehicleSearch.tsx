@@ -1,6 +1,6 @@
 import { isValidChilePatente, normalizeChilePatente, rutSchema } from '@unithor/shared';
-import { Car, LoaderCircle, Plus, Search, UserRound } from 'lucide-react';
-import { useId, useState } from 'react';
+import { ArrowRight, Car, LoaderCircle, Plus, Search, UserRound } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useQuickSearch, useVehicles } from '../../hooks/useVehicles';
@@ -20,7 +20,7 @@ interface QuickVehicleSearchProps {
   suggestedClient?: ClientSelection | null;
   /** Ofrece abrir el formulario para crear el cliente con lo escrito si no existe. */
   allowCreateClient?: boolean;
-  presentation?: 'default' | 'reception';
+  presentation?: 'default' | 'reception' | 'dashboard';
 }
 
 const normalizePlate = (value: string): string => normalizeChilePatente(value);
@@ -46,6 +46,7 @@ export const QuickVehicleSearch = ({
   presentation = 'default',
 }: QuickVehicleSearchProps) => {
   const resultsId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [term, setTerm] = useState('');
   const [isFocused, setFocused] = useState(false);
   const [newVehiclePlate, setNewVehiclePlate] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export const QuickVehicleSearch = ({
   const normalizedTerm = normalizePlate(term);
   const trimmedTerm = term.trim();
   const reception = presentation === 'reception';
+  const dashboard = presentation === 'dashboard';
   const recentQuery = useVehicles({ page: 1, pageSize: 12 }, reception && trimmedTerm.length < 2);
   const hasExactPlate = searchQuery.data?.vehicles.some(
     (vehicle) => vehicle.patente === normalizedTerm,
@@ -97,13 +99,14 @@ export const QuickVehicleSearch = ({
       : null;
 
   return (
-    <div className={reception ? 'reception-vehicle-search relative' : 'relative'}>
-      <div className="relative">
+    <div className={reception ? 'reception-vehicle-search relative' : dashboard ? 'dashboard-vehicle-search relative' : 'relative'}>
+      <div className={dashboard ? 'dashboard-search-field' : 'relative'}>
         <Search
           className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted"
           aria-hidden="true"
         />
         <input
+          ref={inputRef}
           value={term}
           onChange={(event) => setTerm(event.target.value)}
           onFocus={() => setFocused(true)}
@@ -121,7 +124,20 @@ export const QuickVehicleSearch = ({
           aria-expanded={showResults || reception}
           aria-controls={resultsId}
         />
-        {searchQuery.isFetching && (
+        {dashboard && (
+          <button
+            type="button"
+            aria-label="Mostrar resultados de búsqueda"
+            disabled={trimmedTerm.length < 2}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => { inputRef.current?.focus(); setFocused(true); }}
+          >
+            {searchQuery.isFetching
+              ? <LoaderCircle className="animate-spin" aria-hidden="true" />
+              : <ArrowRight aria-hidden="true" />}
+          </button>
+        )}
+        {!dashboard && searchQuery.isFetching && (
           <LoaderCircle
             className="absolute right-3 top-3 h-4 w-4 animate-spin text-brand-primaryInk"
             aria-hidden="true"

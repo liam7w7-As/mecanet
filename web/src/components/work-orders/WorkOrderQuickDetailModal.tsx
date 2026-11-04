@@ -11,14 +11,14 @@ import {
   Gauge,
   ListChecks,
   LoaderCircle,
+  PackageSearch,
   Phone,
   UserCog,
   UserRound,
   Wrench,
-  X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -36,6 +36,7 @@ import {
 } from '../../lib/work-order-progress';
 import { useAuthStore } from '../../stores/auth.store';
 import CustomerEmailPanel from '../common/CustomerEmailPanel';
+import ModalHeader from '../common/ModalHeader';
 import { QUOTATION_STATUS_LABELS } from '../quotations/QuotationStatusBadge';
 
 import type { WorkOrder } from '../../types/entities';
@@ -115,7 +116,6 @@ export const WorkOrderQuickDetailModal = ({
 }: WorkOrderQuickDetailModalProps) => {
   const [view, setView] = useState<'summary' | 'execution' | 'requests'>(initialView);
   const user = useAuthStore((state) => state.user);
-  const dialogRef = useRef<HTMLElement | null>(null);
   const navigate = useNavigate();
   const [hasOpenedExecution, setOpenedExecution] = useState(initialView === 'execution');
   const [hasDirtyChanges, setDirtyChanges] = useState(false);
@@ -140,10 +140,6 @@ export const WorkOrderQuickDetailModal = ({
     performLeave(action);
   };
   const setPanelNode = useModalOverlay({ isOpen: true, onClose: () => requestLeave('close'), isPending: savePending });
-  const setDialogNode = useCallback((node: HTMLElement | null) => {
-    dialogRef.current = node;
-    setPanelNode(node);
-  }, [setPanelNode]);
   useEffect(() => {
     if (!hasDirtyChanges && !savePending) return;
     const warn = (event: BeforeUnloadEvent): void => { event.preventDefault(); event.returnValue = ''; };
@@ -174,78 +170,41 @@ export const WorkOrderQuickDetailModal = ({
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        ref={setDialogNode}
+        ref={setPanelNode}
         tabIndex={-1}
-        onKeyDown={(event) => {
-          if (event.key !== 'Tab') return;
-          const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'))
-            .filter((element) => !element.closest('[hidden]'));
-          const first = focusable[0];
-          const last = focusable[focusable.length - 1];
-          if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
-            event.preventDefault(); last?.focus();
-          } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault(); first?.focus();
-          }
-        }}
         className="workshop-dialog relative max-h-full w-full max-w-[1080px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl outline-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="work-order-quick-detail-title"
       >
-        <header className="workshop-dialog-header sticky top-0 z-10 border-b border-brand-line bg-white px-5 py-4 sm:px-6">
-          {workOrderQuery.isPending && (
-            <>
-              <p className="text-xs font-semibold uppercase text-brand-muted">Orden de trabajo</p>
-              <h2 id="work-order-quick-detail-title" className="mt-0.5 text-xl font-bold text-brand-primaryInk">
-                Cargando detalle...
-              </h2>
-            </>
-          )}
-          {!workOrder && <button type="button" onClick={() => requestLeave('close')} aria-label="Cerrar" className="absolute right-4 top-4 rounded-lg p-2 text-brand-muted"><X className="h-4 w-4" aria-hidden="true" /></button>}
-          {workOrder && (
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase text-brand-muted">
-                  {ENTRY_TYPE_LABELS[workOrder.tipoIngreso ?? ''] ?? 'Orden de trabajo'}
-                </p>
-                <h2 id="work-order-quick-detail-title" className="mt-0.5 font-mono text-xl font-bold text-brand-primaryInk">
-                  {workOrder.codigo}
-                </h2>
-                <p className="mt-0.5 text-xs text-brand-muted">
-                  Ingreso {formatDate(workOrder.fechaIngreso)}
-                  {workOrder.fechaEntrega ? ` · Entrega prometida ${formatDate(workOrder.fechaEntrega)}` : ''}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <WorkOrderStatusBadge status={workOrder.estado} />
-                <button
-                  type="button"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale"
-                  onClick={() => requestLeave('close')}
-                  disabled={savePending}
-                  aria-label="Cerrar"
-                  title="Cerrar"
-                >
-                  <X className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-          )}
-          {workOrder && canOperate && (
-            <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Vista de la orden">
-              {([{ value: 'summary', label: 'Resumen' }, { value: 'execution', label: 'Avances y Checklist' }, { value: 'requests', label: 'Solicitudes' }] as const).map((option) => (
-                <button key={option.value} type="button" aria-pressed={view === option.value} onClick={() => { setView(option.value); if (option.value !== 'summary') setOpenedExecution(true); }}
-                  className={`inline-flex min-h-9 items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${view === option.value ? 'bg-brand-primary text-white shadow-xs ring-2 ring-brand-primary/20' : 'bg-brand-pale/70 text-brand-muted hover:bg-brand-pale hover:text-brand-ink'}`}>
-                  {option.label}
-                  {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${view === option.value ? 'bg-white text-brand-primary' : 'bg-brand-primary text-white'}`}>{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
-                </button>
-              ))}
-            </div>
-          )}
+        <header className="workshop-dialog-header">
+          <ModalHeader
+            id="work-order-quick-detail-title"
+            title={workOrder?.codigo ?? 'Cargando detalle...'}
+            variant="brand"
+            eyebrow={workOrder ? ENTRY_TYPE_LABELS[workOrder.tipoIngreso ?? ''] ?? 'Orden de trabajo' : 'Orden de trabajo'}
+            description={workOrder ? `Ingreso ${formatDate(workOrder.fechaIngreso)}${workOrder.fechaEntrega ? ` · Entrega prometida ${formatDate(workOrder.fechaEntrega)}` : ''}` : undefined}
+            badge={<ClipboardCheck aria-hidden="true" />}
+            actions={workOrder ? <WorkOrderStatusBadge status={workOrder.estado} /> : undefined}
+            onClose={() => requestLeave('close')}
+            closeDisabled={savePending}
+          />
+          {workOrder && showFinancials && <div className="reference-header-actions">
+            <button type="button" disabled={savePending} aria-label="Vista previa PDF" onClick={() => requestLeave('pdf')}><Download aria-hidden="true" />PDF</button>
+            {user?.role !== 'mecanico' && <Link to={`/work-orders/${workOrder.id}`} onClick={(event) => { event.preventDefault(); requestLeave('detail'); }} aria-label="Abrir detalle completo">Detalle completo<ArrowUpRight aria-hidden="true" /></Link>}
+          </div>}
         </header>
+        {workOrder && canOperate && (
+          <div className="reference-dialog-tabs workshop-dialog-tabs" role="group" aria-label="Vista de la orden">
+            {([{ value: 'summary', label: 'Resumen', icon: ClipboardCheck }, { value: 'execution', label: 'Avances y Checklist', icon: ListChecks }, { value: 'requests', label: 'Solicitudes', icon: PackageSearch }] as const).map((option) => (
+              <button key={option.value} type="button" aria-pressed={view === option.value} onClick={() => { setView(option.value); if (option.value !== 'summary') setOpenedExecution(true); }}>
+                <option.icon aria-hidden="true" />{option.label}
+                {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span>{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="workshop-dialog-body">
-        {workOrder && user?.role !== 'mecanico' && <div className="workshop-communication px-5 pt-4 sm:px-6"><CustomerEmailPanel kind="work_order" id={workOrder.id} /></div>}
 
         {workOrder && canOperate && hasOpenedExecution && (
           <div className="workshop-execution-view p-4 sm:p-6" hidden={view === 'summary'}><WorkOrderMechanicPanel workOrder={workOrder} section={view === 'requests' ? 'requests' : 'execution'} onDirtyChange={setDirtyChanges} onPendingChange={setSavePending} /></div>
@@ -265,14 +224,8 @@ export const WorkOrderQuickDetailModal = ({
           </div>
         )}
 
-        {workOrder && progress && tier && elapsed && (view === 'summary' || !canOperate) && (
-          <div className="workshop-summary space-y-5 p-5 sm:p-6">
-            {workOrder.descripcion && (
-              <p className="workshop-description rounded-lg border border-brand-line bg-brand-line/40 px-4 py-3 text-sm text-brand-ink">
-                {workOrder.descripcion}
-              </p>
-            )}
-
+        {workOrder && progress && tier && elapsed && (
+          <div className="workshop-summary p-5 sm:p-6" hidden={view !== 'summary' && canOperate}>
             <div className="workshop-summary-people grid gap-3 sm:grid-cols-2">
               <SummaryRow
                 icon={<Car className="h-4 w-4" aria-hidden="true" />}
@@ -359,6 +312,7 @@ export const WorkOrderQuickDetailModal = ({
               </div>
             )}
 
+            <div className="workshop-summary-columns">
             {grouped.length > 0 && (
               <div className="workshop-summary-items">
                 <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-ink">
@@ -419,7 +373,9 @@ export const WorkOrderQuickDetailModal = ({
               </div>
             )}
 
-            <div className="workshop-summary-context grid gap-3 sm:grid-cols-3">
+            <aside className="workshop-summary-sidebar">
+            {workOrder.descripcion && <section className="workshop-description"><h3>Motivo de ingreso</h3><p>{workOrder.descripcion}</p></section>}
+            <div className="workshop-summary-context grid gap-3">
               <div className="rounded-lg border border-brand-line px-3 py-3">
                 <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-muted">
                   <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" /> Inspección
@@ -476,7 +432,9 @@ export const WorkOrderQuickDetailModal = ({
                 Contacto: {workOrder.contact.nombre} · {workOrder.contact.telefono}
               </p>
             )}
-
+            {showFinancials && <div className="workshop-communication"><CustomerEmailPanel kind="work_order" id={workOrder.id} /></div>}
+            </aside>
+            </div>
           </div>
         )}
         </div>
@@ -489,8 +447,6 @@ export const WorkOrderQuickDetailModal = ({
           <span className="workshop-save-state" role="status">{savePending ? 'Guardando cambios…' : hasDirtyChanges ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span>
           <div className="workshop-dialog-footer-actions">
             {canOperate && <Link to={`/work-orders/${workOrder.id}/ficha`} onClick={(event) => { event.preventDefault(); requestLeave('worksheet'); }} className="workshop-secondary-action"><Wrench aria-hidden="true" />Ficha y horas</Link>}
-            {showFinancials && <button type="button" disabled={savePending} className="workshop-secondary-action" onClick={() => requestLeave('pdf')}><Download aria-hidden="true" />Vista previa PDF</button>}
-            {user?.role !== 'mecanico' && <Link to={`/work-orders/${workOrder.id}`} onClick={(event) => { event.preventDefault(); requestLeave('detail'); }} className="workshop-primary-action">Abrir detalle completo<ArrowUpRight aria-hidden="true" /></Link>}
           </div>
         </footer>}
       </motion.section>

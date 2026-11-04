@@ -83,6 +83,7 @@ export declare const paymentQuerySchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
     pageSize: z.ZodDefault<z.ZodNumber>;
 } & {
+    search: z.ZodOptional<z.ZodString>;
     quotationId: z.ZodOptional<z.ZodNumber>;
     metodo: z.ZodOptional<z.ZodEnum<["efectivo", "transferencia", "tarjeta_debito", "tarjeta_credito", "cheque", "otro"]>>;
     estado: z.ZodOptional<z.ZodEnum<["confirmado", "por_verificar", "rechazado"]>>;
@@ -91,6 +92,7 @@ export declare const paymentQuerySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     page: number;
     pageSize: number;
+    search?: string | undefined;
     estado?: "por_verificar" | "confirmado" | "rechazado" | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
@@ -99,6 +101,7 @@ export declare const paymentQuerySchema: z.ZodObject<{
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
+    search?: string | undefined;
     estado?: "por_verificar" | "confirmado" | "rechazado" | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;

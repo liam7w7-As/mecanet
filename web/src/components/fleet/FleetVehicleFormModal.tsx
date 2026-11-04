@@ -1,7 +1,8 @@
 import { createFleetVehicleSchema, normalizeChilePatente } from '@unithor/shared';
-import { AlertCircle, LoaderCircle } from 'lucide-react';
+import { AlertCircle, Car, LoaderCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   useCreateFleetVehicleMutation,
@@ -71,6 +72,7 @@ export const FleetVehicleFormModal = ({
   const updateMutation = useUpdateFleetVehicleMutation();
   const isEditing = Boolean(vehicle);
   const activeMutation = isEditing ? updateMutation : createMutation;
+  const close = (): void => { if (!activeMutation.isPending) onClose(); };
 
   const setValue = <K extends keyof FleetVehicleFormState>(
     key: K,
@@ -86,6 +88,7 @@ export const FleetVehicleFormModal = ({
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (activeMutation.isPending) return;
     setFieldErrors({});
     createMutation.reset();
     updateMutation.reset();
@@ -117,24 +120,25 @@ export const FleetVehicleFormModal = ({
   const mutationError = activeMutation.error;
   const setPanelNode = useModalOverlay({
     isOpen: true,
-    onClose,
+    onClose: close,
     isPending: activeMutation.isPending,
   });
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
+  return createPortal(
+    <div className="reference-modal-overlay fixed inset-0 z-[60] flex items-start justify-center px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
         className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
         aria-label="Cerrar formulario de vehículo de flota"
-        onClick={onClose}
+        onClick={close}
       />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="workspace-form-dialog workspace-dialog relative max-h-full w-full max-w-[760px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="workspace-form-dialog workspace-dialog reference-dialog reference-form-dialog relative max-h-full w-full max-w-[760px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog"
+        tabIndex={-1}
         ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="fleet-vehicle-form-title"
@@ -143,11 +147,15 @@ export const FleetVehicleFormModal = ({
           id="fleet-vehicle-form-title"
           title={isEditing ? 'Editar vehículo de flota' : 'Nuevo vehículo de flota'}
           description="Uso interno de la empresa, sin cliente ni propietario externo"
-          onClose={onClose}
+          onClose={close}
+          closeDisabled={activeMutation.isPending}
+          variant="brand"
+          badge={<Car aria-hidden="true" />}
         />
 
-        <form className="workspace-form" noValidate onSubmit={handleSubmit}>
-          <div className="workspace-form-body space-y-6 p-5 pt-0 sm:p-6 sm:pt-0">
+        <form className="workspace-form reference-form" noValidate onSubmit={handleSubmit}>
+          <div className="workspace-form-body reference-form-body">
+            <fieldset disabled={activeMutation.isPending} className="min-w-0 space-y-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className="text-sm font-medium text-brand-ink">
               Patente
@@ -339,12 +347,13 @@ export const FleetVehicleFormModal = ({
             </div>
           )}
 
+          </fieldset>
           </div>
-          <footer className="workspace-form-footer dialog-buttons border-t border-brand-line pt-5">
+          <footer className="workspace-form-footer reference-dialog-footer dialog-buttons border-t border-brand-line pt-5">
             <button
               type="button"
               className="secondary-button"
-              onClick={onClose}
+              onClick={close}
               disabled={activeMutation.isPending}
             >
               Cancelar
@@ -362,7 +371,8 @@ export const FleetVehicleFormModal = ({
           </footer>
         </form>
       </motion.section>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

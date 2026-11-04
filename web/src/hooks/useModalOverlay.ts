@@ -35,6 +35,9 @@ interface ModalOverlayOptions {
  */
 let activeLocks = 0;
 let overflowBeforeFirstLock = '';
+let rootOverflowBeforeFirstLock = '';
+let focusBeforeFirstLock: Element | null = null;
+const overlayStack: symbol[] = [];
 
 export const useModalOverlay = ({
   isOpen,
@@ -65,9 +68,14 @@ export const useModalOverlay = ({
 
     if (activeLocks === 0) {
       overflowBeforeFirstLock = document.body.style.overflow;
+      rootOverflowBeforeFirstLock = document.documentElement.style.overflow;
+      focusBeforeFirstLock = document.activeElement;
     }
     activeLocks += 1;
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    const layer = Symbol('modal');
+    overlayStack.push(layer);
 
     const previouslyFocused = document.activeElement;
     const panel = nodeRef.current;
@@ -79,9 +87,37 @@ export const useModalOverlay = ({
     }
 
     const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape' && !isPendingRef.current) {
+      if (overlayStack.at(-1) !== layer || event.defaultPrevented) return;
+      // A calendar or searchable select may render its popup in a portal.
+      const ownedPopups = Array.from(panel?.querySelectorAll('[aria-expanded="true"][aria-controls]') ?? [])
+        .flatMap((control) => (control.getAttribute('aria-controls') ?? '').split(' '))
+        .map((id) => document.getElementById(id)).filter((popup) => popup !== null);
+      if (ownedPopups.some((popup) => event.key === 'Escape' || popup.contains(event.target as Node))) return;
+      if (event.key === 'Escape') {
         event.preventDefault();
-        onCloseRef.current();
+        event.stopPropagation();
+        if (!isPendingRef.current) onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !panel) return;
+      const controls = Array.from(panel.querySelectorAll<HTMLElement>(
+        'a[href],button,input:not([type="hidden"]),textarea,select,summary,[tabindex]',
+      )).filter((element) => {
+        if (element.tabIndex < 0 || element.matches(':disabled') || element.closest('[hidden], [aria-hidden="true"], [inert]')) return false;
+        const collapsed = element.closest('details:not([open])');
+        if (collapsed && !collapsed.querySelector('summary')?.contains(element)) return false;
+        const style = window.getComputedStyle(element);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+      });
+      const first = controls[0];
+      const last = controls.at(-1);
+      if (!first || !last) { event.preventDefault(); panel.focus(); return; }
+      if (!panel.contains(document.activeElement) || document.activeElement === panel) {
+        event.preventDefault(); (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus();
       }
     };
 
@@ -89,12 +125,18 @@ export const useModalOverlay = ({
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+      const layerIndex = overlayStack.indexOf(layer);
+      const wasTop = overlayStack.at(-1) === layer;
+      if (layerIndex !== -1) overlayStack.splice(layerIndex, 1);
       activeLocks = Math.max(0, activeLocks - 1);
       if (activeLocks === 0) {
         document.body.style.overflow = overflowBeforeFirstLock;
+        document.documentElement.style.overflow = rootOverflowBeforeFirstLock;
       }
-      if (previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) {
-        previouslyFocused.focus();
+      const returnFocus = previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected
+        ? previouslyFocused : activeLocks === 0 ? focusBeforeFirstLock : null;
+      if (wasTop && returnFocus instanceof HTMLElement && returnFocus.isConnected) {
+        returnFocus.focus();
       }
     };
   }, [isOpen, initialFocusRef, labelledBy]);

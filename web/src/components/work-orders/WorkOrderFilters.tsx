@@ -6,7 +6,6 @@ import { useCallback, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import WorkOrderCardPopover from './WorkOrderCardPopover';
-import { WORK_ORDER_STATUS_LABELS } from './WorkOrderStatusBadge';
 import DatePicker from '../common/DatePicker';
 
 import type { WorkOrderStatus } from '@unithor/shared';
@@ -16,11 +15,11 @@ export type WorkOrderDateFilter = 'all' | '3_days' | '15_days' | 'month' | 'date
 
 const statuses = [
   { value: 'all', label: 'Todas', icon: LayoutGrid },
-  { value: 'en_progreso', label: WORK_ORDER_STATUS_LABELS.en_progreso, icon: CirclePlay },
+  { value: 'en_progreso', label: 'Iniciadas', icon: CirclePlay },
   { value: 'esperando_repuesto', label: 'Esperando repuesto', icon: PackageSearch },
   { value: 'finalizada', label: 'Finalizadas', icon: CheckCheck },
   { value: 'entregada', label: 'Entregadas', icon: Truck },
-  { value: 'cancelada', label: 'Canceladas', icon: Ban },
+  { value: 'cancelada', label: 'Anuladas', icon: Ban },
 ] as const;
 
 const periods = [
@@ -55,6 +54,7 @@ export default function WorkOrderFilters({
   const periodTrigger = useRef<HTMLButtonElement>(null);
   const periodId = useId();
   const closePeriod = useCallback(() => setPeriodOpen(false), []);
+  const compactPeriodLabel = { all: 'Fecha', '3_days': '3 días', '15_days': '15 días', month: 'Mes', date: 'Fecha' }[period];
 
   return (
     <div className="workshop-filters">
@@ -78,7 +78,8 @@ export default function WorkOrderFilters({
             onClick={() => setPeriodOpen((open) => !open)}
           >
             <CalendarDays aria-hidden="true" />
-            <span>{periods.find((option) => option.value === period)?.label}</span>
+            <span className="workshop-period-full">{periods.find((option) => option.value === period)?.label}</span>
+            <span className="workshop-period-compact" aria-hidden="true">{compactPeriodLabel}</span>
             <ChevronDown aria-hidden="true" />
           </button>
           {periodOpen && (
@@ -100,7 +101,7 @@ export default function WorkOrderFilters({
             </WorkOrderCardPopover>
           )}
         </div>
-        {canCreate && <Link to="/work-orders/new" className="primary-button workshop-new-order" aria-label="Nueva Orden de Trabajo" title="Nueva Orden de Trabajo"><Plus aria-hidden="true" /><span>Nueva Orden de Trabajo</span></Link>}
+        {canCreate && <Link to="/work-orders/new" className="primary-button workshop-new-order" aria-label="Nueva Orden de Trabajo" title="Nueva Orden de Trabajo"><Plus aria-hidden="true" /><span>Nueva orden</span></Link>}
         <div className="workshop-status-filters" role="tablist" aria-label="Filtrar por estado">
           {statuses.map(({ value, label, icon: Icon }) => (
             <button key={value} type="button" role="tab" aria-selected={status === value} aria-label={label} title={label} onClick={() => onStatus(value)}>

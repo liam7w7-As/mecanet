@@ -1,6 +1,7 @@
 import { ArrowUpRight, Building2, Car, ClipboardList, FileText, Hash, LoaderCircle, Mail, MapPin, Pencil, Phone, Plus, Trash2, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 
 import ClientFormModal from './ClientFormModal';
@@ -12,11 +13,11 @@ import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
+import ModalHeader from '../common/ModalHeader';
 import Pagination from '../common/Pagination';
 import QuotationStatusBadge from '../quotations/QuotationStatusBadge';
 import VehicleFormModal from '../vehicles/VehicleFormModal';
 import WorkOrderStatusBadge from '../work-orders/WorkOrderStatusBadge';
-import ModalHeader from '../common/ModalHeader';
 
 
 
@@ -38,7 +39,7 @@ const ClientFact = ({
   label: string;
   value: string | null;
 }) => (
-  <div className="min-w-0 border-b border-brand-line py-3">
+  <div className="client-profile-fact min-w-0">
     <dt className="flex items-center gap-2 text-xs text-brand-muted">
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       {label}
@@ -56,7 +57,6 @@ export const ClientDetailModal = ({
   onClose,
 }: ClientDetailModalProps) => {
   const tabId = useId();
-  const dialogRef = useRef<HTMLElement | null>(null);
   const clientQuery = useClient(clientId, true);
   const deleteMutation = useDeleteClientMutation();
   const [isConfirmingDelete, setConfirmingDelete] = useState(false);
@@ -84,45 +84,6 @@ export const ClientDetailModal = ({
   const client = clientQuery.data;
   const ClientIcon = client?.tipo === 'empresa' ? Building2 : UserRound;
 
-  // El scroll-lock y la restauración del foco los maneja `useModalOverlay`
-  // (más abajo): aquí solo van Escape y trampa de Tab, que ese hook no cubre.
-  // Antes había un segundo `body.style.overflow = 'hidden'` en este
-  // componente y su cleanup dejaba el scroll bloqueado hasta recargar.
-  useEffect(() => {
-    if (isEditing || isVehicleFormOpen) return undefined;
-    dialogRef.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape' && !deleteMutation.isPending) {
-        event.preventDefault();
-        onClose();
-      }
-      if (event.key !== 'Tab') return;
-      const elements = Array.from(
-        dialogRef.current?.querySelectorAll<HTMLElement>(
-          'a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),[tabindex="0"]',
-        ) ?? [],
-      ).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
-      const first = elements[0];
-      const last = elements.at(-1);
-      if (!first || !last) {
-        event.preventDefault();
-        return;
-      }
-      if (
-        event.shiftKey &&
-        (document.activeElement === first || document.activeElement === dialogRef.current)
-      ) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, isVehicleFormOpen, deleteMutation.isPending, onClose]);
-
   const tabs: { id: ClientDetailTab; label: string; icon: typeof Car; count?: number }[] = [
     { id: 'data', label: 'Datos', icon: UserRound },
     { id: 'vehicles', label: 'Vehículos', icon: Car, count: client?.vehicles?.length },
@@ -149,49 +110,36 @@ export const ClientDetailModal = ({
   ];
   const activeTab = tabs.some((item) => item.id === tab) ? tab : 'data';
 
-  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
-  return (
+  const childOpen = isEditing || isVehicleFormOpen;
+  const close = (): void => { if (!deleteMutation.isPending && !childOpen) onClose(); };
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose: close, isPending: deleteMutation.isPending });
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5">
+      <div className="reference-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5" aria-hidden={childOpen || undefined}>
         <button
           type="button"
           className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
           aria-label="Cerrar detalle"
-          onClick={onClose}
-          disabled={deleteMutation.isPending}
+          onClick={close}
+          disabled={deleteMutation.isPending || childOpen}
           tabIndex={-1}
         />
         <motion.section
-          ref={(node) => {
-            dialogRef.current = node;
-            setPanelNode(node);
-          }}
+          ref={setPanelNode}
           initial={{ opacity: 0, scale: 0.97, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-          className="workspace-dialog relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl outline-none sm:max-h-[calc(100dvh-2.5rem)]"
+          className="workspace-dialog reference-dialog client-profile-dialog relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[850px] flex-col overflow-hidden border border-brand-line bg-white shadow-2xl outline-none sm:max-h-[calc(100dvh-2.5rem)]"
           role="dialog"
-          aria-modal="true"
+          aria-modal={!childOpen}
           aria-label="Ficha del cliente"
           tabIndex={-1}
         >
-          {/* Migra a `surfaceDark` por coherencia con el resto de superficies
-            oscuras; la miga de pan queda en 12:1 en vez de 4.7:1. */}
-                  <ModalHeader
+          <ModalHeader
             id="client-detail-title"
-            badge={<ClientIcon className="h-6 w-6" aria-hidden="true" />}
-            tone="gold"
-            eyebrow="Clientes / Ficha del cliente"
-            title={client?.nombre ?? 'Cargando cliente...'}
-            description={
-              client ? (
-                <span className="break-words">
-                  {client.tipo === 'empresa' ? 'Empresa' : 'Persona natural'} ·{' '}
-                  {client.rut ?? 'Sin identificación'}
-                </span>
-              ) : undefined
-            }
-            onClose={onClose}
+            title="Detalle de cliente"
+            onClose={close}
+            closeDisabled={deleteMutation.isPending}
             closeLabel="Cerrar ficha"
           />
 
@@ -209,8 +157,13 @@ export const ClientDetailModal = ({
 
           {client && (
             <>
+              <div className="client-profile-identity">
+                <span><ClientIcon aria-hidden="true" /></span>
+                <div><p>{client.tipo === 'empresa' ? 'Empresa' : 'Persona natural'}</p><h3>{client.nombre}</h3></div>
+              </div>
               <div
-                className="flex shrink-0 overflow-x-auto border-b border-brand-line px-2 sm:px-6"
+                className="reference-dialog-tabs"
+                style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
                 role="tablist"
                 aria-label="Información del cliente"
               >
@@ -253,10 +206,10 @@ export const ClientDetailModal = ({
                 id={`${tabId}-${activeTab}-panel`}
                 aria-labelledby={`${tabId}-${activeTab}-tab`}
                 tabIndex={0}
-                className="min-h-0 overflow-y-auto overscroll-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-primary sm:h-[360px]"
+                className="reference-dialog-body min-h-0 overflow-y-auto overscroll-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-primary"
               >
                 {activeTab === 'data' && (
-                  <div className="grid gap-x-8 px-5 py-3 sm:grid-cols-2 sm:px-6">
+                  <div className="client-profile-facts grid gap-3 px-5 py-3 sm:grid-cols-2 sm:px-6">
                     <dl>
                       <ClientFact
                         icon={Phone}
@@ -496,7 +449,8 @@ export const ClientDetailModal = ({
           )}
 
           {client && (
-            <footer className="shrink-0 border-t border-brand-line bg-brand-line/40 px-5 py-3 sm:px-6">
+            <footer className="reference-dialog-footer shrink-0 border-t border-brand-line bg-white px-5 py-3 sm:px-6">
+              <button type="button" className="secondary-button" onClick={close} disabled={deleteMutation.isPending}>Cerrar</button>
             {canEdit && (
               <button
                 type="button"
@@ -587,7 +541,8 @@ export const ClientDetailModal = ({
           onSaved={() => setTab('vehicles')}
         />
       )}
-    </>
+    </>,
+    document.body,
   );
 };
 

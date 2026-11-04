@@ -40,9 +40,11 @@ const useWorksheetMutation = <TVariables>(
       queryClient.setQueryData(laborKeys.worksheet(variables.id), worksheet);
       void queryClient.invalidateQueries({ queryKey: laborKeys.mine() });
       void queryClient.invalidateQueries({ queryKey: laborKeys.worksheets() });
+      void queryClient.invalidateQueries({ queryKey: ['work-order-labor', 'daily'] });
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({ queryKey: ['catalog'] });
+      void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -163,6 +165,9 @@ export const useSubmitWorksheetProgressMutation = () => {
       queryClient.setQueryData(laborKeys.worksheet(variables.id), worksheet);
       void queryClient.invalidateQueries({ queryKey: laborKeys.worksheets() });
       void queryClient.invalidateQueries({ queryKey: laborKeys.mine() });
+      void queryClient.invalidateQueries({ queryKey: ['work-order-labor', 'daily'] });
+      void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -255,6 +260,9 @@ export const useReviewPriceSuggestionMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['catalog'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      void queryClient.invalidateQueries({ queryKey: ['quotation-payments'] });
+      void queryClient.invalidateQueries({ queryKey: ['finance'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };

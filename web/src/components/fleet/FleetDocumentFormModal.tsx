@@ -4,6 +4,7 @@ import {
 import { AlertCircle, FileText, LoaderCircle, Paperclip, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   fleetDocumentFileUrl,
@@ -73,10 +74,12 @@ export const FleetDocumentFormModal = ({
   const [file, setFile] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const isEditing = Boolean(document);
   const createMutation = useCreateFleetDocumentMutation(vehicleId);
   const updateMutation = useUpdateFleetDocumentMutation(vehicleId, document?.id ?? 0);
   const activeMutation = isEditing ? updateMutation : createMutation;
+  const close = (): void => { if (!activeMutation.isPending) onClose(); };
 
   const setValue = <K extends keyof FleetDocumentFormState>(
     key: K,
@@ -99,6 +102,7 @@ export const FleetDocumentFormModal = ({
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (activeMutation.isPending) return;
     setFieldErrors({});
     createMutation.reset();
     updateMutation.reset();
@@ -127,24 +131,26 @@ export const FleetDocumentFormModal = ({
 
   const setPanelNode = useModalOverlay({
     isOpen: true,
-    onClose,
+    onClose: close,
     isPending: activeMutation.isPending,
+    initialFocusRef: nameInputRef,
   });
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
+  return createPortal(
+    <div className="reference-modal-overlay fixed inset-0 z-[70] flex items-start justify-center px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
         className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
         aria-label="Cerrar formulario de documento"
-        onClick={onClose}
+        onClick={close}
       />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="workspace-form-dialog workspace-dialog relative max-h-full w-full max-w-[680px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="workspace-form-dialog workspace-dialog reference-dialog reference-form-dialog relative max-h-full w-full max-w-[680px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog"
+        tabIndex={-1}
         ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="fleet-document-form-title"
@@ -153,11 +159,13 @@ export const FleetDocumentFormModal = ({
           id="fleet-document-form-title"
           title={isEditing ? 'Editar documento' : 'Agregar documento'}
           description="Nombre libre, referencia y fechas. El archivo es opcional."
-          onClose={onClose}
+          onClose={close}
+          closeDisabled={activeMutation.isPending}
         />
 
-        <form className="workspace-form" noValidate onSubmit={handleSubmit}>
-          <div className="workspace-form-body space-y-5 p-5 pt-0 sm:p-6 sm:pt-0">
+        <form className="workspace-form reference-form" noValidate onSubmit={handleSubmit}>
+          <div className="workspace-form-body reference-form-body">
+            <fieldset disabled={activeMutation.isPending} className="min-w-0 space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-medium text-brand-ink sm:col-span-2">
               Nombre del documento
@@ -168,7 +176,7 @@ export const FleetDocumentFormModal = ({
                 onChange={(event) => setValue('nombre', event.target.value)}
                 aria-invalid={Boolean(fieldErrors.nombre)}
                 placeholder="Ej: Permiso de circulación"
-                autoFocus
+                ref={nameInputRef}
               />
               <datalist id="fleet-document-suggestions">
                 {SUGGESTIONS.map((suggestion) => (
@@ -325,12 +333,13 @@ export const FleetDocumentFormModal = ({
             </div>
           )}
 
+          </fieldset>
           </div>
-          <footer className="workspace-form-footer dialog-buttons border-t border-brand-line pt-5">
+          <footer className="workspace-form-footer reference-dialog-footer dialog-buttons border-t border-brand-line pt-5">
             <button
               type="button"
               className="secondary-button"
-              onClick={onClose}
+              onClick={close}
               disabled={activeMutation.isPending}
             >
               Cancelar
@@ -348,7 +357,8 @@ export const FleetDocumentFormModal = ({
           </footer>
         </form>
       </motion.section>
-    </div>
+    </div>,
+    window.document.body,
   );
 };
 

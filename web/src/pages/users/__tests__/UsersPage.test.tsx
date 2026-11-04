@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -69,11 +69,12 @@ const renderPage = () => {
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
 
-  return render(
+  const result = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter><UsersPage /></MemoryRouter>
     </QueryClientProvider>,
   );
+  return { ...result, queryClient };
 };
 
 describe('UsersPage', () => {
@@ -99,6 +100,9 @@ describe('UsersPage', () => {
       }
       if (url === '/roles/2/permissions') {
         return Promise.resolve({ data: { permissions: permissions.slice(0, 2) } } as AxiosResponse);
+      }
+      if (url === '/roles/1/permissions') {
+        return Promise.resolve({ data: { permissions } } as AxiosResponse);
       }
       return Promise.reject(new Error(`Ruta no simulada: ${url}`));
     });
@@ -173,5 +177,129 @@ describe('UsersPage', () => {
     expect(await screen.findByRole('checkbox', { name: 'Lectura' })).toBeDisabled();
     expect(screen.getByText('Módulos y Acciones (4 de 4 activos)')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Guardar permisos' })).not.toBeInTheDocument();
+  });
+
+  it('combina filtros de estado, rol y búsqueda y permite limpiarlos', async () => {
+    renderPage();
+    await screen.findByText('Víctor Ventas');
+    fireEvent.click(screen.getByRole('button', { name: 'Inactivos' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por rol' }), { target: { value: '4' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar usuarios' }), { target: { value: 'victor' } });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/users', { params: {
+      page: 1, pageSize: 20, search: 'victor', roleId: 4, activo: false,
+    } }));
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/users', { params: {
+      page: 1, pageSize: 20, search: undefined, roleId: undefined, activo: undefined,
+    } }));
+  });
+
+  it('abre el detalle sin mutaciones y protege las acciones sobre la cuenta propia', async () => {
+    renderPage();
+    await screen.findByText('Víctor Ventas');
+    expect(screen.getByRole('button', { name: 'Desactivar Ana Administradora' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Eliminar Ana Administradora' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver Víctor Ventas' }));
+    const dialog = screen.getByRole('dialog', { name: 'Víctor Ventas' });
+    expect(within(dialog).getByText('@victor')).toBeInTheDocument();
+    expect(within(dialog).getByText('Inactivo')).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Editar usuario' }));
+    expect(screen.getByRole('dialog', { name: 'Editar a Víctor Ventas' })).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
+  it('conserva una edición fallida y pide confirmación antes de descartarla', async () => {
+    vi.mocked(api.patch).mockRejectedValue(new Error('Sin conexión'));
+    renderPage();
+    await screen.findByText('Víctor Ventas');
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Víctor Ventas' }));
+    fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Víctor Actualizado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nombre completo')).toHaveValue('Víctor Actualizado');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.getByRole('alertdialog', { name: 'Descartar edición' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByLabelText('Nombre completo')).toHaveValue('Víctor Actualizado');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar cambios' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('bloquea cierre y envíos duplicados mientras crea una cuenta', async () => {
+    let resolveCreate!: (response: AxiosResponse) => void;
+    vi.mocked(api.post).mockReturnValue(new Promise((resolve) => { resolveCreate = resolve; }));
+    renderPage();
+    await screen.findByText('Víctor Ventas');
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo usuario' }));
+    fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Nueva Cuenta' } });
+    fireEvent.change(screen.getByLabelText('Nombre de usuario'), { target: { value: 'nueva' } });
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: 'nueva@unithor.local' } });
+    fireEvent.change(screen.getByLabelText('Contraseña temporal'), { target: { value: 'Temporal2026!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear usuario' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(screen.getByLabelText('Nombre completo')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.submit(screen.getByRole('button', { name: 'Crear usuario' }).closest('form')!);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    await act(async () => resolveCreate({ data: { user: sellerUser } } as AxiosResponse));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('conserva permisos sin guardar al cambiar de pestaña o actualizar la consulta y avisa al cambiar de rol', async () => {
+    const { queryClient } = renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Permisos por rol' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Vendedor' }));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Creación' })).toBeChecked());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Edición' }));
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['roles', 4, 'permissions'] }); });
+    expect(screen.getByRole('checkbox', { name: 'Edición' })).toBeChecked();
+    fireEvent.click(screen.getByRole('tab', { name: 'Cuentas' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Permisos por rol' }));
+    expect(screen.getByRole('checkbox', { name: 'Edición' })).toBeChecked();
+    fireEvent.click(screen.getByRole('tab', { name: 'Desarrollador' }));
+    expect(screen.getByRole('alertdialog', { name: 'Cambiar de rol sin guardar' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByRole('checkbox', { name: 'Edición' })).toBeChecked();
+    fireEvent.click(screen.getByRole('tab', { name: 'Desarrollador' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar cambios' }));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Edición' })).toBeDisabled());
+    expect(api.put).not.toHaveBeenCalled();
+  });
+
+  it('no habilita acciones administrativas ni edición de permisos para una cuenta de solo lectura', async () => {
+    useAuthStore.setState({ user: { id: 5, nombre: 'Jefe', email: 'jefe@unithor.local', role: 'jefe', permissions: [{ modulo: 'admin', accion: 'read' }] } });
+    renderPage();
+    await screen.findByText('Víctor Ventas');
+    expect(screen.queryByRole('button', { name: 'Nuevo usuario' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Editar Víctor Ventas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Eliminar Víctor Ventas' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Permisos por rol' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Vendedor' }));
+    expect(await screen.findByRole('checkbox', { name: 'Lectura' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Guardar permisos' })).not.toBeInTheDocument();
+  });
+
+  it('bloquea el cambio de rol durante el guardado y conserva la selección si falla', async () => {
+    let rejectSave!: (reason: Error) => void;
+    vi.mocked(api.put).mockImplementation(() => new Promise((_resolve, reject) => { rejectSave = reject; }));
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Permisos por rol' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Vendedor' }));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Creación' })).toBeChecked());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Edición' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar permisos' }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('tab', { name: 'Desarrollador' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Edición' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Descartar' })).toBeDisabled();
+    await act(async () => rejectSave(new Error('Sin conexión')));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Edición' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Guardar permisos' })).toBeEnabled();
+    expect(screen.getByRole('tab', { name: 'Vendedor' })).toHaveAttribute('aria-selected', 'true');
   });
 });

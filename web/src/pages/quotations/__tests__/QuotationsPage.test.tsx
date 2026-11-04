@@ -721,4 +721,41 @@ describe('QuotationsPage', () => {
       expect(anchorClick).toHaveBeenCalled();
     });
   });
+  it('aplica un rango válido y bloquea fechas invertidas sin consultar ese rango', async () => {
+    renderWithProviders(<QuotationsPage />);
+    await screen.findByText('COT-2026-0031');
+    fireEvent.click(screen.getByRole('button', { name: 'Fecha de emisión' }));
+    fireEvent.change(screen.getByLabelText('Fecha desde'), { target: { value: '2026-11-10' } });
+    fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '2026-11-02' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('La fecha final debe ser igual o posterior');
+    expect(api.get).not.toHaveBeenCalledWith('/quotations', { params: expect.objectContaining({ fechaDesde: '2026-11-10' }) });
+    fireEvent.change(screen.getByLabelText('Fecha desde'), { target: { value: '2026-11-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/quotations', { params: expect.objectContaining({ fechaDesde: '2026-11-01', fechaHasta: '2026-11-02', page: 1 }) }));
+    expect(screen.queryByLabelText('Fecha desde')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar filtro de fechas' }));
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/quotations', { params: expect.objectContaining({ fechaDesde: undefined, fechaHasta: undefined }) }));
+  });
+
+  it('descarta fechas sin aplicar al cerrar el desplegable y devuelve el foco', async () => {
+    renderWithProviders(<QuotationsPage />);
+    await screen.findByText('COT-2026-0031');
+    const trigger = screen.getByRole('button', { name: 'Fecha de emisión' });
+    fireEvent.click(trigger);
+    fireEvent.change(screen.getByLabelText('Fecha desde'), { target: { value: '2026-10-01' } });
+    fireEvent.keyDown(screen.getByLabelText('Fecha desde'), { key: 'Escape' });
+    expect(trigger).toHaveFocus();
+    fireEvent.click(trigger);
+    expect(screen.getByLabelText('Fecha desde')).toHaveValue('');
+    expect(api.get).not.toHaveBeenCalledWith('/quotations', { params: expect.objectContaining({ fechaDesde: '2026-10-01' }) });
+  });
+
+  it('abre el código en un modal y conserva la ruta del listado', async () => {
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('link', { name: 'COT-2026-0031' }));
+    expect(await screen.findByRole('dialog', { name: 'COT-2026-0031' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Cotizaciones' })).toBeInTheDocument();
+  });
+
 });

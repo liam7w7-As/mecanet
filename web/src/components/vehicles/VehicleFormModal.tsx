@@ -1,7 +1,8 @@
 import { createVehicleSchema, normalizeChilePatente } from '@unithor/shared';
-import { AlertCircle, Check, LoaderCircle, Search, UserRound } from 'lucide-react';
+import { AlertCircle, Car, Check, LoaderCircle, Search, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -76,7 +77,8 @@ export const VehicleFormModal = ({
   const updateMutation = useUpdateVehicleMutation();
   const isEditing = Boolean(vehicle);
   const activeMutation = isEditing ? updateMutation : createMutation;
-
+  const plateRef = useRef<HTMLInputElement>(null);
+  const close = (): void => { if (!activeMutation.isPending) onClose(); };
 
   const setValue = <K extends keyof VehicleFormState>(key: K, value: VehicleFormState[K]): void => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -89,6 +91,7 @@ export const VehicleFormModal = ({
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (activeMutation.isPending) return;
     setFieldErrors({});
     createMutation.reset();
     updateMutation.reset();
@@ -137,32 +140,39 @@ export const VehicleFormModal = ({
 
   const mutationError = activeMutation.error;
 
-  const setPanelNode = useModalOverlay({ isOpen: true, onClose, isPending: activeMutation.isPending });
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button type="button" className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity" aria-label="Cerrar formulario de vehículo" onClick={onClose} />
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose: close, isPending: activeMutation.isPending, initialFocusRef: plateRef });
+  return createPortal(
+    <div className="reference-modal-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
+      <button type="button" className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity" aria-label="Cerrar formulario de vehículo" onClick={close} disabled={activeMutation.isPending} tabIndex={-1} />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="workspace-form-dialog workspace-dialog relative max-h-full w-full max-w-[720px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="workspace-form-dialog workspace-dialog reference-dialog reference-form-dialog vehicle-form-dialog relative max-h-full w-full max-w-[720px] border border-brand-line bg-white shadow-2xl"
         role="dialog" ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="vehicle-form-title"
+        tabIndex={-1}
       >
         <ModalHeader
-  id="vehicle-form-title"
-  title={isEditing ? 'Editar vehículo' : 'Nuevo vehículo'}
-  description={"Identificación, mecánica y propietario"}
-  onClose={onClose}
-/>
+          id="vehicle-form-title"
+          title={isEditing ? 'Editar vehículo' : 'Nuevo vehículo'}
+          description="Identificación, mecánica y propietario"
+          variant="brand"
+          badge={<Car aria-hidden="true" />}
+          onClose={close}
+          closeDisabled={activeMutation.isPending}
+        />
 
-        <form className="workspace-form" noValidate onSubmit={handleSubmit}>
-          <div className="workspace-form-body space-y-6 p-5 sm:p-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <form className="workspace-form reference-form" noValidate onSubmit={handleSubmit} aria-busy={activeMutation.isPending}>
+          <div className="workspace-form-body reference-form-body">
+          <fieldset className="reference-form-sections" disabled={activeMutation.isPending}>
+          <legend className="sr-only">Datos del vehículo</legend>
+          <div className="reference-form-group grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-medium text-brand-ink">
               Patente
               <input
+                ref={plateRef}
                 className={`${inputClassName} font-mono font-bold uppercase`}
                 value={form.patente}
                 onChange={(event) => setValue('patente', normalizePlateInput(event.target.value))}
@@ -193,7 +203,7 @@ export const VehicleFormModal = ({
               <input className={inputClassName} type="number" inputMode="numeric" value={form.kilometraje} onChange={(event) => setValue('kilometraje', event.target.value)} aria-invalid={Boolean(fieldErrors.kilometraje)} min="0" />
               {fieldErrors.kilometraje && <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.kilometraje}</span>}
             </label>
-            <label className="text-sm font-medium text-brand-ink sm:col-span-2">
+            <label className="text-sm font-medium text-brand-ink">
               VIN / Chasis
               <input className={`${inputClassName} uppercase`} value={form.vinChasis} onChange={(event) => setValue('vinChasis', event.target.value.toUpperCase())} aria-invalid={Boolean(fieldErrors.vinChasis)} />
             </label>
@@ -223,9 +233,9 @@ export const VehicleFormModal = ({
             </label>
           </div>
 
-          <fieldset className="border-t border-brand-line pt-5">
+          <fieldset className="reference-form-group vehicle-owner-selector">
+            <legend className="text-sm font-semibold text-brand-primaryInk">Propietario</legend>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <legend className="text-sm font-semibold text-brand-primaryInk">Propietario</legend>
               <label className="flex cursor-pointer items-center gap-2 text-sm text-brand-muted">
                 <input
                   type="checkbox"
@@ -255,6 +265,7 @@ export const VehicleFormModal = ({
                       setSelectedClient(null);
                     }}
                     aria-invalid={Boolean(fieldErrors.clientId)}
+                    aria-label="Buscar propietario"
                     placeholder="Buscar cliente por nombre o RUT"
                   />
                 </div>
@@ -307,9 +318,10 @@ export const VehicleFormModal = ({
             </div>
           )}
 
+          </fieldset>
           </div>
-          <footer className="workspace-form-footer dialog-buttons border-t border-brand-line pt-5">
-            <button type="button" className="secondary-button" onClick={onClose} disabled={activeMutation.isPending}>Cancelar</button>
+          <footer className="workspace-form-footer reference-dialog-footer dialog-buttons">
+            <button type="button" className="secondary-button" onClick={close} disabled={activeMutation.isPending}>Cancelar</button>
             <button type="submit" className="primary-button" disabled={activeMutation.isPending}>
               {activeMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
               {activeMutation.isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear vehículo'}
@@ -317,7 +329,8 @@ export const VehicleFormModal = ({
           </footer>
         </form>
       </motion.section>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

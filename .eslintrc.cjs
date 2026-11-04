@@ -53,6 +53,7 @@ module.exports = {
   ],
   ignorePatterns: [
     'dist',
+    'web/dev-dist',
     'node_modules',
     '*.min.js',
     'coverage',

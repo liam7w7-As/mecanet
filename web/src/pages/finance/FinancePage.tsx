@@ -4,23 +4,24 @@ import {
   ArrowUpCircle,
   Banknote,
   CalendarDays,
-  Check,
+  ChevronDown,
   Clock3,
-  Landmark,
   LoaderCircle,
   LockKeyhole,
   Plus,
   ReceiptText,
-  Paperclip,
+  BarChart3,
   Scale,
   WalletCards,
-  X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import CurrencyInput from '../../components/common/CurrencyInput';
+import FormDialog from '../../components/common/FormDialog';
 import FinanceAnalyticsDashboard from '../../components/finance/FinanceAnalyticsDashboard';
+import FinancePayments from '../../components/finance/FinancePayments';
+import PaymentReceiptLink from '../../components/finance/PaymentReceiptLink';
 import {
   useCashMovements,
   useCloseCashDayMutation,
@@ -32,6 +33,8 @@ import {
 } from '../../hooks/useFinance';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
+import { hasUserPermission } from '../../lib/permissions';
+import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
 import type { CashMovement } from '../../hooks/useFinance';
@@ -69,18 +72,6 @@ const defaultMovementForm = (fecha: string) => ({
   fecha: `${fecha}T12:00`,
 });
 
-const statusStyles = {
-  confirmado: 'bg-brand-mintPale text-brand-mintInk',
-  por_verificar: 'bg-brand-goldPale text-brand-ink',
-  rechazado: 'bg-brand-coralPale text-brand-coralInk',
-};
-
-const statusLabels = {
-  confirmado: 'Confirmado',
-  por_verificar: 'Por verificar',
-  rechazado: 'Rechazado',
-};
-
 interface MetricProps {
   label: string;
   value: string;
@@ -109,24 +100,16 @@ interface ReviewState {
 
 const todayIso = (): string => new Date().toISOString().slice(0, 10);
 
-const PaymentReceiptLink = ({ payment }: { payment: Payment }) => (
-  payment.comprobantePago ? (
-    <a
-      href={`/api/payments/${payment.id}/receipt`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-brand-line px-3 py-1.5 text-xs font-semibold text-brand-primaryInk hover:border-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
-      title="Ver comprobante en una nueva pestaña"
-    >
-      <Paperclip className="h-4 w-4 shrink-0" aria-hidden="true" />
-      Ver comprobante
-    </a>
-  ) : (
-    <span className="text-xs text-brand-muted">Sin comprobante adjunto</span>
-  )
-);
-
 export const FinancePage = () => {
+  const user = useAuthStore((state) => state.user);
+  const canCreate = Boolean(user && hasUserPermission(user, 'finanzas', 'create'));
+  const canReview = Boolean(user && hasUserPermission(user, 'finanzas', 'update'));
+  const canVoid = Boolean(user && hasUserPermission(user, 'finanzas', 'delete'));
+  const [financeParams, setFinanceParams] = useSearchParams();
+  const [metricsExpanded, setMetricsExpanded] = useState(false);
+  const requestedTab = financeParams.get('tab');
+  const activeTab =
+    requestedTab === 'cash' || requestedTab === 'analytics' ? requestedTab : 'payments';
   const summaryQuery = useFinanceSummary();
   const verifyMutation = useVerifyPaymentMutation();
   const closeDayMutation = useCloseCashDayMutation();
@@ -148,6 +131,7 @@ export const FinancePage = () => {
   const daily = dailyQuery.data;
 
   const openReview = (payment: Payment, decision: ReviewState['decision']): void => {
+    verifyMutation.reset();
     setComment('');
     setReview({ payment, decision });
   };
@@ -174,12 +158,14 @@ export const FinancePage = () => {
   };
 
   const openClosure = (): void => {
+    closeDayMutation.reset();
     setDeclaredCash(String(daily?.totals.expectedCash ?? 0));
     setClosureNotes('');
     setShowClosure(true);
   };
 
   const openMovement = (): void => {
+    createMovementMutation.reset();
     setMovementForm(defaultMovementForm(selectedDate));
     setShowMovement(true);
   };
@@ -240,70 +226,40 @@ export const FinancePage = () => {
   };
 
   return (
-    <div className="workspace-page workspace-finance min-w-0 space-y-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-brand-muted">Control de caja y cobranza</p>
-          <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">
-            Finanzas / Contabilidad
-          </h1>
-          <p className="mt-1 text-sm text-brand-muted">
-            Confirma transferencias, revisa recaudación y controla saldos pendientes.
-          </p>
-        </div>
+    <div className="workspace-page workspace-finance insights-page min-w-0 space-y-5">
+      <header className="insights-page-heading">
+        <h1>Finanzas y Contabilidad</h1>
+        <p>Cobranza, caja y análisis ejecutivo</p>
       </header>
-      <FinanceAnalyticsDashboard />
-
       {(summaryQuery.isError || dailyQuery.isError || movementsQuery.isError) && (
-        <div
-          className="flex items-center gap-2 border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk"
-          role="alert"
-        >
-          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <div className="finance-alert" role="alert">
+          <AlertCircle aria-hidden="true" />
           {getApiErrorMessage(
             summaryQuery.error ?? dailyQuery.error ?? movementsQuery.error,
             'No fue posible cargar el panel financiero.',
           )}
         </div>
       )}
-
       {summaryQuery.isPending && (
-        <div
-          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-          aria-label="Cargando panel financiero"
-        >
-          {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="h-36 animate-pulse border border-brand-line bg-white" />
+        <div className="finance-kpi-grid" aria-label="Cargando panel financiero">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div key={index} className="finance-kpi-skeleton animate-pulse" />
           ))}
         </div>
       )}
-
       {summary && (
-        <>
+        <div className="finance-overview">
           <section
-            className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+            id="finance-indicators"
+            className={'finance-kpi-grid' + (metricsExpanded ? ' is-expanded' : '')}
             aria-label="Indicadores financieros"
           >
-            <Metric
-              label="Recaudación de hoy"
-              value={formatClp(summary.metrics.revenueToday)}
-              detail="Pagos confirmados durante la jornada"
-              icon={Banknote}
-              tone="bg-brand-mintPale text-brand-mintInk"
-            />
             <Metric
               label="Recaudación del mes"
               value={formatClp(summary.metrics.revenueMonth)}
               detail="Pagos confirmados desde el día 1"
               icon={WalletCards}
               tone="bg-brand-goldPale text-brand-goldInk"
-            />
-            <Metric
-              label="Egresos de hoy"
-              value={formatClp(summary.metrics.expensesToday)}
-              detail={`${formatClp(summary.metrics.expensesMonth)} acumulados en el mes`}
-              icon={ArrowDownCircle}
-              tone="bg-brand-coralPale text-brand-coralInk"
             />
             <Metric
               label="Neto de caja hoy"
@@ -319,15 +275,177 @@ export const FinancePage = () => {
               icon={ReceiptText}
               tone="bg-brand-pale text-brand-primaryInk"
             />
-            <Metric
-              label="Transferencias pendientes"
-              value={String(summary.metrics.pendingTransferCount)}
-              detail={`${formatClp(summary.metrics.pendingTransferAmount)} por verificar`}
-              icon={Clock3}
-              tone="bg-brand-goldPale text-brand-goldInk"
-            />
+            {metricsExpanded && (
+              <>
+                <Metric
+                  label="Recaudación de hoy"
+                  value={formatClp(summary.metrics.revenueToday)}
+                  detail="Pagos confirmados durante la jornada"
+                  icon={Banknote}
+                  tone="bg-brand-mintPale text-brand-mintInk"
+                />
+                <Metric
+                  label="Egresos de hoy"
+                  value={formatClp(summary.metrics.expensesToday)}
+                  detail={`${formatClp(summary.metrics.expensesMonth)} acumulados en el mes`}
+                  icon={ArrowDownCircle}
+                  tone="bg-brand-coralPale text-brand-coralInk"
+                />
+                <Metric
+                  label="Transferencias pendientes"
+                  value={String(summary.metrics.pendingTransferCount)}
+                  detail={`${formatClp(summary.metrics.pendingTransferAmount)} por verificar`}
+                  icon={Clock3}
+                  tone="bg-brand-goldPale text-brand-goldInk"
+                />
+              </>
+            )}
           </section>
-
+          <div className="finance-overview-actions">
+            {summary.metrics.pendingTransferCount > 0 && (
+              <button
+                type="button"
+                className="finance-pending-shortcut"
+                onClick={() =>
+                  setFinanceParams(
+                    (current) => {
+                      const next = new URLSearchParams(current);
+                      next.set('tab', 'payments');
+                      next.set('paymentStatus', 'por_verificar');
+                      [
+                        'paymentPage',
+                        'paymentSearch',
+                        'paymentMethod',
+                        'paymentFrom',
+                        'paymentTo',
+                      ].forEach((key) => next.delete(key));
+                      return next;
+                    },
+                    { replace: true },
+                  )
+                }
+              >
+                {summary.metrics.pendingTransferCount} transferencia(s) por verificar
+              </button>
+            )}
+            <button
+              type="button"
+              className="finance-metrics-toggle"
+              aria-expanded={metricsExpanded}
+              aria-controls="finance-indicators"
+              onClick={() => setMetricsExpanded((current) => !current)}
+            >
+              {metricsExpanded ? 'Menos indicadores' : 'Más indicadores'}
+              <ChevronDown aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="finance-section-toolbar">
+        <div className="insights-tabs" role="tablist" aria-label="Sección de finanzas">
+          {(
+            [
+              { id: 'payments', label: 'Abonos', icon: WalletCards },
+              { id: 'cash', label: 'Caja', icon: Banknote },
+              { id: 'analytics', label: 'Análisis', icon: BarChart3 },
+            ] as const
+          ).map(({ id, label, icon: Icon }) => (
+            <button
+              type="button"
+              id={'finance-tab-' + id}
+              key={id}
+              role="tab"
+              aria-selected={activeTab === id}
+              aria-controls={'finance-panel-' + id}
+              onClick={() =>
+                setFinanceParams(
+                  (current) => {
+                    const next = new URLSearchParams(current);
+                    next.set('tab', id);
+                    return next;
+                  },
+                  { replace: true },
+                )
+              }
+            >
+              <Icon aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </div>
+        <Link className="insights-secondary" to="/reports?section=finance">
+          <ReceiptText aria-hidden="true" />
+          Reportes
+        </Link>
+        {canCreate && (
+          <button
+            type="button"
+            className="insights-primary"
+            onClick={openMovement}
+            disabled={!daily || daily.isClosed}
+          >
+            <Plus aria-hidden="true" />
+            Movimiento de caja
+          </button>
+        )}
+      </div>
+      {activeTab === 'payments' && (
+        <div
+          id="finance-panel-payments"
+          role="tabpanel"
+          aria-labelledby="finance-tab-payments"
+          className="finance-payments-panel"
+        >
+          <FinancePayments canReview={canReview} onReview={openReview} />
+          {summary && (
+            <aside className="finance-receivable-panel">
+              <div className="border-b border-brand-line px-5 py-4">
+                <h2 className="font-bold text-brand-primaryInk">Cobranza pendiente</h2>
+                <p className="mt-1 text-sm text-brand-muted">
+                  Cotizaciones priorizadas por actividad reciente.
+                </p>
+              </div>
+              <div className="divide-y divide-brand-line">
+                {summary.pendingQuotations.length === 0 ? (
+                  <p className="px-5 py-10 text-center text-sm text-brand-muted">
+                    No hay saldos pendientes.
+                  </p>
+                ) : (
+                  summary.pendingQuotations.map((quotation) => (
+                    <Link
+                      key={quotation.id}
+                      to={`/quotations/${quotation.id}`}
+                      className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-brand-pale"
+                    >
+                      <span className="min-w-0">
+                        <span className="block font-mono text-sm font-bold text-brand-primaryInk">
+                          {quotation.codigo}
+                        </span>
+                        <span className="block truncate text-xs text-brand-muted">
+                          {quotation.client?.nombre ?? 'Sin cliente'}
+                        </span>
+                      </span>
+                      <span className="text-right">
+                        <span className="block text-sm font-bold text-brand-ink">
+                          {formatClp(quotation.saldoPendiente)}
+                        </span>
+                        <span className="block text-xs text-brand-muted">pendiente</span>
+                      </span>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </aside>
+          )}
+        </div>
+      )}
+      {activeTab === 'cash' && (
+        <div
+          id="finance-panel-cash"
+          role="tabpanel"
+          aria-labelledby="finance-tab-cash"
+          className="finance-cash-body"
+        >
           <section
             className="min-w-0 overflow-hidden border border-brand-line bg-white shadow-sm"
             aria-labelledby="cash-count-title"
@@ -354,15 +472,17 @@ export const FinancePage = () => {
                     aria-label="Fecha del arqueo"
                   />
                 </label>
-                <button
-                  type="button"
-                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
-                  onClick={openMovement}
-                  disabled={daily?.isClosed}
-                >
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  Nuevo movimiento
-                </button>
+                {canCreate && (
+                  <button
+                    type="button"
+                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
+                    onClick={openMovement}
+                    disabled={!canCreate || daily?.isClosed}
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Nuevo movimiento
+                  </button>
+                )}
               </div>
             </div>
             {dailyQuery.isPending ? (
@@ -384,7 +504,9 @@ export const FinancePage = () => {
                         <p className="text-xs font-semibold uppercase text-brand-muted">
                           {methodLabels[method] ?? method}
                         </p>
-                        <p className="mt-2 break-words text-base font-bold text-brand-ink sm:text-lg">{formatClp(amount)}</p>
+                        <p className="mt-2 break-words text-base font-bold text-brand-ink sm:text-lg">
+                          {formatClp(amount)}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -455,7 +577,7 @@ export const FinancePage = () => {
                           {formatDateTime(daily.closure.closedAt)}
                         </p>
                       </div>
-                    ) : (
+                    ) : canCreate ? (
                       <button
                         type="button"
                         className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -465,7 +587,7 @@ export const FinancePage = () => {
                         <LockKeyhole className="h-4 w-4" aria-hidden="true" />
                         Cerrar caja del día
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )
@@ -502,20 +624,39 @@ export const FinancePage = () => {
               </p>
             ) : (
               <div className="max-w-full overflow-x-auto overscroll-x-contain">
-                <table role="table" className="workspace-table w-full min-w-[900px] text-left text-sm">
-                  <thead role="rowgroup" className="bg-brand-line/40 text-xs uppercase text-brand-muted">
+                <table
+                  role="table"
+                  className="workspace-table w-full min-w-[900px] text-left text-sm"
+                >
+                  <thead
+                    role="rowgroup"
+                    className="bg-brand-line/40 text-xs uppercase text-brand-muted"
+                  >
                     <tr role="row">
-                      <th role="columnheader" className="px-4 py-3 font-semibold">Tipo</th>
-                      <th role="columnheader" className="px-4 py-3 font-semibold">Detalle</th>
-                      <th role="columnheader" className="px-4 py-3 font-semibold">Método</th>
-                      <th role="columnheader" className="px-4 py-3 font-semibold">Responsable</th>
-                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">Monto</th>
-                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">Acción</th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">
+                        Tipo
+                      </th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">
+                        Detalle
+                      </th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">
+                        Método
+                      </th>
+                      <th role="columnheader" className="px-4 py-3 font-semibold">
+                        Responsable
+                      </th>
+                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">
+                        Monto
+                      </th>
+                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">
+                        Acción
+                      </th>
                     </tr>
                   </thead>
                   <tbody role="rowgroup">
                     {movementsQuery.data.map((movement) => (
-                      <tr role="row"
+                      <tr
+                        role="row"
                         key={movement.id}
                         className={`border-t border-brand-line ${movement.voidedAt ? 'bg-brand-line/40 opacity-60' : ''}`}
                       >
@@ -550,23 +691,30 @@ export const FinancePage = () => {
                         <td role="cell" data-label="Método" className="px-4 py-3 text-brand-muted">
                           {methodLabels[movement.metodo]}
                         </td>
-                        <td role="cell" data-label="Responsable" className="px-4 py-3 text-brand-muted">
+                        <td
+                          role="cell"
+                          data-label="Responsable"
+                          className="px-4 py-3 text-brand-muted"
+                        >
                           {movement.creator?.nombre ?? 'Usuario eliminado'}
                           <span className="block text-xs text-brand-muted">
                             {formatDateTime(movement.fecha)}
                           </span>
                         </td>
-                        <td role="cell" data-label="Monto"
+                        <td
+                          role="cell"
+                          data-label="Monto"
                           className={`px-4 py-3 text-right font-bold ${movement.tipo === 'ingreso' ? 'text-brand-mintInk' : 'text-brand-coralInk'}`}
                         >
                           {movement.tipo === 'ingreso' ? '+' : '-'} {formatClp(movement.monto)}
                         </td>
                         <td role="cell" data-label="Acción" className="px-4 py-3 text-right">
-                          {!movement.voidedAt && !daily?.isClosed && (
+                          {canVoid && !movement.voidedAt && !daily?.isClosed && (
                             <button
                               type="button"
                               className="h-8 rounded border border-brand-coral/30 px-3 text-xs font-semibold text-brand-coralInk hover:bg-brand-coralPale"
                               onClick={() => {
+                                voidMovementMutation.reset();
                                 setVoidReason('');
                                 setVoidTarget(movement);
                               }}
@@ -582,216 +730,40 @@ export const FinancePage = () => {
               </div>
             )}
           </section>
-
-          <section
-            className="min-w-0 overflow-hidden border border-brand-line bg-white shadow-sm"
-            aria-labelledby="pending-transfers-title"
-          >
-            <div className="flex flex-col gap-2 border-b border-brand-line px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-              <div>
-                <h2 id="pending-transfers-title" className="font-bold text-brand-primaryInk">
-                  Transferencias por verificar
-                </h2>
-                <p className="mt-1 text-sm text-brand-muted">
-                  Estos montos reservan saldo, pero aún no cuentan como pagados.
-                </p>
-              </div>
-              <span className="rounded bg-brand-goldPale px-2 py-1 text-xs font-bold text-brand-ink">
-                {summary.metrics.pendingTransferCount} pendiente(s)
-              </span>
-            </div>
-            {summary.pendingTransfers.length === 0 ? (
-              <div className="flex min-h-36 flex-col items-center justify-center px-4 text-center">
-                <Check className="h-8 w-8 text-brand-mintInk" aria-hidden="true" />
-                <p className="mt-2 text-sm font-semibold text-brand-ink">
-                  No hay transferencias pendientes
-                </p>
-              </div>
-            ) : (
-              <div className="max-w-full overflow-x-auto overscroll-x-contain">
-                <table role="table" className="workspace-table w-full min-w-[980px] text-left text-sm">
-                  <thead role="rowgroup" className="bg-brand-line/40 text-xs uppercase text-brand-muted">
-                    <tr role="row">
-                      <th role="columnheader" className="px-4 py-3 font-semibold">Cotización</th>
-                      <th role="columnheader" className="px-4 py-3 font-semibold">Cliente</th>
-                      <th role="columnheader" className="px-4 py-3 font-semibold">Fecha</th>
-                      <th role="columnheader" className="px-4 py-3 font-semibold">Referencia</th>
-                      <th role="columnheader" className="px-4 py-3 font-semibold">Banco / N°</th>
-                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">Monto</th>
-                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">Decisión</th>
-                    </tr>
-                  </thead>
-                  <tbody role="rowgroup">
-                    {summary.pendingTransfers.map((payment) => (
-                      <tr role="row" key={payment.id} className="border-t border-brand-line">
-                        <td role="cell" data-label="Cotización" className="px-4 py-3">
-                          <Link
-                            to={`/quotations/${payment.quotationId}`}
-                            className="font-mono font-bold text-brand-primaryInk hover:underline"
-                          >
-                            {payment.quotation?.codigo ?? `COT #${payment.quotationId}`}
-                          </Link>
-                        </td>
-                        <td role="cell" data-label="Cliente" className="px-4 py-3 text-brand-ink">
-                          {payment.quotation?.client?.nombre ?? 'Sin cliente'}
-                        </td>
-                        <td role="cell" data-label="Fecha" className="whitespace-nowrap px-4 py-3 text-brand-muted">
-                          {formatDateTime(payment.fecha)}
-                        </td>
-                        <td role="cell" data-label="Referencia" className="max-w-56 px-4 py-3 text-brand-muted">
-                          {payment.referencia || 'Sin referencia'}
-                        </td>
-                        <td role="cell" data-label="Banco / N°" className="px-4 py-3 text-brand-muted">
-                          <span className="block font-semibold text-brand-ink">
-                            {payment.bancoOrigen ?? 'Sin banco'}
-                          </span>
-                          <span className="block text-xs text-brand-muted">
-                            {payment.numeroTransaccion ?? 'Sin N°'}
-                          </span>
-                        </td>
-                        <td role="cell" data-label="Monto" className="px-4 py-3 text-right font-bold text-brand-primaryInk">
-                          {formatClp(payment.monto)}
-                        </td>
-                        <td role="cell" data-label="Decisión" className="px-4 py-3">
-                          <div className="flex flex-wrap items-center justify-end gap-2">
-                            <PaymentReceiptLink payment={payment} />
-                            <button
-                              type="button"
-                              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-mintInk px-3 text-xs font-semibold text-white"
-                              onClick={() => openReview(payment, 'aprobar')}
-                            >
-                              <Check className="h-4 w-4" aria-hidden="true" />
-                              Aprobar
-                            </button>
-                            <button
-                              type="button"
-                              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-brand-coral/40 px-3 text-xs font-semibold text-brand-coralInk"
-                              onClick={() => openReview(payment, 'rechazar')}
-                            >
-                              <X className="h-4 w-4" aria-hidden="true" />
-                              Rechazar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className="grid min-w-0 gap-5 xl:grid-cols-[3fr_2fr]">
-            <div className="min-w-0 overflow-hidden border border-brand-line bg-white shadow-sm">
-              <div className="border-b border-brand-line px-5 py-4">
-                <h2 className="font-bold text-brand-primaryInk">Movimientos recientes</h2>
-                <p className="mt-1 text-sm text-brand-muted">
-                  Últimos pagos y verificaciones registradas.
-                </p>
-              </div>
-              <div className="divide-y divide-brand-line">
-                {summary.recentPayments.length === 0 ? (
-                  <p className="px-5 py-10 text-center text-sm text-brand-muted">
-                    No hay movimientos registrados.
-                  </p>
-                ) : (
-                  summary.recentPayments.map((payment) => {
-                    const status = payment.estado ?? 'confirmado';
-                    return (
-                      <div key={payment.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-pale text-brand-primaryInk">
-                          <Landmark className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <Link
-                            to={`/quotations/${payment.quotationId}`}
-                            className="font-mono text-sm font-bold text-brand-primaryInk hover:underline"
-                          >
-                            {payment.quotation?.codigo ?? `COT #${payment.quotationId}`}
-                          </Link>
-                          <span className="block truncate text-xs text-brand-muted">
-                            {methodLabels[payment.metodo ?? ''] ?? payment.metodo ?? 'Sin método'} ·{' '}
-                            {payment.creator?.nombre ?? 'Sin receptor'}
-                          </span>
-                        </span>
-                        <span
-                          className={`rounded px-2 py-1 text-xs font-semibold ${statusStyles[status]}`}
-                        >
-                          {statusLabels[status]}
-                        </span>
-                        {status === 'por_verificar' && <PaymentReceiptLink payment={payment} />}
-                        <span className="w-28 text-right text-sm font-bold text-brand-ink">
-                          {formatClp(payment.monto)}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            <aside className="min-w-0 overflow-hidden border border-brand-line bg-white shadow-sm">
-              <div className="border-b border-brand-line px-5 py-4">
-                <h2 className="font-bold text-brand-primaryInk">Cobranza pendiente</h2>
-                <p className="mt-1 text-sm text-brand-muted">
-                  Cotizaciones priorizadas por actividad reciente.
-                </p>
-              </div>
-              <div className="divide-y divide-brand-line">
-                {summary.pendingQuotations.length === 0 ? (
-                  <p className="px-5 py-10 text-center text-sm text-brand-muted">
-                    No hay saldos pendientes.
-                  </p>
-                ) : (
-                  summary.pendingQuotations.map((quotation) => (
-                    <Link
-                      key={quotation.id}
-                      to={`/quotations/${quotation.id}`}
-                      className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-brand-pale"
-                    >
-                      <span className="min-w-0">
-                        <span className="block font-mono text-sm font-bold text-brand-primaryInk">
-                          {quotation.codigo}
-                        </span>
-                        <span className="block truncate text-xs text-brand-muted">
-                          {quotation.client?.nombre ?? 'Sin cliente'}
-                        </span>
-                      </span>
-                      <span className="text-right">
-                        <span className="block text-sm font-bold text-brand-ink">
-                          {formatClp(quotation.saldoPendiente)}
-                        </span>
-                        <span className="block text-xs text-brand-muted">pendiente</span>
-                      </span>
-                    </Link>
-                  ))
-                )}
-              </div>
-            </aside>
-          </section>
-        </>
+        </div>
+      )}
+      {activeTab === 'analytics' && (
+        <div id="finance-panel-analytics" role="tabpanel" aria-labelledby="finance-tab-analytics">
+          <FinanceAnalyticsDashboard />
+        </div>
       )}
 
       {showMovement && daily && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-          <button
-            type="button"
-            className="absolute inset-0 bg-brand-scrim/55"
-            aria-label="Cerrar movimiento"
-            onClick={() => setShowMovement(false)}
-          />
-          <section
-            className="workspace-dialog relative w-full max-w-lg rounded-lg bg-white p-6 shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="cash-movement-title"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primaryInk text-white">
-              <Plus className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <h2 id="cash-movement-title" className="mt-4 text-xl font-bold text-brand-primaryInk">
-              Registrar movimiento de caja
-            </h2>
+        <FormDialog
+          id="cash-movement-title"
+          title="Registrar movimiento de caja"
+          code={selectedDate}
+          context="Ingreso o egreso manual"
+          submitLabel="Registrar movimiento"
+          dirty={JSON.stringify(movementForm) !== JSON.stringify(defaultMovementForm(selectedDate))}
+          pending={createMovementMutation.isPending}
+          onClose={() => setShowMovement(false)}
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitMovement();
+          }}
+          headerVariant="plain"
+          className="finance-form reference-form-dialog"
+          submitDisabled={
+            !canCreate ||
+            daily.isClosed ||
+            Number(movementForm.monto) <= 0 ||
+            movementForm.descripcion.trim().length < 2 ||
+            !movementForm.fecha
+          }
+        >
+          <div className="finance-form-fields">
+            {' '}
             <div className="mt-5 grid grid-cols-2 gap-2" aria-label="Tipo de movimiento">
               {(['ingreso', 'egreso'] as const).map((tipo) => (
                 <button
@@ -856,12 +828,12 @@ export const FinancePage = () => {
               </label>
               <label className="text-sm font-semibold text-brand-ink">
                 Monto
-                 <CurrencyInput
-                   value={movementForm.monto}
-                   onChange={(value) => setMovementForm((current) => ({ ...current, monto: value }))}
-                   className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
-                   aria-label="Monto"
-                 />
+                <CurrencyInput
+                  value={movementForm.monto}
+                  onChange={(value) => setMovementForm((current) => ({ ...current, monto: value }))}
+                  className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
+                  aria-label="Monto"
+                />
               </label>
               <label className="text-sm font-semibold text-brand-ink">
                 Fecha y hora
@@ -900,55 +872,34 @@ export const FinancePage = () => {
                 placeholder="N.º documento, proveedor o comprobante"
               />
             </label>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink"
-                onClick={() => setShowMovement(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white disabled:opacity-50"
-                onClick={submitMovement}
-                disabled={
-                  createMovementMutation.isPending ||
-                  Number(movementForm.monto) <= 0 ||
-                  movementForm.descripcion.trim().length < 2 ||
-                  !movementForm.fecha
-                }
-              >
-                {createMovementMutation.isPending && (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                )}
-                Registrar movimiento
-              </button>
-            </div>
-          </section>
-        </div>
+            {createMovementMutation.isError && (
+              <p className="finance-alert" role="alert">
+                {getApiErrorMessage(createMovementMutation.error)}
+              </p>
+            )}
+          </div>
+        </FormDialog>
       )}
-
       {voidTarget && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-          <button
-            type="button"
-            className="absolute inset-0 bg-brand-scrim/55"
-            aria-label="Cerrar anulación"
-            onClick={() => setVoidTarget(null)}
-          />
-          <section
-            className="workspace-dialog relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="void-movement-title"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-coralPale text-brand-coralInk">
-              <X className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <h2 id="void-movement-title" className="mt-4 text-xl font-bold text-brand-primaryInk">
-              Anular movimiento
-            </h2>
+        <FormDialog
+          id="void-movement-title"
+          title="Anular movimiento"
+          code={formatClp(voidTarget.monto)}
+          context={voidTarget.descripcion}
+          submitLabel="Confirmar anulación"
+          dirty={voidReason !== ''}
+          pending={voidMovementMutation.isPending}
+          onClose={() => setVoidTarget(null)}
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitVoidMovement();
+          }}
+          headerVariant="plain"
+          className="finance-form finance-form--destructive reference-form-dialog"
+          submitDisabled={!canVoid || voidReason.trim().length < 2}
+        >
+          <div className="finance-form-fields">
+            {' '}
             <p className="mt-2 text-sm leading-6 text-brand-muted">
               Se anulará {voidTarget.descripcion} por {formatClp(voidTarget.monto)}. El registro
               permanecerá visible para auditoría.
@@ -961,59 +912,41 @@ export const FinancePage = () => {
                 maxLength={500}
                 rows={3}
                 className="mt-2 w-full rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary"
-                autoFocus
               />
             </label>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink"
-                onClick={() => setVoidTarget(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white disabled:opacity-50"
-                onClick={submitVoidMovement}
-                disabled={voidMovementMutation.isPending || voidReason.trim().length < 2}
-              >
-                {voidMovementMutation.isPending && (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                )}
-                Confirmar anulación
-              </button>
-            </div>
-          </section>
-        </div>
+            {voidMovementMutation.isError && (
+              <p className="finance-alert" role="alert">
+                {getApiErrorMessage(voidMovementMutation.error)}
+              </p>
+            )}
+          </div>
+        </FormDialog>
       )}
-
       {review && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-          <button
-            type="button"
-            className="absolute inset-0 bg-brand-scrim/55"
-            aria-label="Cerrar revisión"
-            onClick={() => setReview(null)}
-          />
-          <section
-            className="workspace-dialog relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="review-payment-title"
-          >
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-lg ${review.decision === 'aprobar' ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-coralPale text-brand-coralInk'}`}
-            >
-              {review.decision === 'aprobar' ? (
-                <Check className="h-5 w-5" aria-hidden="true" />
-              ) : (
-                <X className="h-5 w-5" aria-hidden="true" />
-              )}
-            </div>
-            <h2 id="review-payment-title" className="mt-4 text-xl font-bold text-brand-primaryInk">
-              {review.decision === 'aprobar' ? 'Confirmar transferencia' : 'Rechazar transferencia'}
-            </h2>
+        <FormDialog
+          id="review-payment-title"
+          title={
+            review.decision === 'aprobar' ? 'Confirmar transferencia' : 'Rechazar transferencia'
+          }
+          code={review.payment.quotation?.codigo ?? 'COT #' + review.payment.quotationId}
+          context={formatClp(review.payment.monto)}
+          submitLabel={review.decision === 'aprobar' ? 'Confirmar pago' : 'Rechazar pago'}
+          dirty={comment !== ''}
+          pending={verifyMutation.isPending}
+          onClose={() => setReview(null)}
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitReview();
+          }}
+          headerVariant="plain"
+          className={
+            'finance-form reference-form-dialog' +
+            (review.decision === 'rechazar' ? ' finance-form--destructive' : '')
+          }
+          submitDisabled={!canReview}
+        >
+          <div className="finance-form-fields">
+            {' '}
             <p className="mt-2 text-sm leading-6 text-brand-muted">
               {review.decision === 'aprobar'
                 ? `Se sumarán ${formatClp(review.payment.monto)} al monto pagado de la cotización.`
@@ -1045,50 +978,41 @@ export const FinancePage = () => {
                 placeholder="Referencia bancaria, motivo del rechazo u observación"
               />
             </label>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink"
-                onClick={() => setReview(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60 ${review.decision === 'aprobar' ? 'bg-brand-mintInk' : 'bg-brand-coralInk'}`}
-                onClick={submitReview}
-                disabled={verifyMutation.isPending}
-              >
-                {verifyMutation.isPending && (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                )}
-                {review.decision === 'aprobar' ? 'Confirmar pago' : 'Rechazar pago'}
-              </button>
-            </div>
-          </section>
-        </div>
+            {verifyMutation.isError && (
+              <p className="finance-alert" role="alert">
+                {getApiErrorMessage(verifyMutation.error)}
+              </p>
+            )}
+          </div>
+        </FormDialog>
       )}
-
       {showClosure && daily && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-          <button
-            type="button"
-            className="absolute inset-0 bg-brand-scrim/55"
-            aria-label="Cerrar formulario de caja"
-            onClick={() => setShowClosure(false)}
-          />
-          <section
-            className="workspace-dialog relative w-full max-w-md rounded-lg bg-white p-6 shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="close-cash-title"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primaryInk text-white">
-              <Scale className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <h2 id="close-cash-title" className="mt-4 text-xl font-bold text-brand-primaryInk">
-              Cerrar caja del {selectedDate}
-            </h2>
+        <FormDialog
+          id="close-cash-title"
+          title={'Cerrar caja del ' + selectedDate}
+          code="Arqueo diario"
+          context={formatClp(daily.totals.expectedCash) + ' de efectivo esperado'}
+          submitLabel="Confirmar cierre"
+          dirty={declaredCash !== String(daily.totals.expectedCash) || closureNotes !== ''}
+          pending={closeDayMutation.isPending}
+          onClose={() => setShowClosure(false)}
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitClosure();
+          }}
+          headerVariant="plain"
+          className="finance-form reference-form-dialog"
+          submitDisabled={
+            !canCreate ||
+            daily.isClosed ||
+            daily.totals.pendingTransferCount > 0 ||
+            declaredCash === '' ||
+            !Number.isFinite(Number(declaredCash)) ||
+            Number(declaredCash) < 0
+          }
+        >
+          <div className="finance-form-fields">
+            {' '}
             <p className="mt-2 text-sm leading-6 text-brand-muted">
               El sistema espera {formatClp(daily.totals.expectedCash)} en efectivo después de sumar
               ingresos y restar egresos. Una vez cerrado el día no aceptará movimientos con esta
@@ -1096,13 +1020,12 @@ export const FinancePage = () => {
             </p>
             <label className="mt-4 block text-sm font-semibold text-brand-ink">
               Efectivo contado
-               <CurrencyInput
-                 value={declaredCash}
-                 onChange={setDeclaredCash}
-                 className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
-                 autoFocus
-                 aria-label="Efectivo contado"
-               />
+              <CurrencyInput
+                value={declaredCash}
+                onChange={setDeclaredCash}
+                className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
+                aria-label="Efectivo contado"
+              />
             </label>
             <div className="mt-3 flex items-center justify-between bg-brand-line/40 px-3 py-2 text-sm">
               <span className="text-brand-muted">Diferencia proyectada</span>
@@ -1127,28 +1050,13 @@ export const FinancePage = () => {
                 placeholder="Diferencias, depósitos o notas del arqueo"
               />
             </label>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink"
-                onClick={() => setShowClosure(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white disabled:opacity-60"
-                onClick={submitClosure}
-                disabled={closeDayMutation.isPending || declaredCash === ''}
-              >
-                {closeDayMutation.isPending && (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                )}
-                Confirmar cierre
-              </button>
-            </div>
-          </section>
-        </div>
+            {closeDayMutation.isError && (
+              <p className="finance-alert" role="alert">
+                {getApiErrorMessage(closeDayMutation.error)}
+              </p>
+            )}
+          </div>
+        </FormDialog>
       )}
     </div>
   );

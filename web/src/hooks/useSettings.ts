@@ -60,7 +60,10 @@ export const useUpdateCompanySettings = () => {
       const response = await api.patch<CompanySettings>('/settings/company', data);
       return response.data;
     },
-    onSuccess: () => invalidateSettings(queryClient),
+    onSuccess: (data) => {
+      queryClient.setQueryData(settingsKeys.company(), data);
+      invalidateSettings(queryClient);
+    },
   });
 };
 
@@ -73,7 +76,10 @@ export const useUploadCompanyLogo = () => {
       const response = await api.post<CompanySettings>('/settings/company/logo', formData);
       return response.data;
     },
-    onSuccess: () => invalidateSettings(queryClient),
+    onSuccess: (data) => {
+      queryClient.setQueryData(settingsKeys.company(), data);
+      invalidateSettings(queryClient);
+    },
   });
 };
 
@@ -84,7 +90,10 @@ export const useDeleteCompanyLogo = () => {
       const response = await api.delete<CompanySettings>('/settings/company/logo');
       return response.data;
     },
-    onSuccess: () => invalidateSettings(queryClient),
+    onSuccess: (data) => {
+      queryClient.setQueryData(settingsKeys.company(), data);
+      invalidateSettings(queryClient);
+    },
   });
 };
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -228,6 +228,9 @@ describe('CatalogPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ajustar stock de Filtro de aceite' }));
     await waitFor(() => expect(screen.getByLabelText('Almacén')).toBeEnabled());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Confirmar movimiento' })).toBeEnabled(),
+    );
     fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '5' } });
     fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'Recepción proveedor' } });
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar movimiento' }));
@@ -254,5 +257,45 @@ describe('CatalogPage', () => {
     expect(await screen.findByText('Bodega Central')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Kardex' }));
     expect(await screen.findByText('Ingreso · Recepción proveedor')).toBeInTheDocument();
+  });
+
+  it('pide confirmación antes de descartar un item sin guardar', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo item' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Nuevo item de catálogo' }));
+    fireEvent.change(dialog.getByLabelText('Nombre'), { target: { value: 'Revisión de frenos' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancelar' }));
+    expect(dialog.getByRole('alertdialog', { name: 'Descartar edición' })).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Seguir editando' }));
+    expect(dialog.getByLabelText('Nombre')).toHaveValue('Revisión de frenos');
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Descartar cambios' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('mantiene la edición y el stock protegidos para un usuario de solo lectura', async () => {
+    useAuthStore.setState({
+      user: {
+        id: 5,
+        nombre: 'Consulta',
+        email: 'consulta@unithor.local',
+        role: 'vendedor',
+        permissions: [{ modulo: 'taller', accion: 'read' }],
+      },
+    });
+    renderPage();
+    await screen.findByText('Filtro de aceite');
+    expect(screen.queryByRole('button', { name: 'Nuevo item' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Ajustar stock de Filtro de aceite' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle de Filtro de aceite' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Filtro de aceite' }));
+    expect(dialog.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
+    expect(dialog.queryByRole('button', { name: 'Movimiento' })).not.toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Existencias' }));
+    expect(dialog.getByText('Existencias protegidas')).toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalledWith('/warehouses/1/balances');
   });
 });

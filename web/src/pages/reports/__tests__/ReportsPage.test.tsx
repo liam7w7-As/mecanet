@@ -12,13 +12,18 @@ vi.mock('../../../lib/api', () => ({
   getCookie: vi.fn(),
   setSessionExpiredHandler: vi.fn(),
 }));
-const renderPage = (route = '/reports') => render(
-  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-    <MemoryRouter initialEntries={[route]}>
-      <Routes><Route path="/reports" element={<ReportsPage />} /></Routes>
-    </MemoryRouter>
-  </QueryClientProvider>,
-);
+const renderPage = (route = '/reports') =>
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <MemoryRouter initialEntries={[route]}>
+        <Routes>
+          <Route path="/reports" element={<ReportsPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
 
 const loginAs = (role: 'vendedor' | 'mecanico' | 'admin' | 'finanzas') => {
   useAuthStore.setState({
@@ -32,7 +37,8 @@ describe('ReportsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.get).mockImplementation(async (url) => {
-      if (typeof url === 'string' && url.startsWith('/reports/')) return { data: new Blob(['report']) };
+      if (typeof url === 'string' && url.startsWith('/reports/'))
+        return { data: new Blob(['report']) };
       if (url === '/roles') return { data: { roles: [] } };
       if (url === '/users') {
         return { data: { data: [], meta: { total: 0, page: 1, pageSize: 8, totalPages: 0 } } };
@@ -40,18 +46,62 @@ describe('ReportsPage', () => {
       if (url === '/finance/analytics') {
         return {
           data: {
-            period: { fechaDesde: '2026-09-01', fechaHasta: '2026-09-30', previousFechaDesde: null, previousFechaHasta: null, days: 30, agruparPor: 'dia' },
-            kpis: { grossSales: 200000, collected: 150000, manualIncome: 0, expenses: 25000, netCash: 125000, receivable: 50000, averageTicket: 100000, quotationCount: 2, paidQuotationCount: 1, workOrderConversionCount: 1, collectionRate: 75, conversionRate: 50 },
+            period: {
+              fechaDesde: '2026-09-01',
+              fechaHasta: '2026-09-30',
+              previousFechaDesde: null,
+              previousFechaHasta: null,
+              days: 30,
+              agruparPor: 'dia',
+            },
+            kpis: {
+              grossSales: 200000,
+              collected: 150000,
+              manualIncome: 0,
+              expenses: 25000,
+              netCash: 125000,
+              receivable: 50000,
+              averageTicket: 100000,
+              quotationCount: 2,
+              paidQuotationCount: 1,
+              workOrderConversionCount: 1,
+              collectionRate: 75,
+              conversionRate: 50,
+            },
             comparison: null,
-            topSellers: [{ id: 1, nombre: 'Vendedor Uno', quotationCount: 2, grossSales: 200000, collected: 150000, averageTicket: 100000 }],
-            topItems: [{ catalogItemId: 1, codigo: 'SRV-1', nombre: 'Mantención', tipo: 'estandar', quantity: 2, revenue: 200000 }],
-            topClients: [], paymentMethods: [], quotationStatuses: [], movementCategories: [], trend: [],
+            topSellers: [
+              {
+                id: 1,
+                nombre: 'Vendedor Uno',
+                quotationCount: 2,
+                grossSales: 200000,
+                collected: 150000,
+                averageTicket: 100000,
+              },
+            ],
+            topItems: [
+              {
+                catalogItemId: 1,
+                codigo: 'SRV-1',
+                nombre: 'Mantención',
+                tipo: 'estandar',
+                quantity: 2,
+                revenue: 200000,
+              },
+            ],
+            topClients: [],
+            paymentMethods: [],
+            quotationStatuses: [],
+            movementCategories: [],
+            trend: [],
             filterOptions: { advisors: [{ id: 1, nombre: 'Vendedor Uno' }], clients: [] },
           },
         };
       }
-      if (url === '/quotations') return { data: { items: [], total: 0, page: 1, pageSize: 8, totalPages: 0 } };
-      if (url === '/work-orders') return { data: { items: [], total: 0, page: 1, pageSize: 8, totalPages: 0 } };
+      if (url === '/quotations')
+        return { data: { items: [], total: 0, page: 1, pageSize: 8, totalPages: 0 } };
+      if (url === '/work-orders')
+        return { data: { items: [], total: 0, page: 1, pageSize: 8, totalPages: 0 } };
       return { data: { items: [], total: 0, page: 1, pageSize: 8, totalPages: 0 } };
     });
   });
@@ -60,7 +110,9 @@ describe('ReportsPage', () => {
     loginAs('vendedor');
     renderPage();
 
-    expect(await screen.findByRole('heading', { name: 'Reporte comercial de cotizaciones' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Reporte comercial de cotizaciones' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Comercial' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Taller' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Clientes y vehículos' })).toBeInTheDocument();
@@ -72,20 +124,35 @@ describe('ReportsPage', () => {
     loginAs('mecanico');
     renderPage('/reports?section=finance');
 
-    expect(await screen.findByRole('heading', { name: 'Reporte de taller y progreso de OT' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Reporte de taller y progreso de OT' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Finanzas' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Clientes y vehículos' })).not.toBeInTheDocument();
-    expect(api.get).toHaveBeenCalledWith('/work-orders', expect.objectContaining({ params: expect.objectContaining({ pageSize: 8 }) }));
+    expect(api.get).toHaveBeenCalledWith(
+      '/work-orders',
+      expect.objectContaining({ params: expect.objectContaining({ pageSize: 8 }) }),
+    );
   });
 
   it('permite al admin entrar a todas las áreas con una vista financiera de reportes', async () => {
     loginAs('admin');
     renderPage();
 
-    for (const area of ['Finanzas', 'Comercial', 'Taller', 'Almacenes', 'Catálogo', 'Clientes y vehículos', 'Cuentas']) {
+    for (const area of [
+      'Finanzas',
+      'Comercial',
+      'Taller',
+      'Almacenes',
+      'Catálogo',
+      'Clientes y vehículos',
+      'Cuentas',
+    ]) {
       expect(screen.getByRole('button', { name: area })).toBeInTheDocument();
     }
-    expect(await screen.findByRole('heading', { name: 'Informe financiero ejecutivo' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Informe financiero ejecutivo' }),
+    ).toBeInTheDocument();
     expect(await screen.findByRole('columnheader', { name: 'Ventas' })).toBeInTheDocument();
   });
 
@@ -94,18 +161,26 @@ describe('ReportsPage', () => {
     const createObjectUrl = vi.fn(() => 'blob:report-test');
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
-    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const anchorClick = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
     renderPage('/reports?section=commercial');
 
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Vínculo con OT' }), { target: { value: 'false' } });
-    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/quotations', {
-      params: expect.objectContaining({ workOrderLinked: false }),
-    }));
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Vínculo con OT' }), {
+      target: { value: 'false' },
+    });
+    await waitFor(() =>
+      expect(api.get).toHaveBeenLastCalledWith('/quotations', {
+        params: expect.objectContaining({ workOrderLinked: false }),
+      }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Excel' }));
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/reports/commercial/excel', {
-      params: expect.objectContaining({ workOrderLinked: false }),
-      responseType: 'blob',
-    }));
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/reports/commercial/excel', {
+        params: expect.objectContaining({ workOrderLinked: false }),
+        responseType: 'blob',
+      }),
+    );
     expect(anchorClick).toHaveBeenCalled();
     anchorClick.mockRestore();
   });
@@ -115,16 +190,25 @@ describe('ReportsPage', () => {
     const createObjectUrl = vi.fn(() => 'blob:catalog-report-test');
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
-    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const anchorClick = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
     renderPage('/reports?section=catalog');
 
-    expect(await screen.findByRole('heading', { name: 'Reporte de catálogo, servicios y repuestos' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Reporte de catálogo, servicios y repuestos' }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Excel' }));
 
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/reports/catalog/excel', {
-      params: expect.objectContaining({ fechaDesde: expect.any(String), fechaHasta: expect.any(String) }),
-      responseType: 'blob',
-    }));
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/reports/catalog/excel', {
+        params: expect.objectContaining({
+          fechaDesde: expect.any(String),
+          fechaHasta: expect.any(String),
+        }),
+        responseType: 'blob',
+      }),
+    );
     expect(anchorClick).toHaveBeenCalled();
     anchorClick.mockRestore();
   });
@@ -134,16 +218,25 @@ describe('ReportsPage', () => {
     const createObjectUrl = vi.fn(() => 'blob:accounts-report-test');
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
-    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const anchorClick = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
     renderPage('/reports?section=administration');
 
-    expect(await screen.findByRole('heading', { name: 'Cuentas, roles y accesos' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Cuentas, roles y accesos' }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Excel' }));
 
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/reports/administration/excel', {
-      params: expect.objectContaining({ fechaDesde: expect.any(String), fechaHasta: expect.any(String) }),
-      responseType: 'blob',
-    }));
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/reports/administration/excel', {
+        params: expect.objectContaining({
+          fechaDesde: expect.any(String),
+          fechaHasta: expect.any(String),
+        }),
+        responseType: 'blob',
+      }),
+    );
     expect(anchorClick).toHaveBeenCalled();
     anchorClick.mockRestore();
   });
@@ -159,5 +252,66 @@ describe('ReportsPage', () => {
     expect(await screen.findByText(/Vista previa de vehículos/)).toBeInTheDocument();
     expect(screen.queryByText(/Vista previa de clientes/)).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Tipo de cliente' })).toBeDisabled();
+  });
+  it('conserva la búsqueda comercial y la aplica también al cambiar de área', async () => {
+    loginAs('vendedor');
+    renderPage('/reports?section=commercial');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar' }), {
+      target: { value: 'Cambio de aceite' },
+    });
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/quotations', {
+        params: expect.objectContaining({ search: 'Cambio de aceite' }),
+      }),
+    );
+    expect(screen.getByRole('textbox', { name: 'Buscar' })).toHaveValue('Cambio de aceite');
+    fireEvent.click(screen.getByRole('button', { name: 'Taller' }));
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/work-orders', {
+        params: expect.objectContaining({ search: 'Cambio de aceite' }),
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Comercial' }));
+    expect(screen.getByRole('textbox', { name: 'Buscar' })).toHaveValue('Cambio de aceite');
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+    expect(screen.getByRole('textbox', { name: 'Buscar' })).toHaveValue('');
+  });
+
+  it('bloquea el reporte financiero y su consulta con un rango de fechas invertido', async () => {
+    loginAs('admin');
+    renderPage('/reports?section=finance&from=2026-11-04&to=2026-11-01');
+    expect(screen.getByRole('alert')).toHaveTextContent('La fecha desde debe ser anterior o igual');
+    expect(screen.getByRole('button', { name: 'Abrir PDF' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Excel' })).toBeDisabled();
+    expect(api.get).not.toHaveBeenCalledWith('/finance/analytics', expect.anything());
+    expect(
+      screen.queryByRole('status', { name: 'Cargando reporte financiero' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('abre el PDF en otra pestaña con los mismos filtros de la vista previa', async () => {
+    loginAs('admin');
+    const preview = { location: { href: '' }, close: vi.fn() };
+    const open = vi.spyOn(window, 'open').mockReturnValue(preview as unknown as Window);
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:commercial-preview'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    renderPage('/reports?section=commercial&quotationLinked=false&from=2026-09-01&to=2026-09-30');
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir PDF' }));
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/reports/commercial/pdf', {
+        params: expect.objectContaining({
+          fechaDesde: '2026-09-01',
+          fechaHasta: '2026-09-30',
+          workOrderLinked: false,
+        }),
+        responseType: 'blob',
+      }),
+    );
+    await waitFor(() => expect(preview.location.href).toBe('blob:commercial-preview'));
+    expect(open).toHaveBeenCalledWith('', '_blank');
+    open.mockRestore();
   });
 });

@@ -1998,6 +1998,12 @@ export const updateWorkOrder = async (
     }
 
     await workOrder.update(updatePayload, { transaction });
+    if (data.vehicleId !== undefined) {
+      await Quotation.update(
+        { vehicleId: workOrder.vehicleId },
+        { where: { workOrderId: id }, transaction },
+      );
+    }
     if (data.items !== undefined) {
       await syncMirrorQuotationFromWorkOrder(id, transaction);
     }

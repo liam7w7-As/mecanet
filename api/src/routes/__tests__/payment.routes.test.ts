@@ -477,4 +477,46 @@ describe('Payment Routes (E2E)', () => {
       estadoPago: 'parcial',
     });
   });
+  it('busca abonos por cotización, cliente y transacción sin perder la paginación', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const quotation = await createQuotationFixture('BUSQUEDA', clientId, 10000);
+    await Payment.bulkCreate(Array.from({ length: 12 }, (_, index) => ({
+      quotationId: quotation.id,
+      monto: 100,
+      metodo: 'efectivo',
+      estado: 'confirmado' as const,
+      referencia: 'BUSQUEDA-LECTURA-' + index,
+      numeroTransaccion: 'TRANSACCION-' + index + '-FIN',
+      fecha: new Date(),
+      createdBy: devUserId,
+    })));
+
+    const paged = await request(app).get('/api/payments')
+      .set('Cookie', authCookie(cookies))
+      .query({ search: quotation.codigo, estado: 'confirmado', page: 2, pageSize: 5 });
+    expect(paged.status).toBe(200);
+    expect(paged.body).toMatchObject({ total: 12, page: 2, totalPages: 3 });
+    expect(paged.body.items).toHaveLength(5);
+    expect(paged.body.items.every((payment: { quotationId: number }) => payment.quotationId === quotation.id)).toBe(true);
+
+    const clientSearch = await request(app).get('/api/payments')
+      .set('Cookie', authCookie(cookies))
+      .query({ search: 'Cliente Pagos Fase 53', quotationId: quotation.id });
+    expect(clientSearch.status).toBe(200);
+    expect(clientSearch.body.total).toBe(12);
+
+    const transactionSearch = await request(app).get('/api/payments')
+      .set('Cookie', authCookie(cookies))
+      .query({ search: 'TRANSACCION-4-FIN', quotationId: quotation.id });
+    expect(transactionSearch.status).toBe(200);
+    expect(transactionSearch.body.items).toHaveLength(1);
+    expect(transactionSearch.body.items[0].numeroTransaccion).toBe('TRANSACCION-4-FIN');
+
+    const mismatch = await request(app).get('/api/payments')
+      .set('Cookie', authCookie(cookies))
+      .query({ search: quotation.codigo, estado: 'rechazado' });
+    expect(mismatch.status).toBe(200);
+    expect(mismatch.body.total).toBe(0);
+  });
+
 });

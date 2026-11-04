@@ -92,9 +92,13 @@ const updateWorkOrderCaches = (
   queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
   void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
   void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+  void queryClient.invalidateQueries({ queryKey: ['quotation-payments'] });
+  void queryClient.invalidateQueries({ queryKey: ['finance'] });
+  void queryClient.invalidateQueries({ queryKey: ['work-order-labor'] });
   void queryClient.invalidateQueries({ queryKey: ['catalog'] });
+  void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
   void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
+  void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
 };
 
 /**
@@ -115,6 +119,10 @@ const applyExecutionResponse = (
   void queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(workOrderId) });
   void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
   void queryClient.invalidateQueries({ queryKey: ['work-order-labor'] });
+  void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+  void queryClient.invalidateQueries({ queryKey: ['catalog'] });
+  void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+  void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 };
 
 export const useAssignWorkOrderMechanicMutation = () => {
@@ -188,11 +196,10 @@ export const useCreateWorkOrderMutation = () => {
       const response = await api.post<WorkOrderResponse>('/work-orders', data);
       return response.data.workOrder;
     },
-    onSuccess: () => {
+    onSuccess: (workOrder) => {
+      updateWorkOrderCaches(queryClient, workOrder);
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.all });
       void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };
@@ -206,11 +213,8 @@ export const useUpdateWorkOrderMutation = () => {
       return response.data.workOrder;
     },
     onSuccess: (workOrder) => {
-      queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
-      void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
-      void queryClient.invalidateQueries({ queryKey: ['catalog'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
+      updateWorkOrderCaches(queryClient, workOrder);
+      void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
     },
   });
 };
@@ -223,12 +227,7 @@ export const useChangeWorkOrderStatusMutation = () => {
       const response = await api.patch<WorkOrderResponse>(`/work-orders/${id}/status`, data);
       return response.data.workOrder;
     },
-    onSuccess: (workOrder) => {
-      queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
-      void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
-    },
+    onSuccess: (workOrder) => updateWorkOrderCaches(queryClient, workOrder),
   });
 };
 
@@ -241,11 +240,8 @@ export const useDeliverWorkOrderMutation = () => {
       return response.data.workOrder;
     },
     onSuccess: (workOrder) => {
-      queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
-      void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      updateWorkOrderCaches(queryClient, workOrder);
       void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };
@@ -259,12 +255,8 @@ export const useCreateWorkOrderReentryMutation = () => {
       return response.data.workOrder;
     },
     onSuccess: (workOrder, variables) => {
-      queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
+      updateWorkOrderCaches(queryClient, workOrder);
       void queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(variables.id) });
-      void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
-      void queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
   });
 };

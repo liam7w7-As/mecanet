@@ -1,6 +1,5 @@
 import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
-import { Archive, ArchiveRestore, DollarSign, Download, FileSpreadsheet, FileText, LoaderCircle, Pencil, Plus, Search, Wrench } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Archive, ArchiveRestore, CalendarDays, CheckCheck, CircleDollarSign, Clock3, DollarSign, Download, FileSpreadsheet, FileText, LayoutGrid, Link2Off, LoaderCircle, Pencil, Plus, Search, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -8,6 +7,7 @@ import { AnimateIcon, AnimatedTableRow } from '../../components/animate-ui';
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import PaymentFormModal from '../../components/quotations/PaymentFormModal';
+import QuotationDateFilter from '../../components/quotations/QuotationDateFilter';
 import QuotationDetailModal from '../../components/quotations/QuotationDetailModal';
 import QuotationEditModal from '../../components/quotations/QuotationEditModal';
 import QuotationStatusBadge from '../../components/quotations/QuotationStatusBadge';
@@ -22,17 +22,18 @@ import { useAuthStore } from '../../stores/auth.store';
 
 import type { Quotation } from '../../types/entities';
 import type { QuotationStatus } from '@unithor/shared';
+import type { LucideIcon } from 'lucide-react';
 
 type StatusFilter = QuotationStatus | 'all' | 'sin_ot' | 'archived';
 
-const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
-  { value: 'all', label: 'Todas' },
-  { value: 'sin_ot', label: 'Sin OT' },
-  { value: 'por_pagar', label: 'Por pagar' },
-  { value: 'parcial', label: 'Abono parcial' },
-  { value: 'total', label: 'Pagadas total' },
-  { value: 'por_verificar', label: 'Por verificar' },
-  { value: 'archived', label: 'Archivadas' },
+const STATUS_FILTERS: Array<{ value: StatusFilter; label: string; icon: LucideIcon }> = [
+  { value: 'all', label: 'Todas', icon: LayoutGrid },
+  { value: 'sin_ot', label: 'Sin OT', icon: Link2Off },
+  { value: 'por_pagar', label: 'Por pagar', icon: CircleDollarSign },
+  { value: 'parcial', label: 'Abono parcial', icon: Clock3 },
+  { value: 'total', label: 'Pagadas total', icon: CheckCheck },
+  { value: 'por_verificar', label: 'Por verificar', icon: Search },
+  { value: 'archived', label: 'Archivadas', icon: Archive },
 ];
 
 const toDateInput = (date: Date): string => date.toISOString().slice(0, 10);
@@ -110,63 +111,18 @@ export const QuotationsPage = () => {
 
   return (
     <div className="commercial-board min-w-0 space-y-5">
-      <header className="commercial-heading flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-sm text-brand-muted">Gestión comercial</p>
-          <h1 className="mt-1">Comercial - Cotizaciones</h1>
+      <header className="commercial-heading"><h1>Comercial y Cotizaciones</h1></header>
+      <div className="commercial-toolbar">
+        <label className="commercial-search"><Search aria-hidden="true" /><span className="sr-only">Buscar cotizaciones</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="COT o nombre del cliente" />{search && <button type="button" aria-label="Limpiar búsqueda" onClick={() => setSearch('')}><X aria-hidden="true" /></button>}</label>
+        <QuotationDateFilter from={fechaDesde} to={fechaHasta} onApply={(from, to) => { setFechaDesde(from); setFechaHasta(to); setPage(1); }} />
+        {canCreate && <Link to="/quotations/new" className="commercial-new primary-button"><Plus aria-hidden="true" /><span>Nueva Cotización</span></Link>}
+        <div className="commercial-status-filters" role="tablist" aria-label="Filtrar cotizaciones por estado">
+          {STATUS_FILTERS.map(({ value, label, icon: Icon }) => <button key={value} type="button" role="tab" aria-selected={status === value} aria-label={label} title={value === 'archived' ? 'Archivadas manualmente o con vigencia vencida, sin OT ni abonos' : label} onClick={() => setStatus(value)}><Icon aria-hidden="true" /><span>{label}</span></button>)}
         </div>
-        <div className="relative z-[1] ml-auto flex flex-wrap gap-2">
-          {canExport && (
-            <button type="button" className="secondary-button inline-flex items-center gap-2 text-sm font-medium text-brand-ink transition-colors hover:border-brand-primary hover:text-brand-primaryInk disabled:opacity-60" onClick={() => excelMutation.mutate({ fechaDesde: fechaDesde || firstDayOfMonth(), fechaHasta: fechaHasta || toDateInput(new Date()), estadoPago: status === 'all' || status === 'sin_ot' || status === 'archived' ? undefined : status })} disabled={excelMutation.isPending} title="Sin fechas seleccionadas, exporta el mes actual">
-              {excelMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon variant="bounce" animateOnHover><FileSpreadsheet className="h-4 w-4" aria-hidden="true" /></AnimateIcon>}
-              Exportar Excel
-            </button>
-          )}
-          {canCreate && (
-            <Link to="/quotations/new" className="primary-button">
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Nueva Cotización
-            </Link>
-          )}
-        </div>
-      </header>
-
-      <section className="commercial-register overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm" aria-label="Listado de cotizaciones">
-        <div className="commercial-filters border-b border-brand-line p-4 sm:p-5">
-          <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_170px_170px]">
-            <label className="relative"><span className="sr-only">Buscar cotizaciones</span><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-brand-line pl-9 pr-3 text-sm outline-none transition-shadow focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15" placeholder="Buscar código COT o cliente" /></label>
-            <label className="text-xs font-semibold uppercase text-brand-muted"><span className="sr-only">Fecha desde</span><input type="date" value={fechaDesde} onChange={(event) => setFechaDesde(event.target.value)} className="h-11 w-full rounded-xl border border-brand-line px-3 text-sm font-normal text-brand-ink outline-none transition-shadow focus:border-brand-primary" aria-label="Fecha desde" /></label>
-            <label className="text-xs font-semibold uppercase text-brand-muted"><span className="sr-only">Fecha hasta</span><input type="date" value={fechaHasta} min={fechaDesde} onChange={(event) => setFechaHasta(event.target.value)} className="h-11 w-full rounded-xl border border-brand-line px-3 text-sm font-normal text-brand-ink outline-none transition-shadow focus:border-brand-primary" aria-label="Fecha hasta" /></label>
-          </div>
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filtrar cotizaciones por estado">
-            {STATUS_FILTERS.map((filter) => {
-              const isSelected = status === filter.value;
-              return (
-                  <button
-                    key={filter.value}
-                    type="button"
-                    role="tab"
-                    aria-selected={isSelected}
-                    title={filter.value === 'archived' ? 'Archivadas manualmente o con vigencia vencida, sin OT ni abonos' : undefined}
-                  className={`relative min-h-10 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
-                    isSelected ? 'text-white' : 'bg-brand-pale text-brand-muted hover:bg-brand-line'
-                  }`}
-                  onClick={() => setStatus(filter.value)}
-                >
-                  {isSelected && (
-                    <motion.span
-                      layoutId="quotationStatusPill"
-                      className="absolute inset-0 rounded-xl bg-brand-primaryInk"
-                      transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                    />
-                  )}
-                  <span className="relative z-10">{filter.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
+      </div>
+      {(fechaDesde || fechaHasta) && <div className="commercial-date-context"><CalendarDays aria-hidden="true" /><span>{fechaDesde ? formatDate(fechaDesde + 'T12:00:00') : 'Desde el inicio'} — {fechaHasta ? formatDate(fechaHasta + 'T12:00:00') : 'Sin fecha final'}</span><button type="button" aria-label="Quitar filtro de fechas" onClick={() => { setFechaDesde(''); setFechaHasta(''); }}><X aria-hidden="true" /></button></div>}
+      <div className="commercial-results-context"><span><strong>{quotationsQuery.data?.total ?? 0}</strong> cotizaciones · {STATUS_FILTERS.find((filter) => filter.value === status)?.label}</span>{canExport && <button type="button" aria-label="Exportar Excel" disabled={excelMutation.isPending} title="Sin fechas seleccionadas, exporta el mes actual" onClick={() => excelMutation.mutate({ fechaDesde: fechaDesde || firstDayOfMonth(), fechaHasta: fechaHasta || toDateInput(new Date()), estadoPago: status === 'all' || status === 'sin_ot' || status === 'archived' ? undefined : status })}>{excelMutation.isPending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <FileSpreadsheet aria-hidden="true" />}Exportar Excel</button>}</div>
+      <section className="commercial-register" aria-label="Listado de cotizaciones">
         {(quotationsQuery.isError || excelMutation.isError || previewQuery.isError) && <div className="border-b border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(quotationsQuery.error ?? excelMutation.error ?? previewQuery.error, 'No fue posible completar la operación.')}</div>}
 
         {quotationToArchive && (
@@ -239,13 +195,13 @@ export const QuotationsPage = () => {
                     aria-label={`Cotización ${quotation.codigo}`}
                     onClick={(event) => { if (event.target instanceof Element && !event.target.closest('button, a, input, select')) setDetailQuotationId(quotation.id); }}
                     onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setDetailQuotationId(quotation.id); } }}
-                    className={`border-b border-brand-line transition-colors last:border-0 ${rowStyle}`}
+                    data-attention={attention?.kind} data-archived={status === 'archived'} className={`border-b border-brand-line transition-colors last:border-0 ${rowStyle}`}
                   >
                     <td data-label="N°" className={`hidden sm:table-cell border-l-4 px-3.5 py-3 font-mono text-xs font-bold text-brand-muted ${status === 'archived' ? 'border-slate-300' : attention?.kind === 'linked' ? 'border-orange-400' : attention ? 'border-yellow-400' : 'border-transparent'}`}>
                       {rowNumber}
                     </td>
                     <td data-label="Código COT" className="px-3.5 py-3">
-                      <Link to={`/quotations/${quotation.id}`} className="font-mono text-sm font-bold text-brand-primaryInk hover:underline">
+                      <Link to={`/quotations/${quotation.id}`} onClick={(event) => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); setDetailQuotationId(quotation.id); } }} className="font-mono text-sm font-bold text-brand-primaryInk hover:underline">
                         {quotation.codigo}
                       </Link>
                       {quotation.workOrder && (
@@ -253,8 +209,8 @@ export const QuotationsPage = () => {
                           {quotation.workOrder.codigo}
                         </Link>
                       )}
-                      {quotation.asesor?.nombre && <span className="block text-xs text-brand-muted">{quotation.asesor.nombre}</span>}
-                      <span className="mt-0.5 block text-[11px] text-brand-muted lg:hidden">{formatDate(quotation.createdAt)}</span>
+                      {quotation.asesor?.nombre && <span className="commercial-advisor" title={quotation.asesor.nombre}>{quotation.asesor.nombre}</span>}
+                      <span className="commercial-issued-inline">{formatDate(quotation.createdAt)}</span>
                       {status === 'archived' ? (
                         <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
                           <Archive className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -368,7 +324,7 @@ export const QuotationsPage = () => {
             </tbody>
           </table>
         </div>
-        {!quotationsQuery.isPending && quotationsQuery.data?.items.length === 0 && <div className="flex min-h-56 flex-col items-center justify-center px-4 text-center"><FileText className="h-10 w-10 text-brand-muted/40" aria-hidden="true" /><p className="mt-3 font-semibold text-brand-ink">{status === 'archived' ? 'No hay cotizaciones archivadas' : 'No se encontraron cotizaciones'}</p><p className="mt-1 text-sm text-brand-muted">Cambie los filtros o emita el primer presupuesto.</p></div>}
+        {!quotationsQuery.isPending && quotationsQuery.data?.items.length === 0 && <div className="flex min-h-56 flex-col items-center justify-center px-4 text-center"><FileText className="h-10 w-10 text-brand-muted/40" aria-hidden="true" /><p className="mt-3 font-semibold text-brand-ink">{status === 'archived' ? 'No hay cotizaciones archivadas' : 'No se encontraron cotizaciones'}</p><p className="mt-1 text-sm text-brand-muted">Cambie los filtros o emita el primer presupuesto.</p><button type="button" className="commercial-reset" onClick={() => { setSearch(''); setStatus('all'); setFechaDesde(''); setFechaHasta(''); }}>Limpiar filtros</button></div>}
         <Pagination page={page} totalPages={quotationsQuery.data?.totalPages ?? 0} total={quotationsQuery.data?.total ?? 0} onPageChange={setPage} />
       </section>
 

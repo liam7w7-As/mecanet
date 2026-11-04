@@ -274,6 +274,25 @@ describe('ClientsPage', () => {
     expect(screen.queryByRole('dialog', { name: 'Nuevo vehículo' })).not.toBeInTheDocument();
   });
 
+  it('vuelve a la ficha al cerrar la edición con Escape sin perder su pestaña ni bloquear el scroll', async () => {
+    mockClientProfile(() => [vehicle]);
+    createWrapper(<ClientsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver Cliente Demo' }));
+    const detail = within(await screen.findByRole('dialog', { name: 'Ficha del cliente' }));
+    fireEvent.click(await detail.findByRole('tab', { name: /Vehículos/ }));
+    fireEvent.click(detail.getByRole('button', { name: 'Editar' }));
+    expect(await screen.findByRole('dialog', { name: 'Editar cliente' })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Editar cliente' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Ficha del cliente' })).toBeInTheDocument();
+    expect(detail.getByRole('tab', { name: /Vehículos/ })).toHaveAttribute('aria-selected', 'true');
+    expect(document.body.style.overflow).toBe('hidden');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.body.style.overflow).not.toBe('hidden');
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
   it('despliega resultados de búsqueda rápida después de escribir dos caracteres', async () => {
     const quickResult: QuickSearchResult = {
       clients: [],

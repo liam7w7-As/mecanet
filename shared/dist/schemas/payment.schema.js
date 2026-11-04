@@ -47,6 +47,7 @@ export const createPaymentSchema = paymentBaseSchema.superRefine((data, ctx) => 
 });
 export const updatePaymentSchema = paymentBaseSchema.partial();
 export const paymentQuerySchema = paginationSchema.extend({
+    search: z.string().trim().max(100).optional(),
     quotationId: z.coerce.number().int().positive().optional(),
     metodo: z.enum(PAYMENT_METHODS).optional(),
     estado: z.enum(PAYMENT_STATUS).optional(),

@@ -1,6 +1,19 @@
-import { ArrowDownToLine, ArrowRight, ArrowUpFromLine, Boxes, History, Package, Pencil, Settings2, Warehouse, Wrench } from 'lucide-react';
+import { UNIT_MEASURE_LABELS } from '@unithor/shared';
+import {
+  ArrowDownToLine,
+  ArrowRight,
+  ArrowUpFromLine,
+  Boxes,
+  History,
+  Package,
+  Pencil,
+  Settings2,
+  Warehouse,
+  Wrench,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 
 import { useModalOverlay } from '../../hooks/useModalOverlay';
@@ -9,8 +22,6 @@ import { formatClp, formatDateTime } from '../../lib/formatters';
 import ModalHeader from '../common/ModalHeader';
 
 import type { CatalogItem, StockMovement } from '../../types/entities';
-
-
 
 type DetailTab = 'summary' | 'inventory' | 'movements';
 
@@ -71,7 +82,6 @@ export const CatalogItemDetailModal = ({
   );
   const TypeIcon = TYPE_ICONS[item.tipo];
 
-
   const tabs: Array<{ id: DetailTab; label: string; icon: typeof Boxes }> = [
     { id: 'summary', label: 'Resumen', icon: Boxes },
     ...(isPart
@@ -83,8 +93,8 @@ export const CatalogItemDetailModal = ({
   ];
 
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6">
+  return createPortal(
+    <div className="reference-modal-overlay inventory-modal-overlay">
       <button
         type="button"
         className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
@@ -95,26 +105,31 @@ export const CatalogItemDetailModal = ({
         initial={{ opacity: 0, scale: 0.98, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 360, damping: 32 }}
-        className="workspace-dialog relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]"
-        role="dialog" ref={setPanelNode}
+        className="workspace-dialog reference-dialog inventory-profile-dialog relative flex w-full flex-col overflow-hidden bg-white shadow-2xl"
+        role="dialog"
+        tabIndex={-1}
+        ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="catalog-detail-title"
       >
-        {/* Cabecera sobre `surfaceDark`: el subtítulo usa `text-white/65` y el
-            código `text-white/70`, que sobre `#255DFF` dan 3.05:1 y 3.3:1. */}
         <ModalHeader
-  id="catalog-detail-title"
-  badge={<TypeIcon className="h-6 w-6" aria-hidden="true" />}
-  tone="gold"
-  eyebrow={TYPE_LABELS[item.tipo]}
-  title={item.nombre}
-  description={<span className="font-mono text-xs">{item.codigo ?? 'SIN CÓDIGO'}</span>}
-  onClose={onClose}
-  closeLabel="Cerrar detalle"
-/>
+          id="catalog-detail-heading"
+          title="Detalle de ítem"
+          onClose={onClose}
+          closeLabel="Cerrar detalle"
+        />
+        <div className="inventory-profile-hero">
+          <TypeIcon aria-hidden="true" />
+          <div>
+            <small>
+              {TYPE_LABELS[item.tipo]} · {item.codigo ?? 'SIN CÓDIGO'}
+            </small>
+            <h2 id="catalog-detail-title">{item.nombre}</h2>
+          </div>
+        </div>
 
         <nav
-          className={`grid gap-1 border-b border-brand-line px-3 pt-2 sm:px-6 ${isPart ? 'grid-cols-3' : 'grid-cols-1'}`}
+          className="reference-dialog-tabs inventory-detail-tabs"
           aria-label="Secciones del item"
         >
           {tabs.map((tab) => {
@@ -139,38 +154,48 @@ export const CatalogItemDetailModal = ({
           })}
         </nav>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+        <div className="reference-dialog-body inventory-profile-body">
           {activeTab === 'summary' && (
             <div className="space-y-5">
-              <div className={`grid gap-3 ${isPart ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
-                <div className="rounded-lg border border-brand-line bg-brand-line/40 p-4">
-                  <p className="text-xs font-semibold uppercase text-brand-muted">Precio vigente</p>
-                  <p className="mt-2 text-2xl font-bold text-brand-primaryInk">
-                    {formatClp(item.precio)}
-                  </p>
+              <dl className="inventory-profile-facts">
+                <div>
+                  <dt>Código</dt>
+                  <dd>{item.codigo ?? 'Sin código'}</dd>
                 </div>
-                <div className="rounded-lg border border-brand-line bg-brand-line/40 p-4">
-                  <p className="text-xs font-semibold uppercase text-brand-muted">Unidad de cobro</p>
-                  <p className="mt-2 text-lg font-bold capitalize text-brand-ink">
-                    {item.unidadMedida}
-                  </p>
+                <div>
+                  <dt>Tipo</dt>
+                  <dd>{TYPE_LABELS[item.tipo]}</dd>
                 </div>
-                {isPart && (
-                  <div
-                    className={`rounded-lg border p-4 ${item.stock <= item.stockMinimo ? 'border-brand-line bg-brand-goldPale' : 'border-brand-line bg-brand-mintPale'}`}
-                  >
-                    <p className="text-xs font-semibold uppercase text-brand-muted">Stock global</p>
-                    <p
-                      className={`mt-2 text-2xl font-bold ${item.stock <= item.stockMinimo ? 'text-brand-goldInk' : 'text-brand-mintInk'}`}
-                    >
-                      {item.stock} <span className="text-sm font-semibold">uds.</span>
-                    </p>
-                    <p className="mt-1 text-xs text-brand-muted">
-                      Mínimo configurado: {item.stockMinimo}
-                    </p>
+                <div>
+                  <dt>Precio de venta</dt>
+                  <dd>{formatClp(item.precio)}</dd>
+                </div>
+                <div>
+                  <dt>Unidad de medida</dt>
+                  <dd>{UNIT_MEASURE_LABELS[item.unidadMedida]}</dd>
+                </div>
+                {isPart ? (
+                  <>
+                    <div>
+                      <dt>Stock total</dt>
+                      <dd>{item.stock} uds.</dd>
+                    </div>
+                    <div>
+                      <dt>Stock mínimo</dt>
+                      <dd>{item.stockMinimo} uds.</dd>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <dt>Horas hombre estándar</dt>
+                    <dd>
+                      {item.horasHombreEstandar === null
+                        ? 'Sin estimación'
+                        : item.horasHombreEstandar + ' h / unidad'}
+                    </dd>
                   </div>
                 )}
-              </div>
+              </dl>
               <div>
                 <h3 className="text-sm font-bold text-brand-primaryInk">Descripción</h3>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-muted">
@@ -319,7 +344,7 @@ export const CatalogItemDetailModal = ({
           )}
         </div>
 
-        <footer className="flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <footer className="reference-dialog-footer inventory-profile-footer">
           {isPart && canViewInventory ? (
             <Link
               to="/warehouses"
@@ -353,7 +378,8 @@ export const CatalogItemDetailModal = ({
           </div>
         </footer>
       </motion.section>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

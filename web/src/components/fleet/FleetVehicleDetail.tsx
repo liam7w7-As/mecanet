@@ -20,7 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import FleetDocumentFormModal from './FleetDocumentFormModal';
 import FleetDocumentVersionsModal from './FleetDocumentVersionsModal';
@@ -37,6 +37,7 @@ import { getApiErrorMessage } from '../../lib/api-error';
 import { formatDate } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
+import ModalHeader from '../common/ModalHeader';
 
 import type { FleetDocument } from '../../types/entities';
 import type { LucideIcon } from 'lucide-react';
@@ -158,6 +159,8 @@ interface FleetVehicleDetailProps {
 }
 
 export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailProps) => {
+  const profileId = useId();
+  const [activeTab, setActiveTab] = useState<'data' | 'documents'>('data');
   const user = useAuthStore((state) => state.user);
   const vehicleQuery = useFleetVehicle(vehicleId);
   const deleteDocumentMutation = useDeleteFleetDocumentMutation(vehicleId);
@@ -219,50 +222,22 @@ export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailPro
   };
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
-      <header className="shrink-0 border-b border-brand-line bg-brand-page text-brand-ink">
-        <div className="flex items-center justify-between gap-3 px-5 pt-4 sm:px-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-muted">
-            Flota interna / Ficha del vehículo
-          </p>
-          {closeControl}
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-4 px-5 pb-5 pt-2 sm:px-6">
-          <div className="flex min-w-0 max-w-full items-center gap-3.5">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-brand-line bg-brand-pale text-brand-primaryInk">
-              <Car className="h-6 w-6" aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="break-all font-mono text-2xl font-bold leading-8 text-brand-ink">
-                  {vehicle.patente}
-                </h1>
-                <FleetVehicleStatusBadge status={vehicle.estadoOperativo} />
-              </div>
-              <p className="mt-0.5 break-words text-sm text-brand-muted">
-                {displayName || 'Vehículo de flota sin descripción técnica'}
-                {vehicle.codigoInterno ? ` · Código ${vehicle.codigoInterno}` : ''}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {canUpdateFleet && (
-              <button
-                type="button"
-                onClick={() => setIsEditingVehicle(true)}
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-line bg-white px-3 text-xs font-bold text-brand-ink transition-colors hover:border-brand-primary/40 hover:bg-brand-pale hover:text-brand-primaryInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
-                aria-label="Editar ficha"
-                title="Editar ficha"
-              >
-                <Pencil className="h-4 w-4" aria-hidden="true" /> Editar
-              </button>
-            )}
-          </div>
-        </div>
+    <div className="vehicle-profile flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
+      <header className="vehicle-profile-header">
+        <ModalHeader id={`${profileId}-title`} title={vehicle.patente} variant="brand" eyebrow="Flota interna" description={`${displayName || 'Vehículo de flota sin descripción técnica'}${vehicle.codigoInterno ? ` · Código ${vehicle.codigoInterno}` : ''}`} badge={<Car aria-hidden="true" />} actions={<FleetVehicleStatusBadge status={vehicle.estadoOperativo} />} onClose={onClose} closeLabel="Cerrar ficha" />
+        {canUpdateFleet && <div className="vehicle-profile-actions"><button type="button" onClick={() => setIsEditingVehicle(true)} aria-label="Editar ficha"><Pencil aria-hidden="true" />Editar vehículo</button></div>}
       </header>
+      <div className="reference-dialog-tabs vehicle-profile-tabs" role="tablist" aria-label="Información de flota" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+        {([{ id: 'data', label: 'Ficha', icon: Car }, { id: 'documents', label: 'Documentos', icon: FileText }] as const).map(({ id, label, icon: Icon }) => <button key={id} id={`${profileId}-${id}-tab`} type="button" role="tab" aria-selected={activeTab === id} aria-controls={`${profileId}-${id}-panel`} tabIndex={activeTab === id ? 0 : -1} onClick={() => setActiveTab(id)} onKeyDown={(event) => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === 'Home' ? 'data' : event.key === 'End' ? 'documents' : id === 'data' ? 'documents' : 'data';
+          setActiveTab(next); document.getElementById(`${profileId}-${next}-tab`)?.focus();
+        }}><Icon aria-hidden="true" />{label}{id === 'documents' && <span>{vehicle.documents.length}</span>}</button>)}
+      </div>
 
       <section
-        className="grid shrink-0 grid-cols-2 border-b border-brand-line bg-brand-line/40 sm:grid-cols-4"
+        className="vehicle-profile-metrics"
         aria-label="Resumen de documentos"
       >
         <div className="min-w-0 border-b border-r border-brand-line px-4 py-3 sm:border-b-0 sm:px-6">
@@ -295,13 +270,13 @@ export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailPro
         </div>
       </section>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-          <section aria-labelledby="fleet-vehicle-data-title">
+      <div className="reference-dialog-body vehicle-profile-body">
+        <div className="p-5 sm:p-6">
+          <section role="tabpanel" id={`${profileId}-data-panel`} aria-labelledby={`${profileId}-data-tab`} hidden={activeTab !== 'data'} tabIndex={0}>
             <h2 id="fleet-vehicle-data-title" className="flex items-center gap-2 text-base font-semibold text-brand-ink">
               <Settings2 className="h-4 w-4 text-brand-muted" aria-hidden="true" /> Datos del vehículo
             </h2>
-            <dl className="mt-2 grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-1">
+            <dl className="mt-2 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
               <Fact icon={Hash} label="Código interno" value={vehicle.codigoInterno ?? 'Sin código'} />
               <Fact icon={MapPin} label="Sucursal" value={vehicle.sucursal ?? 'Sin sucursal'} />
               <Fact icon={UserRound} label="Responsable" value={vehicle.responsable ?? 'Sin responsable'} />
@@ -320,7 +295,7 @@ export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailPro
             </dl>
           </section>
 
-          <section aria-labelledby="fleet-documents-title" className="min-w-0">
+          <section role="tabpanel" id={`${profileId}-documents-panel`} aria-labelledby={`${profileId}-documents-tab`} hidden={activeTab !== 'documents'} tabIndex={0} className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 id="fleet-documents-title" className="flex items-center gap-2 text-base font-semibold text-brand-ink">
@@ -485,6 +460,7 @@ export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailPro
         </div>
       </div>
 
+      <footer className="reference-dialog-footer"><button type="button" className="secondary-button" onClick={onClose}>Cerrar</button></footer>
       {isEditingVehicle && (
         <FleetVehicleFormModal
           vehicle={vehicle}

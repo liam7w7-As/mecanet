@@ -287,6 +287,16 @@ export const listPayments = async (query: PaymentQueryInput, userId?: number): P
   if (query.quotationId !== undefined) where.quotationId = query.quotationId;
   if (query.metodo !== undefined) where.metodo = query.metodo;
   if (query.estado !== undefined) where.estado = query.estado;
+  const pattern = `%${query.search ?? ''}%`;
+  const searchWhere: PaymentWhere | undefined = query.search ? {
+    [Op.or]: [
+      { referencia: { [Op.like]: pattern } },
+      { numeroTransaccion: { [Op.like]: pattern } },
+      { bancoOrigen: { [Op.like]: pattern } },
+      { '$quotation.codigo$': { [Op.like]: pattern } },
+      { '$quotation.client.nombre$': { [Op.like]: pattern } },
+    ],
+  } : undefined;
   if (query.fechaDesde || query.fechaHasta) {
     const range: { [Op.gte]?: Date; [Op.lte]?: Date } = {};
     if (query.fechaDesde) range[Op.gte] = new Date(`${query.fechaDesde}T00:00:00.000Z`);
@@ -295,12 +305,13 @@ export const listPayments = async (query: PaymentQueryInput, userId?: number): P
   }
 
   const { rows, count } = await Payment.findAndCountAll({
-    where,
+    where: searchWhere ? { [Op.and]: [where, searchWhere] } : where,
     include: [creatorInclude, reviewerInclude, {
       ...quotationInclude,
       ...((await getSalesUserId(userId)) !== undefined ? { required: true, where: { asesorId: userId } } : {}),
     }],
     distinct: true,
+    subQuery: false,
     limit: pagination.limit,
     offset: pagination.offset,
     order: [

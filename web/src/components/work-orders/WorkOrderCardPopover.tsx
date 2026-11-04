@@ -10,6 +10,8 @@ interface Props {
   role?: 'region' | 'menu';
   minWidth?: number;
   className?: string;
+  connected?: boolean;
+  onPlacementChange?: (placement: 'above' | 'below') => void;
   onPointerEnter?: PointerEventHandler<HTMLDivElement>;
   onPointerLeave?: PointerEventHandler<HTMLDivElement>;
   onBlurCapture?: FocusEventHandler<HTMLDivElement>;
@@ -18,9 +20,10 @@ interface Props {
 }
 
 /** Anchored outside the animated grid, so expanding a card never moves its neighbours. */
-export default function WorkOrderCardPopover({ anchorRef, id, label, role = 'region', minWidth = 0, className = '', onPointerEnter, onPointerLeave, onBlurCapture, onClose, children }: Props) {
+export default function WorkOrderCardPopover({ anchorRef, id, label, role = 'region', minWidth = 0, className = '', connected = false, onPlacementChange, onPointerEnter, onPointerLeave, onBlurCapture, onClose, children }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<CSSProperties>({ visibility: 'hidden' });
+  const [placement, setPlacement] = useState<'above' | 'below'>('below');
 
   useLayoutEffect(() => {
     const anchor = anchorRef.current;
@@ -33,11 +36,17 @@ export default function WorkOrderCardPopover({ anchorRef, id, label, role = 'reg
       const viewportHeight = window.innerHeight;
       if (bounds.bottom < 0 || bounds.top > viewportHeight) { onClose(); return; }
       const width = Math.min(Math.max(bounds.width || 300, minWidth), viewportWidth - 24);
-      const availableBelow = viewportHeight - bounds.bottom - 12;
+      // Leave room for the mobile navigation; the extension scrolls independently.
+      const navigation = document.querySelector('.redesign-shell > .tabbar')?.getBoundingClientRect();
+      const bottomInset = navigation && navigation.height > 0 ? viewportHeight - navigation.top + 12 : 12;
+      const availableBelow = viewportHeight - bounds.bottom - bottomInset;
       const availableAbove = bounds.top - 12;
-      const upwards = availableBelow < Math.min(panel.scrollHeight, 180) && availableAbove > availableBelow;
-      const maxHeight = Math.max(100, upwards ? availableAbove : availableBelow);
+      const upwards = availableBelow < Math.min(panel.scrollHeight, 240) && availableAbove > availableBelow;
+      const maxHeight = Math.max(80, upwards ? availableAbove : availableBelow);
       const height = Math.min(panel.scrollHeight, maxHeight);
+      const nextPlacement = upwards ? 'above' : 'below';
+      setPlacement(nextPlacement);
+      onPlacementChange?.(nextPlacement);
       setPosition({
         visibility: 'visible',
         width,
@@ -58,7 +67,7 @@ export default function WorkOrderCardPopover({ anchorRef, id, label, role = 'reg
         options[next]?.focus();
         return;
       }
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || document.querySelector('[aria-modal="true"]')) return;
       event.preventDefault();
       event.stopPropagation();
       onClose();
@@ -80,10 +89,10 @@ export default function WorkOrderCardPopover({ anchorRef, id, label, role = 'reg
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [anchorRef, minWidth, onClose, role]);
+  }, [anchorRef, minWidth, onClose, onPlacementChange, role]);
 
   return createPortal(
-    <div ref={panelRef} id={id} role={role} aria-label={label} className={`workshop-card-popover ${className}`} style={position} onPointerOver={onPointerEnter} onPointerOut={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) onPointerLeave?.(event); }} onBlurCapture={onBlurCapture}>
+    <div ref={panelRef} id={id} role={role} aria-label={label} data-connected={connected || undefined} data-placement={placement} className={`workshop-card-popover ${className}`} style={position} onPointerOver={onPointerEnter} onPointerOut={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) onPointerLeave?.(event); }} onBlurCapture={onBlurCapture}>
       {children}
     </div>,
     document.body,

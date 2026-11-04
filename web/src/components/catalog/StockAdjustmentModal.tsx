@@ -1,8 +1,12 @@
-import { AlertCircle, ArrowDownToLine, ArrowUpFromLine, Boxes, LoaderCircle, Warehouse as WarehouseIcon } from 'lucide-react';
-import { motion } from 'motion/react';
+import {
+  AlertCircle,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Boxes,
+  Warehouse as WarehouseIcon,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 import {
   useCreateStockMovementMutation,
   useWarehouseBalances,
@@ -10,11 +14,9 @@ import {
 } from '../../hooks/useWarehouses';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { notifySuccess } from '../../stores/toast.store';
-import ModalHeader from '../common/ModalHeader';
+import FormDialog from '../common/FormDialog';
 
 import type { CatalogItem } from '../../types/entities';
-
-
 
 interface StockAdjustmentModalProps {
   item: Pick<CatalogItem, 'id' | 'codigo' | 'nombre' | 'stock'>;
@@ -36,7 +38,6 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const balancesQuery = useWarehouseBalances(warehouseId);
   const movementMutation = useCreateStockMovementMutation();
-
 
   const selectedWarehouse = activeWarehouses.find((warehouse) => warehouse.id === warehouseId);
   const warehouseStock =
@@ -94,221 +95,202 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
       setWarehouseId(activeWarehouses[0].id);
     }
   }, [activeWarehouses, warehouseId]);
-  const setPanelNode = useModalOverlay({ isOpen: true, onClose, isPending: movementMutation.isPending });
+  const dirty =
+    movementType !== 'ingreso' ||
+    quantity !== '1' ||
+    reason !== '' ||
+    (warehouseId !== null && warehouseId !== activeWarehouses[0]?.id);
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-3 py-3 sm:items-center sm:px-4 sm:py-6">
-      <button
-        type="button"
-        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
-        aria-label="Cerrar ajuste de stock"
-        onClick={onClose}
-      />
-      <motion.section
-        initial={{ opacity: 0, scale: 0.97, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="workspace-form-dialog workspace-dialog relative w-full max-w-[720px] overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
-        role="dialog" ref={setPanelNode}
-        aria-modal="true"
-        aria-labelledby="stock-adjustment-title"
-      >
-        {/* Cabecera sobre `surfaceDark` y no sobre el índigo: el título usa
-            `text-white/65` y `text-white/70`, que sobre `#255DFF` dan 3.05:1 y
-            3.3:1. Sobre la superficie oscura del tema `body.dark` del diseño
-            suben a ~6.9:1. */}
-        <ModalHeader
-  id="stock-adjustment-title"
-  eyebrow="Movimiento de inventario"
-  title={item.nombre}
-  description={<span className="font-mono text-xs">{item.codigo ?? 'SIN CÓDIGO'} · Stock global {item.stock}</span>}
-  onClose={onClose}
-  closeLabel="Cerrar ajuste"
-/>
-
-        <form className="workspace-form" noValidate onSubmit={handleSubmit}>
-          <div className="workspace-form-body space-y-5 p-5 sm:p-6">
-          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Tipo de movimiento">
-            <button
-              type="button"
-              className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors ${
-                movementType === 'ingreso'
-                  ? 'border-brand-mintInk bg-brand-mintPale text-brand-mintInk'
-                  : 'border-brand-line text-brand-muted hover:bg-brand-pale'
-              }`}
-              onClick={() => changeMovementType('ingreso')}
-              aria-pressed={movementType === 'ingreso'}
-            >
-              <ArrowDownToLine className="h-4 w-4" aria-hidden="true" /> Entrada
-            </button>
-            <button
-              type="button"
-              className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors ${
-                movementType === 'salida'
-                  ? 'border-brand-coralInk bg-brand-coralPale text-brand-coralInk'
-                  : 'border-brand-line text-brand-muted hover:bg-brand-pale'
-              }`}
-              onClick={() => changeMovementType('salida')}
-              aria-pressed={movementType === 'salida'}
-            >
-              <ArrowUpFromLine className="h-4 w-4" aria-hidden="true" /> Salida
-            </button>
+    <FormDialog
+      id="stock-adjustment-title"
+      title="Movimiento de inventario"
+      code={item.codigo ?? 'SIN CÓDIGO'}
+      context={item.nombre}
+      submitLabel="Confirmar movimiento"
+      dirty={dirty}
+      pending={movementMutation.isPending}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      headerVariant="plain"
+      className="inventory-form reference-form-dialog stock-form-dialog"
+      submitDisabled={
+        warehousesQuery.isPending ||
+        warehousesQuery.isError ||
+        balancesQuery.isPending ||
+        balancesQuery.isError ||
+        activeWarehouses.length === 0 ||
+        selectedWarehouse === undefined
+      }
+    >
+      <div className="inventory-form-fields">
+        <div className="inventory-profile-hero">
+          <Boxes aria-hidden="true" />
+          <div>
+            <small>Repuesto · Stock global {item.stock}</small>
+            <h3>{item.nombre}</h3>
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2" role="group" aria-label="Tipo de movimiento">
+          <button
+            type="button"
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors ${
+              movementType === 'ingreso'
+                ? 'border-brand-mintInk bg-brand-mintPale text-brand-mintInk'
+                : 'border-brand-line text-brand-muted hover:bg-brand-pale'
+            }`}
+            onClick={() => changeMovementType('ingreso')}
+            aria-pressed={movementType === 'ingreso'}
+          >
+            <ArrowDownToLine className="h-4 w-4" aria-hidden="true" /> Entrada
+          </button>
+          <button
+            type="button"
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors ${
+              movementType === 'salida'
+                ? 'border-brand-coralInk bg-brand-coralPale text-brand-coralInk'
+                : 'border-brand-line text-brand-muted hover:bg-brand-pale'
+            }`}
+            onClick={() => changeMovementType('salida')}
+            aria-pressed={movementType === 'salida'}
+          >
+            <ArrowUpFromLine className="h-4 w-4" aria-hidden="true" /> Salida
+          </button>
+        </div>
 
-          <label className="block text-sm font-semibold text-brand-ink">
-            Almacén
-            <span className="relative mt-1 block">
-              <WarehouseIcon
-                className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted"
-                aria-hidden="true"
-              />
-              <select
-                value={warehouseId ?? ''}
-                onChange={(event) => {
-                  setWarehouseId(event.target.value ? Number(event.target.value) : null);
-                  setFieldErrors({});
-                }}
-                className="h-10 w-full rounded-lg border border-brand-line bg-white pl-9 pr-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-                aria-invalid={Boolean(fieldErrors.warehouseId)}
-                disabled={warehousesQuery.isPending || activeWarehouses.length === 0}
-              >
-                {activeWarehouses.length === 0 && <option value="">Sin almacenes activos</option>}
-                {activeWarehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.codigo} · {warehouse.nombre}
-                  </option>
-                ))}
-              </select>
+        <label className="block text-sm font-semibold text-brand-ink">
+          Almacén
+          <span className="relative mt-1 block">
+            <WarehouseIcon
+              className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted"
+              aria-hidden="true"
+            />
+            <select
+              value={warehouseId ?? ''}
+              onChange={(event) => {
+                setWarehouseId(event.target.value ? Number(event.target.value) : null);
+                setFieldErrors({});
+              }}
+              className="h-10 w-full rounded-lg border border-brand-line bg-white pl-9 pr-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
+              aria-invalid={Boolean(fieldErrors.warehouseId)}
+              disabled={warehousesQuery.isPending || activeWarehouses.length === 0}
+            >
+              {activeWarehouses.length === 0 && <option value="">Sin almacenes activos</option>}
+              {activeWarehouses.map((warehouse) => (
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.codigo} · {warehouse.nombre}
+                </option>
+              ))}
+            </select>
+          </span>
+          {fieldErrors.warehouseId && (
+            <span className="mt-1 block text-xs text-brand-coralInk" role="alert">
+              {fieldErrors.warehouseId}
             </span>
-            {fieldErrors.warehouseId && (
+          )}
+        </label>
+
+        <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-brand-line bg-brand-line/40 text-center">
+          <div className="p-3">
+            <p className="text-[11px] font-semibold uppercase text-brand-muted">En bodega</p>
+            <p className="mt-1 text-xl font-bold text-brand-primaryInk" data-testid="current-stock">
+              {balancesQuery.isPending ? '…' : warehouseStock}
+            </p>
+          </div>
+          <div className="border-x border-brand-line p-3">
+            <p className="text-[11px] font-semibold uppercase text-brand-muted">Quedará</p>
+            <p
+              className={`mt-1 text-xl font-bold ${nextWarehouseStock < 0 ? 'text-brand-coralInk' : 'text-brand-primaryInk'}`}
+              data-testid="next-stock"
+            >
+              {nextWarehouseStock}
+            </p>
+          </div>
+          <div className="p-3">
+            <p className="text-[11px] font-semibold uppercase text-brand-muted">Global</p>
+            <p className="mt-1 text-xl font-bold text-brand-ink">{nextGlobalStock}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-[140px_minmax(0,1fr)]">
+          <label className="block text-sm font-semibold text-brand-ink">
+            Cantidad
+            <input
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk"
+              type="number"
+              min="1"
+              step="1"
+              value={quantity}
+              onChange={(event) => {
+                setQuantity(event.target.value);
+                setFieldErrors({});
+              }}
+              aria-invalid={Boolean(fieldErrors.cantidad)}
+            />
+            {fieldErrors.cantidad && (
               <span className="mt-1 block text-xs text-brand-coralInk" role="alert">
-                {fieldErrors.warehouseId}
+                {fieldErrors.cantidad}
               </span>
             )}
           </label>
-
-          <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-brand-line bg-brand-line/40 text-center">
-            <div className="p-3">
-              <p className="text-[11px] font-semibold uppercase text-brand-muted">En bodega</p>
-              <p className="mt-1 text-xl font-bold text-brand-primaryInk" data-testid="current-stock">
-                {balancesQuery.isPending ? '…' : warehouseStock}
-              </p>
-            </div>
-            <div className="border-x border-brand-line p-3">
-              <p className="text-[11px] font-semibold uppercase text-brand-muted">Quedará</p>
-              <p
-                className={`mt-1 text-xl font-bold ${nextWarehouseStock < 0 ? 'text-brand-coralInk' : 'text-brand-primaryInk'}`}
-                data-testid="next-stock"
-              >
-                {nextWarehouseStock}
-              </p>
-            </div>
-            <div className="p-3">
-              <p className="text-[11px] font-semibold uppercase text-brand-muted">Global</p>
-              <p className="mt-1 text-xl font-bold text-brand-ink">{nextGlobalStock}</p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-[140px_minmax(0,1fr)]">
-            <label className="block text-sm font-semibold text-brand-ink">
-              Cantidad
-              <input
-                className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk"
-                type="number"
-                min="1"
-                step="1"
-                value={quantity}
-                onChange={(event) => {
-                  setQuantity(event.target.value);
-                  setFieldErrors({});
-                }}
-                aria-invalid={Boolean(fieldErrors.cantidad)}
-              />
-              {fieldErrors.cantidad && (
-                <span className="mt-1 block text-xs text-brand-coralInk" role="alert">
-                  {fieldErrors.cantidad}
-                </span>
-              )}
-            </label>
-            <label className="block text-sm font-semibold text-brand-ink">
-              Motivo
-              <input
-                className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk"
-                value={reason}
-                onChange={(event) => {
-                  setReason(event.target.value);
-                  setFieldErrors({});
-                }}
-                placeholder={
-                  movementType === 'ingreso' ? 'Recepción de proveedor' : 'Entrega a taller'
-                }
-                aria-invalid={Boolean(fieldErrors.motivo)}
-              />
-              {fieldErrors.motivo && (
-                <span className="mt-1 block text-xs text-brand-coralInk" role="alert">
-                  {fieldErrors.motivo}
-                </span>
-              )}
-            </label>
-          </div>
-
-          {warehousesQuery.isError && (
-            <div
-              className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk"
-              role="alert"
-            >
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              No se pudieron cargar los almacenes.
-            </div>
-          )}
-          {activeWarehouses.length === 0 &&
-            !warehousesQuery.isPending &&
-            !warehousesQuery.isError && (
-              <div
-                className="flex items-start gap-2 rounded-lg border border-brand-line bg-brand-goldPale px-3 py-2.5 text-sm text-brand-goldInk"
-                role="alert"
-              >
-                <Boxes className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                Cree o active un almacén antes de registrar movimientos.
-              </div>
-            )}
-          {movementMutation.error && (
-            <div
-              className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk"
-              role="alert"
-            >
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              {getApiErrorMessage(movementMutation.error)}
-            </div>
-          )}
-
-          </div>
-          <footer className="workspace-form-footer flex flex-col-reverse gap-2 border-t border-brand-line pt-5 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
-              onClick={onClose}
-              disabled={movementMutation.isPending}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-bold text-white hover:bg-brand-primaryInkHover disabled:opacity-60"
-              disabled={
-                movementMutation.isPending ||
-                activeWarehouses.length === 0 ||
-                selectedWarehouse === undefined
+          <label className="block text-sm font-semibold text-brand-ink">
+            Motivo
+            <input
+              className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk"
+              value={reason}
+              onChange={(event) => {
+                setReason(event.target.value);
+                setFieldErrors({});
+              }}
+              placeholder={
+                movementType === 'ingreso' ? 'Recepción de proveedor' : 'Entrega a taller'
               }
+              aria-invalid={Boolean(fieldErrors.motivo)}
+            />
+            {fieldErrors.motivo && (
+              <span className="mt-1 block text-xs text-brand-coralInk" role="alert">
+                {fieldErrors.motivo}
+              </span>
+            )}
+          </label>
+        </div>
+
+        {warehousesQuery.isError && (
+          <div
+            className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk"
+            role="alert"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            No se pudieron cargar los almacenes.
+          </div>
+        )}
+        {activeWarehouses.length === 0 &&
+          !warehousesQuery.isPending &&
+          !warehousesQuery.isError && (
+            <div
+              className="flex items-start gap-2 rounded-lg border border-brand-line bg-brand-goldPale px-3 py-2.5 text-sm text-brand-goldInk"
+              role="alert"
             >
-              {movementMutation.isPending && (
-                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-              )}
-              {movementMutation.isPending ? 'Registrando...' : 'Confirmar movimiento'}
-            </button>
-          </footer>
-        </form>
-      </motion.section>
-    </div>
+              <Boxes className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              Cree o active un almacén antes de registrar movimientos.
+            </div>
+          )}
+        {movementMutation.error && (
+          <div
+            className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk"
+            role="alert"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            {getApiErrorMessage(movementMutation.error)}
+          </div>
+        )}
+
+        {balancesQuery.isError && (
+          <p className="inventory-alert" role="alert">
+            No se pudo consultar el saldo del almacén. Reintente antes de registrar el movimiento.
+          </p>
+        )}
+      </div>
+    </FormDialog>
   );
 };
 

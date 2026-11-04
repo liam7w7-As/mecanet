@@ -1,11 +1,10 @@
 import {
   createWorkOrderSchema,
   convertQuotationToWorkOrderSchema,
+  formatRut,
   FUEL_LEVELS,
   TIRE_CONDITIONS,
-  UNIT_MEASURE_LABELS,
   VEHICLE_INVENTORY_ITEMS,
-  WORK_ORDER_INSPECTION_PHOTO_SLOTS,
 } from '@unithor/shared';
 import {
   AlertCircle,
@@ -15,7 +14,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  ImagePlus,
+  ChevronDown,
   LoaderCircle,
   Plus,
   Save,
@@ -31,14 +30,20 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 
 import { AnimateIcon } from '../../components/animate-ui';
 import ClientFormModal from '../../components/clients/ClientFormModal';
+import DatePicker from '../../components/common/DatePicker';
 import FormRecoveryBanner from '../../components/common/FormRecoveryBanner';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import SavingOverlay from '../../components/common/SavingOverlay';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
 import PendingInspectionPhotos from '../../components/work-orders/PendingInspectionPhotos';
-import WorkOrderItemsEditor, { calculateItemsTotal } from '../../components/work-orders/WorkOrderItemsEditor';
-import WorkOrderReceptionNavigation, { WORK_ORDER_RECEPTION_STEPS as steps } from '../../components/work-orders/WorkOrderReceptionNavigation';
-import WorkOrderReceptionSummary from '../../components/work-orders/WorkOrderReceptionSummary';
+import { RECEPTION_PHOTO_GUIDES } from '../../components/work-orders/reception-photo-guides';
+import WorkOrderItemsEditor, {
+  calculateItemsTotal,
+} from '../../components/work-orders/WorkOrderItemsEditor';
+import WorkOrderReceptionNavigation, {
+  WORK_ORDER_RECEPTION_STEPS as steps,
+} from '../../components/work-orders/WorkOrderReceptionNavigation';
+import WorkOrderReceptionReview from '../../components/work-orders/WorkOrderReceptionReview';
 import { useClient, useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useFormRecovery } from '../../hooks/useFormRecovery';
@@ -74,6 +79,7 @@ import type {
   VehicleInventoryItem,
   WorkOrderInspectionPhotoSlot,
 } from '@unithor/shared';
+import type { ReactNode } from 'react';
 
 type ClientOption = Pick<
   Client,
@@ -185,18 +191,29 @@ const toQuickVehicle = (
 });
 
 const clientSubtitle = (client: ClientOption): string =>
-  [client.rut ?? 'Sin RUT', client.telefono ?? 'Sin teléfono'].join(' · ');
+  [client.rut ? formatRut(client.rut) : 'Sin RUT', client.telefono ?? 'Sin teléfono'].join(' · ');
 
 interface SelectedClientCardProps {
   title: string;
   client: ClientOption | null;
   onClear?: () => void;
+  onChange?: () => void;
 }
 
-const SelectedClientCard = ({ title, client, onClear }: SelectedClientCardProps) => (
+const SelectedClientCard = ({ title, client, onClear, onChange }: SelectedClientCardProps) => (
   <div className="reception-client-card rounded-lg border border-brand-line bg-white p-3">
     <div className="flex items-start justify-between gap-3">
       <p className="text-xs font-bold uppercase text-brand-muted">{title}</p>
+      {client && onChange && (
+        <button
+          type="button"
+          className="reception-change-action"
+          onClick={onChange}
+          aria-label={`Cambiar ${title.toLowerCase()}`}
+        >
+          Cambiar
+        </button>
+      )}
       {client && onClear && (
         <button
           type="button"
@@ -248,14 +265,21 @@ const ClientSearchPicker = ({
 }: ClientSearchPickerProps) => {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search.trim(), 250);
-  const clientsQuery = useClients({ page: 1, pageSize: 8, search: debouncedSearch || undefined });
+  const clientsQuery = useClients({ page: 1, pageSize: 12, search: debouncedSearch || undefined });
 
   return (
-    <section className="reception-client-picker rounded-lg border border-brand-line bg-white p-4" aria-label={label}>
+    <section
+      className="reception-client-picker rounded-lg border border-brand-line bg-white p-4"
+      aria-label={label}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-bold text-brand-primaryInk">{label}</h3>
-          <p className="mt-1 text-sm text-brand-muted">{selectedClient ? selectedClient.nombre : 'Busque en la lista o registre un nuevo cliente.'}</p>
+          <p className="mt-1 text-sm text-brand-muted">
+            {selectedClient
+              ? selectedClient.nombre
+              : 'Busque en la lista o registre un nuevo cliente.'}
+          </p>
         </div>
         <button
           type="button"
@@ -280,14 +304,26 @@ const ClientSearchPicker = ({
         />
       </div>
 
-      <div className="reception-client-results mt-3 max-h-40 overflow-y-auto rounded-lg border border-brand-line" aria-busy={clientsQuery.isFetching}>
+      <div
+        className="reception-client-results mt-3 max-h-40 overflow-y-auto rounded-lg border border-brand-line"
+        aria-busy={clientsQuery.isFetching}
+      >
         {clientsQuery.isFetching && (
           <p className="px-3 py-3 text-sm text-brand-muted">Buscando clientes...</p>
         )}
         {!clientsQuery.isFetching && clientsQuery.data?.items.length === 0 && (
-          <p className="px-3 py-5 text-center text-sm text-brand-muted">No se encontraron clientes</p>
+          <p className="px-3 py-5 text-center text-sm text-brand-muted">
+            No se encontraron clientes
+          </p>
         )}
-        {clientsQuery.isError && <p role="alert" className="p-3 text-sm text-brand-coralInk">No se pudo cargar la lista. <button type="button" className="underline" onClick={() => void clientsQuery.refetch()}>Reintentar</button></p>}
+        {clientsQuery.isError && (
+          <p role="alert" className="p-3 text-sm text-brand-coralInk">
+            No se pudo cargar la lista.{' '}
+            <button type="button" className="underline" onClick={() => void clientsQuery.refetch()}>
+              Reintentar
+            </button>
+          </p>
+        )}
         {clientsQuery.data?.items.map((client) => {
           const selected = selectedClient?.id === client.id;
           return (
@@ -301,19 +337,109 @@ const ClientSearchPicker = ({
               onClick={() => onSelect(toClientOption(client))}
             >
               <span className="min-w-0">
-                  <span className="block break-words text-sm font-semibold text-brand-ink">
+                <span className="block break-words text-sm font-semibold text-brand-ink">
                   {client.nombre}
                 </span>
                 <span className="block text-xs text-brand-muted">{clientSubtitle(client)}</span>
               </span>
-              {selected && (
-                <Check className="h-4 w-4 shrink-0 text-brand-mintInk" aria-hidden="true" />
-              )}
+              {selected && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
             </button>
           );
         })}
       </div>
     </section>
+  );
+};
+
+const ClientChoicePanel = ({
+  title,
+  label,
+  selectedClient,
+  onSelect,
+  onCreate,
+  responsible,
+  copyLabel,
+}: {
+  title: string;
+  label: string;
+  selectedClient: ClientOption | null;
+  onSelect: (client: ClientOption) => void;
+  onCreate: () => void;
+  responsible?: ClientOption | null;
+  copyLabel?: string;
+}) => {
+  const [choosing, setChoosing] = useState(false);
+  useEffect(() => setChoosing(false), [selectedClient?.id]);
+  return (
+    <div className="reception-person-panel">
+      {selectedClient && !choosing ? (
+        <SelectedClientCard
+          title={title}
+          client={selectedClient}
+          onChange={() => setChoosing(true)}
+        />
+      ) : (
+        <>
+          {selectedClient && (
+            <div className="reception-choice-context">
+              <span>{selectedClient.nombre}</span>
+              <button type="button" onClick={() => setChoosing(false)}>
+                Conservar selección
+              </button>
+            </div>
+          )}
+          <ClientSearchPicker
+            label={label}
+            selectedClient={selectedClient}
+            onSelect={(next) => {
+              onSelect(next);
+              setChoosing(false);
+            }}
+            onCreate={onCreate}
+          />
+          {responsible && copyLabel && (
+            <button
+              type="button"
+              className="reception-copy-action"
+              onClick={() => {
+                onSelect(responsible);
+                setChoosing(false);
+              }}
+            >
+              {copyLabel}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+const InspectionDisclosure = ({
+  title,
+  summary = 'Opcional',
+  initiallyOpen = false,
+  children,
+}: {
+  title: string;
+  summary?: string;
+  initiallyOpen?: boolean;
+  children: ReactNode;
+}) => {
+  const [open, setOpen] = useState(initiallyOpen);
+  return (
+    <details
+      className="reception-disclosure"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>
+        <span>{title}</span>
+        <small>{summary}</small>
+        <ChevronDown aria-hidden="true" />
+      </summary>
+      <div className="reception-disclosure-body">{children}</div>
+    </details>
   );
 };
 
@@ -327,12 +453,16 @@ const WorkOrderCreateForm = () => {
   const conversionMutation = useConvertToWorkOrderMutation();
   const requestedVehicleId = Number(searchParams.get('vehicleId'));
   const requestedClientId = Number(searchParams.get('clientId'));
-  const preselectedClientId =
-    isConversion ? quotationQuery.data?.clientId ?? null :
-      Number.isInteger(requestedClientId) && requestedClientId > 0 ? requestedClientId : null;
-  const preselectedVehicleId =
-    isConversion ? quotationQuery.data?.vehicleId ?? null :
-      Number.isInteger(requestedVehicleId) && requestedVehicleId > 0 ? requestedVehicleId : null;
+  const preselectedClientId = isConversion
+    ? (quotationQuery.data?.clientId ?? null)
+    : Number.isInteger(requestedClientId) && requestedClientId > 0
+      ? requestedClientId
+      : null;
+  const preselectedVehicleId = isConversion
+    ? (quotationQuery.data?.vehicleId ?? null)
+    : Number.isInteger(requestedVehicleId) && requestedVehicleId > 0
+      ? requestedVehicleId
+      : null;
   const createMutation = useCreateWorkOrderMutation();
   const uploadPhotosMutation = useUploadWorkOrderInspectionPhotosMutation();
   const user = useAuthStore((state) => state.user);
@@ -348,6 +478,7 @@ const WorkOrderCreateForm = () => {
   const [vehicle, setVehicle] = useState<QuickSearchVehicle | null>(null);
   const [clientModalTarget, setClientModalTarget] = useState<ClientModalTarget | null>(null);
   const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
+  const [choosingVehicle, setChoosingVehicle] = useState(false);
   const [kilometrajeIngreso, setKilometrajeIngreso] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [fechaIngreso, setFechaIngreso] = useState(toLocalDateTime(new Date()));
@@ -374,10 +505,11 @@ const WorkOrderCreateForm = () => {
   const initialClientId = preselectedClientId ?? preselectedVehicleQuery.data?.clientId ?? null;
   const preselectedClientQuery = useClient(initialClientId);
 
-
   const [createdOrderCode, setCreatedOrderCode] = useState('');
   const [uploadedSlots, setUploadedSlots] = useState<WorkOrderInspectionPhotoSlot[]>([]);
-  const [photoTransfers, setPhotoTransfers] = useState<Partial<Record<WorkOrderInspectionPhotoSlot, PhotoTransferState>>>({});
+  const [photoTransfers, setPhotoTransfers] = useState<
+    Partial<Record<WorkOrderInspectionPhotoSlot, PhotoTransferState>>
+  >({});
   const pageMounted = useRef(true);
   const requestPending = useRef(false);
   const uploadController = useRef<AbortController | null>(null);
@@ -385,7 +517,12 @@ const WorkOrderCreateForm = () => {
   currentPhotos.current = photos;
   useEffect(() => {
     pageMounted.current = true;
-    const warn = (event: BeforeUnloadEvent) => { if (requestPending.current) { event.preventDefault(); event.returnValue = ''; } };
+    const warn = (event: BeforeUnloadEvent) => {
+      if (requestPending.current) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
     window.addEventListener('beforeunload', warn);
     return () => {
       window.removeEventListener('beforeunload', warn);
@@ -394,44 +531,119 @@ const WorkOrderCreateForm = () => {
       currentPhotos.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
     };
   }, []);
-  const draftValue = useMemo<WorkOrderRecovery>(() => ({
-    activeStep, client, contactClient, billingClient, vehicle, assignedMechanicId,
-    kilometrajeIngreso, descripcion, fechaIngreso, fechaEntrega, items, inspection,
-    photos: photos.map((photo) => ({ slot: photo.slot, file: photo.file, name: photo.file.name, lastModified: photo.file.lastModified })),
-    createdOrder: createdOrderId ? { id: createdOrderId, codigo: createdOrderCode } : null,
-    uploadedSlots,
-  }), [activeStep, client, contactClient, billingClient, vehicle, assignedMechanicId,
-    kilometrajeIngreso, descripcion, fechaIngreso, fechaEntrega, items, inspection, photos,
-    createdOrderId, createdOrderCode, uploadedSlots]);
+  const draftValue = useMemo<WorkOrderRecovery>(
+    () => ({
+      activeStep,
+      client,
+      contactClient,
+      billingClient,
+      vehicle,
+      assignedMechanicId,
+      kilometrajeIngreso,
+      descripcion,
+      fechaIngreso,
+      fechaEntrega,
+      items,
+      inspection,
+      photos: photos.map((photo) => ({
+        slot: photo.slot,
+        file: photo.file,
+        name: photo.file.name,
+        lastModified: photo.file.lastModified,
+      })),
+      createdOrder: createdOrderId ? { id: createdOrderId, codigo: createdOrderCode } : null,
+      uploadedSlots,
+    }),
+    [
+      activeStep,
+      client,
+      contactClient,
+      billingClient,
+      vehicle,
+      assignedMechanicId,
+      kilometrajeIngreso,
+      descripcion,
+      fechaIngreso,
+      fechaEntrega,
+      items,
+      inspection,
+      photos,
+      createdOrderId,
+      createdOrderCode,
+      uploadedSlots,
+    ],
+  );
   const recovery = useFormRecovery<WorkOrderRecovery>({
-    userId: user?.id, form: isConversion ? 'work-order:convert:' + quotationId : 'work-order:new',
-    schema: workOrderRecoverySchema, value: draftValue, paused: submissionInFlight.current || createdOrderId !== null,
-    hasContent: Boolean(client || vehicle || descripcion || kilometrajeIngreso || photos.length || activeStep ||
-      items.length || inspection.nivelCombustible || inspection.inventario.length || inspection.objetosValor || inspection.observaciones ||
-      assignedMechanicId || createdOrderId || fechaEntrega ||
-      [inspection.llantaDelanteraIzquierda, inspection.llantaDelanteraDerecha, inspection.llantaTraseraIzquierda, inspection.llantaTraseraDerecha].some((value) => value !== 'no_revisado')),
+    userId: user?.id,
+    form: isConversion ? 'work-order:convert:' + quotationId : 'work-order:new',
+    schema: workOrderRecoverySchema,
+    value: draftValue,
+    paused: submissionInFlight.current || createdOrderId !== null,
+    hasContent: Boolean(
+      client ||
+      vehicle ||
+      descripcion ||
+      kilometrajeIngreso ||
+      photos.length ||
+      activeStep ||
+      items.length ||
+      inspection.nivelCombustible ||
+      inspection.inventario.length ||
+      inspection.objetosValor ||
+      inspection.observaciones ||
+      assignedMechanicId ||
+      createdOrderId ||
+      fechaEntrega ||
+      [
+        inspection.llantaDelanteraIzquierda,
+        inspection.llantaDelanteraDerecha,
+        inspection.llantaTraseraIzquierda,
+        inspection.llantaTraseraDerecha,
+      ].some((value) => value !== 'no_revisado'),
+    ),
     onRestore: (draft): void => {
       prefillApplied.current = true;
       setActiveStep(draft.activeStep as StepIndex);
-      setClient(draft.client); setContactClient(draft.contactClient); setBillingClient(draft.billingClient);
-      setVehicle(draft.vehicle); setAssignedMechanicId(canAssignMechanic ? draft.assignedMechanicId : null);
-      setKilometrajeIngreso(draft.kilometrajeIngreso); setDescripcion(draft.descripcion);
-      setFechaIngreso(draft.fechaIngreso); setFechaEntrega(draft.fechaEntrega);
-      setItems(draft.items.map((item) => ({ ...item, key: "recovered-" + crypto.randomUUID() }))); setInspection(draft.inspection);
-      setPhotos(draft.photos.map((photo) => {
-        const file = new File([photo.file], photo.name, { type: photo.file.type, lastModified: photo.lastModified });
-        return { slot: photo.slot, file, previewUrl: URL.createObjectURL(file) };
-      }));
+      setClient(draft.client);
+      setContactClient(draft.contactClient);
+      setBillingClient(draft.billingClient);
+      setVehicle(draft.vehicle);
+      setAssignedMechanicId(canAssignMechanic ? draft.assignedMechanicId : null);
+      setKilometrajeIngreso(draft.kilometrajeIngreso);
+      setDescripcion(draft.descripcion);
+      setFechaIngreso(draft.fechaIngreso);
+      setFechaEntrega(draft.fechaEntrega);
+      setItems(draft.items.map((item) => ({ ...item, key: 'recovered-' + crypto.randomUUID() })));
+      setInspection(draft.inspection);
+      setPhotos(
+        draft.photos.map((photo) => {
+          const file = new File([photo.file], photo.name, {
+            type: photo.file.type,
+            lastModified: photo.lastModified,
+          });
+          return { slot: photo.slot, file, previewUrl: URL.createObjectURL(file) };
+        }),
+      );
       setCreatedOrderId(draft.createdOrder?.id ?? null);
       setCreatedOrderCode(draft.createdOrder?.codigo ?? '');
       setUploadedSlots(draft.uploadedSlots);
     },
   });
 
-  const isSubmitting = submitting || createMutation.isPending || conversionMutation.isPending || uploadPhotosMutation.isPending;
+  const isSubmitting =
+    submitting ||
+    createMutation.isPending ||
+    conversionMutation.isPending ||
+    uploadPhotosMutation.isPending;
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
-  const setConfirmPanel = useModalOverlay({ isOpen: showConfirm, onClose: () => setShowConfirm(false), isPending: isSubmitting });
-  useEffect(() => { stepHeadingRef.current?.focus(); }, [activeStep]);
+  const setConfirmPanel = useModalOverlay({
+    isOpen: showConfirm,
+    onClose: () => setShowConfirm(false),
+    isPending: isSubmitting,
+  });
+  useEffect(() => {
+    stepHeadingRef.current?.focus();
+  }, [activeStep]);
   const submissionError = isConversion ? conversionMutation.error : createMutation.error;
   const returnPath = isConversion ? `/quotations/${quotationId}` : '/work-orders';
   const vehicleOwnerIsDifferent = Boolean(
@@ -456,7 +668,12 @@ const WorkOrderCreateForm = () => {
   };
 
   useEffect(() => {
-    if (!recovery.ready || createdOrderId || prefillApplied.current || (!isConversion && preselectedClientId === null && preselectedVehicleId === null))
+    if (
+      !recovery.ready ||
+      createdOrderId ||
+      prefillApplied.current ||
+      (!isConversion && preselectedClientId === null && preselectedVehicleId === null)
+    )
       return;
     if (isConversion && !quotationQuery.data) return;
     if (preselectedVehicleId !== null && preselectedVehicleQuery.isPending) return;
@@ -479,20 +696,22 @@ const WorkOrderCreateForm = () => {
     }
     if (isConversion && quotationQuery.data) {
       setDescripcion(quotationQuery.data.notas ?? '');
-      setItems((quotationQuery.data.items ?? []).map((item) => ({
-        key: `quotation-item-${item.id}`,
-        catalogItemId: item.catalogItemId,
-        catalogTipo: item.tipoLinea,
-        catalogStock: null,
-        descripcion: item.descripcion,
-        tipoLinea: item.tipoLinea,
-        unidadMedida: item.unidadMedida,
-        cantidad: String(item.cantidad),
-        precioUnitario: String(item.precioUnitario),
-        horasHombreEstimadas: '',
-        estadoOperativo: item.estadoOperativo,
-        notasOperativas: item.notasOperativas ?? '',
-      })));
+      setItems(
+        (quotationQuery.data.items ?? []).map((item) => ({
+          key: `quotation-item-${item.id}`,
+          catalogItemId: item.catalogItemId,
+          catalogTipo: item.tipoLinea,
+          catalogStock: null,
+          descripcion: item.descripcion,
+          tipoLinea: item.tipoLinea,
+          unidadMedida: item.unidadMedida,
+          cantidad: String(item.cantidad),
+          precioUnitario: String(item.precioUnitario),
+          horasHombreEstimadas: '',
+          estadoOperativo: item.estadoOperativo,
+          notasOperativas: item.notasOperativas ?? '',
+        })),
+      );
       setActiveStep(selectedResponsible ? 2 : 0);
     }
     prefillApplied.current = true;
@@ -574,10 +793,19 @@ const WorkOrderCreateForm = () => {
   const replacePendingPhoto = (slot: WorkOrderInspectionPhotoSlot, file: File): void => {
     if (submissionInFlight.current || uploadedSlots.includes(slot)) return;
     const validationError = validateInspectionFile(file);
-    if (validationError) { notifyError(validationError); return; }
+    if (validationError) {
+      notifyError(validationError);
+      return;
+    }
     setInspectionPhoto(slot, file);
     setPhotoTransfers((current) => ({ ...current, [slot]: { percent: 0 } }));
-    void recovery.persist({ ...draftValue, photos: [...draftValue.photos.filter((photo) => photo.slot !== slot), { slot, file, name: file.name, lastModified: file.lastModified }] });
+    void recovery.persist({
+      ...draftValue,
+      photos: [
+        ...draftValue.photos.filter((photo) => photo.slot !== slot),
+        { slot, file, name: file.name, lastModified: file.lastModified },
+      ],
+    });
   };
 
   const photoMap = useMemo(() => new Map(photos.map((photo) => [photo.slot, photo])), [photos]);
@@ -696,13 +924,28 @@ const WorkOrderCreateForm = () => {
       if (pending.length > 0) {
         await uploadPhotosMutation.mutateAsync({
           id: order.id,
-          photos: pending.map((photo) => ({ slot: photo.slot, file: new File([photo.file], photo.name, { type: photo.file.type, lastModified: photo.lastModified }) })),
-          continueOnError: true, signal: controller.signal,
+          photos: pending.map((photo) => ({
+            slot: photo.slot,
+            file: new File([photo.file], photo.name, {
+              type: photo.file.type,
+              lastModified: photo.lastModified,
+            }),
+          })),
+          continueOnError: true,
+          signal: controller.signal,
           onProgress: (slot, percent) => {
-            if (pageMounted.current) setPhotoTransfers((current) => ({ ...current, [slot]: { percent } }));
+            if (pageMounted.current)
+              setPhotoTransfers((current) => ({ ...current, [slot]: { percent } }));
           },
           onFailed: (slot, error) => {
-            if (pageMounted.current) setPhotoTransfers((current) => ({ ...current, [slot]: { percent: 0, error: getApiErrorMessage(error, 'No se pudo subir. Puedes reintentar.') } }));
+            if (pageMounted.current)
+              setPhotoTransfers((current) => ({
+                ...current,
+                [slot]: {
+                  percent: 0,
+                  error: getApiErrorMessage(error, 'No se pudo subir. Puedes reintentar.'),
+                },
+              }));
           },
           onUploaded: async (photo) => {
             completed.add(photo.slot);
@@ -718,7 +961,10 @@ const WorkOrderCreateForm = () => {
         navigate(isConversion && !canReadWorkOrders ? returnPath : '/work-orders/' + order.id);
       }
     } catch (error) {
-      if (pageMounted.current) notifyError(getApiErrorMessage(error, 'La OT está guardada. Puedes reintentar las fotos pendientes.'));
+      if (pageMounted.current)
+        notifyError(
+          getApiErrorMessage(error, 'La OT está guardada. Puedes reintentar las fotos pendientes.'),
+        );
     } finally {
       if (uploadController.current === controller) uploadController.current = null;
     }
@@ -727,7 +973,10 @@ const WorkOrderCreateForm = () => {
     if (submissionInFlight.current || !createdOrderId || !canUploadPhotos) return;
     submissionInFlight.current = true;
     setSubmitting(true);
-    void uploadPendingPhotos(draftValue).finally(() => { submissionInFlight.current = false; if (pageMounted.current) setSubmitting(false); });
+    void uploadPendingPhotos(draftValue).finally(() => {
+      submissionInFlight.current = false;
+      if (pageMounted.current) setSubmitting(false);
+    });
   };
 
   const handleConfirmCreate = (): void => {
@@ -749,12 +998,18 @@ const WorkOrderCreateForm = () => {
     void (async () => {
       try {
         const workOrder = isConversion
-          ? (await conversionMutation.mutateAsync({
-              id: quotationId,
-              data: convertQuotationToWorkOrderSchema.strip().parse(result.data),
-            })).workOrder
+          ? (
+              await conversionMutation.mutateAsync({
+                id: quotationId,
+                data: convertQuotationToWorkOrderSchema.strip().parse(result.data),
+              })
+            ).workOrder
           : await createMutation.mutateAsync(result.data);
-        const checkpoint: WorkOrderRecovery = { ...draftValue, createdOrder: { id: workOrder.id, codigo: workOrder.codigo }, uploadedSlots: [] };
+        const checkpoint: WorkOrderRecovery = {
+          ...draftValue,
+          createdOrder: { id: workOrder.id, codigo: workOrder.codigo },
+          uploadedSlots: [],
+        };
         await recovery.persist(checkpoint);
         requestPending.current = false;
         if (!pageMounted.current) return;
@@ -778,22 +1033,72 @@ const WorkOrderCreateForm = () => {
     handleOpenConfirm();
   };
 
-  if (isConversion && Number.isInteger(quotationId) && quotationId > 0 && (quotationQuery.isPending ||
-    (initialClientId !== null && preselectedClientQuery.isPending) ||
-    (preselectedVehicleId !== null && preselectedVehicleQuery.isPending))) {
-    return <div role="status" className="flex items-center gap-2 p-6 text-brand-muted"><LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />Cargando cotización...</div>;
+  if (
+    isConversion &&
+    Number.isInteger(quotationId) &&
+    quotationId > 0 &&
+    (quotationQuery.isPending ||
+      (initialClientId !== null && preselectedClientQuery.isPending) ||
+      (preselectedVehicleId !== null && preselectedVehicleQuery.isPending))
+  ) {
+    return (
+      <div role="status" className="flex items-center gap-2 p-6 text-brand-muted">
+        <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />
+        Cargando cotización...
+      </div>
+    );
   }
   const recoverableOrderId = createdOrderId ?? recovery.candidate?.payload.createdOrder?.id;
-  if (isConversion && (!Number.isInteger(quotationId) || quotationId <= 0 || quotationQuery.isError ||
-    !quotationQuery.data || (quotationQuery.data.workOrderId !== null && quotationQuery.data.workOrderId !== recoverableOrderId) || quotationQuery.data.archivedAt)) {
-    return <section className="space-y-4 p-6"><p role="alert" className="text-brand-coralInk">
-      {quotationQuery.data?.workOrderId ? 'Esta cotización ya tiene una OT vinculada.' : quotationQuery.data?.archivedAt ? 'La cotización está archivada.' : 'No se pudo cargar la cotización para recepción.'}
-    </p><Link to="/quotations" className="font-semibold text-brand-primaryInk">Volver a cotizaciones</Link></section>;
+  const vehicleSelectionOpen = !vehicle || choosingVehicle;
+  if (
+    isConversion &&
+    (!Number.isInteger(quotationId) ||
+      quotationId <= 0 ||
+      quotationQuery.isError ||
+      !quotationQuery.data ||
+      (quotationQuery.data.workOrderId !== null &&
+        quotationQuery.data.workOrderId !== recoverableOrderId) ||
+      quotationQuery.data.archivedAt)
+  ) {
+    return (
+      <section className="space-y-4 p-6">
+        <p role="alert" className="text-brand-coralInk">
+          {quotationQuery.data?.workOrderId
+            ? 'Esta cotización ya tiene una OT vinculada.'
+            : quotationQuery.data?.archivedAt
+              ? 'La cotización está archivada.'
+              : 'No se pudo cargar la cotización para recepción.'}
+        </p>
+        <Link to="/quotations" className="font-semibold text-brand-primaryInk">
+          Volver a cotizaciones
+        </Link>
+      </section>
+    );
   }
 
   return (
-    <div className="reception-page min-w-0 space-y-5" aria-busy={isSubmitting} data-form-active={!createdOrderId}>
-      {isSubmitting && <SavingOverlay message={uploadPhotosMutation.isPending ? 'Guardando fotos de la OT…' : 'Guardando orden de trabajo…'} detail={uploadPhotosMutation.isPending ? uploadedSlots.length + " de " + photos.length + " fotos confirmadas. Las fotos guardadas se conservan." : "El correo se preparará automáticamente con el documento completo."} />}
+    <div
+      className="reception-page reception-create-page min-w-0 space-y-5"
+      aria-busy={isSubmitting}
+      data-form-active={!createdOrderId}
+    >
+      {isSubmitting && (
+        <SavingOverlay
+          message={
+            uploadPhotosMutation.isPending
+              ? 'Guardando fotos de la OT…'
+              : 'Guardando orden de trabajo…'
+          }
+          detail={
+            uploadPhotosMutation.isPending
+              ? uploadedSlots.length +
+                ' de ' +
+                photos.length +
+                ' fotos confirmadas. Las fotos guardadas se conservan.'
+              : 'El correo se preparará automáticamente con el documento completo.'
+          }
+        />
+      )}
       <header className="reception-page-heading flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-3">
           <Link
@@ -809,568 +1114,708 @@ const WorkOrderCreateForm = () => {
           <div>
             <p className="text-sm font-medium text-brand-muted">Recepción de taller</p>
             <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">
-              {isConversion ? `Recepción de ${quotationQuery.data?.codigo}` : 'Nueva Orden de Trabajo'}
+              {isConversion
+                ? `Recepción de ${quotationQuery.data?.codigo}`
+                : 'Nueva Orden de Trabajo'}
             </h1>
           </div>
         </div>
       </header>
 
-      <FormRecoveryBanner candidateAt={recovery.candidate?.updatedAt ?? null} ready={recovery.ready} saving={recovery.saving} savedAt={recovery.savedAt} error={recovery.error} onRecover={recovery.recover} onDiscard={() => void recovery.discard()} onRetry={() => void recovery.retry()} />
-      {createdOrderId && photos.length > uploadedSlots.length && <PendingInspectionPhotos code={createdOrderCode} photos={photos.map((photo) => ({ slot: photo.slot, previewUrl: photo.previewUrl, label: photoSlotLabels[photo.slot] }))} savedSlots={uploadedSlots} transfers={photoTransfers} busy={isSubmitting} canUpload={canUploadPhotos} onRetry={retryPendingPhotos} onReplace={replacePendingPhoto} />}
-      {createdOrderId && <Link to={isConversion && !canReadWorkOrders ? returnPath : '/work-orders/' + createdOrderId} className="inline-flex min-h-10 items-center font-semibold text-brand-primaryInk">Ver la OT guardada</Link>}
-      {!createdOrderId && <form
-        onSubmit={submit}
-        className="reception-form overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm"
-      >
-        <fieldset disabled={!recovery.ready || isSubmitting || createdOrderId !== null} className="min-w-0">
-        <WorkOrderReceptionNavigation activeStep={activeStep} onStep={goToStep} />
-        <div className="reception-context-strip" aria-label="Selección actual">
-          <span><UserRound aria-hidden="true" />{client?.nombre ?? 'Seleccione responsable'}</span>
-          <span><Car aria-hidden="true" />{vehicle?.patente ?? 'Seleccione vehículo'}</span>
-        </div>
-        <div className="reception-workspace">
-        <motion.div
-          key={activeStep}
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="reception-step-content p-5 sm:p-6"
+      <FormRecoveryBanner
+        candidateAt={recovery.candidate?.updatedAt ?? null}
+        ready={recovery.ready}
+        saving={recovery.saving}
+        savedAt={recovery.savedAt}
+        error={recovery.error}
+        onRecover={recovery.recover}
+        onDiscard={() => void recovery.discard()}
+        onRetry={() => void recovery.retry()}
+      />
+      {createdOrderId && photos.length > uploadedSlots.length && (
+        <PendingInspectionPhotos
+          code={createdOrderCode}
+          photos={photos.map((photo) => ({
+            slot: photo.slot,
+            previewUrl: photo.previewUrl,
+            label: photoSlotLabels[photo.slot],
+          }))}
+          savedSlots={uploadedSlots}
+          transfers={photoTransfers}
+          busy={isSubmitting}
+          canUpload={canUploadPhotos}
+          onRetry={retryPendingPhotos}
+          onReplace={replacePendingPhoto}
+        />
+      )}
+      {createdOrderId && (
+        <Link
+          to={isConversion && !canReadWorkOrders ? returnPath : '/work-orders/' + createdOrderId}
+          className="inline-flex min-h-10 items-center font-semibold text-brand-primaryInk"
         >
-          <div className="reception-step-heading"><span>Paso {activeStep + 1} de 5</span><h2 ref={stepHeadingRef} tabIndex={-1}>{steps[activeStep].title}</h2><p>{steps[activeStep].description}</p></div>
-          {activeStep === 0 && (
-            <div className="reception-selection-layout grid gap-5 lg:grid-cols-[360px_1fr]">
-              <SelectedClientCard
-                title="Responsable del ingreso"
-                client={client}
-                onClear={() => setClient(null)}
-              />
-              <ClientSearchPicker
-                label="Buscar responsable"
-                selectedClient={client}
-                onSelect={setPrimaryClient}
-                onCreate={() => setClientModalTarget('primary')}
-              />
-              {errors.clientId && (
-                <p className="text-sm text-brand-coralInk lg:col-span-2">{errors.clientId}</p>
-              )}
-            </div>
-          )}
-
-          {activeStep === 1 && (
-            <div className="space-y-5">
-              <div className="grid gap-4 lg:grid-cols-3">
-                <SelectedClientCard title="Responsable de recepción" client={client} />
-                <SelectedClientCard
-                  title="Contacto en taller"
-                  client={contactClient}
-                  onClear={() => setContactClient(null)}
-                />
-                <SelectedClientCard
-                  title="Facturación"
-                  client={billingClient}
-                  onClear={() => setBillingClient(null)}
-                />
-              </div>
-
-              <div className="grid gap-5 lg:grid-cols-2">
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-primaryInk px-3 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-50"
-                    onClick={() => client && setContactClient(client)}
-                    disabled={!client}
-                  >
-                    Usar cliente de recepción
-                  </button>
-                  <ClientSearchPicker
-                    label="Datos de contacto"
-                    selectedClient={contactClient}
-                    onSelect={setContactClient}
-                    onCreate={() => setClientModalTarget('contact')}
-                  />
+          Ver la OT guardada
+        </Link>
+      )}
+      {!createdOrderId && (
+        <form
+          onSubmit={submit}
+          className="reception-form overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm"
+        >
+          <fieldset
+            disabled={!recovery.ready || isSubmitting || createdOrderId !== null}
+            className="min-w-0"
+          >
+            <WorkOrderReceptionNavigation activeStep={activeStep} onStep={goToStep} />
+            <div className="reception-workspace">
+              <motion.div
+                key={activeStep}
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                className="reception-step-content p-5 sm:p-6"
+              >
+                <div className="reception-step-heading">
+                  <span>Paso {activeStep + 1} de 5</span>
+                  <h2 ref={stepHeadingRef} tabIndex={-1}>
+                    {steps[activeStep].heading}
+                  </h2>
+                  <p>{steps[activeStep].description}</p>
                 </div>
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-primaryInk px-3 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-50"
-                    onClick={() => client && setBillingClient(client)}
-                    disabled={!client}
-                  >
-                    Facturar al cliente de recepción
-                  </button>
-                  <ClientSearchPicker
-                    label="Datos de facturación"
-                    selectedClient={billingClient}
-                    onSelect={setBillingClient}
-                    onCreate={() => setClientModalTarget('billing')}
-                  />
-                </div>
-              </div>
-              {errors.billing && <p className="text-sm text-brand-coralInk">{errors.billing}</p>}
-            </div>
-          )}
-
-          {activeStep === 2 && (
-            <div className="reception-selection-layout grid gap-5 lg:grid-cols-[360px_1fr]">
-              <div className="rounded-lg border border-brand-line bg-white p-4">
-                <p className="text-xs font-bold uppercase text-brand-muted">Vehículo seleccionado</p>
-                {vehicle ? (
-                  <div className="mt-4 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-line/40 text-brand-primaryInk">
-                        <Car className="h-5 w-5" aria-hidden="true" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-mono text-lg font-bold text-brand-primaryInk">
-                          {vehicle.patente}
-                        </p>
-                        <p className="text-sm text-brand-muted">
-                          {[vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' ') ||
-                            'Sin datos técnicos'}
-                        </p>
-                        <p className="mt-1 text-xs text-brand-muted">
-                          {vehicle.client
-                            ? `Propietario registrado: ${vehicle.client.nombre}`
-                            : 'Sin propietario registrado'}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-line px-3 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
-                      onClick={() => setVehicle(null)}
-                    >
-                      <X className="h-4 w-4" aria-hidden="true" /> Quitar
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-4 rounded-lg border border-dashed border-brand-line px-4 py-8 text-center text-sm text-brand-muted">
-                    Seleccione o registre el vehículo que ingresa.
-                  </div>
-                )}
-              </div>
-              <section className="rounded-lg border border-brand-line bg-white p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="font-bold text-brand-primaryInk">Buscar vehículo</h3>
-                    <p className="mt-1 text-sm text-brand-muted">
-                      Los vehículos existentes conservan su propietario registrado; la OT puede
-                      quedar a nombre de otra persona que los entrega.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-primaryInk px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-primaryInkHover hover:text-white"
-                    onClick={() => setVehicleModalOpen(true)}
-                  >
-                    <Plus className="h-4 w-4" aria-hidden="true" /> Crear vehículo
-                  </button>
-                </div>
-                <div className="mt-4">
-                  <QuickVehicleSearch
-                    onSelectVehicle={selectVehicle}
-                    suggestedClient={client}
-                    placeholder="Buscar por patente, marca o dueño"
-                  />
-                </div>
-                {canAssignMechanic && (
-                  <label className="mt-4 block rounded-lg border border-brand-line bg-brand-line/40 p-3 text-sm font-semibold text-brand-ink">
-                    Mecánico responsable
-                    <select
-                      value={assignedMechanicId ?? ''}
-                      onChange={(event) =>
-                        setAssignedMechanicId(
-                          event.target.value ? Number(event.target.value) : null,
-                        )
-                      }
-                      className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-                    >
-                      <option value="">Sin asignar por ahora</option>
-                      {mechanicsQuery.data?.map((mechanic) => (
-                        <option key={mechanic.id} value={mechanic.id}>
-                          {mechanic.nombre}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="mt-1 block text-xs font-normal text-brand-muted">
-                      Podrás cambiarlo posteriormente desde el detalle de la OT.
-                    </span>
-                  </label>
-                )}
-                {vehicleOwnerIsDifferent && (
-                  <div className="mt-4 flex items-start gap-2 rounded-lg border border-brand-line bg-brand-goldPale px-3 py-3 text-sm text-brand-goldInk">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                    <div>
-                      <p className="font-semibold">
-                        El propietario del vehículo es diferente al responsable de la OT.
-                      </p>
-                      <p className="mt-1 text-xs">
-                        Se guardarían ambos datos para mantener la trazabilidad:{' '}
-                        {vehicle?.client?.nombre} como propietario y {client?.nombre} como
-                        responsable de ingreso.
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {errors.vehicleId && (
-                  <p className="mt-3 text-sm text-brand-coralInk">{errors.vehicleId}</p>
-                )}
-              </section>
-            </div>
-          )}
-
-          {activeStep === 3 && (
-            <div className="space-y-6">
-              {/* Fechas y motivo de ingreso */}
-              <section className="rounded-lg border border-brand-line bg-brand-line/60 p-4">
-                <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-brand-primaryInk">
-                  Datos de la orden
-                </h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="text-sm font-semibold text-brand-ink">
-                    Fecha de ingreso
-                    <input
-                      type="datetime-local"
-                      value={fechaIngreso}
-                      onChange={(event) => setFechaIngreso(event.target.value)}
-                      className={inputClassName}
-                      aria-invalid={Boolean(errors.fechaIngreso)}
+                {activeStep === 0 && (
+                  <div className="reception-selection-layout grid gap-5 lg:grid-cols-[360px_1fr]">
+                    <ClientChoicePanel
+                      title="Responsable del ingreso"
+                      label="Buscar responsable"
+                      selectedClient={client}
+                      onSelect={setPrimaryClient}
+                      onCreate={() => setClientModalTarget('primary')}
                     />
-                    {errors.fechaIngreso && (
-                      <span className="mt-1 block text-xs font-normal text-brand-coralInk">
-                        {errors.fechaIngreso}
-                      </span>
+                    {errors.clientId && (
+                      <p className="text-sm text-brand-coralInk lg:col-span-2">{errors.clientId}</p>
                     )}
-                  </label>
-                  <label className="text-sm font-semibold text-brand-ink">
-                    Entrega prometida
-                    <input
-                      type="datetime-local"
-                      value={fechaEntrega}
-                      onChange={(event) => setFechaEntrega(event.target.value)}
-                      className={inputClassName}
-                    />
-                  </label>
-                </div>
-                <label className="mt-3 block text-sm font-semibold text-brand-ink">
-                  Motivo de ingreso / diagnóstico preliminar
-                  <textarea
-                    value={descripcion}
-                    onChange={(event) => setDescripcion(event.target.value)}
-                    rows={3}
-                    className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-                    placeholder="Describa la falla reportada por el cliente"
-                  />
-                </label>
-              </section>
+                  </div>
+                )}
 
-              {/* Inspección de recepción */}
-              <section className="grid gap-4 lg:grid-cols-2">
-                <label className="text-sm font-semibold text-brand-ink">
-                  Kilometraje de entrada
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={kilometrajeIngreso}
-                    onChange={(event) => setKilometrajeIngreso(event.target.value)}
-                    className={inputClassName}
-                    placeholder="0"
-                    aria-invalid={Boolean(errors.kilometrajeIngreso)}
-                  />
-                  {errors.kilometrajeIngreso && (
-                    <span className="mt-1 block text-xs font-normal text-brand-coralInk">
-                      {errors.kilometrajeIngreso}
-                    </span>
-                  )}
-                </label>
-                <label className="text-sm font-semibold text-brand-ink">
-                  Nivel de combustible
-                  <select
-                    value={inspection.nivelCombustible}
-                    onChange={(event) =>
-                      updateInspection('nivelCombustible', event.target.value as FuelLevel | '')
-                    }
-                    className={inputClassName}
-                  >
-                    <option value="">Sin registrar</option>
-                    {FUEL_LEVELS.map((fuelLevel) => (
-                      <option key={fuelLevel} value={fuelLevel}>
-                        {fuelLabels[fuelLevel]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </section>
+                {activeStep === 1 && (
+                  <div className="space-y-5">
+                    <div className="reception-responsible-strip">
+                      <SelectedClientCard title="Responsable de recepción" client={client} />
+                    </div>
 
-              <section aria-labelledby="tires-title">
-                <h3 id="tires-title" className="font-bold text-brand-primaryInk">
-                  Llantas
-                </h3>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {(
-                    [
-                      ['llantaDelanteraIzquierda', 'Delantera izquierda'],
-                      ['llantaDelanteraDerecha', 'Delantera derecha'],
-                      ['llantaTraseraIzquierda', 'Trasera izquierda'],
-                      ['llantaTraseraDerecha', 'Trasera derecha'],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <label key={key} className="text-sm font-semibold text-brand-ink">
-                      {label}
-                      <select
-                        value={inspection[key]}
-                        onChange={(event) =>
-                          updateInspection(key, event.target.value as TireCondition)
-                        }
-                        className={inputClassName}
-                      >
-                        {TIRE_CONDITIONS.map((condition) => (
-                          <option key={condition} value={condition}>
-                            {tireLabels[condition]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
-                </div>
-              </section>
+                    <div className="reception-billing-grid">
+                      <ClientChoicePanel
+                        title="Datos de contacto"
+                        label="Datos de contacto"
+                        selectedClient={contactClient}
+                        onSelect={setContactClient}
+                        onCreate={() => setClientModalTarget('contact')}
+                        responsible={client}
+                        copyLabel="Usar cliente de recepción"
+                      />
+                      <ClientChoicePanel
+                        title="Datos de facturación"
+                        label="Datos de facturación"
+                        selectedClient={billingClient}
+                        onSelect={setBillingClient}
+                        onCreate={() => setClientModalTarget('billing')}
+                        responsible={client}
+                        copyLabel="Facturar al cliente de recepción"
+                      />
+                    </div>
+                    {errors.billing && (
+                      <p className="text-sm text-brand-coralInk">{errors.billing}</p>
+                    )}
+                  </div>
+                )}
 
-              <section className="reception-photos" aria-labelledby="photos-title">
-                <div className="flex items-center gap-2">
-                  <Camera className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
-                  <h3 id="photos-title" className="font-bold text-brand-primaryInk">
-                    Registro fotográfico
-                  </h3>
-                  <span className="reception-photo-count">{photos.length}/9 fotos</span>
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {WORK_ORDER_INSPECTION_PHOTO_SLOTS.map((slot) => {
-                    const photo = photoMap.get(slot);
-                    return (
-                      <div
-                        key={slot}
-                        className="overflow-hidden rounded-lg border border-brand-line bg-white"
-                      >
-                        <div className="flex items-center justify-between gap-2 border-b border-brand-line px-3 py-2">
-                          <p className="text-sm font-semibold text-brand-ink">
-                            {photoSlotLabels[slot]}
-                          </p>
-                          {photo && (
+                {activeStep === 2 && (
+                  <div className="reception-vehicle-layout" data-selected={!vehicleSelectionOpen}>
+                    {!vehicleSelectionOpen && (
+                      <div className="reception-vehicle-card rounded-lg border border-brand-line bg-white p-4">
+                        <p className="text-xs font-bold uppercase text-brand-muted">
+                          Vehículo seleccionado
+                        </p>
+                        {vehicle ? (
+                          <div className="mt-4 space-y-4">
+                            <div className="flex items-start gap-3">
+                              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-line/40 text-brand-primaryInk">
+                                <Car className="h-5 w-5" aria-hidden="true" />
+                              </span>
+                              <div className="min-w-0">
+                                <p className="font-mono text-lg font-bold text-brand-primaryInk">
+                                  {vehicle.patente}
+                                </p>
+                                <p className="text-sm text-brand-muted">
+                                  {[vehicle.marca, vehicle.modelo, vehicle.ano]
+                                    .filter(Boolean)
+                                    .join(' ') || 'Sin datos técnicos'}
+                                </p>
+                                <p className="mt-1 text-xs text-brand-muted">
+                                  {vehicle.client
+                                    ? `Propietario registrado: ${vehicle.client.nombre}`
+                                    : 'Sin propietario registrado'}
+                                </p>
+                              </div>
+                            </div>
                             <button
                               type="button"
-                              className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-coralPale hover:text-brand-coralInk"
-                              onClick={() => setInspectionPhoto(slot, null)}
-                              aria-label={`Eliminar foto ${photoSlotLabels[slot]}`}
-                              title="Eliminar foto"
+                              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-line px-3 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
+                              onClick={() => setChoosingVehicle(true)}
                             >
-                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                              Cambiar vehículo
                             </button>
-                          )}
-                        </div>
-                        {photo ? (
-                          <img
-                            src={photo.previewUrl}
-                            alt={photoSlotLabels[slot]}
-                            className="h-36 w-full object-contain"
-                          />
+                          </div>
                         ) : (
-                          <div className="flex h-36 flex-col items-center justify-center gap-1.5 bg-brand-line/40 px-3 text-center">
-                            <ImagePlus className="h-7 w-7 text-brand-muted" aria-hidden="true" />
-                            <span className="text-sm font-semibold text-brand-muted">Subir foto</span>
-                            <span className="text-[11px] font-normal text-brand-muted">
-                              JPG, PNG o WebP · máx {MAX_INSPECTION_PHOTO_MB} MB
-                            </span>
-                            {canUploadPhotos ? <span className="flex gap-2">
-                              <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-brand-primaryInk bg-white px-3 text-xs font-bold text-brand-primaryInk hover:bg-brand-line/40">
-                                Elegir archivo
-                                <input
-                                  type="file"
-                                  accept={INSPECTION_PHOTO_ACCEPT}
-                                  className="sr-only"
-                                  onChange={(event) => {
-                                    setInspectionPhoto(slot, event.target.files?.[0] ?? null);
-                                    event.target.value = '';
-                                  }}
-                                  aria-label={`Subir foto ${photoSlotLabels[slot]}`}
-                                />
-                              </label>
-                              <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-brand-primaryInk px-3 text-xs font-bold text-white hover:bg-brand-primaryInkHover">
-                                Cámara
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  capture="environment"
-                                  className="sr-only"
-                                  onChange={(event) => {
-                                    setInspectionPhoto(slot, event.target.files?.[0] ?? null);
-                                    event.target.value = '';
-                                  }}
-                                  aria-label={`Usar cámara ${photoSlotLabels[slot]}`}
-                                />
-                              </label>
-                            </span> : <span className="text-xs text-brand-muted">Sin permiso para adjuntar fotografías</span>}
+                          <div className="mt-4 rounded-lg border border-dashed border-brand-line px-4 py-8 text-center text-sm text-brand-muted">
+                            Seleccione o registre el vehículo que ingresa.
                           </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="reception-inventory" aria-labelledby="inventory-title">
-                <h3 id="inventory-title" className="font-bold text-brand-primaryInk">
-                  Inventario interno
-                </h3>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {VEHICLE_INVENTORY_ITEMS.map((item) => (
-                    <label
-                      key={item}
-                      className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-brand-line px-3 py-2 text-sm text-brand-ink hover:bg-brand-pale"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={inspection.inventario.includes(item)}
-                        onChange={() => toggleInventory(item)}
-                        className="h-4 w-4 rounded border-brand-line text-brand-primaryInk focus:ring-brand-primary"
-                      />
-                      {inventoryLabels[item]}
-                    </label>
-                  ))}
-                </div>
-              </section>
-
-              <section className="grid gap-4 lg:grid-cols-2">
-                <label className="text-sm font-semibold text-brand-ink">
-                  Objetos de valor
-                  <textarea
-                    value={inspection.objetosValor}
-                    onChange={(event) => updateInspection('objetosValor', event.target.value)}
-                    rows={4}
-                    className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-                    placeholder="Documentos, herramientas, accesorios especiales"
-                  />
-                </label>
-                <label className="text-sm font-semibold text-brand-ink">
-                  Observaciones de inspección
-                  <textarea
-                    value={inspection.observaciones}
-                    onChange={(event) => updateInspection('observaciones', event.target.value)}
-                    rows={4}
-                    className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-                    placeholder="Rayones, golpes, testigos encendidos, notas del asesor"
-                  />
-                </label>
-              </section>
-            </div>
-          )}
-
-          {activeStep === 4 && (
-            <div className="space-y-4">
-              {!isConversion && <div className="reception-service-note rounded-lg border border-brand-primaryInk/20 bg-brand-line/60 px-4 py-3">
-                <p className="text-sm font-semibold text-brand-primaryInk">
-                  Seleccione servicios y repuestos. Puede continuar sin ítems si el diagnóstico está pendiente.
-                </p>
-              </div>}
-              {isConversion ? (
-                <section aria-label="Servicios de la cotización" className="min-w-0 space-y-3">
-                  <h2 className="font-semibold text-brand-primaryInk">Servicios y repuestos de {quotationQuery.data?.codigo}</h2>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="border-b border-brand-line text-brand-muted"><tr><th className="p-3">Descripción</th><th className="p-3 text-right">Cantidad</th><th className="p-3 text-right">Precio</th><th className="p-3 text-right">Subtotal</th></tr></thead>
-                      <tbody>{items.map((item) => <tr key={item.key} className="border-b border-brand-line"><td className="p-3">{item.descripcion}</td><td className="p-3 text-right">{item.cantidad}</td><td className="whitespace-nowrap p-3 text-right">{formatClp(Number(item.precioUnitario))}</td><td className="whitespace-nowrap p-3 text-right">{formatClp(Number(item.cantidad) * Number(item.precioUnitario))}</td></tr>)}</tbody>
-                    </table>
+                    )}
+                    {(vehicleSelectionOpen ||
+                      canAssignMechanic ||
+                      vehicleOwnerIsDifferent ||
+                      errors.vehicleId) && (
+                      <section className="reception-vehicle-panel rounded-lg border border-brand-line bg-white p-4">
+                        <div hidden={!vehicleSelectionOpen} className="reception-vehicle-tools">
+                          <div>
+                            <h3 className="font-bold text-brand-primaryInk">Buscar vehículo</h3>
+                            <p className="mt-1 text-sm text-brand-muted">
+                              Los vehículos existentes conservan su propietario registrado; la OT
+                              puede quedar a nombre de otra persona que los entrega.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-primaryInk px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-primaryInkHover hover:text-white"
+                            onClick={() => setVehicleModalOpen(true)}
+                          >
+                            <Plus className="h-4 w-4" aria-hidden="true" /> Crear vehículo
+                          </button>
+                        </div>
+                        <div hidden={!vehicleSelectionOpen} className="mt-4">
+                          <QuickVehicleSearch
+                            presentation="reception"
+                            onSelectVehicle={(next) => {
+                              selectVehicle(next);
+                              setChoosingVehicle(false);
+                            }}
+                            suggestedClient={client}
+                            placeholder="Buscar por patente, marca o modelo"
+                          />
+                          {vehicle && (
+                            <button
+                              type="button"
+                              className="reception-copy-action"
+                              onClick={() => setChoosingVehicle(false)}
+                            >
+                              Conservar vehículo seleccionado
+                            </button>
+                          )}
+                        </div>
+                        {canAssignMechanic && (
+                          <label className="reception-mechanic-field mt-4 block rounded-lg border border-brand-line bg-brand-line/40 p-3 text-sm font-semibold text-brand-ink">
+                            Mecánico responsable
+                            <select
+                              value={assignedMechanicId ?? ''}
+                              onChange={(event) =>
+                                setAssignedMechanicId(
+                                  event.target.value ? Number(event.target.value) : null,
+                                )
+                              }
+                              className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
+                            >
+                              <option value="">Sin asignar por ahora</option>
+                              {mechanicsQuery.data?.map((mechanic) => (
+                                <option key={mechanic.id} value={mechanic.id}>
+                                  {mechanic.nombre}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="mt-1 block text-xs font-normal text-brand-muted">
+                              Podrás cambiarlo posteriormente desde el detalle de la OT.
+                            </span>
+                          </label>
+                        )}
+                        {vehicleOwnerIsDifferent && (
+                          <div className="mt-4 flex items-start gap-2 rounded-lg border border-brand-line bg-brand-goldPale px-3 py-3 text-sm text-brand-goldInk">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                            <div>
+                              <p className="font-semibold">
+                                El propietario del vehículo es diferente al responsable de la OT.
+                              </p>
+                              <p className="mt-1 text-xs">
+                                Se guardarían ambos datos para mantener la trazabilidad:{' '}
+                                {vehicle?.client?.nombre} como propietario y {client?.nombre} como
+                                responsable de ingreso.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        {errors.vehicleId && (
+                          <p className="mt-3 text-sm text-brand-coralInk">{errors.vehicleId}</p>
+                        )}
+                      </section>
+                    )}
                   </div>
-                  {items.length === 0 && <p className="text-sm text-brand-muted">Sin servicios ni repuestos cotizados.</p>}
-                  <p className="text-right font-bold text-brand-primaryInk">Total cotizado: {formatClp(quotationQuery.data?.total ?? 0)}</p>
-                </section>
-              ) : <WorkOrderItemsEditor
-                items={items}
-                onChange={setItems}
-                errors={errors}
-                presentation="reception"
-                showExecution={false}
-              />}
-            </div>
-          )}
-        </motion.div>
-        <WorkOrderReceptionSummary
-          client={client?.nombre} contact={contactClient?.nombre} billing={billingClient?.nombre}
-          plate={vehicle?.patente} vehicle={[vehicle?.marca, vehicle?.modelo, vehicle?.ano].filter(Boolean).join(' ')}
-          photos={photos.length} inventory={inspection.inventario.length}
-          items={items.filter((item) => item.descripcion.trim()).length}
-          total={isConversion ? quotationQuery.data?.total ?? 0 : calculateItemsTotal(items)}
-          quotationCode={isConversion ? quotationQuery.data?.codigo : undefined} onStep={goToStep}
-        />
-        </div>
-
-        {submissionError && (
-          <div
-            className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk"
-            role="alert"
-          >
-            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {getApiErrorMessage(submissionError, 'No fue posible crear la orden.')}
-          </div>
-        )}
-
-
-        <footer className="reception-footer flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <Link
-            to={returnPath}
-            className="inline-flex h-10 items-center justify-center rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
-          >
-            Cancelar
-          </Link>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {activeStep > 0 && (
-              <button
-                type="button"
-                aria-label="Anterior"
-                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink shadow-sm transition-all hover:bg-brand-pale hover:shadow"
-                onClick={() => setActiveStep((activeStep - 1) as StepIndex)}
-                disabled={isSubmitting}
-              >
-                <AnimateIcon variant="slide-left" animateOnHover>
-                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                </AnimateIcon>
-                <span className="reception-back-label">Anterior</span>
-              </button>
-            )}
-            {activeStep < 4 ? (
-              <button
-                type="button"
-                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow"
-                onClick={goNext}
-              >
-                Siguiente
-                <AnimateIcon variant="slide-right" animateOnHover>
-                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </AnimateIcon>
-              </button>
-            ) : (
-              <button
-                type="button"
-                aria-label={createdOrderId ? 'Ir al detalle' : 'Revisar y crear orden'}
-                className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-mintInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-mintInk hover:shadow disabled:opacity-60"
-                disabled={isSubmitting}
-                onClick={handleOpenConfirm}
-              >
-                {isSubmitting ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <AnimateIcon variant="bounce" animateOnHover>
-                    <Save className="h-4 w-4" aria-hidden="true" />
-                  </AnimateIcon>
                 )}
-                <span className="reception-review-label">{createdOrderId ? 'Ir al detalle' : 'Revisar y crear orden'}</span>
-                <span className="reception-review-short" aria-hidden="true">{createdOrderId ? 'Ver OT' : 'Revisar OT'}</span>
-              </button>
+
+                {activeStep === 3 && (
+                  <div className="space-y-6">
+                    {/* Fechas y motivo de ingreso */}
+                    <section className="reception-basic-card rounded-lg border border-brand-line bg-brand-line/60 p-4">
+                      <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-brand-primaryInk">
+                        Datos de la orden
+                      </h3>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <label className="text-sm font-semibold text-brand-ink">
+                          Fecha de ingreso
+                          <DatePicker
+                            label="Fecha de ingreso"
+                            value={fechaIngreso}
+                            onChange={setFechaIngreso}
+                            includeTime
+                            allowClear={false}
+                          />
+                          {errors.fechaIngreso && (
+                            <span className="mt-1 block text-xs font-normal text-brand-coralInk">
+                              {errors.fechaIngreso}
+                            </span>
+                          )}
+                        </label>
+                        <label className="text-sm font-semibold text-brand-ink">
+                          Entrega prometida
+                          <DatePicker
+                            label="Entrega prometida"
+                            value={fechaEntrega}
+                            onChange={setFechaEntrega}
+                            includeTime
+                          />
+                        </label>
+                      </div>
+                      <div className="reception-basic-extras grid gap-4 md:grid-cols-2">
+                        <label className="text-sm font-semibold text-brand-ink">
+                          Kilometraje de entrada
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={kilometrajeIngreso}
+                            onChange={(event) => setKilometrajeIngreso(event.target.value)}
+                            className={inputClassName}
+                            placeholder="0"
+                            aria-invalid={Boolean(errors.kilometrajeIngreso)}
+                          />
+                          {errors.kilometrajeIngreso && (
+                            <span className="mt-1 block text-xs font-normal text-brand-coralInk">
+                              {errors.kilometrajeIngreso}
+                            </span>
+                          )}
+                        </label>
+                        <label className="text-sm font-semibold text-brand-ink">
+                          Nivel de combustible
+                          <select
+                            value={inspection.nivelCombustible}
+                            onChange={(event) =>
+                              updateInspection(
+                                'nivelCombustible',
+                                event.target.value as FuelLevel | '',
+                              )
+                            }
+                            className={inputClassName}
+                          >
+                            <option value="">Sin registrar</option>
+                            {FUEL_LEVELS.map((fuelLevel) => (
+                              <option key={fuelLevel} value={fuelLevel}>
+                                {fuelLabels[fuelLevel]}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <label className="mt-3 block text-sm font-semibold text-brand-ink">
+                        Motivo de ingreso / diagnóstico preliminar
+                        <textarea
+                          value={descripcion}
+                          onChange={(event) => setDescripcion(event.target.value)}
+                          rows={3}
+                          className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
+                          placeholder="Describa la falla reportada por el cliente"
+                        />
+                      </label>
+                    </section>
+
+                    <InspectionDisclosure
+                      title="Estado de las llantas"
+                      summary={
+                        Object.entries(inspection).filter(
+                          ([key, value]) =>
+                            key.startsWith('llanta') && value !== '' && value !== 'no_revisado',
+                        ).length + '/4 revisadas'
+                      }
+                      initiallyOpen={Object.entries(inspection).some(
+                        ([key, value]) =>
+                          key.startsWith('llanta') && value !== '' && value !== 'no_revisado',
+                      )}
+                    >
+                      <section aria-labelledby="tires-title">
+                        <h3 id="tires-title" className="font-bold text-brand-primaryInk">
+                          Llantas
+                        </h3>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          {(
+                            [
+                              ['llantaDelanteraIzquierda', 'Delantera izquierda'],
+                              ['llantaDelanteraDerecha', 'Delantera derecha'],
+                              ['llantaTraseraIzquierda', 'Trasera izquierda'],
+                              ['llantaTraseraDerecha', 'Trasera derecha'],
+                            ] as const
+                          ).map(([key, label]) => (
+                            <label key={key} className="text-sm font-semibold text-brand-ink">
+                              {label}
+                              <select
+                                value={inspection[key]}
+                                onChange={(event) =>
+                                  updateInspection(key, event.target.value as TireCondition)
+                                }
+                                className={inputClassName}
+                              >
+                                {TIRE_CONDITIONS.map((condition) => (
+                                  <option key={condition} value={condition}>
+                                    {tireLabels[condition]}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          ))}
+                        </div>
+                      </section>
+                    </InspectionDisclosure>
+
+                    <InspectionDisclosure
+                      title="Fotos del vehículo"
+                      summary={photos.length + '/9 fotos'}
+                      initiallyOpen={photos.length > 0}
+                    >
+                      <section className="reception-photos" aria-labelledby="photos-title">
+                        <div className="flex items-center gap-2">
+                          <Camera className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
+                          <h3 id="photos-title" className="font-bold text-brand-primaryInk">
+                            Registro fotográfico
+                          </h3>
+                          <span className="reception-photo-count">{photos.length}/9 fotos</span>
+                        </div>
+                        <p className="reception-photo-guide-intro">
+                          Toma una foto por ángulo. Izquierda y derecha se consideran desde el
+                          asiento del conductor. JPG, PNG o WebP · máx. {MAX_INSPECTION_PHOTO_MB} MB
+                          por foto.
+                        </p>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {RECEPTION_PHOTO_GUIDES.map(({ slot, image, hint }) => {
+                            const photo = photoMap.get(slot);
+                            return (
+                              <div
+                                key={slot}
+                                className="reception-photo-card overflow-hidden rounded-lg border border-brand-line bg-white"
+                              >
+                                <div className="flex items-center justify-between gap-2 border-b border-brand-line px-3 py-2">
+                                  <p className="text-sm font-semibold text-brand-ink">
+                                    {photoSlotLabels[slot]}
+                                  </p>
+                                  {photo && (
+                                    <button
+                                      type="button"
+                                      className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-coralPale hover:text-brand-coralInk"
+                                      onClick={() => setInspectionPhoto(slot, null)}
+                                      aria-label={`Eliminar foto ${photoSlotLabels[slot]}`}
+                                      title="Eliminar foto"
+                                    >
+                                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                    </button>
+                                  )}
+                                </div>
+                                <div
+                                  className="reception-photo-body"
+                                  data-has-photo={Boolean(photo)}
+                                >
+                                  {photo ? (
+                                    <img
+                                      src={photo.previewUrl}
+                                      alt={photoSlotLabels[slot]}
+                                      className="h-36 w-full object-contain"
+                                    />
+                                  ) : (
+                                    <div className="reception-photo-guide">
+                                      <img
+                                        src={image}
+                                        alt={`Ejemplo de foto: ${photoSlotLabels[slot]}`}
+                                        width={1080}
+                                        height={480}
+                                        loading="lazy"
+                                      />
+                                      <p>{hint}</p>
+                                    </div>
+                                  )}
+                                  {canUploadPhotos ? (
+                                    <span className="reception-photo-actions flex gap-2">
+                                      <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-brand-primaryInk bg-white px-3 text-xs font-bold text-brand-primaryInk hover:bg-brand-line/40">
+                                        {photo ? 'Cambiar foto' : 'Subir foto'}
+                                        <input
+                                          type="file"
+                                          accept={INSPECTION_PHOTO_ACCEPT}
+                                          className="sr-only"
+                                          onChange={(event) => {
+                                            const file = event.target.files?.[0];
+                                            if (file) setInspectionPhoto(slot, file);
+                                            event.target.value = '';
+                                          }}
+                                          aria-label={`Subir foto ${photoSlotLabels[slot]}`}
+                                        />
+                                      </label>
+                                      <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-brand-primaryInk px-3 text-xs font-bold text-white hover:bg-brand-primaryInkHover">
+                                        Cámara
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          capture="environment"
+                                          className="sr-only"
+                                          onChange={(event) => {
+                                            const file = event.target.files?.[0];
+                                            if (file) setInspectionPhoto(slot, file);
+                                            event.target.value = '';
+                                          }}
+                                          aria-label={`Usar cámara ${photoSlotLabels[slot]}`}
+                                        />
+                                      </label>
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-brand-muted">
+                                      Sin permiso para adjuntar fotografías
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    </InspectionDisclosure>
+
+                    <InspectionDisclosure
+                      title="Inventario interno"
+                      summary={inspection.inventario.length + ' elementos'}
+                      initiallyOpen={inspection.inventario.length > 0}
+                    >
+                      <section className="reception-inventory" aria-labelledby="inventory-title">
+                        <h3 id="inventory-title" className="font-bold text-brand-primaryInk">
+                          Inventario interno
+                        </h3>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {VEHICLE_INVENTORY_ITEMS.map((item) => (
+                            <label
+                              key={item}
+                              className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-brand-line px-3 py-2 text-sm text-brand-ink hover:bg-brand-pale"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={inspection.inventario.includes(item)}
+                                onChange={() => toggleInventory(item)}
+                                className="h-4 w-4 rounded border-brand-line text-brand-primaryInk focus:ring-brand-primary"
+                              />
+                              {inventoryLabels[item]}
+                            </label>
+                          ))}
+                        </div>
+                      </section>
+                    </InspectionDisclosure>
+
+                    <InspectionDisclosure
+                      title="Observaciones adicionales"
+                      initiallyOpen={Boolean(inspection.objetosValor || inspection.observaciones)}
+                    >
+                      <section className="grid gap-4 lg:grid-cols-2">
+                        <label className="text-sm font-semibold text-brand-ink">
+                          Objetos de valor
+                          <textarea
+                            value={inspection.objetosValor}
+                            onChange={(event) =>
+                              updateInspection('objetosValor', event.target.value)
+                            }
+                            rows={4}
+                            className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
+                            placeholder="Documentos, herramientas, accesorios especiales"
+                          />
+                        </label>
+                        <label className="text-sm font-semibold text-brand-ink">
+                          Observaciones de inspección
+                          <textarea
+                            value={inspection.observaciones}
+                            onChange={(event) =>
+                              updateInspection('observaciones', event.target.value)
+                            }
+                            rows={4}
+                            className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
+                            placeholder="Rayones, golpes, testigos encendidos, notas del asesor"
+                          />
+                        </label>
+                      </section>
+                    </InspectionDisclosure>
+                  </div>
+                )}
+
+                {activeStep === 4 && (
+                  <div className="space-y-4">
+                    {!isConversion && (
+                      <div className="reception-service-note rounded-lg border border-brand-primaryInk/20 bg-brand-line/60 px-4 py-3">
+                        <p className="text-sm font-semibold text-brand-primaryInk">
+                          Seleccione servicios y repuestos. Puede continuar sin ítems si el
+                          diagnóstico está pendiente.
+                        </p>
+                      </div>
+                    )}
+                    {isConversion ? (
+                      <section
+                        aria-label="Servicios de la cotización"
+                        className="min-w-0 space-y-3"
+                      >
+                        <h2 className="font-semibold text-brand-primaryInk">
+                          Servicios y repuestos de {quotationQuery.data?.codigo}
+                        </h2>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-sm">
+                            <thead className="border-b border-brand-line text-brand-muted">
+                              <tr>
+                                <th className="p-3">Descripción</th>
+                                <th className="p-3 text-right">Cantidad</th>
+                                <th className="p-3 text-right">Precio</th>
+                                <th className="p-3 text-right">Subtotal</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((item) => (
+                                <tr key={item.key} className="border-b border-brand-line">
+                                  <td className="p-3">{item.descripcion}</td>
+                                  <td className="p-3 text-right">{item.cantidad}</td>
+                                  <td className="whitespace-nowrap p-3 text-right">
+                                    {formatClp(Number(item.precioUnitario))}
+                                  </td>
+                                  <td className="whitespace-nowrap p-3 text-right">
+                                    {formatClp(Number(item.cantidad) * Number(item.precioUnitario))}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {items.length === 0 && (
+                          <p className="text-sm text-brand-muted">
+                            Sin servicios ni repuestos cotizados.
+                          </p>
+                        )}
+                        <p className="text-right font-bold text-brand-primaryInk">
+                          Total cotizado: {formatClp(quotationQuery.data?.total ?? 0)}
+                        </p>
+                      </section>
+                    ) : (
+                      <WorkOrderItemsEditor
+                        items={items}
+                        onChange={setItems}
+                        errors={errors}
+                        presentation="reception"
+                        showExecution={false}
+                      />
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            </div>
+
+            {submissionError && (
+              <div
+                className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk"
+                role="alert"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {getApiErrorMessage(submissionError, 'No fue posible crear la orden.')}
+              </div>
             )}
-          </div>
-        </footer>
-        </fieldset>
-      </form>}
+
+            <footer className="reception-footer flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <Link
+                to={returnPath}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
+              >
+                Cancelar
+              </Link>
+              <p className="reception-footer-hint" role="status">
+                {activeStep === 0 && !client
+                  ? 'Selecciona al responsable para continuar.'
+                  : activeStep === 1 && (!contactClient || !billingClient)
+                    ? 'Completa contacto y facturación.'
+                    : activeStep === 2 && !vehicle
+                      ? 'Selecciona el vehículo que ingresa.'
+                      : [
+                          'Siguiente: contacto y facturación.',
+                          'Siguiente: vehículo.',
+                          'Siguiente: inspección.',
+                          'Siguiente: trabajos y repuestos.',
+                          'Revisa los datos antes de crear la orden.',
+                        ][activeStep]}
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {activeStep > 0 && (
+                  <button
+                    type="button"
+                    aria-label="Anterior"
+                    className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink shadow-sm transition-all hover:bg-brand-pale hover:shadow"
+                    onClick={() => setActiveStep((activeStep - 1) as StepIndex)}
+                    disabled={isSubmitting}
+                  >
+                    <AnimateIcon variant="slide-left" animateOnHover>
+                      <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    </AnimateIcon>
+                    <span className="reception-back-label">Anterior</span>
+                  </button>
+                )}
+                {activeStep < 4 ? (
+                  <button
+                    type="button"
+                    className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow"
+                    onClick={goNext}
+                  >
+                    Siguiente
+                    <AnimateIcon variant="slide-right" animateOnHover>
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </AnimateIcon>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={createdOrderId ? 'Ir al detalle' : 'Revisar y crear orden'}
+                    className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-mintInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-mintInk hover:shadow disabled:opacity-60"
+                    disabled={isSubmitting}
+                    onClick={handleOpenConfirm}
+                  >
+                    {isSubmitting ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <AnimateIcon variant="bounce" animateOnHover>
+                        <Save className="h-4 w-4" aria-hidden="true" />
+                      </AnimateIcon>
+                    )}
+                    <span className="reception-review-label">
+                      {createdOrderId ? 'Ir al detalle' : 'Revisar y crear orden'}
+                    </span>
+                    <span className="reception-review-short" aria-hidden="true">
+                      {createdOrderId ? 'Ver OT' : 'Revisar OT'}
+                    </span>
+                  </button>
+                )}
+              </div>
+            </footer>
+          </fieldset>
+        </form>
+      )}
 
       {clientModalTarget && (
         <ClientFormModal onClose={() => setClientModalTarget(null)} onSaved={handleClientSaved} />
@@ -1382,154 +1827,66 @@ const WorkOrderCreateForm = () => {
           onClose={() => setVehicleModalOpen(false)}
           onSaved={(savedVehicle) => {
             setVehicle(toQuickVehicle(savedVehicle, client));
-            setKilometrajeIngreso(savedVehicle.kilometraje === null ? '' : String(savedVehicle.kilometraje));
+            setChoosingVehicle(false);
+            setKilometrajeIngreso(
+              savedVehicle.kilometraje === null ? '' : String(savedVehicle.kilometraje),
+            );
             setVehicleModalOpen(false);
           }}
         />
       )}
 
-      {showConfirm && createPortal(
-        <div className="reception-confirm-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-          <button
-            type="button"
-            className="absolute inset-0 bg-brand-scrim/55"
-            aria-label="Cerrar confirmación"
-            onClick={() => setShowConfirm(false)}
-            disabled={isSubmitting}
-          />
-          <motion.section
-            ref={setConfirmPanel}
-            tabIndex={-1}
-            initial={{ opacity: 0, scale: 0.96, y: 14 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-            className="reception-confirm-dialog relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="confirm-ot-title"
-          >
-            <h2 id="confirm-ot-title" className="text-xl font-bold text-brand-primaryInk">
-              Confirmar recepción de OT
-            </h2>
-            <p className="mt-1 text-sm text-brand-muted">
-              Pequeño resumen de lo que se recepciona antes de crear la orden.
-            </p>
-
-            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-lg border border-brand-line p-3">
-                <p className="text-xs font-bold uppercase text-brand-muted">Responsable / Contacto</p>
-                <p className="mt-1 font-semibold text-brand-ink">
-                  {client?.nombre ?? 'Sin responsable'}
-                </p>
-                <p className="text-xs text-brand-muted">
-                  {contactClient?.nombre ?? client?.nombre ?? '-'}
-                </p>
-                <p className="mt-1 text-xs text-brand-muted">
-                  Facturación: {billingClient?.nombre ?? '-'}
-                </p>
-              </div>
-              <div className="rounded-lg border border-brand-line p-3">
-                <p className="text-xs font-bold uppercase text-brand-muted">Vehículo</p>
-                <p className="mt-1 font-mono font-bold text-brand-primaryInk">
-                  {vehicle?.patente ?? 'Sin vehículo'}
-                </p>
-                <p className="text-xs text-brand-muted">
-                  {[vehicle?.marca, vehicle?.modelo, vehicle?.ano].filter(Boolean).join(' ') ||
-                    'Sin datos'}
-                </p>
-                <p className="mt-1 text-xs text-brand-muted">
-                  Propietario: {vehicle?.client?.nombre ?? 'Sin propietario registrado'}
-                </p>
-                <p className="mt-1 text-xs text-brand-muted">
-                  Km:{' '}
-                  {kilometrajeIngreso === ''
-                    ? 'No registrado'
-                    : Number(kilometrajeIngreso).toLocaleString('es-CL')}{' '}
-                  · Combustible:{' '}
-                  {inspection.nivelCombustible
+      {showConfirm &&
+        createPortal(
+          <div className="reception-confirm-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
+            <button
+              type="button"
+              className="absolute inset-0 bg-brand-scrim/55"
+              aria-label="Cerrar confirmación"
+              onClick={() => setShowConfirm(false)}
+              disabled={isSubmitting}
+            />
+            <motion.section
+              ref={setConfirmPanel}
+              tabIndex={-1}
+              initial={{ opacity: 0, scale: 0.96, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+              className="reception-confirm-dialog reception-create-review relative w-full bg-white shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="confirm-ot-title"
+            >
+              <WorkOrderReceptionReview
+                data={draftValue}
+                total={
+                  isConversion ? (quotationQuery.data?.total ?? 0) : calculateItemsTotal(items)
+                }
+                fuelLabel={
+                  inspection.nivelCombustible
                     ? fuelLabels[inspection.nivelCombustible]
-                    : 'Sin registrar'}
-                </p>
-              </div>
-              <div className="rounded-lg border border-brand-line p-3">
-                <p className="text-xs font-bold uppercase text-brand-muted">Inspección</p>
-                <p className="mt-1 text-xs text-brand-ink">
-                  Inventario:{' '}
-                  {inspection.inventario.length > 0
-                    ? inspection.inventario.map((key) => inventoryLabels[key]).join(', ')
-                    : 'Sin elementos marcados'}
-                </p>
-                <p className="mt-1 text-xs text-brand-ink">
-                  Fotos:{' '}
-                  {photos.length > 0
-                    ? photos.map((photo) => photoSlotLabels[photo.slot]).join(', ')
-                    : 'Sin fotos'}
-                </p>
-                <p className="mt-1 text-xs text-brand-ink">
-                  Objetos:{' '}
-                  {inspection.objetosValor.trim() === '' ? 'Ninguno' : inspection.objetosValor}
-                </p>
-              </div>
-              <div className="rounded-lg border border-brand-line p-3">
-                <p className="text-xs font-bold uppercase text-brand-muted">Servicios</p>
-                {items.filter((item) => item.descripcion.trim().length > 0).length === 0 ? (
-                  <p className="mt-1 text-xs text-brand-muted">
-                    Diagnóstico inicial, sin trabajos cargados.
-                  </p>
-                ) : (
-                  <ul className="mt-1 space-y-1 text-xs text-brand-ink">
-                    {items
-                      .filter((item) => item.descripcion.trim().length > 0)
-                      .map((item, index) => (
-                        <li key={index} className="flex justify-between gap-2">
-                          <span className="truncate">
-                            {item.descripcion} × {item.cantidad}{' '}
-                            {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ??
-                              item.unidadMedida}
-                          </span>
-                          <span className="font-semibold">
-                            $
-                            {(Number(item.cantidad) * Number(item.precioUnitario)).toLocaleString(
-                              'es-CL',
-                            )}
-                          </span>
-                        </li>
-                      ))}
-                  </ul>
-                )}
-                <p className="mt-1 text-xs text-brand-muted">
-                  Motivo: {descripcion.trim() === '' ? 'Sin observaciones' : descripcion}
-                </p>
-              </div>
-            </div>
-
-            {submissionError && (
-              <p className="mt-3 text-sm text-brand-coralInk" role="alert">
-                {getApiErrorMessage(submissionError, 'No fue posible crear la orden.')}
-              </p>
-            )}
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink"
-                onClick={() => setShowConfirm(false)}
-                disabled={isSubmitting}
-              >
-                Volver a editar
-              </button>
-              <button
-                type="button"
-                className="h-10 rounded-lg bg-brand-mintInk px-4 text-sm font-semibold text-white disabled:opacity-60"
-                onClick={handleConfirmCreate}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Creando orden...' : 'Confirmar y crear orden'}
-              </button>
-            </div>
-          </motion.section>
-        </div>
-      , document.body)}
+                    : 'Sin registrar'
+                }
+                inventoryLabels={inventoryLabels}
+                photoLabels={photos.map((photo) => photoSlotLabels[photo.slot])}
+                mechanic={
+                  mechanicsQuery.data?.find((mechanic) => mechanic.id === assignedMechanicId)
+                    ?.nombre
+                }
+                quotationCode={isConversion ? quotationQuery.data?.codigo : undefined}
+                pending={isSubmitting}
+                error={
+                  submissionError
+                    ? getApiErrorMessage(submissionError, 'No fue posible crear la orden.')
+                    : undefined
+                }
+                onEdit={() => setShowConfirm(false)}
+                onConfirm={handleConfirmCreate}
+              />
+            </motion.section>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

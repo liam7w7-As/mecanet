@@ -349,11 +349,6 @@
   box-shadow: none;
 }
 
-.workspace-reports > nav { padding: 0; }
-.workspace-reports [aria-label^="Reporte"] > div.grid { border-radius: 18px; background: var(--workspace-soft); }
-.workspace-reports [aria-label^="Reporte"] > div:first-child { padding: 4px 0 15px; }
-.workspace-reports [aria-label^="Reporte"] h2 { font-size: 17px; font-weight: 650; }
-.workspace-reports [aria-label^="Reporte"] .overflow-x-auto { border-radius: 16px; }
 
 .workspace-dialog {
   border: 1px solid var(--workspace-line);
@@ -374,6 +369,97 @@
 .workspace-form-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .workspace-form-footer { flex-shrink: 0; margin: 0; padding: 14px 22px; border-top: 1px solid var(--workspace-line); background: #fff; }
 .workspace-form-dialog label { min-width: 0; }
+
+/* Modal families from the partial design handoff; ordinary record dialogs stay white. */
+.reference-modal-overlay { overflow: hidden; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.reference-dialog { min-width: 0; border: 0; border-radius: 24px; color: #284b79; }
+.reference-form-dialog { max-height: calc(100dvh - 32px); }
+.reference-form { flex: 1 1 auto; min-height: 0; }
+.reference-form-body { padding: 18px 22px; }
+.reference-form-sections { display: grid; min-width: 0; gap: 14px; margin: 0; padding: 0; border: 0; }
+.reference-form-group { min-width: 0; padding: 14px; border: 1px solid #e9eef6; border-radius: 16px; background: #f6f8fc; }
+.reference-identity-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.reference-type-selector { padding: 0; border: 0; }
+.reference-type-selector > div { gap: 4px; padding: 4px; border-radius: 14px; background: #eef3fa; }
+.reference-type-selector label > span { min-height: 40px; border: 0; border-radius: 10px; background: transparent; color: #6983a6; font-size: 14px; font-weight: 500; }
+.reference-form-dialog .reference-type-selector label:has(input:checked) > span { background: #1d396a; color: #fff; }
+.reference-dialog.reference-form-dialog :is(input:not([type=checkbox]):not([type=radio]), select, textarea) { width: 100%; min-width: 0; min-height: 44px; border: 1px solid #dfe7f2; border-radius: 12px; background: #fff; color: #284b79; font-size: 14px; font-weight: 400; }
+.reference-dialog.reference-form-dialog input::placeholder, .reference-dialog.reference-form-dialog textarea::placeholder { color: #95a8c1; }
+.reference-dialog.reference-form-dialog :is(input, select, textarea):focus { border-color: #9db7da; outline: 0; box-shadow: 0 0 0 3px #1d396a12; }
+.reference-dialog.reference-form-dialog [aria-invalid=true] { border-color: #bb5564; }
+.reference-dialog.reference-form-dialog :is(input, select, textarea):disabled { background: #f0f3f8; color: #8393aa; }
+.reference-dialog.reference-form-dialog label, .reference-type-selector > legend { color: #536f96; font-size: 12px; font-weight: 500; }
+.reference-field > div:first-child { margin-bottom: 7px; }
+.reference-field > div:first-child > span { font-size: 10px; color: #8d9fb8; }
+.reference-field > p { font-size: 11px; line-height: 1.5; }
+.reference-form-group > h3 { color: #526d94; font-size: 12px; font-weight: 500; }
+.reference-form-group label > :is(input, select, textarea) { margin-top: 6px; }
+.reference-additional-fields { padding-block: 3px; }
+.reference-additional-fields > button { color: #526d94; font-size: 12px; }
+.reference-dialog-footer { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; padding: 14px 22px; border-top: 1px solid #ecf1f7; background: #fff; }
+.reference-dialog .reference-dialog-footer > :is(.primary-button, .secondary-button) { min-height: 38px; padding: 9px 16px; border: 0; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.reference-dialog .reference-dialog-footer > .primary-button { background: #1d396a; color: #fff; }
+.reference-dialog .reference-dialog-footer > .secondary-button { background: #f1f5fb; color: #7b91ad; }
+:is(.workspace-dialog, .workshop-dialog, .vehicle-profile) .reference-dialog-tabs:is([role=tablist], [role=group]) { display: grid; flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 0; padding: 12px 22px; border-bottom: 1px solid #ecf1f7; background: #fff; }
+:is(.workspace-dialog, .workshop-dialog, .vehicle-profile) .reference-dialog-tabs:is([role=tablist], [role=group]) > button { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; min-height: 40px; padding: 9px 12px; border: 0; border-radius: 12px; background: #f1f5fb; color: #8098b8; font-size: 12px; font-weight: 500; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+:is(.workspace-dialog, .workshop-dialog, .vehicle-profile) .reference-dialog-tabs:is([role=tablist], [role=group]) > button:is([aria-selected=true], [aria-pressed=true]) { background: #1d396a; color: #fff; }
+:is(.workspace-dialog, .workshop-dialog, .vehicle-profile) .reference-dialog-tabs:is([role=tablist], [role=group]) > button:is([aria-selected=true], [aria-pressed=true]) > span { background: #ffffff24; color: #fff; }
+:is(.workspace-dialog, .workshop-dialog, .vehicle-profile) .reference-dialog-tabs:is([role=tablist], [role=group]) svg { flex: none; width: 16px; height: 16px; }
+.reference-dialog-body { flex: 1 1 auto; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.reference-header-kind { display: inline-flex; align-items: center; min-height: 32px; padding: 7px 10px; border-radius: 10px; background: #ffffff18; color: #d6e2f4; font-size: 12px; }
+.client-profile-dialog { width: min(850px, 100%); }
+.client-profile-identity { display: flex; flex: none; align-items: center; gap: 12px; margin: 0 22px 4px; padding: 16px; border-radius: 16px; background: #1d396a; color: #fff; }
+.client-profile-identity > span { display: grid; flex: none; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: #ffffff14; color: #c5d5ed; }
+.client-profile-identity svg { width: 21px; height: 21px; }
+.client-profile-identity > div { min-width: 0; }
+.client-profile-identity p { margin-bottom: 3px; color: #c4d3e9; font-size: 11px; }
+.client-profile-identity h3 { color: #fff; font-size: 20px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.client-profile-facts > dl { display: grid; align-content: start; gap: 10px; }
+.client-profile-fact { padding: 13px 14px; border-radius: 13px; background: #f6f8fc; }
+.client-profile-fact dt { color: #91a2b9; font-size: 11px; }
+.client-profile-fact dd { margin-top: 6px; color: #536f96; font-size: 12px; font-weight: 400; }
+.client-profile-fact dt > svg { display: none; }
+.client-profile-dialog > .reference-dialog-footer > :is(button, a) { min-height: 38px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.client-profile-dialog > .reference-dialog-footer > div:last-child { flex-basis: 100%; }
+.vehicle-owner-selector { padding-top: 10px; }
+.vehicle-owner-selector > legend { padding: 0 5px; }
+.vehicle-owner-selector input[type=checkbox] { margin-top: 0; }
+.vehicle-profile-dialog { max-width: 940px; }
+.vehicle-profile { max-height: inherit; }
+.vehicle-profile-header { flex: none; order: 0; background: #1d396a; }
+.vehicle-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 22px 18px; }
+.vehicle-profile-actions:empty { display: none; }
+.vehicle-profile-actions > :is(button, a) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 9px 14px; border: 0; border-radius: 12px; background: #ffffff14; color: #e2eaf7; font-size: 12px; font-weight: 500; }
+.vehicle-profile-actions > a { background: #fff; color: #1d396a; }
+.vehicle-profile-actions > :is(button, a):focus-visible { outline: 2px solid #b2c8e8; outline-offset: 2px; }
+.vehicle-profile-actions svg { width: 16px; height: 16px; }
+.vehicle-profile-tabs { order: 1; }
+.vehicle-profile-metrics { display: grid; flex: none; order: 2; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 16px 22px; border: 0; background: #fff; }
+.vehicle-profile-metrics > div { min-width: 0; padding: 12px; border: 0; border-radius: 13px; background: #f4f7fb; }
+.vehicle-profile-metrics p:first-child { color: #8b9db6; font-size: 11px; }
+.vehicle-profile-metrics p:last-child { margin-top: 6px; color: #31517e; font-size: 18px; font-weight: 600; }
+.vehicle-profile-body { order: 3; }
+.vehicle-profile-details { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 0 22px 18px; }
+.vehicle-profile-owner { padding: 14px; border: 1px solid #e9eef6; border-radius: 15px; background: #f6f8fc; }
+.vehicle-profile-technical { padding: 0; border: 0; }
+.vehicle-profile-technical > dl > div { padding: 12px 0; border-color: #edf2f7; }
+.vehicle-profile > footer { order: 4; }
+@media (max-width: 640px) {
+  .reference-dialog { border-radius: 20px; max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  .reference-form-body { padding: 14px; }
+  .reference-identity-grid { grid-template-columns: minmax(0, 1fr); }
+  .reference-dialog.reference-form-dialog :is(input:not([type=checkbox]):not([type=radio]), select, textarea) { font-size: 16px; }
+  :is(.workspace-dialog, .workshop-dialog, .vehicle-profile) .reference-dialog-tabs:is([role=tablist], [role=group]) { gap: 5px; padding: 10px 14px; }
+  :is(.workspace-dialog, .workshop-dialog, .vehicle-profile) .reference-dialog-tabs:is([role=tablist], [role=group]) > button { min-height: 44px; padding: 8px 6px; gap: 4px; font-size: 11px; }
+  :is(.workspace-dialog, .workshop-dialog, .vehicle-profile) .reference-dialog-tabs:is([role=tablist], [role=group]) svg { width: 15px; height: 15px; }
+  .reference-dialog-footer { padding: 12px 14px max(12px, env(safe-area-inset-bottom)); }
+  .client-profile-identity { margin-inline: 14px; padding: 14px; }
+  .client-profile-identity h3 { font-size: 18px; }
+  .vehicle-profile-actions { padding: 0 16px 14px; }
+  .vehicle-profile-actions > :is(button, a) { flex: 1 1 auto; }
+  .vehicle-profile-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px; gap: 8px; }
+  .vehicle-profile-details { padding: 0 14px 14px; }
+}
 
 @container workspace (min-width: 1500px) {
   .dashboard-metrics { grid-template-columns: repeat(6, minmax(0, 1fr)); }

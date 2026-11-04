@@ -1,19 +1,12 @@
 import { createUserSchema, updateUserSchema } from '@unithor/shared';
-import { AlertCircle, LoaderCircle, Save } from 'lucide-react';
-import { motion } from 'motion/react';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 
-import { useModalOverlay } from '../../hooks/useModalOverlay';
-import {
-  useCreateUserMutation,
-  useUpdateUserMutation,
-} from '../../hooks/useUsers';
+import { useCreateUserMutation, useUpdateUserMutation } from '../../hooks/useUsers';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { getRoleLabel } from '../../lib/permissions';
-import { AnimateIcon } from '../animate-ui';
-import ModalHeader from '../common/ModalHeader';
-import UserAvatar from '../common/UserAvatar';
+import FormDialog from '../common/FormDialog';
 
 import type { AdminUser, RoleOption } from '../../hooks/useUsers';
 
@@ -28,127 +21,91 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
   const updateMutation = useUpdateUserMutation();
   const mutation = user ? updateMutation : createMutation;
   const defaultRole = roles.find((role) => role.nombre === 'vendedor')
-    ?? roles.find((role) => role.nombre !== 'desarrollador')
-    ?? roles[0];
-  const [nombre, setNombre] = useState(user?.nombre ?? '');
-  const [username, setUsername] = useState(user?.username ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
+    ?? roles.find((role) => role.nombre !== 'desarrollador') ?? roles[0];
+  const initial = {
+    nombre: user?.nombre ?? '', username: user?.username ?? '', email: user?.email ?? '',
+    roleId: String(user?.roleId ?? defaultRole?.id ?? ''),
+  };
+  const [form, setForm] = useState(initial);
   const [password, setPassword] = useState('');
-  const [roleId, setRoleId] = useState(String(user?.roleId ?? defaultRole?.id ?? ''));
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const dirty = password !== '' || (Object.keys(initial) as Array<keyof typeof initial>)
+    .some((field) => form[field] !== initial[field]);
+  const selectedRole = roles.find((role) => String(role.id) === form.roleId);
 
-  const setPanelNode = useModalOverlay({ isOpen: true, onClose, isPending: mutation.isPending });
-
+  const setField = (field: keyof typeof form, value: string): void => {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: '' }));
+  };
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (mutation.isPending) return;
     mutation.reset();
     if (user) {
-      const result = updateUserSchema.safeParse({ nombre, username, email, roleId });
-      if (!result.success) {
-        setErrors(getFieldErrors(result.error.issues));
-        return;
-      }
+      const result = updateUserSchema.safeParse({ ...form, email: form.email.trim() });
+      if (!result.success) { setErrors(getFieldErrors(result.error.issues)); return; }
       setErrors({});
       updateMutation.mutate({ id: user.id, data: result.data }, { onSuccess: onClose });
     } else {
-      const result = createUserSchema.safeParse({ nombre, username, email, password, roleId });
-      if (!result.success) {
-        setErrors(getFieldErrors(result.error.issues));
-        return;
-      }
+      const result = createUserSchema.safeParse({ ...form, email: form.email.trim(), password });
+      if (!result.success) { setErrors(getFieldErrors(result.error.issues)); return; }
       setErrors({});
       createMutation.mutate(result.data, { onSuccess: onClose });
     }
   };
 
-  const inputClass = 'mt-1 h-10 w-full rounded-lg border border-brand-line px-3.5 text-sm text-brand-ink outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15';
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button
-        type="button"
-        className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
-        aria-label="Cerrar formulario de usuario"
-        onClick={onClose}
-      />
-      <motion.section
-        initial={{ opacity: 0, scale: 0.96, y: 14 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="workspace-form-dialog workspace-dialog relative w-full max-w-[620px] overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="user-form-title"
-        ref={setPanelNode}
-      >
-        <ModalHeader
-          id="user-form-title"
-          title={user ? `Editar a ${user.nombre}` : 'Nuevo usuario'}
-          description="Acceso, identidad y rol operativo en UNITHOR"
-          badge={user ? <UserAvatar user={user} size="md" /> : undefined}
-          onClose={onClose}
-        />
-        <form onSubmit={submit} className="workspace-form">
-          <div className="workspace-form-body space-y-4 px-7 pb-7 pt-2">
-          {mutation.isError && (
-            <div className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk" role="alert">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              {getApiErrorMessage(mutation.error, 'No fue posible guardar el usuario.')}
-            </div>
-          )}
-          <label className="block text-sm font-semibold text-brand-ink">
-            Nombre completo
-            <input className={inputClass} value={nombre} onChange={(event) => setNombre(event.target.value)} autoFocus />
-            {errors.nombre && <span className="mt-1 block text-xs font-normal text-brand-coralInk">{errors.nombre}</span>}
-          </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-semibold text-brand-ink">
-              Nombre de usuario
-              <input className={inputClass} value={username} onChange={(event) => setUsername(event.target.value.toLowerCase())} autoComplete="username" placeholder="ej. jperez" />
-              {errors.username && <span className="mt-1 block text-xs font-normal text-brand-coralInk">{errors.username}</span>}
-            </label>
-            <label className="block text-sm font-semibold text-brand-ink">
-              Rol
-              <select className={`${inputClass} bg-white`} value={roleId} onChange={(event) => setRoleId(event.target.value)}>
-                {roles.map((role) => <option key={role.id} value={role.id}>{getRoleLabel(role.nombre)}</option>)}
-              </select>
-              {errors.roleId && <span className="mt-1 block text-xs font-normal text-brand-coralInk">{errors.roleId}</span>}
-            </label>
-          </div>
-          <label className="block text-sm font-semibold text-brand-ink">
-            Correo electrónico
-            <input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-            {errors.email && <span className="mt-1 block text-xs font-normal text-brand-coralInk">{errors.email}</span>}
-          </label>
-          {!user && (
-            <label className="block text-sm font-semibold text-brand-ink">
-              Contraseña temporal
-              <input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" placeholder="Mínimo 6 caracteres" />
-              {errors.password && <span className="mt-1 block text-xs font-normal text-brand-coralInk">{errors.password}</span>}
-            </label>
-          )}
-          </div>
-          <footer className="workspace-form-footer dialog-buttons pt-4">
-            <button type="button" className="secondary-button" onClick={onClose}>
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <AnimateIcon icon={Save} animation="bounce" size={16} />
-              )}
-              {user ? 'Guardar cambios' : 'Crear usuario'}
-            </button>
-          </footer>
-        </form>
-      </motion.section>
+  return <FormDialog id="user-form-title" title={user ? `Editar a ${user.nombre}` : 'Nuevo usuario'}
+    code={user ? `@${user.username}` : 'Cuenta de acceso'} context="Identidad y rol operativo"
+    submitLabel={user ? 'Guardar cambios' : 'Crear usuario'} dirty={dirty}
+    pending={mutation.isPending} onClose={onClose} onSubmit={submit}
+    submitDisabled={roles.length === 0 || Boolean(user && !dirty)}
+    headerVariant="plain"
+    className="administration-form reference-form-dialog">
+    {mutation.isError && <div className="administration-alert" role="alert">
+      <AlertCircle aria-hidden="true" />{getApiErrorMessage(mutation.error, 'No fue posible guardar el usuario.')}
+    </div>}
+    <div className="administration-form-grid">
+      <label className="administration-wide" htmlFor="account-name">Nombre completo
+        <input id="account-name" value={form.nombre} onChange={(event) => setField('nombre', event.target.value)}
+          autoComplete="name" maxLength={120} aria-invalid={Boolean(errors.nombre)} aria-describedby={errors.nombre ? 'account-name-error' : undefined} autoFocus />
+        {errors.nombre && <span id="account-name-error" className="administration-field-error">{errors.nombre}</span>}
+      </label>
+      <label htmlFor="account-username">Nombre de usuario
+        <input id="account-username" value={form.username} onChange={(event) => setField('username', event.target.value.toLowerCase())}
+          autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={50} placeholder="ej. jperez"
+          aria-invalid={Boolean(errors.username)} aria-describedby={errors.username ? 'account-username-error' : undefined} />
+        {errors.username && <span id="account-username-error" className="administration-field-error">{errors.username}</span>}
+      </label>
+      <label htmlFor="account-role">Rol
+        <select id="account-role" value={form.roleId} onChange={(event) => setField('roleId', event.target.value)}
+          aria-invalid={Boolean(errors.roleId)} aria-describedby={errors.roleId ? 'account-role-error' : undefined}>
+          {roles.map((role) => <option key={role.id} value={role.id}>{getRoleLabel(role.nombre)}</option>)}
+        </select>
+        {errors.roleId && <span id="account-role-error" className="administration-field-error">{errors.roleId}</span>}
+      </label>
+      <label className="administration-wide" htmlFor="account-email">Correo electrónico
+        <input id="account-email" type="email" value={form.email} onChange={(event) => setField('email', event.target.value)}
+          autoComplete="email" autoCapitalize="none" maxLength={254} aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? 'account-email-error' : undefined} />
+        {errors.email && <span id="account-email-error" className="administration-field-error">{errors.email}</span>}
+      </label>
+      {!user && <div className="administration-wide administration-password-field"><label htmlFor="account-password">Contraseña temporal</label>
+        <span className="administration-password">
+          <input id="account-password" type={showPassword ? 'text' : 'password'} value={password}
+            onChange={(event) => { setPassword(event.target.value); setErrors((current) => ({ ...current, password: '' })); }}
+            autoComplete="new-password" maxLength={100} placeholder="Mínimo 8 caracteres"
+            aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'account-password-error' : undefined} />
+          <button type="button" onClick={() => setShowPassword((value) => !value)}
+            aria-label={showPassword ? 'Ocultar contraseña temporal' : 'Mostrar contraseña temporal'} aria-pressed={showPassword}>
+            {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+          </button>
+        </span>
+        {errors.password && <span id="account-password-error" className="administration-field-error">{errors.password}</span>}
+      </div>}
     </div>
-  );
+    {selectedRole?.descripcion && <p className="administration-form-note"><strong>{getRoleLabel(selectedRole.nombre)}</strong>{selectedRole.descripcion}</p>}
+    {user && form.roleId !== initial.roleId && <p className="administration-notice">El cambio de rol actualizará el acceso de esta cuenta.</p>}
+  </FormDialog>;
 };
 
 export default UserFormModal;

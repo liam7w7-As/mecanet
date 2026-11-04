@@ -11,6 +11,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import VehicleDirectoryRow from './VehicleDirectoryRow';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useDeleteVehicleMutation, useVehicles } from '../../hooks/useVehicles';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { hasUserPermission } from '../../lib/permissions';
@@ -101,27 +102,7 @@ export const WorkshopVehiclesTab = () => {
     );
   }, [debouncedSearch, setSearchParams]);
 
-  useEffect(() => {
-    if (!hasSelectedVehicle) return undefined;
-    const previousOverflow = document.body.style.overflow;
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return;
-      setSearchParams(
-        (current) => {
-          const next = new URLSearchParams(current);
-          next.delete('vehicleId');
-          return next;
-        },
-        { replace: true },
-      );
-    };
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [hasSelectedVehicle, setSearchParams]);
+  const detailPanelRef = useModalOverlay({ isOpen: hasSelectedVehicle, onClose: closeVehicle });
 
   const confirmDelete = (): void => {
     if (!deleteVehicle) return;
@@ -241,7 +222,7 @@ export const WorkshopVehiclesTab = () => {
       )}
       <AnimatePresence>
         {hasSelectedVehicle && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5">
+          <div className="reference-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5" aria-hidden={formVehicle !== undefined || undefined}>
             <motion.button
               type="button"
               initial={{ opacity: 0 }}
@@ -256,15 +237,18 @@ export const WorkshopVehiclesTab = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 8 }}
               transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-              className="workspace-dialog relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl sm:max-h-[calc(100dvh-2.5rem)]"
+              className="workspace-dialog reference-dialog vehicle-profile-dialog relative flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden border border-brand-line bg-white shadow-2xl sm:max-h-[calc(100dvh-2.5rem)]"
+              ref={detailPanelRef}
+              tabIndex={-1}
               role="dialog"
-              aria-modal="true"
+              aria-modal={formVehicle === undefined}
               aria-label="Ficha del vehículo"
             >
               <VehicleDetailPage
                 key={selectedVehicleId}
                 vehicleId={selectedVehicleId}
                 onClose={closeVehicle}
+                onEdit={setFormVehicle}
               />
             </motion.section>
           </div>

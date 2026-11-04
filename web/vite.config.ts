@@ -15,6 +15,14 @@ export default defineConfig({
       // unico modo de refrescarlos era Ctrl+Shift+R (que anula el SW). Con
       // autoUpdate el SW nuevo se instala, toma el control y recarga solo.
       registerType: 'autoUpdate',
+      devOptions: {
+        enabled: true,
+        // En desarrollo se prueba la instalación sin interceptar las rutas
+        // ni aplicar las cachés de producción sobre Vite y su HMR.
+        navigateFallbackAllowlist: [],
+        disableRuntimeConfig: true,
+        suppressWarnings: true,
+      },
       includeAssets: [
         'favicon.ico',
         'favicon.png',

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { CHILE_REGIONS } from '../../data/chile-locations';
 import { useCreateClientMutation, useUpdateClientMutation } from '../../hooks/useClients';
@@ -83,7 +84,7 @@ const Field = ({
   children: ReactNode;
   className?: string;
 }) => (
-  <div className={`min-w-0 ${className}`}>
+  <div className={`reference-field min-w-0 ${className}`}>
     <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-2 text-sm font-medium text-brand-ink">
       <label htmlFor={`client-${name}`}>{label}</label>
       <span aria-hidden="true" className="text-xs font-normal text-brand-muted">
@@ -191,7 +192,7 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
         ? 'client-rut-hint'
         : undefined,
     onBlur: () => {
-      if (isEditing && form[key] === initial[key]) return;
+      if (form[key] === initial[key]) return;
       const result = createClientSchema.shape[key].safeParse(form[key]);
       if (!result.success)
         setFieldErrors((current) => ({ ...current, [key]: result.error.issues[0].message }));
@@ -234,8 +235,8 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
   };
 
   const hasErrors = Object.keys(fieldErrors).length > 0;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+  return createPortal(
+    <div className="reference-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
       <button
         type="button"
         className="fixed inset-0 bg-brand-scrim/35 backdrop-blur-sm"
@@ -248,30 +249,34 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
         initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="workspace-dialog relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[680px] flex-col overflow-hidden rounded-lg border border-brand-line bg-white shadow-2xl sm:max-h-[calc(100dvh-3rem)]"
+        className="workspace-dialog reference-dialog reference-form-dialog client-form-dialog relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[720px] flex-col overflow-hidden border border-brand-line bg-white shadow-2xl sm:max-h-[calc(100dvh-3rem)]"
         role="dialog"
         ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="client-form-title"
+        tabIndex={-1}
       >
         <div className="shrink-0">
           <ModalHeader
             id="client-form-title"
             title={isEditing ? 'Editar cliente' : 'Nuevo cliente'}
+            variant="brand"
+            badge={form.tipo === 'empresa' ? <Building2 aria-hidden="true" /> : <UserRound aria-hidden="true" />}
+            closeDisabled={activeMutation.isPending}
             onClose={close}
           />
         </div>
         <form
           ref={formRef}
-          className="flex min-h-0 flex-col"
+          className="workspace-form reference-form"
           noValidate
           onSubmit={handleSubmit}
           aria-busy={activeMutation.isPending}
         >
-          <div className="min-h-0 overflow-y-auto px-5 pb-5 sm:px-7">
-            <fieldset disabled={activeMutation.isPending} className="min-w-0 space-y-5">
+          <div className="workspace-form-body reference-form-body">
+            <fieldset disabled={activeMutation.isPending} className="reference-form-sections min-w-0">
               <legend className="sr-only">Datos del cliente</legend>
-              <fieldset>
+              <fieldset className="reference-type-selector">
                 <legend className="mb-2 text-sm font-medium text-brand-ink">Tipo de cliente</legend>
                 <div className="grid grid-cols-2 gap-2">
                   {(
@@ -298,12 +303,11 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
                 </div>
               </fieldset>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="reference-form-group reference-identity-grid">
                 <Field
                   name="nombre"
                   label={form.tipo === 'empresa' ? 'Razón social' : 'Nombre completo'}
                   error={fieldErrors.nombre}
-                  className="sm:col-span-2"
                 >
                   <input
                     {...fieldProps('nombre')}
@@ -323,7 +327,6 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
                   label={form.tipo === 'empresa' ? 'RUT de la empresa' : 'RUN / RUT'}
                   optional
                   error={fieldErrors.rut}
-                  className="sm:col-span-2"
                 >
                   <div className="relative">
                     <RutInput
@@ -349,7 +352,7 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
               </div>
 
               <section
-                className="border-t border-brand-line pt-4"
+                className="reference-form-group"
                 aria-labelledby="client-contact-heading"
               >
                 <h3
@@ -384,7 +387,7 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
                 </div>
               </section>
 
-              <section className="border-t border-brand-line pt-1">
+              <section className="reference-form-group reference-additional-fields">
                 <button
                   type="button"
                   aria-expanded={showAdditional}
@@ -477,7 +480,7 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
               )}
             </fieldset>
           </div>
-          <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-brand-line bg-white px-5 py-4 sm:px-7">
+          <footer className="workspace-form-footer reference-dialog-footer flex items-center justify-end gap-3">
             <button
               type="button"
               className="secondary-button"
@@ -503,7 +506,8 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
           </footer>
         </form>
       </motion.section>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

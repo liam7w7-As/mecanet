@@ -17,6 +17,10 @@ interface ModalHeaderProps {
    */
   badge?: ReactNode;
   tone?: 'primary' | 'warning' | 'success' | 'gold';
+  variant?: 'plain' | 'brand';
+  headingAs?: 'h1' | 'h2';
+  actions?: ReactNode;
+  closeDisabled?: boolean;
   children?: ReactNode;
 }
 
@@ -27,12 +31,7 @@ const TONE = {
   gold: 'bg-brand-goldPale text-brand-goldInk',
 } as const;
 
-/**
- * Cabecera de dialogo segun la referencia Modernize (`.dialog-heading`): titulo a
- * la izquierda, cerrar circular a la derecha, sin fondo ni borde. Sustituye a
- * las tres anatomias que conviven en la app (oscura, sticky con borde y mixta);
- * al ser un componente, los 20 modales no pueden volver a divergir.
- */
+/** White record dialogs and navy operational profiles share the same controls. */
 export const ModalHeader = ({
   id,
   title,
@@ -42,10 +41,30 @@ export const ModalHeader = ({
   eyebrow,
   badge,
   tone = 'primary',
+  variant = 'plain',
+  headingAs: Heading = 'h2',
+  actions,
+  closeDisabled = false,
   children,
 }: ModalHeaderProps) => {
+  const identity = <>
+    {eyebrow && <p className="ui-modal-eyebrow text-xs font-semibold uppercase text-brand-muted">{eyebrow}</p>}
+    <div className="ui-modal-title-row flex items-center gap-2">
+      <Heading id={id} className="text-lg font-semibold text-brand-ink">{title}</Heading>
+      {children}
+    </div>
+    {description && <div className="ui-modal-description mt-1 text-sm text-brand-muted">{description}</div>}
+  </>;
+  const closeButton = <button
+    type="button"
+    onClick={onClose}
+    disabled={closeDisabled}
+    className="ui-modal-close inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-brand-muted transition hover:bg-brand-pale hover:text-brand-primaryInk disabled:opacity-50"
+    aria-label={closeLabel}
+    title={closeLabel}
+  ><X className="h-5 w-5" aria-hidden="true" /></button>;
   return (
-    <div className="ui-modal-header flex items-start justify-between gap-4 px-7 pb-5 pt-7">
+    <div className={`ui-modal-header ${variant === 'brand' ? 'ui-modal-header--brand' : ''} flex items-start justify-between gap-4 px-7 pb-5 pt-7`}>
       <div className="min-w-0">
         {badge && (
           <span
@@ -54,24 +73,9 @@ export const ModalHeader = ({
             {badge}
           </span>
         )}
-        {eyebrow && <p className="text-xs font-semibold uppercase text-brand-muted">{eyebrow}</p>}
-        <div className="flex items-center gap-2">
-          <h2 id={id} className="text-lg font-semibold text-brand-ink">
-            {title}
-          </h2>
-          {children}
-        </div>
-        {description && <div className="mt-1 text-sm text-brand-muted">{description}</div>}
+        {variant === 'brand' ? <div className="min-w-0">{identity}</div> : identity}
       </div>
-      <button
-        type="button"
-        onClick={onClose}
-        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-brand-muted transition hover:bg-brand-pale hover:text-brand-primaryInk"
-        aria-label={closeLabel}
-        title={closeLabel}
-      >
-        <X className="h-5 w-5" aria-hidden="true" />
-      </button>
+      {actions ? <div className="ui-modal-header-controls">{actions}{closeButton}</div> : closeButton}
     </div>
   );
 };

@@ -170,8 +170,10 @@ export const WorkOrdersPage = () => {
     <div className="workshop-board min-w-0 space-y-5">
       <header className="workshop-board-heading flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-medium text-brand-muted">Operación de taller</p>
-          <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">{user?.role === 'mecanico' ? 'Mis órdenes asignadas' : 'Taller - Órdenes de Trabajo'}</h1>
+          <h1 className="text-2xl font-semibold text-brand-primaryInk sm:text-3xl" aria-label={user?.role === 'mecanico' ? 'Mis órdenes asignadas' : 'Taller y Órdenes de trabajo'}>
+            <span className="workshop-heading-desktop">{user?.role === 'mecanico' ? 'Mis órdenes asignadas' : 'Taller y Órdenes de trabajo'}</span>
+            <span className="workshop-heading-mobile">{user?.role === 'mecanico' ? 'Mis órdenes' : 'Taller'}</span>
+          </h1>
         </div>
       </header>
 

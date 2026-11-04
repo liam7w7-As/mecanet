@@ -1,4 +1,4 @@
-import { AlertTriangle, Boxes, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, DollarSign, Download, FileText, LoaderCircle, Lock, Pencil, Plus, ThumbsDown, ThumbsUp, Wrench, X, Zap } from 'lucide-react';
+import { AlertTriangle, Boxes, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, DollarSign, Download, LoaderCircle, Lock, Pencil, Plus, ThumbsDown, ThumbsUp, Wrench, X, Zap } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -12,7 +12,7 @@ import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useQuotationPayments } from '../../hooks/usePayments';
 import { useQuotation, useUpdateQuotationMutation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { formatClp, formatDateTime } from '../../lib/formatters';
+import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
@@ -433,7 +433,7 @@ export const QuotationDetailModal = ({
   const close = (): void => { if (!updateMutation.isPending && !showPaymentModal && !showPdfModal) onClose(); };
   const setPanelNode = useModalOverlay({ isOpen: true, onClose: close, isPending: updateMutation.isPending });
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
+    <div className="reference-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6">
       {/* Backdrop */}
       <button
         type="button"
@@ -448,32 +448,15 @@ export const QuotationDetailModal = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 16 }}
         transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-        className="commercial-detail-dialog relative z-10 flex max-h-[92vh] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-brand-line"
+        className="reference-dialog commercial-detail-dialog relative z-10 flex max-h-[92vh] w-full max-w-[850px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-brand-line"
         role="dialog"
         tabIndex={-1}
         ref={setPanelNode}
-        aria-modal="true"
-        aria-labelledby="quotation-detail-title"
+        aria-modal={!showPaymentModal && !showPdfModal}
+        aria-hidden={showPaymentModal || showPdfModal || undefined}
+        aria-labelledby={quotation ? 'quotation-detail-code' : 'quotation-detail-title'}
       >
-        <ModalHeader
-  id="quotation-detail-title"
-  badge={<FileText className="h-6 w-6" aria-hidden="true" />}
-  title={quotation?.codigo ?? 'Cargando cotización...'}
-  onClose={close}
-  closeLabel="Cerrar cotización"
->
-  {quotation && <QuotationStatusBadge status={quotation.estadoPago} />}
-  {quotation?.workOrder ? (
-    <Link
-      to={`/work-orders/${quotation.workOrder.id}`}
-      className="inline-flex items-center gap-1.5 rounded-md bg-brand-mintPale px-2 py-0.5 font-mono text-xs font-bold text-brand-mintInk ring-1 ring-inset ring-brand-line"
-      title={`Orden de Trabajo ${quotation.workOrder.codigo}`}
-    >
-      <Wrench className="h-3 w-3 text-brand-mintInk" aria-hidden="true" />
-      <span>OT · {quotation.workOrder.codigo}</span>
-    </Link>
-  ) : null}
-</ModalHeader>
+        <ModalHeader id="quotation-detail-title" title="Detalle de cotización" onClose={close} closeLabel="Cerrar cotización" closeDisabled={updateMutation.isPending} />
 
         {/* Modal Scrollable Body */}
         <div className="commercial-detail-body min-h-0 flex-1 overflow-y-auto p-5 space-y-5">
@@ -492,93 +475,30 @@ export const QuotationDetailModal = ({
 
           {quotation && (
             <>
-              {/* Client, Vehicle & Financial KPI strip */}
-              <div className={`grid grid-cols-1 gap-3 ${quotation.vehicle ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
-                {/* Client Box */}
-                <div className="flex items-center gap-3 rounded-xl border border-brand-line/80 bg-brand-line/60 p-3.5">
-                  {/* Iniciales en tinta y no en `primaryInk`: sobre el teñido al 10% daba
-            4.46:1, apenas bajo el 4.5:1 de AA. */}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-primaryInk/10 text-xs font-black text-brand-ink">
-                    {getInitials(quotation.client?.nombre)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Cliente</p>
-                    <p className="truncate text-sm font-bold text-brand-ink" title={quotation.client?.nombre ?? 'Sin cliente'}>
-                      {quotation.client?.nombre ?? 'Sin cliente registrado'}
-                    </p>
-                    <p className="font-mono text-xs text-brand-muted truncate">
-                      {quotation.client?.rut || quotation.client?.telefono || 'Sin identificación'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Vehicle Box */}
-                {quotation.vehicle && <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-line/80 bg-brand-line/60 p-3.5">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Vehículo</p>
-                    <p className="truncate text-sm font-bold text-brand-ink" title={[quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos'}>
-                      {[quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin vehículo'}
-                    </p>
-                    <p className="text-xs text-brand-muted truncate">
-                      ID #{quotation.vehicleId ?? '-'}
-                    </p>
-                  </div>
-                  {quotation.vehicle?.patente ? (
-                    // Acento dorado y no índigo: es una etiqueta de estado, no
-                    // una acción principal. Aplanarla al color de CTA le quitaría
-                    // la distinción. El texto va en tinta porque blanco sobre
-                    // `--gold` daba 1.9:1.
-                    <span className="shrink-0 rounded-lg border border-brand-line bg-brand-pale px-2.5 py-1 font-mono text-xs font-bold text-brand-primaryInk shadow-2xs">
-                      {quotation.vehicle.patente}
-                    </span>
-                  ) : (
-                    <span className="font-mono text-xs text-brand-muted">Sin patente</span>
-                  )}
-                </div>}
-
-                {/* Financial Overview */}
-                <div className="flex flex-col justify-between rounded-xl border border-brand-line/80 bg-brand-line/60 p-3.5">
-                  <div className="flex items-baseline justify-between">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Total Cotizado</p>
-                      <p className="text-base font-black text-brand-ink">{formatClp(total)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-primaryInk">Saldo Pendiente</p>
-                      <p className={`text-base font-black ${balance === 0 ? 'text-brand-mintInk' : 'text-brand-primaryInk'}`}>
-                        {formatClp(balance)}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Progress bar */}
-                  <div className="mt-2">
-                    <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-brand-line">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${paidPercent}%` }}
-                        transition={{ duration: 0.6, ease: 'easeOut' }}
-                        className="h-full rounded-full bg-brand-mintInk"
-                      />
-                    </div>
-                    <div className="mt-1 flex items-center justify-between text-[10px] text-brand-muted">
-                      <span>Pagado: {formatClp(paid)}</span>
-                      <span className="font-mono font-bold">{paidPercent}%</span>
-                    </div>
-                  </div>
-                </div>
+              <div className="commercial-detail-hero" data-payment-status={quotation.estadoPago}>
+                <div><span>Cotización</span><h3 id="quotation-detail-code">{quotation.codigo}</h3><small>Emitida el {formatDate(quotation.createdAt)}</small></div>
+                <QuotationStatusBadge status={quotation.estadoPago} />
+                {quotation.workOrder && <Link to={`/work-orders/${quotation.workOrder.id}`}><Wrench aria-hidden="true" /><span>OT · {quotation.workOrder.codigo}</span></Link>}
               </div>
-
-              <CustomerEmailPanel kind="quotation" id={quotation.id} />
+              <div className="commercial-detail-identity">
+                <div><span className="commercial-client-avatar">{getInitials(quotation.client?.nombre)}</span><div><small>Cliente</small><strong>{quotation.client?.nombre ?? 'Sin cliente registrado'}</strong><span>{quotation.client?.rut || quotation.client?.telefono || 'Sin identificación'}</span></div></div>
+                {quotation.vehicle && <div><div><small>Vehículo</small><strong>{quotation.vehicle.patente}</strong><span>{[quotation.vehicle.marca, quotation.vehicle.modelo].filter(Boolean).join(' · ')}</span></div></div>}
+              </div>
+              <div className="commercial-detail-metrics" aria-label="Resumen financiero">
+                <div><span>Total cotizado</span><strong>{formatClp(total)}</strong></div>
+                <div><span>Abonado</span><strong>{formatClp(paid)}</strong><small>{paidPercent}% confirmado</small></div>
+                <div><span>Saldo pendiente</span><strong>{formatClp(balance)}</strong></div>
+              </div>
 
               {/* Items Management Section */}
               <div className="rounded-xl border border-brand-line bg-white overflow-hidden shadow-2xs">
                 {/* Tabs & Add Action */}
-                <div className="flex flex-col gap-2 border-b border-brand-line bg-brand-line/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="commercial-concepts-toolbar">
                   {/* Filter category pills */}
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  <div className="commercial-category-filters" role="group" aria-label="Tipo de concepto">
                     <button
                       type="button"
-                      onClick={() => setActiveCategory('todos')}
+                      aria-pressed={activeCategory === 'todos'} onClick={() => setActiveCategory('todos')}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
                         activeCategory === 'todos'
                           ? 'bg-brand-primaryInk text-white shadow-2xs'
@@ -597,7 +517,7 @@ export const QuotationDetailModal = ({
 
                     <button
                       type="button"
-                      onClick={() => setActiveCategory('estandar')}
+                      aria-pressed={activeCategory === 'estandar'} onClick={() => setActiveCategory('estandar')}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
                         activeCategory === 'estandar'
                           ? 'bg-brand-primaryInk text-white shadow-2xs'
@@ -613,7 +533,7 @@ export const QuotationDetailModal = ({
 
                     <button
                       type="button"
-                      onClick={() => setActiveCategory('especifico')}
+                      aria-pressed={activeCategory === 'especifico'} onClick={() => setActiveCategory('especifico')}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
                         activeCategory === 'especifico'
                           ? 'bg-purple-600 text-white shadow-2xs'
@@ -629,7 +549,7 @@ export const QuotationDetailModal = ({
 
                     <button
                       type="button"
-                      onClick={() => setActiveCategory('parte')}
+                      aria-pressed={activeCategory === 'parte'} onClick={() => setActiveCategory('parte')}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
                         activeCategory === 'parte'
                           ? 'bg-brand-primary text-white shadow-2xs'
@@ -1085,12 +1005,14 @@ export const QuotationDetailModal = ({
                   </div>
                 )}
               </div>
+              {quotation.notas && <section className="commercial-detail-notes"><h3>Observaciones</h3><p>{quotation.notas}</p></section>}
+              <div className="commercial-correspondence"><CustomerEmailPanel kind="quotation" id={quotation.id} /></div>
             </>
           )}
         </div>
 
         {/* Modal Sticky Footer Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-line bg-brand-line/60 px-5 py-3.5">
+        <div className="commercial-detail-footer">
           {/* Left Actions: Abono & Convertir */}
           <div className="flex items-center gap-2">
             {canPay && balance > 0 && (

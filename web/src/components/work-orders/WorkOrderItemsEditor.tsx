@@ -223,7 +223,7 @@ export const WorkOrderItemsEditor = ({
                     <span className="block break-words text-sm font-semibold text-brand-ink">{catalogItem.nombre}</span>
                     <span className="mt-1 block text-xs text-brand-muted">{catalogItem.codigo}{catalogItem.tipo === 'parte' ? ` · Stock: ${catalogItem.stock}` : ''}</span>
                   </span>
-                  <span className="shrink-0 text-right text-xs font-bold text-brand-primaryInk">{formatClp(catalogItem.precio)}{selected && <span className="mt-1 block text-brand-mintInk">Agregado</span>}</span>
+                  <span className="reception-catalog-price shrink-0 text-right text-xs font-bold text-brand-primaryInk">{formatClp(catalogItem.precio)}{selected && <span className="mt-1 block text-brand-mintInk">Agregado</span>}</span>
                 </button>
               );
             })}
@@ -241,7 +241,7 @@ export const WorkOrderItemsEditor = ({
 
         {/* Columna derecha: items seleccionados con scroll interno en xl */}
         <div className="reception-selected-items min-w-0 xl:max-h-[calc(100dvh-14rem)] xl:overflow-y-auto xl:pr-1">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-line pb-3">
+          <div className="reception-selection-heading flex flex-wrap items-center justify-between gap-2 border-b border-brand-line pb-3">
             <h3 className="text-sm font-bold text-brand-ink">Selección ({items.length})</h3>
             <div className="flex flex-wrap items-center gap-2">
               {showDiscounts && discountToggle && (
@@ -281,6 +281,7 @@ export const WorkOrderItemsEditor = ({
                   exit={{ opacity: 0, x: 20, scale: 0.97, transition: { duration: 0.18 } }}
                   transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                   className={`reception-item-row min-w-0 space-y-3 border-b border-brand-line py-4 transition-colors duration-700 ${isFresh ? 'bg-brand-mintPale/60' : ''}`}
+                  data-item-type={item.tipoLinea}
                 >
                   <div className="flex items-start gap-2">
                     <label className="grid min-w-0 flex-1 gap-1 text-xs font-semibold text-brand-muted">
@@ -371,7 +372,7 @@ export const WorkOrderItemsEditor = ({
             })}
           </AnimatePresence>
 
-          {showTotal && <div className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-brand-primaryInk bg-brand-line/40 px-3 py-4">
+          {showTotal && <div className="reception-items-total flex flex-wrap items-center justify-between gap-2 border-t-2 border-brand-primaryInk bg-brand-line/40 px-3 py-4">
             <p className="text-sm font-semibold text-brand-muted">{totalLabel}</p>
             <p className="text-xl font-bold text-brand-primaryInk" data-testid={totalTestId}>{formatClp(calculateItemsTotal(items))}</p>
           </div>}

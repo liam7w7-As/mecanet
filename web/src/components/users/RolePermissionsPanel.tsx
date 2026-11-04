@@ -1,307 +1,130 @@
-import {
-  AlertCircle,
-  CheckCheck,
-  FileText,
-  Layers,
-  LoaderCircle,
-  Package,
-  Save,
-  Shield,
-  ShieldCheck,
-  Truck,
-  UserCheck,
-  Users,
-  Wrench,
-} from 'lucide-react';
+import { MODULES, updateRolePermissionsSchema } from '@unithor/shared';
+import { AlertCircle, CheckCheck, Coins, Layers, LoaderCircle, Package, RotateCcw, Save, Shield, ShieldCheck, ShoppingCart, Truck, UserCheck, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import {
-  usePermissions,
-  useRolePermissions,
-  useUpdateRolePermissionsMutation,
-} from '../../hooks/useUsers';
+import { usePermissions, useRolePermissions, useUpdateRolePermissionsMutation } from '../../hooks/useUsers';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { ACTION_LABELS, getRoleLabel, MODULE_LABELS } from '../../lib/permissions';
 
 import type { RoleOption } from '../../hooks/useUsers';
 import type { Module } from '@unithor/shared';
 
-interface RolePermissionsPanelProps {
-  roles: RoleOption[];
-  canUpdate: boolean;
-}
+interface RolePermissionsPanelProps { roles: RoleOption[]; canUpdate: boolean }
 
-const MODULE_ICONS: Record<string, typeof Layers> = {
-  admin: Shield,
-  clients: Users,
-  vehicles: Truck,
-  work_orders: Wrench,
-  catalog: Package,
-  finance: FileText,
-  kardex: Layers,
+const MODULE_ICONS: Record<Module, typeof Layers> = {
+  taller: Wrench, comercial: UserCheck, finanzas: Coins, flota: Truck, almacen: Package, compras: ShoppingCart, admin: Shield,
 };
-
 const ROLE_ICONS: Record<string, typeof Shield> = {
-  admin: ShieldCheck,
-  desarrollador: Shield,
-  vendedor: UserCheck,
-  mecanico: Wrench,
-  bodeguero: Package,
+  admin: ShieldCheck, desarrollador: Shield, jefe: Wrench, vendedor: UserCheck, mecanico: Wrench, bodeguero: Package, finanzas: Coins,
 };
 
 export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelProps) => {
   const initialRole = roles.find((role) => role.nombre === 'admin') ?? roles[0];
   const [roleId, setRoleId] = useState<number | null>(initialRole?.id ?? null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [draft, setDraft] = useState<Set<number> | null>(null);
+  const [requestedRole, setRequestedRole] = useState<RoleOption | null>(null);
   const permissionsQuery = usePermissions();
   const assignedQuery = useRolePermissions(roleId);
   const updateMutation = useUpdateRolePermissionsMutation();
+  const assignedIds = useMemo(() => new Set(assignedQuery.data?.map((permission) => permission.id) ?? []), [assignedQuery.data]);
+  const selectedIds = draft ?? assignedIds;
+  const dirty = draft !== null && (draft.size !== assignedIds.size || [...draft].some((id) => !assignedIds.has(id)));
   const selectedRole = roles.find((role) => role.id === roleId) ?? null;
   const isProtectedRole = selectedRole?.nombre === 'desarrollador' || selectedRole?.nombre === 'admin';
+  const loading = permissionsQuery.isPending || assignedQuery.isPending;
+  const loadError = permissionsQuery.error ?? assignedQuery.error;
+  const locked = isProtectedRole || !canUpdate || updateMutation.isPending || loading || Boolean(loadError);
+  const displayedIds = isProtectedRole ? new Set(permissionsQuery.data?.map((permission) => permission.id) ?? []) : selectedIds;
+  const totalAvailable = permissionsQuery.data?.length ?? 0;
+  const groupedPermissions = MODULES.map((module) => [module, permissionsQuery.data?.filter((permission) => permission.modulo === module) ?? []] as const)
+    .filter(([, permissions]) => permissions.length > 0);
 
   useEffect(() => {
-    if (assignedQuery.data) {
-      setSelectedIds(new Set(assignedQuery.data.map((permission) => permission.id)));
-    }
-  }, [assignedQuery.data]);
+    if (!dirty && !updateMutation.isPending) return undefined;
+    const warn = (event: BeforeUnloadEvent): void => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, updateMutation.isPending]);
 
-  const groupedPermissions = useMemo(() => {
-    const groups = new Map<Module, NonNullable<typeof permissionsQuery.data>>();
-    permissionsQuery.data?.forEach((permission) => {
-      groups.set(permission.modulo, [...(groups.get(permission.modulo) ?? []), permission]);
-    });
-    return [...groups.entries()];
-  }, [permissionsQuery.data]);
-
+  const selectRole = (role: RoleOption): void => {
+    updateMutation.reset(); setDraft(null); setRoleId(role.id); setRequestedRole(null);
+  };
+  const requestRole = (role: RoleOption): void => {
+    if (updateMutation.isPending || role.id === roleId) return;
+    if (dirty) setRequestedRole(role); else selectRole(role);
+  };
   const togglePermission = (permissionId: number): void => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(permissionId)) next.delete(permissionId);
-      else next.add(permissionId);
-      return next;
-    });
-  };
-
-  const toggleModulePermissions = (modulePermissions: Array<{ id: number }>): void => {
-    const allSelected = modulePermissions.every((p) => selectedIds.has(p.id));
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (allSelected) {
-        modulePermissions.forEach((p) => next.delete(p.id));
-      } else {
-        modulePermissions.forEach((p) => next.add(p.id));
-      }
-      return next;
-    });
-  };
-
-  const handleSelectRole = (newRoleId: number): void => {
+    if (locked) return;
     updateMutation.reset();
-    setSelectedIds(new Set());
-    setRoleId(newRoleId);
+    const next = new Set(selectedIds);
+    if (next.has(permissionId)) next.delete(permissionId); else next.add(permissionId);
+    setDraft(next);
   };
-
+  const toggleModule = (ids: number[]): void => {
+    if (locked) return;
+    updateMutation.reset();
+    const next = new Set(selectedIds);
+    const allSelected = ids.every((id) => selectedIds.has(id));
+    ids.forEach((id) => { if (allSelected) next.delete(id); else next.add(id); });
+    setDraft(next);
+  };
   const save = (): void => {
-    if (roleId === null) return;
-    updateMutation.mutate({ roleId, permissionIds: [...selectedIds].sort((a, b) => a - b) });
+    if (locked || !dirty) return;
+    const parsed = updateRolePermissionsSchema.safeParse({ roleId, permissionIds: [...selectedIds].sort((a, b) => a - b) });
+    if (parsed.success) updateMutation.mutate(parsed.data, { onSuccess: () => setDraft(null) });
   };
 
-  const error = permissionsQuery.error ?? assignedQuery.error ?? updateMutation.error;
-  const totalAvailable = permissionsQuery.data?.length ?? 0;
-  const displayedIds = isProtectedRole
-    ? new Set(permissionsQuery.data?.map((permission) => permission.id) ?? [])
-    : selectedIds;
-
-  return (
-    <section
-      className="overflow-hidden rounded-2xl border border-brand-line bg-white shadow-xs"
-      aria-labelledby="permission-matrix-title"
-    >
-      {/* Cabecera Modernize */}
-      <header className="border-b border-brand-line bg-white p-5 sm:p-6">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-pale text-brand-primary">
-              <ShieldCheck className="h-6 w-6" aria-hidden="true" />
-            </span>
-            <div>
-              <h2 id="permission-matrix-title" className="text-lg font-bold text-brand-ink">
-                Matriz dinámica de permisos
-              </h2>
-              <p className="mt-0.5 text-xs text-brand-muted sm:text-sm">
-                Asignación granular de capacidades operativas y acceso a módulos.
-              </p>
-            </div>
-          </div>
-
-          {/* Selector accesible oculto / sync para pruebas y lectores */}
-          <label className="sr-only">
-            Rol
-            <select
-              value={roleId ?? ''}
-              onChange={(event) => handleSelectRole(Number(event.target.value))}
-            >
-              {roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {getRoleLabel(role.nombre)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        {/* Barra de roles estilizada como pestañas/pills Modernize */}
-        <div className="mt-5 flex flex-wrap items-center gap-2" role="tablist" aria-label="Seleccionar rol">
-          {roles.map((role) => {
-            const isSelected = role.id === roleId;
-            const RoleIcon = ROLE_ICONS[role.nombre] ?? Shield;
-            return (
-              <button
-                key={role.id}
-                type="button"
-                role="tab"
-                aria-selected={isSelected}
-                onClick={() => handleSelectRole(role.id)}
-                className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all sm:text-sm ${
-                  isSelected
-                    ? 'bg-brand-primary text-white shadow-xs ring-2 ring-brand-primary/20'
-                    : 'bg-brand-pale/60 text-brand-muted hover:bg-brand-pale hover:text-brand-ink'
-                }`}
-              >
-                <RoleIcon className={`h-4 w-4 ${isSelected ? 'text-white' : 'text-brand-primary'}`} aria-hidden="true" />
-                <span>{getRoleLabel(role.nombre)}</span>
-              </button>
-            );
-          })}
-        </div>
-      </header>
-
-      {/* Alerta de error */}
-      {error && (
-        <div
-          className="flex items-start gap-2 border-b border-brand-coral/30 bg-brand-coralPale px-5 py-3 text-sm text-brand-coralInk"
-          role="alert"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          {getApiErrorMessage(error)}
-        </div>
-      )}
-
-      {/* Aviso de Rol Desarrollador */}
-      {isProtectedRole && (
-        <div className="border-b border-brand-line bg-brand-pale/50 px-5 py-3 text-sm text-brand-primaryInk">
-          <p className="font-semibold">
-            El rol {selectedRole?.nombre} conserva acceso irrestricto a todos los módulos y no puede ser restringido.
-          </p>
-        </div>
-      )}
-
-      {/* Contenido principal */}
-      {permissionsQuery.isPending || assignedQuery.isPending ? (
-        <div className="flex min-h-72 items-center justify-center">
-          <div className="flex flex-col items-center gap-2 text-brand-primary">
-            <LoaderCircle className="h-8 w-8 animate-spin" aria-label="Cargando permisos" />
-            <p className="text-xs font-semibold text-brand-muted">Cargando permisos del rol...</p>
-          </div>
-        </div>
-      ) : (
-        <div className="p-5 sm:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand-muted">
-              Módulos y Acciones ({displayedIds.size} de {totalAvailable} activos)
-            </p>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-2">
-            {groupedPermissions.map(([module, permissions]) => {
-              const ModuleIcon = MODULE_ICONS[module] ?? Layers;
-              const allChecked = permissions.every((p) => displayedIds.has(p.id));
-
-              return (
-                <div
-                  key={module}
-                  className="rounded-2xl border border-brand-line bg-[#fbfcfd] p-4 transition-all hover:border-brand-primary/30 sm:p-5"
-                >
-                  <div className="flex items-center justify-between border-b border-brand-line pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-pale text-brand-primary">
-                        <ModuleIcon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <h3 className="text-sm font-bold text-brand-ink">
-                        {MODULE_LABELS[module] ?? module}
-                      </h3>
-                    </div>
-
-                    {!isProtectedRole && canUpdate && (
-                      <button
-                        type="button"
-                        onClick={() => toggleModulePermissions(permissions)}
-                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-brand-primary transition hover:bg-brand-pale"
-                      >
-                        <CheckCheck className="h-3 w-3" aria-hidden="true" />
-                        {allChecked ? 'Desmarcar todo' : 'Marcar todo'}
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {permissions.map((permission) => {
-                      const isChecked = displayedIds.has(permission.id);
-                      return (
-                        <label
-                          key={permission.id}
-                          className={`relative flex min-h-10 select-none items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
-                            isChecked
-                              ? 'border-brand-primary bg-brand-pale/70 text-brand-primary shadow-2xs ring-1 ring-brand-primary/20'
-                              : 'border-brand-line bg-white text-brand-muted hover:border-brand-primary/30 hover:text-brand-ink'
-                          } ${isProtectedRole || !canUpdate ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded accent-brand-primary"
-                            checked={isChecked}
-                            disabled={isProtectedRole || !canUpdate}
-                            onChange={() => togglePermission(permission.id)}
-                            aria-label={ACTION_LABELS[permission.accion] ?? permission.accion}
-                          />
-                          <span className="truncate">{ACTION_LABELS[permission.accion] ?? permission.accion}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Footer Modernize */}
-      <footer className="flex flex-col gap-3 border-t border-brand-line bg-brand-pale/30 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p className={`text-xs font-medium sm:text-sm ${updateMutation.isSuccess ? 'font-semibold text-brand-mintInk' : 'text-brand-muted'}`}>
-          {updateMutation.isSuccess
-            ? 'Permisos actualizados correctamente'
-            : `${displayedIds.size} permiso(s) seleccionado(s) para este rol`}
-        </p>
-
-        {canUpdate && !isProtectedRole && (
-          <button
-            type="button"
-            className="primary-button h-10 px-5 text-xs font-bold text-white shadow-xs hover:shadow transition-all disabled:opacity-50"
-            onClick={save}
-            disabled={selectedIds.size === 0 || updateMutation.isPending}
-          >
-            {updateMutation.isPending ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Save className="h-4 w-4" aria-hidden="true" />
-            )}
-            Guardar permisos
-          </button>
-        )}
-      </footer>
-    </section>
-  );
+  return <section className="administration-permissions" aria-labelledby="permission-matrix-title" aria-busy={updateMutation.isPending}>
+    <header className="administration-panel-heading"><ShieldCheck aria-hidden="true" /><div><h2 id="permission-matrix-title">Matriz dinámica de permisos</h2>
+      <p>Selecciona un rol y revisa su acceso a cada área.</p></div></header>
+    <div className="administration-permission-content">
+      <div className="administration-role-tabs" role="tablist" aria-label="Seleccionar rol">{roles.map((role) => {
+        const RoleIcon = ROLE_ICONS[role.nombre] ?? Shield;
+        return <button key={role.id} type="button" role="tab" aria-selected={role.id === roleId}
+          disabled={updateMutation.isPending} onClick={() => requestRole(role)}><RoleIcon aria-hidden="true" />{getRoleLabel(role.nombre)}</button>;
+      })}</div>
+      {requestedRole && <div className="administration-leave-prompt" role="alertdialog" aria-label="Cambiar de rol sin guardar">
+        <p>Hay cambios sin guardar en {selectedRole && getRoleLabel(selectedRole.nombre)}. ¿Descartarlos para abrir {getRoleLabel(requestedRole.nombre)}?</p>
+        <div><button type="button" onClick={() => setRequestedRole(null)}>Seguir editando</button><button type="button" onClick={() => selectRole(requestedRole)}>Descartar cambios</button></div>
+      </div>}
+      {(loadError || updateMutation.error) && <div className="administration-alert" role="alert"><AlertCircle aria-hidden="true" />
+        {getApiErrorMessage(loadError ?? updateMutation.error)}{loadError && <button type="button" onClick={() => { void permissionsQuery.refetch(); void assignedQuery.refetch(); }}>Reintentar</button>}
+      </div>}
+      {isProtectedRole ? <p className="administration-notice"><ShieldCheck aria-hidden="true" />El rol {selectedRole?.nombre} conserva acceso irrestricto a todos los módulos y no puede ser restringido.</p> :
+        <div className="administration-role-summary"><strong>{selectedRole && getRoleLabel(selectedRole.nombre)}</strong><p>{selectedRole?.descripcion}</p>
+          {selectedRole?.nombre === 'mecanico' && <p>El mecánico solo accede a las OT que tiene asignadas.</p>}
+          {selectedRole?.nombre === 'vendedor' && <p>Clientes y vehículos compartidos; OT, cotizaciones y pagos propios.</p>}
+          {!canUpdate && <p>Acceso de solo lectura a esta matriz.</p>}
+        </div>}
+      {loading ? <div className="administration-empty" role="status"><LoaderCircle className="animate-spin" aria-hidden="true" /><p>Cargando permisos del rol…</p></div> : !loadError && <>
+        <p className="administration-permission-count">Módulos y Acciones ({displayedIds.size} de {totalAvailable} activos)</p>
+        <div className="administration-module-grid">{groupedPermissions.map(([module, permissions]) => {
+          const ModuleIcon = MODULE_ICONS[module];
+          const allChecked = permissions.every((permission) => displayedIds.has(permission.id));
+          return <section key={module} className="administration-module" aria-label={`Permisos de ${MODULE_LABELS[module]}`}>
+            <header><h3><ModuleIcon aria-hidden="true" />{MODULE_LABELS[module]}</h3>
+              {!isProtectedRole && canUpdate && <button type="button" disabled={locked} onClick={() => toggleModule(permissions.map((permission) => permission.id))}
+                aria-label={`${allChecked ? 'Desmarcar' : 'Marcar'} todos los permisos de ${MODULE_LABELS[module]}`}><CheckCheck aria-hidden="true" />{allChecked ? 'Desmarcar todo' : 'Marcar todo'}</button>}
+            </header>
+            <div>{permissions.map((permission) => <label key={permission.id} className={displayedIds.has(permission.id) ? 'is-selected' : ''}>
+              <input type="checkbox" checked={displayedIds.has(permission.id)} disabled={locked}
+                onChange={() => togglePermission(permission.id)} aria-label={ACTION_LABELS[permission.accion]} />{ACTION_LABELS[permission.accion]}
+            </label>)}</div>
+          </section>;
+        })}</div>
+      </>}
+    </div>
+    <footer className="administration-permission-footer"><div role="status">
+      {updateMutation.isPending ? 'Guardando permisos…' : updateMutation.isSuccess ? 'Permisos actualizados correctamente' : dirty ? 'Hay cambios sin guardar' : `${displayedIds.size} permiso(s) seleccionado(s) para este rol`}
+      {dirty && selectedIds.size === 0 && <p>Debe asignar al menos un permiso.</p>}
+    </div>{canUpdate && !isProtectedRole && <div>
+      <button type="button" className="administration-secondary" disabled={!dirty || updateMutation.isPending}
+        onClick={() => { setDraft(null); updateMutation.reset(); }}><RotateCcw aria-hidden="true" />Descartar</button>
+      <button type="button" className="administration-primary" disabled={locked || !dirty || selectedIds.size === 0} onClick={save}>
+        {updateMutation.isPending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}Guardar permisos
+      </button></div>}
+    </footer>
+  </section>;
 };
 
 export default RolePermissionsPanel;

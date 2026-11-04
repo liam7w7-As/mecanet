@@ -21,7 +21,7 @@ export const vehicleKeys = {
   quickSearch: (term: string) => ['search', 'quick', term] as const,
 };
 
-export const useVehicles = (queryParams: VehicleQueryParams) =>
+export const useVehicles = (queryParams: VehicleQueryParams, enabled = true) =>
   useQuery({
     queryKey: vehicleKeys.list(queryParams),
     queryFn: async () => {
@@ -31,6 +31,7 @@ export const useVehicles = (queryParams: VehicleQueryParams) =>
       return response.data;
     },
     placeholderData: keepPreviousData,
+    enabled,
   });
 
 export const useVehicle = (id: number | null) =>

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -176,6 +176,8 @@ describe('SettingsPage', () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Restaurar logo original' }));
+    expect(api.delete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Restaurar logo' }));
 
     await waitFor(() => {
       expect(api.delete).toHaveBeenCalledWith('/settings/company/logo');
@@ -187,5 +189,58 @@ describe('SettingsPage', () => {
 
     expect(await screen.findByText('Logo original del sistema')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Restaurar logo original' })).not.toBeInTheDocument();
+  });
+
+  it('conserva la identidad en edición cuando se sube el logo y se refresca la configuración', async () => {
+    const logoResponse = { ...companyResponse, logo: { ...companyResponse.logo, tieneLogo: true, updatedAt: '2026-11-04T10:00:00.000Z' } };
+    vi.mocked(api.post).mockResolvedValue({ data: logoResponse } as AxiosResponse);
+    renderPage();
+    const name = await screen.findByLabelText('Razón social *');
+    fireEvent.change(name, { target: { value: 'IDENTIDAD SIN GUARDAR' } });
+    fireEvent.change(screen.getByLabelText('Seleccionar logo'), { target: { files: [new File(['logo'], 'empresa.png', { type: 'image/png' })] } });
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/settings/company/logo', expect.any(FormData)));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Subir logo' })).toBeEnabled());
+    expect(name).toHaveValue('IDENTIDAD SIN GUARDAR');
+    expect(screen.getByText('Hay cambios sin guardar')).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('conserva los datos tras un error y bloquea ediciones y envíos duplicados durante el reintento', async () => {
+    let resolveSave!: (response: AxiosResponse) => void;
+    vi.mocked(api.patch).mockImplementationOnce(() => Promise.reject(new Error('Sin conexión')))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSave = resolve; }));
+    renderPage();
+    const name = await screen.findByLabelText('Razón social *');
+    fireEvent.change(name, { target: { value: 'DATOS CONSERVADOS SPA' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(name).toHaveValue('DATOS CONSERVADOS SPA');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2));
+    expect(name).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Subir logo' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Descartar' })).toBeDisabled();
+    fireEvent.submit(screen.getByRole('button', { name: 'Guardar cambios' }).closest('form')!);
+    expect(api.patch).toHaveBeenCalledTimes(2);
+    const updated = { ...companyResponse, razonSocial: 'DATOS CONSERVADOS SPA' };
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/settings/company' ? updated : branding } as AxiosResponse));
+    await act(async () => resolveSave({ data: updated } as AxiosResponse));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled());
+    expect(name).toHaveValue('DATOS CONSERVADOS SPA');
+  });
+
+  it('rechaza archivos que no son imágenes y permite descartar la edición sin enviar cambios', async () => {
+    renderPage();
+    const name = await screen.findByLabelText('Razón social *');
+    fireEvent.change(screen.getByLabelText('Seleccionar logo'), { target: { files: [new File(['pdf'], 'archivo.pdf', { type: 'application/pdf' })] } });
+    expect(api.post).not.toHaveBeenCalled();
+    fireEvent.change(name, { target: { value: 'Cambio temporal' } });
+    const leave = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(leave);
+    expect(leave.defaultPrevented).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }));
+    expect(name).toHaveValue(companyResponse.razonSocial);
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
+    expect(api.patch).not.toHaveBeenCalled();
   });
 });

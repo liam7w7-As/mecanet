@@ -19,12 +19,6 @@
 .mobile-more-account svg { width: 18px; height: 18px; }
 .mobile-more-sheet :is(a, button):focus-visible { outline: 2px solid #91afd7; outline-offset: 1px; }
 .mobile-more-sheet .popover-notifications { position: fixed; inset: max(16px, env(safe-area-inset-top)) 12px auto; z-index: 90; width: auto; max-height: 65dvh; overflow-y: auto; }
-.workshop-card-information { border: 2px solid #38b277; border-top: 0; border-radius: 0 0 22px 22px; box-shadow: 0 13px 22px #24314215; background: #fff; }
-.workshop-card[data-panel=information] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
-.workshop-card-information.workshop-state-esperando_repuesto { border-color: #f7eb2d; }
-.workshop-card-information.workshop-information-overdue { border-color: #e05858; }
-.workshop-card-information.workshop-state-entregada { border-color: #e8eaee; }
-.workshop-card-information.workshop-state-cancelada { border-color: #bcc3cc; }
 @media (hover: hover) { .mobile-more-grid a:hover, .mobile-more-account > button:hover { background: #f0f4fa; color: #1d396a; } }
 @media (prefers-reduced-motion: no-preference) { .mobile-more-sheet { animation: more-sheet-in .2s ease-out; } }
 @keyframes more-sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }

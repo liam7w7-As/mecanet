@@ -25,16 +25,9 @@
 .workspace-page :is(.view-panel, .workspace-panel) { border-color: #e5e9ef; }
 .workspace-page .workspace-table th { font-weight: 500; font-size: 10px; color: #8b98a7; }
 .workspace-page .workspace-table td { font-size: 12px; }
-.workspace-reports [aria-label^="Reporte"] > div.grid { border: 0; padding: 16px; border-radius: 18px; background: #fff; }
-.workspace-reports [aria-label^="Reporte"] > div:first-child { border: 0; padding-bottom: 16px; }
-.workspace-reports [aria-label^="Reporte"] h2 { font-size: 18px; font-weight: 500; }
-.workspace-reports [aria-label^="Reporte"] .overflow-x-auto { border: 1px solid #e5e9ef; }
 .workspace-clients .workspace-directory { border: 0; border-radius: 18px; }
 .workspace-clients .workspace-directory-row { min-height: 76px; }
-.workspace-catalog [aria-label="Listado de catálogo"] { border: 0; box-shadow: none; }
-.workspace-catalog .workspace-catalog-heading { background: #f8fafc; font-weight: 500; }
 .workspace-warehouses [aria-label="Almacenes"] .workspace-warehouse-card { min-height: 112px; border-radius: 16px; }
-.workspace-finance .workspace-finance-metric { border-radius: 18px; }
 .workspace-users [aria-label="Listado de usuarios"] { border: 0; border-radius: 18px; overflow: hidden; }
 .workspace-settings :is(section.rounded-lg, section.rounded-xl) { border: 0; border-radius: 18px; }
 .workspace-purchases [aria-label="Listado de compras"] { border: 0; border-radius: 18px; overflow: hidden; }
@@ -79,7 +72,6 @@
 .workspace-dashboard .dashboard-kpi { border: 0; border-radius: 22px; }
 .workspace-dashboard .dashboard-kpi-icon { background: #edf2ff; color: #1d396a; }
 .workspace-dashboard .dashboard-kpi-value { font-weight: 600; }
-.workspace-catalog .workspace-catalog-heading { background: #003570; color: #fff; }
 @container workspace (max-width: 1000px) {
   .vehicle-toolbar-fleet { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-shortcuts .view-panel-body { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -94,73 +86,27 @@
   .dashboard-shortcuts .view-panel-body > :is(a, button) { flex-direction: column; justify-content: center; gap: 6px; min-height: 74px; padding: 10px 4px; font-size: 11px; text-align: center; }
 }
 
-/* Commercial registers use the squared controls and pale banner of the HTML. */
-.redesign-shell :is(.workspace-clients, .workspace-catalog) > header:first-child,
-.redesign-shell .commercial-heading { min-height: 114px; padding: 24px; border: 0; border-radius: 8px; background: #ecf1ff; }
-.redesign-shell :is(.workspace-clients, .workspace-catalog) > header:first-child h1,
-.redesign-shell .commercial-heading h1 { font-size: 21px; font-weight: 600; letter-spacing: -.3px; }
-:is(.workspace-clients, .workspace-catalog, .commercial-board) :is(.primary-button, .secondary-button) { border-radius: 8px; font-size: 14px; }
-.commercial-filters { background: #fff; }
-.commercial-filters input { border-radius: 8px; font-size: 14px; }
-.commercial-filters [role=tab] { border-radius: 10.5px; font-size: 14px; }
-.commercial-filters [role=tab] > span.absolute { border-radius: inherit; }
-.commercial-table thead { background: #f5f7fc; }
-.commercial-table th { padding: 11px 12px; font-size: 13px; font-weight: 600; text-transform: uppercase; }
-.commercial-table td { padding: 12px; font-size: 14px; }
-.commercial-table [data-label='Código COT'] > a:first-child,
-.commercial-table [data-label='Cliente'] > span:first-child { font-size: 14px; }
-.commercial-table [data-label='Código COT'] > a:nth-child(2) { font-size: 14px; }
-.commercial-table :is([data-label='Total'], [data-label='Pagado'], [data-label='Saldo']) { font-size: 14px; }
-.workspace-catalog .workspace-catalog-heading { font-size: 12px; }
-.workspace-catalog .workspace-catalog-row > div:first-child > span { border-radius: 5px; background: #003570; color: #fff; }
-.redesign-shell :is(.workspace-clients, .workspace-catalog) [role=tab] { border-radius: 8px; background: #eef2ff; font-size: 14px; }
-.redesign-shell :is(.workspace-clients, .workspace-catalog) [role=tab][aria-selected=true] { background: #003570; color: #fff; }
-.redesign-shell :is(.workspace-clients, .workspace-catalog) [role=tab] > span.absolute { border-radius: inherit; }
+/* Record directories retain their existing toolbar presentation. */
+.redesign-shell .workspace-clients > header:first-child { min-height: 114px; padding: 24px; border: 0; border-radius: 8px; background: #ecf1ff; }
+.redesign-shell .workspace-clients > header:first-child h1 { font-size: 21px; font-weight: 600; letter-spacing: -.3px; }
+.workspace-clients :is(.primary-button, .secondary-button) { border-radius: 8px; font-size: 14px; }
+.redesign-shell .workspace-clients [role=tab] { border-radius: 8px; background: #eef2ff; font-size: 14px; }
+.redesign-shell .workspace-clients [role=tab][aria-selected=true] { background: #003570; color: #fff; }
+.redesign-shell .workspace-clients [role=tab] > span.absolute { border-radius: inherit; }
 .workspace-page .workspace-table th { font-size: 12px; }
 .workspace-page .workspace-table td { font-size: 13px; }
-@container (max-width: 1120px) {
-  .commercial-table th { font-size: 11px; padding-inline: 8px; }
-  .commercial-table td { padding-inline: 8px; font-size: 12px; }
-  .commercial-table :is([data-label='Total'], [data-label='Pagado'], [data-label='Saldo']) { font-size: 12px; }
-}
-@container (max-width: 760px) {
-  .commercial-table td { padding: 0; }
-}
+
+
 @media (max-width: 700px) {
-  .redesign-shell :is(.workspace-clients, .workspace-catalog) > header:first-child,
-  .redesign-shell .commercial-heading { padding: 16px; gap: 14px; }
-}
-.warehouse-selector { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.warehouse-selector label { flex: 0 1 240px; min-width: 0; }
-.warehouse-selector select { width: 100%; height: 42px; padding: 8px 14px; border: 0; border-radius: 16px; background: #fff; color: #1d396a; font-size: 13px; }
-.warehouse-selector-code { padding: 8px 12px; border-radius: 12px; background: #fff; color: #637c9c; font-size: 11px; }
-.warehouse-selector-summary { color: #7d8997; font-size: 12px; }
-.warehouse-selector > button { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; margin-left: auto; padding: 8px 14px; border-radius: 20px; background: #fff; color: #637c9c; font-size: 12px; }
-.warehouse-selector > button svg { width: 15px; height: 15px; }
-.workspace-warehouses [aria-label="Resumen de almacenes"] > div { padding: 12px 16px; }
-.redesign-shell :is(.workspace-users, .workspace-settings, .workspace-finance) :is(.primary-button, .secondary-button) { border-radius: 8px; }
-.workshop-card-summary { gap: 10px 8px; padding: 13px 18px 8px; }
-.workshop-card-age > span:first-of-type { display: none; }
-.workshop-card-bottom { padding-top: 9px; }
-.workshop-card-bottom > span:first-child { min-height: 22px; }
-.workshop-card-flags { min-height: 18px; padding-bottom: 4px; }
-.workshop-card-actions { padding: 8px 10px; }
-@media (max-width: 700px) {
-  .warehouse-selector label { flex: 1 1 150px; }
-  .warehouse-selector-summary { flex-basis: 100%; order: 3; }
-  .warehouse-selector > button { margin-left: 0; }
+  .redesign-shell .workspace-clients > header:first-child { padding: 16px; gap: 14px; }
 }
 @media (max-width: 1023.98px) {
-  .redesign-shell:has(.workshop-board, .workspace-vehicles, .workspace-warehouses) > .shell-topbar { position: absolute; inset: env(safe-area-inset-top, 0px) auto auto max(16px, env(safe-area-inset-left, 0px)); width: 118px; height: 72px; padding: 0; border: 0; background: transparent; }
-  .redesign-shell:has(.workshop-board, .workspace-vehicles, .workspace-warehouses) > .shell-topbar .shell-context-label { display: none; }
-  .workshop-board-heading > div > p,
+  .redesign-shell:has(.workspace-vehicles, .workspace-warehouses) > .shell-topbar { position: absolute; inset: env(safe-area-inset-top, 0px) auto auto max(16px, env(safe-area-inset-left, 0px)); width: 118px; height: 72px; padding: 0; border: 0; background: transparent; }
+  .redesign-shell:has(.workspace-vehicles, .workspace-warehouses) > .shell-topbar .shell-context-label { display: none; }
   .workspace-vehicles > header:first-child > div > p,
   .workspace-warehouses > header:first-child > div > p { display: none; }
-  .workshop-board-heading > div,
   .workspace-vehicles > header:first-child > div,
   .workspace-warehouses > header:first-child > div { min-height: 38px; padding-left: 132px; display: flex; align-items: center; }
-  .workshop-board-heading h1,
   .redesign-shell .workspace-vehicles > header:first-child h1,
   .redesign-shell .workspace-warehouses > header:first-child h1 { margin: 0; font-size: 16px; line-height: 1.3; }
-  .workshop-period-picker > button { font-size: 10px; }
 }

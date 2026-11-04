@@ -185,6 +185,9 @@ describe('Sales record isolation', () => {
       (await get(`/api/quotations?vehicleId=${vehicle.id}&workOrderId=${orders[1].id}`)).body.total,
     ).toBe(0);
     expect((await get(`/api/payments?quotationId=${quotations[1].id}`)).body.total).toBe(0);
+    const foreignSearch = await get(`/api/payments?search=${encodeURIComponent(quotations[1].codigo)}`);
+    expect(foreignSearch.status).toBe(200);
+    expect(foreignSearch.body.total).toBe(0);
     const admin = await request(app).get('/api/quotations').set('Cookie', adminCookies);
     expect(admin.body.total).toBe(2);
   });

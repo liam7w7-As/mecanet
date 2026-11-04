@@ -74,6 +74,15 @@ describe('ClientFormModal', () => {
     expect(screen.getByRole('textbox', { name: 'RUN / RUT' })).toHaveValue('12.232.378-8');
   });
 
+  it('can cancel an untouched form without validating or submitting it on blur', () => {
+    const { onClose } = mount();
+    fireEvent.blur(screen.getByRole('textbox', { name: 'Nombre completo' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('supports K and deleting a separator without trapping the cursor', () => {
     mount();
     const rut = screen.getByRole('textbox', { name: 'RUN / RUT' }) as HTMLInputElement;

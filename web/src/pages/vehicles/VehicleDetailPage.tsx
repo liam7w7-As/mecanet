@@ -19,8 +19,9 @@ import {
   X,
 } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import ModalHeader from '../../components/common/ModalHeader';
 import QuotationStatusBadge from '../../components/quotations/QuotationStatusBadge';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
 import WorkOrderStatusBadge from '../../components/work-orders/WorkOrderStatusBadge';
@@ -31,6 +32,8 @@ import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
+
+import type { Vehicle } from '../../types/entities';
 
 const terminalStatuses = new Set(['finalizada', 'entregada', 'cancelada']);
 
@@ -65,13 +68,16 @@ type DetailTab = 'details' | 'workshop' | 'quotations';
 interface VehicleDetailPageProps {
   vehicleId?: number;
   onClose?: () => void;
+  onEdit?: (vehicle: Vehicle) => void;
 }
 
 export const VehicleDetailPage = ({
   vehicleId: suppliedVehicleId,
   onClose,
+  onEdit,
 }: VehicleDetailPageProps) => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const tabId = useId();
   const vehicleId = suppliedVehicleId ?? Number(id);
   const user = useAuthStore((state) => state.user);
@@ -194,54 +200,28 @@ export const VehicleDetailPage = ({
   const activeTab = tabs.some((tab) => tab.id === selectedTab) ? selectedTab : 'details';
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
-      <header className="shrink-0 border-b border-brand-line bg-brand-page text-brand-ink">
-        <div className="flex items-center justify-between gap-3 px-5 pt-4 sm:px-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-muted">
-            Parque vehicular / Ficha del vehículo
-          </p>
-          {closeControl}
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-4 px-5 pb-5 pt-2 sm:px-6">
-          <div className="flex min-w-0 max-w-full items-center gap-3.5">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-brand-line bg-brand-pale text-brand-primaryInk">
-              <Car className="h-6 w-6" aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <h1 className="break-all font-mono text-2xl font-bold leading-8 text-brand-ink">
-                {vehicle.patente}
-              </h1>
-              <p className="mt-0.5 break-words text-sm text-brand-muted">
-                {displayName || 'Vehículo sin descripción técnica'}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() => setIsEditing(true)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:border-brand-primary/40 hover:bg-brand-pale hover:text-brand-primaryInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
-                aria-label="Editar ficha"
-                title="Editar ficha"
-              >
-                <Pencil className="h-4 w-4" aria-hidden="true" />
-              </button>
-            )}
-            {canCreateWorkOrder && (
-              <Link
-                to={`/work-orders/new?vehicleId=${vehicle.id}`}
-                className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-primaryInk px-3.5 text-xs font-bold text-white transition-colors hover:bg-brand-primaryInkHover"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" /> Nueva OT
-              </Link>
-            )}
-          </div>
+    <div className="vehicle-profile flex min-h-0 min-w-0 flex-col overflow-hidden bg-white" aria-hidden={isEditing || undefined}>
+      <header className="vehicle-profile-header">
+        <ModalHeader
+          id={`${tabId}-title`}
+          title={vehicle.patente}
+          headingAs={onClose ? 'h2' : 'h1'}
+          variant="brand"
+          eyebrow="Ficha del vehículo"
+          description={displayName || 'Vehículo sin descripción técnica'}
+          badge={<Car aria-hidden="true" />}
+          actions={<span className="reference-header-kind">Taller</span>}
+          onClose={() => onClose ? onClose() : navigate('/vehicles')}
+          closeLabel={onClose ? 'Cerrar ficha' : 'Volver a vehículos'}
+        />
+        <div className="vehicle-profile-actions">
+          {canEdit && <button type="button" onClick={() => onEdit ? onEdit(vehicle) : setIsEditing(true)} aria-label="Editar ficha"><Pencil aria-hidden="true" />Editar vehículo</button>}
+          {canCreateWorkOrder && <Link to={`/work-orders/new?vehicleId=${vehicle.id}`}><Plus aria-hidden="true" />Nueva OT</Link>}
         </div>
       </header>
 
       <section
-        className="grid shrink-0 grid-cols-2 border-b border-brand-line bg-brand-line/40 sm:grid-cols-4"
+        className="vehicle-profile-metrics"
         aria-label="Resumen del vehículo"
       >
         <div className="min-w-0 border-b border-r border-brand-line px-4 py-3 sm:border-b-0 sm:px-6">
@@ -273,7 +253,8 @@ export const VehicleDetailPage = ({
       </section>
 
       <div
-        className="flex shrink-0 border-b border-brand-line px-3 sm:px-6"
+        className="reference-dialog-tabs vehicle-profile-tabs"
+        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
         role="tablist"
         aria-label="Información del vehículo"
       >
@@ -317,12 +298,12 @@ export const VehicleDetailPage = ({
         role="tabpanel"
         aria-labelledby={`${tabId}-${activeTab}-tab`}
         tabIndex={0}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary"
+        className="reference-dialog-body vehicle-profile-body outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary"
       >
         {activeTab === 'details' && (
-          <div className="grid md:min-h-[300px] md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+          <div className="vehicle-profile-details">
             <section
-              className="min-w-0 border-b border-brand-line bg-brand-line/60 px-5 py-5 sm:px-6 md:border-b-0 md:border-r"
+              className="vehicle-profile-owner min-w-0"
               aria-labelledby={`${tabId}-owner-title`}
             >
               <h2 id={`${tabId}-owner-title`} className="text-xs font-semibold text-brand-muted">
@@ -375,7 +356,7 @@ export const VehicleDetailPage = ({
               </div>
             </section>
             <section
-              className="min-w-0 px-5 py-5 sm:px-6"
+              className="vehicle-profile-technical min-w-0"
               aria-labelledby={`${tabId}-technical-title`}
             >
               <h2
@@ -547,9 +528,10 @@ export const VehicleDetailPage = ({
         )}
       </div>
 
-      <footer className="flex shrink-0 flex-wrap justify-between gap-x-4 gap-y-1 border-t border-brand-line bg-brand-line/40 px-5 py-3 text-[11px] text-brand-muted sm:px-6">
+      <footer className="reference-dialog-footer text-[11px] text-brand-muted">
         <span>Registrado el {formatDate(vehicle.createdAt)}</span>
         <span>Actualizado el {formatDate(vehicle.updatedAt)}</span>
+        {onClose && <button type="button" className="secondary-button" onClick={onClose}>Cerrar</button>}
       </footer>
 
       {isEditing && <VehicleFormModal vehicle={vehicle} onClose={() => setIsEditing(false)} />}

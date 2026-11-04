@@ -20,10 +20,7 @@ import {
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import {
-  useDownloadFinancialReport,
-  useFinancialAnalytics,
-} from '../../hooks/useFinance';
+import { useDownloadFinancialReport, useFinancialAnalytics } from '../../hooks/useFinance';
 import { formatClp } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
@@ -44,16 +41,26 @@ const initialFilters = (): FinancialReportFilters => {
 };
 
 const filterKeys: Array<keyof FinancialReportFilters> = [
-  'fechaDesde', 'fechaHasta', 'agruparPor', 'asesorId', 'clientId',
-  'estadoPago', 'metodo', 'catalogType', 'movimientoTipo',
-  'movimientoCategoria', 'comparar',
+  'fechaDesde',
+  'fechaHasta',
+  'agruparPor',
+  'asesorId',
+  'clientId',
+  'estadoPago',
+  'metodo',
+  'catalogType',
+  'movimientoTipo',
+  'movimientoCategoria',
+  'comparar',
 ];
 
 const filtersFromUrl = (params: URLSearchParams): FinancialReportFilters => {
-  const values = Object.fromEntries(filterKeys.flatMap((key) => {
-    const value = params.get(`f_${key}`);
-    return value === null ? [] : [[key, value]];
-  }));
+  const values = Object.fromEntries(
+    filterKeys.flatMap((key) => {
+      const value = params.get(`f_${key}`);
+      return value === null ? [] : [[key, value]];
+    }),
+  );
   const parsed = financialReportQuerySchema.safeParse(values);
   return parsed.success ? parsed.data : initialFilters();
 };
@@ -80,9 +87,11 @@ const Comparison = ({ value, inverse = false }: ComparisonProps) => {
   const favorable = inverse ? value <= 0 : value >= 0;
   const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight;
   return (
-    <span className={`inline-flex items-center gap-1 font-semibold ${
-      favorable ? 'text-brand-mintInk' : 'text-brand-coralInk'
-    }`}>
+    <span
+      className={`inline-flex items-center gap-1 font-semibold ${
+        favorable ? 'text-brand-mintInk' : 'text-brand-coralInk'
+      }`}
+    >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {Math.abs(value).toFixed(1)}% vs. período anterior
     </span>
@@ -106,11 +115,13 @@ const ExecutiveMetric = ({
   comparison,
   inverseComparison,
 }: ExecutiveMetricProps) => (
-  <article className="min-h-36 min-w-0 rounded-lg border border-brand-line bg-white p-4 shadow-sm">
+  <article className="finance-executive-metric min-h-36 min-w-0 rounded-lg border border-brand-line bg-white p-4 shadow-sm">
     <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
       <div>
         <p className="text-xs font-bold uppercase text-brand-muted">{label}</p>
-        <p className="mt-2 break-words text-xl font-bold text-brand-primaryInk sm:text-2xl">{value}</p>
+        <p className="mt-2 break-words text-xl font-bold text-brand-primaryInk sm:text-2xl">
+          {value}
+        </p>
       </div>
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-line/40 text-brand-primaryInk">
         <Icon className="h-5 w-5" aria-hidden="true" />
@@ -181,11 +192,7 @@ export const FinanceAnalyticsDashboard = () => {
     if (!data) return 1;
     return Math.max(
       1,
-      ...data.trend.flatMap((point) => [
-        point.grossSales,
-        point.collected,
-        point.expenses,
-      ]),
+      ...data.trend.flatMap((point) => [point.grossSales, point.collected, point.expenses]),
     );
   }, [data]);
 
@@ -194,21 +201,27 @@ export const FinanceAnalyticsDashboard = () => {
     value: FinancialReportFilters[Key],
   ): void => {
     setFilters((current) => ({ ...current, [key]: value }));
-    setUrlParams((current) => {
-      const next = new URLSearchParams(current);
-      if (value === undefined || value === null || value === '') next.delete(`f_${key}`);
-      else next.set(`f_${key}`, String(value));
-      return next;
-    }, { replace: true });
+    setUrlParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (value === undefined || value === null || value === '') next.delete(`f_${key}`);
+        else next.set(`f_${key}`, String(value));
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const resetFilters = (): void => {
     setFilters(initialFilters());
-    setUrlParams((current) => {
-      const next = new URLSearchParams(current);
-      filterKeys.forEach((key) => next.delete(`f_${key}`));
-      return next;
-    }, { replace: true });
+    setUrlParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        filterKeys.forEach((key) => next.delete(`f_${key}`));
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const exportReport = (format: 'pdf' | 'excel'): void => {
@@ -216,41 +229,49 @@ export const FinanceAnalyticsDashboard = () => {
   };
 
   return (
-    <section className="min-w-0 space-y-5" aria-labelledby="financial-analytics-title">
-      <div className="flex flex-col gap-3 border-b border-brand-line pb-4 lg:flex-row lg:items-end lg:justify-between">
+    <section
+      className="finance-analytics min-w-0 space-y-5"
+      aria-labelledby="financial-analytics-title"
+    >
+      <div className="insights-panel-heading flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold text-brand-muted">Análisis ejecutivo</p>
-          <h2 id="financial-analytics-title" className="mt-1 text-xl font-bold text-brand-primaryInk">
+          <h2
+            id="financial-analytics-title"
+            className="mt-1 text-xl font-bold text-brand-primaryInk"
+          >
             Rendimiento financiero y comercial
           </h2>
         </div>
-        {canExport && <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-          <button
-            type="button"
-            onClick={() => exportReport('pdf')}
-            disabled={downloadMutation.isPending}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-brand-primaryInk px-4 text-sm font-bold text-brand-primaryInk hover:bg-brand-line/40 disabled:opacity-50 sm:w-auto"
-          >
-            {downloadMutation.isPending ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <FileText className="h-4 w-4" aria-hidden="true" />
-            )}
-            PDF ejecutivo
-          </button>
-          <button
-            type="button"
-            onClick={() => exportReport('excel')}
-            disabled={downloadMutation.isPending}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryInkHover disabled:opacity-50 sm:w-auto"
-          >
-            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
-            Excel detallado
-          </button>
-        </div>}
+        {canExport && (
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+            <button
+              type="button"
+              onClick={() => exportReport('pdf')}
+              disabled={downloadMutation.isPending}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-brand-primaryInk px-4 text-sm font-bold text-brand-primaryInk hover:bg-brand-line/40 disabled:opacity-50 sm:w-auto"
+            >
+              {downloadMutation.isPending ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <FileText className="h-4 w-4" aria-hidden="true" />
+              )}
+              PDF ejecutivo
+            </button>
+            <button
+              type="button"
+              onClick={() => exportReport('excel')}
+              disabled={downloadMutation.isPending}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-bold text-white hover:bg-brand-primaryInkHover disabled:opacity-50 sm:w-auto"
+            >
+              <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+              Excel detallado
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="rounded-lg border border-brand-line bg-white p-4">
+      <div className="finance-analytics-filters rounded-lg border border-brand-line bg-white p-4">
         <div className="mb-4 flex items-center gap-2 text-sm font-bold text-brand-primaryInk">
           <Filter className="h-4 w-4" aria-hidden="true" />
           Filtros del análisis y reportes
@@ -306,7 +327,9 @@ export const FinanceAnalyticsDashboard = () => {
             >
               <option value="">Todos</option>
               {data?.filterOptions.advisors.map((advisor) => (
-                <option key={advisor.id} value={advisor.id}>{advisor.nombre}</option>
+                <option key={advisor.id} value={advisor.id}>
+                  {advisor.nombre}
+                </option>
               ))}
             </select>
           </label>
@@ -323,7 +346,8 @@ export const FinanceAnalyticsDashboard = () => {
               <option value="">Todos</option>
               {data?.filterOptions.clients.map((client) => (
                 <option key={client.id} value={client.id}>
-                  {client.nombre}{client.rut ? ` · ${client.rut}` : ''}
+                  {client.nombre}
+                  {client.rut ? ` · ${client.rut}` : ''}
                 </option>
               ))}
             </select>
@@ -343,7 +367,9 @@ export const FinanceAnalyticsDashboard = () => {
             >
               <option value="">Todos</option>
               {quotationStatuses.map((status) => (
-                <option key={status} value={status}>{humanize(status)}</option>
+                <option key={status} value={status}>
+                  {humanize(status)}
+                </option>
               ))}
             </select>
           </label>
@@ -362,7 +388,9 @@ export const FinanceAnalyticsDashboard = () => {
             >
               <option value="">Todos</option>
               {paymentMethods.map((method) => (
-                <option key={method} value={method}>{humanize(method)}</option>
+                <option key={method} value={method}>
+                  {humanize(method)}
+                </option>
               ))}
             </select>
           </label>
@@ -411,14 +439,17 @@ export const FinanceAnalyticsDashboard = () => {
               onChange={(event) =>
                 setFilter(
                   'movimientoCategoria',
-                  (event.target.value || undefined) as FinancialReportFilters['movimientoCategoria'],
+                  (event.target.value ||
+                    undefined) as FinancialReportFilters['movimientoCategoria'],
                 )
               }
               className="mt-1 h-10 w-full rounded-lg border border-brand-line px-3 text-sm font-normal outline-none focus:border-brand-primary"
             >
               <option value="">Todas</option>
               {movementCategories.map((category) => (
-                <option key={category} value={category}>{humanize(category)}</option>
+                <option key={category} value={category}>
+                  {humanize(category)}
+                </option>
               ))}
             </select>
           </label>
@@ -511,7 +542,9 @@ export const FinanceAnalyticsDashboard = () => {
             <section className="min-w-0 rounded-lg border border-brand-line bg-white">
               <div className="border-b border-brand-line px-5 py-4">
                 <h3 className="font-bold text-brand-primaryInk">Evolución del período</h3>
-                <p className="mt-1 text-xs text-brand-muted">Ventas, cobros y egresos por {filters.agruparPor}.</p>
+                <p className="mt-1 text-xs text-brand-muted">
+                  Ventas, cobros y egresos por {filters.agruparPor}.
+                </p>
               </div>
               <div className="max-h-96 overflow-auto p-5">
                 {data.trend.length === 0 ? (
@@ -519,30 +552,56 @@ export const FinanceAnalyticsDashboard = () => {
                 ) : (
                   <div className="space-y-4">
                     {data.trend.map((point) => (
-                      <div key={point.key} className="grid min-w-0 gap-3 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
+                      <div
+                        key={point.key}
+                        className="grid min-w-0 gap-3 sm:grid-cols-[5.5rem_minmax(0,1fr)]"
+                      >
                         <div>
                           <p className="text-xs font-bold text-brand-ink">{point.label}</p>
-                          <p className={`mt-1 text-xs font-semibold ${
-                            point.netCash >= 0 ? 'text-brand-mintInk' : 'text-brand-coralInk'
-                          }`}>
+                          <p
+                            className={`mt-1 text-xs font-semibold ${
+                              point.netCash >= 0 ? 'text-brand-mintInk' : 'text-brand-coralInk'
+                            }`}
+                          >
                             Neto {formatClp(point.netCash)}
                           </p>
                         </div>
                         <div className="space-y-1.5">
                           <div className="grid min-w-0 grid-cols-[3.5rem_minmax(2rem,1fr)_auto] items-center gap-2">
                             <span className="text-right text-[11px] text-brand-muted">Ventas</span>
-                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-brand-primaryInk" style={{ width: `${Math.max(2, (point.grossSales / maxTrendValue) * 100)}%` }} />
-                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-brand-muted">{formatClp(point.grossSales)}</span>
+                            <span
+                              className="h-2 min-w-1 max-w-full rounded-sm bg-brand-primaryInk"
+                              style={{
+                                width: `${Math.max(2, (point.grossSales / maxTrendValue) * 100)}%`,
+                              }}
+                            />
+                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-brand-muted">
+                              {formatClp(point.grossSales)}
+                            </span>
                           </div>
                           <div className="grid min-w-0 grid-cols-[3.5rem_minmax(2rem,1fr)_auto] items-center gap-2">
                             <span className="text-right text-[11px] text-brand-muted">Cobros</span>
-                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-brand-mintInk" style={{ width: `${Math.max(2, (point.collected / maxTrendValue) * 100)}%` }} />
-                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-brand-muted">{formatClp(point.collected)}</span>
+                            <span
+                              className="h-2 min-w-1 max-w-full rounded-sm bg-brand-mintInk"
+                              style={{
+                                width: `${Math.max(2, (point.collected / maxTrendValue) * 100)}%`,
+                              }}
+                            />
+                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-brand-muted">
+                              {formatClp(point.collected)}
+                            </span>
                           </div>
                           <div className="grid min-w-0 grid-cols-[3.5rem_minmax(2rem,1fr)_auto] items-center gap-2">
                             <span className="text-right text-[11px] text-brand-muted">Egresos</span>
-                            <span className="h-2 min-w-1 max-w-full rounded-sm bg-brand-coralInk" style={{ width: `${Math.max(2, (point.expenses / maxTrendValue) * 100)}%` }} />
-                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-brand-muted">{formatClp(point.expenses)}</span>
+                            <span
+                              className="h-2 min-w-1 max-w-full rounded-sm bg-brand-coralInk"
+                              style={{
+                                width: `${Math.max(2, (point.expenses / maxTrendValue) * 100)}%`,
+                              }}
+                            />
+                            <span className="whitespace-nowrap text-right text-[11px] font-semibold text-brand-muted">
+                              {formatClp(point.expenses)}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -560,18 +619,33 @@ export const FinanceAnalyticsDashboard = () => {
               <div className="divide-y divide-brand-line">
                 {data.topSellers.length === 0 ? (
                   <EmptyRows label="No hay vendedores para este filtro." />
-                ) : data.topSellers.slice(0, 8).map((seller, index) => (
-                  <div key={seller.id ?? seller.nombre} className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5">
-                    <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                      index === 0 ? 'bg-brand-primary text-white' : 'bg-brand-pale text-brand-muted'
-                    }`}>{index + 1}</span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-brand-ink">{seller.nombre}</p>
-                      <p className="text-xs text-brand-muted">{seller.quotationCount} COT · cobrado {formatClp(seller.collected)}</p>
+                ) : (
+                  data.topSellers.slice(0, 8).map((seller, index) => (
+                    <div
+                      key={seller.id ?? seller.nombre}
+                      className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5"
+                    >
+                      <span
+                        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                          index === 0
+                            ? 'bg-brand-primary text-white'
+                            : 'bg-brand-pale text-brand-muted'
+                        }`}
+                      >
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-brand-ink">{seller.nombre}</p>
+                        <p className="text-xs text-brand-muted">
+                          {seller.quotationCount} COT · cobrado {formatClp(seller.collected)}
+                        </p>
+                      </div>
+                      <strong className="text-sm text-brand-primaryInk">
+                        {formatClp(seller.grossSales)}
+                      </strong>
                     </div>
-                    <strong className="text-sm text-brand-primaryInk">{formatClp(seller.grossSales)}</strong>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </section>
           </div>
@@ -579,20 +653,59 @@ export const FinanceAnalyticsDashboard = () => {
           <div className="grid min-w-0 gap-5 lg:grid-cols-2 xl:grid-cols-3">
             <section className="min-w-0 rounded-lg border border-brand-line bg-white">
               <div className="border-b border-brand-line px-5 py-4">
-                <h3 className="font-bold text-brand-primaryInk">Productos y servicios con mayor salida</h3>
+                <h3 className="font-bold text-brand-primaryInk">
+                  Productos y servicios con mayor salida
+                </h3>
               </div>
               <div className="max-w-full overflow-x-auto overscroll-x-contain">
-                {data.topItems.length === 0 ? <EmptyRows label="No hay ítems vendidos." /> : (
-                  <table role="table" className="workspace-table w-full min-w-[28rem] text-left text-sm">
-                    <thead role="rowgroup" className="bg-brand-line/40 text-xs uppercase text-brand-muted">
-                      <tr role="row"><th role="columnheader" className="px-4 py-3">Ítem</th><th role="columnheader" className="px-3 py-3 text-right">Cantidad</th><th role="columnheader" className="px-4 py-3 text-right">Venta</th></tr>
+                {data.topItems.length === 0 ? (
+                  <EmptyRows label="No hay ítems vendidos." />
+                ) : (
+                  <table
+                    role="table"
+                    className="workspace-table w-full min-w-[28rem] text-left text-sm"
+                  >
+                    <thead
+                      role="rowgroup"
+                      className="bg-brand-line/40 text-xs uppercase text-brand-muted"
+                    >
+                      <tr role="row">
+                        <th role="columnheader" className="px-4 py-3">
+                          Ítem
+                        </th>
+                        <th role="columnheader" className="px-3 py-3 text-right">
+                          Cantidad
+                        </th>
+                        <th role="columnheader" className="px-4 py-3 text-right">
+                          Venta
+                        </th>
+                      </tr>
                     </thead>
                     <tbody role="rowgroup" className="divide-y divide-brand-line">
                       {data.topItems.slice(0, 8).map((item) => (
                         <tr role="row" key={`${item.catalogItemId ?? 'libre'}-${item.nombre}`}>
-                          <td role="cell" data-label="Ítem" className="px-4 py-3"><span className="block font-semibold text-brand-ink">{item.nombre}</span><span className="text-xs text-brand-muted">{item.codigo ?? humanize(item.tipo)}</span></td>
-                          <td role="cell" data-label="Cantidad" className="px-3 py-3 text-right font-semibold">{item.quantity.toLocaleString('es-CL')}</td>
-                          <td role="cell" data-label="Venta" className="px-4 py-3 text-right font-bold text-brand-primaryInk">{formatClp(item.revenue)}</td>
+                          <td role="cell" data-label="Ítem" className="px-4 py-3">
+                            <span className="block font-semibold text-brand-ink">
+                              {item.nombre}
+                            </span>
+                            <span className="text-xs text-brand-muted">
+                              {item.codigo ?? humanize(item.tipo)}
+                            </span>
+                          </td>
+                          <td
+                            role="cell"
+                            data-label="Cantidad"
+                            className="px-3 py-3 text-right font-semibold"
+                          >
+                            {item.quantity.toLocaleString('es-CL')}
+                          </td>
+                          <td
+                            role="cell"
+                            data-label="Venta"
+                            className="px-4 py-3 text-right font-bold text-brand-primaryInk"
+                          >
+                            {formatClp(item.revenue)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -606,15 +719,33 @@ export const FinanceAnalyticsDashboard = () => {
                 <h3 className="font-bold text-brand-primaryInk">Clientes principales</h3>
               </div>
               <div className="divide-y divide-brand-line">
-                {data.topClients.length === 0 ? <EmptyRows label="No hay clientes para este filtro." /> : data.topClients.slice(0, 8).map((client) => (
-                  <div key={client.id ?? client.nombre} className="px-5 py-3">
-                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0"><p className="truncate text-sm font-bold text-brand-ink">{client.nombre}</p><p className="text-xs text-brand-muted">{client.rut ?? 'Sin identificación'} · {client.quotationCount} COT</p></div>
-                      <strong className="shrink-0 whitespace-nowrap text-sm text-brand-primaryInk">{formatClp(client.grossSales)}</strong>
+                {data.topClients.length === 0 ? (
+                  <EmptyRows label="No hay clientes para este filtro." />
+                ) : (
+                  data.topClients.slice(0, 8).map((client) => (
+                    <div key={client.id ?? client.nombre} className="px-5 py-3">
+                      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-brand-ink">
+                            {client.nombre}
+                          </p>
+                          <p className="text-xs text-brand-muted">
+                            {client.rut ?? 'Sin identificación'} · {client.quotationCount} COT
+                          </p>
+                        </div>
+                        <strong className="shrink-0 whitespace-nowrap text-sm text-brand-primaryInk">
+                          {formatClp(client.grossSales)}
+                        </strong>
+                      </div>
+                      <p className="mt-1 text-xs text-brand-muted">
+                        Por cobrar:{' '}
+                        <span className="font-semibold text-brand-goldInk">
+                          {formatClp(client.receivable)}
+                        </span>
+                      </p>
                     </div>
-                    <p className="mt-1 text-xs text-brand-muted">Por cobrar: <span className="font-semibold text-brand-goldInk">{formatClp(client.receivable)}</span></p>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </section>
 
@@ -623,41 +754,85 @@ export const FinanceAnalyticsDashboard = () => {
                 <h3 className="font-bold text-brand-primaryInk">Composición de cobros</h3>
               </div>
               <div className="divide-y divide-brand-line">
-                {data.paymentMethods.length === 0 ? <EmptyRows label="No hay pagos confirmados." /> : data.paymentMethods.map((method) => (
-                  <div key={method.metodo} className="px-5 py-3">
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="font-semibold text-brand-ink">{humanize(method.metodo)}</span>
-                      <strong className="text-brand-primaryInk">{formatClp(method.amount)}</strong>
+                {data.paymentMethods.length === 0 ? (
+                  <EmptyRows label="No hay pagos confirmados." />
+                ) : (
+                  data.paymentMethods.map((method) => (
+                    <div key={method.metodo} className="px-5 py-3">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="font-semibold text-brand-ink">
+                          {humanize(method.metodo)}
+                        </span>
+                        <strong className="text-brand-primaryInk">
+                          {formatClp(method.amount)}
+                        </strong>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden bg-brand-pale">
+                        <div
+                          data-testid={`payment-share-${method.metodo}`}
+                          className="h-full max-w-full bg-brand-primaryInk"
+                          style={{ width: `${Math.min(100, Math.max(0, method.share))}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-brand-muted">
+                        {method.count} operaciones · {percent(method.share)}
+                      </p>
                     </div>
-                    <div className="mt-2 h-1.5 overflow-hidden bg-brand-pale"><div data-testid={`payment-share-${method.metodo}`} className="h-full max-w-full bg-brand-primaryInk" style={{ width: `${Math.min(100, Math.max(0, method.share))}%` }} /></div>
-                    <p className="mt-1 text-xs text-brand-muted">{method.count} operaciones · {percent(method.share)}</p>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </section>
           </div>
 
           <div className="grid min-w-0 gap-5 lg:grid-cols-2">
             <section className="rounded-lg border border-brand-line bg-white p-5">
-              <div className="flex items-center gap-2"><Users className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" /><h3 className="font-bold text-brand-primaryInk">Estado de cotizaciones</h3></div>
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
+                <h3 className="font-bold text-brand-primaryInk">Estado de cotizaciones</h3>
+              </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 {data.quotationStatuses.map((status) => (
-                  <div key={status.estado} className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-brand-line py-2 text-sm">
-                    <span className="text-brand-muted">{humanize(status.estado)} ({status.count})</span>
+                  <div
+                    key={status.estado}
+                    className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-brand-line py-2 text-sm"
+                  >
+                    <span className="text-brand-muted">
+                      {humanize(status.estado)} ({status.count})
+                    </span>
                     <strong className="text-brand-ink">{formatClp(status.amount)}</strong>
                   </div>
                 ))}
               </div>
             </section>
             <section className="rounded-lg border border-brand-line bg-white p-5">
-              <div className="flex items-center gap-2"><Download className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" /><h3 className="font-bold text-brand-primaryInk">Egresos e ingresos por categoría</h3></div>
+              <div className="flex items-center gap-2">
+                <Download className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
+                <h3 className="font-bold text-brand-primaryInk">
+                  Egresos e ingresos por categoría
+                </h3>
+              </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {data.movementCategories.length === 0 ? <EmptyRows label="No hay movimientos manuales." /> : data.movementCategories.map((movement) => (
-                  <div key={`${movement.tipo}-${movement.categoria}`} className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-brand-line py-2 text-sm">
-                    <span className="text-brand-muted">{humanize(movement.categoria)} ({movement.count})</span>
-                    <strong className={movement.tipo === 'ingreso' ? 'text-brand-mintInk' : 'text-brand-coralInk'}>{formatClp(movement.amount)}</strong>
-                  </div>
-                ))}
+                {data.movementCategories.length === 0 ? (
+                  <EmptyRows label="No hay movimientos manuales." />
+                ) : (
+                  data.movementCategories.map((movement) => (
+                    <div
+                      key={`${movement.tipo}-${movement.categoria}`}
+                      className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-brand-line py-2 text-sm"
+                    >
+                      <span className="text-brand-muted">
+                        {humanize(movement.categoria)} ({movement.count})
+                      </span>
+                      <strong
+                        className={
+                          movement.tipo === 'ingreso' ? 'text-brand-mintInk' : 'text-brand-coralInk'
+                        }
+                      >
+                        {formatClp(movement.amount)}
+                      </strong>
+                    </div>
+                  ))
+                )}
               </div>
             </section>
           </div>

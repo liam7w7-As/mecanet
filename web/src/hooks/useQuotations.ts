@@ -63,6 +63,7 @@ export const useCreateQuotationMutation = () => {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },
@@ -109,6 +110,11 @@ export const useUpdateQuotationMutation = () => {
       queryClient.setQueryData(quotationKeys.detail(quotation.id), quotation);
       void queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['work-order-labor'] });
+      void queryClient.invalidateQueries({ queryKey: ['quotation-payments', quotation.id] });
+      void queryClient.invalidateQueries({ queryKey: ['finance'] });
+      void queryClient.invalidateQueries({ queryKey: ['catalog'] });
+      void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       void queryClient.invalidateQueries({ queryKey: ['customer-email-preparation'] });
     },

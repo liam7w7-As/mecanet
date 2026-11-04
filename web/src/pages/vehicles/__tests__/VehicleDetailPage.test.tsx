@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -177,5 +177,23 @@ describe('VehicleDetailPage', () => {
     const detail = within(await screen.findByRole('dialog', { name: 'Ficha del vehículo' }));
     expect(await detail.findByRole('heading', { name: 'ABCD12' })).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/vehicles/12');
+  });
+
+  it('cierra la edición superior con Escape y conserva la ficha y su historial seleccionado', async () => {
+    renderRoutes();
+    const detail = within(await screen.findByRole('dialog', { name: 'Ficha del vehículo' }));
+    await detail.findByRole('heading', { name: 'ABCD12' });
+    fireEvent.click(detail.getByRole('tab', { name: /Taller/ }));
+    fireEvent.click(detail.getByRole('button', { name: 'Editar ficha' }));
+    expect(await screen.findByRole('dialog', { name: 'Editar vehículo' })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Editar vehículo' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Ficha del vehículo' })).toBeInTheDocument();
+    expect(detail.getByRole('tab', { name: /Taller/ })).toHaveAttribute('aria-selected', 'true');
+    expect(detail.getByRole('link', { name: /OT-2026-0031/ })).toBeInTheDocument();
+    expect(document.body.style.overflow).toBe('hidden');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(document.body.style.overflow).not.toBe('hidden');
   });
 });

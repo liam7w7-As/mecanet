@@ -279,7 +279,7 @@ const QuotationCreateConfirm = ({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+    <div className="reference-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
       <button
         type="button"
         className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
@@ -293,7 +293,7 @@ const QuotationCreateConfirm = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         tabIndex={-1}
-        className="commercial-confirm-dialog relative w-full max-w-md overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="reference-dialog commercial-confirm-dialog relative w-full max-w-md overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog"
         ref={setPanelNode}
         aria-modal="true"
@@ -303,10 +303,12 @@ const QuotationCreateConfirm = ({
           id="confirm-quotation-title"
           badge={<ReceiptText className="h-6 w-6" aria-hidden="true" />}
           tone="primary"
+          variant="brand"
           eyebrow="Nueva cotización"
           title="Confirmar emisión"
           description="Revisa el resumen antes de crear la cotización."
           onClose={onClose}
+          closeDisabled={isPending}
           closeLabel="Volver"
         />
         <dl className="space-y-2.5 px-7 pb-2 text-sm tabular-nums">
@@ -331,7 +333,7 @@ const QuotationCreateConfirm = ({
             <dd>{formatClp(total)}</dd>
           </div>
         </dl>
-        <footer className="flex justify-end gap-2 px-5 py-4 sm:px-7">
+        <footer className="reference-dialog-footer flex justify-end gap-2 px-5 py-4 sm:px-7">
           <button type="button" className="secondary-button" onClick={onClose} disabled={isPending}>
             Volver
           </button>

@@ -61,7 +61,7 @@ export const QuotationDetailPage = () => {
 
   return (
     <div className="commercial-detail-page min-w-0 space-y-5">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <header className="commercial-record-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between" data-payment-status={summary?.estadoPago ?? quotation.estadoPago}>
         <div className="flex items-start gap-3">
           <Link to="/quotations" className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:bg-brand-pale" aria-label="Volver a cotizaciones">
             <AnimateIcon variant="slide-left" animateOnHover>
@@ -118,7 +118,7 @@ export const QuotationDetailPage = () => {
       {paymentToDelete && <FormDialog id="void-payment-title" title="Anular pago" code={quotation.codigo}
         context={formatClp(paymentToDelete.monto)} submitLabel="Anular pago" dirty={false}
         pending={deletePaymentMutation.isPending} onClose={() => setPaymentToDelete(null)}
-        className="commercial-form-dialog commercial-danger-dialog" headerIcon={<ReceiptText aria-hidden="true" />}
+        className="commercial-form-dialog commercial-danger-dialog" headerVariant="plain" headerIcon={<ReceiptText aria-hidden="true" />}
         statusText="La anulación recalculará el saldo"
         onSubmit={(event) => { event.preventDefault(); deletePaymentMutation.mutate({ paymentId: paymentToDelete.id, quotationId: quotation.id }, { onSuccess: () => setPaymentToDelete(null) }); }}>
         <p className="text-sm leading-6 text-brand-muted">Se eliminará el abono de {formatClp(paymentToDelete.monto)} y el saldo pendiente de la cotización será recalculado.</p>

@@ -5,7 +5,7 @@ import { quotationKeys } from './useQuotations';
 import { api } from '../lib/api';
 import { notifySuccess } from '../stores/toast.store';
 
-import type { Payment, PaymentQuotationSummary } from '../types/entities';
+import type { PaginatedResponse, Payment, PaymentQuotationSummary } from '../types/entities';
 import type {
   CashMovementCategory,
   CashMovementType,
@@ -13,6 +13,7 @@ import type {
   CloseCashDayInput,
   CreateCashMovementInput,
   PaymentMethod,
+  PaymentQueryInput,
   FinancialReportFilters,
   QuotationStatus,
   VerifyPaymentInput,
@@ -191,7 +192,8 @@ interface VerifyPaymentResponse {
 export const financeKeys = {
   all: ['finance'] as const,
   summary: () => [...financeKeys.all, 'summary'] as const,
-  analytics: (filters: FinancialReportFilters) => [...financeKeys.all, 'analytics', filters] as const,
+  analytics: (filters: FinancialReportFilters) =>
+    [...financeKeys.all, 'analytics', filters] as const,
   day: (fecha: string) => [...financeKeys.all, 'day', fecha] as const,
   movements: (fecha: string) => [...financeKeys.all, 'movements', fecha] as const,
 };
@@ -206,9 +208,21 @@ export const useFinanceSummary = () =>
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
-export const useFinancialAnalytics = (filters: FinancialReportFilters) =>
+
+export const useFinancePayments = (filters: Partial<PaymentQueryInput>, enabled = true) =>
+  useQuery({
+    queryKey: [...financeKeys.all, 'payments', filters],
+    queryFn: async () => {
+      const response = await api.get<PaginatedResponse<Payment>>('/payments', { params: filters });
+      return response.data;
+    },
+    enabled,
+    staleTime: 30_000,
+  });
+export const useFinancialAnalytics = (filters: FinancialReportFilters, enabled = true) =>
   useQuery({
     queryKey: financeKeys.analytics(filters),
+    enabled,
     queryFn: async () => {
       const response = await api.get<FinancialAnalytics>('/finance/analytics', {
         params: filters,
@@ -295,13 +309,7 @@ export const useVerifyPaymentMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      paymentId,
-      data,
-    }: {
-      paymentId: number;
-      data: VerifyPaymentInput;
-    }) => {
+    mutationFn: async ({ paymentId, data }: { paymentId: number; data: VerifyPaymentInput }) => {
       const response = await api.patch<VerifyPaymentResponse>(
         `/payments/${paymentId}/verify`,
         data,
@@ -312,6 +320,7 @@ export const useVerifyPaymentMutation = () => {
       void queryClient.invalidateQueries({ queryKey: financeKeys.all });
       void queryClient.invalidateQueries({ queryKey: quotationKeys.all });
       void queryClient.invalidateQueries({ queryKey: paymentKeys.quotation(quotation.id) });
+      void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -332,8 +341,7 @@ export const useDownloadFinancialReport = () =>
         responseType: 'blob',
       });
       const extension = format === 'excel' ? 'xlsx' : 'pdf';
-      const filename =
-        `Informe_Financiero_UNITHOR_${filters.fechaDesde}_${filters.fechaHasta}.${extension}`;
+      const filename = `Informe_Financiero_UNITHOR_${filters.fechaDesde}_${filters.fechaHasta}.${extension}`;
       const href = URL.createObjectURL(response.data);
       const anchor = document.createElement('a');
       anchor.href = href;

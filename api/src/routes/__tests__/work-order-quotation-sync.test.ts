@@ -6,6 +6,7 @@ import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { CatalogItem } from '../../models/CatalogItem.js';
 import { Client } from '../../models/Client.js';
+import { Payment } from '../../models/Payment.js';
 import { Quotation } from '../../models/Quotation.js';
 import { QuotationItem } from '../../models/QuotationItem.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
@@ -86,6 +87,7 @@ const cleanupData = async (): Promise<void> => {
     });
     const quotationIds = quotations.map((quotation) => quotation.id);
     if (quotationIds.length > 0) {
+      await Payment.destroy({ where: { quotationId: quotationIds } });
       await QuotationItem.destroy({ where: { quotationId: quotationIds } });
       await Quotation.destroy({ where: { id: quotationIds }, force: true });
     }
@@ -433,5 +435,108 @@ describe('Sincronización OT → COT espejo (E2E)', () => {
     const item = await QuotationItem.findOne({ where: { quotationId: quotation!.id } });
     expect(Number(item!.descuentoValor)).toBe(10);
     expect(Number(item!.subtotal)).toBe(67500);
+  });
+
+  it('mantiene el flujo Nueva OT → COT → abonos → avance sin duplicar líneas ni alterar descuentos o pagos', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const create = await request(app).post('/api/work-orders')
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({
+        clientId, contactClientId: clientId, billingClientId: clientId, vehicleId,
+        descripcion: 'Recorrido completo de recepción a cobro',
+        assignedMechanicId: mecanicoUserId,
+        items: [{ descripcion: 'Servicio de revisión integral', tipoLinea: 'especifico',
+          unidadMedida: 'servicio', cantidad: 1, precioUnitario: 10000, horasHombreEstimadas: 2 }],
+      });
+    expect(create.status, JSON.stringify(create.body)).toBe(201);
+    const id = create.body.workOrder.id as number;
+    const itemId = create.body.workOrder.items[0].id as number;
+    expect(create.body.workOrder.estado).toBe('en_progreso');
+    expect(await Quotation.count({ where: { workOrderId: id } })).toBe(1);
+    const mirror = await Quotation.findOne({ where: { workOrderId: id } });
+    const originalLine = await QuotationItem.findOne({ where: { quotationId: mirror!.id } });
+    expect(originalLine!.workOrderItemId).toBe(itemId);
+
+    const edit = await request(app).patch(`/api/quotations/${mirror!.id}`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({
+        descuentoTipo: 'fijo', descuentoValor: 1000, notas: 'Condiciones comerciales propias',
+        items: [{ id: originalLine!.id, descripcion: 'Servicio de revisión integral', tipoLinea: 'especifico',
+          unidadMedida: 'servicio', cantidad: 2, precioUnitario: 10000,
+          descuentoTipo: 'porcentaje', descuentoValor: 10 }],
+      });
+    expect(edit.status, JSON.stringify(edit.body)).toBe(200);
+    expect(edit.body.quotation.total).toBe(17000);
+    const item = await WorkOrderItem.findByPk(itemId);
+    expect(Number(item!.cantidad)).toBe(2);
+    expect(Number(item!.horasHombreEstimadas)).toBe(2);
+    expect(await WorkOrderItem.count({ where: { workOrderId: id } })).toBe(1);
+
+    const pay = await request(app).post('/api/payments')
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ quotationId: mirror!.id, monto: 5000, metodo: 'efectivo' });
+    expect(pay.status, JSON.stringify(pay.body)).toBe(201);
+    const afterPay = await request(app).get(`/api/work-orders/${id}`).set('Cookie', authCookie(cookies));
+    expect(afterPay.body.workOrder.quotation).toMatchObject({ total: 17000, pagado: 5000, saldoPendiente: 12000, estadoPago: 'parcial' });
+
+    const editOrder = await request(app).patch(`/api/work-orders/${id}`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ items: [{ id: itemId, descripcion: 'Servicio de revisión integral', tipoLinea: 'especifico',
+        unidadMedida: 'servicio', cantidad: 3, precioUnitario: 10000 }] });
+    expect(editOrder.status, JSON.stringify(editOrder.body)).toBe(200);
+    expect(editOrder.body.workOrder.quotation).toMatchObject({ total: 26000, pagado: 5000, saldoPendiente: 21000, estadoPago: 'parcial' });
+    const balance = await request(app).get(`/api/quotations/${mirror!.id}/payments`).set('Cookie', authCookie(cookies));
+    expect(balance.body).toMatchObject({ total: 26000, pagado: 5000, saldoPendiente: 21000 });
+    expect(balance.body.payments).toHaveLength(1);
+
+    const finalPay = await request(app).post('/api/payments')
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ quotationId: mirror!.id, monto: 21000, metodo: 'efectivo' });
+    expect(finalPay.status, JSON.stringify(finalPay.body)).toBe(201);
+    const advance = await request(app).patch(`/api/work-orders/${id}/execution`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ items: [{ id: itemId, estadoOperativo: 'completado', notasOperativas: 'Trabajo terminado' }] });
+    expect(advance.status, JSON.stringify(advance.body)).toBe(200);
+    expect(advance.body.workOrder.quotation).toMatchObject({ total: 26000, pagado: 26000, saldoPendiente: 0, estadoPago: 'total' });
+    await originalLine!.reload();
+    expect(originalLine).toMatchObject({ workOrderItemId: itemId, estadoOperativo: 'completado', descuentoTipo: 'porcentaje' });
+    expect(Number(originalLine!.descuentoValor)).toBe(10);
+    expect(Number((await item!.reload()).horasHombreEstimadas)).toBe(2);
+    expect((await mirror!.reload()).notas).toBe('Condiciones comerciales propias');
+    expect(await Payment.count({ where: { quotationId: mirror!.id } })).toBe(2);
+    expect(await QuotationItem.count({ where: { quotationId: mirror!.id } })).toBe(1);
+    expect((await Vehicle.findByPk(vehicleId))!.clientId).toBe(clientId);
+  });
+
+  it('refleja una corrección del vehículo de recepción en la COT sin modificar sus condiciones ni abonos', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const replacement = await Vehicle.create({ patente: 'SYNC02', marca: 'Toyota', modelo: 'Yaris', clientId });
+    const create = await request(app).post('/api/work-orders')
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ clientId, vehicleId, items: [{ descripcion: 'Diagnóstico', cantidad: 1, precioUnitario: 10000 }] });
+    expect(create.status, JSON.stringify(create.body)).toBe(201);
+    const id = create.body.workOrder.id as number;
+    const mirror = await Quotation.findOne({ where: { workOrderId: id } });
+    await mirror!.update({ notas: 'Conservar condiciones comerciales' });
+    const payment = await request(app).post('/api/payments')
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ quotationId: mirror!.id, monto: 5000, metodo: 'efectivo' });
+    expect(payment.status, JSON.stringify(payment.body)).toBe(201);
+    const update = await request(app).patch(`/api/work-orders/${id}`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ vehicleId: replacement.id });
+    expect(update.status, JSON.stringify(update.body)).toBe(200);
+    const commercial = await request(app).get(`/api/quotations/${mirror!.id}`).set('Cookie', authCookie(cookies));
+    expect(commercial.body.quotation.vehicle).toMatchObject({ id: replacement.id, patente: 'SYNC02' });
+    expect(commercial.body.quotation).toMatchObject({ vehicleId: replacement.id, total: 10000, pagado: 5000, estadoPago: 'parcial', notas: 'Conservar condiciones comerciales' });
+    const invalidEdit = await request(app).patch(`/api/work-orders/${id}`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ vehicleId, items: [{ descripcion: 'Total inferior al abono', cantidad: 1, precioUnitario: 1000 }] });
+    expect(invalidEdit.status).toBe(400);
+    expect((await WorkOrder.findByPk(id))!.vehicleId).toBe(replacement.id);
+    expect((await mirror!.reload()).vehicleId).toBe(replacement.id);
+    expect(Number(mirror!.total)).toBe(10000);
+    expect(Number(mirror!.pagado)).toBe(5000);
+    expect((await Vehicle.findByPk(vehicleId))!.clientId).toBe(clientId);
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -11,12 +11,24 @@ interface BeforeInstallPromptEvent extends Event {
 
 // Captura global temprana del evento por si se dispara antes de montar componentes React
 let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
+const promptListeners = new Set<() => void>();
+const setDeferredPrompt = (prompt: BeforeInstallPromptEvent | null): void => {
+  globalDeferredPrompt = prompt;
+  promptListeners.forEach((listener) => listener());
+};
+const subscribeToPrompt = (listener: () => void): (() => void) => {
+  promptListeners.add(listener);
+  return () => { promptListeners.delete(listener); };
+};
+const getDeferredPrompt = (): BeforeInstallPromptEvent | null => globalDeferredPrompt;
+const getServerPrompt = (): null => null;
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
-    globalDeferredPrompt = event as BeforeInstallPromptEvent;
+    setDeferredPrompt(event as BeforeInstallPromptEvent);
   });
+  window.addEventListener('appinstalled', () => setDeferredPrompt(null));
 }
 
 export type DevicePlatform = 'ios' | 'android' | 'desktop';
@@ -42,9 +54,7 @@ export const checkIsAppInstalled = (): boolean => {
 };
 
 export const usePwaInstall = () => {
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(
-    () => globalDeferredPrompt,
-  );
+  const installPrompt = useSyncExternalStore(subscribeToPrompt, getDeferredPrompt, getServerPrompt);
   const [isInstalled, setIsInstalled] = useState<boolean>(() => checkIsAppInstalled());
   const [showInstructions, setShowInstructions] = useState(false);
   const [platform, setPlatform] = useState<DevicePlatform>('desktop');
@@ -53,39 +63,31 @@ export const usePwaInstall = () => {
     setPlatform(detectPlatform());
     setIsInstalled(checkIsAppInstalled());
 
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      globalDeferredPrompt = event as BeforeInstallPromptEvent;
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
-
     const handleAppInstalled = () => {
       setIsInstalled(true);
-      globalDeferredPrompt = null;
-      setInstallPrompt(null);
       setShowInstructions(false);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
   const triggerInstall = async (): Promise<boolean> => {
-    const promptToUse = installPrompt ?? globalDeferredPrompt;
+    const promptToUse = getDeferredPrompt();
 
     if (promptToUse) {
+      // El navegador permite invocar cada evento una sola vez, incluso si
+      // se cancela. Todos los botones deben consumir la misma referencia.
+      setDeferredPrompt(null);
       try {
         await promptToUse.prompt();
         const choice = await promptToUse.userChoice;
         if (choice.outcome === 'accepted') {
           setIsInstalled(true);
-          globalDeferredPrompt = null;
-          setInstallPrompt(null);
+          setShowInstructions(false);
           return true;
         }
         return false;
@@ -107,7 +109,7 @@ export const usePwaInstall = () => {
   return {
     isInstallable: !isInstalled,
     isInstalled,
-    hasNativePrompt: Boolean(installPrompt ?? globalDeferredPrompt),
+    hasNativePrompt: Boolean(installPrompt),
     showInstructions,
     platform,
     triggerInstall,

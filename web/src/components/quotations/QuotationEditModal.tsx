@@ -1,5 +1,5 @@
 import { calculateQuotationPricing, updateQuotationSchema } from '@unithor/shared';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, FileText } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import QuotationCommercialFields, { createCommercialDraft } from './QuotationCommercialFields';
@@ -89,12 +89,14 @@ export const QuotationEditModal = ({ quotation, onClose, onSaved }: QuotationEdi
   return <FormDialog id="edit-quotation-title" title="Editar cotización" code={quotation.codigo}
     context={quotation.client?.nombre ?? 'Cotización'} submitLabel="Guardar cambios"
     dirty={snapshot !== initialSnapshot.current} pending={updateMutation.isPending}
-    onClose={onClose} onSubmit={submit} className="commercial-form-dialog">
+    onClose={onClose} onSubmit={submit} className="commercial-form-dialog commercial-editor-dialog" headerVariant="plain" headerIcon={<FileText aria-hidden="true" />}>
           <div className="commercial-editor-content">
-            <div className="mb-5"><QuotationCommercialFields value={commercial} onChange={setCommercial} errors={errors} /></div>
-            <label className="block text-sm font-semibold text-brand-ink">Notas comerciales<textarea rows={4} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" /></label>
-            <div className="mt-5"><WorkOrderItemsEditor presentation="reception" items={items} onChange={setItems} errors={errors} title="Ítems cotizados" emptyMessage="La cotización quedará sin ítems y con total cero." showDiscounts showTotal={false} /></div>
-            <QuotationDiscountSummary items={items} value={commercial} onChange={setCommercial} testId="quotation-edit-total" />
+            <section className="commercial-editor-items"><WorkOrderItemsEditor presentation="reception" items={items} onChange={setItems} errors={errors} title="Ítems cotizados" emptyMessage="La cotización quedará sin ítems y con total cero." showDiscounts showTotal={false} /></section>
+            <aside className="commercial-create-terms">
+              <QuotationCommercialFields value={commercial} onChange={setCommercial} errors={errors} />
+              <QuotationDiscountSummary items={items} value={commercial} onChange={setCommercial} testId="quotation-edit-total" />
+              <label className="block text-sm font-semibold text-brand-ink">Notas comerciales<textarea rows={4} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" /></label>
+            </aside>
             {updateMutation.isError && <div className="mt-4 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(updateMutation.error)}</div>}
           </div>
   </FormDialog>;

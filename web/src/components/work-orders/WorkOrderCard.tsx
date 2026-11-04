@@ -1,6 +1,6 @@
 import { WORK_ORDER_STATUS, isValidWorkOrderTransition } from '@unithor/shared';
-import { ChevronDown, Clock3, Download, Eye, ListChecks, PackageCheck, PackageSearch, UserCog, X } from 'lucide-react';
-import { useCallback, useEffect, useRef } from 'react';
+import { ChevronDown, Download, Eye, ListChecks, PackageCheck, PackageSearch } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import WorkOrderCardPopover from './WorkOrderCardPopover';
 import { WORK_ORDER_STATUS_LABELS } from './WorkOrderStatusBadge';
@@ -32,6 +32,9 @@ export default function WorkOrderCard({
   onChangeStatus, onDeliver, onOpenDetail, onPreviewPdf, onOpenExecution,
 }: Props) {
   const anchorRef = useRef<HTMLElement>(null);
+  const statusTriggerRef = useRef<HTMLButtonElement>(null);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+  const [placement, setPlacement] = useState<'above' | 'below'>('below');
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerInside = useRef(false);
@@ -49,10 +52,15 @@ export default function WorkOrderCard({
     onExpand(null);
   }, [clearTimers, onExpand]);
   const activePanel = expansion?.id === workOrder.id ? expansion.panel : null;
+  useEffect(() => {
+    if (activePanel === 'status') statusMenuRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+  }, [activePanel]);
   const toggle = (panel: 'information' | 'status') => {
     clearTimers();
     const hoverOpen = activePanel === panel && expansion?.mode === 'hover';
-    onExpand(activePanel === panel && !hoverOpen ? null : { id: workOrder.id, panel, mode: 'manual' });
+    onExpand(activePanel === panel && !hoverOpen
+      ? panel === 'status' ? { id: workOrder.id, panel: 'information', mode: 'manual' } : null
+      : { id: workOrder.id, panel, mode: 'manual' });
   };
   const keepHoverOpen = () => {
     pointerInside.current = true;
@@ -79,12 +87,16 @@ export default function WorkOrderCard({
   const transitions = WORK_ORDER_STATUS.filter((status) => isValidWorkOrderTransition(workOrder.estado, status));
   const total = workOrder.items?.reduce((sum, item) => sum + Number(item.subtotal), 0) ?? null;
   const elapsedText = elapsed.text.replace('En taller ', '').replace('Duración total: ', '');
+  const duration = elapsedText.match(/^(\d+)([dhm])/);
+  const durationUnit = duration?.[2] === 'd' ? 'días' : duration?.[2] === 'h' ? 'h' : 'min';
   const allTasksDone = Boolean(workOrder.items?.length && workOrder.items.every((item) => ['completado', 'omitido'].includes(item.estadoOperativo)));
   const informationId = `work-order-card-information-${workOrder.id}`;
   const statusId = `work-order-card-status-${workOrder.id}`;
+  const statusLabel = workOrder.estado === 'cancelada' ? 'Anulada' : WORK_ORDER_STATUS_LABELS[workOrder.estado];
+  const theme = `workshop-card-theme workshop-state-${workOrder.estado}${!terminal && elapsed.overdue ? ' workshop-information-overdue' : ''}`;
 
   return (
-    <article ref={anchorRef} className="workshop-card" data-state={workOrder.estado} data-overdue={!terminal && elapsed.overdue} data-expanded={Boolean(activePanel)} data-panel={activePanel ?? undefined} aria-label={`Orden ${workOrder.codigo}`}
+    <article ref={anchorRef} className={`workshop-card ${theme}`} data-state={workOrder.estado} data-overdue={!terminal && elapsed.overdue} data-expanded={Boolean(activePanel)} data-panel={activePanel ?? undefined} data-placement={activePanel ? placement : undefined} aria-label={`Orden ${workOrder.codigo}`}
       onPointerEnter={(event) => {
         if (!event.currentTarget.contains(event.target as Node)) return;
         if (event.pointerType !== 'mouse' || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
@@ -102,63 +114,87 @@ export default function WorkOrderCard({
       }}
     >
       <div className="workshop-card-band">
-        <button type="button" onClick={onOpenDetail} aria-label={`Ver detalle de ${workOrder.codigo}`}>{workOrder.codigo}</button>
-        <span>{WORK_ORDER_STATUS_LABELS[workOrder.estado]}</span>
+        <button type="button" onClick={() => { close(); onOpenDetail(); }} aria-label={`Ver detalle de ${workOrder.codigo}`}>{workOrder.codigo}</button>
+        <span>{statusLabel}</span>
       </div>
-      <button type="button" className="workshop-card-summary" aria-label={`Ver información de ${workOrder.codigo}`} aria-expanded={activePanel === 'information'} aria-controls={informationId} onClick={() => toggle('information')}>
+      <button type="button" className="workshop-card-summary" aria-label={`Ver información de ${workOrder.codigo}`} aria-expanded={Boolean(activePanel)} aria-controls={informationId} onClick={() => toggle('information')}
+        onKeyDown={(event) => {
+          if (activePanel && event.key === 'Tab' && !event.shiftKey) {
+            const action = document.getElementById(informationId)?.querySelector<HTMLElement>('summary, button');
+            if (action) { event.preventDefault(); action.focus(); }
+          }
+        }}>
         <span className="workshop-card-vehicle">
           <span className="workshop-card-plate">{workOrder.vehicle?.patente ?? 'SIN PATENTE'}</span>
           <span>{[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || 'Vehículo sin datos'}</span>
         </span>
         <span className="workshop-card-age" title={elapsed.text}>
           {workOrder.estado === 'esperando_repuesto' && <PackageSearch className="workshop-parts-wait" aria-hidden="true" />}
-          <span>{elapsed.running ? 'En taller' : 'Duración'}</span><strong>{elapsedText}</strong><span>Ingreso {formatDate(workOrder.fechaIngreso)}</span>
+          <span className="sr-only">{elapsed.running ? 'En taller' : 'Duración'}</span>
+          <strong aria-label={elapsed.text}>{duration ? <>{duration[1]}<span>{durationUnit}</span></> : '—'}</strong>
+          <span>Ingreso {formatDate(workOrder.fechaIngreso)}</span>
+          {elapsed.overdue && !terminal && <span className="sr-only">Entrega vencida</span>}
         </span>
         <span className="workshop-card-progress">
           <span>Tareas {progress.completed}/{progress.total}</span>
           <span className="workshop-mini-track" role="progressbar" aria-label={`Avance de ${workOrder.codigo}`} aria-valuenow={progress.percent} aria-valuemin={0} aria-valuemax={100}>
             <span className={tier.bar} style={{ width: `${progress.percent}%` }} />
           </span>
-          <strong aria-label="Avance">{progress.percent}%</strong>
+          <strong aria-label={`Avance: ${tier.label}`}>{progress.percent}%</strong>
         </span>
         <span className="workshop-card-bottom">
           <span title={workOrder.client?.nombre ?? undefined}>{workOrder.client?.nombre ?? 'Sin cliente'}</span>
-          <span className="workshop-card-expand"><span>{activePanel === 'information' ? 'Ocultar' : 'Información'}</span><ChevronDown aria-hidden="true" /></span>
+          <span className="workshop-card-expand"><span>{activePanel ? 'Ocultar' : 'Ver información'}</span><ChevronDown aria-hidden="true" /></span>
         </span>
       </button>
-      <div className="workshop-card-flags">
-        <span>{tier.label}</span>
-        {elapsed.overdue && <span className="workshop-overdue-label">Entrega vencida</span>}
-        {workOrder.coberturaGarantia && <span>Garantía</span>}
-        {workOrder.estado === 'en_progreso' && allTasksDone && <span className="workshop-ready-label">Lista para finalizar</span>}
-      </div>
-      <footer className="workshop-card-actions">
-        {onOpenExecution && <button type="button" className="workshop-manage" onClick={() => { close(); onOpenExecution(); }}><ListChecks aria-hidden="true" /><span>Gestionar trabajo</span></button>}
-        <button type="button" aria-label="Ver detalle" title="Ver detalle" className={!onOpenExecution ? 'workshop-manage' : ''} onClick={() => { close(); onOpenDetail(); }}><Eye aria-hidden="true" />{!onOpenExecution && <span>Ver detalle</span>}</button>
-        {showFinancials && <button type="button" aria-label={`Previsualizar PDF de ${workOrder.codigo}`} title="Vista previa PDF" onClick={() => { close(); onPreviewPdf(); }}><Download aria-hidden="true" /></button>}
-        {canManage && !terminal && transitions.length > 0 && <button type="button" aria-label={`Cambiar estado de ${workOrder.codigo}`} aria-expanded={activePanel === 'status'} aria-haspopup="menu" aria-controls={statusId} title="Cambiar estado" disabled={statusPending} onClick={() => toggle('status')}><ChevronDown aria-hidden="true" /></button>}
-      </footer>
-      {activePanel === 'information' && (
-        <WorkOrderCardPopover anchorRef={anchorRef} id={informationId} label={`Información de ${workOrder.codigo}`} className={`workshop-card-information workshop-state-${workOrder.estado} ${!terminal && elapsed.overdue ? 'workshop-information-overdue' : ''}`} onPointerEnter={keepHoverOpen} onPointerLeave={leaveHover} onBlurCapture={leaveHover} onClose={close}>
-          <div className="workshop-popover-heading"><strong>Información de la orden</strong><button type="button" onClick={close} aria-label={`Cerrar información de ${workOrder.codigo}`}><X aria-hidden="true" /></button></div>
+      {activePanel && (
+        <WorkOrderCardPopover anchorRef={anchorRef} id={informationId} label={`Información de ${workOrder.codigo}`} connected onPlacementChange={setPlacement} className={`workshop-card-information ${theme}`} onPointerEnter={keepHoverOpen} onPointerLeave={leaveHover} onBlurCapture={leaveHover} onClose={close}>
           <dl className="workshop-card-facts">
-            <div><dt><UserCog aria-hidden="true" />Mecánico</dt><dd>{workOrder.assignedMechanic?.nombre ?? 'Sin mecánico'}</dd></div>
+            <div><dt>Mecánico</dt><dd>{workOrder.assignedMechanic?.nombre ?? 'Sin mecánico'}</dd></div>
             <div><dt>Origen</dt><dd>{quotation?.codigo ?? 'OT directa'}</dd></div>
-            <div><dt><Clock3 aria-hidden="true" />Entrega prometida</dt><dd>{workOrder.fechaEntrega ? formatDate(workOrder.fechaEntrega) : 'Sin fecha prometida'}</dd></div>
-            <div><dt>Avance por tareas</dt><dd>{tier.label}{progress.omitted > 0 ? ` · ${progress.omitted} omitida(s)` : ''}</dd></div>
           </dl>
           {showFinancials && <div className="workshop-card-financials">
             <div><span>Total est.</span><strong>{total === null ? '—' : formatClp(total)}</strong></div>
             <div><span>Pagado</span><strong>{quotation ? formatClp(quotation.pagado) : '—'}</strong></div>
             <div className="workshop-card-balance"><span>Saldo pendiente</span><strong>{quotation ? formatClp(Math.max(0, quotation.saldoPendiente)) : 'Sin cotización vinculada'}</strong></div>
           </div>}
-        </WorkOrderCardPopover>
-      )}
-      {activePanel === 'status' && (
-        <WorkOrderCardPopover anchorRef={anchorRef} id={statusId} role="menu" label={`Estados permitidos para ${workOrder.codigo}`} onClose={close}>
-          {transitions.map((status) => <button key={status} role="menuitem" type="button" className="workshop-state-option" disabled={statusPending} onClick={() => { close(); if (status === 'entregada') onDeliver(); else onChangeStatus(workOrder, status); }}>
-            {status === 'entregada' && <PackageCheck aria-hidden="true" />}{WORK_ORDER_STATUS_LABELS[status]}
-          </button>)}
+          <details className="workshop-card-context">
+            <summary>Más datos de la orden<ChevronDown aria-hidden="true" /></summary>
+            <dl className="workshop-card-facts">
+              <div><dt>Entrega prometida</dt><dd>{workOrder.fechaEntrega ? formatDate(workOrder.fechaEntrega) : 'Sin fecha prometida'}</dd></div>
+              <div><dt>Avance por tareas</dt><dd>{tier.label}{progress.omitted > 0 ? ` · ${progress.omitted} omitida(s)` : ''}</dd></div>
+            </dl>
+          </details>
+          {(elapsed.overdue || workOrder.coberturaGarantia || (workOrder.estado === 'en_progreso' && allTasksDone)) && <div className="workshop-card-flags">
+            {!terminal && elapsed.overdue && <span className="workshop-overdue-label">Entrega vencida</span>}
+            {workOrder.coberturaGarantia && <span>Garantía</span>}
+            {workOrder.estado === 'en_progreso' && allTasksDone && <span className="workshop-ready-label">Lista para finalizar</span>}
+          </div>}
+          <footer className="workshop-card-actions">
+            {onOpenExecution
+              ? <button type="button" className="workshop-manage" onClick={() => { close(); onOpenExecution(); }}><ListChecks aria-hidden="true" /><span>Gestionar trabajo</span></button>
+              : <button type="button" className="workshop-manage" onClick={() => { close(); onOpenDetail(); }}><Eye aria-hidden="true" /><span>Ver detalle</span></button>}
+            {showFinancials && <button type="button" aria-label={`Previsualizar PDF de ${workOrder.codigo}`} title="Vista previa PDF" onClick={() => { close(); onPreviewPdf(); }}><Download aria-hidden="true" /></button>}
+            {canManage && !terminal && transitions.length > 0 && <button ref={statusTriggerRef} type="button" className="workshop-card-state" aria-label={`Cambiar estado de ${workOrder.codigo}`} aria-expanded={activePanel === 'status'} aria-haspopup="menu" aria-controls={statusId} title="Cambiar estado" disabled={statusPending} onClick={() => toggle('status')}><span>{statusLabel}</span><ChevronDown aria-hidden="true" /></button>}
+          </footer>
+          {activePanel === 'status' && <div ref={statusMenuRef} id={statusId} role="menu" aria-label={`Estados permitidos para ${workOrder.codigo}`} className="workshop-card-state-menu"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault(); event.stopPropagation();
+                onExpand({ id: workOrder.id, panel: 'information', mode: 'manual' });
+                statusTriggerRef.current?.focus();
+                return;
+              }
+              if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+              const options = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+              const index = options.findIndex((button) => button === document.activeElement);
+              const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (index + (event.key === 'ArrowUp' ? -1 : 1) + options.length) % options.length;
+              event.preventDefault(); options[next]?.focus();
+            }}>
+            {transitions.map((status) => <button key={status} role="menuitem" type="button" className="workshop-state-option" disabled={statusPending} onClick={() => { close(); if (status === 'entregada') onDeliver(); else onChangeStatus(workOrder, status); }}>
+              {status === 'entregada' && <PackageCheck aria-hidden="true" />}{WORK_ORDER_STATUS_LABELS[status]}
+            </button>)}
+          </div>}
         </WorkOrderCardPopover>
       )}
     </article>

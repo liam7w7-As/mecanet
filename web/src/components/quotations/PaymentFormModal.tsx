@@ -154,7 +154,7 @@ export const PaymentFormModal = ({
   return <FormDialog id="payment-modal-title" title="Registrar abono" code={codigo}
     context={quotationQuery.data?.client?.nombre ?? 'Cotización'} submitLabel="Registrar abono"
     dirty={dirty} pending={createMutation.isPending} onClose={onClose} onSubmit={submit}
-    className="commercial-form-dialog commercial-payment-dialog" headerIcon={<Banknote aria-hidden="true" />}
+    className="commercial-form-dialog commercial-payment-dialog" headerVariant="brand" headerIcon={<Banknote aria-hidden="true" />}
     submitDisabled={loadingSummary || summaryError || availableBalance <= 0}
     statusText={metodo === 'transferencia' ? 'Sujeto a verificación de Finanzas' : 'El abono se asociará a esta cotización'}>
           <div className="commercial-payment-grid">

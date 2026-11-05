@@ -149,7 +149,7 @@ export default function WorkOrderCard({
         </span>
       </button>
       {activePanel && (
-        <WorkOrderCardPopover anchorRef={anchorRef} id={informationId} label={`Información de ${workOrder.codigo}`} connected onPlacementChange={setPlacement} className={`workshop-card-information ${theme}`} onPointerEnter={keepHoverOpen} onPointerLeave={leaveHover} onBlurCapture={leaveHover} onClose={close}>
+        <WorkOrderCardPopover anchorRef={anchorRef} id={informationId} label={`Información de ${workOrder.codigo}`} connected onPlacementChange={setPlacement} className={`workshop-card-information ${theme}`} colourTier={colourTier} onPointerEnter={keepHoverOpen} onPointerLeave={leaveHover} onBlurCapture={leaveHover} onClose={close}>
           <dl className="workshop-card-facts">
             <div><dt>Mecánico</dt><dd>{workOrder.assignedMechanic?.nombre ?? 'Sin mecánico'}</dd></div>
             <div><dt>Origen</dt><dd>{quotation?.codigo ?? 'OT directa'}</dd></div>

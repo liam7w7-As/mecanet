@@ -11,6 +11,7 @@ interface Props {
   minWidth?: number;
   className?: string;
   connected?: boolean;
+  colourTier?: string;
   onPlacementChange?: (placement: 'above' | 'below') => void;
   onPointerEnter?: PointerEventHandler<HTMLDivElement>;
   onPointerLeave?: PointerEventHandler<HTMLDivElement>;
@@ -20,7 +21,7 @@ interface Props {
 }
 
 /** Anchored outside the animated grid, so expanding a card never moves its neighbours. */
-export default function WorkOrderCardPopover({ anchorRef, id, label, role = 'region', minWidth = 0, className = '', connected = false, onPlacementChange, onPointerEnter, onPointerLeave, onBlurCapture, onClose, children }: Props) {
+export default function WorkOrderCardPopover({ anchorRef, id, label, role = 'region', minWidth = 0, className = '', connected = false, colourTier, onPlacementChange, onPointerEnter, onPointerLeave, onBlurCapture, onClose, children }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<CSSProperties>({ visibility: 'hidden' });
   const [placement, setPlacement] = useState<'above' | 'below'>('below');
@@ -92,7 +93,7 @@ export default function WorkOrderCardPopover({ anchorRef, id, label, role = 'reg
   }, [anchorRef, minWidth, onClose, onPlacementChange, role]);
 
   return createPortal(
-    <div ref={panelRef} id={id} role={role} aria-label={label} data-connected={connected || undefined} data-placement={placement} className={`workshop-card-popover ${className}`} style={position} onPointerOver={onPointerEnter} onPointerOut={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) onPointerLeave?.(event); }} onBlurCapture={onBlurCapture}>
+    <div ref={panelRef} id={id} role={role} aria-label={label} data-connected={connected || undefined} data-placement={placement} data-colour={colourTier} className={`workshop-card-popover ${className}`} style={position} onPointerOver={onPointerEnter} onPointerOut={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) onPointerLeave?.(event); }} onBlurCapture={onBlurCapture}>
       {children}
     </div>,
     document.body,

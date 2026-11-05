@@ -9,6 +9,7 @@ import { assertSalesWorkOrderAccess, getSalesUserId, scopeSalesAssociations } fr
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getInspectionPhoto } from './work-order-inspection-photo.service.js';
 import { assertWorkItemsRemovable, ensureQuotationItemLinks, itemIdentity } from './work-order-item-links.js';
+import { recordChecklistStatusChange } from './work-order-labor-events.js';
 import { closeWorkOrderTimers } from './work-order-labor-sessions.js';
 import { createWorkOrderInTransaction, getWorkOrderById, type WorkOrderPublic } from './work-order.service.js';
 import { sequelize } from '../config/database.js';
@@ -500,7 +501,9 @@ const syncLinkedWorkOrderFromQuotation = async (
       if (existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea) {
         await assertWorkItemsRemovable([existing], transaction);
       }
+      const previousStatus = existing.estadoOperativo;
       await existing.update({ ...payload, stockConsumidoWarehouseId: null }, { transaction });
+      await recordChecklistStatusChange(existing, previousStatus, userId, transaction);
       if (existing.estadoOperativo === 'completado' || existing.estadoOperativo === 'omitido') {
         await closeWorkOrderTimers(workOrder.id, transaction, existing.id);
       }

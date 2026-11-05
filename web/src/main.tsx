@@ -28,6 +28,7 @@ import './styles/module-reference.css';
 import './styles/administration.css';
 import './styles/reception-create.css';
 import './styles/dashboard.css';
+import './styles/workshop-modals.css';
 import { MotionProvider } from './components/animate-ui/motion-config';
 import { BrandingProvider } from './components/common/BrandingContext';
 import { OfflineIndicator } from './components/pwa/OfflineIndicator';

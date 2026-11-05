@@ -18,7 +18,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -115,6 +115,10 @@ export const WorkOrderQuickDetailModal = ({
   initialView = 'summary',
 }: WorkOrderQuickDetailModalProps) => {
   const [view, setView] = useState<'summary' | 'execution' | 'requests'>(initialView);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [view]);
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
   const [hasOpenedExecution, setOpenedExecution] = useState(initialView === 'execution');
@@ -172,7 +176,7 @@ export const WorkOrderQuickDetailModal = ({
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         ref={setPanelNode}
         tabIndex={-1}
-        className="workshop-dialog relative max-h-full w-full max-w-[1080px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl outline-none"
+        className="workshop-dialog workshop-manage-dialog relative max-h-full w-full max-w-[1080px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl outline-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="work-order-quick-detail-title"
@@ -184,18 +188,19 @@ export const WorkOrderQuickDetailModal = ({
             variant="brand"
             eyebrow={workOrder ? ENTRY_TYPE_LABELS[workOrder.tipoIngreso ?? ''] ?? 'Orden de trabajo' : 'Orden de trabajo'}
             description={workOrder ? `Ingreso ${formatDate(workOrder.fechaIngreso)}${workOrder.fechaEntrega ? ` · Entrega prometida ${formatDate(workOrder.fechaEntrega)}` : ''}` : undefined}
-            badge={<ClipboardCheck aria-hidden="true" />}
-            actions={workOrder ? <WorkOrderStatusBadge status={workOrder.estado} /> : undefined}
+            actions={workOrder ? <>
+              {showFinancials && <div className="workshop-header-tools" role="group" aria-label="Documentos y detalle de la orden">
+                <button type="button" disabled={savePending} aria-label="Vista previa PDF" onClick={() => requestLeave('pdf')}><Download aria-hidden="true" />Vista previa PDF</button>
+                <Link to={`/work-orders/${workOrder.id}`} onClick={(event) => { event.preventDefault(); requestLeave('detail'); }} aria-label="Abrir detalle completo">Detalle completo<ArrowUpRight aria-hidden="true" /></Link>
+              </div>}
+              <WorkOrderStatusBadge className="workshop-header-status" status={workOrder.estado} />
+            </> : undefined}
             onClose={() => requestLeave('close')}
             closeDisabled={savePending}
           />
-          {workOrder && showFinancials && <div className="reference-header-actions">
-            <button type="button" disabled={savePending} aria-label="Vista previa PDF" onClick={() => requestLeave('pdf')}><Download aria-hidden="true" />PDF</button>
-            {user?.role !== 'mecanico' && <Link to={`/work-orders/${workOrder.id}`} onClick={(event) => { event.preventDefault(); requestLeave('detail'); }} aria-label="Abrir detalle completo">Detalle completo<ArrowUpRight aria-hidden="true" /></Link>}
-          </div>}
         </header>
         {workOrder && canOperate && (
-          <div className="reference-dialog-tabs workshop-dialog-tabs" role="group" aria-label="Vista de la orden">
+          <div className="workshop-dialog-tabs" role="group" aria-label="Vista de la orden">
             {([{ value: 'summary', label: 'Resumen', icon: ClipboardCheck }, { value: 'execution', label: 'Avances y Checklist', icon: ListChecks }, { value: 'requests', label: 'Solicitudes', icon: PackageSearch }] as const).map((option) => (
               <button key={option.value} type="button" aria-pressed={view === option.value} onClick={() => { setView(option.value); if (option.value !== 'summary') setOpenedExecution(true); }}>
                 <option.icon aria-hidden="true" />{option.label}
@@ -204,7 +209,7 @@ export const WorkOrderQuickDetailModal = ({
             ))}
           </div>
         )}
-        <div className="workshop-dialog-body">
+        <div ref={bodyRef} className="workshop-dialog-body">
 
         {workOrder && canOperate && hasOpenedExecution && (
           <div className="workshop-execution-view p-4 sm:p-6" hidden={view === 'summary'}><WorkOrderMechanicPanel workOrder={workOrder} section={view === 'requests' ? 'requests' : 'execution'} onDirtyChange={setDirtyChanges} onPendingChange={setSavePending} /></div>
@@ -289,89 +294,91 @@ export const WorkOrderQuickDetailModal = ({
               />}
             </div>
 
-            {progress.total > 0 && (
-              <div className="workshop-summary-progress">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-ink">
-                    <Gauge className="h-4 w-4" aria-hidden="true" /> Avance operativo
-                  </p>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${tier.chip}`}>
-                    {tier.label}
-                  </span>
-                </div>
-                <div
-                  className="mt-2 h-2 w-full overflow-hidden rounded-full bg-brand-pale"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={progress.percent}
-                  aria-label={`Avance de ${workOrder.codigo}`}
-                >
-                  <div className={`h-full rounded-full ${tier.bar}`} style={{ width: `${progress.percent}%` }} />
-                </div>
-              </div>
-            )}
-
             <div className="workshop-summary-columns">
-            {grouped.length > 0 && (
-              <div className="workshop-summary-items">
-                <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-ink">
-                  <ListChecks className="h-4 w-4" aria-hidden="true" />
-                  Trabajos y repuestos ({workOrder.items?.length ?? 0})
-                </p>
-                <div className="mt-3 space-y-4">
-                  {grouped.map((group) => (
-                    <div key={group.type} className="overflow-hidden rounded-lg border border-brand-line">
-                      <div className="flex items-center justify-between gap-2 bg-brand-line/40 px-3 py-2">
-                        <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">
-                          {TYPE_LABELS[group.type]}
-                        </p>
-                        {showFinancials && <p className="text-xs font-semibold text-brand-muted">
-                          {formatClp(group.items.reduce((sum, item) => sum + Number(item.subtotal), 0))}
-                        </p>}
-                      </div>
-                      <ul className="divide-y divide-brand-line">
-                        {group.items.map((item) => (
-                          <li key={item.id} className="flex items-start gap-3 px-3 py-2.5">
-                            <span
-                              className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TASK_DOT_STYLES[item.estadoOperativo] ?? 'bg-brand-line'}`}
-                              aria-hidden="true"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-brand-ink">{item.descripcion}</p>
-                              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-brand-muted">
-                                <span>
-                                  {item.cantidad} {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ?? item.unidadMedida}
-                                </span>
-                                <span aria-hidden="true">·</span>
-                                <span>{STATUS_LABELS[item.estadoOperativo]}</span>
-                                {item.catalogItem?.codigo && (
-                                  <>
-                                    <span aria-hidden="true">·</span>
-                                    <span className="font-mono">{item.catalogItem.codigo}</span>
-                                  </>
-                                )}
-                              </p>
-                              {item.notasOperativas && (
-                                <p className="mt-1 text-xs italic text-brand-muted">{item.notasOperativas}</p>
-                              )}
-                            </div>
-                            {showFinancials && <div className="shrink-0 text-right">
-                              <p className="text-sm font-semibold text-brand-ink">{formatClp(item.subtotal)}</p>
-                              <p className="text-[11px] text-brand-muted">{formatClp(item.precioUnitario)} c/u</p>
-                            </div>}
-                          </li>
-                        ))}
-                      </ul>
+              <div className="workshop-summary-work">
+                {progress.total > 0 && (
+                  <div className="workshop-summary-progress">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-ink">
+                        <Gauge className="h-4 w-4" aria-hidden="true" /> Avance operativo
+                      </p>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${tier.chip}`}>
+                        {tier.label}
+                      </span>
                     </div>
-                  ))}
-                </div>
-                {showFinancials && <div className="mt-3 flex items-center justify-between border-t-2 border-brand-primaryInk pt-2 text-sm font-bold text-brand-primaryInk">
-                  <span>Total estimado</span>
-                  <span>{formatClp(estimatedTotal)}</span>
-                </div>}
+                    <div
+                      className="mt-2 h-2 w-full overflow-hidden rounded-full bg-brand-pale"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progress.percent}
+                      aria-label={`Avance de ${workOrder.codigo}`}
+                    >
+                      <div className={`h-full rounded-full ${tier.bar}`} style={{ width: `${progress.percent}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                {grouped.length > 0 && (
+                  <div className="workshop-summary-items">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-ink">
+                      <ListChecks className="h-4 w-4" aria-hidden="true" />
+                      Trabajos y repuestos ({workOrder.items?.length ?? 0})
+                    </p>
+                    <div className="mt-3 space-y-4">
+                      {grouped.map((group) => (
+                        <div key={group.type} className="overflow-hidden rounded-lg border border-brand-line">
+                          <div className="flex items-center justify-between gap-2 bg-brand-line/40 px-3 py-2">
+                            <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">
+                              {TYPE_LABELS[group.type]}
+                            </p>
+                            {showFinancials && <p className="text-xs font-semibold text-brand-muted">
+                              {formatClp(group.items.reduce((sum, item) => sum + Number(item.subtotal), 0))}
+                            </p>}
+                          </div>
+                          <ul className="divide-y divide-brand-line">
+                            {group.items.map((item) => (
+                              <li key={item.id} className="flex items-start gap-3 px-3 py-2.5">
+                                <span
+                                  className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TASK_DOT_STYLES[item.estadoOperativo] ?? 'bg-brand-line'}`}
+                                  aria-hidden="true"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-brand-ink">{item.descripcion}</p>
+                                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-brand-muted">
+                                    <span>
+                                      {item.cantidad} {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ?? item.unidadMedida}
+                                    </span>
+                                    <span aria-hidden="true">·</span>
+                                    <span>{STATUS_LABELS[item.estadoOperativo]}</span>
+                                    {item.catalogItem?.codigo && (
+                                      <>
+                                        <span aria-hidden="true">·</span>
+                                        <span className="font-mono">{item.catalogItem.codigo}</span>
+                                      </>
+                                    )}
+                                  </p>
+                                  {item.notasOperativas && (
+                                    <p className="mt-1 text-xs italic text-brand-muted">{item.notasOperativas}</p>
+                                  )}
+                                </div>
+                                {showFinancials && <div className="shrink-0 text-right">
+                                  <p className="text-sm font-semibold text-brand-ink">{formatClp(item.subtotal)}</p>
+                                  <p className="text-[11px] text-brand-muted">{formatClp(item.precioUnitario)} c/u</p>
+                                </div>}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                    {showFinancials && <div className="mt-3 flex items-center justify-between border-t-2 border-brand-primaryInk pt-2 text-sm font-bold text-brand-primaryInk">
+                      <span>Total estimado</span>
+                      <span>{formatClp(estimatedTotal)}</span>
+                    </div>}
+                  </div>
+                )}
               </div>
-            )}
 
             <aside className="workshop-summary-sidebar">
             {workOrder.descripcion && <section className="workshop-description"><h3>Motivo de ingreso</h3><p>{workOrder.descripcion}</p></section>}

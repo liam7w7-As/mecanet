@@ -11,10 +11,11 @@ import type { WorkOrderStatus } from '@unithor/shared';
  *  cancelada       → 'cancelled'   (grey)
  *  entregada       → 'delivered'   (dark-grey / black)
  *  finalizada      → 'done'        (dark green)
- *  esperando_repuesto → 'waiting'  (pulsing yellow)
- *  active > 30 d, last activity ≤ 2 d → 'post-red grace' → 'warning' (yellow)
+ *  all measurable tasks completed → 'done' (dark green, even before finalizing)
+ *  esperando_repuesto → 'waiting'  (pulsing lemon yellow)
+ *  active > 30 d, real work < 48 h ago → 'warning' (static yellow)
  *  active > 30 d                  → 'danger'   (red)
- *  active > 20 d                  → 'warning'  (yellow)
+ *  active > 20 d                  → 'warning'  (static yellow)
  *  active, progress < 100 %       → 'active'   (light green)
  *  fallback                       → 'neutral'
  */
@@ -31,14 +32,17 @@ export type CardColourTier =
 const MS_PER_DAY = 86_400_000;
 
 export const getCardColourTier = (
-  workOrder: Pick<WorkOrder, 'estado' | 'fechaIngreso' | 'updatedAt'>,
+  workOrder: Pick<WorkOrder, 'estado' | 'fechaIngreso' | 'updatedAt' | 'items' | 'lastWorkActivityAt'>,
   now: number,
 ): CardColourTier => {
-  const { estado, fechaIngreso, updatedAt } = workOrder;
+  const { estado, fechaIngreso, lastWorkActivityAt } = workOrder;
 
   if (estado === 'cancelada') return 'cancelled';
   if (estado === 'entregada') return 'delivered';
   if (estado === 'finalizada') return 'done';
+  const progress = getWorkOrderProgress(workOrder);
+  // Compare counts: rounding 199/200 to 100% must not mark unfinished work done.
+  if (progress.total > 0 && progress.completed === progress.total) return 'done';
   if (estado === 'esperando_repuesto') return 'waiting';
 
   // For active orders (en_progreso) calculate elapsed days
@@ -48,11 +52,9 @@ export const getCardColourTier = (
   const elapsedDays = (now - start) / MS_PER_DAY;
 
   if (elapsedDays > 30) {
-    // If there was recent activity within 2 days (grace period after red),
-    // show warning (yellow) instead of danger (red)
-    const lastActivity = updatedAt ? new Date(updatedAt).getTime() : null;
-    const daysSinceActivity = lastActivity ? (now - lastActivity) / MS_PER_DAY : Infinity;
-    if (daysSinceActivity <= 2) return 'warning';
+    const lastActivity = lastWorkActivityAt ? Date.parse(lastWorkActivityAt) : NaN;
+    const sinceActivity = now - lastActivity;
+    if (lastActivity >= start && sinceActivity >= 0 && sinceActivity < 2 * MS_PER_DAY) return 'warning';
     return 'danger';
   }
 
@@ -88,7 +90,8 @@ export const getWorkOrderProgress = (workOrder: Pick<WorkOrder, 'estado' | 'item
   const inProgress = measurable.filter((item) => item.estadoOperativo === 'en_proceso').length;
   const pending = measurable.filter((item) => item.estadoOperativo === 'pendiente').length;
   const total = measurable.length;
-  const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+  // Reserve 100% for an actually completed checklist, including large orders.
+  const percent = total === 0 ? 0 : completed === total ? 100 : Math.min(99, Math.round((completed / total) * 100));
 
   let tier: ProgressTier;
   if (workOrder.estado === 'cancelada') {

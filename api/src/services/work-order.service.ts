@@ -12,8 +12,9 @@ import { notifyByType, notifyUsers } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { getSalesUserId, scopeSalesAssociations } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
+import { getLastWorkActivity } from './work-order-activity.service.js';
 import { assertWorkItemsRemovable, ensureQuotationItemLinks } from './work-order-item-links.js';
-import { recordItemProgressEvent } from './work-order-labor-events.js';
+import { recordChecklistStatusChange, recordItemProgressEvent } from './work-order-labor-events.js';
 import { closeWorkOrderTimers } from './work-order-labor-sessions.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -272,6 +273,7 @@ export interface WorkOrderPublic {
   assignedMechanicId: number | null;
   createdAt: Date;
   updatedAt: Date;
+  lastWorkActivityAt: Date | null;
   client?: WorkOrderClientPublic | null;
   vehicle?: WorkOrderVehiclePublic | null;
   vehicleOwner: WorkOrderVehicleOwnerPublic | null;
@@ -577,7 +579,7 @@ const toDateOrNull = (value: string | null | undefined): Date | null => {
   return new Date(value);
 };
 
-const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
+const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null = null): WorkOrderPublic => ({
   id: workOrder.id,
   codigo: workOrder.codigo,
   tipoIngreso: workOrder.tipoIngreso,
@@ -599,6 +601,7 @@ const toWorkOrderPublic = (workOrder: WorkOrder): WorkOrderPublic => ({
   assignedMechanicId: workOrder.assignedMechanicId,
   createdAt: workOrder.createdAt,
   updatedAt: workOrder.updatedAt,
+  lastWorkActivityAt,
   contact: workOrder.contactName
     ? {
         clientId: workOrder.contactClientId,
@@ -1621,8 +1624,9 @@ export const listWorkOrders = async (
     order: [['createdAt', 'DESC']],
   });
 
+  const activities = await getLastWorkActivity(rows.map((row) => row.id));
   return {
-    items: rows.map(toWorkOrderPublic),
+    items: rows.map((row) => toWorkOrderPublic(row, activities.get(row.id) ?? null)),
     total: count,
     page: pagination.page,
     pageSize: pagination.limit,
@@ -1638,7 +1642,8 @@ export const getWorkOrderById = async (
     await assertWorkOrderAccess(id, userId);
   }
   const workOrder = await getCompleteWorkOrder(id, undefined, await getSalesUserId(userId));
-  return toWorkOrderPublic(workOrder);
+  const activities = await getLastWorkActivity([id]);
+  return toWorkOrderPublic(workOrder, activities.get(id) ?? null);
 };
 
 export const createWorkOrderInTransaction = async (
@@ -1884,6 +1889,7 @@ export const updateWorkOrder = async (
 
         const cantidad = Number(item.cantidad);
         const precioUnitario = Number(item.precioUnitario);
+        const previousStatus = existing.estadoOperativo;
         await existing.update(
           {
             catalogItemId: item.catalogItemId ?? null,
@@ -1902,6 +1908,7 @@ export const updateWorkOrder = async (
           },
           { transaction },
         );
+        await recordChecklistStatusChange(existing, previousStatus, userId, transaction);
         persistedItems.push(existing);
       }
 

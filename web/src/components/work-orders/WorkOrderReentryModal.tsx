@@ -71,7 +71,7 @@ export const WorkOrderReentryModal = ({ workOrder, onClose }: WorkOrderReentryMo
         aria-label="Cerrar garantía o reingreso"
         onClick={onClose}
       />
-      <section className="relative max-h-[92vh] w-full max-w-[520px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="reentry-title">
+      <section className="workshop-action-dialog relative max-h-[92vh] w-full max-w-[520px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="reentry-title">
         <ModalHeader
           id="reentry-title"
           title="Crear garantía o reingreso"

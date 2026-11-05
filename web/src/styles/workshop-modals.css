@@ -1,0 +1,178 @@
+/* Taller: ficha operativa del prototipo publicado el 05-11-2026.
+   Solo presentación; los estados, permisos y documentos se resuelven en React. */
+.workshop-manage-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 948px);
+  max-width: 948px;
+  max-height: calc(100dvh - 40px);
+  padding: 16px 16px 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 24px;
+  box-shadow: 0 24px 80px #15294038;
+}
+.workshop-manage-dialog .workshop-dialog-header { flex: none; padding: 0; background: transparent; }
+.workshop-manage-dialog .ui-modal-header {
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 0;
+  border-radius: 16px;
+  background: #1d396a;
+  color: #fff;
+}
+.workshop-manage-dialog .ui-modal-eyebrow { color: #d9e3f4; font-size: 10px; font-weight: 500; letter-spacing: .08em; }
+.workshop-manage-dialog .ui-modal-title-row h2 { color: #fff; font-family: inherit; font-size: 27px; font-weight: 600; letter-spacing: -.5px; line-height: 1.3; }
+.workshop-manage-dialog .ui-modal-description { margin-top: 2px; color: #d9e3f4; font-size: 11px; }
+.workshop-manage-dialog .ui-modal-header-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.workshop-manage-dialog .ui-modal-header-controls > .workshop-header-status { border: 0; border-radius: 999px; background: #ffffff21; color: #fff; white-space: nowrap; box-shadow: none; }
+.workshop-manage-dialog .ui-modal-close { width: 36px; height: 36px; border: 1px solid #ffffff40; background: #ffffff10; color: #fff; }
+.workshop-manage-dialog .ui-modal-close:hover { background: #ffffff2b; color: #fff; }
+.workshop-header-tools { display: flex; align-items: center; gap: 7px; }
+.workshop-header-tools > :is(button, a) { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 7px 12px; border: 1px solid #ffffff4a; border-radius: 999px; background: transparent; color: #fff; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.workshop-header-tools > a { border-color: #fff; background: #fff; color: #1d396a; }
+.workshop-header-tools svg { width: 14px; height: 14px; }
+.workshop-manage-dialog .workshop-dialog-tabs { display: flex; flex: none; justify-content: center; gap: 8px; padding: 16px 0; border: 0; background: #fff; }
+.workshop-manage-dialog .workshop-dialog-tabs > button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex: initial; min-height: 36px; padding: 8px 15px; border: 0; border-radius: 999px; background: #f0f3f8; color: #7388a7; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.workshop-manage-dialog .workshop-dialog-tabs > button[aria-pressed='true'] { background: #1d396a; color: #fff; box-shadow: none; }
+.workshop-manage-dialog .workshop-dialog-tabs svg { width: 14px; height: 14px; }
+.workshop-manage-dialog .workshop-dialog-body { flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; scrollbar-gutter: stable; overflow-y: auto; }
+.workshop-manage-dialog :is(.workshop-execution-view, .workshop-summary) { padding: 8px 6px 22px; }
+.workshop-manage-dialog .workshop-dialog-footer { margin: 0 -16px; padding: 10px 22px; }
+.workshop-manage-dialog .workshop-summary-people { gap: 20px 28px; padding: 5px 0 18px; }
+.workshop-manage-dialog .workshop-summary-people > div { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.workshop-manage-dialog .workshop-summary-people > div > span { width: 28px; height: 28px; background: transparent; color: #94a6bf; }
+.workshop-manage-dialog .workshop-summary-people p:first-child { font-size: 10px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.workshop-manage-dialog .workshop-summary-people p:nth-child(2) { font-size: 14px; font-weight: 600; }
+.workshop-manage-dialog .workshop-summary-people > div:first-child p:nth-child(2) { font-size: 24px; line-height: 1.25; }
+.workshop-manage-dialog .workshop-summary-metrics { gap: 0; padding: 4px; border-radius: 16px; background: #f5f6f8; }
+.workshop-manage-dialog .workshop-summary-metrics > div { padding: 14px; background: transparent; }
+.workshop-manage-dialog .workshop-summary-metrics > div > p:nth-child(2) { color: #1d396a; font-size: 20px; }
+.workshop-manage-dialog .workshop-summary-columns { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+.workshop-manage-dialog .workshop-summary-work { min-width: 0; padding: 18px; border-radius: 16px; background: #f5f6f8; }
+.workshop-manage-dialog .workshop-summary-progress { margin: 0 0 20px; padding: 0 0 18px; border-bottom: 1px solid #e6ebf2; }
+.workshop-manage-dialog .workshop-summary-items > div > div { border: 0; background: transparent; }
+.workshop-manage-dialog .workshop-summary-items > div > div > div { padding-inline: 0; background: transparent; }
+.workshop-manage-dialog .workshop-summary-items li { padding-inline: 0; }
+.workshop-manage-dialog .workshop-summary-items li p:first-child { font-size: 12px; font-weight: 500; }
+.workshop-manage-dialog .workshop-summary-context { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.workshop-manage-dialog .workshop-summary-context > div { border: 0; background: #f5f6f8; }
+.workshop-manage-dialog .workshop-summary-context > div p:first-child { font-size: 10px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+/* La cuadrícula también organiza el panel completo de la ficha de OT.
+   display:contents mantiene el fieldset nativo que bloquea dobles envíos. */
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 18px; padding: 0; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-heading { grid-column: 1 / -1; padding: 0 0 12px; border: 0; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-heading > div > span { display: flex; width: 34px; height: 34px; background: #f0f3f8; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-heading > div > span svg { width: 18px; height: 18px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-heading h2 { font-size: 14px; font-weight: 600; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-heading p { max-width: 360px; font-size: 11px; line-height: 1.7; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-panel > :is([role='alert'], p) { grid-column: 1 / -1; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-edit-fields { display: contents; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-execution-columns { display: block; grid-column: 1; grid-row: auto; padding: 0; border: 0; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-checklist-heading { align-items: flex-start; gap: 8px; padding-bottom: 12px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-checklist-heading h3 { font-size: 12px; font-weight: 600; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-checklist-heading p { font-size: 10px; line-height: 1.7; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-checklist-heading > span { flex: none; font-size: 10px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-task { padding: 16px; border: 0; border-radius: 16px; background: #f5f6f8; box-shadow: none; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-task h4 { font-size: 13px; font-weight: 600; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-task > div:first-child span { border: 0; background: transparent; font-size: 10px; font-weight: 500; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-task-statuses { gap: 3px; padding: 4px; border-radius: 11px; background: #e9edf3; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-task-statuses > button { flex-direction: column; min-width: 0; min-height: 42px; gap: 3px; padding: 5px 2px; border: 0; border-radius: 8px; background: transparent; color: #6b7f99; font-size: 10px; font-weight: 500; box-shadow: none; --tw-ring-shadow: 0 0 #0000; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-task-statuses > button[aria-pressed='true'] { background: #fff; color: #1d396a; box-shadow: 0 1px 4px #24385a12; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-task-statuses > button[aria-pressed='true'][data-status='completado'] { color: #1a7a52; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-task-statuses > button:disabled:not([aria-pressed='true']) { opacity: .45; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-execution-side { display: grid; grid-column: 2; align-content: start; gap: 16px; min-width: 0; }
+:is(.workshop-manage-dialog, .workshop-record-page) :is(.workshop-progress-form, .workshop-progress-history, .workshop-request-history) { grid-row: auto; grid-column: auto; margin: 0; padding: 18px; border: 0; border-radius: 16px; background: #f5f6f8; }
+:is(.workshop-manage-dialog, .workshop-record-page) :is(.workshop-progress-form, .workshop-progress-history, .workshop-request-history, .workshop-request-form) h3 { font-size: 13px; font-weight: 600; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-progress-history > div > div { grid-template-columns: minmax(0, 1fr); padding: 12px; border: 0; background: #fff; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-request-form { grid-column: 1; min-width: 0; padding: 0; border: 0; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-request-form > div { padding: 18px; border: 0; border-radius: 16px; background: #f5f6f8; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-request-history { grid-column: 2; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-request-history > div:nth-child(2) { border: 0; background: transparent; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-request-history > div:nth-child(2) > div { grid-template-columns: minmax(0, 1fr); padding: 14px 0; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-request-types { gap: 4px; background: #e9edf3; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-request-types button { font-weight: 500; font-size: 11px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-request-types button[aria-pressed='true'] { background: #1d396a; color: #fff; box-shadow: none; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-panel :is(input, select, textarea) { min-width: 0; max-width: 100%; border-color: #e3e9f1; background: #fff; border-radius: 10px; font-size: 12px; font-weight: 400; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-panel :is(input, select):not([type='checkbox']) { min-height: 38px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-panel label { font-size: 11px; font-weight: 500; }
+:is(.workshop-manage-dialog, .workshop-record-page) [hidden] { display: none; }
+
+.workshop-record-page { max-width: 1440px; margin-inline: auto; padding-bottom: 24px; }
+.workshop-record-header { align-items: flex-start; padding: 20px 22px; border-radius: 18px; background: #1d396a; color: #fff; }
+.workshop-record-header > div:first-child { flex: 1 1 auto; min-width: 0; }
+.workshop-record-header > div:first-child > a { width: 34px; height: 34px; border: 1px solid #ffffff40; border-radius: 50%; background: #ffffff12; color: #fff; }
+.workshop-record-header > div:first-child p { color: #d8e3f4; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; }
+.workshop-record-header h1 { color: #fff; font-family: inherit; font-size: 28px; font-weight: 600; }
+.workshop-record-header .workshop-header-status { border: 0; border-radius: 999px; background: #ffffff20; color: #fff; box-shadow: none; }
+.workshop-record-tools { max-width: 650px; justify-content: flex-end; }
+.workshop-record-tools > :is(a, button) { min-height: 36px; height: auto; padding: 8px 12px; border: 1px solid #ffffff40; border-radius: 999px; background: #ffffff0d; color: #fff; font-size: 11px; font-weight: 500; box-shadow: none; }
+.workshop-record-tools > :is(a, button):hover { background: #ffffff28; }
+.workshop-record-tools > button:last-child { background: #fff; color: #1d396a; }
+.workshop-record-nav { display: flex; flex-wrap: wrap; gap: 5px; width: fit-content; max-width: 100%; padding: 5px; border-radius: 13px; background: #e8edf6; }
+.workshop-record-nav a { padding: 9px 12px; border-radius: 9px; color: #5b7294; font-size: 12px; font-weight: 500; }
+.workshop-record-nav a:hover, .workshop-record-nav a:focus-visible { background: #fff; color: #1d396a; }
+.workshop-record-page > section { min-width: 0; scroll-margin-top: 24px; border: 0; border-radius: 18px; background: #fff; box-shadow: none; }
+.workshop-record-page > section > :is(div.border-b, div.border-t) { border-color: #edf2f8; }
+.workshop-record-page > section h2 { font-size: 15px; font-weight: 600; }
+.workshop-record-page > .workshop-mechanic-panel { padding: 22px; border-radius: 18px; background: #fff; }
+.workshop-record-page .workshop-record-photos { scroll-margin-top: 24px; }
+.workshop-record-photos > div:nth-child(2) > div { border-color: #edf2f8; border-radius: 14px; }
+
+.workshop-edit-dialog { padding: 16px 16px 0; border: 0; border-radius: 24px; }
+.workshop-edit-dialog .reception-edit-heading { padding: 18px 20px; border-radius: 16px; background: #1d396a; color: #fff; }
+.workshop-edit-dialog .reception-edit-heading p { color: #d8e3f4; font-size: 11px; }
+.workshop-edit-dialog .reception-edit-heading h2 { color: #fff; font-size: 20px; font-weight: 600; }
+.workshop-edit-dialog .reception-edit-heading > button { border: 1px solid #ffffff40; border-radius: 50%; background: #ffffff12; color: #fff; }
+.workshop-edit-dialog .reception-edit-footer { position: relative; z-index: 1; margin-inline: -16px; padding: 12px 22px; background: #fff; }
+.workshop-edit-dialog fieldset.reception-edit-body { position: relative; z-index: 0; padding: 22px 6px; overscroll-behavior: contain; }
+.workshop-edit-dialog .reception-edit-body > section { padding: 16px; border-radius: 14px; background: #f5f6f8; }
+.workshop-action-dialog { max-height: calc(100dvh - 32px); border: 0; border-radius: 24px; overflow-y: auto; outline: none; }
+.workshop-action-dialog .ui-modal-header { gap: 12px; padding: 24px 24px 18px; }
+.workshop-action-dialog .ui-modal-header h2 { font-size: 20px; font-weight: 600; }
+.workshop-action-dialog .ui-modal-badge { width: 44px; height: 44px; margin-bottom: 12px; }
+.workshop-action-dialog :is(input, select, textarea) { max-width: 100%; border-radius: 10px; border-color: #e3e9f1; }
+.workshop-action-dialog form > div:last-child { border-color: #edf2f8; }
+
+@media (max-width: 767.98px) {
+  .workshop-manage-dialog { max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); padding: 10px 10px 0; border-radius: 20px; }
+  .workshop-manage-dialog .ui-modal-header { flex-direction: column; align-items: stretch; gap: 10px; padding: 15px; position: relative; }
+  .workshop-manage-dialog .ui-modal-header > div:first-child { padding-right: 38px; }
+  .workshop-manage-dialog .ui-modal-title-row h2 { font-size: 24px; }
+  .workshop-manage-dialog .ui-modal-header-controls { justify-content: flex-start; }
+  .workshop-manage-dialog .workshop-header-tools { display: contents; }
+  .workshop-manage-dialog .ui-modal-close { position: absolute; top: 12px; right: 12px; }
+  .workshop-manage-dialog .workshop-dialog-tabs { gap: 4px; padding: 12px 0; overflow-x: auto; justify-content: flex-start; }
+  .workshop-manage-dialog .workshop-dialog-tabs > button { flex: 1 0 auto; min-height: 42px; padding: 8px 10px; font-size: 10px; }
+  .workshop-manage-dialog .workshop-dialog-tabs > button svg { display: none; }
+  .workshop-manage-dialog :is(.workshop-execution-view, .workshop-summary) { padding: 6px 2px 18px; }
+  .workshop-manage-dialog .workshop-dialog-footer { margin-inline: -10px; padding: 10px 12px; }
+  .workshop-manage-dialog .workshop-summary-people { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 8px; }
+  .workshop-manage-dialog .workshop-summary-people > div > span { display: none; }
+  .workshop-manage-dialog .workshop-summary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workshop-manage-dialog .workshop-summary-columns { grid-template-columns: minmax(0, 1fr); }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-panel { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-heading { gap: 12px; padding-bottom: 2px; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-heading > label { flex-wrap: wrap; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-heading select { flex: 1; width: 100%; min-width: 0; }
+  :is(.workshop-manage-dialog, .workshop-record-page) :is(.workshop-execution-columns, .workshop-execution-side, .workshop-request-form, .workshop-request-history) { grid-column: 1; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-task-statuses > button { min-height: 44px; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-panel :is(input, select, textarea) { font-size: 16px; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-mechanic-panel :is(button, input, select):not([type='checkbox']) { min-height: 44px; }
+  .workshop-record-header { padding: 18px 16px; }
+  .workshop-record-header > div:first-child { flex-basis: auto; }
+  .workshop-record-tools { justify-content: flex-start; gap: 6px; }
+  .workshop-record-tools > :is(a, button) { min-height: 44px; }
+  .workshop-record-nav { width: 100%; gap: 2px; }
+  .workshop-record-nav a { flex: 1 0 auto; text-align: center; font-size: 11px; }
+  .workshop-record-page > .workshop-mechanic-panel { padding: 16px; }
+  .workshop-edit-dialog { padding: 10px 10px 0; border-radius: 20px; }
+  .workshop-edit-dialog .reception-edit-heading { padding: 16px; }
+  .workshop-edit-dialog .reception-edit-heading h2 { font-size: 17px; }
+  .workshop-edit-dialog .reception-edit-footer { margin-inline: -10px; }
+  :is(.workshop-action-dialog, .workshop-edit-dialog) :is(input, textarea, select) { font-size: 16px; }
+  .workshop-edit-dialog fieldset.reception-edit-body :is(input, textarea, select) { font-size: 16px; }
+  .workshop-edit-dialog fieldset.reception-edit-body :is(input:not([type='checkbox']), select) { min-height: 44px; }
+}

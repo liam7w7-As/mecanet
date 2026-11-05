@@ -270,6 +270,34 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
   const mutationError =
     assignMutation.error ?? executionMutation.error ?? requestMutation.error ?? reviewMutation.error;
 
+  const progressHistory = (
+    <div className="workshop-progress-history border-t border-brand-line p-5 sm:p-6" hidden={section === 'requests'}>
+      <h3 className="text-sm font-bold text-brand-ink">Bitácora de avances reportados</h3>
+      <div className="mt-3 space-y-2.5">
+        {workOrder.progressReports?.map((report) => (
+          <div
+            key={report.id}
+            className="grid gap-2 rounded-xl border border-brand-line bg-[#fbfcfd] p-3.5 sm:grid-cols-[5rem_1fr_auto] sm:items-center"
+          >
+            <strong className="text-base font-black text-brand-primary">{report.porcentaje}%</strong>
+            <div>
+              <p className="text-xs font-semibold text-brand-ink sm:text-sm">{report.comentario}</p>
+              {report.bloqueos && (
+                <p className="mt-0.5 text-xs text-brand-goldInk">Bloqueo: {report.bloqueos}</p>
+              )}
+            </div>
+            <span className="text-xs text-brand-muted">
+              {report.mechanic?.nombre ?? 'Usuario'} · {formatDateTime(report.createdAt)}
+            </span>
+          </div>
+        ))}
+        {(workOrder.progressReports?.length ?? 0) === 0 && (
+          <p className="py-5 text-center text-sm text-brand-muted">Aún no se han reportado avances.</p>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <section className="workshop-mechanic-panel min-w-0 overflow-hidden rounded-2xl border border-brand-line bg-white shadow-xs" data-section={section} aria-labelledby="mechanic-panel-title">
       {/* Cabecera del panel */}
@@ -404,6 +432,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
                                 saveItem(item.id, statusOption);
                               }}
                               aria-pressed={isOptionActive}
+                              data-status={statusOption}
                               disabled={isPendingForThis || isLockedForRole}
                               title={isLockedForRole ? 'Solo el jefe de taller o administrador puede revertir el estado' : undefined}
                               className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-bold transition-all sm:gap-2 sm:text-sm ${
@@ -465,6 +494,9 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
               )}
             </div>
 
+          </div>
+
+          <div className="workshop-execution-side" hidden={section === 'requests'}>
             {/* Reportar avance */}
             <div className="workshop-progress-form mt-8 rounded-2xl border border-brand-line bg-[#fbfcfd] p-5">
               <h3 className="text-sm font-bold text-brand-ink">Reportar avance</h3>
@@ -512,6 +544,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
                 Registrar avance
               </button>
             </div>
+            {progressHistory}
           </div>
 
           {/* Solicitudes de repuestos / aumentos */}
@@ -521,7 +554,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
               <p className="mt-0.5 text-xs text-brand-muted">
                 Petición de insumos o actualización de presupuesto.
               </p>
-              <div className={`mt-4 grid ${isSupervisor ? 'grid-cols-2' : 'grid-cols-1'} rounded-xl bg-brand-pale/70 p-1`}>
+              <div className={`workshop-request-types mt-4 grid ${isSupervisor ? 'grid-cols-2' : 'grid-cols-1'} rounded-xl bg-brand-pale/70 p-1`}>
                 <button
                   type="button"
                   className={`h-9 rounded-lg text-xs font-bold transition ${
@@ -530,6 +563,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
                       : 'text-brand-muted hover:text-brand-ink'
                   }`}
                   onClick={() => setRequestType('repuesto')}
+                  aria-pressed={requestType === 'repuesto'}
                 >
                   Nuevo repuesto
                 </button>
@@ -542,6 +576,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
                         : 'text-brand-muted hover:text-brand-ink'
                     }`}
                     onClick={() => setRequestType('aumento_precio')}
+                    aria-pressed={requestType === 'aumento_precio'}
                   >
                     Sugerir aumento
                   </button>
@@ -737,32 +772,8 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
         </div>
       </div>
 
-      {/* Bitácora de reportes de avance */}
-      <div className="workshop-progress-history border-t border-brand-line p-5 sm:p-6" hidden={section === 'requests'}>
-        <h3 className="text-sm font-bold text-brand-ink">Bitácora de avances reportados</h3>
-        <div className="mt-3 space-y-2.5">
-          {workOrder.progressReports?.map((report) => (
-            <div
-              key={report.id}
-              className="grid gap-2 rounded-xl border border-brand-line bg-[#fbfcfd] p-3.5 sm:grid-cols-[5rem_1fr_auto] sm:items-center"
-            >
-              <strong className="text-base font-black text-brand-primary">{report.porcentaje}%</strong>
-              <div>
-                <p className="text-xs font-semibold text-brand-ink sm:text-sm">{report.comentario}</p>
-                {report.bloqueos && (
-                  <p className="mt-0.5 text-xs text-brand-goldInk">Bloqueo: {report.bloqueos}</p>
-                )}
-              </div>
-              <span className="text-xs text-brand-muted">
-                {report.mechanic?.nombre ?? 'Usuario'} · {formatDateTime(report.createdAt)}
-              </span>
-            </div>
-          ))}
-          {(workOrder.progressReports?.length ?? 0) === 0 && (
-            <p className="py-5 text-center text-sm text-brand-muted">Aún no se han reportado avances.</p>
-          )}
-        </div>
-      </div>
+      {!canExecute && section !== 'requests' && progressHistory}
+
     </section>
   );
 };

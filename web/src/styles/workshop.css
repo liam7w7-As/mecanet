@@ -146,7 +146,7 @@
 
 /* ── Colour tiers (data-colour) ──────────────────────────────────────────── */
 
-/* Verde oscuro — finalizada */
+/* Verde oscuro — finalizada o con todos los trabajos medibles completados */
 .workshop-card[data-colour=done],
 .workshop-card-popover[data-colour=done] {
   --card-accent:       #1a7a52;
@@ -170,16 +170,16 @@
   --card-control-text: #397d6b;
 }
 
-/* Amarillo — 20–30 d, o gracia post-rojo */
+/* Amarillo claro fijo — 20–30 d, o dos días desde el último trabajo real */
 .workshop-card[data-colour=warning],
 .workshop-card-popover[data-colour=warning] {
-  --card-accent:       #d4971a;
-  --card-soft:         #fffbeb;
-  --card-band:         #d4971a;
-  --card-band-text:    #fff;
-  --card-accent-text:  #a8750d;
-  --card-control:      #fde9a2;
-  --card-control-text: #7a5508;
+  --card-accent:       #edca35;
+  --card-soft:         #fffbe3;
+  --card-band:         #f5d547;
+  --card-band-text:    #5b4a0c;
+  --card-accent-text:  #806609;
+  --card-control:      #fff0ad;
+  --card-control-text: #5b4a0c;
 }
 
 /* Rojo — más de 30 días sin actividad */
@@ -194,16 +194,16 @@
   --card-control-text: #952020;
 }
 
-/* Amarillo parpadeante — esperando_repuesto */
+/* Amarillo limón parpadeante — esperando_repuesto */
 .workshop-card[data-colour=waiting],
 .workshop-card-popover[data-colour=waiting] {
-  --card-accent:       #d4971a;
-  --card-soft:         #fffbeb;
-  --card-band:         #d4971a;
-  --card-band-text:    #fff;
-  --card-accent-text:  #a8750d;
-  --card-control:      #fde9a2;
-  --card-control-text: #7a5508;
+  --card-accent:       #d4df24;
+  --card-soft:         #fafcd9;
+  --card-band:         #e9f246;
+  --card-band-text:    #46500d;
+  --card-accent-text:  #687514;
+  --card-control:      #f1f6ab;
+  --card-control-text: #46500d;
 }
 
 /* Gris oscuro con negro — entregada */
@@ -230,17 +230,18 @@
   --card-control-text: #52606d;
 }
 
-/* Parpadeo amarillo para esperando_repuesto */
+/* Solo esperando_repuesto pulsa; el amarillo por antigüedad permanece fijo. */
 @media (prefers-reduced-motion: no-preference) {
   .workshop-card[data-colour=waiting] {
-    animation: workshop-waiting-pulse 2s ease-in-out infinite;
+    animation: workshop-yellow-pulse 2.4s ease-in-out infinite;
   }
   .workshop-card[data-colour=waiting]:is(:hover, :focus-within, [data-expanded=true]) {
     animation: none;
   }
-}@keyframes workshop-waiting-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 151, 26, 0); border-color: rgba(212, 151, 26, 0.3); }
-  50%       { box-shadow: 0 0 0 5px rgba(212, 151, 26, 0.18); border-color: rgba(212, 151, 26, 0.7); }
+}
+@keyframes workshop-yellow-pulse {
+  0%, 100% { opacity: 1; background-color: #fff; box-shadow: 0 0 0 0 #d4df2400; border-color: #d4df244d; }
+  50% { opacity: .78; background-color: #f3f7a5; box-shadow: 0 0 0 4px #d4df2426; border-color: #d4df24b3; }
 }
 
 .workshop-state-finalizada,
@@ -911,7 +912,7 @@
   .workshop-period-picker > button > span, .workshop-period-picker > button > svg:last-child { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .workshop-card, .workshop-card[data-colour=cancelled], .workshop-card[data-colour=waiting], .workshop-card-information, .workshop-parts-wait, .workshop-card-expand svg { animation: none; transition: none; }
+  .workshop-card, .workshop-card[data-colour=cancelled], .workshop-card[data-colour=waiting], .workshop-card[data-colour=warning], .workshop-card-information, .workshop-parts-wait, .workshop-card-expand svg { animation: none; transition: none; }
   .workshop-card[data-colour=cancelled] { opacity: .65; }
   .workshop-card[data-colour=cancelled]:is(:hover, :focus-within, [data-expanded=true]) { opacity: 1; }
 }

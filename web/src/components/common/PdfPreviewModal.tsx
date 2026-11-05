@@ -534,7 +534,7 @@ const InspectionPhotosSheet = ({ photos, code, workOrderCode, clientName, vehicl
     </div>
     <div className="mt-3 flex justify-between border-t border-slate-200 pt-1 text-[9px] text-slate-500">
       <div>{company.nombreComercial} | Anexo fotográfico de recepción | {code}</div>
-      <div>Página {totalPages} de {totalPages}</div>
+      <div>Fotos de recepción ({photos.length})</div>
     </div>
   </div>
   );
@@ -561,15 +561,9 @@ export const OfficialDocumentSheets = ({
     </div>;
   }
   if (!quotation) return null;
-  const photos = quotation.workOrder?.inspectionPhotos ?? [];
-  const totalPages = getQuotationDocumentPages(quotation).length + (photos.length ? 1 : 0);
+  const totalPages = getQuotationDocumentPages(quotation).length;
   return <div data-official-template="quotation">
     <QuotationDocument quotation={quotation} totalPages={totalPages} />
-    {photos.length > 0 && <InspectionPhotosSheet photos={photos} code={quotation.codigo}
-      workOrderCode={quotation.workOrder?.codigo ?? quotation.codigo}
-      clientName={quotation.client?.nombre ?? 'Sin cliente'}
-      vehicle={[quotation.vehicle?.patente, quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin vehículo'}
-      totalPages={totalPages} />}
   </div>;
 };
 
@@ -600,7 +594,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   const hasPhotos = photos.length > 0;
   const totalPages = isOT
     ? 2
-    : (quotation ? getQuotationDocumentPages(quotation).length : 1) + (hasPhotos ? 1 : 0);
+    : (quotation ? getQuotationDocumentPages(quotation).length : 1);
   const photosSheet = !isOT && hasPhotos ? <InspectionPhotosSheet photos={photos} code={displayCode}
     workOrderCode={quotation?.workOrder?.codigo ?? displayCode}
     clientName={quotation?.client?.nombre ?? 'Sin cliente'}

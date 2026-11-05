@@ -296,8 +296,8 @@ export const WorkOrderDetailPage = () => {
   }
 
   return (
-    <div className="min-w-0 space-y-5">
-      <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <div className="workshop-record-page min-w-0 space-y-5">
+      <header className="workshop-record-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex items-start gap-3">
           <Link to="/work-orders" className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:bg-brand-pale" aria-label="Volver a órdenes" title="Volver">
             <AnimateIcon variant="slide-left" animateOnHover>
@@ -305,15 +305,15 @@ export const WorkOrderDetailPage = () => {
             </AnimateIcon>
           </Link>
           <div>
-            <p className="text-sm font-medium text-brand-muted">Seguimiento operativo</p>
+            <p className="text-sm font-medium text-brand-muted">Ficha de taller · Orden de trabajo</p>
             <div className="mt-1 flex flex-wrap items-center gap-3">
               <h1 className="font-mono text-2xl font-bold text-brand-primaryInk sm:text-3xl">{workOrder.codigo}</h1>
-              <WorkOrderStatusBadge status={workOrder.estado} />
+              <WorkOrderStatusBadge className="workshop-header-status" status={workOrder.estado} />
               {workOrder.tipoIngreso && workOrder.tipoIngreso !== 'normal' && <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${workOrder.tipoIngreso === 'garantia' ? 'bg-brand-goldPale text-brand-goldInk' : 'bg-brand-pale text-brand-primaryInk'}`}>{workOrder.tipoIngreso === 'garantia' ? 'Garantía' : 'Reingreso'}{workOrder.coberturaGarantia ? ' cubierta' : ''}</span>}
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="workshop-record-tools flex flex-wrap gap-2">
           {canManageWorksheet && (
             <Link to={`/work-orders/${workOrder.id}/ficha`} className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-primaryInk bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow">
               <AnimateIcon variant="pulse" animateOnHover>
@@ -397,11 +397,16 @@ export const WorkOrderDetailPage = () => {
           </button>
         </div>
       </header>
+      <nav className="workshop-record-nav" aria-label="Secciones de la orden de trabajo">
+        <a href="#ot-summary">Resumen</a><a href="#ot-reception">Recepción</a>
+        <a href="#ot-photos">Fotos</a><a href="#ot-control">Control del taller</a>
+        <a href="#ot-activity">Actividad y costos</a>
+      </nav>
       <CustomerEmailPanel kind="work_order" id={workOrder.id} />
 
       {(statusMutation.isError || uploadPhotosMutation.isError || deletePhotoMutation.isError || receptionPdfMutation.isError || shareReceptionPdfMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(statusMutation.error ?? uploadPhotosMutation.error ?? deletePhotoMutation.error ?? receptionPdfMutation.error ?? shareReceptionPdfMutation.error)}</div>}
 
-      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="work-order-summary-title">
+      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" id="ot-summary" aria-labelledby="work-order-summary-title">
         <div className="border-b border-brand-line px-5 py-4"><h2 id="work-order-summary-title" className="font-bold text-brand-primaryInk">Resumen de la orden</h2></div>
         <div className="grid divide-y divide-brand-line md:grid-cols-3 md:divide-x md:divide-y-0">
           <div className="p-5"><div className="flex items-center gap-2 text-sm font-semibold text-brand-muted"><Wrench className="h-4 w-4" aria-hidden="true" />Vehículo</div><p className="mt-3 font-mono text-xl font-bold text-brand-primaryInk">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</p><p className="mt-1 text-sm text-brand-muted">{[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos técnicos'}</p><p className="mt-2 text-xs text-brand-muted">Propietario registrado: {workOrder.vehicleOwner?.nombre ?? 'Sin propietario'}</p><p className="mt-2 flex items-center gap-1 text-xs text-brand-muted"><Gauge className="h-3.5 w-3.5" aria-hidden="true" />{workOrder.kilometrajeIngreso === null ? 'Kilometraje no registrado' : `${workOrder.kilometrajeIngreso.toLocaleString('es-CL')} km`}</p></div>
@@ -411,7 +416,7 @@ export const WorkOrderDetailPage = () => {
         <div className="border-t border-brand-line px-5 py-4"><p className="text-xs font-semibold uppercase text-brand-muted">Motivo de ingreso / diagnóstico</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-ink">{workOrder.descripcion ?? 'Sin observaciones registradas.'}</p></div>
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="reception-billing-title">
+      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" id="ot-reception" aria-labelledby="reception-billing-title">
         <div className="border-b border-brand-line px-5 py-4">
           <h2 id="reception-billing-title" className="font-bold text-brand-primaryInk">Recepción y facturación</h2>
           <p className="mt-1 text-sm text-brand-muted">Diferencia entre quien deja físicamente el vehículo y los datos usados para emitir la factura.</p>
@@ -496,7 +501,7 @@ export const WorkOrderDetailPage = () => {
         ) : (
           <p className="px-5 py-8 text-center text-sm text-brand-muted">Esta orden aún no tiene inspección registrada.</p>
         )}
-            <div className="border-t border-brand-line px-5 py-4">
+            <div id="ot-photos" className="workshop-record-photos border-t border-brand-line px-5 py-4">
               <div className="flex items-center gap-2">
                 <Camera className="h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
                 <h3 className="font-bold text-brand-primaryInk">Registro fotográfico</h3>
@@ -556,7 +561,7 @@ export const WorkOrderDetailPage = () => {
             </div>
       </section>
 
-      <section className="rounded-lg border border-brand-line bg-white p-5" aria-labelledby="status-control-title">
+      <section className="rounded-lg border border-brand-line bg-white p-5" id="ot-control" aria-labelledby="status-control-title">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div><p className="text-xs font-semibold uppercase text-brand-muted">Control operativo</p><h2 id="status-control-title" className="mt-1 text-lg font-bold text-brand-primaryInk">Cambiar estado</h2><p className="mt-1 text-sm text-brand-muted">Estado actual: {WORK_ORDER_STATUS_LABELS[workOrder.estado]}</p></div>
           <div className="flex flex-wrap gap-2">
@@ -602,7 +607,7 @@ export const WorkOrderDetailPage = () => {
         </section>
       )}
 
-      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="audit-title">
+      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" id="ot-activity" aria-labelledby="audit-title">
         <div className="flex items-start gap-3 border-b border-brand-line px-5 py-4">
           <ClipboardCheck className="mt-0.5 h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
           <div>

@@ -1,5 +1,6 @@
 import { WorkOrderItemProgressEvent } from '../models/WorkOrderItemProgressEvent.js';
 
+import type { WorkOrderItem } from '../models/WorkOrderItem.js';
 import type { ItemOperationalStatus } from '@unithor/shared';
 import type { Transaction } from 'sequelize';
 
@@ -60,4 +61,26 @@ export const recordItemProgressEvent = async (
     },
     { transaction },
   );
+};
+
+/** Keep the same operational history when a checklist is edited through OT or its mirror COT. */
+export const recordChecklistStatusChange = async (
+  item: WorkOrderItem,
+  previousStatus: ItemOperationalStatus,
+  userId: number,
+  transaction: Transaction,
+): Promise<void> => {
+  if (previousStatus === item.estadoOperativo) return;
+  await recordItemProgressEvent({
+    workOrderId: item.workOrderId,
+    workOrderItemId: item.id,
+    itemDescripcion: item.descripcion,
+    fromStatus: previousStatus,
+    toStatus: item.estadoOperativo,
+    performedByUserId: userId,
+    assignedUserId: item.assignedUserId,
+    horasEstimadas: item.horasHombreEstimadas === null ? null : Number(item.horasHombreEstimadas) * Number(item.cantidad),
+    horasReales: item.horasHombreReales === null ? null : Number(item.horasHombreReales),
+    source: item.estadoOperativo === 'completado' || (previousStatus === 'pendiente' && item.estadoOperativo === 'en_proceso') ? 'check' : 'reverso',
+  }, transaction);
 };

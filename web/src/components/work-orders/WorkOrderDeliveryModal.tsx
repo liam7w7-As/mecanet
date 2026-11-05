@@ -107,7 +107,7 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
         aria-label="Cerrar entrega"
         onClick={onClose}
       />
-      <section className="relative max-h-[92vh] w-full max-w-[720px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="delivery-title">
+      <section className="workshop-action-dialog relative max-h-[92vh] w-full max-w-[720px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="delivery-title">
         <ModalHeader
   id="delivery-title"
   badge={<PackageCheck className="h-6 w-6" aria-hidden="true" />}

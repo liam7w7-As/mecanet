@@ -518,6 +518,7 @@ describe('WorkOrdersPage', () => {
 
     await screen.findByText('OT-2026-0012');
     expect(screen.getByLabelText('Avance: Finalizado')).toHaveTextContent('100%');
+    expect(screen.getByRole('article', { name: `Orden ${workOrder.codigo}` })).toHaveAttribute('data-colour', 'done');
   });
 
   it('muestra la bitácora de actividad con actor y fecha', async () => {

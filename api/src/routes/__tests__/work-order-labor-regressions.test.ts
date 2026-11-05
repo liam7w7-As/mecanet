@@ -15,6 +15,7 @@ import { WorkOrderItem } from '../../models/WorkOrderItem.js';
 import { WorkOrderItemProgressEvent } from '../../models/WorkOrderItemProgressEvent.js';
 import { WorkOrderItemSession } from '../../models/WorkOrderItemSession.js';
 import { WorkOrderObservation } from '../../models/WorkOrderObservation.js';
+import { WorkOrderProgressReport } from '../../models/WorkOrderProgressReport.js';
 import { hashPassword } from '../../utils/password.js';
 
 const password = 'LaborRegression2026!';
@@ -168,6 +169,64 @@ describe('Labor integrity and mechanic privacy regressions', () => {
     expect((await get(`/api/work-orders?search=${foreign.order.codigo}`, 1)).body.total).toBe(0);
     expect((await get(`/api/work-orders/${foreign.order.id}/worksheet`, 1)).status).toBe(404);
     expect((await get(`/api/work-orders?search=RGRS11`, 2)).body.total).toBe(2);
+  });
+
+  it('administrative edits do not restart the workshop activity clock in list or detail', async () => {
+    const { order, items } = await createOrder();
+    await order.update({ fechaIngreso: new Date(Date.now() - 36 * 86400000) });
+    const edited = await mutate('patch', `/api/work-orders/${order.id}`, { descripcion: 'Solo editar recepción' });
+    expect(edited.status).toBe(200);
+    expect(edited.body.workOrder.lastWorkActivityAt).toBeNull();
+    const execution = await mutate('patch', `/api/work-orders/${order.id}/execution`, {
+      items: [{ id: items[0].id, estadoOperativo: 'en_proceso' }],
+    });
+    expect(execution.status).toBe(200);
+    const active = await get(`/api/work-orders/${order.id}`);
+    expect(Date.parse(active.body.workOrder.lastWorkActivityAt)).toBeGreaterThan(Date.now() - 10000);
+    const oldActivity = new Date(Date.now() - 3 * 86400000);
+    oldActivity.setUTCMilliseconds(0);
+    await WorkOrderItemProgressEvent.update({ createdAt: oldActivity }, { where: { workOrderId: order.id } });
+    const editedAgain = await mutate('patch', `/api/work-orders/${order.id}`, { descripcion: 'Editar nuevamente sin trabajar' });
+    expect(editedAgain.body.workOrder.lastWorkActivityAt).toBe(oldActivity.toISOString());
+    const listed = await get(`/api/work-orders?search=${order.codigo}`);
+    expect(listed.body.items[0].lastWorkActivityAt).toBe(oldActivity.toISOString());
+  });
+
+  it.each(['OT', 'COT'] as const)('records actual checklist work edited through %s but ignores prices, notes and repeats', async (origin) => {
+    const { order, quotation, items } = await createOrder(['Trabajo A', 'Trabajo B']);
+    const previous = await lines(quotation.id);
+    const values = previous.map((line) => ({ ...editable(line), ...(origin === 'OT' ? { id: line.workOrderItemId } : {}) }));
+    const path = origin === 'OT' ? `/api/work-orders/${order.id}` : `/api/quotations/${quotation.id}`;
+    const changed = await mutate('patch', path, { items: values.map((line, index) => ({ ...line, estadoOperativo: index === 0 ? 'completado' : 'pendiente' })) });
+    expect(changed.status, JSON.stringify(changed.body)).toBe(200);
+    expect((await items[0].reload()).estadoOperativo).toBe('completado');
+    const first = (await get(`/api/work-orders/${order.id}`)).body.workOrder.lastWorkActivityAt;
+    expect(Date.parse(first)).toBeGreaterThan(Date.now() - 10000);
+    expect(await WorkOrderItemProgressEvent.count({ where: { workOrderId: order.id } })).toBe(1);
+    const repeated = await mutate('patch', path, { items: values.map((line, index) => ({ ...line, estadoOperativo: index === 0 ? 'completado' : 'pendiente', precioUnitario: 15000, notasOperativas: 'Solo corregir texto' })) });
+    expect(repeated.status, JSON.stringify(repeated.body)).toBe(200);
+    expect((await get(`/api/work-orders/${order.id}`)).body.workOrder.lastWorkActivityAt).toBe(first);
+    expect(await WorkOrderItemProgressEvent.count({ where: { workOrderId: order.id } })).toBe(1);
+  });
+
+  it('counts progress reports and clocked work, excluding estimates and status reversals', async () => {
+    const { order, items } = await createOrder();
+    const estimate = await mutate('patch', `/api/work-orders/${order.id}/items/${items[0].id}/estimate`, { horasHombreEstimadas: 2 });
+    expect(estimate.status, JSON.stringify(estimate.body)).toBe(200);
+    expect((await get(`/api/work-orders/${order.id}`)).body.workOrder.lastWorkActivityAt).toBeNull();
+    const report = await mutate('patch', `/api/work-orders/${order.id}/execution`, { reporte: { porcentaje: 10, comentario: 'Diagnóstico realizado' } });
+    expect(report.status).toBe(200);
+    expect(Date.parse((await get(`/api/work-orders/${order.id}`)).body.workOrder.lastWorkActivityAt)).toBeGreaterThan(Date.now() - 10000);
+    const old = new Date(Date.now() - 4 * 86400000);
+    await WorkOrderProgressReport.update({ createdAt: old }, { where: { workOrderId: order.id } });
+    await runTimer(order.id, items[0].id, 10);
+    const clocked = (await get(`/api/work-orders/${order.id}`)).body.workOrder.lastWorkActivityAt;
+    expect(Date.parse(clocked)).toBeGreaterThan(Date.now() - 10000);
+    await WorkOrderItemSession.destroy({ where: { workOrderId: order.id } });
+    await WorkOrderItemProgressEvent.update({ createdAt: old }, { where: { workOrderId: order.id } });
+    const reversal = await mutate('patch', `/api/work-orders/${order.id}/execution`, { items: [{ id: items[0].id, estadoOperativo: 'pendiente' }] });
+    expect(reversal.status).toBe(200);
+    expect(Date.parse((await get(`/api/work-orders/${order.id}`)).body.workOrder.lastWorkActivityAt)).toBeLessThan(Date.now() - 3 * 86400000);
   });
 
   it('preserves item IDs, hours, assignments, validations and history through commercial edits', async () => {

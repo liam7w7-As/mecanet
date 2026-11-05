@@ -382,6 +382,7 @@ export interface WorkOrder {
   sourceWorkOrder?: WorkOrderRelation | null;
   relatedWorkOrders?: WorkOrderRelation[];
   events?: WorkOrderEvent[];
+  lastWorkActivityAt?: string | null;
   progressReports?: WorkOrderProgressReport[];
   requests?: WorkOrderRequest[];
 }
@@ -414,6 +415,7 @@ export interface QuotationWorkOrder {
   estado: string;
   updatedAt?: string;
   inspectionPhotos?: WorkOrderInspectionPhoto[];
+  billing?: WorkOrderBilling | null;
 }
 
 export interface ItemCatalogInfo {
@@ -461,6 +463,7 @@ export interface Quotation {
   createdAt: string;
   updatedAt: string;
   client?: QuotationClient | null;
+  billing?: WorkOrderBilling | null;
   vehicle?: QuotationVehicle | null;
   asesor?: QuotationAdvisor | null;
   workOrder?: QuotationWorkOrder | null;

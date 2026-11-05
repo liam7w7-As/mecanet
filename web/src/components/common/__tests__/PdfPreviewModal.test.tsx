@@ -321,7 +321,7 @@ describe('PdfPreviewModal', () => {
       expect(portal).toHaveTextContent(text);
     }
     expect(portal).not.toHaveTextContent('Débito/Crédito');
-    expect(portal).not.toHaveTextContent('IVA (19%)');
+    expect(portal).toHaveTextContent('IVA (19%)');
   });
 
   it('pagina los conceptos extensos sin reducir toda la cotización a una sola hoja', () => {
@@ -375,7 +375,7 @@ describe('PdfPreviewModal', () => {
     expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
   });
 
-  it('mantiene el anexo fotográfico separado en la cotización', () => {
+  it('permite ver fotos en la previsualización pero no las incluye en el PDF impreso/descargado', () => {
     const photos = WORK_ORDER_INSPECTION_PHOTO_SLOTS.map((slot, index) => ({
       id: index + 1, slot, mimeType: 'image/png', sizeBytes: 1024, uploadedBy: 1,
       createdAt: mockWorkOrder.createdAt, updatedAt: mockWorkOrder.updatedAt,
@@ -389,8 +389,8 @@ describe('PdfPreviewModal', () => {
     expect(within(screen.getByRole('dialog')).getAllByRole('img', { name: /^Foto / })).toHaveLength(9);
 
     const printPortal = document.getElementById('unithor-print-portal')!;
-    expect(printPortal.querySelectorAll('img[alt^="Foto "]')).toHaveLength(9);
-    expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
+    expect(printPortal.querySelectorAll('img[alt^="Foto "]')).toHaveLength(0);
+    expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(1);
   });
 
   it('mantiene todos los servicios y solo dos hojas en una OT extensa', () => {

@@ -161,13 +161,13 @@
 /* Verde claro — en progreso normal (< 20 d, < 100 %) */
 .workshop-card[data-colour=active],
 .workshop-card-popover[data-colour=active] {
-  --card-accent:       #38b277;
-  --card-soft:         #f1faf5;
-  --card-band:         #38b277;
-  --card-band-text:    #fff;
-  --card-accent-text:  #2f9365;
-  --card-control:      #c8edd9;
-  --card-control-text: #236646;
+  --card-accent:       #b3e4d8;
+  --card-soft:         #f1faf7;
+  --card-band:         #b3e4d8;
+  --card-band-text:    #356f62;
+  --card-accent-text:  #3d8170;
+  --card-control:      #e4f5ef;
+  --card-control-text: #397d6b;
 }
 
 /* Amarillo — 20–30 d, o gracia post-rojo */

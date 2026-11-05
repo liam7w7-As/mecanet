@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import WorkOrderCardPopover from './WorkOrderCardPopover';
 import { WORK_ORDER_STATUS_LABELS } from './WorkOrderStatusBadge';
 import { formatClp, formatDate } from '../../lib/formatters';
-import { getElapsedInfo, getWorkOrderProgress, PROGRESS_TIER_STYLES } from '../../lib/work-order-progress';
+import { getCardColourTier, getElapsedInfo, getWorkOrderProgress, PROGRESS_TIER_STYLES } from '../../lib/work-order-progress';
 
 import type { WorkOrder } from '../../types/entities';
 import type { WorkOrderStatus } from '@unithor/shared';
@@ -82,6 +82,7 @@ export default function WorkOrderCard({
   const progress = getWorkOrderProgress(workOrder);
   const tier = PROGRESS_TIER_STYLES[progress.tier];
   const elapsed = getElapsedInfo(workOrder, now);
+  const colourTier = getCardColourTier(workOrder, now);
   const quotation = workOrder.quotation;
   const terminal = workOrder.estado === 'entregada' || workOrder.estado === 'cancelada';
   const transitions = WORK_ORDER_STATUS.filter((status) => isValidWorkOrderTransition(workOrder.estado, status));
@@ -96,7 +97,7 @@ export default function WorkOrderCard({
   const theme = `workshop-card-theme workshop-state-${workOrder.estado}${!terminal && elapsed.overdue ? ' workshop-information-overdue' : ''}`;
 
   return (
-    <article ref={anchorRef} className={`workshop-card ${theme}`} data-state={workOrder.estado} data-overdue={!terminal && elapsed.overdue} data-expanded={Boolean(activePanel)} data-panel={activePanel ?? undefined} data-placement={activePanel ? placement : undefined} aria-label={`Orden ${workOrder.codigo}`}
+    <article ref={anchorRef} className={`workshop-card ${theme}`} data-state={workOrder.estado} data-colour={colourTier} data-overdue={!terminal && elapsed.overdue} data-expanded={Boolean(activePanel)} data-panel={activePanel ?? undefined} data-placement={activePanel ? placement : undefined} aria-label={`Orden ${workOrder.codigo}`}
       onPointerEnter={(event) => {
         if (!event.currentTarget.contains(event.target as Node)) return;
         if (event.pointerType !== 'mouse' || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;

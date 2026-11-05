@@ -143,6 +143,107 @@
   --card-control: #e4f5ef;
   --card-control-text: #397d6b;
 }
+
+/* ── Colour tiers (data-colour) ──────────────────────────────────────────── */
+
+/* Verde oscuro — finalizada */
+.workshop-card[data-colour=done],
+.workshop-card-information.workshop-card[data-colour=done] {
+  --card-accent:       #1a7a52;
+  --card-soft:         #edf8f2;
+  --card-band:         #1a7a52;
+  --card-band-text:    #fff;
+  --card-accent-text:  #1a7a52;
+  --card-control:      #c6eed9;
+  --card-control-text: #145c3d;
+}
+
+/* Verde claro — en progreso normal (< 20 d, < 100 %) */
+.workshop-card[data-colour=active],
+.workshop-card-information.workshop-card[data-colour=active] {
+  --card-accent:       #38b277;
+  --card-soft:         #f1faf5;
+  --card-band:         #38b277;
+  --card-band-text:    #fff;
+  --card-accent-text:  #2f9365;
+  --card-control:      #c8edd9;
+  --card-control-text: #236646;
+}
+
+/* Amarillo — 20–30 d, o gracia post-rojo */
+.workshop-card[data-colour=warning],
+.workshop-card-information.workshop-card[data-colour=warning] {
+  --card-accent:       #d4971a;
+  --card-soft:         #fffbeb;
+  --card-band:         #d4971a;
+  --card-band-text:    #fff;
+  --card-accent-text:  #a8750d;
+  --card-control:      #fde9a2;
+  --card-control-text: #7a5508;
+}
+
+/* Rojo — más de 30 días sin actividad */
+.workshop-card[data-colour=danger],
+.workshop-card-information.workshop-card[data-colour=danger] {
+  --card-accent:       #d63031;
+  --card-soft:         #fff5f5;
+  --card-band:         #d63031;
+  --card-band-text:    #fff;
+  --card-accent-text:  #c0272d;
+  --card-control:      #fdd9d9;
+  --card-control-text: #952020;
+}
+
+/* Amarillo parpadeante — esperando_repuesto */
+.workshop-card[data-colour=waiting],
+.workshop-card-information.workshop-card[data-colour=waiting] {
+  --card-accent:       #d4971a;
+  --card-soft:         #fffbeb;
+  --card-band:         #d4971a;
+  --card-band-text:    #fff;
+  --card-accent-text:  #a8750d;
+  --card-control:      #fde9a2;
+  --card-control-text: #7a5508;
+}
+
+/* Gris oscuro con negro — entregada */
+.workshop-card[data-colour=delivered],
+.workshop-card-information.workshop-card[data-colour=delivered] {
+  --card-accent:       #4a5568;
+  --card-soft:         #f7f8fa;
+  --card-band:         #2d3748;
+  --card-band-text:    #e2e8f0;
+  --card-accent-text:  #2d3748;
+  --card-control:      #e2e8f0;
+  --card-control-text: #2d3748;
+}
+
+/* Gris plomo — cancelada */
+.workshop-card[data-colour=cancelled],
+.workshop-card-information.workshop-card[data-colour=cancelled] {
+  --card-accent:       #9aa5b4;
+  --card-soft:         #f4f5f7;
+  --card-band:         #cbd2d9;
+  --card-band-text:    #52606d;
+  --card-accent-text:  #627282;
+  --card-control:      #e4e7eb;
+  --card-control-text: #52606d;
+}
+
+/* Parpadeo amarillo para esperando_repuesto */
+@media (prefers-reduced-motion: no-preference) {
+  .workshop-card[data-colour=waiting] {
+    animation: workshop-waiting-pulse 2s ease-in-out infinite;
+  }
+  .workshop-card[data-colour=waiting]:is(:hover, :focus-within, [data-expanded=true]) {
+    animation: none;
+  }
+}
+@keyframes workshop-waiting-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 151, 26, 0); border-color: rgba(212, 151, 26, 0.3); }
+  50%       { box-shadow: 0 0 0 5px rgba(212, 151, 26, 0.18); border-color: rgba(212, 151, 26, 0.7); }
+}
+
 .workshop-state-finalizada,
 .workshop-state-esperando_repuesto {
   --card-accent: #38b277;
@@ -209,8 +310,8 @@
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
-.workshop-card.workshop-state-cancelada { animation: workshop-cancelled-fade 3.6s ease-in-out infinite; }
-.workshop-card.workshop-state-cancelada:is(:hover, :focus-within, [data-expanded=true]) { animation: none; opacity: 1; }
+.workshop-card[data-colour=cancelled] { animation: workshop-cancelled-fade 3.6s ease-in-out infinite; }
+.workshop-card[data-colour=cancelled]:is(:hover, :focus-within, [data-expanded=true]) { animation: none; opacity: 1; }
 @keyframes workshop-cancelled-fade { 0%, 100% { opacity: .45; } 50% { opacity: .62; } }
 .workshop-card-band {
   display: flex;
@@ -811,7 +912,7 @@
   .workshop-period-picker > button > span, .workshop-period-picker > button > svg:last-child { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .workshop-card, .workshop-card.workshop-state-cancelada, .workshop-card-information, .workshop-parts-wait, .workshop-card-expand svg { animation: none; transition: none; }
-  .workshop-card.workshop-state-cancelada { opacity: .65; }
-  .workshop-card.workshop-state-cancelada:is(:hover, :focus-within, [data-expanded=true]) { opacity: 1; }
+  .workshop-card, .workshop-card[data-colour=cancelled], .workshop-card[data-colour=waiting], .workshop-card-information, .workshop-parts-wait, .workshop-card-expand svg { animation: none; transition: none; }
+  .workshop-card[data-colour=cancelled] { opacity: .65; }
+  .workshop-card[data-colour=cancelled]:is(:hover, :focus-within, [data-expanded=true]) { opacity: 1; }
 }

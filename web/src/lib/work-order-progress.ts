@@ -3,6 +3,64 @@ import { useEffect, useState } from 'react';
 import type { WorkOrder, WorkOrderItem } from '../types/entities';
 import type { WorkOrderStatus } from '@unithor/shared';
 
+// ─── Card colour tier ────────────────────────────────────────────────────────
+/**
+ * Colour tier for a workshop card, evaluated by business rules:
+ *
+ * Priority (highest first):
+ *  cancelada       → 'cancelled'   (grey)
+ *  entregada       → 'delivered'   (dark-grey / black)
+ *  finalizada      → 'done'        (dark green)
+ *  esperando_repuesto → 'waiting'  (pulsing yellow)
+ *  active > 30 d, last activity ≤ 2 d → 'post-red grace' → 'warning' (yellow)
+ *  active > 30 d                  → 'danger'   (red)
+ *  active > 20 d                  → 'warning'  (yellow)
+ *  active, progress < 100 %       → 'active'   (light green)
+ *  fallback                       → 'neutral'
+ */
+export type CardColourTier =
+  | 'done'
+  | 'active'
+  | 'warning'
+  | 'danger'
+  | 'waiting'
+  | 'delivered'
+  | 'cancelled'
+  | 'neutral';
+
+const MS_PER_DAY = 86_400_000;
+
+export const getCardColourTier = (
+  workOrder: Pick<WorkOrder, 'estado' | 'fechaIngreso' | 'updatedAt'>,
+  now: number,
+): CardColourTier => {
+  const { estado, fechaIngreso, updatedAt } = workOrder;
+
+  if (estado === 'cancelada') return 'cancelled';
+  if (estado === 'entregada') return 'delivered';
+  if (estado === 'finalizada') return 'done';
+  if (estado === 'esperando_repuesto') return 'waiting';
+
+  // For active orders (en_progreso) calculate elapsed days
+  const start = fechaIngreso ? new Date(fechaIngreso).getTime() : null;
+  if (!start || Number.isNaN(start)) return 'active';
+
+  const elapsedDays = (now - start) / MS_PER_DAY;
+
+  if (elapsedDays > 30) {
+    // If there was recent activity within 2 days (grace period after red),
+    // show warning (yellow) instead of danger (red)
+    const lastActivity = updatedAt ? new Date(updatedAt).getTime() : null;
+    const daysSinceActivity = lastActivity ? (now - lastActivity) / MS_PER_DAY : Infinity;
+    if (daysSinceActivity <= 2) return 'warning';
+    return 'danger';
+  }
+
+  if (elapsedDays > 20) return 'warning';
+
+  return 'active';
+};
+
 export type ProgressTier = 'done' | 'good' | 'mid' | 'low' | 'none' | 'neutral';
 
 export interface WorkOrderProgress {

@@ -2,11 +2,15 @@ import {
   AlertCircle,
   ArrowRight,
   Coins,
+  Clock3,
+  ClipboardCheck,
   FilePlus2,
   FileText,
   PackageX,
+  PackageCheck,
   ReceiptText,
   UserPlus,
+  Users,
   Wrench,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -17,34 +21,19 @@ import StockAdjustmentModal from '../../components/catalog/StockAdjustmentModal'
 import ClientFormModal from '../../components/clients/ClientFormModal';
 import BrandLogo from '../../components/common/BrandLogo';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
+import KpiCard from '../../components/dashboard/DashboardKpi';
 import OperationalInbox from '../../components/dashboard/OperationalInbox';
+import WorkshopTeamSummary from '../../components/dashboard/WorkshopTeamSummary';
 import WorkOrderStatusBadge from '../../components/work-orders/WorkOrderStatusBadge';
 import { useDashboardSummary } from '../../hooks/useDashboard';
+import { useWorkshopDailyReport } from '../../hooks/useWorkOrderLabor';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { formatClp, formatDate } from '../../lib/formatters';
+import { formatClp, formatDate, toLocalDateInput } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { DashboardSummary } from '@unithor/shared';
-import type { LucideIcon } from 'lucide-react';
-
-interface KpiCardProps {
-  title: string;
-  value: string;
-  detail: string;
-  icon: LucideIcon;
-  testId: string;
-}
-
-const KpiCard = ({ title, value, detail, icon: Icon, testId }: KpiCardProps) => (
-  <>
-    <span className="dashboard-kpi-icon"><Icon strokeWidth={1.7} aria-hidden="true" /></span>
-    <p className="dashboard-kpi-label">{title}</p>
-    <p className="dashboard-kpi-value" data-testid={testId}>{value}</p>
-    <p className="dashboard-kpi-detail">{detail}</p>
-  </>
-);
 
 const DashboardSkeleton = () => (
   <div className="space-y-5" aria-label="Cargando resumen del dashboard">
@@ -67,7 +56,16 @@ const formatCurrentDate = (): string => {
 
 export const DashboardPage = () => {
   const user = useAuthStore((state) => state.user);
-  const dashboardQuery = useDashboardSummary();
+  const dashboardQuery = useDashboardSummary(user);
+  const isWorkshopChief = user?.role === 'jefe' && hasUserPermission(user, 'taller', 'read');
+  const isWarehouse = user?.role === 'bodeguero';
+  const isFinance = user?.role === 'finanzas';
+  const isSeller = user?.role === 'vendedor';
+  const canReadWorkshop = Boolean(user && hasUserPermission(user, 'taller', 'read'));
+  const canReadCommercial = Boolean(user && hasUserPermission(user, 'comercial', 'read'));
+  const canReadFinance = Boolean(user && hasUserPermission(user, 'finanzas', 'read'));
+  const canReadWarehouse = Boolean(user && hasUserPermission(user, 'almacen', 'read'));
+  const todayQuery = useWorkshopDailyReport(toLocalDateInput(new Date()), isWorkshopChief);
   const navigate = useNavigate();
   const [showClientForm, setShowClientForm] = useState(false);
   const [stockItem, setStockItem] = useState<DashboardSummary['lowStockItems'][number] | null>(null);
@@ -76,7 +74,7 @@ export const DashboardPage = () => {
   const canCreateQuotation = Boolean(user && hasUserPermission(user, 'comercial', 'create'));
   const canCreateClient = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'taller', 'create')));
   const canAdjustStock = Boolean(user && hasUserPermission(user, 'almacen', 'create'));
-  const quickActionCount = Number(canCreateWorkOrder) + Number(canCreateQuotation) + Number(canCreateClient);
+  const quickActionCount = Number(canCreateWorkOrder) + Number(canCreateQuotation) + Number(canCreateClient) + (isWarehouse ? Number(canReadWarehouse) * 2 : isFinance ? Number(canReadFinance) * 2 : 0);
   const summary = dashboardQuery.data;
 
   return (
@@ -88,12 +86,15 @@ export const DashboardPage = () => {
         </div>
         <p className="dashboard-date">{formatCurrentDate()}</p>
       </header>
+      {(isSeller || isWarehouse || isFinance) && <p className="workshop-role-caption">{isSeller ? 'Tu gestión comercial · OT, cotizaciones y cobros propios. Clientes y vehículos compartidos.' : isWarehouse ? 'Tu bodega · despachos aprobados, existencias y movimientos.' : 'Tu gestión financiera · cobros, comprobantes y cierre de caja.'}</p>}
 
       <section className="dashboard-shortcuts view-panel" aria-labelledby="quick-actions-title">
         <div className="view-panel-title">
           <h2 id="quick-actions-title" className="text-sm font-semibold uppercase text-brand-muted">Acciones rápidas</h2>
         </div>
         <div className="view-panel-body dashboard-quick-actions" data-action-count={quickActionCount}>
+          {isWarehouse && canReadWarehouse && <><Link to="/warehouses" className="primary-button"><PackageX aria-hidden="true" />Almacenes</Link><Link to="/warehouses?tab=requests" className="secondary-button"><PackageCheck aria-hidden="true" />Despachos pendientes</Link></>}
+          {isFinance && canReadFinance && <><Link to="/finance?tab=payments" className="primary-button"><ReceiptText aria-hidden="true" />Revisar abonos</Link><Link to="/finance?tab=cash" className="secondary-button"><Coins aria-hidden="true" />Caja del día</Link></>}
           {canCreateWorkOrder && (
             <Link to="/work-orders/new" className="primary-button" aria-label="Ingresar vehículo / Nueva OT">
               <Wrench className="h-4 w-4" aria-hidden="true" />
@@ -128,21 +129,36 @@ export const DashboardPage = () => {
       {dashboardQuery.isPending ? <DashboardSkeleton /> : summary && (
         <>
           <Stagger className="dashboard-metrics" aria-label="Indicadores principales">
-            <StaggerItem className="dashboard-kpi"><KpiCard title="OTs en taller" value={String(summary.metrics.activeWorkOrders)} detail="Iniciadas o esperando repuesto" icon={Wrench} testId="active-work-orders" /></StaggerItem>
+            {isFinance ? <>
+              <StaggerItem className="dashboard-kpi dashboard-kpi-green"><KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} testId="monthly-revenue" /></StaggerItem>
+              <StaggerItem className="dashboard-kpi"><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} testId="pending-balance" /></StaggerItem>
+              <StaggerItem className="dashboard-kpi dashboard-kpi-amber"><KpiCard title="Abonos por verificar" value={String(summary.operationalInbox.counts.paymentVerifications)} detail="Comprobantes pendientes de revisión" icon={ClipboardCheck} testId="finance-verifications" /></StaggerItem>
+            </> : isWarehouse ? <>
+              <StaggerItem className="dashboard-kpi"><KpiCard title="Despachos pendientes" value={String(summary.operationalInbox.counts.warehouseDeliveries)} detail="Solicitudes aprobadas por entregar" icon={PackageCheck} testId="warehouse-deliveries" /></StaggerItem>
+              <StaggerItem className="dashboard-kpi dashboard-kpi-amber"><KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} testId="waiting-for-parts" /></StaggerItem>
+              <StaggerItem className={cn('dashboard-kpi', summary.lowStockCount > 0 ? 'dashboard-kpi-coral' : 'dashboard-kpi-green')}><KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} testId="low-stock-count" /></StaggerItem>
+            </> : <>
+            <StaggerItem className="dashboard-kpi"><KpiCard title={isSeller ? 'Mis OTs en taller' : 'OTs en taller'} value={String(summary.metrics.activeWorkOrders)} detail={isSeller ? 'Tus órdenes iniciadas o esperando repuesto' : 'Iniciadas o esperando repuesto'} icon={Wrench} testId="active-work-orders" /></StaggerItem>
             <StaggerItem className="dashboard-kpi dashboard-kpi-amber"><KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} testId="waiting-for-parts" /></StaggerItem>
-            <StaggerItem className="dashboard-kpi dashboard-kpi-green"><KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} testId="monthly-revenue" /></StaggerItem>
-            <StaggerItem className="dashboard-kpi"><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} testId="pending-balance" /></StaggerItem>
+            {isWorkshopChief ? <>
+              <StaggerItem className="dashboard-kpi"><KpiCard title="Solicitudes por aprobar" value={String(summary.operationalInbox.counts.approvals)} detail="Repuestos y revisiones del taller" icon={ClipboardCheck} testId="workshop-approvals" /></StaggerItem>
+              <StaggerItem className="dashboard-kpi"><KpiCard title="Horas de hoy" value={todayQuery.data ? `${new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(todayQuery.data.totalHoras)} h` : '—'} detail={todayQuery.isError ? 'Actividad no disponible · reintenta abajo' : 'Tiempo registrado por el equipo'} icon={Clock3} testId="workshop-today-hours" /></StaggerItem>
+            </> : <>
+              <StaggerItem className="dashboard-kpi dashboard-kpi-green"><KpiCard title={isSeller ? 'Mi recaudación del mes' : 'Recaudación del mes'} value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} testId="monthly-revenue" /></StaggerItem>
+              <StaggerItem className="dashboard-kpi"><KpiCard title={isSeller ? 'Mis saldos por cobrar' : 'Saldos por cobrar'} value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} testId="pending-balance" /></StaggerItem>
+            </>}
             <StaggerItem className={cn('dashboard-kpi', summary.lowStockCount > 0 ? 'dashboard-kpi-coral' : 'dashboard-kpi-green')}><KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} testId="low-stock-count" /></StaggerItem>
-            <StaggerItem className="dashboard-kpi"><KpiCard title="COT sin OT" value={String(summary.metrics.quotationsWithoutWorkOrder)} detail="Pendientes de convertir a orden" icon={FileText} testId="quotations-without-work-order" /></StaggerItem>
+            {isWorkshopChief ? <StaggerItem className="dashboard-kpi"><KpiCard title="Equipo en curso" value={todayQuery.data ? String(todayQuery.data.usuarios.filter((person) => person.enCurso).length) : '—'} detail="Personas con cronómetro activo" icon={Users} testId="workshop-running-team" /></StaggerItem> : <StaggerItem className="dashboard-kpi"><KpiCard title="COT sin OT" value={String(summary.metrics.quotationsWithoutWorkOrder)} detail="Pendientes de convertir a orden" icon={FileText} testId="quotations-without-work-order" /></StaggerItem>}
+            </>}
           </Stagger>
 
           <OperationalInbox inbox={summary.operationalInbox} />
 
           <section className="dashboard-content-grid">
-            <div className="view-panel dashboard-recent-work">
+            {canReadWorkshop ? <div className="view-panel dashboard-recent-work">
               <div className="view-panel-title flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-base font-semibold text-brand-ink">Últimos trabajos en taller</h2>
+                  <h2 className="text-base font-semibold text-brand-ink">{isSeller ? 'Mis últimos trabajos en taller' : 'Últimos trabajos en taller'}</h2>
                   <p className="mt-0.5 text-sm text-brand-muted">Órdenes creadas o actualizadas recientemente</p>
                 </div>
                 <Link to="/work-orders" className="group inline-flex items-center gap-1.5 text-sm font-semibold text-brand-primaryInk hover:underline">
@@ -173,10 +189,10 @@ export const DashboardPage = () => {
                   </table>
                 </div>
               )}
-            </div>
+            </div> : <div className="view-panel"><div className="view-panel-title"><h2 className="text-base font-semibold text-brand-ink">Gestión de cobros</h2><p className="mt-1 text-sm text-brand-muted">Revisa comprobantes, consulta saldos y prepara el cierre.</p></div><div className="view-panel-body dashboard-finance-links">{canReadFinance && <><Link to="/finance?tab=payments"><ClipboardCheck aria-hidden="true" /><span><strong>Verificación de abonos</strong><small>{summary.operationalInbox.counts.paymentVerifications} pendiente(s)</small></span><ArrowRight aria-hidden="true" /></Link><Link to="/finance?tab=cash"><Coins aria-hidden="true" /><span><strong>Caja del día</strong><small>Ingresos, egresos y cierre diario</small></span><ArrowRight aria-hidden="true" /></Link></>}{canReadCommercial && <><Link to="/quotations"><ReceiptText aria-hidden="true" /><span><strong>Cotizaciones y saldos</strong><small>{summary.metrics.pendingQuotations} con cobro pendiente</small></span><ArrowRight aria-hidden="true" /></Link><Link to={canReadFinance ? '/reports?section=finance' : '/reports?section=commercial'}><FileText aria-hidden="true" /><span><strong>{canReadFinance ? 'Reportes financieros' : 'Reportes comerciales'}</strong><small>Filtros, PDF y Excel según tus permisos</small></span><ArrowRight aria-hidden="true" /></Link></>}</div></div>}
 
             <div className="view-panel" aria-label="Alertas operativas">
-              <section className="view-panel-body">
+              {!isFinance && <section className="view-panel-body">
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-base font-semibold text-brand-ink">Inventario crítico</h2>
                   <span className={cn('status-chip round', summary.lowStockCount > 0 ? 'red' : 'green')}>{summary.lowStockCount} alerta(s)</span>
@@ -188,9 +204,9 @@ export const DashboardPage = () => {
                   Revisar inventario
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                 </Link>
-              </section>
+              </section>}
 
-              <section className="view-panel-body border-t border-brand-line">
+              {isWorkshopChief ? <WorkshopTeamSummary report={todayQuery.data} pending={todayQuery.isPending} failed={todayQuery.isError} onRetry={() => void todayQuery.refetch()} /> : !isWarehouse && canReadCommercial && <section className="view-panel-body border-t border-brand-line">
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-base font-semibold text-brand-ink">COT sin OT</h2>
                   <span className="status-chip round gold">{summary.metrics.quotationsWithoutWorkOrder} pendiente(s)</span>
@@ -198,7 +214,7 @@ export const DashboardPage = () => {
                 <div className="mt-3 divide-y divide-brand-line">
                   {summary.unlinkedQuotations.length === 0 ? <p className="py-5 text-sm text-brand-muted">No hay cotizaciones pendientes de vincular.</p> : summary.unlinkedQuotations.map((quotation) => <Link key={quotation.id} to={`/quotations/${quotation.id}`} className="flex items-center justify-between gap-3 py-3 transition-colors hover:bg-brand-pale/60"><span className="min-w-0"><span className="nowrap block text-sm font-semibold text-brand-ink">{quotation.codigo}</span><span className="block truncate text-xs text-brand-muted">{quotation.client?.nombre ?? 'Sin cliente asignado'}</span></span><span className="whitespace-nowrap text-sm font-semibold text-brand-ink">{formatClp(quotation.total)}</span></Link>)}
                 </div>
-              </section>
+              </section>}
             </div>
           </section>
         </>

@@ -16,6 +16,8 @@ import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
+import { WorkOrderItem } from '../models/WorkOrderItem.js';
+import { WorkOrderPriceSuggestion } from '../models/WorkOrderPriceSuggestion.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 
 import type {
@@ -70,7 +72,12 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
   const canFollowQuotations = isAdministrator || role === 'vendedor';
   const shouldWatchStock = isAdministrator || role === 'jefe' || role === 'bodeguero';
   const canReadFleet = await hasPermission(userId, 'flota', 'read');
-  const workOrderScope = isMechanic ? { assignedMechanicId: userId } : role === 'vendedor' ? { createdBy: userId } : {};
+  const assignedItems = isMechanic ? await WorkOrderItem.findAll({
+    attributes: ['workOrderId'], where: { assignedUserId: userId }, group: ['workOrderId'], raw: true,
+  }) : [];
+  const workOrderScope = isMechanic
+    ? { [Op.or]: [{ assignedMechanicId: userId }, { id: { [Op.in]: assignedItems.map((item) => item.workOrderId) } }] }
+    : role === 'vendedor' ? { createdBy: userId } : {};
 
   const fleetWarningLimit = toFleetDateOnly(
     addDays(now, FLEET_EXPIRY_WARNING_DAYS),
@@ -94,6 +101,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     paymentVerificationResult,
     quotationFollowUpResult,
     fleetDocumentResult,
+    priceSuggestionResult,
   ] = await Promise.all([
     WorkOrder.count({
       where: { ...workOrderScope, estado: { [Op.in]: ['en_progreso', 'esperando_repuesto'] } },
@@ -175,7 +183,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     isMechanic
       ? WorkOrder.findAndCountAll({
           where: {
-            assignedMechanicId: userId,
+            ...workOrderScope,
             estado: { [Op.in]: ['en_progreso', 'esperando_repuesto', 'finalizada'] },
           },
           attributes: ['id', 'codigo', 'estado', 'createdAt', 'updatedAt'],
@@ -232,9 +240,31 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
           limit: 5,
         })
       : Promise.resolve({ count: 0, rows: [] as FleetDocument[] }),
+    isAdministrator
+      ? WorkOrderPriceSuggestion.findAndCountAll({
+          where: { estado: 'pendiente' },
+          attributes: ['id', 'workOrderId', 'createdAt'],
+          include: [
+            { model: WorkOrder, attributes: ['id', 'codigo'], required: true, where: { estado: { [Op.notIn]: ['entregada', 'cancelada'] } } },
+            { model: WorkOrderItem, attributes: ['id', 'descripcion'] },
+          ],
+          distinct: true,
+          order: [['createdAt', 'ASC']],
+          limit: 5,
+        })
+      : Promise.resolve({ count: 0, rows: [] as WorkOrderPriceSuggestion[] }),
   ]);
 
   const operationalTasks: OperationalTask[] = [
+    ...priceSuggestionResult.rows.map((suggestion): OperationalTask => ({
+      id: `price-${suggestion.id}`,
+      type: 'work_order_approval',
+      title: 'Revisar propuesta de precio',
+      description: `${suggestion.workOrder?.codigo ?? 'OT'} · ${suggestion.item?.descripcion ?? 'Servicio'}`,
+      href: `/work-orders?manage=${suggestion.workOrderId}&manageView=prices`,
+      createdAt: suggestion.createdAt.toISOString(),
+      priority: 'high',
+    })),
     ...pendingApprovalResult.rows.map((request): OperationalTask => ({
       id: `approval-${request.id}`,
       type: 'work_order_approval',
@@ -328,7 +358,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
   });
 
   const operationalCounts = {
-    approvals: pendingApprovalResult.count,
+    approvals: pendingApprovalResult.count + priceSuggestionResult.count,
     warehouseDeliveries: warehouseDeliveryResult.count,
     assignedWorkOrders: assignedWorkOrderResult.count,
     paymentVerifications: paymentVerificationResult.count,

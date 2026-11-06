@@ -31,7 +31,7 @@ interface SidebarContentProps {
 const SidebarContent = ({ onNavigate, onToggle, isDesktop }: SidebarContentProps) => {
   const { pathname } = useLocation();
   const user = useAuthStore((state) => state.user);
-  const dashboardQuery = useDashboardSummary();
+  const dashboardQuery = useDashboardSummary(user);
   const logoutMutation = useLogoutMutation();
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
   const inbox = dashboardQuery.data?.operationalInbox;

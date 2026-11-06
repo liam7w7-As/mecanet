@@ -622,13 +622,18 @@ export function StockTransferModal({
 export function WarehouseDeliveryModal({
   request,
   warehouses,
+  defaultWarehouseId,
   onClose,
 }: {
   request: WarehouseWorkOrderRequest;
   warehouses: Warehouse[];
+  defaultWarehouseId: number | null;
   onClose: () => void;
 }) {
-  const [warehouseId, setWarehouseId] = useState<number | null>(warehouses[0]?.id ?? null);
+  const initialWarehouseId =
+    warehouses.find((warehouse) => warehouse.id === defaultWarehouseId && warehouse.activo)?.id ??
+    null;
+  const [warehouseId, setWarehouseId] = useState<number | null>(initialWarehouseId);
   const [comentario, setComentario] = useState('');
   const balances = useWarehouseBalances(warehouseId);
   const mutation = useDeliverWarehouseRequestMutation();
@@ -643,7 +648,7 @@ export function WarehouseDeliveryModal({
       code={request.workOrder.codigo}
       context={request.workOrder.vehicle?.patente ?? 'Sin patente'}
       submitLabel={mutation.isPending ? 'Entregando…' : 'Confirmar entrega'}
-      dirty={comentario !== '' || warehouseId !== (warehouses[0]?.id ?? null)}
+      dirty={comentario !== '' || warehouseId !== initialWarehouseId}
       pending={mutation.isPending}
       onClose={onClose}
       headerVariant="plain"

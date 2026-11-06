@@ -16,6 +16,9 @@ export const formatClp = (value: number): string =>
 
 const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
 
+export const toLocalDateInput = (date: Date): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
 /**
  * Las fechas sin hora (`YYYY-MM-DD`) se interpretan en UTC solo para formatear.
  * Así no retroceden un día en zonas como Chile cuando el navegador las recibe

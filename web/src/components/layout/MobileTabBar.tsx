@@ -29,7 +29,7 @@ interface MobileTab {
  */
 const mobileTabs: MobileTab[] = [
   {
-    label: 'Mi ficha',
+    label: 'Mi taller',
     path: '/work-orders/mine',
     icon: Wrench,
     permissions: [{ modulo: 'taller', accion: 'read' }],
@@ -81,7 +81,7 @@ interface MobileTabBarProps {
 export const MobileTabBar = ({ onOpenMenu, isMenuOpen = false }: MobileTabBarProps) => {
   const user = useAuthStore((state) => state.user);
   const { pathname } = useLocation();
-  const dashboardQuery = useDashboardSummary();
+  const dashboardQuery = useDashboardSummary(user);
   const inbox = dashboardQuery.data?.operationalInbox;
 
   const badgeCounts: Record<BadgeKey, number> = {

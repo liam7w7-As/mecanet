@@ -7,6 +7,8 @@ import { app } from '../../main.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
 import { User } from '../../models/User.js';
+import { WorkOrder } from '../../models/WorkOrder.js';
+import { WorkOrderItem } from '../../models/WorkOrderItem.js';
 import { hashPassword } from '../../utils/password.js';
 
 const TEST_PASSWORD = 'Desarrollador2026!';
@@ -24,6 +26,8 @@ const extractAccessToken = (response: request.Response): string => {
 
 describe('Dashboard Routes (E2E)', () => {
   let developerId: number;
+  const createdUsers: number[] = [];
+  const createdOrders: number[] = [];
 
   beforeAll(async () => {
     await sequelize.authenticate();
@@ -46,6 +50,11 @@ describe('Dashboard Routes (E2E)', () => {
   });
 
   afterAll(async () => {
+    if (createdOrders.length) await WorkOrder.destroy({ where: { id: createdOrders }, force: true });
+    if (createdUsers.length) {
+      await RefreshToken.destroy({ where: { userId: createdUsers }, force: true });
+      await User.destroy({ where: { id: createdUsers }, force: true });
+    }
     if (developerId !== undefined) {
       await RefreshToken.destroy({ where: { userId: developerId }, force: true });
     }
@@ -94,5 +103,30 @@ describe('Dashboard Routes (E2E)', () => {
       }),
     );
     expect(dashboardSummarySchema.safeParse(response.body).success).toBe(true);
+  });
+
+  it('el resumen del mecánico incluye asignaciones por servicio y excluye las OT de otros', async () => {
+    const role = await Role.findOne({ where: { nombre: 'mecanico' } });
+    if (!role) throw new Error('Falta el rol mecánico');
+    const passwordHash = await hashPassword(TEST_PASSWORD);
+    const mechanics = await Promise.all(['own', 'other'].map((suffix) => User.create({ nombre: `Dashboard ${suffix}`, email: `dashboard-${suffix}@example.com`, passwordHash, activo: true, roleId: role.id })));
+    createdUsers.push(...mechanics.map((user) => user.id));
+    const orders = await Promise.all([
+      WorkOrder.create({ codigo: 'DASH-OWN', estado: 'en_progreso', assignedMechanicId: mechanics[0].id, createdBy: developerId }),
+      WorkOrder.create({ codigo: 'DASH-ITEM', estado: 'esperando_repuesto', assignedMechanicId: mechanics[1].id, createdBy: developerId }),
+      WorkOrder.create({ codigo: 'DASH-FOREIGN', estado: 'en_progreso', assignedMechanicId: mechanics[1].id, createdBy: developerId }),
+    ]);
+    createdOrders.push(...orders.map((order) => order.id));
+    await WorkOrderItem.create({ workOrderId: orders[1].id, descripcion: 'Servicio asignado', tipoLinea: 'especifico', cantidad: 1, precioUnitario: 10000, subtotal: 10000, assignedUserId: mechanics[0].id });
+    const login = await request(app).post('/api/auth/login').send({ email: mechanics[0].email, password: TEST_PASSWORD });
+    const response = await request(app).get('/api/dashboard/summary').set('Cookie', [`access_token=${extractAccessToken(login)}`]);
+    expect(response.status).toBe(200);
+    expect(response.body.metrics.activeWorkOrders).toBe(2);
+    expect(response.body.metrics.waitingForParts).toBe(1);
+    expect(response.body.operationalInbox.counts.assignedWorkOrders).toBe(2);
+    expect(response.body.recentWorkOrders.map((order: { id: number }) => order.id).sort()).toEqual([orders[0].id, orders[1].id].sort());
+    expect(JSON.stringify(response.body)).not.toContain('DASH-FOREIGN');
+    expect(response.body.metrics.monthlyRevenue).toBe(0);
+    expect(response.body.unlinkedQuotations).toEqual([]);
   });
 });

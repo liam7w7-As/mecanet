@@ -15,7 +15,8 @@ import {
   Truck,
   Warehouse as WarehouseIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import Pagination from '../../components/common/Pagination';
 import {
@@ -69,6 +70,9 @@ const firstDayOfMonth = (): string => {
 
 export const WarehousesPage = () => {
   const user = useAuthStore((state) => state.user);
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const dispatchRef = useRef<HTMLDetailsElement>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [balanceSearch, setBalanceSearch] = useState('');
   const [balancePage, setBalancePage] = useState(1);
@@ -125,6 +129,13 @@ export const WarehousesPage = () => {
 
   useEffect(() => setBalancePage(1), [selectedId, balanceSearch]);
   useEffect(() => setRequestPage(1), [requestStatus, requestSearch]);
+
+  useEffect(() => {
+    if (requestedTab !== 'requests' || !dispatchRef.current) return;
+    dispatchRef.current.open = true;
+    dispatchRef.current.querySelector('summary')?.focus({ preventScroll: true });
+    dispatchRef.current.scrollIntoView?.({ block: 'start' });
+  }, [requestedTab]);
 
   const filteredBalances = useMemo(() => {
     const term = balanceSearch.trim().toLowerCase();
@@ -379,6 +390,7 @@ export const WarehousesPage = () => {
       )}
 
       <details
+        ref={dispatchRef}
         className="inventory-dispatch-panel inventory-history"
         aria-label="Solicitudes de repuestos para órdenes de trabajo"
       >
@@ -737,6 +749,7 @@ export const WarehousesPage = () => {
         <WarehouseDeliveryModal
           request={selectedRequest}
           warehouses={warehouses.filter((warehouse) => warehouse.activo)}
+          defaultWarehouseId={selectedId}
           onClose={() => setSelectedRequest(null)}
         />
       )}

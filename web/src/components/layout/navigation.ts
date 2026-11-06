@@ -39,7 +39,7 @@ export const navigationGroups: NavigationGroup[] = [
   {
     heading: 'Taller',
     items: [
-      { label: 'Mi ficha', path: '/work-orders/mine', icon: ClipboardList, variant: 'bounce', badge: 'workOrders', permissions: [{ modulo: 'taller', accion: 'read' }], roles: ['mecanico'] },
+      { label: 'Mi taller', path: '/work-orders/mine', icon: ClipboardList, variant: 'bounce', badge: 'workOrders', permissions: [{ modulo: 'taller', accion: 'read' }], roles: ['mecanico'] },
       { label: 'Taller / OT', path: '/work-orders', icon: ClipboardList, variant: 'bounce', badge: 'workOrders', permissions: [{ modulo: 'taller', accion: 'read' }] },
       { label: 'Reporte diario', path: '/work-orders/daily-report', icon: Timer, variant: 'pulse', permissions: [{ modulo: 'taller', accion: 'read' }], roles: ['desarrollador', 'admin', 'jefe'] },
       { label: 'Vehículos', path: '/vehicles', icon: Car, variant: 'slide-right', badge: 'vehicles', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }, { modulo: 'flota', accion: 'read' }] },

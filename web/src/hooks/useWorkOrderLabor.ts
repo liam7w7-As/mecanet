@@ -219,6 +219,7 @@ export const usePriceSuggestions = (id: number, enabled = true) =>
 export const useCreatePriceSuggestionMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: ['work-order-labor', 'mutation'],
     mutationFn: async ({
       id,
       data,
@@ -234,6 +235,7 @@ export const useCreatePriceSuggestionMutation = () => {
     },
     onSuccess: (_suggestion, variables) => {
       void queryClient.invalidateQueries({ queryKey: laborKeys.suggestions(variables.id) });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -241,6 +243,7 @@ export const useCreatePriceSuggestionMutation = () => {
 export const useReviewPriceSuggestionMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: ['work-order-labor', 'mutation'],
     mutationFn: async ({
       id,
       suggestionId,

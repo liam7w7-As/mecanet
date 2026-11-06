@@ -1,5 +1,5 @@
-import { AlertCircle, Check, Clock3, LoaderCircle, Pause, Play, RotateCcw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertCircle, BadgeDollarSign, Check, Clock3, LoaderCircle, Pause, Play, RotateCcw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   useAdjustItemHoursMutation, useAssignWorkOrderItemMutation, useCompleteItemTimerMutation,
@@ -9,6 +9,7 @@ import {
 import { useAssignWorkOrderMechanicMutation, useMechanics, useUpdateWorkOrderExecutionMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatDateTime } from '../../lib/formatters';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
@@ -42,9 +43,12 @@ interface TaskProps {
   available: boolean;
   observations: Array<{ id: number; texto: string | null; createdAt: string; authorName: string | null; files: Array<{ id: number; nombreOriginal: string; url: string }> }>;
   onState: (id: number, dirty: boolean, pending: boolean) => void;
+  onSuggestPrice?: (itemId: number) => void;
+  onNext?: () => void;
+  onCompleted: () => void;
 }
 
-const Task = ({ item, workOrderId, canManage, closed, available, observations, onState }: TaskProps) => {
+const Task = ({ item, workOrderId, canManage, closed, available, observations, onState, onSuggestPrice, onNext, onCompleted }: TaskProps) => {
   const start = useStartItemTimerMutation();
   const pause = usePauseItemTimerMutation();
   const complete = useCompleteItemTimerMutation();
@@ -62,6 +66,9 @@ const Task = ({ item, workOrderId, canManage, closed, available, observations, o
   const [comment, setComment] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [now, setNow] = useState(Date.now);
+  const [feedback, setFeedback] = useState<{ error: boolean; text: string; completed?: boolean } | null>(null);
+  const savedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (feedback?.completed && !feedback.error) savedRef.current?.focus(); }, [feedback]);
   useEffect(() => {
     if (!item.activeSession) return undefined;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -78,12 +85,19 @@ const Task = ({ item, workOrderId, canManage, closed, available, observations, o
   const canWork = available && !closed && (canManage || item.canWork === true);
   const canControl = canWork && (!item.activeSession || item.activeSession.mine || canManage);
   const disabled = pending || !available || closed;
-  const fail = (error: unknown) => notifyError(getApiErrorMessage(error, 'No se pudo guardar. Tus datos siguen en el formulario.'));
+  const fail = (error: unknown) => setFeedback({ error: true, text: getApiErrorMessage(error, 'No se pudo guardar. Tus datos siguen en el formulario.') });
   const variables = { id: workOrderId, itemId: item.id };
   const realMinutes = item.activeSession
     ? Math.max(0, item.totalMinutes - item.activeSession.elapsedMinutes) + Math.max(0, Math.floor((now - Date.parse(item.activeSession.startedAt)) / 60000))
     : item.totalMinutes;
   const saveNote = () => execution.mutate({ id: workOrderId, data: { items: [{ id: item.id, estadoOperativo: item.estadoOperativo, notasOperativas: noteValue || null }] } }, { onSuccess: () => { setNote(noteValue); notifySuccess('Nota guardada.'); }, onError: fail });
+  const completeTask = (): void => {
+    setFeedback(null);
+    complete.mutate({ ...variables, ...(changedNote ? { notasOperativas: noteValue || null } : {}) }, {
+      onError: (error) => setFeedback({ error: true, text: getApiErrorMessage(error, 'No se pudo completar. Tus notas y horas guardadas se conservan.'), completed: true }),
+      onSuccess: () => { setNote(null); onCompleted(); setFeedback({ error: false, text: item.tipoLinea === 'parte' ? 'Repuesto marcado como usado.' : 'Trabajo completado. Sus horas y notas quedaron guardadas.', completed: true }); },
+    });
+  };
 
   return <article className="workshop-labor-task" aria-label={`Trabajo: ${item.descripcion}`} data-status={item.estadoOperativo} aria-busy={pending}>
     <div className="workshop-labor-task-top">
@@ -99,11 +113,13 @@ const Task = ({ item, workOrderId, canManage, closed, available, observations, o
         {canControl && !['completado', 'omitido'].includes(item.estadoOperativo) && <>
           {item.tipoLinea !== 'parte' && (item.activeSession ? <button type="button" disabled={disabled} onClick={() => pause.mutate(variables, { onError: fail })}><Pause aria-hidden="true" />Pausar</button>
             : <button type="button" className="workshop-labor-primary" disabled={disabled} onClick={() => start.mutate(variables, { onError: fail, onSuccess: (result) => { if (result.pausedOtherItems) notifySuccess('Se pausó tu trabajo anterior y se conservaron sus horas.'); } })}><Play aria-hidden="true" />{item.estadoOperativo === 'en_proceso' ? 'Continuar' : 'Iniciar'}</button>)}
-          <button type="button" className="workshop-labor-complete" disabled={disabled} onClick={() => complete.mutate({ ...variables, ...(changedNote ? { notasOperativas: noteValue || null } : {}) }, { onError: fail, onSuccess: () => { setNote(null); notifySuccess('Trabajo completado.'); } })}><Check aria-hidden="true" />{item.tipoLinea === 'parte' ? 'Marcar usado' : 'Completar'}</button>
+          <button type="button" className="workshop-labor-complete" disabled={disabled} onClick={completeTask}><Check aria-hidden="true" />{item.tipoLinea === 'parte' ? 'Marcar usado' : 'Completar'}</button>
         </>}
+        {canManage && !closed && item.tipoLinea !== 'parte' && onSuggestPrice && <button type="button" disabled={disabled} onClick={() => onSuggestPrice(item.id)}><BadgeDollarSign aria-hidden="true" />Sugerir precio</button>}
         {pending && <span role="status"><LoaderCircle className="animate-spin" aria-hidden="true" /><span className="sr-only">Guardando trabajo</span></span>}
       </div>
     </div>
+    {feedback && <div ref={savedRef} tabIndex={-1} role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'workshop-labor-error' : 'workshop-labor-saved'}><span>{feedback.text}</span>{feedback.error && feedback.completed && canControl && <button type="button" disabled={disabled} onClick={completeTask}><RotateCcw aria-hidden="true" />Reintentar</button>}{!feedback.error && feedback.completed && onNext && <button type="button" onClick={onNext}>Ir al siguiente trabajo</button>}</div>}
     {item.activeSession && !item.activeSession.mine && <p className="workshop-labor-help">En curso por {item.activeSession.userName ?? 'otro responsable'}.</p>}
     <details className="workshop-labor-details"><summary>Ver detalle<span>Notas e historial de horas</span></summary>
       <div className="workshop-labor-detail-body">
@@ -127,14 +143,17 @@ const Task = ({ item, workOrderId, canManage, closed, available, observations, o
   </article>;
 };
 
-export default function WorkOrderLaborBoard({ workOrder, onDirtyChange, onPendingChange }: { workOrder: WorkOrder; onDirtyChange: (dirty: boolean) => void; onPendingChange: (pending: boolean) => void }) {
+export default function WorkOrderLaborBoard({ workOrder, onDirtyChange, onPendingChange, onSuggestPrice }: { workOrder: WorkOrder; onDirtyChange: (dirty: boolean) => void; onPendingChange: (pending: boolean) => void; onSuggestPrice?: (itemId: number) => void }) {
   const user = useAuthStore((state) => state.user);
-  const canManage = Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role));
+  const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
+  const canManage = Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role) && hasUserPermission(user, 'taller', 'update'));
   const closed = ['entregada', 'cancelada'].includes(workOrder.estado);
   const query = useWorkOrderWorksheet(workOrder.id);
   const coordinator = useAssignWorkOrderMechanicMutation();
   const mechanics = useMechanics(canManage);
   const [mine, setMine] = useState(user?.role === 'mecanico');
+  const [status, setStatus] = useState<'all' | ItemOperationalStatus>('all');
+  const taskNodes = useRef<Record<number, HTMLDivElement | null>>({});
   const [states, setStates] = useState<Record<number, { dirty: boolean; pending: boolean }>>({});
   const onState = useCallback((id: number, dirty: boolean, pending: boolean) => setStates((current) => current[id]?.dirty === dirty && current[id]?.pending === pending ? current : { ...current, [id]: { dirty, pending } }), []);
   const dirty = Object.values(states).some((state) => state.dirty);
@@ -146,12 +165,20 @@ export default function WorkOrderLaborBoard({ workOrder, onDirtyChange, onPendin
     horasHombreEstimadas: item.horasHombreEstimadas, horasEstimadasTotales: item.horasHombreEstimadas === null ? null : item.horasHombreEstimadas * item.cantidad,
     horasHombreReales: item.horasHombreReales, excedeEstimado: false, assignedUser: item.assignedUser ?? null, laborValidatedAt: item.laborValidatedAt, laborValidationNote: item.laborValidationNote, activeSession: null, totalMinutes: (item.horasHombreReales ?? 0) * 60, observationsCount: 0,
   })), [query.data?.items, workOrder.items]);
+  const mineItems = items.filter((item) => !mine || item.canWork || item.assignedUser?.id === user?.id || (!item.assignedUser && workOrder.assignedMechanicId === user?.id));
+  const visibleItems = mineItems.filter((item) => status === 'all' || item.estadoOperativo === status);
+  const goTo = (itemId: number): void => {
+    setStatus('all');
+    window.requestAnimationFrame(() => { taskNodes.current[itemId]?.focus(); taskNodes.current[itemId]?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); });
+  };
   return <div className="workshop-labor-board">
-    <div className="workshop-labor-toolbar"><div><h2>Trabajos de la orden</h2><p>Asigna cada servicio y controla su avance y sus horas.</p></div>{user?.role === 'mecanico' && <button type="button" aria-pressed={mine} onClick={() => setMine((current) => !current)}>{mine ? 'Mis trabajos' : 'Todos los trabajos'}</button>}</div>
+    <div className="workshop-labor-toolbar"><div><h2>Trabajos de la orden</h2><p>{canManage ? 'Asigna responsables por servicio. Iniciar el cronómetro registra tus propias horas.' : 'Inicia tu trabajo para registrar horas y márcalo al terminar.'}</p></div>{user?.role === 'mecanico' && <button type="button" aria-pressed={mine} onClick={() => setMine((current) => !current)}>{mine ? 'Mis trabajos' : 'Todos los trabajos'}</button>}</div>
+    <div className="workshop-labor-filters" role="group" aria-label="Filtrar trabajos"><button type="button" aria-pressed={status === 'all'} onClick={() => setStatus('all')}>Todos <span>{mineItems.length}</span></button>{Object.entries(labels).map(([value, label]) => <button key={value} type="button" aria-pressed={status === value} onClick={() => setStatus(value as ItemOperationalStatus)}>{label} <span>{mineItems.filter((item) => item.estadoOperativo === value).length}</span></button>)}</div>
     {query.isPending && <p role="status" className="workshop-labor-help">Cargando horas de trabajo…</p>}
     {query.isError && <div role="alert" className="workshop-labor-error"><AlertCircle aria-hidden="true" /><span>No se pudieron cargar las horas. Los registros guardados se conservan.</span><button type="button" onClick={() => void query.refetch()}><RotateCcw aria-hidden="true" />Reintentar</button></div>}
-    <div className="workshop-labor-list">{items.map((item) => <div key={item.id} hidden={mine && !(item.canWork || item.assignedUser?.id === user?.id || (!item.assignedUser && workOrder.assignedMechanicId === user?.id))}><Task item={item} workOrderId={workOrder.id} canManage={canManage} closed={closed} available={Boolean(query.data)} observations={(query.data?.observations ?? []).filter((entry) => entry.itemId === item.id)} onState={onState} /></div>)}</div>
-    {query.data && <GeneralObservations workOrderId={workOrder.id} entries={query.data.observations.filter((entry) => entry.itemId === null)} editable={!closed} onState={onState} />}
+    <div className="workshop-labor-list">{items.map((item) => { const next = mineItems.find((other) => other.id !== item.id && !['completado', 'omitido'].includes(other.estadoOperativo) && (canManage || other.canWork)); return <div key={item.id} ref={(node) => { taskNodes.current[item.id] = node; }} tabIndex={-1} hidden={!visibleItems.some((visible) => visible.id === item.id)}><Task item={item} workOrderId={workOrder.id} canManage={canManage} closed={closed} available={Boolean(query.data) && canUpdate} observations={(query.data?.observations ?? []).filter((entry) => entry.itemId === item.id)} onState={onState} onSuggestPrice={onSuggestPrice} onCompleted={() => setStatus('all')} onNext={next ? () => goTo(next.id) : undefined} /></div>; })}</div>
+    {items.length > 0 && visibleItems.length === 0 && <p className="workshop-labor-empty">No hay trabajos en este filtro.</p>}
+    {query.data && <GeneralObservations workOrderId={workOrder.id} entries={query.data.observations.filter((entry) => entry.itemId === null)} editable={!closed && canUpdate} onState={onState} />}
     {!items.length && <p className="workshop-labor-empty">No hay trabajos cargados todavía.</p>}
     {canManage && !closed && <details className="workshop-labor-details"><summary>Responsable general (opcional)</summary><div className="workshop-labor-detail-body"><p>Los servicios con un mecánico propio mantienen su asignación.</p><label>Responsable general<select aria-label="Responsable general de la OT" disabled={coordinator.isPending} value={workOrder.assignedMechanicId ?? ''} onChange={(event) => coordinator.mutate({ id: workOrder.id, data: { mechanicId: event.target.value ? Number(event.target.value) : null } }, { onError: (error) => notifyError(getApiErrorMessage(error)) })}><option value="">Sin asignar</option>{(mechanics.data ?? []).map((mechanic) => <option key={mechanic.id} value={mechanic.id}>{mechanic.nombre}</option>)}</select></label></div></details>}
   </div>;

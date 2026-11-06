@@ -5,7 +5,7 @@ import {
   PackagePlus,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import WorkOrderLaborBoard from './WorkOrderLaborBoard';
 import WorkOrderPriceSuggestions from './WorkOrderPriceSuggestions';
@@ -17,9 +17,9 @@ import {
 } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
-import CurrencyInput from '../common/CurrencyInput';
 
 import type { WorkOrder } from '../../types/entities';
 
@@ -33,12 +33,14 @@ const requestStatusStyles = {
 
 interface Props {
   workOrder: WorkOrder;
-  section?: 'all' | 'execution' | 'requests';
+  section?: 'all' | 'execution' | 'requests' | 'prices';
+  priceRequest?: { itemId: number };
+  onSuggestPrice?: (itemId: number) => void;
   onDirtyChange?: (dirty: boolean) => void;
   onPendingChange?: (pending: boolean) => void;
 }
 
-export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChange, onPendingChange }: Props) => {
+export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceRequest, onSuggestPrice, onDirtyChange, onPendingChange }: Props) => {
   const user = useAuthStore((state) => state.user);
   const isSupervisor = Boolean(
     user && ['desarrollador', 'admin', 'jefe'].includes(user.role),
@@ -47,7 +49,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
 
   const isClosed = workOrder.estado === 'entregada' || workOrder.estado === 'cancelada';
   const canExecute = !isClosed && Boolean(
-    user && (isSupervisor || (user.role === 'mecanico' && (workOrder.assignedMechanicId === user.id || workOrder.items?.some((item) => item.assignedUserId === user.id)))),
+    user && hasUserPermission(user, 'taller', 'update') && (isSupervisor || (user.role === 'mecanico' && (workOrder.assignedMechanicId === user.id || workOrder.items?.some((item) => item.assignedUserId === user.id)))),
   );
   const executionMutation = useUpdateWorkOrderExecutionMutation();
   const requestMutation = useCreateWorkOrderRequestMutation();
@@ -61,21 +63,22 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
   const [progress, setProgress] = useState('');
   const [comment, setComment] = useState('');
   const [blockers, setBlockers] = useState('');
-  const [requestType, setRequestType] = useState<'repuesto' | 'aumento_precio'>('repuesto');
+  const [localPriceRequest, setLocalPriceRequest] = useState<{ itemId: number }>();
+  const pricePanelRef = useRef<HTMLDivElement>(null);
+  const openPrices = (itemId: number): void => {
+    setLocalPriceRequest({ itemId });
+    onSuggestPrice?.(itemId);
+    if (!onSuggestPrice) pricePanelRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
   const [catalogItemId, setCatalogItemId] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [workOrderItemId, setWorkOrderItemId] = useState('');
-  const [suggestedPrice, setSuggestedPrice] = useState('');
   const [reason, setReason] = useState('');
   const isPending = pricePending || workPending || executionMutation.isPending || requestMutation.isPending || reviewMutation.isPending;
-  const isDirty = priceDirty || workDirty || Boolean(progress || comment.trim() || blockers.trim() || catalogItemId || workOrderItemId || suggestedPrice || reason.trim());
+  const isDirty = priceDirty || workDirty || Boolean(progress || comment.trim() || blockers.trim() || catalogItemId || reason.trim());
   useEffect(() => onDirtyChange?.(isDirty), [onDirtyChange, isDirty]);
   useEffect(() => onPendingChange?.(isPending), [onPendingChange, isPending]);
-  const selectedService = workOrder.items?.find((item) => item.id === Number(workOrderItemId));
   const validProgress = progress !== '' && Number.isInteger(Number(progress)) && Number(progress) >= 0 && Number(progress) <= 100 && comment.trim().length >= 2;
-  const validRequest = reason.trim().length >= 2 && (requestType === 'repuesto'
-    ? Boolean(catalogItemId) && Number.isInteger(Number(quantity)) && Number(quantity) > 0 && Number(quantity) <= 9999
-    : Boolean(selectedService) && Number(suggestedPrice) > Number(selectedService?.precioUnitario ?? 0));
+  const validRequest = reason.trim().length >= 2 && Boolean(catalogItemId) && Number.isInteger(Number(quantity)) && Number(quantity) > 0 && Number(quantity) <= 9999;
   const pendingRequests = useMemo(
     () =>
       (workOrder.requests ?? []).filter(
@@ -120,28 +123,13 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
 
   const submitRequest = (): void => {
     if (!canExecute || !validRequest) return;
-    const data =
-      requestType === 'repuesto'
-        ? {
-            tipo: 'repuesto' as const,
-            catalogItemId: Number(catalogItemId),
-            cantidad: Number(quantity),
-            motivo: reason,
-          }
-        : {
-            tipo: 'aumento_precio' as const,
-            workOrderItemId: Number(workOrderItemId),
-            precioSugerido: Number(suggestedPrice),
-            motivo: reason,
-          };
+    const data = { tipo: 'repuesto' as const, catalogItemId: Number(catalogItemId), cantidad: Number(quantity), motivo: reason };
     requestMutation.mutate(
       { id: workOrder.id, data },
       {
         onSuccess: () => {
           setReason('');
           setCatalogItemId('');
-          setWorkOrderItemId('');
-          setSuggestedPrice('');
           setQuantity('1');
           setPartSearch('');
           notifySuccess('Solicitud enviada al jefe de taller.');
@@ -165,7 +153,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
     executionMutation.error ?? requestMutation.error ?? reviewMutation.error;
 
   const progressHistory = (
-    <div className="workshop-progress-history border-t border-brand-line p-5 sm:p-6" hidden={section === 'requests'}>
+    <div className="workshop-progress-history border-t border-brand-line p-5 sm:p-6" hidden={section === 'requests' || section === 'prices'}>
       <h3 className="text-sm font-bold text-brand-ink">Bitácora de avances reportados</h3>
       <div className="mt-3 space-y-2.5">
         {workOrder.progressReports?.map((report) => (
@@ -194,7 +182,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
 
   return (
     <section className="workshop-mechanic-panel min-w-0 overflow-hidden rounded-2xl border border-brand-line bg-white shadow-xs" data-section={section} aria-labelledby="mechanic-panel-title">
-      <div className="workshop-mechanic-heading" hidden={section === 'execution'}><div><h2 id="mechanic-panel-title">Solicitudes del taller</h2><p>Repuestos y revisiones con sus aprobaciones.</p></div></div>
+      <div className="workshop-mechanic-heading" hidden={section === 'execution' || section === 'prices'}><div><h2 id="mechanic-panel-title">Solicitudes del taller</h2><p>Repuestos y revisiones con sus aprobaciones.</p></div></div>
 
       {mutationError && (
         <div className="flex items-center gap-2 border-b border-brand-coral/30 bg-brand-coralPale px-5 py-3 text-sm text-brand-coralInk" role="alert">
@@ -205,11 +193,11 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
 
       {canExecute ? (
         <fieldset disabled={isPending} className={`workshop-edit-fields ${section === 'all' ? 'grid divide-y divide-brand-line xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:divide-x xl:divide-y-0' : ''}`}>
-          <div className="workshop-execution-columns" hidden={section === 'requests'}>
-            <WorkOrderLaborBoard workOrder={workOrder} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} />
+          <div className="workshop-execution-columns" hidden={section === 'requests' || section === 'prices'}>
+            <WorkOrderLaborBoard workOrder={workOrder} onSuggestPrice={openPrices} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} />
           </div>
 
-          <div className="workshop-execution-side" hidden={section === 'requests'}>
+          <div className="workshop-execution-side" hidden={section === 'requests' || section === 'prices'}>
             {/* Reportar avance */}
             <details className="workshop-progress-form"><summary>Reportar avance</summary><div>
               <h3 className="text-sm font-bold text-brand-ink">Reportar avance</h3>
@@ -262,42 +250,12 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
           </div>
 
           {/* Solicitudes de repuestos / aumentos */}
-          <div className="workshop-request-form min-w-0 p-5 sm:p-6" hidden={section === 'execution'}>
+          <div className="workshop-request-form min-w-0 p-5 sm:p-6" hidden={section === 'execution' || section === 'prices'}>
             <div className="rounded-2xl border border-brand-line bg-[#fbfcfd] p-5">
-              <h3 className="text-sm font-bold text-brand-ink">Solicitar al jefe de taller</h3>
+              <h3 className="text-sm font-bold text-brand-ink">Solicitar un repuesto</h3>
               <p className="mt-0.5 text-xs text-brand-muted">
-                Petición de insumos o actualización de presupuesto.
+                El jefe de taller revisará la solicitud antes de autorizar su entrega.
               </p>
-              <div className={`workshop-request-types mt-4 grid ${isSupervisor ? 'grid-cols-2' : 'grid-cols-1'} rounded-xl bg-brand-pale/70 p-1`}>
-                <button
-                  type="button"
-                  className={`h-9 rounded-lg text-xs font-bold transition ${
-                    requestType === 'repuesto'
-                      ? 'bg-white text-brand-primary shadow-xs'
-                      : 'text-brand-muted hover:text-brand-ink'
-                  }`}
-                  onClick={() => setRequestType('repuesto')}
-                  aria-pressed={requestType === 'repuesto'}
-                >
-                  Nuevo repuesto
-                </button>
-                {isSupervisor && (
-                  <button
-                    type="button"
-                    className={`h-9 rounded-lg text-xs font-bold transition ${
-                      requestType === 'aumento_precio'
-                        ? 'bg-white text-brand-primary shadow-xs'
-                        : 'text-brand-muted hover:text-brand-ink'
-                    }`}
-                    onClick={() => setRequestType('aumento_precio')}
-                    aria-pressed={requestType === 'aumento_precio'}
-                  >
-                    Sugerir aumento
-                  </button>
-                )}
-              </div>
-
-              {requestType === 'repuesto' ? (
                 <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_7rem]">
                   <label className="grid min-w-0 gap-1 text-xs font-semibold text-brand-muted sm:col-span-2">
                     Buscar repuesto
@@ -350,41 +308,6 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
                     />
                   </label>
                 </div>
-              ) : (
-                <div className="mt-4 grid gap-3">
-                  <label className="grid min-w-0 gap-1 text-xs font-semibold text-brand-muted">
-                    Servicio
-                    <select
-                      className="h-10 w-full min-w-0 rounded-xl border border-brand-line bg-white px-3 text-sm text-brand-ink outline-none focus:border-brand-primary"
-                      value={workOrderItemId}
-                      onChange={(event) => {
-                        setWorkOrderItemId(event.target.value);
-                        setSuggestedPrice('');
-                      }}
-                    >
-                      <option value="">Seleccionar trabajo</option>
-                      {workOrder.items
-                        ?.filter((item) => item.tipoLinea !== 'parte')
-                        .map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.descripcion}
-                            {isSupervisor ? ` · actual ${formatClp(item.precioUnitario)}` : ''}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                  <label className="grid gap-1 text-xs font-semibold text-brand-muted">
-                    Precio sugerido
-                    <CurrencyInput
-                      value={suggestedPrice}
-                      onChange={setSuggestedPrice}
-                      className="h-10 rounded-xl border border-brand-line bg-white px-3 text-sm font-bold text-brand-ink outline-none focus:border-brand-primary"
-                      aria-label="Precio sugerido"
-                    />
-                  </label>
-                </div>
-              )}
-
               <label className="mt-3 grid gap-1 text-xs font-semibold text-brand-muted">
                 Justificación
                 <textarea
@@ -394,14 +317,6 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
                   placeholder="Explique la necesidad o complejidad encontrada..."
                 />
               </label>
-              {requestType === 'aumento_precio' &&
-                selectedService &&
-                suggestedPrice !== '' &&
-                Number(suggestedPrice) <= Number(selectedService.precioUnitario) && (
-                  <p className="mt-2 text-sm text-brand-coralInk" role="alert">
-                    El precio sugerido debe superar el actual: {formatClp(selectedService.precioUnitario)}.
-                  </p>
-                )}
               <button
                 type="button"
                 className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-brand-primary px-4 text-xs font-bold text-white shadow-xs hover:bg-brand-primaryHover transition disabled:opacity-50"
@@ -423,7 +338,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
       )}
 
       {/* Lista de Solicitudes Registradas */}
-      <div className="workshop-request-history border-t border-brand-line p-5 sm:p-6" hidden={section === 'execution'}>
+      <div className="workshop-request-history border-t border-brand-line p-5 sm:p-6" hidden={section === 'execution' || section === 'prices'}>
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold text-brand-ink">Historial de Solicitudes</h3>
           {pendingRequests.length > 0 && (
@@ -486,9 +401,9 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
         </div>
       </div>
 
-      <div className="workshop-price-review-container" hidden={section === 'execution'}><WorkOrderPriceSuggestions workOrder={workOrder} onDirtyChange={setPriceDirty} onPendingChange={setPricePending} /></div>
-      {!canExecute && section !== 'requests' && <WorkOrderLaborBoard workOrder={workOrder} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} />}
-      {!canExecute && section !== 'requests' && progressHistory}
+      <div ref={pricePanelRef} className="workshop-price-review-container" hidden={section !== 'all' && section !== 'prices'}><WorkOrderPriceSuggestions workOrder={workOrder} requestedItem={priceRequest ?? localPriceRequest} onDirtyChange={setPriceDirty} onPendingChange={setPricePending} /></div>
+      {!canExecute && section !== 'requests' && section !== 'prices' && <WorkOrderLaborBoard workOrder={workOrder} onSuggestPrice={openPrices} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} />}
+      {!canExecute && section !== 'requests' && section !== 'prices' && progressHistory}
 
     </section>
   );

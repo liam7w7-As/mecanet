@@ -9,6 +9,7 @@ import { Stagger, StaggerItem } from '../../components/animate-ui';
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
+import MechanicOverview from '../../components/work-orders/MechanicOverview';
 import RevertStatusModal from '../../components/work-orders/RevertStatusModal';
 import WorkOrderCard from '../../components/work-orders/WorkOrderCard';
 import WorkOrderDeliveryModal from '../../components/work-orders/WorkOrderDeliveryModal';
@@ -103,7 +104,7 @@ const isStatusRegression = (from: WorkOrderStatus, to: WorkOrderStatus): boolean
   return fi > ti && fi !== -1 && ti !== -1;
 };
 
-export const WorkOrdersPage = () => {
+export const WorkOrdersPage = ({ personalOverview = false }: { personalOverview?: boolean }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [cardExpansion, setCardExpansion] = useState<WorkOrderCardExpansion>(null);
@@ -115,14 +116,15 @@ export const WorkOrdersPage = () => {
   const [pendingCancellation, setPendingCancellation] = useState<PendingCancellation | null>(null);
   const [pendingRevert, setPendingRevert] = useState<PendingRevert | null>(null);
   const [detailWorkOrderId, setDetailWorkOrderId] = useState<number | null>(null);
-  const [detailView, setDetailView] = useState<'summary' | 'execution'>('summary');
+  const [detailView, setDetailView] = useState<'summary' | 'execution' | 'prices'>('summary');
   useEffect(() => {
     const requested = Number(searchParams.get('manage'));
     if (!Number.isInteger(requested) || requested <= 0) return;
     setDetailWorkOrderId(requested);
-    setDetailView('execution');
+    setDetailView(searchParams.get('manageView') === 'prices' ? 'prices' : 'execution');
     const next = new URLSearchParams(searchParams);
     next.delete('manage');
+    next.delete('manageView');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
   const [previewWorkOrderId, setPreviewWorkOrderId] = useState<number | null>(null);
@@ -181,12 +183,15 @@ export const WorkOrdersPage = () => {
     <div className="workshop-board min-w-0 space-y-5">
       <header className="workshop-board-heading flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
+          {personalOverview && <p className="workshop-role-caption">Mi taller · {user?.nombre}</p>}
           <h1 className="text-2xl font-semibold text-brand-primaryInk sm:text-3xl" aria-label={user?.role === 'mecanico' ? 'Mis órdenes asignadas' : 'Taller y Órdenes de trabajo'}>
             <span className="workshop-heading-desktop">{user?.role === 'mecanico' ? 'Mis órdenes asignadas' : 'Taller y Órdenes de trabajo'}</span>
             <span className="workshop-heading-mobile">{user?.role === 'mecanico' ? 'Mis órdenes' : 'Taller'}</span>
           </h1>
         </div>
       </header>
+
+      {personalOverview && <MechanicOverview />}
 
       <section className="workshop-list" aria-label="Listado de órdenes de trabajo">
         <WorkOrderFilters
@@ -219,7 +224,7 @@ export const WorkOrdersPage = () => {
             <div className="flex min-h-56 flex-col items-center justify-center px-4 text-center">
               <ClipboardList className="h-10 w-10 text-brand-line" aria-hidden="true" />
               <p className="mt-3 font-semibold text-brand-ink">No se encontraron órdenes de trabajo</p>
-              <p className="mt-1 text-sm text-brand-muted">Cambie los filtros o registre el primer ingreso del taller.</p>
+              <p className="mt-1 text-sm text-brand-muted">{user?.role === 'mecanico' ? 'Revisa los filtros. Aquí aparecerán las OT que te asignen como responsable o por servicio.' : 'Cambie los filtros o registre el primer ingreso del taller.'}</p>
             </div>
           ) : (
             <Stagger className="workshop-card-grid" stagger={0.05}>

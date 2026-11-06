@@ -235,3 +235,45 @@
   .workshop-edit-dialog fieldset.reception-edit-body :is(input, textarea, select) { font-size: 16px; }
   .workshop-edit-dialog fieldset.reception-edit-body :is(input:not([type='checkbox']), select) { min-height: 44px; }
 }
+/* Work management: focused feedback and price proposals within the same dialog. */
+.workshop-labor-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.workshop-labor-filters button { min-height: 36px; padding: 6px 11px; }
+.workshop-labor-filters button[aria-pressed=true] { border-color: #b6c9df; background: #e8eff8; color: #294d7b; }
+.workshop-labor-filters button span { font-variant-numeric: tabular-nums; color: #7a8aa2; }
+.workshop-labor-saved { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid #cde9df; border-radius: 12px; background: #edf8f3; color: #25644f; font-size: 12px; line-height: 1.6; outline-offset: 3px; }
+.workshop-labor-saved > span { min-width: 0; flex: 1; }
+.workshop-labor-saved > svg { width: 18px; height: 18px; flex: none; }
+.workshop-labor-list > div:focus-visible { border-radius: 16px; outline: 2px solid #91afd7; outline-offset: 3px; }
+.workshop-price-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.workshop-price-heading > svg { flex: none; width: 26px; height: 26px; color: #294d7b; }
+.workshop-price-heading > div { min-width: 0; flex: 1; }
+.workshop-price-heading h2 { color: #294d7b; font-size: 16px; font-weight: 600; }
+.workshop-price-heading p { margin-top: 4px; color: #72839b; font-size: 12px; line-height: 1.6; }
+.workshop-price-heading .status-chip { flex: none; }
+.workshop-price-form { display: grid; gap: 14px; padding: 18px; margin-top: 14px; border: 1px solid #e6ecf3; border-radius: 14px; background: #fff; }
+.workshop-price-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.workshop-price-comparison { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px; border-radius: 12px; background: #f4f7fb; }
+.workshop-price-comparison > span { display: grid; gap: 5px; min-width: 0; color: #72839b; font-size: 11px; }
+.workshop-price-comparison strong { color: #294d7b; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.workshop-price-preview { color: #526782; font-size: 12px; line-height: 1.7; }
+.workshop-price-submit { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.workshop-price-submit > span { color: #72839b; font-size: 11px; }
+.workshop-price-review .primary-button { border-color: #1d396a; background: #1d396a; color: #fff; }
+.workshop-price-review .primary-button:hover:not(:disabled) { background: #294d7b; }
+.workshop-price-review button > svg { width: 15px; height: 15px; }
+.workshop-price-history { display: grid; gap: 12px; margin-top: 22px; }
+.workshop-price-history h3 { color: #294d7b; font-size: 13px; font-weight: 600; }
+.workshop-price-entry { display: grid; gap: 10px; padding: 16px; border: 1px solid #e6ecf3; border-radius: 14px; background: #fff; }
+.workshop-price-entry-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: #294d7b; font-size: 13px; }
+.workshop-price-entry > p { font-size: 12px; color: #526782; overflow-wrap: anywhere; white-space: pre-wrap; }
+.workshop-price-entry > small { color: #72839b; font-size: 11px; }
+.workshop-price-decision { display: grid; gap: 10px; padding-top: 10px; border-top: 1px solid #edf1f6; }
+@media (max-width: 639px) {
+  .workshop-labor-toolbar { flex-wrap: wrap; }
+  .workshop-price-heading { flex-wrap: wrap; }
+  .workshop-price-fields { grid-template-columns: minmax(0, 1fr); }
+  .workshop-price-comparison { gap: 9px; padding: 10px; }
+  .workshop-price-comparison strong { font-size: 12px; }
+  .workshop-price-form { padding: 12px; }
+  .workshop-price-submit > button { width: 100%; min-height: 44px; }
+}

@@ -239,6 +239,89 @@ describe('QuotationsPage', () => {
     expect(within(dialog).queryByRole('button', { name: 'Registrar Abono' })).not.toBeInTheDocument();
   });
 
+  it('muestra la carga y permite reintentar la apertura del editor del vendedor', async () => {
+    const baseGet = vi.mocked(api.get).getMockImplementation();
+    let attempts = 0;
+    let rejectLoad: () => void = () => { throw new Error('Carga no iniciada'); };
+    let finishLoad: () => void = () => { throw new Error('Reintento no iniciado'); };
+    useAuthStore.setState({
+      user: { id: 1, nombre: 'Ventas', email: 'ventas@demo.cl', role: 'vendedor' },
+    });
+    vi.mocked(api.get).mockImplementation((url, config) => {
+      if (url === '/quotations/31') {
+        attempts += 1;
+        return new Promise((resolve, reject) => {
+          if (attempts === 1) rejectLoad = () => reject(new Error('Sin conexión'));
+          else finishLoad = () => resolve({ data: { quotation } } as AxiosResponse);
+        });
+      }
+      if (url === '/catalog') {
+        return Promise.resolve({ data: { items: [], total: 0 } } as AxiosResponse);
+      }
+      return baseGet?.(url, config) ?? Promise.reject(new Error('GET inesperado'));
+    });
+    renderWithProviders(<QuotationsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar COT-2026-0031' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Editar cotización' }));
+    expect(dialog.getByRole('status')).toHaveTextContent('Cargando cotización para editar');
+    expect(dialog.queryByLabelText('Notas comerciales')).not.toBeInTheDocument();
+    expect(attempts).toBe(1);
+    await act(async () => { rejectLoad(); });
+    expect(await dialog.findByRole('alert')).toHaveTextContent('No fue posible cargar la cotización para editar.');
+    fireEvent.click(dialog.getByRole('button', { name: 'Reintentar' }));
+    expect(await dialog.findByRole('status')).toHaveTextContent('Cargando cotización para editar');
+    expect(dialog.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+    expect(attempts).toBe(2);
+    await act(async () => { finishLoad(); });
+    expect(await screen.findByLabelText('Notas comerciales')).toHaveValue(quotation.notas);
+    expect(screen.queryByText('Cargando cotización para editar…')).not.toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Cotizaciones' })).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it.each(['cargando', 'error'] as const)(
+    'permite cancelar la apertura del editor en estado %s y restaura el foco',
+    async (state) => {
+      const baseGet = vi.mocked(api.get).getMockImplementation();
+      let finishLoad: () => void = () => { throw new Error('Carga no iniciada'); };
+      vi.mocked(api.get).mockImplementation((url, config) => {
+        if (url === '/quotations/31') {
+          if (state === 'error') return Promise.reject(new Error('Sin conexión'));
+          return new Promise((resolve) => {
+            finishLoad = () => resolve({ data: { quotation } } as AxiosResponse);
+          });
+        }
+        return baseGet?.(url, config) ?? Promise.reject(new Error('GET inesperado'));
+      });
+      renderWithProviders(<QuotationsPage />);
+      const trigger = await screen.findByRole('button', { name: 'Editar COT-2026-0031' });
+      trigger.focus();
+      fireEvent.click(trigger);
+      const dialog = within(screen.getByRole('dialog', { name: 'Editar cotización' }));
+      if (state === 'error') await dialog.findByRole('alert');
+      else expect(dialog.getByRole('status')).toHaveTextContent('Cargando cotización para editar');
+      fireEvent.click(dialog.getByRole('button', { name: 'Cancelar' }));
+      expect(screen.queryByRole('dialog', { name: 'Editar cotización' })).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+      expect(document.body.style.overflow).not.toBe('hidden');
+      if (state === 'cargando') await act(async () => { finishLoad(); });
+      expect(screen.queryByRole('dialog', { name: 'Editar cotización' })).not.toBeInTheDocument();
+      expect(api.patch).not.toHaveBeenCalled();
+    },
+  );
+
+  it('no ofrece editar a un vendedor sin permiso de actualización comercial', async () => {
+    useAuthStore.setState({
+      user: { id: 9, nombre: 'Consulta', email: 'consulta@demo.cl', role: 'vendedor',
+        permissions: [{ modulo: 'comercial', accion: 'read' }] },
+    });
+    renderWithProviders(<QuotationsPage />);
+    await screen.findByText(quotation.codigo);
+    expect(screen.queryByRole('button', { name: 'Editar COT-2026-0031' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Editar cotización' })).not.toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalledWith('/quotations/31');
+  });
+
   it('mantiene descuentos e identidad de líneas al reintentar una edición fallida', async () => {
     const discounted: Quotation = { ...quotation, descuentoTipo: 'porcentaje', descuentoValor: 10,
       items: quotation.items?.map((item) => ({ ...item, descuentoTipo: 'fijo', descuentoValor: 1000 })) };
@@ -246,6 +329,7 @@ describe('QuotationsPage', () => {
     vi.mocked(api.patch).mockRejectedValueOnce(new Error('Sin conexión')).mockResolvedValueOnce({ data: { quotation: discounted } });
     renderWithProviders(<QuotationsPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'Editar COT-2026-0031' }));
+    await screen.findByLabelText('Notas comerciales');
     const dialog = await screen.findByRole('dialog', { name: 'Editar cotización' });
     fireEvent.change(within(dialog).getByLabelText('Notas comerciales'), { target: { value: 'Conservar condiciones' } });
     expect(within(dialog).getByTestId('quotation-edit-total')).toHaveTextContent('44.100');

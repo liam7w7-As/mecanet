@@ -1122,6 +1122,9 @@ export const createPriceSuggestion = async (
     if (!WORK_ORDER_PRICE_SUGGESTION_SCOPES.includes(data.alcance)) {
       throw ApiError.badRequest('Alcance de la sugerencia inválido');
     }
+    if (data.alcance !== 'ot' && !catalogItem) {
+      throw ApiError.badRequest('El servicio no está vinculado a un item activo del catálogo');
+    }
 
     return WorkOrderPriceSuggestion.create(
       {
@@ -1177,6 +1180,8 @@ export const reviewPriceSuggestion = async (
     }
 
     if (data.decision === 'aprobar') {
+      const workOrder = await findWorkOrderForLabor(workOrderId, transaction);
+      assertEditable(workOrder);
       const applyToOrder = suggestion.alcance === 'ot' || suggestion.alcance === 'ambos';
       const applyToCatalog =
         (suggestion.alcance === 'catalogo' || suggestion.alcance === 'ambos') &&
@@ -1206,7 +1211,8 @@ export const reviewPriceSuggestion = async (
         }
       }
 
-      await syncMirrorQuotationFromWorkOrder(workOrderId, transaction);    }
+      await syncMirrorQuotationFromWorkOrder(workOrderId, transaction);
+    }
 
     await suggestion.update(
       {

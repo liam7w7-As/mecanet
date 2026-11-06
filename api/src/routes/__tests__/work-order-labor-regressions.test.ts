@@ -615,4 +615,40 @@ describe('Labor integrity and mechanic privacy regressions', () => {
         .enCurso,
     ).toBe(false);
   });
+  it('keeps chief price proposals pending until administration approves and synchronizes the COT', async () => {
+    const { order, quotation, items } = await createOrder();
+    const path = `/api/work-orders/${order.id}/price-suggestions`;
+    const body = { workOrderItemId: items[0].id, precioSugerido: 18000, alcance: 'ot', motivo: 'Complejidad encontrada en taller' };
+    const mechanic = await mutate('post', path, body, 1);
+    expect(mechanic.status).toBe(403);
+    const proposal = await mutate('post', path, body, 4);
+    expect(proposal.status, JSON.stringify(proposal.body)).toBe(201);
+    expect(Number((await items[0].reload()).precioUnitario)).toBe(10000);
+    const adminInbox = await get('/api/dashboard/summary');
+    expect(adminInbox.body.operationalInbox.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: `price-${proposal.body.suggestion.id}`, href: `/work-orders?manage=${order.id}&manageView=prices` })]));
+    const chiefInbox = await get('/api/dashboard/summary', 4);
+    expect(chiefInbox.body.operationalInbox.items.some((task: { id: string }) => task.id === `price-${proposal.body.suggestion.id}`)).toBe(false);
+    const reviewPath = `${path}/${proposal.body.suggestion.id}`;
+    expect((await mutate('patch', reviewPath, { decision: 'aprobar' }, 4)).status).toBe(403);
+    const approved = await mutate('patch', reviewPath, { decision: 'aprobar', comentario: 'Precio autorizado' });
+    expect(approved.status, JSON.stringify(approved.body)).toBe(200);
+    expect(Number((await items[0].reload()).precioUnitario)).toBe(18000);
+    expect(Number((await quotation.reload()).total)).toBe(18000);
+    expect(approved.body.suggestion.reviewNote).toBe('Precio autorizado');
+  });
+
+  it('rejects catalog price proposals for free services and does not approve changes on closed orders', async () => {
+    const { order, items } = await createOrder();
+    const path = `/api/work-orders/${order.id}/price-suggestions`;
+    const body = { workOrderItemId: items[0].id, precioSugerido: 18000, alcance: 'catalogo', motivo: 'Servicio libre' };
+    expect((await mutate('post', path, body, 4)).status).toBe(400);
+    const proposal = await mutate('post', path, { ...body, alcance: 'ot' }, 4);
+    expect(proposal.status).toBe(201);
+    await order.update({ estado: 'entregada' });
+    const result = await mutate('patch', `${path}/${proposal.body.suggestion.id}`, { decision: 'aprobar' });
+    expect(result.status).toBe(400);
+    expect(Number((await items[0].reload()).precioUnitario)).toBe(10000);
+    expect((await get(path)).body.suggestions[0].estado).toBe('pendiente');
+  });
+
 });

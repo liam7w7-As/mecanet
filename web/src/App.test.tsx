@@ -169,7 +169,7 @@ describe('App routing and authentication', () => {
     renderRoute('/work-orders/mine');
 
     const navigation = within(screen.getByRole('navigation', { name: 'Navegación principal' }));
-    expect(navigation.getByRole('link', { name: 'Mi ficha' })).toHaveAttribute('href', '/work-orders/mine');
+    expect(navigation.getByRole('link', { name: 'Mi taller' })).toHaveAttribute('href', '/work-orders/mine');
     expect(navigation.getAllByRole('link')).toHaveLength(1);
     expect(navigation.queryByRole('link', { name: 'Cotizaciones' })).not.toBeInTheDocument();
     expect(navigation.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument();
@@ -179,7 +179,8 @@ describe('App routing and authentication', () => {
     useAuthStore.setState({ user: { ...authenticatedUser, role: 'mecanico' }, isAuthenticated: true, isLoading: false });
     renderRoute(path);
     await waitFor(() => expect(screen.getByLabelText('Ubicación de prueba')).toHaveTextContent('/work-orders/mine'));
-    expect(api.get).not.toHaveBeenCalledWith('/work-orders', expect.anything());
+    expect(api.get).toHaveBeenCalledWith('/work-orders', expect.objectContaining({ params: expect.objectContaining({ page: 1, pageSize: 12 }) }));
+    expect(screen.queryByRole('link', { name: /Nueva Orden de Trabajo/ })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -222,7 +223,7 @@ describe('App routing and authentication', () => {
     ['vendedor', 'Cotizaciones', 'Clientes'],
     ['bodeguero', 'Almacenes', 'Catálogo'],
     ['finanzas', 'Finanzas / Contabilidad', 'Compras'],
-    ['mecanico', 'Mi ficha', 'Mi ficha'],
+    ['mecanico', 'Mi taller', 'Mi taller'],
   ] satisfies Array<[Role, string, string]>)('conserva la navegación autorizada de %s', (role, first, second) => {
     useAuthStore.setState({ user: { ...authenticatedUser, role }, isAuthenticated: true, isLoading: false });
     renderRoute('/forbidden');

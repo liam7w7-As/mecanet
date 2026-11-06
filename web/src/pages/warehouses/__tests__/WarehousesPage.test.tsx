@@ -101,14 +101,14 @@ const approvedRequest: WarehouseWorkOrderRequest = {
   deliverer: null,
 };
 
-const renderPage = () => {
+const renderPage = (route = '/warehouses') => {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[route]}>
         <WarehousesPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -229,13 +229,41 @@ describe('WarehousesPage', () => {
     expect(screen.getAllByText('Bajo mínimo').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('entrega una solicitud aprobada desde la bodega seleccionada', async () => {
+  it('abre y enfoca el despacho desde tab=requests y permite volver a plegarlo', async () => {
+    renderPage('/warehouses?tab=requests');
+    const dispatch = screen.getByLabelText('Solicitudes de repuestos para órdenes de trabajo');
+    const summary = screen.getByText('Despacho a órdenes de trabajo', { exact: true }).closest('summary');
+    expect(dispatch).toHaveAttribute('open');
+    expect(summary).toHaveFocus();
+    fireEvent.click(summary!);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar en stock' }), {
+      target: { value: 'Filtro' },
+    });
+    await screen.findByText('Bodega Central');
+    expect(dispatch).not.toHaveAttribute('open');
+  });
+
+  it.each(['/warehouses', '/warehouses?tab=stock'])(
+    'mantiene el despacho plegado al entrar por %s',
+    async (route) => {
+      renderPage(route);
+      await screen.findByText('Bodega Central');
+      expect(screen.getByLabelText('Solicitudes de repuestos para órdenes de trabajo'))
+        .not.toHaveAttribute('open');
+    },
+  );
+
+  it('entrega una solicitud aprobada desde la segunda bodega seleccionada', async () => {
+    const second: Warehouse = { ...warehouse, id: 2, codigo: 'NORTE', nombre: 'Bodega Norte' };
+    useAuthStore.setState({
+      user: { id: 9, nombre: 'Bodega', email: 'bodega@demo.cl', role: 'bodeguero' },
+    });
     vi.mocked(api.get).mockImplementation((url) => {
       if (url === '/warehouses') {
         return Promise.resolve({
           data: {
-            items: [warehouse],
-            total: 1,
+            items: [warehouse, second],
+            total: 2,
             page: 1,
             pageSize: 50,
             totalPages: 1,
@@ -246,6 +274,11 @@ describe('WarehousesPage', () => {
         return Promise.resolve({ data: { balances: [balance] } } as AxiosResponse<{
           balances: StockBalance[];
         }>);
+      }
+      if (url === '/warehouses/2/balances') {
+        return Promise.resolve({
+          data: { balances: [{ ...balance, warehouseId: 2, cantidad: 6 }] },
+        } as AxiosResponse<{ balances: StockBalance[] }>);
       }
       if (url === '/warehouses/movements/all') {
         return Promise.resolve({
@@ -270,28 +303,93 @@ describe('WarehousesPage', () => {
         request: {
           ...approvedRequest,
           estado: 'entregada',
-          deliveredWarehouse: warehouse,
+          deliveredWarehouse: second,
           deliveredAt: '2026-09-23T11:00:00.000Z',
         } as WarehouseWorkOrderRequest,
       },
     } as AxiosResponse<{ request: WarehouseWorkOrderRequest }>);
 
     renderPage();
+    await screen.findByText('Bodega Norte');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Seleccionar almacén' }), {
+      target: { value: '2' },
+    });
     fireEvent.click(screen.getByText('Despacho a órdenes de trabajo', { exact: true }));
     expect(await screen.findByText('OT-2026-0041')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Entregar' }));
     expect(
       await screen.findByRole('dialog', { name: 'Confirmar entrega de repuesto' }),
     ).toBeInTheDocument();
-    expect(await screen.findByText('8')).toBeInTheDocument();
+    const dialog = within(screen.getByRole('dialog', { name: 'Confirmar entrega de repuesto' }));
+    expect(dialog.getByRole('combobox', { name: 'Almacén de salida' })).toHaveValue('2');
+    expect(await dialog.findByText('4')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar entrega' }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/warehouses/requests/41/deliver', {
-        warehouseId: 1,
+        warehouseId: 2,
         comentario: undefined,
       });
     });
+  });
+
+  it('pide elegir un almacén si el seleccionado está inactivo y conserva la validación de stock', async () => {
+    const baseGet = vi.mocked(api.get).getMockImplementation();
+    const second: Warehouse = { ...warehouse, id: 2, codigo: 'NORTE', nombre: 'Bodega Norte' };
+    vi.mocked(api.get).mockImplementation((url, config) => {
+      if (url === '/warehouses') {
+        return Promise.resolve({
+          data: { items: [{ ...warehouse, activo: false }, second], total: 2, page: 1, pageSize: 100, totalPages: 1 },
+        } as AxiosResponse);
+      }
+      if (url === '/warehouses/requests') {
+        return Promise.resolve({
+          data: { ...emptyRequests, items: [approvedRequest], total: 1, totalPages: 1 },
+        } as AxiosResponse);
+      }
+      if (url === '/warehouses/2/balances') {
+        return Promise.resolve({
+          data: { balances: [{ ...balance, warehouseId: 2, cantidad: 1 }] },
+        } as AxiosResponse);
+      }
+      return baseGet?.(url, config) ?? Promise.reject(new Error('GET inesperado'));
+    });
+
+    renderPage('/warehouses?tab=requests');
+    await screen.findByText('Bodega Norte');
+    fireEvent.click(await screen.findByRole('button', { name: 'Entregar' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Confirmar entrega de repuesto' }));
+    const source = dialog.getByRole('combobox', { name: 'Almacén de salida' });
+    expect(source).toHaveValue('');
+    expect(dialog.queryByRole('option', { name: /CENTRAL/ })).not.toBeInTheDocument();
+    expect(dialog.getByRole('button', { name: 'Confirmar entrega' })).toBeDisabled();
+    fireEvent.change(source, { target: { value: '2' } });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/warehouses/2/balances'));
+    expect(await dialog.findByText('-1')).toBeInTheDocument();
+    expect(dialog.getByRole('button', { name: 'Confirmar entrega' })).toBeDisabled();
+    fireEvent.click(dialog.getByRole('button', { name: 'Confirmar entrega' }));
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('abrir tab=requests no concede entrega a un vendedor de solo lectura', async () => {
+    const baseGet = vi.mocked(api.get).getMockImplementation();
+    useAuthStore.setState({
+      user: { id: 9, nombre: 'Ventas', email: 'ventas@demo.cl', role: 'vendedor' },
+    });
+    vi.mocked(api.get).mockImplementation((url, config) => {
+      if (url === '/warehouses/requests') {
+        return Promise.resolve({
+          data: { ...emptyRequests, items: [approvedRequest], total: 1, totalPages: 1 },
+        } as AxiosResponse);
+      }
+      return baseGet?.(url, config) ?? Promise.reject(new Error('GET inesperado'));
+    });
+    renderPage('/warehouses?tab=requests');
+    const dispatch = screen.getByLabelText('Solicitudes de repuestos para órdenes de trabajo');
+    await within(dispatch).findByText(approvedRequest.workOrder.codigo);
+    expect(dispatch).toHaveAttribute('open');
+    expect(within(dispatch).queryByRole('button', { name: 'Entregar' })).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('abre el modal de traslado cuando hay más de un almacén', async () => {

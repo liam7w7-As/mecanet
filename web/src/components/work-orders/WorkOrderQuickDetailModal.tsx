@@ -8,6 +8,7 @@ import {
   Car,
   ClipboardCheck,
   Download,
+  BadgeDollarSign,
   FileText,
   Gauge,
   ListChecks,
@@ -68,7 +69,7 @@ interface WorkOrderQuickDetailModalProps {
   workOrderId: number;
   onClose: () => void;
   onPreviewPdf: (workOrder: WorkOrder) => void;
-  initialView?: 'summary' | 'execution';
+  initialView?: 'summary' | 'execution' | 'prices';
 }
 
 type LeaveAction = 'close' | 'pdf' | 'detail';
@@ -115,14 +116,15 @@ export const WorkOrderQuickDetailModal = ({
   onPreviewPdf,
   initialView = 'summary',
 }: WorkOrderQuickDetailModalProps) => {
-  const [view, setView] = useState<'summary' | 'execution' | 'requests'>(initialView);
+  const [view, setView] = useState<'summary' | 'execution' | 'requests' | 'prices'>(initialView);
+  const [priceRequest, setPriceRequest] = useState<{ itemId: number }>();
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
   }, [view]);
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
-  const [hasOpenedExecution, setOpenedExecution] = useState(initialView === 'execution');
+  const [hasOpenedExecution, setOpenedExecution] = useState(initialView !== 'summary');
   const [hasDirtyChanges, setDirtyChanges] = useState(false);
   const [panelPending, setSavePending] = useState(false);
   const activeLaborMutations = useIsMutating({ mutationKey: ['work-order-labor', 'mutation'], predicate: (mutation) => {
@@ -132,6 +134,8 @@ export const WorkOrderQuickDetailModal = ({
   const savePending = panelPending || activeLaborMutations > 0;
   const [leaveAction, setLeaveAction] = useState<LeaveAction | null>(null);
   const showFinancials = user?.role !== 'mecanico';
+  const canSuggestPrices = Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role));
+  useEffect(() => { if (view === 'prices' && !canSuggestPrices) setView('execution'); }, [view, canSuggestPrices]);
   const workOrderQuery = useManagedWorkOrder(workOrderId);
   const workOrder = workOrderQuery.data;
   const canOperate = Boolean(user && workOrder && (
@@ -212,12 +216,13 @@ export const WorkOrderQuickDetailModal = ({
                 {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span>{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
               </button>
             ))}
+            {canSuggestPrices && <button type="button" aria-pressed={view === 'prices'} onClick={() => { setView('prices'); setOpenedExecution(true); }}><BadgeDollarSign aria-hidden="true" />Precios</button>}
           </div>
         )}
         <div ref={bodyRef} className="workshop-dialog-body">
 
         {workOrder && canOperate && hasOpenedExecution && (
-          <div className="workshop-execution-view p-4 sm:p-6" hidden={view === 'summary'}><WorkOrderMechanicPanel workOrder={workOrder} section={view === 'requests' ? 'requests' : 'execution'} onDirtyChange={setDirtyChanges} onPendingChange={setSavePending} /></div>
+          <div className="workshop-execution-view p-4 sm:p-6" hidden={view === 'summary'}><WorkOrderMechanicPanel workOrder={workOrder} section={view === 'prices' ? 'prices' : view === 'requests' ? 'requests' : 'execution'} priceRequest={priceRequest} onSuggestPrice={(itemId) => { setPriceRequest({ itemId }); setView('prices'); }} onDirtyChange={setDirtyChanges} onPendingChange={setSavePending} /></div>
         )}
 
         {workOrderQuery.isPending && (

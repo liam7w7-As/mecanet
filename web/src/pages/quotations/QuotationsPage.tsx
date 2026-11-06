@@ -1,9 +1,11 @@
 import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
 import { Archive, ArchiveRestore, CalendarDays, CheckCheck, CircleDollarSign, Clock3, DollarSign, Download, FileSpreadsheet, FileText, LayoutGrid, Link2Off, LoaderCircle, Pencil, Plus, Search, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { AnimateIcon, AnimatedTableRow } from '../../components/animate-ui';
+import ModalHeader from '../../components/common/ModalHeader';
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import PaymentFormModal from '../../components/quotations/PaymentFormModal';
@@ -12,6 +14,7 @@ import QuotationDetailModal from '../../components/quotations/QuotationDetailMod
 import QuotationEditModal from '../../components/quotations/QuotationEditModal';
 import QuotationStatusBadge from '../../components/quotations/QuotationStatusBadge';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useDownloadCommercialExcel } from '../../hooks/usePayments';
 import { useArchiveQuotationMutation, useQuotation, useQuotations, useUnarchiveQuotationMutation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -67,6 +70,46 @@ const QuotationSkeleton = () => (
     ))}
   </>
 );
+
+const QuotationEditLoadDialog = ({ loading, error, onClose, onRetry }: {
+  loading: boolean;
+  error: unknown;
+  onClose: () => void;
+  onRetry: () => void;
+}) => {
+  const setOverlayNode = useModalOverlay({ isOpen: true, onClose });
+
+  return createPortal(
+    <div className="reception-edit-overlay reference-modal-overlay">
+      <button type="button" className="reception-edit-backdrop" onClick={onClose}
+        aria-label="Cerrar carga de cotización" tabIndex={-1} />
+      <section role="dialog" aria-modal="true" aria-labelledby="quotation-edit-load-title"
+        aria-busy={loading} tabIndex={-1} ref={setOverlayNode}
+        className="reception-edit-dialog reference-dialog commercial-form-dialog">
+        <ModalHeader id="quotation-edit-load-title" title="Editar cotización" onClose={onClose} />
+        <div className="reception-edit-body">
+          {loading ? (
+            <p role="status" className="flex items-center gap-2 text-sm text-brand-muted">
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              Cargando cotización para editar…
+            </p>
+          ) : (
+            <p role="alert" className="text-sm text-brand-coralInk">
+              {getApiErrorMessage(error, 'No fue posible cargar la cotización para editar.')}
+            </p>
+          )}
+        </div>
+        <footer className="reception-edit-footer">
+          <div>
+            <button type="button" className="reception-secondary-button" onClick={onClose}>Cancelar</button>
+            {!loading && <button type="button" className="reception-primary-button" onClick={onRetry}>Reintentar</button>}
+          </div>
+        </footer>
+      </section>
+    </div>,
+    document.body,
+  );
+};
 
 export const QuotationsPage = () => {
   const navigate = useNavigate();
@@ -329,6 +372,14 @@ export const QuotationsPage = () => {
       </section>
 
 
+      {editQuotationId !== null && !editQuery.data && (
+        <QuotationEditLoadDialog
+          loading={editQuery.isPending || editQuery.isFetching}
+          error={editQuery.error}
+          onClose={() => setEditQuotationId(null)}
+          onRetry={() => void editQuery.refetch()}
+        />
+      )}
       {editQuotationId !== null && editQuery.data && (
         <QuotationEditModal
           quotation={editQuery.data}

@@ -749,6 +749,8 @@ export interface WorkOrderWorksheetItem {
   } | null;
   totalMinutes: number;
   observationsCount: number;
+  canWork?: boolean;
+  sessions?: Array<{ id: number; userName: string | null; startedAt: string; endedAt: string | null; minutes: number; kind: string; note: string | null }>;
 }
 
 export interface WorkOrderWorksheetObservationFile {
@@ -777,6 +779,10 @@ export interface WorkOrderWorksheet {
     estado: import('@unithor/shared').WorkOrderStatus;
     fechaIngreso: string | null;
     descripcion: string | null;
+    assignedMechanicId?: number | null;
+    fechaEntrega?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
     vehiculo: {
       id: number | null;
       patente: string | null;
@@ -808,6 +814,7 @@ export interface WorkOrderWorksheet {
     minutosReales: number;
   };
   pausedOtherItems: number;
+  requests?: Array<Pick<WorkOrderRequest, 'id' | 'estado' | 'catalogItemId' | 'cantidad' | 'motivo' | 'createdAt'> & { tipo: 'repuesto'; catalogItem: { id: number; nombre: string; codigo: string | null } | null; requester: { id: number; nombre: string } | null }>;
 }
 
 export interface MyLaborOrder {

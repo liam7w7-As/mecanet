@@ -43,17 +43,17 @@ import RevertStatusModal from '../../components/work-orders/RevertStatusModal';
 import WorkOrderDeliveryModal from '../../components/work-orders/WorkOrderDeliveryModal';
 import WorkOrderDeliveryReceiptModal from '../../components/work-orders/WorkOrderDeliveryReceiptModal';
 import WorkOrderItemsModal from '../../components/work-orders/WorkOrderItemsModal';
-import WorkOrderMechanicPanel from '../../components/work-orders/WorkOrderMechanicPanel';
+import WorkOrderQuickDetailModal from '../../components/work-orders/WorkOrderQuickDetailModal';
 import WorkOrderReceptionInspectionModal from '../../components/work-orders/WorkOrderReceptionInspectionModal';
 import WorkOrderReentryModal from '../../components/work-orders/WorkOrderReentryModal';
 import WorkOrderStatusBadge, { WORK_ORDER_STATUS_LABELS } from '../../components/work-orders/WorkOrderStatusBadge';
+import { useManagedWorkOrder } from '../../hooks/useManagedWorkOrder';
 import {
   useChangeWorkOrderStatusMutation,
   useDeleteWorkOrderInspectionPhotoMutation,
   useDownloadWorkOrderReceptionPdf,
   useShareWorkOrderReceptionPdf,
   useUploadWorkOrderInspectionPhotosMutation,
-  useWorkOrder,
 } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
@@ -163,7 +163,7 @@ const isStatusRegressionDetail = (from: WorkOrderStatus, to: WorkOrderStatus): b
 export const WorkOrderDetailPage = () => {
   const { id } = useParams();
   const workOrderId = Number(id);
-  const workOrderQuery = useWorkOrder(workOrderId);
+  const workOrderQuery = useManagedWorkOrder(workOrderId);
   const statusMutation = useChangeWorkOrderStatusMutation();
   const uploadPhotosMutation = useUploadWorkOrderInspectionPhotosMutation();
   const deletePhotoMutation = useDeleteWorkOrderInspectionPhotoMutation();
@@ -176,6 +176,7 @@ export const WorkOrderDetailPage = () => {
   const [showDeliveryReceipt, setShowDeliveryReceipt] = useState(false);
   const [showReentryModal, setShowReentryModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
+  const [showManageModal, setShowManageModal] = useState(false);
   const [shareOtOnOpen, setShareOtOnOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Partial<Record<WorkOrderInspectionPhotoSlot, number>>>({});
   const user = useAuthStore((state) => state.user);
@@ -315,12 +316,12 @@ export const WorkOrderDetailPage = () => {
         </div>
         <div className="workshop-record-tools flex flex-wrap gap-2">
           {canManageWorksheet && (
-            <Link to={`/work-orders/${workOrder.id}/ficha`} className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-primaryInk bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow">
+            <button type="button" onClick={() => setShowManageModal(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-primaryInk bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow">
               <AnimateIcon variant="pulse" animateOnHover>
                 <Wrench className="h-4 w-4" aria-hidden="true" />
               </AnimateIcon>
-              Ficha de taller
-            </Link>
+              Gestionar trabajo
+            </button>
           )}
           {canEditInspection && (
             <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink shadow-sm transition-all hover:bg-brand-pale hover:shadow" onClick={() => setShowReceptionModal(true)}>
@@ -573,7 +574,7 @@ export const WorkOrderDetailPage = () => {
         </div>
       </section>
 
-      <WorkOrderMechanicPanel workOrder={workOrder} />
+      {showManageModal && <WorkOrderQuickDetailModal workOrderId={workOrder.id} initialView="execution" onClose={() => setShowManageModal(false)} onPreviewPdf={() => { setShowManageModal(false); setShowPdfModal(true); }} />}
 
       {workOrder.delivery && (
         <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="delivery-record-title">

@@ -14,7 +14,7 @@ import WorkOrderDetailPage from '../WorkOrderDetailPage';
 import WorkOrdersPage from '../WorkOrdersPage';
 
 import type { EditableWorkOrderItem } from '../../../components/work-orders/WorkOrderItemsEditor';
-import type { CatalogItem, Client, PaginatedResponse, QuickSearchResult, WorkOrder } from '../../../types/entities';
+import type { CatalogItem, Client, PaginatedResponse, QuickSearchResult, WorkOrder, WorkOrderWorksheet } from '../../../types/entities';
 import type { AxiosResponse } from 'axios';
 
 vi.mock('../../../lib/api', () => ({
@@ -133,6 +133,20 @@ const workOrder: WorkOrder = {
   ],
 };
 
+const worksheetFor = (order: WorkOrder): WorkOrderWorksheet => ({
+  workOrder: { id: order.id, codigo: order.codigo, estado: order.estado, descripcion: order.descripcion,
+    fechaIngreso: order.fechaIngreso, assignedMechanicId: order.assignedMechanicId ?? null,
+    vehiculo: { id: order.vehicleId, patente: order.vehicle?.patente ?? null, marca: order.vehicle?.marca ?? null, modelo: order.vehicle?.modelo ?? null },
+  },
+  items: (order.items ?? []).map((item) => ({ ...item, assignedUser: item.assignedUser ?? null,
+    horasEstimadasTotales: null, excedeEstimado: false, activeSession: null, totalMinutes: 30,
+    observationsCount: 0, canWork: true, sessions: [],
+  })),
+  observations: [], progressReports: (order.progressReports ?? []).map((report) => ({ ...report, horasCerradas: report.horasCerradas ?? null, mechanic: report.mechanic ?? null })), requests: [],
+  servicios: [], repuestos: [], activeItemId: null, pausedOtherItems: 0,
+  totals: { items: order.items?.length ?? 0, completados: 0, enProceso: 0, pendientes: order.items?.length ?? 0, horasEstimadas: 0, horasReales: 0.5, minutosReales: 30 },
+});
+
 const listResponse: PaginatedResponse<WorkOrder> = {
   items: [workOrder],
   total: 1,
@@ -218,6 +232,7 @@ describe('WorkOrdersPage', () => {
       isLoading: false,
     });
     vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/work-orders/12/worksheet') return Promise.resolve({ data: { worksheet: worksheetFor(workOrder) } });
       if (url === '/catalog') {
         return Promise.resolve({ data: emptyCatalog } as AxiosResponse<PaginatedResponse<CatalogItem>>);
       }
@@ -393,7 +408,7 @@ describe('WorkOrdersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resumen' }));
     fireEvent.click(screen.getByRole('button', { name: 'Solicitudes' }));
     fireEvent.change(screen.getByLabelText('Justificación'), { target: { value: 'Se requiere una pieza adicional' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Avances y Checklist' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trabajos' }));
     expect(screen.getByLabelText(noteLabel)).toHaveValue('Revisar fijación antes de entregar');
     expect(screen.getByLabelText('Comentario')).toHaveValue('Diagnóstico en curso');
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
@@ -414,6 +429,7 @@ describe('WorkOrdersPage', () => {
     createWrapper(<WorkOrdersPage />);
     await openCard();
     fireEvent.click(screen.getByRole('button', { name: 'Gestionar trabajo' }));
+    fireEvent.click(await screen.findByText('Ver detalle', { selector: 'summary' }));
     const noteLabel = `Nota técnica de ${workOrder.items?.[0].descripcion}`;
     fireEvent.change(await screen.findByLabelText(noteLabel), { target: { value: 'Nota que debe conservarse' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar nota' }));
@@ -422,8 +438,10 @@ describe('WorkOrdersPage', () => {
     expect(api.patch).toHaveBeenCalledWith('/work-orders/12/execution', {
       items: [{ id: 20, estadoOperativo: 'pendiente', notasOperativas: 'Nota que debe conservarse' }],
     });
-    expect(screen.getByRole('button', { name: 'Completado' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Marcar usado' })).toBeEnabled();
     const saved = { ...workOrder, items: workOrder.items?.map((item) => ({ ...item, notasOperativas: 'Nota que debe conservarse' })) };
+    const previousGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, ...args) => url === '/work-orders/12/worksheet' ? Promise.resolve({ data: { worksheet: worksheetFor(saved) } }) : previousGet(url, ...args));
     vi.mocked(api.patch).mockResolvedValueOnce({ data: { workOrder: saved } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar nota' }));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Guardar nota' })).not.toBeInTheDocument());
@@ -434,27 +452,22 @@ describe('WorkOrdersPage', () => {
   it('espera la confirmación del servidor y actualiza la card sin sustituir ítems ni horas', async () => {
     let current = workOrder;
     let finish: () => void = () => { throw new Error('No hay guardado pendiente'); };
-    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/catalog' ? emptyCatalog : url === '/work-orders/12' ? { workOrder: current } : { ...listResponse, items: [current] } }));
-    vi.mocked(api.patch).mockImplementation(() => new Promise((resolve) => { finish = () => resolve({ data: { workOrder: current } } as AxiosResponse<{ workOrder: WorkOrder }>); }));
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/catalog' ? emptyCatalog : url === '/work-orders/12/worksheet' ? { worksheet: worksheetFor(current) } : url === '/work-orders/12' ? { workOrder: current } : { ...listResponse, items: [current] } }));
+    vi.mocked(api.post).mockImplementation(() => new Promise((resolve) => { finish = () => resolve({ data: { worksheet: worksheetFor(current) } }); }));
     createWrapper(<WorkOrdersPage />);
     await openCard();
     fireEvent.click(screen.getByRole('button', { name: 'Gestionar trabajo' }));
-    const completed = await screen.findByRole('button', { name: 'Completado' });
+    const completed = await screen.findByRole('button', { name: 'Marcar usado' });
     fireEvent.click(completed);
-    expect(completed).toHaveAttribute('aria-pressed', 'false');
-    expect(completed).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Cerrar' })).toBeDisabled();
+    await waitFor(() => expect(completed).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cerrar' })).toBeDisabled());
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/work-orders/12/execution', {
-      items: [{ id: 20, estadoOperativo: 'completado', notasOperativas: null }],
-    }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/work-orders/12/items/20/complete', {}));
     current = { ...workOrder, items: workOrder.items?.map((item) => ({ ...item, estadoOperativo: 'completado' })) };
     await act(async () => { finish(); });
-    await waitFor(() => expect(completed).toHaveAttribute('aria-pressed', 'true'));
-    expect(api.patch).toHaveBeenCalledWith('/work-orders/12/execution', {
-      items: [{ id: 20, estadoOperativo: 'completado', notasOperativas: null }],
-    });
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Marcar usado' })).not.toBeInTheDocument());
+    expect(api.patch).not.toHaveBeenCalled();
     const card = within(screen.getByRole('article', { name: `Orden ${workOrder.codigo}` }));
     await waitFor(() => expect(card.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100'));
   });
@@ -462,7 +475,7 @@ describe('WorkOrdersPage', () => {
   it('oculta importes y documentos financieros al mecánico incluso en la información desplegable', async () => {
     const assigned = { ...workOrder, assignedMechanicId: 9 };
     useAuthStore.setState({ user: { id: 9, nombre: 'Mecánico', email: 'mecanico@demo.cl', role: 'mecanico' } });
-    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/catalog' ? emptyCatalog : url === '/work-orders/12' ? { workOrder: assigned } : { ...listResponse, items: [assigned] } }));
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/catalog' ? emptyCatalog : url === '/work-orders/12/worksheet' ? { worksheet: worksheetFor(assigned) } : url === '/work-orders/12' ? { workOrder: assigned } : { ...listResponse, items: [assigned] } }));
     createWrapper(<WorkOrdersPage />);
     fireEvent.click(await screen.findByRole('button', { name: `Ver información de ${workOrder.codigo}` }));
     expect(screen.queryByText('Total est.')).not.toBeInTheDocument();
@@ -471,7 +484,48 @@ describe('WorkOrdersPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Resumen' }));
     expect(screen.queryByText('Total estimado')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Vista previa PDF' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ficha y horas' })).toHaveAttribute('href', '/work-orders/12/ficha');
+    expect(screen.queryByRole('link', { name: 'Ficha y horas' })).not.toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalledWith('/work-orders/12');
+  });
+
+  it('abre el modal por enlace y permite al mecánico operar solo su servicio con cronómetro', async () => {
+    useAuthStore.setState({ user: { id: 9, nombre: 'Mecánico', email: 'mecanico@demo.cl', role: 'mecanico' } });
+    const assigned = { ...workOrder, assignedMechanicId: 10, items: [
+      { ...workOrder.items![0], tipoLinea: 'especifico' as const, assignedUserId: 9, assignedUser: { id: 9, nombre: 'Mecánico' } },
+      { ...workOrder.items![0], id: 21, descripcion: 'Servicio de otro mecánico', tipoLinea: 'especifico' as const, assignedUserId: 10, assignedUser: { id: 10, nombre: 'Otro mecánico' } },
+    ] };
+    let sheet = worksheetFor(assigned);
+    sheet.items[1].canWork = false;
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/work-orders/12/worksheet' ? { worksheet: sheet } : url === '/catalog' ? emptyCatalog : { ...listResponse, items: [assigned] } }));
+    vi.mocked(api.post).mockImplementation((url) => {
+      sheet = { ...sheet, items: sheet.items.map((item) => item.id !== 20 ? item : { ...item, estadoOperativo: 'en_proceso', activeSession: url.endsWith('/start') ? { id: 88, startedAt: new Date().toISOString(), userName: 'Mecánico', userId: 9, mine: true, elapsedMinutes: 0 } : null }) };
+      return Promise.resolve({ data: { worksheet: sheet } });
+    });
+    createWrapper(<WorkOrdersPage />, '/work-orders?manage=12');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Iniciar' })).toBeEnabled());
+    expect(screen.queryByRole('article', { name: 'Trabajo: Servicio de otro mecánico' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Mis trabajos' }));
+    const other = screen.getByRole('article', { name: 'Trabajo: Servicio de otro mecánico' });
+    expect(within(other).queryByRole('button', { name: 'Iniciar' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/work-orders/12/items/20/start'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Pausar' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/work-orders/12/items/20/pause'));
+    await screen.findByRole('button', { name: 'Continuar' });
+    expect(api.get).not.toHaveBeenCalledWith('/work-orders/12');
+  });
+
+  it('permite asignar un mecánico distinto por servicio en el editor de recepción', async () => {
+    const Harness = () => {
+      const [items, setItems] = useState<EditableWorkOrderItem[]>([{ ...createEmptyWorkOrderItem(), descripcion: 'Servicio A', tipoLinea: 'especifico' }, { ...createEmptyWorkOrderItem(), descripcion: 'Servicio B', tipoLinea: 'especifico' }]);
+      return <WorkOrderItemsEditor items={items} onChange={setItems} showExecution={false} mechanics={[{ id: 9, nombre: 'Mecánico A' }, { id: 10, nombre: 'Mecánico B' }]} />;
+    };
+    createWrapper(<Harness />);
+    fireEvent.change(screen.getByLabelText('Mecánico del servicio 1'), { target: { value: '9' } });
+    fireEvent.change(screen.getByLabelText('Mecánico del servicio 2'), { target: { value: '10' } });
+    expect(screen.getByLabelText('Mecánico del servicio 1')).toHaveValue('9');
+    expect(screen.getByLabelText('Mecánico del servicio 2')).toHaveValue('10');
+    expect(screen.queryByLabelText('Estado del trabajo 1')).not.toBeInTheDocument();
   });
 
   it.each([false, true])('precarga el cliente desde su ficha conservando el propietario real (vehículo: %s)', async (includeVehicle) => {
@@ -752,8 +806,9 @@ describe('WorkOrdersPage', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/work-orders/12/execution', {
       reporte: { porcentaje: 0, comentario: 'Diagnóstico completado', bloqueos: null },
     }));
+    await waitFor(() => expect(screen.getByLabelText('Comentario')).toHaveValue(''));
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByRole('heading', { name: 'Taller y Órdenes de trabajo' })).toBeInTheDocument();
   });
 
@@ -763,6 +818,7 @@ describe('WorkOrdersPage', () => {
     vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data:
       url === '/catalog' ? { ...emptyCatalog, items: [{ id: 80, nombre: 'Filtro', tipo: 'parte', stock: 5 }] }
         : url === '/work-orders/12' ? { workOrder: assigned }
+          : url === '/work-orders/12/worksheet' ? { worksheet: worksheetFor(assigned) }
           : { ...listResponse, items: [assigned] },
     }));
     vi.mocked(api.post).mockResolvedValue({ data: { workOrder: assigned } });

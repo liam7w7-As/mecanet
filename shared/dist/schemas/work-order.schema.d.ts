@@ -129,6 +129,8 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         horasHombreEstimadas: z.ZodOptional<z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>>;
         estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    } & {
+        assignedUserId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
         cantidad: number;
         precioUnitario: number;
@@ -140,6 +142,7 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         catalogItemId?: number | null | undefined;
         horasHombreEstimadas?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        assignedUserId?: number | null | undefined;
     }, {
         descripcion: string;
         cantidad?: number | undefined;
@@ -151,6 +154,7 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         horasHombreEstimadas?: unknown;
         notasOperativas?: string | null | undefined;
+        assignedUserId?: number | null | undefined;
     }>, "many">>;
     inspection: z.ZodOptional<z.ZodObject<{
         inventario: z.ZodDefault<z.ZodEffects<z.ZodArray<z.ZodEnum<["botiquin", "chaleco_reflectante", "extintor", "triangulo", "control_remoto", "manual", "radio", "usb", "rueda_repuesto", "llave_ruedas", "gata", "herramientas", "perno_seguridad", "enganche", "antena", "tapa_combustible", "tapas_ruedas", "limpiaparabrisas"]>, "many">, ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[], ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[]>>;
@@ -192,6 +196,7 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         catalogItemId?: number | null | undefined;
         horasHombreEstimadas?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        assignedUserId?: number | null | undefined;
     }[];
     vehicleId: number;
     fechaIngreso?: string | null | undefined;
@@ -227,6 +232,7 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         horasHombreEstimadas?: unknown;
         notasOperativas?: string | null | undefined;
+        assignedUserId?: number | null | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;

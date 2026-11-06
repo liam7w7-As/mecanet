@@ -9,9 +9,10 @@ import {
   Timer,
   Wrench,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
 
 import { PageLoader } from '../../components/common/LoadingIndicator';
+import WorkOrderQuickDetailModal from '../../components/work-orders/WorkOrderQuickDetailModal';
 import WorkOrderStatusBadge from '../../components/work-orders/WorkOrderStatusBadge';
 import { useMyLaborWorkOrders } from '../../hooks/useWorkOrderLabor';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -21,13 +22,15 @@ import type { MyLaborOrder } from '../../types/entities';
 
 const formatHours = (value: number): string => `${value.toFixed(2)} h`;
 
-const OrderCard = ({ order }: { order: MyLaborOrder }) => {
+const OrderCard = ({ order, onOpen }: { order: MyLaborOrder; onOpen: (id: number) => void }) => {
   const total = order.items;
   const percent = total > 0 ? Math.round((order.completados / total) * 100) : 0;
 
   return (
-    <Link
-      to={`/work-orders/${order.id}/ficha`}
+    <button
+      type="button"
+      onClick={() => onOpen(order.id)}
+      style={{ textAlign: 'left', width: '100%' }}
       className="group flex h-full flex-col overflow-hidden rounded-2xl border border-brand-line bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
     >
       <div className="h-1 w-full bg-brand-primaryInk/80" aria-hidden="true" />
@@ -87,17 +90,18 @@ const OrderCard = ({ order }: { order: MyLaborOrder }) => {
         <div className="mt-auto flex items-center justify-between gap-2 pt-1 text-xs font-bold text-brand-primaryInk">
           <span className="inline-flex items-center gap-1">
             <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
-            Abrir ficha de trabajo
+            Gestionar trabajo
           </span>
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
         </div>
       </div>
-    </Link>
+    </button>
   );
 };
 
 export const MyWorkOrdersPage = () => {
   const query = useMyLaborWorkOrders();
+  const [selectedOrder, setSelectedOrder] = useState<number | null>(null);
 
   if (query.isPending) {
     return <PageLoader label="Cargando tus órdenes asignadas..." />;
@@ -119,6 +123,7 @@ export const MyWorkOrdersPage = () => {
 
   return (
     <div className="min-w-0 space-y-5">
+      {selectedOrder !== null && <WorkOrderQuickDetailModal workOrderId={selectedOrder} initialView="execution" onClose={() => setSelectedOrder(null)} onPreviewPdf={() => undefined} />}
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-brand-muted">Ficha de taller</p>
@@ -157,7 +162,7 @@ export const MyWorkOrdersPage = () => {
               </h2>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {activeOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} />
+                  <OrderCard key={order.id} order={order} onOpen={setSelectedOrder} />
                 ))}
               </div>
             </section>
@@ -170,7 +175,7 @@ export const MyWorkOrdersPage = () => {
             </h2>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {pendingOrders.map((order) => (
-                <OrderCard key={order.id} order={order} />
+                <OrderCard key={order.id} order={order} onOpen={setSelectedOrder} />
               ))}
             </div>
           </section>

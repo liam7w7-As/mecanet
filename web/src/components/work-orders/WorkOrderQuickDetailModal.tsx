@@ -1,3 +1,4 @@
+import { useIsMutating } from '@tanstack/react-query';
 import { UNIT_MEASURE_LABELS } from '@unithor/shared';
 import {
   AlertCircle,
@@ -24,8 +25,8 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import WorkOrderMechanicPanel from './WorkOrderMechanicPanel';
 import WorkOrderStatusBadge from './WorkOrderStatusBadge';
+import { useManagedWorkOrder } from '../../hooks/useManagedWorkOrder';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
-import { useWorkOrder } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
 import {
@@ -70,7 +71,7 @@ interface WorkOrderQuickDetailModalProps {
   initialView?: 'summary' | 'execution';
 }
 
-type LeaveAction = 'close' | 'pdf' | 'detail' | 'worksheet';
+type LeaveAction = 'close' | 'pdf' | 'detail';
 
 const SummaryRow = ({
   icon,
@@ -123,20 +124,24 @@ export const WorkOrderQuickDetailModal = ({
   const navigate = useNavigate();
   const [hasOpenedExecution, setOpenedExecution] = useState(initialView === 'execution');
   const [hasDirtyChanges, setDirtyChanges] = useState(false);
-  const [savePending, setSavePending] = useState(false);
+  const [panelPending, setSavePending] = useState(false);
+  const activeLaborMutations = useIsMutating({ mutationKey: ['work-order-labor', 'mutation'], predicate: (mutation) => {
+    const variables = mutation.state.variables;
+    return typeof variables === 'object' && variables !== null && 'id' in variables && variables.id === workOrderId;
+  } });
+  const savePending = panelPending || activeLaborMutations > 0;
   const [leaveAction, setLeaveAction] = useState<LeaveAction | null>(null);
   const showFinancials = user?.role !== 'mecanico';
-  const workOrderQuery = useWorkOrder(workOrderId);
+  const workOrderQuery = useManagedWorkOrder(workOrderId);
   const workOrder = workOrderQuery.data;
   const canOperate = Boolean(user && workOrder && (
     ['desarrollador', 'admin', 'jefe'].includes(user.role)
-    || (user.role === 'mecanico' && workOrder.assignedMechanicId === user.id)
+    || user.role === 'mecanico'
   ));
   const performLeave = (action: LeaveAction): void => {
     if (action === 'pdf' && workOrder) { onPreviewPdf(workOrder); return; }
     onClose();
     if (action === 'detail') navigate(`/work-orders/${workOrderId}`);
-    if (action === 'worksheet') navigate(`/work-orders/${workOrderId}/ficha`);
   };
   const requestLeave = (action: LeaveAction): void => {
     if (savePending) return;
@@ -201,7 +206,7 @@ export const WorkOrderQuickDetailModal = ({
         </header>
         {workOrder && canOperate && (
           <div className="workshop-dialog-tabs" role="group" aria-label="Vista de la orden">
-            {([{ value: 'summary', label: 'Resumen', icon: ClipboardCheck }, { value: 'execution', label: 'Avances y Checklist', icon: ListChecks }, { value: 'requests', label: 'Solicitudes', icon: PackageSearch }] as const).map((option) => (
+            {([{ value: 'summary', label: 'Resumen', icon: ClipboardCheck }, { value: 'execution', label: 'Trabajos', icon: ListChecks }, { value: 'requests', label: 'Solicitudes', icon: PackageSearch }] as const).map((option) => (
               <button key={option.value} type="button" aria-pressed={view === option.value} onClick={() => { setView(option.value); if (option.value !== 'summary') setOpenedExecution(true); }}>
                 <option.icon aria-hidden="true" />{option.label}
                 {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span>{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
@@ -238,24 +243,24 @@ export const WorkOrderQuickDetailModal = ({
                 value={workOrder.vehicle?.patente ?? 'Sin patente'}
                 hint={[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos'}
               />
-              <SummaryRow
+              {showFinancials && <SummaryRow
                 icon={<UserRound className="h-4 w-4" aria-hidden="true" />}
                 label="Cliente"
                 value={workOrder.client?.nombre ?? 'Sin cliente'}
                 hint={workOrder.client?.telefono ?? workOrder.client?.rut ?? null}
-              />
-              <SummaryRow
+              />}
+              {showFinancials && <SummaryRow
                 icon={<UserCog className="h-4 w-4" aria-hidden="true" />}
                 label="Mecánico responsable"
                 value={workOrder.assignedMechanic?.nombre ?? 'Sin asignar'}
                 hint={workOrder.assignedMechanic ? 'Ejecución técnica a su cargo' : null}
-              />
-              <SummaryRow
+              />}
+              {showFinancials && <SummaryRow
                 icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
                 label="Facturación"
                 value={workOrder.billing?.nombre ?? workOrder.billingClient?.nombre ?? 'Cliente de la orden'}
                 hint={workOrder.billing?.rut ?? workOrder.billingClient?.rut ?? null}
-              />
+              />}
             </div>
 
             {workOrder.vehicleOwner && workOrder.vehicleOwner.nombre !== workOrder.client?.nombre && (
@@ -383,7 +388,7 @@ export const WorkOrderQuickDetailModal = ({
             <aside className="workshop-summary-sidebar">
             {workOrder.descripcion && <section className="workshop-description"><h3>Motivo de ingreso</h3><p>{workOrder.descripcion}</p></section>}
             <div className="workshop-summary-context grid gap-3">
-              <div className="rounded-lg border border-brand-line px-3 py-3">
+              {showFinancials && <div className="rounded-lg border border-brand-line px-3 py-3">
                 <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-muted">
                   <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" /> Inspección
                 </p>
@@ -393,8 +398,8 @@ export const WorkOrderQuickDetailModal = ({
                 {workOrder.inspection?.observaciones && (
                   <p className="mt-0.5 line-clamp-2 text-xs text-brand-muted">{workOrder.inspection.observaciones}</p>
                 )}
-              </div>
-              <div className="rounded-lg border border-brand-line px-3 py-3">
+              </div>}
+              {showFinancials && <div className="rounded-lg border border-brand-line px-3 py-3">
                 <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-muted">
                   <FileText className="h-3.5 w-3.5" aria-hidden="true" /> Cotización
                 </p>
@@ -406,7 +411,7 @@ export const WorkOrderQuickDetailModal = ({
                     {QUOTATION_STATUS_LABELS[workOrder.quotation.estadoPago]} · saldo {formatClp(workOrder.quotation.saldoPendiente)}
                   </p>
                 )}
-              </div>
+              </div>}
               <div className="rounded-lg border border-brand-line px-3 py-3">
                 <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-muted">
                   <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" /> Entrega
@@ -453,7 +458,7 @@ export const WorkOrderQuickDetailModal = ({
           </div>}
           <span className="workshop-save-state" role="status">{savePending ? 'Guardando cambios…' : hasDirtyChanges ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span>
           <div className="workshop-dialog-footer-actions">
-            {canOperate && <Link to={`/work-orders/${workOrder.id}/ficha`} onClick={(event) => { event.preventDefault(); requestLeave('worksheet'); }} className="workshop-secondary-action"><Wrench aria-hidden="true" />Ficha y horas</Link>}
+            <button type="button" className="workshop-secondary-action" onClick={() => requestLeave('close')} disabled={savePending}>Listo</button>
           </div>
         </footer>}
       </motion.section>

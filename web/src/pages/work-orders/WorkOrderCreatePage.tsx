@@ -880,6 +880,7 @@ const WorkOrderCreateForm = () => {
         .filter((item) => item.descripcion.trim().length > 0)
         .map((item) => ({
           catalogItemId: item.catalogItemId,
+          ...(canAssignMechanic ? { assignedUserId: item.assignedUserId ?? null } : {}),
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,
           unidadMedida: item.unidadMedida,
@@ -1001,7 +1002,9 @@ const WorkOrderCreateForm = () => {
           ? (
               await conversionMutation.mutateAsync({
                 id: quotationId,
-                data: convertQuotationToWorkOrderSchema.strip().parse(result.data),
+                data: convertQuotationToWorkOrderSchema.strip().parse({ ...result.data,
+                  ...(canAssignMechanic ? { itemAssignments: items.map((item) => ({ quotationItemId: Number(item.key.replace('quotation-item-', '')), assignedUserId: item.assignedUserId ?? null })) } : {}),
+                }),
               })
             ).workOrder
           : await createMutation.mutateAsync(result.data);
@@ -1313,30 +1316,7 @@ const WorkOrderCreateForm = () => {
                             </button>
                           )}
                         </div>
-                        {canAssignMechanic && (
-                          <label className="reception-mechanic-field mt-4 block rounded-lg border border-brand-line bg-brand-line/40 p-3 text-sm font-semibold text-brand-ink">
-                            Mecánico responsable
-                            <select
-                              value={assignedMechanicId ?? ''}
-                              onChange={(event) =>
-                                setAssignedMechanicId(
-                                  event.target.value ? Number(event.target.value) : null,
-                                )
-                              }
-                              className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-                            >
-                              <option value="">Sin asignar por ahora</option>
-                              {mechanicsQuery.data?.map((mechanic) => (
-                                <option key={mechanic.id} value={mechanic.id}>
-                                  {mechanic.nombre}
-                                </option>
-                              ))}
-                            </select>
-                            <span className="mt-1 block text-xs font-normal text-brand-muted">
-                              Podrás cambiarlo posteriormente desde el detalle de la OT.
-                            </span>
-                          </label>
-                        )}
+
                         {vehicleOwnerIsDifferent && (
                           <div className="mt-4 flex items-start gap-2 rounded-lg border border-brand-line bg-brand-goldPale px-3 py-3 text-sm text-brand-goldInk">
                             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -1686,6 +1666,7 @@ const WorkOrderCreateForm = () => {
                             <thead className="border-b border-brand-line text-brand-muted">
                               <tr>
                                 <th className="p-3">Descripción</th>
+                                {canAssignMechanic && <th className="p-3">Mecánico del servicio</th>}
                                 <th className="p-3 text-right">Cantidad</th>
                                 <th className="p-3 text-right">Precio</th>
                                 <th className="p-3 text-right">Subtotal</th>
@@ -1695,6 +1676,7 @@ const WorkOrderCreateForm = () => {
                               {items.map((item) => (
                                 <tr key={item.key} className="border-b border-brand-line">
                                   <td className="p-3">{item.descripcion}</td>
+                                  {canAssignMechanic && <td className="p-3">{item.tipoLinea !== 'parte' && <select aria-label={`Mecánico de ${item.descripcion}`} className={inputClassName} value={item.assignedUserId ?? ''} onChange={(event) => setItems((current) => current.map((line) => line.key === item.key ? { ...line, assignedUserId: event.target.value ? Number(event.target.value) : null } : line))}><option value="">Sin asignar</option>{(mechanicsQuery.data ?? []).map((mechanic) => <option key={mechanic.id} value={mechanic.id}>{mechanic.nombre}</option>)}</select>}</td>}
                                   <td className="p-3 text-right">{item.cantidad}</td>
                                   <td className="whitespace-nowrap p-3 text-right">
                                     {formatClp(Number(item.precioUnitario))}
@@ -1723,8 +1705,33 @@ const WorkOrderCreateForm = () => {
                         errors={errors}
                         presentation="reception"
                         showExecution={false}
+                        mechanics={canAssignMechanic ? mechanicsQuery.data ?? [] : undefined}
                       />
                     )}
+                        {canAssignMechanic && (
+                          <label className="reception-mechanic-field mt-4 block rounded-lg border border-brand-line bg-brand-line/40 p-3 text-sm font-semibold text-brand-ink">
+                            Responsable general (opcional)
+                            <select
+                              value={assignedMechanicId ?? ''}
+                              onChange={(event) =>
+                                setAssignedMechanicId(
+                                  event.target.value ? Number(event.target.value) : null,
+                                )
+                              }
+                              className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
+                            >
+                              <option value="">Sin asignar por ahora</option>
+                              {mechanicsQuery.data?.map((mechanic) => (
+                                <option key={mechanic.id} value={mechanic.id}>
+                                  {mechanic.nombre}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="mt-1 block text-xs font-normal text-brand-muted">
+                              Atiende los servicios sin un mecánico propio. Puedes cambiarlo en Gestionar trabajo.
+                            </span>
+                          </label>
+                        )}
                   </div>
                 )}
               </motion.div>

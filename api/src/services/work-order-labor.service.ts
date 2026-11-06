@@ -43,6 +43,7 @@ import { WorkOrderObservation } from '../models/WorkOrderObservation.js';
 import { WorkOrderObservationFile } from '../models/WorkOrderObservationFile.js';
 import { WorkOrderPriceSuggestion } from '../models/WorkOrderPriceSuggestion.js';
 import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
+import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
 
 const SUPERVISOR_ROLES: RoleName[] = ['desarrollador', 'admin', 'jefe'];
@@ -172,6 +173,8 @@ export interface WorksheetItem {
   } | null;
   totalMinutes: number;
   observationsCount: number;
+  canWork: boolean;
+  sessions: Array<{ id: number; userName: string | null; startedAt: Date; endedAt: Date | null; minutes: number; kind: string; note: string | null }>;
 }
 
 export interface WorksheetObservationFile {
@@ -200,6 +203,10 @@ export interface WorkOrderWorksheet {
     estado: string;
     fechaIngreso: Date | null;
     descripcion: string | null;
+    assignedMechanicId: number | null;
+    fechaEntrega: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
     vehiculo: {
       id: number | null;
       patente: string | null;
@@ -231,6 +238,12 @@ export interface WorkOrderWorksheet {
     minutosReales: number;
   };
   pausedOtherItems: number;
+  requests: Array<{
+    id: number; tipo: 'repuesto'; estado: WorkOrderRequest['estado']; catalogItemId: number | null;
+    cantidad: number | null; motivo: string; createdAt: Date;
+    catalogItem: { id: number; nombre: string; codigo: string | null } | null;
+    requester: { id: number; nombre: string } | null;
+  }>;
 }
 
 const buildObservations = (
@@ -262,8 +275,8 @@ export const getWorkOrderWorksheet = async (
   userId: number,
   pausedOtherItems = 0,
 ): Promise<WorkOrderWorksheet> => {
-  const { workOrder } = await getLaborContext(workOrderId, userId);
-  const [vehicle, items, sessions, observations, progressReports] = await Promise.all([
+  const { workOrder, role } = await getLaborContext(workOrderId, userId);
+  const [vehicle, items, sessions, observations, progressReports, requests] = await Promise.all([
     workOrder.vehicleId === null
       ? Promise.resolve(null)
       : Vehicle.findByPk(workOrder.vehicleId, {
@@ -290,6 +303,11 @@ export const getWorkOrderWorksheet = async (
     WorkOrderProgressReport.findAll({
       where: { workOrderId },
       include: [{ model: User, as: 'mechanic', attributes: ['id', 'nombre'] }],
+      order: [['createdAt', 'DESC']],
+    }),
+    WorkOrderRequest.findAll({
+      where: { workOrderId, tipo: 'repuesto' },
+      include: [{ model: CatalogItem, as: 'catalogItem', attributes: ['id', 'nombre', 'codigo'] }, { model: User, as: 'requester', attributes: ['id', 'nombre'] }],
       order: [['createdAt', 'DESC']],
     }),
   ]);
@@ -361,6 +379,8 @@ export const getWorkOrderWorksheet = async (
         : null,
       totalMinutes,
       observationsCount: observationsByItem.get(item.id) ?? 0,
+      canWork: workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada' && (role !== 'mecanico' || (item.assignedUserId !== null ? item.assignedUserId === userId : workOrder.assignedMechanicId === userId)),
+      sessions: itemSessions.map((session) => ({ id: session.id, userName: session.userName, startedAt: session.startedAt, endedAt: session.endedAt, minutes: getSessionMinutes(session, now), kind: session.kind, note: session.note })),
     };
   });
 
@@ -378,6 +398,10 @@ export const getWorkOrderWorksheet = async (
       estado: workOrder.estado,
       fechaIngreso: workOrder.fechaIngreso,
       descripcion: workOrder.descripcion,
+      assignedMechanicId: workOrder.assignedMechanicId,
+      fechaEntrega: workOrder.fechaEntrega,
+      createdAt: workOrder.createdAt,
+      updatedAt: workOrder.updatedAt,
       vehiculo: {
         id: vehicle?.id ?? null,
         patente: vehicle?.patente ?? null,
@@ -403,6 +427,7 @@ export const getWorkOrderWorksheet = async (
         ? { id: report.mechanic.id, nombre: report.mechanic.nombre }
         : null,
     })),
+    requests: requests.map((request) => ({ id: request.id, tipo: 'repuesto', estado: request.estado, catalogItemId: request.catalogItemId, cantidad: request.cantidad === null ? null : Number(request.cantidad), motivo: request.motivo, createdAt: request.createdAt, catalogItem: request.catalogItem ? { id: request.catalogItem.id, nombre: request.catalogItem.nombre, codigo: request.catalogItem.codigo } : null, requester: request.requester ? { id: request.requester.id, nombre: request.requester.nombre } : null })),
     activeItemId,
     totals: {
       items: itemDtos.length,
@@ -725,7 +750,7 @@ export const assignWorkOrderItem = async (
     if (assignedUserId !== null) {
       const assignee = await User.findOne({
         where: { id: assignedUserId, activo: true },
-        include: [{ model: Role, as: 'role', attributes: ['nombre'] }],
+        include: [{ model: Role, as: 'role', attributes: ['nombre'], where: { nombre: 'mecanico' } }],
         transaction,
       });
       if (!assignee) {
@@ -747,6 +772,11 @@ export const assignWorkOrderItem = async (
       }
     }
 
+    if (item.assignedUserId !== assignedUserId) {
+      const sessions = await WorkOrderItemSession.findAll({ where: { workOrderItemId: item.id, status: 'abierta' }, transaction, lock: Transaction.LOCK.UPDATE });
+      for (const session of sessions) await closeSession(session, 'sistema', transaction);
+      if (sessions.length > 0) await recalculateItemHours(item, transaction);
+    }
     await item.update({ assignedUserId }, { transaction });
   });
 

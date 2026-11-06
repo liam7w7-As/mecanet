@@ -963,6 +963,10 @@ export const convertQuotationToWorkOrder = async (
       throw ApiError.badRequest('No se puede convertir una cotización archivada');
     }
     const clientId = data.clientId ?? quotation.clientId;
+    const itemAssignments = new Map((data.itemAssignments ?? []).map((item) => [item.quotationItemId, item.assignedUserId]));
+    if ([...itemAssignments.keys()].some((id) => !(quotation.items ?? []).some((item) => item.id === id))) {
+      throw ApiError.badRequest('Uno o más servicios no pertenecen a la cotización');
+    }
     if (!clientId) {
       throw ApiError.badRequest('Seleccione el responsable de la orden de trabajo');
     }
@@ -972,6 +976,7 @@ export const convertQuotationToWorkOrder = async (
         clientId,
         descripcion: data.descripcion ?? quotation.notas ?? `Generada desde cotización ${quotation.codigo}`,
         items: (quotation.items ?? []).map((item) => ({
+          assignedUserId: itemAssignments.get(item.id) ?? null,
           catalogItemId: item.catalogItemId,
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,

@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -27,7 +27,6 @@ import MyWorkOrdersPage from './pages/work-orders/MyWorkOrdersPage';
 import WorkOrderCreatePage from './pages/work-orders/WorkOrderCreatePage';
 import WorkOrderDetailPage from './pages/work-orders/WorkOrderDetailPage';
 import WorkOrdersPage from './pages/work-orders/WorkOrdersPage';
-import WorkOrderWorksheetPage from './pages/work-orders/WorkOrderWorksheetPage';
 import WorkshopDailyReportPage from './pages/work-orders/WorkshopDailyReportPage';
 import { useAuthStore } from './stores/auth.store';
 
@@ -39,6 +38,11 @@ const HomeRedirect = () => {
 const DashboardEntry = () => {
   const user = useAuthStore((state) => state.user);
   return user?.role === 'mecanico' ? <HomeRedirect /> : <DashboardPage />;
+};
+
+const WorksheetEntry = () => {
+  const { id } = useParams();
+  return <Navigate to={`/work-orders?manage=${Number(id)}`} replace />;
 };
 
 export const App = () => (
@@ -99,7 +103,7 @@ export const App = () => (
           path="/work-orders/:id/ficha"
           element={
             <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}>
-              <WorkOrderWorksheetPage />
+              <WorksheetEntry />
             </ProtectedRoute>
           }
         />

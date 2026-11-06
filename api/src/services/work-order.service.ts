@@ -935,9 +935,10 @@ const recordWorkOrderEvent = async (
 
 const buildItemsPayload = (
   workOrderId: number,
-  items: WorkOrderItemInput[],
+  items: Array<WorkOrderItemInput & { assignedUserId?: number | null }>,
 ): Array<{
   workOrderId: number;
+  assignedUserId: number | null;
   catalogItemId: number | null;
   descripcion: string;
   tipoLinea: CatalogType;
@@ -958,6 +959,7 @@ const buildItemsPayload = (
 
     return {
       workOrderId,
+      assignedUserId: item.assignedUserId ?? null,
        catalogItemId: item.catalogItemId ?? null,
        descripcion: item.descripcion,
        tipoLinea: item.tipoLinea,
@@ -1621,7 +1623,7 @@ export const listWorkOrders = async (
     ], actorRole === 'vendedor' ? userId : undefined),
     limit: pagination.limit,
     offset: pagination.offset,
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
   });
 
   const activities = await getLastWorkActivity(rows.map((row) => row.id));
@@ -1660,6 +1662,15 @@ export const createWorkOrderInTransaction = async (
   const billingClientId = data.billingClientId === undefined ? clientId : data.billingClientId;
   const vehicleId = data.vehicleId ?? null;
   const assignedMechanicId = data.assignedMechanicId ?? null;
+  const itemMechanics = [...new Set(data.items.flatMap((item) => item.assignedUserId ? [item.assignedUserId] : []))];
+  if (assignedMechanicId !== null || itemMechanics.length > 0) await assertSupervisor(userId, transaction);
+  if (itemMechanics.length > 0) {
+    const mechanics = await User.findAll({
+      attributes: ['id'], where: { id: itemMechanics, activo: true },
+      include: [{ model: Role, as: 'role', attributes: [], where: { nombre: 'mecanico' } }], transaction,
+    });
+    if (mechanics.length !== itemMechanics.length) throw ApiError.badRequest('Uno o más responsables no son mecánicos activos');
+  }
 
   const client =
     clientId === null ? null : await assertClientExists(clientId, transaction);
@@ -1770,6 +1781,12 @@ export const createWorkOrderInTransaction = async (
   );
 
   await enqueueCustomerEmail({ kind: 'work_order', entityId: workOrder.id, userId, dedupeKey: `created:work_order:${workOrder.id}`, target: { recipient: (contactClient ?? client)?.email ?? null, name: (contactClient ?? client)?.nombre ?? 'Cliente', code: workOrder.codigo }, payload: { expectedPhotoSlots: data.emailPhotoSlots ?? [], includeQuotation: createQuotation } }, transaction);
+  const assignees = [...new Set([...itemMechanics, ...(assignedMechanicId === null ? [] : [assignedMechanicId])])];
+  if (assignees.length > 0) await notifyUsers(assignees, {
+    tipo: 'mecanico_asignado', titulo: `Tienes trabajos asignados en ${workOrder.codigo}`,
+    mensaje: 'Revisa tus servicios y registra sus avances y horas en Gestionar trabajo.',
+    href: `/work-orders/${workOrder.id}/ficha`, workOrderId: workOrder.id, actorId: userId,
+  }, transaction);
   return workOrder;
 };
 
@@ -2460,6 +2477,10 @@ export const assignMechanic = async (
     }
 
     const previousMechanicId = workOrder.assignedMechanicId;
+    if (previousMechanicId === mechanicId) return;
+    if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') throw ApiError.badRequest('No se puede reasignar una orden cerrada');
+    const inheritedItems = await WorkOrderItem.findAll({ where: { workOrderId: id, assignedUserId: null }, attributes: ['id'], transaction });
+    for (const item of inheritedItems) await closeWorkOrderTimers(id, transaction, item.id);
     await workOrder.update({ assignedMechanicId: mechanicId }, { transaction });
     await recordWorkOrderEvent(
       id,

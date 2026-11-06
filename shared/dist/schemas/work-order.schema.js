@@ -80,7 +80,7 @@ export const createWorkOrderSchema = z.object({
         .datetime({ message: 'fechaEntrega debe ser una fecha ISO 8601 válida' })
         .nullable()
         .optional(),
-    items: z.array(workOrderItemInputSchema).default([]),
+    items: z.array(workOrderItemInputSchema.extend({ assignedUserId: nullablePositiveId })).default([]),
     inspection: workOrderInspectionSchema.optional(),
 });
 export const updateWorkOrderSchema = z

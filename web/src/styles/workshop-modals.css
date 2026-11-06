@@ -1,5 +1,64 @@
 /* Taller: ficha operativa del prototipo publicado el 05-11-2026.
    Solo presentación; los estados, permisos y documentos se resuelven en React. */
+.workshop-labor-board { min-width: 0; display: grid; gap: 12px; }
+.workshop-labor-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.workshop-labor-toolbar h2 { color: #1d396a; font-size: 15px; font-weight: 600; }
+.workshop-labor-toolbar p, .workshop-labor-help { color: #7a8aa2; font-size: 11px; line-height: 1.6; }
+.workshop-labor-list { display: grid; gap: 10px; }
+.workshop-labor-task { min-width: 0; padding: 15px 16px; border: 1px solid #eaf0f6; border-radius: 16px; background: #f5f6f8; }
+.workshop-labor-task-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.workshop-labor-task-title { min-width: 0; flex: 1; }
+.workshop-labor-task-title h3 { margin-top: 7px; overflow-wrap: anywhere; color: #243957; font-size: 13px; font-weight: 600; line-height: 1.6; }
+.workshop-labor-state { display: inline-flex; padding: 3px 8px; border-radius: 999px; background: #e8edf4; color: #6d7f98; font-size: 10px; }
+.workshop-labor-state--en_proceso { background: #e1ebfa; color: #1d396a; }
+.workshop-labor-state--completado { background: #dcf2e7; color: #1a7a52; }
+.workshop-labor-state--omitido { background: #e9e9ed; color: #748096; }
+.workshop-labor-assignee { display: grid; flex: 0 1 210px; gap: 4px; min-width: 0; color: #7a8aa2; font-size: 10px; }
+.workshop-labor-assigned-name { max-width: 180px; overflow-wrap: anywhere; color: #7a8aa2; font-size: 11px; }
+.workshop-labor-task-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.workshop-labor-hours { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: #8392a7; font-size: 11px; }
+.workshop-labor-hours > span:first-child { display: inline-flex; align-items: center; gap: 5px; color: #435a79; font-weight: 500; }
+.workshop-labor-hours > span.is-running { color: #1a7a52; }
+.workshop-labor-hours svg { width: 14px; height: 14px; }
+.workshop-labor-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+:is(.workshop-labor-board, .workshop-price-review) button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 12px; border: 1px solid #dfe7f0; border-radius: 999px; background: #fff; color: #526782; font-size: 11px; font-weight: 500; }
+:is(.workshop-labor-board, .workshop-price-review) button:hover:not(:disabled) { background: #eaf0f8; }
+:is(.workshop-labor-board, .workshop-price-review) button:disabled { cursor: not-allowed; opacity: .55; }
+.workshop-labor-actions > .workshop-labor-primary { border-color: #1d396a; background: #1d396a; color: #fff; }
+.workshop-labor-actions > .workshop-labor-complete { color: #445d7b; }
+.workshop-labor-actions svg { width: 14px; height: 14px; }
+.workshop-labor-details { margin-top: 12px; border-top: 1px solid #e5eaf1; padding-top: 10px; }
+:is(.workshop-labor-details, .workshop-progress-log, .workshop-price-review, .workshop-progress-form) > summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; cursor: pointer; color: #45607f; font-size: 12px; font-weight: 500; }
+:is(.workshop-labor-details, .workshop-price-review) > summary > span { color: #96a3b5; font-size: 10px; font-weight: 400; }
+.workshop-labor-detail-body { display: grid; gap: 14px; padding-top: 16px; color: #74859c; font-size: 12px; }
+:is(.workshop-labor-board, .workshop-price-review) label { display: grid; gap: 5px; min-width: 0; color: #72839b; font-size: 11px; }
+:is(.workshop-labor-board, .workshop-price-review) :is(input, select, textarea) { min-width: 0; width: 100%; border: 1px solid #e1e7ef; border-radius: 10px; padding: 8px 10px; background: #fff; color: #344d6c; font-size: 12px; }
+:is(.workshop-labor-board, .workshop-price-review) textarea { min-height: 64px; resize: vertical; }
+.workshop-labor-detail-body h4 { color: #425b7b; font-size: 12px; font-weight: 600; }
+.workshop-labor-detail-body ul { display: grid; gap: 8px; margin-top: 8px; }
+.workshop-labor-detail-body li { display: grid; gap: 3px; padding: 10px 12px; border-radius: 10px; background: #fff; color: #7a8ba2; font-size: 11px; }
+.workshop-labor-admin { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: 10px; padding-top: 12px; }
+.workshop-labor-observation { display: grid; gap: 5px; margin-block: 10px; padding: 12px; border-radius: 12px; background: #fff; overflow-wrap: anywhere; }
+.workshop-labor-observation a { color: #1d396a; text-decoration: underline; }
+.workshop-labor-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; background: #fff0eb; color: #9c524a; font-size: 12px; }
+.workshop-labor-error > svg { width: 16px; height: 16px; }
+.workshop-labor-empty { padding: 28px 12px; text-align: center; color: #8695aa; font-size: 12px; }
+.workshop-manage-dialog .workshop-mechanic-panel[data-section=execution] { display: block; }
+.workshop-manage-dialog .workshop-mechanic-panel[data-section=execution] .workshop-execution-side { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.workshop-manage-dialog .workshop-execution-side > details { margin: 0; padding: 14px 16px; border: 1px solid #e8edf4; border-radius: 14px; background: #f5f6f8; }
+.workshop-manage-dialog .workshop-execution-side > details > div { padding-top: 12px; }
+.workshop-price-review-container { grid-column: 1 / -1; }
+.workshop-price-review { padding: 16px; border: 1px solid #e6ecf3; border-radius: 16px; background: #f5f6f8; }
+@media (max-width: 767px) {
+  .workshop-labor-task { padding: 14px; }
+  .workshop-labor-task-top { flex-direction: column; align-items: stretch; gap: 10px; }
+  .workshop-labor-assignee { flex-basis: auto; }
+  .workshop-labor-task-controls { align-items: stretch; }
+  .workshop-labor-actions { width: 100%; }
+  .workshop-labor-actions > button { flex: 1; min-height: 44px; }
+  .workshop-labor-admin, .workshop-manage-dialog .workshop-mechanic-panel[data-section=execution] .workshop-execution-side { grid-template-columns: minmax(0, 1fr); }
+  :is(.workshop-labor-board, .workshop-price-review) :is(input, select, textarea) { font-size: 16px; }
+}
 .workshop-manage-dialog {
   display: flex;
   flex-direction: column;

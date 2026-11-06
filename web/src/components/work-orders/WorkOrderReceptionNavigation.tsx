@@ -25,7 +25,7 @@ export const WORK_ORDER_RECEPTION_STEPS = [
     id: 2,
     title: 'Vehículo',
     heading: '¿Qué vehículo ingresa?',
-    description: 'Selecciona el vehículo y, si ya lo sabes, asigna al mecánico.',
+    description: 'Selecciona el vehículo que ingresa al taller.',
     short: 'Vehículo',
     icon: Car,
   },

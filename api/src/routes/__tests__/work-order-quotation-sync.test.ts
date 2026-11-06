@@ -210,7 +210,6 @@ describe('Sincronización OT → COT espejo (E2E)', () => {
         clientId,
         vehicleId,
         descripcion: 'OT para sincronización',
-        assignedMechanicId: mecanicoUserId,
         items: [
           {
             catalogItemId: partId,
@@ -233,10 +232,26 @@ describe('Sincronización OT → COT espejo (E2E)', () => {
 
     expect(createResponse.status, JSON.stringify(createResponse.body)).toBe(201);
     workOrderId = createResponse.body.workOrder.id;
+    // El vendedor conserva la autoría; la asignación corresponde al supervisor.
+    const supervisor = await loginAs('dev@unithor.local');
+    const assigned = await request(app).patch(`/api/work-orders/${workOrderId}/assignment`)
+      .set('Cookie', authCookie(supervisor)).set('X-CSRF-Token', supervisor.csrfToken)
+      .send({ mechanicId: mecanicoUserId });
+    expect(assigned.status, JSON.stringify(assigned.body)).toBe(200);
   });
 
   afterAll(async () => {
     await cleanupData();
+  });
+
+  it('impide al vendedor asignar mecánicos al crear una OT', async () => {
+    const seller = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    for (const assignment of [{ assignedMechanicId: mecanicoUserId }, { items: [{ descripcion: 'Servicio asignado', assignedUserId: mecanicoUserId }] }]) {
+      const response = await request(app).post('/api/work-orders')
+        .set('Cookie', authCookie(seller)).set('X-CSRF-Token', seller.csrfToken)
+        .send({ clientId, vehicleId, ...assignment });
+      expect(response.status, JSON.stringify(response.body)).toBe(403);
+    }
   });
 
   it('crea la OT con tipo de línea y unidad, y refleja lo mismo en la cotización espejo', async () => {

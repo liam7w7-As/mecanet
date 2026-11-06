@@ -36,6 +36,7 @@ const editable = (item: QuotationItem) => ({
 describe('Labor integrity and mechanic privacy regressions', () => {
   let admin: User;
   let mechanics: User[];
+  let chief: User;
   let client: Client;
   let vehicle: Vehicle;
   let cookies: string[][];
@@ -66,7 +67,7 @@ describe('Labor integrity and mechanic privacy regressions', () => {
     const passwordHash = await hashPassword(password);
     await admin.update({ passwordHash, activo: true });
     mechanics = await Promise.all(
-      ['a', 'b'].map((suffix) =>
+      ['a', 'b', 'c'].map((suffix) =>
         User.create({
           nombre: `Labor regression ${suffix}`,
           email: `labor-regression-${suffix}@example.com`,
@@ -76,8 +77,11 @@ describe('Labor integrity and mechanic privacy regressions', () => {
         }),
       ),
     );
+    const chiefRole = await Role.findOne({ where: { nombre: 'jefe' } });
+    if (!chiefRole) throw new Error('Missing chief role');
+    chief = await User.create({ nombre: 'Jefe de pruebas', email: 'labor-chief@example.com', passwordHash, roleId: chiefRole.id, activo: true });
     cookies = [];
-    for (const user of [admin, ...mechanics]) {
+    for (const user of [admin, ...mechanics, chief]) {
       const response = await request(app)
         .post('/api/auth/login')
         .send({ email: user.email, password });
@@ -102,6 +106,7 @@ describe('Labor integrity and mechanic privacy regressions', () => {
       await RefreshToken.destroy({ where: { userId: mechanics.map((user) => user.id) } });
       await User.destroy({ where: { id: mechanics.map((user) => user.id) }, force: true });
     }
+    if (chief) { await RefreshToken.destroy({ where: { userId: chief.id } }); await chief.destroy({ force: true }); }
   });
 
   const createOrder = async (descriptions = ['Servicio de prueba']) => {
@@ -147,7 +152,66 @@ describe('Labor integrity and mechanic privacy regressions', () => {
     expect(result.status, JSON.stringify(result.body)).toBe(200);
   };
 
+  it('creates three services with independent mechanics and restricts each mechanic to their work', async () => {
+    const response = await mutate('post', '/api/work-orders', {
+      clientId: client.id, vehicleId: vehicle.id,
+      items: mechanics.map((mechanic, index) => ({ descripcion: `Servicio asignado ${index}`, tipoLinea: 'especifico', cantidad: 1, precioUnitario: 10000, assignedUserId: mechanic.id })),
+    }, 4);
+    expect(response.status, JSON.stringify(response.body)).toBe(201);
+    const id = Number(response.body.workOrder.id);
+    orderIds.push(id);
+    const items = await WorkOrderItem.findAll({ where: { workOrderId: id }, order: [['id', 'ASC']] });
+    expect(items.map((item) => item.assignedUserId)).toEqual(mechanics.map((mechanic) => mechanic.id));
+    for (let i = 0; i < mechanics.length; i++) {
+      const list = await get(`/api/work-orders?search=${response.body.workOrder.codigo}`, i + 1);
+      expect(list.body.items.map((item: { id: number }) => item.id)).toContain(id);
+      const sheet = await get(`/api/work-orders/${id}/worksheet`, i + 1);
+      expect(sheet.body.worksheet.items.filter((item: { canWork: boolean }) => item.canWork).map((item: { id: number }) => item.id)).toEqual([items[i].id]);
+      expect((await mutate('post', `/api/work-orders/${id}/items/${items[(i + 1) % items.length].id}/start`, {}, i + 1)).status).toBe(403);
+    }
+    const invalid = await mutate('post', '/api/work-orders', { clientId: client.id, vehicleId: vehicle.id, items: [{ descripcion: 'Responsable inválido', assignedUserId: admin.id }] });
+    expect(invalid.status).toBe(400);
+  });
+
+  it('reassigns running work without losing the previous mechanic hours and notes', async () => {
+    const { order, items } = await createOrder();
+    const item = items[0];
+    await item.update({ assignedUserId: mechanics[0].id, notasOperativas: 'Conservar diagnóstico' });
+    expect((await mutate('post', `/api/work-orders/${order.id}/items/${item.id}/start`, {}, 1)).status).toBe(200);
+    await WorkOrderItemSession.update({ startedAt: new Date(Date.now() - 45 * 60000) }, { where: { workOrderItemId: item.id, status: 'abierta' } });
+    const assigned = await mutate('post', `/api/work-orders/${order.id}/items/${item.id}/assignment`, { assignedUserId: mechanics[1].id });
+    expect(assigned.status, JSON.stringify(assigned.body)).toBe(200);
+    expect((await item.reload()).horasHombreReales).toBeCloseTo(0.75);
+    expect(item.notasOperativas).toBe('Conservar diagnóstico');
+    const session = await WorkOrderItemSession.findOne({ where: { workOrderItemId: item.id } });
+    expect(session?.status).toBe('cerrada');
+    expect(session?.userId).toBe(mechanics[0].id);
+    expect((await mutate('post', `/api/work-orders/${order.id}/items/${item.id}/start`, {}, 1)).status).toBe(403);
+    expect((await mutate('post', `/api/work-orders/${order.id}/items/${item.id}/start`, {}, 2)).status).toBe(200);
+    expect((await mutate('post', `/api/work-orders/${order.id}/items/${item.id}/complete`, {}, 2)).status).toBe(200);
+    expect((await item.reload()).notasOperativas).toBe('Conservar diagnóstico');
+    const history = await get(`/api/work-orders/${order.id}/worksheet`);
+    expect(history.body.worksheet.items[0].sessions).toHaveLength(2);
+  });
+
+  it('converts a COT with service assignments using its authoritative items and rejects foreign item IDs', async () => {
+    const quotation = await Quotation.create({ codigo: 'COT-LABOR-CONVERT', clientId: client.id, subtotal: 10000, total: 10000, pagado: 0 });
+    const line = await QuotationItem.create({ quotationId: quotation.id, descripcion: 'Servicio cotizado', tipoLinea: 'especifico', cantidad: 1, precioUnitario: 10000, subtotal: 10000 });
+    const path = `/api/quotations/${quotation.id}/convert-to-ot`;
+    expect((await mutate('post', path, { vehicleId: vehicle.id, itemAssignments: [{ quotationItemId: line.id + 99999, assignedUserId: mechanics[0].id }] })).status).toBe(400);
+    expect((await quotation.reload()).workOrderId).toBeNull();
+    const converted = await mutate('post', path, { vehicleId: vehicle.id, itemAssignments: [{ quotationItemId: line.id, assignedUserId: mechanics[0].id }] });
+    expect(converted.status, JSON.stringify(converted.body)).toBe(201);
+    const id = Number(converted.body.workOrder.id);
+    orderIds.push(id);
+    const item = await WorkOrderItem.findOne({ where: { workOrderId: id } });
+    expect(item?.assignedUserId).toBe(mechanics[0].id);
+    expect(Number(item?.precioUnitario)).toBe(10000);
+    expect((await line.reload()).workOrderItemId).toBe(item?.id);
+  });
+
   it('keeps assignment restrictions when searching, filtering and paginating', async () => {
+    const previousTotals = await Promise.all([1, 2].map(async (index) => Number((await get('/api/work-orders?search=RGRS11', index)).body.total)));
     const own = await createOrder();
     const byItem = await createOrder();
     const foreign = await createOrder();
@@ -159,7 +223,7 @@ describe('Labor integrity and mechanic privacy regressions', () => {
       1,
     );
     expect(response.status).toBe(200);
-    expect(response.body.total).toBe(2);
+    expect(response.body.total).toBe(previousTotals[0] + 2);
     const page2 = await get(
       `/api/work-orders?search=RGRS11&clientId=${client.id}&pageSize=1&page=2`,
       1,
@@ -168,7 +232,7 @@ describe('Labor integrity and mechanic privacy regressions', () => {
     expect(ids.sort()).toEqual([own.order.id, byItem.order.id].sort());
     expect((await get(`/api/work-orders?search=${foreign.order.codigo}`, 1)).body.total).toBe(0);
     expect((await get(`/api/work-orders/${foreign.order.id}/worksheet`, 1)).status).toBe(404);
-    expect((await get(`/api/work-orders?search=RGRS11`, 2)).body.total).toBe(2);
+    expect((await get(`/api/work-orders?search=RGRS11`, 2)).body.total).toBe(previousTotals[1] + 2);
   });
 
   it('administrative edits do not restart the workshop activity clock in list or detail', async () => {

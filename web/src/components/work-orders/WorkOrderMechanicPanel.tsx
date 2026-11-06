@@ -1,74 +1,27 @@
-import { ITEM_OPERATIONAL_STATUS } from '@unithor/shared';
 import {
   AlertCircle,
   Check,
-  CheckCircle2,
   ClipboardPen,
-  Clock,
-  LoaderCircle,
-  Package,
   PackagePlus,
-  Play,
-  UserCog,
-  Wrench,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import WorkOrderLaborBoard from './WorkOrderLaborBoard';
+import WorkOrderPriceSuggestions from './WorkOrderPriceSuggestions';
 import {
-  useAssignWorkOrderMechanicMutation,
   useCatalogItems,
   useCreateWorkOrderRequestMutation,
-  useMechanics,
   useReviewWorkOrderRequestMutation,
   useUpdateWorkOrderExecutionMutation,
 } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
-import { getWorkOrderProgress } from '../../lib/work-order-progress';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 import CurrencyInput from '../common/CurrencyInput';
 
 import type { WorkOrder } from '../../types/entities';
-import type { ItemOperationalStatus } from '@unithor/shared';
-
-const statusLabels: Record<ItemOperationalStatus, string> = {
-  pendiente: 'Pendiente',
-  en_proceso: 'En proceso',
-  completado: 'Completado',
-  omitido: 'Omitido',
-};
-
-const STATUS_CONFIG: Record<
-  ItemOperationalStatus,
-  { label: string; icon: typeof Clock; activeClass: string; inactiveClass: string }
-> = {
-  pendiente: {
-    label: 'Pendiente',
-    icon: Clock,
-    activeClass: 'bg-slate-100 text-slate-700 border-slate-300 ring-2 ring-slate-300/30 font-bold',
-    inactiveClass: 'bg-white text-slate-500 border-brand-line hover:bg-slate-50',
-  },
-  en_proceso: {
-    label: 'En proceso',
-    icon: Play,
-    activeClass: 'bg-brand-primary text-white border-brand-primary shadow-xs ring-2 ring-brand-primary/25 font-bold',
-    inactiveClass: 'bg-white text-brand-primary border-brand-line hover:bg-brand-pale/50',
-  },
-  completado: {
-    label: 'Completado',
-    icon: CheckCircle2,
-    activeClass: 'bg-brand-mintPale text-brand-mintInk border-brand-mint shadow-xs ring-2 ring-brand-mint/25 font-bold',
-    inactiveClass: 'bg-white text-brand-ink border-brand-line hover:bg-brand-pale/50',
-  },
-  omitido: {
-    label: 'Omitido',
-    icon: X,
-    activeClass: 'bg-slate-200 text-slate-600 border-slate-300 font-bold',
-    inactiveClass: 'bg-white text-slate-400 border-brand-line hover:bg-slate-50',
-  },
-};
 
 const requestStatusStyles = {
   pendiente: 'bg-brand-goldPale text-brand-goldInk',
@@ -94,20 +47,17 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
 
   const isClosed = workOrder.estado === 'entregada' || workOrder.estado === 'cancelada';
   const canExecute = !isClosed && Boolean(
-    user && (isSupervisor || (user.role === 'mecanico' && workOrder.assignedMechanicId === user.id)),
+    user && (isSupervisor || (user.role === 'mecanico' && (workOrder.assignedMechanicId === user.id || workOrder.items?.some((item) => item.assignedUserId === user.id)))),
   );
-  const mechanicsQuery = useMechanics(isSupervisor);
-  const assignMutation = useAssignWorkOrderMechanicMutation();
   const executionMutation = useUpdateWorkOrderExecutionMutation();
   const requestMutation = useCreateWorkOrderRequestMutation();
   const reviewMutation = useReviewWorkOrderRequestMutation();
   const [partSearch, setPartSearch] = useState('');
   const partsQuery = useCatalogItems(partSearch, 'parte');
-  const [itemDrafts, setItemDrafts] = useState<
-    Record<number, { estadoOperativo: ItemOperationalStatus; notasOperativas: string }>
-  >({});
-  const [activeItemId, setActiveItemId] = useState<number | null>(null);
-  const [pendingItemStatus, setPendingItemStatus] = useState<ItemOperationalStatus | null>(null);
+  const [priceDirty, setPriceDirty] = useState(false);
+  const [pricePending, setPricePending] = useState(false);
+  const [workDirty, setWorkDirty] = useState(false);
+  const [workPending, setWorkPending] = useState(false);
   const [progress, setProgress] = useState('');
   const [comment, setComment] = useState('');
   const [blockers, setBlockers] = useState('');
@@ -117,10 +67,8 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
   const [workOrderItemId, setWorkOrderItemId] = useState('');
   const [suggestedPrice, setSuggestedPrice] = useState('');
   const [reason, setReason] = useState('');
-  const taskProgress = getWorkOrderProgress(workOrder);
-  const isPending = assignMutation.isPending || executionMutation.isPending || requestMutation.isPending || reviewMutation.isPending;
-  const isDirty = Boolean(progress || comment.trim() || blockers.trim() || catalogItemId || workOrderItemId || suggestedPrice || reason.trim()
-    || Object.entries(itemDrafts).some(([id, draft]) => draft.notasOperativas !== (workOrder.items?.find((item) => item.id === Number(id))?.notasOperativas ?? '')));
+  const isPending = pricePending || workPending || executionMutation.isPending || requestMutation.isPending || reviewMutation.isPending;
+  const isDirty = priceDirty || workDirty || Boolean(progress || comment.trim() || blockers.trim() || catalogItemId || workOrderItemId || suggestedPrice || reason.trim());
   useEffect(() => onDirtyChange?.(isDirty), [onDirtyChange, isDirty]);
   useEffect(() => onPendingChange?.(isPending), [onPendingChange, isPending]);
   const selectedService = workOrder.items?.find((item) => item.id === Number(workOrderItemId));
@@ -144,60 +92,6 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
       ),
     [workOrder.requests, isSupervisor],
   );
-
-  const handleAssignment = (value: string): void => {
-    assignMutation.mutate(
-      { id: workOrder.id, data: { mechanicId: value ? Number(value) : null } },
-      {
-        onSuccess: () => notifySuccess('Asignación de mecánico actualizada.'),
-        onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo asignar el mecánico.')),
-      },
-    );
-  };
-
-  const saveItem = (itemId: number, nextStatus?: ItemOperationalStatus): void => {
-    const original = workOrder.items?.find((item) => item.id === itemId);
-    if (!original) return;
-    const draft = itemDrafts[itemId] ?? {
-      estadoOperativo: original.estadoOperativo,
-      notasOperativas: original.notasOperativas ?? '',
-    };
-    const targetStatus = nextStatus ?? original.estadoOperativo;
-
-    setActiveItemId(itemId);
-    setPendingItemStatus(targetStatus);
-    executionMutation.mutate(
-      {
-        id: workOrder.id,
-        data: {
-          items: [
-            {
-              id: itemId,
-              estadoOperativo: targetStatus,
-              notasOperativas: draft.notasOperativas || null,
-            },
-          ],
-        },
-      },
-      {
-        onSuccess: () => {
-          setItemDrafts((current) => {
-            const next = { ...current };
-            delete next[itemId];
-            return next;
-          });
-          setActiveItemId(null);
-          setPendingItemStatus(null);
-          notifySuccess(`Trabajo actualizado a ${statusLabels[targetStatus]}.`);
-        },
-        onError: (error) => {
-          setActiveItemId(null);
-          setPendingItemStatus(null);
-          notifyError(getApiErrorMessage(error, 'No se pudo actualizar el trabajo.'));
-        },
-      },
-    );
-  };
 
   const submitProgress = (): void => {
     if (!canExecute || !validProgress) return;
@@ -268,7 +162,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
   };
 
   const mutationError =
-    assignMutation.error ?? executionMutation.error ?? requestMutation.error ?? reviewMutation.error;
+    executionMutation.error ?? requestMutation.error ?? reviewMutation.error;
 
   const progressHistory = (
     <div className="workshop-progress-history border-t border-brand-line p-5 sm:p-6" hidden={section === 'requests'}>
@@ -300,43 +194,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
 
   return (
     <section className="workshop-mechanic-panel min-w-0 overflow-hidden rounded-2xl border border-brand-line bg-white shadow-xs" data-section={section} aria-labelledby="mechanic-panel-title">
-      {/* Cabecera del panel */}
-      <div className="workshop-mechanic-heading flex flex-col gap-4 border-b border-brand-line p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-pale text-brand-primary">
-            <UserCog className="h-6 w-6" aria-hidden="true" />
-          </span>
-          <div>
-            <h2 id="mechanic-panel-title" className="text-base font-bold text-brand-ink">
-              Ejecución y Control de Taller
-            </h2>
-            <p className="text-xs text-brand-muted">
-              Actualice el estado de los trabajos en 1 clic y reporte avances de la orden.
-            </p>
-          </div>
-        </div>
-
-        {isSupervisor && !isClosed ? (
-          <label className="flex items-center gap-2 text-xs font-semibold text-brand-muted">
-            <span>Mecánico:</span>
-            <select
-              className="h-10 min-w-48 rounded-xl border border-brand-line bg-white px-3 text-xs font-bold text-brand-ink outline-none transition focus:border-brand-primary"
-              value={workOrder.assignedMechanicId ?? ''}
-              onChange={(event) => handleAssignment(event.target.value)}
-              disabled={assignMutation.isPending || mechanicsQuery.isPending}
-            >
-              <option value="">Sin asignar</option>
-              {mechanicsQuery.data?.map((mechanic) => (
-                <option key={mechanic.id} value={mechanic.id}>{mechanic.nombre}</option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <div className="rounded-xl border border-brand-line bg-brand-pale/50 px-3.5 py-2 text-xs font-bold text-brand-primaryInk">
-            Responsable: {workOrder.assignedMechanic?.nombre ?? 'Sin asignar'}
-          </div>
-        )}
-      </div>
+      <div className="workshop-mechanic-heading" hidden={section === 'execution'}><div><h2 id="mechanic-panel-title">Solicitudes del taller</h2><p>Repuestos y revisiones con sus aprobaciones.</p></div></div>
 
       {mutationError && (
         <div className="flex items-center gap-2 border-b border-brand-coral/30 bg-brand-coralPale px-5 py-3 text-sm text-brand-coralInk" role="alert">
@@ -347,158 +205,13 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
 
       {canExecute ? (
         <fieldset disabled={isPending} className={`workshop-edit-fields ${section === 'all' ? 'grid divide-y divide-brand-line xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:divide-x xl:divide-y-0' : ''}`}>
-          {/* Checklist interactivo sin selects */}
-          <div className="workshop-execution-columns min-w-0 p-5 sm:p-6" hidden={section === 'requests'}>
-            <div className="workshop-checklist-heading flex items-center justify-between pb-4">
-              <div>
-                <h3 className="text-sm font-bold text-brand-ink">Checklist de servicios y repuestos</h3>
-                <p className="mt-0.5 text-xs text-brand-muted">
-                  Haga clic directamente en el estado para cambiar el modo de trabajo.
-                </p>
-              </div>
-              <span className="rounded-full bg-brand-pale px-2.5 py-1 text-xs font-bold text-brand-primary">
-                {taskProgress.completed}/{taskProgress.total} listos
-              </span>
-            </div>
-
-            <div className="workshop-task-list space-y-4">
-              {workOrder.items?.map((item) => {
-                const draft = itemDrafts[item.id] ?? {
-                  estadoOperativo: item.estadoOperativo,
-                  notasOperativas: item.notasOperativas ?? '',
-                };
-                const currentStatus = item.estadoOperativo;
-                const isPendingForThis = executionMutation.isPending && activeItemId === item.id;
-                const isPart = item.tipoLinea === 'parte';
-
-                return (
-                  <div
-                    key={item.id}
-                    className="workshop-task rounded-2xl border border-brand-line bg-[#fbfcfd] p-4 transition-all hover:border-brand-primary/30 hover:shadow-xs sm:p-5"
-                  >
-                    {/* Encabezado del trabajo */}
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${
-                              isPart
-                                ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
-                                : 'bg-brand-pale text-brand-primary border border-brand-line'
-                            }`}
-                          >
-                            {isPart ? <Package className="h-3 w-3" /> : <Wrench className="h-3 w-3" />}
-                            {isPart ? 'Repuesto' : 'Servicio'}
-                          </span>
-                          <span className="text-xs font-semibold text-brand-muted">
-                            {isSupervisor ? formatClp(item.precioUnitario) : 'Precio no disponible'}
-                          </span>
-                        </div>
-                        <h4 className="mt-1.5 break-words text-sm font-bold text-brand-ink sm:text-base">
-                          {item.descripcion}
-                        </h4>
-                      </div>
-
-                    </div>
-
-                    {/* Selector de Estado Interactivo (Control Segmentado sin Selects) */}
-                    <div className="mt-3.5">
-                      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-muted">
-                        Modo de trabajo:
-                      </p>
-                      <div
-                        className="workshop-task-statuses grid grid-cols-4 gap-2"
-                        role="group"
-                        aria-label={`Cambiar modo de trabajo para ${item.descripcion}`}
-                      >
-                        {ITEM_OPERATIONAL_STATUS.map((statusOption) => {
-                          const isOptionActive = currentStatus === statusOption;
-                          const cfg = STATUS_CONFIG[statusOption];
-                          const StatusIcon = cfg.icon;
-
-                          // Regression guard: mechanics cannot downgrade item status
-                          const ITEM_ORDER: readonly ItemOperationalStatus[] = ['pendiente', 'en_proceso', 'completado'];
-                          const currentRank = ITEM_ORDER.indexOf(currentStatus);
-                          const targetRank = ITEM_ORDER.indexOf(statusOption);
-                          const wouldRegress = currentRank > targetRank && currentRank !== -1 && targetRank !== -1;
-                          const isLockedForRole = wouldRegress && !isSupervisor;
-
-                          return (
-                            <button
-                              key={statusOption}
-                              type="button"
-                              onClick={() => {
-                                if (isLockedForRole || isOptionActive) return;
-                                saveItem(item.id, statusOption);
-                              }}
-                              aria-pressed={isOptionActive}
-                              data-status={statusOption}
-                              disabled={isPendingForThis || isLockedForRole}
-                              title={isLockedForRole ? 'Solo el jefe de taller o administrador puede revertir el estado' : undefined}
-                              className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-bold transition-all sm:gap-2 sm:text-sm ${
-                                isOptionActive ? cfg.activeClass : isLockedForRole ? 'cursor-not-allowed border-brand-line/60 bg-slate-50 text-slate-300' : cfg.inactiveClass
-                              }`}
-                            >
-                              {isPendingForThis && pendingItemStatus === statusOption ? (
-                                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                              ) : (
-                                <StatusIcon className="h-4 w-4" aria-hidden="true" />
-                              )}
-                              <span>{cfg.label}</span>
-                            </button>
-                          );
-                        })}
-
-                      </div>
-                    </div>
-
-                    {/* Nota técnica con botón de guardado ágil */}
-                    <div className="mt-3.5 flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <div className="relative flex-1">
-                        <input
-                          className="h-9 w-full rounded-xl border border-brand-line bg-white px-3 text-xs text-brand-ink outline-none transition focus:border-brand-primary sm:text-sm"
-                          aria-label={`Nota técnica de ${item.descripcion}`}
-                          value={draft.notasOperativas}
-                          onChange={(event) =>
-                            setItemDrafts((current) => ({
-                              ...current,
-                              [item.id]: { ...draft, notasOperativas: event.target.value },
-                            }))
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              saveItem(item.id);
-                            }
-                          }}
-                          placeholder="Nota técnica, hallazgo o detalle del trabajo..."
-                        />
-                      </div>
-                      {draft.notasOperativas !== (item.notasOperativas ?? '') && (
-                        <button
-                          type="button"
-                          className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-brand-primary px-3 text-xs font-bold text-white shadow-xs transition hover:bg-brand-primaryHover"
-                          onClick={() => saveItem(item.id)}
-                          disabled={isPendingForThis}
-                        >
-                          <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                          <span>Guardar nota</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {workOrder.items?.length === 0 && (
-                <p className="py-6 text-center text-sm text-brand-muted">No hay trabajos cargados todavía.</p>
-              )}
-            </div>
-
+          <div className="workshop-execution-columns" hidden={section === 'requests'}>
+            <WorkOrderLaborBoard workOrder={workOrder} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} />
           </div>
 
           <div className="workshop-execution-side" hidden={section === 'requests'}>
             {/* Reportar avance */}
-            <div className="workshop-progress-form mt-8 rounded-2xl border border-brand-line bg-[#fbfcfd] p-5">
+            <details className="workshop-progress-form"><summary>Reportar avance</summary><div>
               <h3 className="text-sm font-bold text-brand-ink">Reportar avance</h3>
               <p className="mt-0.5 text-xs text-brand-muted">
                 Registre el avance porcentual acumulado de la orden de trabajo.
@@ -544,7 +257,8 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
                 Registrar avance
               </button>
             </div>
-            {progressHistory}
+            </details>
+            <details className="workshop-progress-log"><summary>Ver reportes de avance</summary>{progressHistory}</details>
           </div>
 
           {/* Solicitudes de repuestos / aumentos */}
@@ -772,6 +486,8 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', onDirtyChan
         </div>
       </div>
 
+      <div className="workshop-price-review-container" hidden={section === 'execution'}><WorkOrderPriceSuggestions workOrder={workOrder} onDirtyChange={setPriceDirty} onPendingChange={setPricePending} /></div>
+      {!canExecute && section !== 'requests' && <WorkOrderLaborBoard workOrder={workOrder} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} />}
       {!canExecute && section !== 'requests' && progressHistory}
 
     </section>

@@ -508,6 +508,8 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         horasHombreEstimadas: z.ZodOptional<z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>>;
         estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    } & {
+        assignedUserId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
         cantidad: number;
         precioUnitario: number;
@@ -519,6 +521,7 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         catalogItemId?: number | null | undefined;
         horasHombreEstimadas?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        assignedUserId?: number | null | undefined;
     }, {
         descripcion: string;
         cantidad?: number | undefined;
@@ -530,6 +533,7 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         horasHombreEstimadas?: unknown;
         notasOperativas?: string | null | undefined;
+        assignedUserId?: number | null | undefined;
     }>, "many">>;
     inspection: z.ZodOptional<z.ZodObject<{
         inventario: z.ZodDefault<z.ZodEffects<z.ZodArray<z.ZodEnum<["botiquin", "chaleco_reflectante", "extintor", "triangulo", "control_remoto", "manual", "radio", "usb", "rueda_repuesto", "llave_ruedas", "gata", "herramientas", "perno_seguridad", "enganche", "antena", "tapa_combustible", "tapas_ruedas", "limpiaparabrisas"]>, "many">, ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[], ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[]>>;
@@ -559,7 +563,24 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         objetosValor?: string | null | undefined;
         observaciones?: string | null | undefined;
     }>>;
-}, "items">, "strict", z.ZodTypeAny, {
+}, "items"> & {
+    itemAssignments: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodObject<{
+        quotationItemId: z.ZodNumber;
+        assignedUserId: z.ZodNullable<z.ZodNumber>;
+    }, "strict", z.ZodTypeAny, {
+        assignedUserId: number | null;
+        quotationItemId: number;
+    }, {
+        assignedUserId: number | null;
+        quotationItemId: number;
+    }>, "many">, {
+        assignedUserId: number | null;
+        quotationItemId: number;
+    }[], {
+        assignedUserId: number | null;
+        quotationItemId: number;
+    }[]>>;
+}, "strict", z.ZodTypeAny, {
     vehicleId: number;
     fechaIngreso?: string | null | undefined;
     clientId?: number | null | undefined;
@@ -580,6 +601,10 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         objetosValor?: string | null | undefined;
         observaciones?: string | null | undefined;
     } | undefined;
+    itemAssignments?: {
+        assignedUserId: number | null;
+        quotationItemId: number;
+    }[] | undefined;
 }, {
     vehicleId: number;
     fechaIngreso?: string | null | undefined;
@@ -601,6 +626,10 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         objetosValor?: string | null | undefined;
         observaciones?: string | null | undefined;
     } | undefined;
+    itemAssignments?: {
+        assignedUserId: number | null;
+        quotationItemId: number;
+    }[] | undefined;
 }>;
 export type QuotationItemInput = z.infer<typeof quotationItemInputSchema>;
 export type CreateQuotationInput = z.infer<typeof createQuotationSchema>;

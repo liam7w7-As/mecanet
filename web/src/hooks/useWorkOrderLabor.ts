@@ -35,6 +35,7 @@ const useWorksheetMutation = <TVariables>(
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: ['work-order-labor', 'mutation'],
     mutationFn,
     onSuccess: (worksheet, variables) => {
       queryClient.setQueryData(laborKeys.worksheet(variables.id), worksheet);
@@ -92,7 +93,7 @@ export const useCompleteItemTimerMutation = () =>
     async ({ id, itemId, notasOperativas }) => {
       const response = await api.post<WorksheetResponse>(
         `/work-orders/${id}/items/${itemId}/complete`,
-        { notasOperativas: notasOperativas ?? null },
+        notasOperativas !== undefined ? { notasOperativas } : {},
       );
       return response.data.worksheet;
     },

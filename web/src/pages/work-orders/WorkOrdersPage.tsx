@@ -3,6 +3,7 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { Stagger, StaggerItem } from '../../components/animate-ui';
 import Pagination from '../../components/common/Pagination';
@@ -103,6 +104,7 @@ const isStatusRegression = (from: WorkOrderStatus, to: WorkOrderStatus): boolean
 };
 
 export const WorkOrdersPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [cardExpansion, setCardExpansion] = useState<WorkOrderCardExpansion>(null);
   const [status, setStatus] = useState<StatusFilter>('all');
@@ -114,6 +116,15 @@ export const WorkOrdersPage = () => {
   const [pendingRevert, setPendingRevert] = useState<PendingRevert | null>(null);
   const [detailWorkOrderId, setDetailWorkOrderId] = useState<number | null>(null);
   const [detailView, setDetailView] = useState<'summary' | 'execution'>('summary');
+  useEffect(() => {
+    const requested = Number(searchParams.get('manage'));
+    if (!Number.isInteger(requested) || requested <= 0) return;
+    setDetailWorkOrderId(requested);
+    setDetailView('execution');
+    const next = new URLSearchParams(searchParams);
+    next.delete('manage');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [previewWorkOrderId, setPreviewWorkOrderId] = useState<number | null>(null);
   const [deliveryWorkOrderId, setDeliveryWorkOrderId] = useState<number | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
@@ -225,7 +236,7 @@ export const WorkOrdersPage = () => {
                     onChangeStatus={changeStatus}
                     onDeliver={() => setDeliveryWorkOrderId(workOrder.id)}
                     onOpenDetail={() => { setDetailView('summary'); setDetailWorkOrderId(workOrder.id); }}
-                    onOpenExecution={user && (['desarrollador', 'admin', 'jefe'].includes(user.role) || (user.role === 'mecanico' && workOrder.assignedMechanicId === user.id))
+                    onOpenExecution={user && (['desarrollador', 'admin', 'jefe'].includes(user.role) || (user.role === 'mecanico' && (workOrder.assignedMechanicId === user.id || workOrder.items?.some((item) => item.assignedUserId === user.id))))
                       ? () => { setDetailView('execution'); setDetailWorkOrderId(workOrder.id); }
                       : undefined}
                     onPreviewPdf={() => setPreviewWorkOrderId(workOrder.id)}

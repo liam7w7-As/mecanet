@@ -106,7 +106,12 @@ export const quotationQuerySchema = paginationSchema
   );
 
 // Los importes e items se copian desde la COT, nunca desde el navegador.
-export const convertQuotationToWorkOrderSchema = createWorkOrderSchema.omit({ items: true }).strict();
+export const convertQuotationToWorkOrderSchema = createWorkOrderSchema.omit({ items: true }).extend({
+  itemAssignments: z.array(z.object({
+    quotationItemId: z.number().int().positive(),
+    assignedUserId: z.number().int().positive().nullable(),
+  }).strict()).refine((items) => new Set(items.map((item) => item.quotationItemId)).size === items.length, 'No repita servicios en la asignación').optional(),
+}).strict();
 
 export type QuotationItemInput = z.infer<typeof quotationItemInputSchema>;
 export type CreateQuotationInput = z.infer<typeof createQuotationSchema>;

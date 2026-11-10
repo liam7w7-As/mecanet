@@ -184,6 +184,44 @@ export async function ensurePurchasePermissions(): Promise<void> {
   }
 }
 
+/**
+ * Asegura que admin y desarrollador tengan la acción `import` en los módulos
+ * donde se habilitó la importación (taller y admin). Las bases creadas antes
+ * de esta función pueden no tener esas filas en role_permissions.
+ */
+export async function ensureImportPermissions(): Promise<void> {
+  const modules = ['taller', 'admin'] as const;
+  const permissionIds = new Map<string, number>();
+
+  for (const modulo of modules) {
+    for (const accion of ACTIONS) {
+      const [permission] = await Permission.findOrCreate({
+        where: { modulo, accion },
+        defaults: { modulo, accion },
+      });
+      permissionIds.set(`${modulo}:${accion}`, permission.id);
+    }
+  }
+
+  const roles = await Role.findAll();
+  const roleIds = new Map(roles.map((role) => [role.nombre, role.id]));
+
+  for (const roleName of ['desarrollador', 'admin'] as const) {
+    const roleId = roleIds.get(roleName);
+    if (!roleId) continue;
+
+    for (const modulo of modules) {
+      const permissionId = permissionIds.get(`${modulo}:import`);
+      if (!permissionId) continue;
+
+      await RolePermission.findOrCreate({
+        where: { roleId, permissionId },
+        defaults: { roleId, permissionId },
+      });
+    }
+  }
+}
+
 async function ensureSchemaUpToDate(): Promise<void> {
   const qi = sequelize.getQueryInterface();
   await ensureQuotationArchive(qi);
@@ -324,6 +362,7 @@ export async function ensureDatabaseBootstrapped(): Promise<void> {
     // antes del módulo pueden no tener todas las filas de la matriz.
     await ensureFleetPermissions();
     await ensurePurchasePermissions();
+    await ensureImportPermissions();
 
     // 4. Usuario Administrador Inicial
     const userCount = await User.count();

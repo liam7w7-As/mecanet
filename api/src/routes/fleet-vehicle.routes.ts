@@ -4,6 +4,7 @@ import {
   fleetDocumentFileQuerySchema,
   fleetDocumentVersionSchema,
   fleetVehicleQuerySchema,
+  importRequestQuerySchema,
   updateFleetDocumentSchema,
   updateFleetVehicleSchema,
 } from '@unithor/shared';
@@ -26,9 +27,14 @@ import {
   getFleetVehiclesHandler,
   updateFleetVehicleHandler,
 } from '../controllers/fleet-vehicle.controller.js';
+import {
+  downloadImportTemplateHandler,
+  importSpreadsheetHandler,
+} from '../controllers/import.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorize } from '../middlewares/authorize.js';
 import { fleetDocumentUpload } from '../middlewares/fleet-document-upload.js';
+import { spreadsheetUpload } from '../middlewares/spreadsheet-upload.js';
 import { validate } from '../middlewares/validate.js';
 
 export const fleetVehicleRouter = Router();
@@ -42,6 +48,20 @@ const documentParamsSchema = vehicleParamsSchema.extend({
 });
 
 fleetVehicleRouter.use(authenticate);
+
+fleetVehicleRouter.get(
+  '/import/template',
+  authorize('flota', 'import'),
+  downloadImportTemplateHandler('fleet-vehicles'),
+);
+
+fleetVehicleRouter.post(
+  '/import',
+  authorize('flota', 'import'),
+  validate({ query: importRequestQuerySchema }),
+  spreadsheetUpload,
+  importSpreadsheetHandler('fleet-vehicles'),
+);
 
 fleetVehicleRouter.get(
   '/',

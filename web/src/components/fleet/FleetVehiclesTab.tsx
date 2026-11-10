@@ -4,6 +4,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Upload,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
@@ -24,6 +25,7 @@ import { formatDate } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { AnimateIcon } from '../animate-ui';
+import ImportModal from '../common/ImportModal';
 import Pagination from '../common/Pagination';
 
 import type { FleetVehicle } from '../../types/entities';
@@ -62,6 +64,7 @@ export const FleetVehiclesTab = () => {
   const [page, setPage] = useState(1);
   const [formVehicle, setFormVehicle] = useState<FleetVehicle | null | undefined>(undefined);
   const [deleteVehicle, setDeleteVehicle] = useState<FleetVehicle | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const selectedVehicleId = Number(searchParams.get('fleetVehicleId'));
   const hasSelectedVehicle = Number.isInteger(selectedVehicleId) && selectedVehicleId > 0;
   const debouncedSearch = useDebouncedValue(search, 350);
@@ -69,6 +72,10 @@ export const FleetVehiclesTab = () => {
   const canCreate = Boolean(user && hasUserPermission(user, 'flota', 'create'));
   const canEdit = Boolean(user && hasUserPermission(user, 'flota', 'update'));
   const canDelete = Boolean(user && hasUserPermission(user, 'flota', 'delete'));
+  const canImport = Boolean(
+    user &&
+    (hasUserPermission(user, 'flota', 'import') || hasUserPermission(user, 'admin', 'import')),
+  );
 
   const fleetQuery = useFleetVehicles({
     page,
@@ -133,15 +140,28 @@ export const FleetVehiclesTab = () => {
             Vehículos de uso interno de la empresa, con su documentación y vencimientos.
           </p>
         </div>
-        {canCreate && (
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => setFormVehicle(null)}
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" /> Nuevo vehículo de flota
-          </button>
-        )}
+        {canImport || canCreate ? (
+          <div className="vehicle-toolbar-actions flex flex-wrap items-center gap-2">
+            {canImport && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setImportOpen(true)}
+              >
+                <Upload className="h-4 w-4" aria-hidden="true" /> Importar
+              </button>
+            )}
+            {canCreate && (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => setFormVehicle(null)}
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" /> Nuevo vehículo de flota
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <section className="vehicle-toolbar-fields" aria-label="Filtros de vehículos">
@@ -257,6 +277,9 @@ export const FleetVehiclesTab = () => {
           vehicle={formVehicle}
           onClose={() => setFormVehicle(undefined)}
         />
+      )}
+      {importOpen && (
+        <ImportModal target="fleet-vehicles" onClose={() => setImportOpen(false)} />
       )}
 
       <AnimatePresence>

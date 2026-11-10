@@ -1,7 +1,11 @@
 import { beforeAll } from 'vitest';
 
 import { sequelize } from '../config/database.js';
-import { ensureFleetPermissions, ensurePurchasePermissions } from '../database/bootstrap.js';
+import {
+  ensureFleetPermissions,
+  ensureImportPermissions,
+  ensurePurchasePermissions,
+} from '../database/bootstrap.js';
 import { up as ensureQuotationCommercial } from '../database/migrations/038-quotation-commercial-conditions.js';
 import { up as ensureStartedWorkOrders } from '../database/migrations/039-start-work-orders-without-draft.js';
 import { up as ensureFleetVehicles } from '../database/migrations/040-create-fleet-vehicles.js';
@@ -67,6 +71,7 @@ beforeAll(async () => {
   await ensureCustomerEmails(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
+  await ensureImportPermissions();
   await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
   try {
     for (const table of TRANSIENT) {

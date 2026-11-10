@@ -11,6 +11,7 @@ import {
   Search,
   Settings2,
   Trash2,
+  Upload,
   Wrench,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -19,6 +20,7 @@ import { createPortal } from 'react-dom';
 import CatalogItemDetailModal from '../../components/catalog/CatalogItemDetailModal';
 import CatalogItemModal from '../../components/catalog/CatalogItemModal';
 import StockAdjustmentModal from '../../components/catalog/StockAdjustmentModal';
+import ImportModal from '../../components/common/ImportModal';
 import ModalHeader from '../../components/common/ModalHeader';
 import Pagination from '../../components/common/Pagination';
 import { useCatalogItems, useDeleteCatalogItemMutation } from '../../hooks/useCatalog';
@@ -107,6 +109,7 @@ export const CatalogPage = () => {
   const [formItem, setFormItem] = useState<CatalogItem | null | undefined>(undefined);
   const [stockItem, setStockItem] = useState<CatalogItem | null>(null);
   const [deleteItem, setDeleteItem] = useState<CatalogItem | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(search, 350);
   const user = useAuthStore((state) => state.user);
   const catalogQuery = useCatalogItems({
@@ -128,6 +131,10 @@ export const CatalogPage = () => {
   const canDelete = Boolean(
     user &&
     (hasUserPermission(user, 'taller', 'delete') || hasUserPermission(user, 'admin', 'delete')),
+  );
+  const canImport = Boolean(
+    user &&
+    (hasUserPermission(user, 'taller', 'import') || hasUserPermission(user, 'admin', 'import')),
   );
   const canViewInventory = Boolean(user && hasUserPermission(user, 'almacen', 'read'));
   const canAdjustStock = Boolean(user && hasUserPermission(user, 'almacen', 'create'));
@@ -166,6 +173,16 @@ export const CatalogPage = () => {
             placeholder="Producto, servicio o código"
           />
         </label>
+        {canImport && (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setImportOpen(true)}
+          >
+            <Upload aria-hidden="true" />
+            Importar
+          </button>
+        )}
         {canCreate && (
           <button type="button" className="inventory-primary" onClick={() => setFormItem(null)}>
             <Plus aria-hidden="true" />
@@ -358,6 +375,7 @@ export const CatalogPage = () => {
         <CatalogItemModal item={formItem} onClose={() => setFormItem(undefined)} />
       )}
       {stockItem && <StockAdjustmentModal item={stockItem} onClose={() => setStockItem(null)} />}
+      {importOpen && <ImportModal target="catalog" onClose={() => setImportOpen(false)} />}
       {deleteItem && (
         <CatalogDeleteDialog
           item={deleteItem}

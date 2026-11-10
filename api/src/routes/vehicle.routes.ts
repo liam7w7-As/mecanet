@@ -1,4 +1,9 @@
-import { createVehicleSchema, updateVehicleSchema, vehicleQuerySchema } from '@unithor/shared';
+import {
+  createVehicleSchema,
+  importRequestQuerySchema,
+  updateVehicleSchema,
+  vehicleQuerySchema,
+} from '@unithor/shared';
 import { Router } from 'express';
 import { z } from 'zod';
 
@@ -10,8 +15,13 @@ import {
   getVehiclesHandler,
   updateVehicleHandler,
 } from '../controllers/vehicle.controller.js';
+import {
+  downloadImportTemplateHandler,
+  importSpreadsheetHandler,
+} from '../controllers/import.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorize } from '../middlewares/authorize.js';
+import { spreadsheetUpload } from '../middlewares/spreadsheet-upload.js';
 import { validate } from '../middlewares/validate.js';
 import { hasPermission } from '../services/permission.service.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -56,6 +66,26 @@ const authorizeAny = (
 };
 
 vehicleRouter.use(authenticate);
+
+vehicleRouter.get(
+  '/import/template',
+  authorizeAny([
+    { modulo: 'taller', accion: 'import' },
+    { modulo: 'admin', accion: 'import' },
+  ]),
+  downloadImportTemplateHandler('vehicles'),
+);
+
+vehicleRouter.post(
+  '/import',
+  authorizeAny([
+    { modulo: 'taller', accion: 'import' },
+    { modulo: 'admin', accion: 'import' },
+  ]),
+  validate({ query: importRequestQuerySchema }),
+  spreadsheetUpload,
+  importSpreadsheetHandler('vehicles'),
+);
 
 vehicleRouter.get(
   '/',

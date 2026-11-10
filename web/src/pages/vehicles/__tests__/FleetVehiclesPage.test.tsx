@@ -146,6 +146,7 @@ describe('FleetVehiclesPage', () => {
     expect(list.getByText('Disponible')).toBeInTheDocument();
     expect(list.getByText('1 por vencer en 30 días')).toBeInTheDocument();
     expect(list.getByText('02-11-2026')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Importar' })).toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalledWith('/vehicles', expect.anything());
   });
 

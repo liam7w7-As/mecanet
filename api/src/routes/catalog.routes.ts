@@ -1,6 +1,7 @@
 import {
   catalogItemQuerySchema,
   createCatalogItemSchema,
+  importRequestQuerySchema,
   updateCatalogItemSchema,
   updateStockSchema,
 } from '@unithor/shared';
@@ -15,7 +16,12 @@ import {
   getCatalogItemsHandler,
   updateCatalogItemHandler,
 } from '../controllers/catalog.controller.js';
+import {
+  downloadImportTemplateHandler,
+  importSpreadsheetHandler,
+} from '../controllers/import.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
+import { spreadsheetUpload } from '../middlewares/spreadsheet-upload.js';
 import { validate } from '../middlewares/validate.js';
 import { hasPermission } from '../services/permission.service.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -75,6 +81,26 @@ catalogRouter.post(
   ]),
   validate({ body: createCatalogItemSchema }),
   createCatalogItemHandler,
+);
+
+catalogRouter.get(
+  '/import/template',
+  authorizeAny([
+    { modulo: 'taller', accion: 'import' },
+    { modulo: 'admin', accion: 'import' },
+  ]),
+  downloadImportTemplateHandler('catalog'),
+);
+
+catalogRouter.post(
+  '/import',
+  authorizeAny([
+    { modulo: 'taller', accion: 'import' },
+    { modulo: 'admin', accion: 'import' },
+  ]),
+  validate({ query: importRequestQuerySchema }),
+  spreadsheetUpload,
+  importSpreadsheetHandler('catalog'),
 );
 
 catalogRouter.post(

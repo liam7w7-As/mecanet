@@ -4,6 +4,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Upload,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
@@ -18,6 +19,7 @@ import { hasUserPermission } from '../../lib/permissions';
 import VehicleDetailPage from '../../pages/vehicles/VehicleDetailPage';
 import { useAuthStore } from '../../stores/auth.store';
 import { AnimateIcon } from '../animate-ui';
+import ImportModal from '../common/ImportModal';
 import Pagination from '../common/Pagination';
 import QuickVehicleSearch from '../common/QuickVehicleSearch';
 import VehicleFormModal from '../vehicles/VehicleFormModal';
@@ -53,6 +55,7 @@ export const WorkshopVehiclesTab = () => {
   const [page, setPage] = useState(1);
   const [formVehicle, setFormVehicle] = useState<Vehicle | null | undefined>(undefined);
   const [deleteVehicle, setDeleteVehicle] = useState<Vehicle | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const selectedVehicleId = Number(searchParams.get('vehicleId'));
   const hasSelectedVehicle = Number.isInteger(selectedVehicleId) && selectedVehicleId > 0;
   const debouncedSearch = useDebouncedValue(search, 350);
@@ -68,6 +71,10 @@ export const WorkshopVehiclesTab = () => {
     (hasUserPermission(user, 'taller', 'update') || hasUserPermission(user, 'comercial', 'update')),
   );
   const canDelete = Boolean(user && hasUserPermission(user, 'taller', 'delete'));
+  const canImport = Boolean(
+    user &&
+    (hasUserPermission(user, 'taller', 'import') || hasUserPermission(user, 'admin', 'import')),
+  );
 
   const openVehicle = (vehicleId: number): void => {
     setSearchParams((current) => {
@@ -119,15 +126,28 @@ export const WorkshopVehiclesTab = () => {
             Parque de clientes, recepción, órdenes de trabajo y cotizaciones.
           </p>
         </div>
-        {canCreate && (
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => setFormVehicle(null)}
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" /> Nuevo vehículo
-          </button>
-        )}
+        {canImport || canCreate ? (
+          <div className="vehicle-toolbar-actions flex flex-wrap items-center gap-2">
+            {canImport && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setImportOpen(true)}
+              >
+                <Upload className="h-4 w-4" aria-hidden="true" /> Importar
+              </button>
+            )}
+            {canCreate && (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => setFormVehicle(null)}
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" /> Nuevo vehículo
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <section className="vehicle-toolbar-fields" aria-label="Filtros de vehículos">
@@ -220,6 +240,7 @@ export const WorkshopVehiclesTab = () => {
       {formVehicle !== undefined && (
         <VehicleFormModal vehicle={formVehicle} onClose={() => setFormVehicle(undefined)} />
       )}
+      {importOpen && <ImportModal target="vehicles" onClose={() => setImportOpen(false)} />}
       <AnimatePresence>
         {hasSelectedVehicle && (
           <div className="reference-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5" aria-hidden={formVehicle !== undefined || undefined}>

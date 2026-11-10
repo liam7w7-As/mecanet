@@ -47,12 +47,13 @@
 /* Toolbar shared by the two vehicle parks; keep both independent searches. */
 .vehicle-toolbar { display: grid; grid-template-columns: minmax(180px, 1.8fr) minmax(180px, 1fr) auto; gap: 10px; align-items: end; }
 .vehicle-toolbar-heading, .vehicle-toolbar-fields { display: contents; }
-.vehicle-toolbar-heading > div { display: none; }
-.vehicle-toolbar-heading > button { order: 3; min-height: 42px; }
+.vehicle-toolbar-heading > div:not(.vehicle-toolbar-actions) { display: none; }
+.vehicle-toolbar-actions { order: 3; }
+.vehicle-toolbar-actions > button { min-height: 42px; }
 .vehicle-toolbar-fields > div > p, .vehicle-toolbar-fields > label > span:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .vehicle-toolbar :is(input, select) { height: 42px; border: 0; border-radius: 22px; font-size: 12px; }
 .vehicle-toolbar-fleet { grid-template-columns: minmax(200px, 2fr) minmax(150px, 1fr) minmax(160px, 1fr) auto; }
-.vehicle-toolbar-fleet .vehicle-toolbar-heading > button { order: 4; }
+.vehicle-toolbar-fleet .vehicle-toolbar-actions { order: 4; }
 .workspace-vehicles > .page-banner > div > p { display: none; }
 .workspace-vehicles > .page-banner { padding-block: 0; }
 .workspace-vehicles .workspace-vehicle-grid { gap: 0; padding: 3px 0; overflow: hidden; border-radius: 18px; background: white; }
@@ -81,7 +82,7 @@
   .vehicle-toolbar { grid-template-columns: minmax(0, 1fr) auto; }
   .vehicle-toolbar-fields > div { grid-column: 1 / -1; }
   .vehicle-toolbar-fleet .vehicle-toolbar-fields > label:first-child { grid-column: 1 / -1; }
-  .vehicle-toolbar-fleet .vehicle-toolbar-heading > button { grid-column: 1 / -1; }
+  .vehicle-toolbar-fleet .vehicle-toolbar-actions { grid-column: 1 / -1; }
   .vehicle-directory-row { min-height: 135px; }
   .dashboard-shortcuts .view-panel-body > :is(a, button) { flex-direction: column; justify-content: center; gap: 6px; min-height: 74px; padding: 10px 4px; font-size: 11px; text-align: center; }
 }

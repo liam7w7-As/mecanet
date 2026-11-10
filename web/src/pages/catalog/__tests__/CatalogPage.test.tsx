@@ -170,6 +170,7 @@ describe('CatalogPage', () => {
     expect(screen.getByRole('tab', { name: 'Servicios Estándar' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Repuestos / Partes' })).toBeInTheDocument();
     expect(screen.getByText('Crítico · 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Importar' })).toBeInTheDocument();
   });
 
   it('muestra el filtro de disponibilidad al seleccionar Repuestos', async () => {
@@ -287,6 +288,7 @@ describe('CatalogPage', () => {
     renderPage();
     await screen.findByText('Filtro de aceite');
     expect(screen.queryByRole('button', { name: 'Nuevo item' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Importar' })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Ajustar stock de Filtro de aceite' }),
     ).not.toBeInTheDocument();

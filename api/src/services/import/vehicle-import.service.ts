@@ -1,64 +1,53 @@
-import { createClientSchema, createVehicleSchema, normalizeChilePatente } from '@unithor/shared';
-import { UniqueConstraintError } from 'sequelize';
+import {
+  createClientSchema,
+  createVehicleSchema,
+  isValidChilePatente,
+  normalizeChilePatente,
+  normalizeRut,
+  rutSchema,
+} from '@unithor/shared';
 
-import { sequelize } from '../../config/database.js';
+import { VEHICLE_IMPORT_COLUMNS, aliasesOf } from './import-columns.js';
+import {
+  applyImportAccess,
+  changesBetween,
+  executePlannedImport,
+  getImportAccess,
+  hasCell,
+  importCell,
+  importContext,
+  importRecordId,
+} from './import-plan.service.js';
+import {
+  normalizeKeyText,
+  parseNumberValue,
+  parseTextValue,
+  readSpreadsheet,
+} from './spreadsheet.service.js';
 import { Client } from '../../models/Client.js';
 import { FleetVehicle } from '../../models/FleetVehicle.js';
 import { Vehicle } from '../../models/Vehicle.js';
-import { VEHICLE_IMPORT_COLUMNS, aliasesOf } from './import-columns.js';
-import {
-  normalizeKeyText,
-  parseIntegerValue,
-  parseTextValue,
-  readSpreadsheet,
-  upperTextValue,
-} from './spreadsheet.service.js';
+import { ApiError } from '../../utils/ApiError.js';
 
+import type { ImportAccess, ImportActor, ImportPlanRow } from './import-plan.service.js';
+import type { SpreadsheetData, SpreadsheetRow } from './spreadsheet.service.js';
 import type {
+  CreateClientInput,
+  CreateVehicleInput,
   ImportPreview,
   ImportResult,
-  ImportRowPreview,
-  ImportRowStatus,
 } from '@unithor/shared';
 import type { Transaction } from 'sequelize';
-import type { SpreadsheetData, SpreadsheetRow, SpreadsheetValue } from './spreadsheet.service.js';
 
-type ClientType = 'cliente' | 'empresa';
-
-interface OwnerData {
-  nombre: string;
-  rut: string | null;
-  telefono: string | null;
-  email: string | null;
-  tipo: ClientType;
-}
-
-interface VehicleRowData {
-  patente: string;
-  marca?: string | null;
-  modelo?: string | null;
-  ano?: number | null;
-  color?: string | null;
-  vinChasis?: string | null;
-  motor?: string | null;
-  kilometraje?: number | null;
-  combustible?: string | null;
-  transmision?: string | null;
-  owner: OwnerData | null;
-}
-
-interface ParsedVehicleRow {
-  row: number;
-  label: string;
-  values: Record<string, SpreadsheetValue>;
-  data: VehicleRowData | null;
-  messages: string[];
-  duplicate: boolean;
-}
-
-const PREVIEW_ROW_LIMIT = 200;
-const CURRENT_YEAR = new Date().getFullYear();
-
+const TEXT_FIELDS = [
+  'marca',
+  'modelo',
+  'color',
+  'vinChasis',
+  'motor',
+  'combustible',
+  'transmision',
+] as const;
 const FUEL_ALIASES: Record<string, string> = {
   bencina: 'bencina',
   gasolina: 'bencina',
@@ -71,372 +60,322 @@ const FUEL_ALIASES: Record<string, string> = {
   glp: 'gas',
   gnv: 'gas',
 };
-
-const TRANSMISSION_ALIASES: Record<string, string> = {
+const TRANSMISSION_ALIASES: Record<string, string | null> = {
   manual: 'manual',
   automatica: 'automatica',
   automatico: 'automatica',
   cvt: 'cvt',
-  'sin especificar': '',
+  'sin especificar': null,
 };
-
 const EMPRESA_PATTERN =
   /S\.?\s?A\.?|SPA\b|LTDA|E\.?I\.?R\.?L|FUNDACI[OÓ]N|ASOC|SOC\.|CORP|HOLDING|MINER[AO]S|COLEGIO|TRANSPORTES|MUNICIPAL|GOBIERNO/i;
+const LABELS = Object.fromEntries(
+  VEHICLE_IMPORT_COLUMNS.map((column) => [column.key, column.header]),
+);
+const plateKey = (value: string, foreign = !isValidChilePatente(value)): string =>
+  foreign ? value.trim().toUpperCase() : normalizeChilePatente(value);
+const nameKey = (value: string): string => normalizeKeyText(value).replace(/\s+/g, ' ');
 
-const addMessage = (messages: Set<string>, message: string): void => {
-  messages.add(message);
-};
+// Dates and Sequelize dataValues must not remain live references in the signed plan.
+const snapshotOf = (record: Vehicle | FleetVehicle | Client): Record<string, unknown> =>
+  JSON.parse(JSON.stringify(record.get({ plain: true }))) as Record<string, unknown>;
 
-const normalizeFuel = (value: string | null): string | null => {
-  if (!value) return null;
-  return FUEL_ALIASES[normalizeKeyText(value)] ?? value;
-};
+interface OwnerPlan {
+  client: Client | null;
+  data: CreateClientInput;
+}
 
-const normalizeTransmission = (value: string | null): string | null => {
-  if (!value) return null;
-  const normalized = TRANSMISSION_ALIASES[normalizeKeyText(value)];
-  if (normalized === undefined) return value;
-  return normalized === '' ? null : normalized;
-};
-
-const parseOwner = (row: SpreadsheetRow, messages: Set<string>): OwnerData | null => {
+const ownerPlan = (
+  row: SpreadsheetRow,
+  current: Client | undefined,
+  clients: Client[],
+  pending: OwnerPlan[],
+  access: ImportAccess,
+): OwnerPlan | null => {
   const nombre = parseTextValue(row.values.propietario);
-  const rut = upperTextValue(row.values.rutPropietario);
+  const rawRut = parseTextValue(row.values.rutPropietario);
   const telefono = parseTextValue(row.values.telefonoPropietario);
   const email = parseTextValue(row.values.emailPropietario);
-
-  if (!nombre && !rut && !telefono && !email) return null;
-
-  if (!nombre) {
-    addMessage(
-      messages,
-      'El propietario requiere un nombre. Agrega la columna Propietario o deja sus datos vacíos.',
+  if (!nombre && !rawRut && !telefono && !email) return null;
+  const parsedRut = rutSchema.safeParse(rawRut);
+  if (!parsedRut.success)
+    throw ApiError.badRequest(parsedRut.error.issues.map((issue) => issue.message).join(' '));
+  const rut = parsedRut.data ?? null;
+  const rutMatches = rut ? clients.filter((client) => normalizeRut(client.rut ?? '') === rut) : [];
+  const matches = rutMatches.length
+    ? rutMatches
+    : nombre
+      ? clients.filter((client) => nameKey(client.nombre) === nameKey(nombre))
+      : !rut && current
+        ? [current]
+        : [];
+  if (matches.some((client) => client.deletedAt))
+    throw ApiError.conflict('El cliente está eliminado. La importación no restaura clientes.');
+  if (matches.length > 1)
+    throw ApiError.conflict('Hay varios clientes con ese RUT o nombre. Revisa el propietario.');
+  const client = matches[0];
+  if (client) {
+    if (rut && client.rut && normalizeRut(client.rut) !== rut)
+      throw ApiError.conflict('El nombre del cliente corresponde a otro RUT.');
+    // Never modify an existing client, even if the file supplies new contact details.
+    return { client, data: { nombre: client.nombre, tipo: client.tipo, rut: client.rut } };
+  }
+  if (!nombre) throw ApiError.badRequest('Agrega el nombre del propietario para crear el cliente.');
+  // These OR permissions are precisely those required by POST /clients.
+  if (!access.canCreate)
+    throw ApiError.conflict(
+      'No tienes permiso comercial.create o taller.create para crear el cliente.',
     );
-    return null;
+  const parsed = createClientSchema.safeParse({
+    nombre,
+    rut,
+    telefono,
+    email,
+    tipo: EMPRESA_PATTERN.test(nombre) ? 'empresa' : 'cliente',
+  });
+  if (!parsed.success)
+    throw ApiError.badRequest(
+      parsed.error.issues.map((issue) => `Propietario: ${issue.message}`).join(' '),
+    );
+  const previous = pending.find(
+    (owner) => (rut && owner.data.rut === rut) || nameKey(owner.data.nombre) === nameKey(nombre),
+  );
+  if (previous) {
+    if (rut && previous.data.rut && previous.data.rut !== rut)
+      throw ApiError.conflict('El nombre del cliente aparece con distintos RUT en el archivo.');
+    return previous;
   }
-
-  const tipo: ClientType = EMPRESA_PATTERN.test(nombre) ? 'empresa' : 'cliente';
-  const parsed = createClientSchema.safeParse({ nombre, rut, telefono, email, tipo });
-
-  if (!parsed.success) {
-    for (const issue of parsed.error.issues) {
-      addMessage(messages, `Propietario: ${issue.message}`);
-    }
-    return null;
-  }
-
-  return {
-    nombre: parsed.data.nombre,
-    rut: parsed.data.rut ?? null,
-    telefono: parsed.data.telefono ?? null,
-    email: parsed.data.email ?? null,
-    tipo: parsed.data.tipo,
-  };
+  const owner = { client: null, data: parsed.data };
+  pending.push(owner);
+  return owner;
 };
 
-const parseRow = (row: SpreadsheetRow): ParsedVehicleRow => {
-  const messages = new Set<string>();
-  const rawPatente = parseTextValue(row.values.patente);
-  const patente = rawPatente ? normalizeChilePatente(rawPatente) : null;
+const parseForeign = (row: SpreadsheetRow, existing?: Vehicle): boolean => {
+  if (!hasCell(row.values.esExtranjera))
+    return existing ? !isValidChilePatente(existing.patente) : false;
+  const value = normalizeKeyText(String(row.values.esExtranjera));
+  if (['si', 's', 'true', '1', 'yes'].includes(value)) return true;
+  if (['no', 'n', 'false', '0'].includes(value)) return false;
+  throw ApiError.badRequest('Patente extranjera debe ser Sí o No (también acepta 1 o 0).');
+};
 
-  if (!rawPatente) {
-    addMessage(messages, 'La patente es obligatoria.');
-  }
-
-  const rawAno = row.values.ano ?? null;
-  const ano = parseIntegerValue(rawAno);
-  if (rawAno !== null && String(rawAno).trim() !== '' && ano === null) {
-    addMessage(messages, 'El año no es un número válido.');
-  } else if (ano !== null && (ano < 1950 || ano > CURRENT_YEAR + 1)) {
-    addMessage(messages, `El año debe estar entre 1950 y ${CURRENT_YEAR + 1}.`);
-  }
-
-  const rawKilometraje = row.values.kilometraje ?? null;
-  const kilometraje = parseIntegerValue(rawKilometraje);
-  if (
-    rawKilometraje !== null &&
-    String(rawKilometraje).trim() !== '' &&
-    (kilometraje === null || kilometraje < 0)
-  ) {
-    addMessage(messages, 'El kilometraje debe ser un número entero mayor o igual a 0.');
-  }
-
-  const owner = parseOwner(row, messages);
-
-  const payload = {
-    patente: patente ?? '',
-    marca: parseTextValue(row.values.marca),
-    modelo: parseTextValue(row.values.modelo),
-    ano,
-    color: parseTextValue(row.values.color),
-    vinChasis: parseTextValue(row.values.vinChasis),
-    motor: parseTextValue(row.values.motor),
-    kilometraje,
-    combustible: normalizeFuel(parseTextValue(row.values.combustible)),
-    transmision: normalizeTransmission(parseTextValue(row.values.transmision)),
+const vehiclePayload = (row: SpreadsheetRow, existing?: Vehicle): CreateVehicleInput => {
+  const payload: Record<string, unknown> = {
+    patente: parseTextValue(row.values.patente) ?? existing?.patente ?? '',
+    esExtranjera: parseForeign(row, existing),
   };
-
+  for (const field of TEXT_FIELDS) {
+    let value = hasCell(row.values[field])
+      ? parseTextValue(row.values[field])
+      : (existing?.[field] ?? null);
+    if (hasCell(row.values[field]) && value) {
+      if (field === 'combustible') value = FUEL_ALIASES[normalizeKeyText(value)] ?? value;
+      if (field === 'transmision') {
+        const normalized = TRANSMISSION_ALIASES[normalizeKeyText(value)];
+        if (normalized !== undefined) value = normalized;
+      }
+    }
+    payload[field] = value;
+  }
+  for (const field of ['ano', 'kilometraje'] as const) {
+    const value = hasCell(row.values[field])
+      ? parseNumberValue(row.values[field])
+      : (existing?.[field] ?? null);
+    if (hasCell(row.values[field]) && (value === null || !Number.isInteger(value)))
+      throw ApiError.badRequest(`${LABELS[field]} debe ser un número entero válido.`);
+    payload[field] = value;
+  }
   const parsed = createVehicleSchema.safeParse(payload);
-  if (!parsed.success) {
-    for (const issue of parsed.error.issues) {
-      addMessage(messages, issue.message);
-    }
-  }
-
-  const label =
-    [patente, [payload.marca, payload.modelo].filter(Boolean).join(' ')]
-      .filter((value): value is string => Boolean(value))
-      .join(' · ') || `Fila ${row.rowNumber}`;
-
-  return {
-    row: row.rowNumber,
-    label,
-    values: {
-      patente,
-      marca: payload.marca,
-      modelo: payload.modelo,
-      ano,
-      kilometraje,
-      propietario: owner?.nombre ?? null,
-    },
-    data:
-      messages.size === 0 && parsed.success
-        ? {
-            ...parsed.data,
-            owner,
-          }
-        : null,
-    messages: [...messages],
-    duplicate: false,
-  };
-};
-
-const loadExistingPatentes = async (
-  transaction?: Transaction,
-): Promise<{ workshop: Set<string>; fleet: Set<string> }> => {
-  const [vehicles, fleetVehicles] = await Promise.all([
-    Vehicle.findAll({ attributes: ['patente'], paranoid: false, transaction }),
-    FleetVehicle.findAll({ attributes: ['patente'], paranoid: false, transaction }),
-  ]);
-
-  return {
-    workshop: new Set(vehicles.map((vehicle) => vehicle.patente.toUpperCase())),
-    fleet: new Set(fleetVehicles.map((vehicle) => vehicle.patente.toUpperCase())),
-  };
+  if (!parsed.success)
+    throw ApiError.badRequest(parsed.error.issues.map((issue) => issue.message).join(' '));
+  return parsed.data;
 };
 
 const prepareRows = async (
-  spreadsheet: SpreadsheetData,
+  sheet: SpreadsheetData,
+  access: ImportAccess,
   transaction?: Transaction,
-): Promise<ParsedVehicleRow[]> => {
-  const existing = await loadExistingPatentes(transaction);
-  const seen = new Set<string>();
-
-  return spreadsheet.rows.map((row) => {
-    const parsed = parseRow(row);
-    if (!parsed.data) return parsed;
-
-    const patente = parsed.data.patente.toUpperCase();
-
-    if (existing.fleet.has(patente)) {
-      parsed.duplicate = true;
-      parsed.messages = ['Ya existe un vehículo de flota con esa patente; se omitirá.'];
-    } else if (existing.workshop.has(patente) || seen.has(patente)) {
-      parsed.duplicate = true;
-      parsed.messages = ['Ya existe un vehículo con esa patente; se omitirá.'];
-    } else {
-      seen.add(patente);
+): Promise<ImportPlanRow[]> => {
+  // Use the same table/row lock order as the fleet importer, including deleted keys.
+  const options = { paranoid: false, transaction, lock: transaction?.LOCK.UPDATE };
+  const vehicles = await Vehicle.findAll({ ...options, order: [['id', 'ASC']] });
+  const fleet = await FleetVehicle.findAll({ ...options, order: [['id', 'ASC']] });
+  const clients = await Client.findAll({ ...options, order: [['id', 'ASC']] });
+  const pendingOwners: OwnerPlan[] = [];
+  const fileKeys = new Map<string, ImportPlanRow[]>();
+  const register = (key: string, plan: ImportPlanRow) =>
+    fileKeys.set(key, [...(fileKeys.get(key) ?? []), plan]);
+  const plans = sheet.rows.map((row): ImportPlanRow => {
+    const rawPlate = parseTextValue(row.values.patente);
+    const foreignLookup = hasCell(row.values.esExtranjera)
+      ? ['si', 's', 'true', '1', 'yes'].includes(normalizeKeyText(String(row.values.esExtranjera)))
+      : rawPlate
+        ? !isValidChilePatente(rawPlate)
+        : false;
+    const inputKey = rawPlate ? plateKey(rawPlate, foreignLookup) : null;
+    const matches = inputKey
+      ? vehicles.filter((vehicle) => plateKey(vehicle.patente, foreignLookup) === inputKey)
+      : [];
+    let fleetMatches = inputKey
+      ? fleet.filter((vehicle) => plateKey(vehicle.patente, foreignLookup) === inputKey)
+      : [];
+    const snapshot: Record<string, unknown> = {
+      access: { ...access },
+      matches: matches.map(snapshotOf),
+      fleet: fleetMatches.map(snapshotOf),
+    };
+    const plan: ImportPlanRow = {
+      row: row.rowNumber,
+      label: rawPlate ?? `Fila ${row.rowNumber}`,
+      values: { ...row.values },
+      status: 'error',
+      changes: [],
+      messages: [],
+      snapshot,
+    };
+    if (inputKey) register(`plate:${inputKey}`, plan);
+    try {
+      const id = importRecordId(row);
+      if (id) register(`id:${id}`, plan);
+      const existing = id ? vehicles.find((vehicle) => vehicle.id === id) : matches[0];
+      if (existing) {
+        plan.existingId = existing.id;
+        snapshot.vehicle = snapshotOf(existing);
+        register(`target:${existing.id}`, plan);
+      }
+      if (id && !existing) throw ApiError.conflict('El ID no existe en vehículos de taller.');
+      if (!rawPlate && existing) {
+        fleetMatches = fleet.filter(
+          (vehicle) => plateKey(vehicle.patente) === plateKey(existing.patente),
+        );
+        snapshot.fleet = fleetMatches.map(snapshotOf);
+      }
+      if (existing?.deletedAt || matches.some((vehicle) => vehicle.deletedAt))
+        throw ApiError.conflict(
+          'El vehículo está eliminado. La importación no restaura registros.',
+        );
+      if (matches.length > 1 || matches.some((vehicle) => vehicle.id !== existing?.id))
+        throw ApiError.conflict('El ID y la patente apuntan a distintos vehículos.');
+      if (fleetMatches.length)
+        throw ApiError.conflict('La patente ya pertenece a un vehículo de flota.');
+      const data = vehiclePayload(row, existing);
+      const currentClient = clients.find((client) => client.id === existing?.clientId);
+      snapshot.clients = clients
+        .filter(
+          (client) =>
+            client.id === existing?.clientId ||
+            (hasCell(row.values.rutPropietario) &&
+              normalizeRut(client.rut ?? '') === normalizeRut(String(row.values.rutPropietario))) ||
+            (hasCell(row.values.propietario) &&
+              nameKey(client.nombre) === nameKey(String(row.values.propietario))),
+        )
+        .map(snapshotOf);
+      const owner = ownerPlan(row, currentClient, clients, pendingOwners, access);
+      snapshot.newClient = owner && !owner.client ? { ...owner.data } : null;
+      const { esExtranjera, ...stored } = data;
+      const payload: Record<string, unknown> = existing
+        ? Object.fromEntries(Object.entries(stored).filter(([field]) => hasCell(row.values[field])))
+        : { ...stored };
+      if (owner?.client) payload.clientId = owner.client.id;
+      if (!existing) payload.clientId = owner?.client?.id ?? null;
+      plan.changes = changesBetween(existing ? snapshotOf(existing) : {}, payload, {
+        ...LABELS,
+        clientId: 'Cliente',
+      });
+      if (owner && !owner.client)
+        plan.changes.push({
+          field: 'propietario',
+          label: 'Cliente nuevo',
+          before: currentClient?.nombre ?? null,
+          after: owner.data.nombre,
+        });
+      plan.values = {
+        ...(hasCell(row.values.id) ? { id: id! } : {}),
+        ...Object.fromEntries(
+          Object.entries(stored).map(([field, value]) => [field, importCell(value)]),
+        ),
+        esExtranjera: importCell(esExtranjera),
+        propietario: owner?.client?.nombre ?? owner?.data.nombre ?? currentClient?.nombre ?? null,
+      };
+      plan.label = data.patente;
+      plan.status = existing ? (plan.changes.length ? 'update' : 'unchanged') : 'valid';
+      plan.apply = async (savepoint) => {
+        let clientId = owner?.client?.id ?? existing?.clientId ?? null;
+        let clientsCreated = 0;
+        if (owner && !owner.client) {
+          // Re-read within this savepoint to reuse clients created by earlier
+          // successful rows. A rolled-back row cannot poison a client cache.
+          const available = await Client.findAll({
+            paranoid: false,
+            transaction: savepoint,
+            lock: savepoint.LOCK.UPDATE,
+            order: [['id', 'ASC']],
+          });
+          const resolved = ownerPlan(row, undefined, available, [], access);
+          if (resolved?.client) clientId = resolved.client.id;
+          else {
+            const created = await Client.create(owner.data, { transaction: savepoint });
+            clientId = created.id;
+            clientsCreated = 1;
+          }
+        }
+        if (existing)
+          await existing.update(
+            { ...payload, ...(owner ? { clientId } : {}) },
+            { transaction: savepoint },
+          );
+        else await Vehicle.create({ ...stored, clientId }, { transaction: savepoint });
+        return { clientsCreated };
+      };
+    } catch (error) {
+      plan.status = error instanceof ApiError && error.statusCode === 409 ? 'conflict' : 'error';
+      plan.messages.push(
+        error instanceof ApiError ? error.message : 'No fue posible preparar esta fila.',
+      );
+      plan.apply = undefined;
     }
-
-    return parsed;
+    return plan;
   });
-};
-
-const toPreviewRow = (
-  parsed: ParsedVehicleRow,
-  status: ImportRowStatus,
-): ImportRowPreview => ({
-  row: parsed.row,
-  status,
-  label: parsed.label,
-  values: parsed.values,
-  messages: parsed.messages,
-});
-
-const statusOf = (parsed: ParsedVehicleRow): ImportRowStatus => {
-  if (parsed.messages.length > 0 && !parsed.duplicate) return 'error';
-  if (parsed.duplicate) return 'duplicate';
-  return 'valid';
-};
-
-const buildPreview = (
-  fileName: string,
-  spreadsheet: SpreadsheetData,
-  parsedRows: ParsedVehicleRow[],
-): ImportPreview => {
-  const rows = parsedRows.map((parsed) => toPreviewRow(parsed, statusOf(parsed)));
-
-  return {
-    module: 'vehicles',
-    fileName,
-    sheetName: spreadsheet.sheetName,
-    headerRow: spreadsheet.headerRow,
-    headers: spreadsheet.headers,
-    mappedColumns: spreadsheet.mappedColumns,
-    missingColumns: spreadsheet.missingColumns,
-    totalRows: spreadsheet.totalRows,
-    validRows: rows.filter((row) => row.status === 'valid').length,
-    duplicateRows: rows.filter((row) => row.status === 'duplicate').length,
-    errorRows: rows.filter((row) => row.status === 'error').length,
-    rows: rows.slice(0, PREVIEW_ROW_LIMIT),
-    truncated: spreadsheet.truncated,
-    maxRows: spreadsheet.maxRows,
-  };
-};
-
-const describeError = (error: unknown): string => {
-  if (error instanceof UniqueConstraintError) {
-    return 'Ya existe un vehículo con esa patente.';
-  }
-  return error instanceof Error ? error.message : 'No fue posible crear el vehículo.';
-};
-
-const resolveClient = async (
-  owner: OwnerData,
-  transaction: Transaction,
-  cache: Map<string, number>,
-  counters: { created: number },
-): Promise<number> => {
-  const rutKey = owner.rut ? `rut:${owner.rut}` : null;
-  const nameKey = `name:${normalizeKeyText(owner.nombre)}`;
-
-  const cached = (rutKey ? cache.get(rutKey) : undefined) ?? cache.get(nameKey);
-  if (cached !== undefined) return cached;
-
-  const existing = await Client.findOne({
-    where: owner.rut ? { rut: owner.rut } : { nombre: owner.nombre },
-    paranoid: false,
-    transaction,
-  });
-
-  if (existing) {
-    if (existing.deletedAt) {
-      await existing.restore({ transaction });
+  for (const group of fileKeys.values()) {
+    if (group.length < 2) continue;
+    for (const plan of group) {
+      plan.status = 'conflict';
+      plan.apply = undefined;
+      const message = 'El archivo repite un ID, una patente o el mismo vehículo de destino.';
+      if (!plan.messages.includes(message)) plan.messages.push(message);
     }
-    if (rutKey) cache.set(rutKey, existing.id);
-    cache.set(nameKey, existing.id);
-    return existing.id;
   }
-
-  const created = await Client.create(
-    {
-      nombre: owner.nombre,
-      rut: owner.rut,
-      telefono: owner.telefono,
-      email: owner.email,
-      tipo: owner.tipo,
-    },
-    { transaction },
-  );
-
-  counters.created += 1;
-  if (rutKey) cache.set(rutKey, created.id);
-  cache.set(nameKey, created.id);
-  return created.id;
-};
-
-export const previewVehicleImport = async (
-  buffer: Buffer,
-  fileName: string,
-): Promise<ImportPreview> => {
-  const spreadsheet = await readSpreadsheet(buffer, {
-    aliases: aliasesOf(VEHICLE_IMPORT_COLUMNS),
-    required: ['patente'],
-    fileName,
-  });
-
-  const parsedRows = await prepareRows(spreadsheet);
-  return buildPreview(fileName, spreadsheet, parsedRows);
+  return plans.map((plan) => applyImportAccess(plan, access));
 };
 
 export const importVehicles = async (
   buffer: Buffer,
   fileName: string,
   dryRun: boolean,
+  actor?: ImportActor,
 ): Promise<ImportResult> => {
-  if (dryRun) {
-    const preview = await previewVehicleImport(buffer, fileName);
-    return {
-      ...preview,
-      created: 0,
-      skipped: preview.duplicateRows,
-      failed: preview.errorRows,
-      clientsCreated: 0,
-    };
-  }
-
-  const spreadsheet = await readSpreadsheet(buffer, {
+  const context = importContext(actor);
+  const sheet = await readSpreadsheet(buffer, {
     aliases: aliasesOf(VEHICLE_IMPORT_COLUMNS),
-    required: ['patente'],
+    required: [],
     fileName,
   });
-
-  return sequelize.transaction(async (transaction) => {
-    const parsedRows = await prepareRows(spreadsheet, transaction);
-    const resultRows: ImportRowPreview[] = [];
-    const clientCache = new Map<string, number>();
-    const counters = { created: 0 };
-    let created = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    for (const parsed of parsedRows) {
-      if (!parsed.data) {
-        failed += 1;
-        resultRows.push(toPreviewRow(parsed, 'error'));
-        continue;
-      }
-
-      if (parsed.duplicate) {
-        skipped += 1;
-        resultRows.push(toPreviewRow(parsed, 'duplicate'));
-        continue;
-      }
-
-      if (parsed.messages.length > 0) {
-        failed += 1;
-        resultRows.push(toPreviewRow(parsed, 'error'));
-        continue;
-      }
-
-      try {
-        const clientId = parsed.data.owner
-          ? await resolveClient(parsed.data.owner, transaction, clientCache, counters)
-          : null;
-
-        const { owner: _owner, ...vehicleData } = parsed.data;
-        await Vehicle.create({ ...vehicleData, clientId }, { transaction });
-        created += 1;
-        resultRows.push(toPreviewRow(parsed, 'created'));
-      } catch (error) {
-        failed += 1;
-        resultRows.push({
-          ...toPreviewRow(parsed, 'error'),
-          messages: [...parsed.messages, describeError(error)],
-        });
-      }
-    }
-
-    return {
-      ...buildPreview(fileName, spreadsheet, parsedRows),
-      rows: resultRows.slice(0, PREVIEW_ROW_LIMIT),
-      validRows: created,
-      duplicateRows: skipped,
-      errorRows: failed,
-      created,
-      skipped,
-      failed,
-      clientsCreated: counters.created,
-    };
-  });
+  if (!sheet.mappedColumns.id && !sheet.mappedColumns.patente)
+    throw ApiError.badRequest('Incluye la columna ID o Patente.');
+  return executePlannedImport(
+    'vehicles',
+    buffer,
+    fileName,
+    dryRun,
+    sheet,
+    context,
+    async (transaction) =>
+      prepareRows(sheet, await getImportAccess('vehicles', context), transaction),
+  );
 };
+
+export const previewVehicleImport = async (
+  buffer: Buffer,
+  fileName: string,
+  actor?: ImportActor,
+): Promise<ImportPreview> => importVehicles(buffer, fileName, true, actor);

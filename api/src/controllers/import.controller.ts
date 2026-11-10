@@ -1,14 +1,26 @@
-import { buildImportTemplate, importTemplateFileName } from '../services/import/import-template.service.js';
 import { importCatalog } from '../services/import/catalog-import.service.js';
-import { importFleetVehicles } from '../services/import/fleet-import.service.js';
+import {
+  canAccessFleetOwner,
+  importFleetVehicles,
+} from '../services/import/fleet-import.service.js';
+import {
+  buildImportTemplate,
+  importTemplateFileName,
+} from '../services/import/import-template.service.js';
 import { importVehicles } from '../services/import/vehicle-import.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
+import type { ImportActor } from '../services/import/import-plan.service.js';
 import type { ImportModule, ImportRequestQuery, ImportResult } from '@unithor/shared';
 import type { Request, Response } from 'express';
 
-type ImportRunner = (buffer: Buffer, fileName: string, dryRun: boolean) => Promise<ImportResult>;
+type ImportRunner = (
+  buffer: Buffer,
+  fileName: string,
+  dryRun: boolean,
+  actor: ImportActor,
+) => Promise<ImportResult>;
 
 const IMPORTERS: Record<ImportModule, ImportRunner> = {
   catalog: importCatalog,
@@ -16,16 +28,15 @@ const IMPORTERS: Record<ImportModule, ImportRunner> = {
   'fleet-vehicles': importFleetVehicles,
 };
 
-const EXCEL_MIME =
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const EXCEL_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 /**
  * Entrega la plantilla `.xlsx` del módulo. El navegador la descarga y el
  * usuario la completa sin tener que adivinar los encabezados.
  */
 export const downloadImportTemplateHandler = (module: ImportModule) =>
-  asyncHandler(async (_req: Request, res: Response): Promise<void> => {
-    const buffer = await buildImportTemplate(module);
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const buffer = await buildImportTemplate(module, canAccessFleetOwner(req.user?.role));
     const fileName = importTemplateFileName(module);
 
     res.setHeader('Content-Type', EXCEL_MIME);
@@ -50,12 +61,17 @@ export const importSpreadsheetHandler = (module: ImportModule) =>
 
     const query = res.locals.validatedQuery as ImportRequestQuery | undefined;
     const dryRun = query?.dryRun ?? false;
+    const previewToken = req.get('X-Import-Preview');
+    if (previewToken && previewToken.length > 4096) {
+      throw ApiError.badRequest('La vista previa no es válida. Vuelve a revisar el archivo.');
+    }
 
-    const result = await IMPORTERS[module](
-      req.file.buffer,
-      req.file.originalname,
-      dryRun,
-    );
+    const result = await IMPORTERS[module](req.file.buffer, req.file.originalname, dryRun, {
+      userId: req.user?.id,
+      role: req.user?.role,
+      warehouseId: query?.warehouseId,
+      previewToken,
+    });
 
     if (dryRun) {
       res.status(200).json({ preview: result });

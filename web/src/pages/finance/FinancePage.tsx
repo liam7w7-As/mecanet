@@ -19,6 +19,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import CurrencyInput from '../../components/common/CurrencyInput';
 import FormDialog from '../../components/common/FormDialog';
+import ListExportButtons from '../../components/common/ListExportButtons';
 import FinanceAnalyticsDashboard from '../../components/finance/FinanceAnalyticsDashboard';
 import FinancePayments from '../../components/finance/FinancePayments';
 import PaymentReceiptLink from '../../components/finance/PaymentReceiptLink';
@@ -472,6 +473,8 @@ export const FinancePage = () => {
                     aria-label="Fecha del arqueo"
                   />
                 </label>
+                <ListExportButtons target="cash-day" filters={{ fecha: selectedDate }}
+                  disabled={dailyQuery.isPending || dailyQuery.isError || movementsQuery.isPending || movementsQuery.isError || !selectedDate} />
                 {canCreate && (
                   <button
                     type="button"

@@ -14,6 +14,7 @@ import { createFleetVehicleSchema } from '@unithor/shared';
 
 import { sequelize } from '../config/database.js';
 import { up as ensureFleetVehicles } from '../database/migrations/040-create-fleet-vehicles.js';
+import { up as ensureFleetRetirement } from '../database/migrations/045-fleet-retirement-and-private-owner.js';
 import { FleetVehicle } from '../models/FleetVehicle.js';
 import { createFleetVehicle } from '../services/fleet-vehicle.service.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -96,6 +97,7 @@ const FLEET_VEHICLES: CreateFleetVehicleInput[] = [
 const main = async (): Promise<void> => {
   await sequelize.authenticate();
   await ensureFleetVehicles(sequelize.getQueryInterface());
+  await ensureFleetRetirement(sequelize.getQueryInterface());
 
   let created = 0;
   let skipped = 0;

@@ -179,7 +179,7 @@ export declare const fleetReportQuerySchema: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     fechaDesde: string;
     fechaHasta: string;
-    scope: "all" | "clients" | "vehicles";
+    scope: "clients" | "vehicles" | "all";
     search?: string | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
@@ -192,12 +192,12 @@ export declare const fleetReportQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
     clientType?: "cliente" | "empresa" | undefined;
-    scope?: "all" | "clients" | "vehicles" | undefined;
+    scope?: "clients" | "vehicles" | "all" | undefined;
     onlyWithHistory?: boolean | "true" | "false" | undefined;
 }>, {
     fechaDesde: string;
     fechaHasta: string;
-    scope: "all" | "clients" | "vehicles";
+    scope: "clients" | "vehicles" | "all";
     search?: string | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
@@ -210,7 +210,7 @@ export declare const fleetReportQuerySchema: z.ZodEffects<z.ZodObject<{
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
     clientType?: "cliente" | "empresa" | undefined;
-    scope?: "all" | "clients" | "vehicles" | undefined;
+    scope?: "clients" | "vehicles" | "all" | undefined;
     onlyWithHistory?: boolean | "true" | "false" | undefined;
 }>;
 export type FleetReportFilters = z.infer<typeof fleetReportQuerySchema>;

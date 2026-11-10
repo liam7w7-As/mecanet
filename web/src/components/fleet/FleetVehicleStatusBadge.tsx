@@ -24,6 +24,11 @@ const presentation: Record<
     className: 'border-brand-coral/30 bg-brand-coralPale text-brand-coralInk',
     dotClassName: 'bg-brand-coral',
   },
+  dado_de_baja: {
+    label: 'Dado de baja',
+    className: 'border-slate-300 bg-slate-100 text-slate-700',
+    dotClassName: 'bg-slate-500',
+  },
 };
 
 export const FleetVehicleStatusBadge = ({

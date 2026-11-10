@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePermissions, useRolePermissions, useUpdateRolePermissionsMutation } from '../../hooks/useUsers';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { ACTION_LABELS, getRoleLabel, MODULE_LABELS } from '../../lib/permissions';
+import ListExportButtons from '../common/ListExportButtons';
 
 import type { RoleOption } from '../../hooks/useUsers';
 import type { Module } from '@unithor/shared';
@@ -83,6 +84,8 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
         return <button key={role.id} type="button" role="tab" aria-selected={role.id === roleId}
           disabled={updateMutation.isPending} onClick={() => requestRole(role)}><RoleIcon aria-hidden="true" />{getRoleLabel(role.nombre)}</button>;
       })}</div>
+      <ListExportButtons target="role-permissions" filters={{ roleId: roleId ?? undefined }}
+        disabled={loading || Boolean(loadError) || roleId === null || updateMutation.isPending} className="flex flex-wrap justify-end gap-2" />
       {requestedRole && <div className="administration-leave-prompt" role="alertdialog" aria-label="Cambiar de rol sin guardar">
         <p>Hay cambios sin guardar en {selectedRole && getRoleLabel(selectedRole.nombre)}. ¿Descartarlos para abrir {getRoleLabel(requestedRole.nombre)}?</p>
         <div><button type="button" onClick={() => setRequestedRole(null)}>Seguir editando</button><button type="button" onClick={() => selectRole(requestedRole)}>Descartar cambios</button></div>

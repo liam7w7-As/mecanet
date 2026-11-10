@@ -124,6 +124,11 @@ describe('Shared Package Constants & Schemas', () => {
     expect(newFormat.patente).toBe('ABCD12');
     expect(oldFormat.patente).toBe('AB1234');
     expect(invalidFormat.success).toBe(false);
+
+    const foreignWithHyphen = createVehicleSchema.parse({ patente: '1234-xyz', esExtranjera: true });
+    const foreignFree = createVehicleSchema.parse({ patente: 'ABC-1234', esExtranjera: true });
+    expect(foreignWithHyphen.patente).toBe('1234-XYZ');
+    expect(foreignFree.patente).toBe('ABC-1234');
   });
 
   it('valida loginSchema', () => {

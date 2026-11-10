@@ -21,6 +21,7 @@ import CatalogItemDetailModal from '../../components/catalog/CatalogItemDetailMo
 import CatalogItemModal from '../../components/catalog/CatalogItemModal';
 import StockAdjustmentModal from '../../components/catalog/StockAdjustmentModal';
 import ImportModal from '../../components/common/ImportModal';
+import ListExportButtons from '../../components/common/ListExportButtons';
 import ModalHeader from '../../components/common/ModalHeader';
 import Pagination from '../../components/common/Pagination';
 import { useCatalogItems, useDeleteCatalogItemMutation } from '../../hooks/useCatalog';
@@ -112,13 +113,14 @@ export const CatalogPage = () => {
   const [importOpen, setImportOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(search, 350);
   const user = useAuthStore((state) => state.user);
-  const catalogQuery = useCatalogItems({
+  const filters = {
     page,
     pageSize: PAGE_SIZE,
     search: debouncedSearch || undefined,
     tipo: tab === 'all' ? undefined : tab,
     soloConStock: tab === 'parte' && onlyInStock ? true : undefined,
-  });
+  } satisfies Parameters<typeof useCatalogItems>[0];
+  const catalogQuery = useCatalogItems(filters);
   const deleteMutation = useDeleteCatalogItemMutation();
   const canCreate = Boolean(
     user &&
@@ -162,7 +164,7 @@ export const CatalogPage = () => {
         <h1>Catálogo</h1>
         <p>Servicios, trabajos y repuestos</p>
       </header>
-      <div className="inventory-toolbar">
+      <div className="inventory-toolbar flex-wrap">
         <label className="inventory-search">
           <Search aria-hidden="true" />
           <span className="sr-only">Buscar en catálogo</span>
@@ -173,6 +175,11 @@ export const CatalogPage = () => {
             placeholder="Producto, servicio o código"
           />
         </label>
+        <ListExportButtons
+          target="catalog"
+          filters={filters}
+          disabled={catalogQuery.isPending || catalogQuery.isError}
+        />
         {canImport && (
           <button
             type="button"

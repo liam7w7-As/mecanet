@@ -24,6 +24,7 @@ import { useDownloadFinancialReport, useFinancialAnalytics } from '../../hooks/u
 import { formatClp } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
+import { notifyError } from '../../stores/toast.store';
 
 import type { FinancialReportFilters } from '@unithor/shared';
 import type { LucideIcon } from 'lucide-react';
@@ -225,7 +226,13 @@ export const FinanceAnalyticsDashboard = () => {
   };
 
   const exportReport = (format: 'pdf' | 'excel'): void => {
-    downloadMutation.mutate({ format, filters });
+    const previewWindow = format === 'pdf' ? window.open('about:blank', '_blank') : undefined;
+    if (format === 'pdf' && !previewWindow) {
+      notifyError('Permite abrir pestañas emergentes para visualizar el PDF.');
+      return;
+    }
+    if (previewWindow) previewWindow.opener = null;
+    downloadMutation.mutate({ format, filters, previewWindow });
   };
 
   return (

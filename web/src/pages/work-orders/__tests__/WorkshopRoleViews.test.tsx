@@ -4,11 +4,21 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { api } from '../../../lib/api';
+import { toLocalDateInput } from '../../../lib/formatters';
 import { useAuthStore } from '../../../stores/auth.store';
 import { workshopRoleMine, workshopRoleOrders, workshopRoleReport, workshopRoleSummary } from '../../../test/fixtures/workshop-roles';
 import DashboardPage from '../../dashboard/DashboardPage';
 import MyWorkOrdersPage from '../MyWorkOrdersPage';
 import WorkshopDailyReportPage from '../WorkshopDailyReportPage';
+
+const { listExportSpy } = vi.hoisted(() => ({ listExportSpy: vi.fn() }));
+
+vi.mock('../../../components/common/ListExportButtons', () => ({
+  default: (props: { target: string; filters: Record<string, unknown>; disabled?: boolean }) => {
+    listExportSpy(props);
+    return <div data-testid={`list-export-${props.target}`} />;
+  },
+}));
 
 vi.mock('../../../lib/api', () => ({ api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() }, getCookie: vi.fn(), setSessionExpiredHandler: vi.fn() }));
 
@@ -72,23 +82,56 @@ describe('Updated workshop role workspaces', () => {
     expect(details).not.toHaveAttribute('open');
     expect(screen.getByRole('link', { name: 'Gestionar OT-26-41' })).toHaveAttribute('href', '/work-orders?manage=41');
     expect(screen.getByRole('button', { name: /Fecha del reporte/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeInTheDocument();
+    expect(screen.getAllByTestId('list-export-workshop-daily')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Descargar PDF' })).not.toBeInTheDocument();
+    expect(listExportSpy.mock.lastCall?.[0]).toMatchObject({
+      target: 'workshop-daily', filters: { fecha: toLocalDateInput(new Date()) }, disabled: false,
+    });
+    expect(screen.getByTestId('daily-completed')).toHaveTextContent('2');
+    expect(screen.getByText('4 sesiones de trabajo')).toBeInTheDocument();
   });
 
-  it('hides export when the chief only has read permission', async () => {
+  it('delegates export permissions to shared controls while keeping the report available for a read-only chief', async () => {
     useAuthStore.setState({ user: { id: 7, nombre: 'Jefa', email: 'qa@example.test', role: 'jefe', permissions: [{ modulo: 'taller', accion: 'read' }] } });
     renderPage(<WorkshopDailyReportPage />);
-    await screen.findByTestId('daily-hours');
+    await waitFor(() => expect(screen.getByTestId('daily-hours')).toHaveTextContent('3,5 h'));
+    expect(screen.getByTestId('list-export-workshop-daily')).toBeInTheDocument();
+    expect(listExportSpy.mock.lastCall?.[0]).toMatchObject({ target: 'workshop-daily', disabled: false });
     expect(screen.queryByRole('button', { name: 'Descargar PDF' })).not.toBeInTheDocument();
+  });
+
+  it('passes the selected report date to shared export controls and to the daily report query', async () => {
+    renderPage(<WorkshopDailyReportPage />);
+    await waitFor(() => expect(screen.getByTestId('daily-hours')).toHaveTextContent('3,5 h'));
+    const initialDate = toLocalDateInput(new Date());
+    expect(api.get).toHaveBeenCalledWith('/work-orders/reports/daily', { params: { fecha: initialDate } });
+    const selectedDate = initialDate.slice(0, 8) + (initialDate.endsWith('15') ? '16' : '15');
+    fireEvent.click(screen.getByRole('button', { name: 'Fecha del reporte' }));
+    const calendar = screen.getByRole('dialog', { name: 'Calendario: fecha del reporte' });
+    const day = calendar.querySelector<HTMLButtonElement>(`[data-day="${selectedDate}"] button`);
+    expect(day).not.toBeNull();
+    fireEvent.click(day!);
+    await waitFor(() => {
+      expect(listExportSpy.mock.lastCall?.[0]).toMatchObject({
+        target: 'workshop-daily', filters: { fecha: selectedDate }, disabled: false,
+      });
+      expect(api.get).toHaveBeenLastCalledWith('/work-orders/reports/daily', { params: { fecha: selectedDate } });
+    });
+    expect(screen.queryByRole('dialog', { name: 'Calendario: fecha del reporte' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Gestionar OT-26-41' })).toHaveAttribute('href', '/work-orders?manage=41');
+    expect(vi.mocked(api.get).mock.calls.some(([url]) => url === '/work-orders/reports/daily/pdf')).toBe(false);
   });
 
   it('offers a retry without showing zero hours when the daily report fails', async () => {
     vi.mocked(api.get).mockRejectedValueOnce(new Error('Sin conexión'));
     renderPage(<WorkshopDailyReportPage />);
+    expect(listExportSpy.mock.lastCall?.[0]).toMatchObject({ target: 'workshop-daily', disabled: true });
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo cargar el reporte diario.');
     expect(screen.getByTestId('daily-hours')).toHaveTextContent('—');
+    expect(listExportSpy.mock.lastCall?.[0].disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     await waitFor(() => expect(screen.getByTestId('daily-hours')).toHaveTextContent('3,5 h'));
+    expect(listExportSpy.mock.lastCall?.[0].disabled).toBe(false);
   });
   it('prioritizes finance work and avoids workshop links without workshop permission', async () => {
     useAuthStore.setState({ user: { id: 13, nombre: 'Finanzas', email: 'qa@example.test', role: 'finanzas' } });

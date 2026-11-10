@@ -19,6 +19,15 @@ import type {
 } from '../../../types/entities';
 import type { AxiosResponse } from 'axios';
 
+const { listExportSpy } = vi.hoisted(() => ({ listExportSpy: vi.fn() }));
+
+vi.mock('../../../components/common/ListExportButtons', () => ({
+  default: (props: { target: string; filters: Record<string, unknown>; disabled?: boolean }) => {
+    listExportSpy(props);
+    return <div data-testid={`list-export-${props.target}`} />;
+  },
+}));
+
 vi.mock('../../../lib/api', () => ({
   api: {
     delete: vi.fn(),
@@ -163,6 +172,40 @@ describe('ClientsPage', () => {
     expect(screen.getByText('123456785')).toBeInTheDocument();
     expect(screen.getByText('cliente@demo.cl')).toBeInTheDocument();
     expect(screen.getByText('#1')).toBeInTheDocument();
+  });
+
+  it('comparte búsqueda debounced, tipo y página con la exportación sin requerir creación', async () => {
+    useAuthStore.setState((state) => ({ user: { ...state.user!, role: 'vendedor', permissions: [
+      { modulo: 'comercial', accion: 'read' }, { modulo: 'comercial', accion: 'export' },
+    ] } }));
+    vi.mocked(api.get).mockResolvedValue({ data: { ...clientsResponse, total: 45, totalPages: 3 } });
+    createWrapper(<ClientsPage />);
+    await screen.findByText('Cliente Demo');
+    expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('list-export-clients')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Empresas' }));
+    fireEvent.change(screen.getByLabelText('Buscar clientes'), { target: { value: 'Empresa' } });
+    expect(listExportSpy.mock.lastCall?.[0].filters.search).toBeUndefined();
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/clients', {
+      params: expect.objectContaining({ search: 'Empresa', tipo: 'empresa', page: 1 }),
+    }));
+    fireEvent.change(screen.getByLabelText('Seleccionar página'), { target: { value: '2' } });
+    await waitFor(() => {
+      const props = listExportSpy.mock.lastCall?.[0];
+      expect(props).toMatchObject({ target: 'clients', disabled: false, filters: {
+        search: 'Empresa', tipo: 'empresa', page: 2, pageSize: 20,
+      } });
+      expect(props.filters).toEqual(vi.mocked(api.get).mock.lastCall?.[1]?.params);
+    });
+  });
+
+  it('deshabilita exportaciones mientras carga y cuando falla el listado', async () => {
+    vi.mocked(api.get).mockRejectedValue(new Error('Sin conexión'));
+    createWrapper(<ClientsPage />);
+    expect(listExportSpy.mock.lastCall?.[0].disabled).toBe(true);
+    await screen.findByRole('alert');
+    expect(listExportSpy.mock.lastCall?.[0].disabled).toBe(true);
   });
 
   it('actualiza la consulta al cambiar entre Personas y Empresas', async () => {

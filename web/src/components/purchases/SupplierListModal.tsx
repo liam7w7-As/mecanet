@@ -6,6 +6,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useSuppliers } from '../../hooks/usePurchases';
 import { useAuthStore } from '../../stores/auth.store';
+import ListExportButtons from '../common/ListExportButtons';
 import ModalHeader from '../common/ModalHeader';
 import Pagination from '../common/Pagination';
 
@@ -22,12 +23,13 @@ export const SupplierListModal = ({ onClose }: SupplierListModalProps) => {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const debouncedSearch = useDebouncedValue(search.trim(), 300);
-  const query = useSuppliers({
+  const queryParams = {
     page,
     pageSize: 12,
     search: debouncedSearch || undefined,
     soloIncompletos: onlyIncomplete ? true : undefined,
-  });
+  };
+  const query = useSuppliers(queryParams);
   const panelRef = useModalOverlay({ isOpen: true, onClose });
   const canEdit = user?.role === 'admin' || user?.role === 'desarrollador';
   const suppliers = query.data?.items ?? [];
@@ -86,6 +88,8 @@ export const SupplierListModal = ({ onClose }: SupplierListModalProps) => {
           </label>
         </div>
 
+        <ListExportButtons target="suppliers" filters={queryParams} disabled={query.isPending || query.isError}
+          className="flex flex-wrap justify-end gap-2 px-7 py-3" />
         <div className="max-h-[58vh] overflow-y-auto">
           {query.isPending ? (
             <p className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-brand-muted">

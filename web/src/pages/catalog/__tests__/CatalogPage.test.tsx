@@ -16,6 +16,15 @@ import type {
 } from '../../../types/entities';
 import type { AxiosResponse } from 'axios';
 
+const { listExportSpy } = vi.hoisted(() => ({ listExportSpy: vi.fn() }));
+
+vi.mock('../../../components/common/ListExportButtons', () => ({
+  default: (props: { target: string; filters: Record<string, unknown>; disabled?: boolean }) => {
+    listExportSpy(props);
+    return <div data-testid={`list-export-${props.target}`} />;
+  },
+}));
+
 vi.mock('../../../lib/api', () => ({
   api: {
     delete: vi.fn(),
@@ -188,6 +197,35 @@ describe('CatalogPage', () => {
     });
   });
 
+  it('exporta con los mismos filtros de búsqueda, repuestos y stock y limpia stock al cambiar tipo', async () => {
+    useAuthStore.setState((state) => ({ user: { ...state.user!, role: 'bodeguero', permissions: [
+      { modulo: 'taller', accion: 'read' }, { modulo: 'taller', accion: 'export' },
+    ] } }));
+    renderPage();
+    await screen.findByText('Filtro de aceite');
+    expect(screen.queryByRole('button', { name: 'Nuevo item' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Importar' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('list-export-catalog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Repuestos / Partes' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Solo con stock disponible' }));
+    fireEvent.change(screen.getByLabelText('Buscar en catálogo'), { target: { value: 'Filtro' } });
+    expect(listExportSpy.mock.lastCall?.[0].filters.search).toBeUndefined();
+    await waitFor(() => {
+      const props = listExportSpy.mock.lastCall?.[0];
+      expect(props).toMatchObject({ target: 'catalog', disabled: false, filters: {
+        page: 1, pageSize: 20, search: 'Filtro', tipo: 'parte', soloConStock: true,
+      } });
+      expect(props.filters).toEqual(vi.mocked(api.get).mock.lastCall?.[1]?.params);
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Servicios Estándar' }));
+    await waitFor(() => {
+      expect(listExportSpy.mock.lastCall?.[0].filters).toEqual({
+        page: 1, pageSize: 20, search: 'Filtro', tipo: 'estandar', soloConStock: undefined,
+      });
+      expect(listExportSpy.mock.lastCall?.[0].filters).toEqual(vi.mocked(api.get).mock.lastCall?.[1]?.params);
+    });
+  });
+
   it('deshabilita stock al crear un Servicio Estándar', async () => {
     renderPage();
     await screen.findByText('Cambio de aceite');
@@ -196,6 +234,14 @@ describe('CatalogPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Servicio estándar' }));
 
     expect(screen.getByLabelText('Stock inicial')).toBeDisabled();
+  });
+
+  it('deshabilita la exportación del catálogo mientras carga y cuando falla el listado', async () => {
+    vi.mocked(api.get).mockRejectedValue(new Error('Sin conexión'));
+    renderPage();
+    expect(listExportSpy.mock.lastCall?.[0].disabled).toBe(true);
+    await screen.findByRole('alert');
+    expect(listExportSpy.mock.lastCall?.[0].disabled).toBe(true);
   });
 
   it('bloquea un egreso superior al stock disponible', async () => {

@@ -17,6 +17,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AnimateIcon } from '../../components/animate-ui';
 import ClientDetailModal from '../../components/clients/ClientDetailModal';
 import ClientFormModal from '../../components/clients/ClientFormModal';
+import ListExportButtons from '../../components/common/ListExportButtons';
 import Pagination from '../../components/common/Pagination';
 import { useClients } from '../../hooks/useClients';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -48,12 +49,13 @@ export const ClientsPage = () => {
     Number.isInteger(requestedClientId) && requestedClientId > 0 ? requestedClientId : null;
   const debouncedSearch = useDebouncedValue(search, 350);
   const user = useAuthStore((state) => state.user);
-  const clientsQuery = useClients({
+  const filters = {
     page,
     pageSize: 20,
     search: debouncedSearch || undefined,
     tipo: tab === 'all' ? undefined : tab,
-  });
+  } satisfies Parameters<typeof useClients>[0];
+  const clientsQuery = useClients(filters);
 
   const canCreate = Boolean(
     user &&
@@ -119,7 +121,7 @@ export const ClientsPage = () => {
         )}
       </header>
 
-      <div className="flex flex-col gap-3 border-y border-brand-line bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-y border-brand-line bg-white px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex gap-1" role="tablist" aria-label="Tipo de cliente">
           {tabs.map((item, index) => {
             const isActive = tab === item.value;
@@ -172,6 +174,12 @@ export const ClientsPage = () => {
             placeholder="Nombre, RUT o email"
           />
         </label>
+        <ListExportButtons
+          target="clients"
+          filters={filters}
+          disabled={clientsQuery.isPending || clientsQuery.isError}
+          className="shrink-0"
+        />
       </div>
 
       <section

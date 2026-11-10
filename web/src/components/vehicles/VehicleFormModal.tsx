@@ -1,4 +1,4 @@
-import { createVehicleSchema, normalizeChilePatente } from '@unithor/shared';
+import { createVehicleSchema, isValidChilePatente, normalizeChilePatente } from '@unithor/shared';
 import { AlertCircle, Car, Check, LoaderCircle, Search, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useRef, useState } from 'react';
@@ -26,6 +26,7 @@ interface VehicleFormModalProps {
 
 interface VehicleFormState {
   patente: string;
+  esExtranjera: boolean;
   marca: string;
   modelo: string;
   ano: string;
@@ -37,20 +38,31 @@ interface VehicleFormState {
   transmision: string;
 }
 
-const normalizePlateInput = (value: string): string => normalizeChilePatente(value).slice(0, 8);
+const normalizePlateInput = (value: string, isForeign: boolean): string => {
+  if (isForeign) {
+    return value.toUpperCase().slice(0, 15);
+  }
+  return normalizeChilePatente(value).slice(0, 8);
+};
 
-const getInitialState = (vehicle?: Vehicle | null, initialPatente = ''): VehicleFormState => ({
-  patente: vehicle?.patente ?? normalizePlateInput(initialPatente),
-  marca: vehicle?.marca ?? '',
-  modelo: vehicle?.modelo ?? '',
-  ano: vehicle?.ano?.toString() ?? '',
-  color: vehicle?.color ?? '',
-  vinChasis: vehicle?.vinChasis ?? '',
-  motor: vehicle?.motor ?? '',
-  kilometraje: vehicle?.kilometraje?.toString() ?? '',
-  combustible: vehicle?.combustible ?? '',
-  transmision: vehicle?.transmision ?? '',
-});
+const getInitialState = (vehicle?: Vehicle | null, initialPatente = ''): VehicleFormState => {
+  const rawPlate = vehicle?.patente ?? initialPatente;
+  const isForeign = rawPlate.trim() !== '' ? !isValidChilePatente(rawPlate) : false;
+
+  return {
+    patente: isForeign ? rawPlate.toUpperCase().slice(0, 15) : normalizePlateInput(rawPlate, false),
+    esExtranjera: isForeign,
+    marca: vehicle?.marca ?? '',
+    modelo: vehicle?.modelo ?? '',
+    ano: vehicle?.ano?.toString() ?? '',
+    color: vehicle?.color ?? '',
+    vinChasis: vehicle?.vinChasis ?? '',
+    motor: vehicle?.motor ?? '',
+    kilometraje: vehicle?.kilometraje?.toString() ?? '',
+    combustible: vehicle?.combustible ?? '',
+    transmision: vehicle?.transmision ?? '',
+  };
+};
 
 const inputClassName =
   'h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk';
@@ -98,6 +110,7 @@ export const VehicleFormModal = ({
 
     const candidate = {
       ...form,
+      esExtranjera: form.esExtranjera,
       ano: form.ano === '' ? null : Number(form.ano),
       kilometraje: form.kilometraje === '' ? null : Number(form.kilometraje),
       clientId: withoutOwner ? null : selectedClient?.id,
@@ -169,18 +182,40 @@ export const VehicleFormModal = ({
           <fieldset className="reference-form-sections" disabled={activeMutation.isPending}>
           <legend className="sr-only">Datos del vehículo</legend>
           <div className="reference-form-group grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium text-brand-ink">
-              Patente
-              <input
-                ref={plateRef}
-                className={`${inputClassName} font-mono font-bold uppercase`}
-                value={form.patente}
-                onChange={(event) => setValue('patente', normalizePlateInput(event.target.value))}
-                aria-invalid={Boolean(fieldErrors.patente)}
-                placeholder="AB1234 o ABCD12"
-              />
+            <div>
+              <label className="text-sm font-medium text-brand-ink">
+                Patente
+                <input
+                  ref={plateRef}
+                  className={`${inputClassName} font-mono font-bold uppercase`}
+                  value={form.patente}
+                  onChange={(event) => setValue('patente', normalizePlateInput(event.target.value, form.esExtranjera))}
+                  aria-invalid={Boolean(fieldErrors.patente)}
+                  placeholder={form.esExtranjera ? 'Ej: 1234-XYZ, ABC-123...' : 'AB1234 o ABCD12'}
+                />
+              </label>
+              <div className="mt-1.5 flex items-center justify-between">
+                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-brand-muted hover:text-brand-ink select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.esExtranjera}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setValue('esExtranjera', checked);
+                      if (checked) {
+                        setValue('patente', form.patente.toUpperCase().slice(0, 15));
+                      } else {
+                        setValue('patente', normalizeChilePatente(form.patente).slice(0, 8));
+                      }
+                    }}
+                    className="h-3.5 w-3.5 rounded border-brand-line text-brand-primaryInk focus:ring-brand-primary"
+                  />
+                  <span className="font-semibold text-brand-primaryInk">Patente extranjera</span>
+                  <span className="text-[11px] text-slate-400 font-normal">(sin restricción ni guiones)</span>
+                </label>
+              </div>
               {fieldErrors.patente && <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.patente}</span>}
-            </label>
+            </div>
             <label className="text-sm font-medium text-brand-ink">
               Marca
               <input className={inputClassName} value={form.marca} onChange={(event) => setValue('marca', event.target.value)} aria-invalid={Boolean(fieldErrors.marca)} placeholder="Toyota" />

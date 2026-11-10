@@ -1,58 +1,50 @@
 import { createFleetVehicleSchema, normalizeChilePatente } from '@unithor/shared';
-import { UniqueConstraintError } from 'sequelize';
 
-import { sequelize } from '../../config/database.js';
-import { FleetVehicle } from '../../models/FleetVehicle.js';
-import { Vehicle } from '../../models/Vehicle.js';
 import { FLEET_IMPORT_COLUMNS, aliasesOf } from './import-columns.js';
 import {
+  applyImportAccess,
+  changesBetween,
+  executePlannedImport,
+  getImportAccess,
+  hasCell,
+  importCell,
+  importContext,
+  importRecordId,
+} from './import-plan.service.js';
+import {
   normalizeKeyText,
-  parseIntegerValue,
+  parseNumberValue,
   parseTextValue,
   readSpreadsheet,
   upperTextValue,
 } from './spreadsheet.service.js';
+import { FleetVehicle } from '../../models/FleetVehicle.js';
+import { Vehicle } from '../../models/Vehicle.js';
+import { ApiError } from '../../utils/ApiError.js';
 
+import type { ImportAccess, ImportActor, ImportPlanRow } from './import-plan.service.js';
+import type { SpreadsheetData, SpreadsheetRow } from './spreadsheet.service.js';
 import type {
+  CreateFleetVehicleInput,
+  FleetVehicleStatus,
   ImportPreview,
   ImportResult,
-  ImportRowPreview,
-  ImportRowStatus,
 } from '@unithor/shared';
 import type { Transaction } from 'sequelize';
-import type { SpreadsheetData, SpreadsheetRow, SpreadsheetValue } from './spreadsheet.service.js';
 
-type FleetStatus = 'disponible' | 'en_mantencion' | 'fuera_de_servicio';
-
-interface FleetRowData {
-  patente: string;
-  codigoInterno?: string | null;
-  marca?: string | null;
-  modelo?: string | null;
-  ano?: number | null;
-  color?: string | null;
-  vinChasis?: string | null;
-  motor?: string | null;
-  kilometraje?: number | null;
-  combustible?: string | null;
-  transmision?: string | null;
-  estadoOperativo: FleetStatus;
-  sucursal?: string | null;
-  responsable?: string | null;
-}
-
-interface ParsedFleetRow {
-  row: number;
-  label: string;
-  values: Record<string, SpreadsheetValue>;
-  data: FleetRowData | null;
-  messages: string[];
-  duplicate: boolean;
-}
-
-const PREVIEW_ROW_LIMIT = 200;
-const CURRENT_YEAR = new Date().getFullYear();
-
+const TEXT_FIELDS = [
+  'codigoInterno',
+  'marca',
+  'modelo',
+  'color',
+  'vinChasis',
+  'motor',
+  'combustible',
+  'transmision',
+  'sucursal',
+  'responsable',
+  'motivoBaja',
+] as const;
 const FUEL_ALIASES: Record<string, string> = {
   bencina: 'bencina',
   gasolina: 'bencina',
@@ -64,15 +56,13 @@ const FUEL_ALIASES: Record<string, string> = {
   glp: 'gas',
   gnv: 'gas',
 };
-
 const TRANSMISSION_ALIASES: Record<string, string> = {
   manual: 'manual',
   automatica: 'automatica',
   automatico: 'automatica',
   cvt: 'cvt',
 };
-
-const STATUS_ALIASES: Record<string, FleetStatus> = {
+const STATUS_ALIASES: Record<string, FleetVehicleStatus> = {
   disponible: 'disponible',
   disponibles: 'disponible',
   activo: 'disponible',
@@ -80,307 +70,257 @@ const STATUS_ALIASES: Record<string, FleetStatus> = {
   operativo: 'disponible',
   ok: 'disponible',
   'en mantencion': 'en_mantencion',
+  en_mantencion: 'en_mantencion',
   mantencion: 'en_mantencion',
   mantenimiento: 'en_mantencion',
   'en taller': 'en_mantencion',
   'en reparacion': 'en_mantencion',
   'fuera de servicio': 'fuera_de_servicio',
+  fuera_de_servicio: 'fuera_de_servicio',
   inactivo: 'fuera_de_servicio',
   inactiva: 'fuera_de_servicio',
   'no operativo': 'fuera_de_servicio',
-  'dado de baja': 'fuera_de_servicio',
   'en desuso': 'fuera_de_servicio',
+  'dado de baja': 'dado_de_baja',
+  dado_de_baja: 'dado_de_baja',
+  baja: 'dado_de_baja',
+  retirado: 'dado_de_baja',
 };
+const LABELS = Object.fromEntries(
+  FLEET_IMPORT_COLUMNS.map((column) => [column.key, column.header]),
+);
+const codeKey = (value: string): string => value.trim().toUpperCase();
+const snapshotOf = (record: Vehicle | FleetVehicle): Record<string, unknown> =>
+  JSON.parse(JSON.stringify(record.get({ plain: true }))) as Record<string, unknown>;
 
-const addMessage = (messages: Set<string>, message: string): void => {
-  messages.add(message);
-};
+export const canAccessFleetOwner = (actorRole: string | undefined): boolean =>
+  actorRole === 'admin' || actorRole === 'desarrollador';
 
-const normalizeFuel = (value: string | null): string | null => {
-  if (!value) return null;
-  return FUEL_ALIASES[normalizeKeyText(value)] ?? value;
-};
-
-const normalizeTransmission = (value: string | null): string | null => {
-  if (!value) return null;
-  return TRANSMISSION_ALIASES[normalizeKeyText(value)] ?? value;
-};
-
-const normalizeStatus = (value: string | null): FleetStatus | null => {
-  if (!value) return 'disponible';
-  return STATUS_ALIASES[normalizeKeyText(value)] ?? null;
-};
-
-const parseRow = (row: SpreadsheetRow): ParsedFleetRow => {
-  const messages = new Set<string>();
-  const rawPatente = parseTextValue(row.values.patente);
-  const patente = rawPatente ? normalizeChilePatente(rawPatente) : null;
-
-  if (!rawPatente) {
-    addMessage(messages, 'La patente es obligatoria.');
-  }
-
-  const rawEstado = parseTextValue(row.values.estadoOperativo);
-  const estadoOperativo = normalizeStatus(rawEstado);
-  if (!estadoOperativo) {
-    addMessage(
-      messages,
-      `Estado operativo no reconocido: "${rawEstado}". Usa Disponible, En mantención o Fuera de servicio.`,
+const fleetPayload = (
+  row: SpreadsheetRow,
+  includePrivate: boolean,
+  existing?: FleetVehicle,
+): CreateFleetVehicleInput => {
+  const rawStatus = parseTextValue(row.values.estadoOperativo);
+  const estadoOperativo = rawStatus
+    ? STATUS_ALIASES[normalizeKeyText(rawStatus)]
+    : (existing?.estadoOperativo ?? 'disponible');
+  if (!estadoOperativo)
+    throw ApiError.badRequest(
+      'Estado operativo no reconocido. Usa Disponible, En mantención, Fuera de servicio o Dado de baja.',
     );
-  }
-
-  const rawAno = row.values.ano ?? null;
-  const ano = parseIntegerValue(rawAno);
-  if (rawAno !== null && String(rawAno).trim() !== '' && ano === null) {
-    addMessage(messages, 'El año no es un número válido.');
-  } else if (ano !== null && (ano < 1950 || ano > CURRENT_YEAR + 1)) {
-    addMessage(messages, `El año debe estar entre 1950 y ${CURRENT_YEAR + 1}.`);
-  }
-
-  const rawKilometraje = row.values.kilometraje ?? null;
-  const kilometraje = parseIntegerValue(rawKilometraje);
-  if (
-    rawKilometraje !== null &&
-    String(rawKilometraje).trim() !== '' &&
-    (kilometraje === null || kilometraje < 0)
-  ) {
-    addMessage(messages, 'El kilometraje debe ser un número entero mayor o igual a 0.');
-  }
-
-  const payload = {
-    patente: patente ?? '',
-    codigoInterno: upperTextValue(row.values.codigoInterno),
-    marca: parseTextValue(row.values.marca),
-    modelo: parseTextValue(row.values.modelo),
-    ano,
-    color: parseTextValue(row.values.color),
-    vinChasis: parseTextValue(row.values.vinChasis),
-    motor: parseTextValue(row.values.motor),
-    kilometraje,
-    combustible: normalizeFuel(parseTextValue(row.values.combustible)),
-    transmision: normalizeTransmission(parseTextValue(row.values.transmision)),
-    estadoOperativo: estadoOperativo ?? 'disponible',
-    sucursal: parseTextValue(row.values.sucursal),
-    responsable: parseTextValue(row.values.responsable),
+  const payload: Record<string, unknown> = {
+    patente: parseTextValue(row.values.patente) ?? existing?.patente ?? '',
+    estadoOperativo,
   };
-
-  const parsed = createFleetVehicleSchema.safeParse(payload);
-  if (!parsed.success) {
-    for (const issue of parsed.error.issues) {
-      addMessage(messages, issue.message);
+  for (const field of TEXT_FIELDS) {
+    let value = hasCell(row.values[field])
+      ? parseTextValue(row.values[field])
+      : (existing?.[field] ?? null);
+    if (hasCell(row.values[field]) && value) {
+      if (field === 'codigoInterno') value = codeKey(value);
+      if (field === 'combustible') value = FUEL_ALIASES[normalizeKeyText(value)] ?? value;
+      if (field === 'transmision') value = TRANSMISSION_ALIASES[normalizeKeyText(value)] ?? value;
     }
+    payload[field] = value;
   }
-
-  const label =
-    [patente, payload.codigoInterno, [payload.marca, payload.modelo].filter(Boolean).join(' ')]
-      .filter((value): value is string => Boolean(value))
-      .join(' · ') || `Fila ${row.rowNumber}`;
-
-  return {
-    row: row.rowNumber,
-    label,
-    values: {
-      patente,
-      codigoInterno: payload.codigoInterno,
-      marca: payload.marca,
-      modelo: payload.modelo,
-      estadoOperativo,
-      sucursal: payload.sucursal,
-    },
-    data: messages.size === 0 && parsed.success ? (parsed.data as FleetRowData) : null,
-    messages: [...messages],
-    duplicate: false,
-  };
-};
-
-const loadExistingKeys = async (
-  transaction?: Transaction,
-): Promise<{ patentes: Set<string>; codigos: Set<string>; workshopPatentes: Set<string> }> => {
-  const [fleetVehicles, workshopVehicles] = await Promise.all([
-    FleetVehicle.findAll({
-      attributes: ['patente', 'codigoInterno'],
-      paranoid: false,
-      transaction,
-    }),
-    Vehicle.findAll({ attributes: ['patente'], paranoid: false, transaction }),
-  ]);
-
-  return {
-    patentes: new Set(fleetVehicles.map((vehicle) => vehicle.patente.toUpperCase())),
-    codigos: new Set(
-      fleetVehicles
-        .map((vehicle) => vehicle.codigoInterno)
-        .filter((code): code is string => Boolean(code))
-        .map((code) => code.toUpperCase()),
-    ),
-    workshopPatentes: new Set(workshopVehicles.map((vehicle) => vehicle.patente.toUpperCase())),
-  };
+  if (includePrivate)
+    payload.propietario = hasCell(row.values.propietario)
+      ? parseTextValue(row.values.propietario)
+      : (existing?.propietario ?? null);
+  for (const field of ['ano', 'kilometraje'] as const) {
+    const value = hasCell(row.values[field])
+      ? parseNumberValue(row.values[field])
+      : (existing?.[field] ?? null);
+    if (hasCell(row.values[field]) && (value === null || !Number.isInteger(value)))
+      throw ApiError.badRequest(`${LABELS[field]} debe ser un número entero válido.`);
+    payload[field] = value;
+  }
+  // Preserve phase 1 semantics: a reason only belongs to a retired vehicle.
+  if (estadoOperativo !== 'dado_de_baja') payload.motivoBaja = existing?.motivoBaja ?? null;
+  const parsed = createFleetVehicleSchema.safeParse(payload);
+  if (!parsed.success)
+    throw ApiError.badRequest(parsed.error.issues.map((issue) => issue.message).join(' '));
+  return parsed.data;
 };
 
 const prepareRows = async (
-  spreadsheet: SpreadsheetData,
+  sheet: SpreadsheetData,
+  includePrivate: boolean,
+  access: ImportAccess,
   transaction?: Transaction,
-): Promise<ParsedFleetRow[]> => {
-  const existing = await loadExistingKeys(transaction);
-  const seenPatentes = new Set<string>();
-  const seenCodigos = new Set<string>();
-
-  return spreadsheet.rows.map((row) => {
-    const parsed = parseRow(row);
-    if (!parsed.data) return parsed;
-
-    const patente = parsed.data.patente.toUpperCase();
-    const codigo = parsed.data.codigoInterno?.toUpperCase() ?? null;
-
-    if (existing.workshopPatentes.has(patente)) {
-      parsed.duplicate = true;
-      parsed.messages = ['Ya existe un vehículo de taller con esa patente; se omitirá.'];
-    } else if (existing.patentes.has(patente) || seenPatentes.has(patente)) {
-      parsed.duplicate = true;
-      parsed.messages = ['Ya existe un vehículo de flota con esa patente; se omitirá.'];
-    } else if (codigo && (existing.codigos.has(codigo) || seenCodigos.has(codigo))) {
-      parsed.duplicate = true;
-      parsed.messages = ['Ya existe un vehículo de flota con ese código interno; se omitirá.'];
-    } else {
-      seenPatentes.add(patente);
-      if (codigo) seenCodigos.add(codigo);
+): Promise<ImportPlanRow[]> => {
+  const options = { paranoid: false, transaction, lock: transaction?.LOCK.UPDATE };
+  const workshop = await Vehicle.findAll({ ...options, order: [['id', 'ASC']] });
+  const fleet = await FleetVehicle.findAll({
+    ...options,
+    ...(!includePrivate ? { attributes: { exclude: ['propietario'] } } : {}),
+    order: [['id', 'ASC']],
+  });
+  const fileKeys = new Map<string, ImportPlanRow[]>();
+  const register = (key: string, plan: ImportPlanRow) =>
+    fileKeys.set(key, [...(fileKeys.get(key) ?? []), plan]);
+  const plans = sheet.rows.map((row): ImportPlanRow => {
+    const rawPlate = parseTextValue(row.values.patente);
+    const code = upperTextValue(row.values.codigoInterno);
+    const plates = rawPlate
+      ? fleet.filter(
+          (vehicle) => normalizeChilePatente(vehicle.patente) === normalizeChilePatente(rawPlate),
+        )
+      : [];
+    const codes = code
+      ? fleet.filter((vehicle) => vehicle.codigoInterno && codeKey(vehicle.codigoInterno) === code)
+      : [];
+    const snapshot: Record<string, unknown> = {
+      access: { ...access },
+      plates: plates.map(snapshotOf),
+      codes: codes.map(snapshotOf),
+    };
+    const values = Object.fromEntries(
+      Object.entries(row.values).filter(([field]) => includePrivate || field !== 'propietario'),
+    );
+    const plan: ImportPlanRow = {
+      row: row.rowNumber,
+      label: rawPlate ?? code ?? `Fila ${row.rowNumber}`,
+      values,
+      status: 'error',
+      changes: [],
+      messages: [],
+      snapshot,
+    };
+    if (rawPlate) register(`plate:${normalizeChilePatente(rawPlate)}`, plan);
+    if (code) register(`code:${code}`, plan);
+    try {
+      const id = importRecordId(row);
+      if (id) register(`id:${id}`, plan);
+      const existing = id ? fleet.find((vehicle) => vehicle.id === id) : (plates[0] ?? codes[0]);
+      if (existing) {
+        plan.existingId = existing.id;
+        snapshot.vehicle = snapshotOf(existing);
+        register(`target:${existing.id}`, plan);
+      }
+      if (id && !existing) throw ApiError.conflict('El ID no existe en vehículos de flota.');
+      if (existing?.deletedAt || [...plates, ...codes].some((vehicle) => vehicle.deletedAt))
+        throw ApiError.conflict(
+          'El vehículo está eliminado. La importación no restaura registros.',
+        );
+      if (
+        plates.length > 1 ||
+        codes.length > 1 ||
+        [...plates, ...codes].some((vehicle) => vehicle.id !== existing?.id)
+      )
+        throw ApiError.conflict(
+          'El ID, la patente o el código interno apuntan a distintos vehículos.',
+        );
+      const effectivePlate = rawPlate ?? existing?.patente;
+      const workshopMatches = effectivePlate
+        ? workshop.filter(
+            (vehicle) =>
+              normalizeChilePatente(vehicle.patente) === normalizeChilePatente(effectivePlate),
+          )
+        : [];
+      snapshot.workshop = workshopMatches.map(snapshotOf);
+      if (workshopMatches.length)
+        throw ApiError.conflict('La patente ya pertenece a un vehículo de taller.');
+      const data = fleetPayload(row, includePrivate, existing);
+      if (existing?.estadoOperativo === 'dado_de_baja' && data.estadoOperativo !== 'dado_de_baja')
+        throw ApiError.conflict('La importación no puede reactivar un vehículo dado de baja.');
+      const payload: Record<string, unknown> = existing
+        ? Object.fromEntries(Object.entries(data).filter(([field]) => hasCell(row.values[field])))
+        : { ...data };
+      plan.changes = changesBetween(existing ? snapshotOf(existing) : {}, payload, LABELS).filter(
+        (change) => includePrivate || change.field !== 'propietario',
+      );
+      plan.values = {
+        ...(id ? { id } : {}),
+        ...Object.fromEntries(
+          Object.entries(data)
+            .filter(([field]) => includePrivate || field !== 'propietario')
+            .map(([field, value]) => [field, importCell(value)]),
+        ),
+      };
+      plan.label = [data.patente, data.codigoInterno].filter(Boolean).join(' · ');
+      plan.status = existing ? (plan.changes.length ? 'update' : 'unchanged') : 'valid';
+      plan.apply = async (savepoint) => {
+        const retirement =
+          data.estadoOperativo === 'dado_de_baja' && existing?.estadoOperativo !== 'dado_de_baja';
+        if (existing)
+          await existing.update(
+            { ...payload, ...(retirement ? { fechaBaja: new Date() } : {}) },
+            { transaction: savepoint },
+          );
+        else
+          await FleetVehicle.create(
+            {
+              ...data,
+              estadoOperativo: data.estadoOperativo ?? 'disponible',
+              fechaBaja: retirement ? new Date() : null,
+            },
+            { transaction: savepoint },
+          );
+      };
+    } catch (error) {
+      plan.status = error instanceof ApiError && error.statusCode === 409 ? 'conflict' : 'error';
+      plan.messages.push(
+        error instanceof ApiError ? error.message : 'No fue posible preparar esta fila.',
+      );
+      plan.apply = undefined;
     }
-
-    return parsed;
+    return plan;
   });
-};
-
-const toPreviewRow = (parsed: ParsedFleetRow, status: ImportRowStatus): ImportRowPreview => ({
-  row: parsed.row,
-  status,
-  label: parsed.label,
-  values: parsed.values,
-  messages: parsed.messages,
-});
-
-const statusOf = (parsed: ParsedFleetRow): ImportRowStatus => {
-  if (parsed.messages.length > 0 && !parsed.duplicate) return 'error';
-  if (parsed.duplicate) return 'duplicate';
-  return 'valid';
-};
-
-const buildPreview = (
-  fileName: string,
-  spreadsheet: SpreadsheetData,
-  parsedRows: ParsedFleetRow[],
-): ImportPreview => {
-  const rows = parsedRows.map((parsed) => toPreviewRow(parsed, statusOf(parsed)));
-
-  return {
-    module: 'fleet-vehicles',
-    fileName,
-    sheetName: spreadsheet.sheetName,
-    headerRow: spreadsheet.headerRow,
-    headers: spreadsheet.headers,
-    mappedColumns: spreadsheet.mappedColumns,
-    missingColumns: spreadsheet.missingColumns,
-    totalRows: spreadsheet.totalRows,
-    validRows: rows.filter((row) => row.status === 'valid').length,
-    duplicateRows: rows.filter((row) => row.status === 'duplicate').length,
-    errorRows: rows.filter((row) => row.status === 'error').length,
-    rows: rows.slice(0, PREVIEW_ROW_LIMIT),
-    truncated: spreadsheet.truncated,
-    maxRows: spreadsheet.maxRows,
-  };
-};
-
-const describeError = (error: unknown): string => {
-  if (error instanceof UniqueConstraintError) {
-    return 'Ya existe un vehículo de flota con esa patente o código interno.';
+  for (const group of fileKeys.values()) {
+    if (group.length < 2) continue;
+    for (const plan of group) {
+      plan.status = 'conflict';
+      plan.apply = undefined;
+      const message =
+        'El archivo repite un ID, una patente, un código interno o el mismo vehículo de destino.';
+      if (!plan.messages.includes(message)) plan.messages.push(message);
+    }
   }
-  return error instanceof Error ? error.message : 'No fue posible crear el vehículo de flota.';
-};
-
-export const previewFleetImport = async (
-  buffer: Buffer,
-  fileName: string,
-): Promise<ImportPreview> => {
-  const spreadsheet = await readSpreadsheet(buffer, {
-    aliases: aliasesOf(FLEET_IMPORT_COLUMNS),
-    required: ['patente'],
-    fileName,
-  });
-
-  const parsedRows = await prepareRows(spreadsheet);
-  return buildPreview(fileName, spreadsheet, parsedRows);
+  return plans.map((plan) => applyImportAccess(plan, access));
 };
 
 export const importFleetVehicles = async (
   buffer: Buffer,
   fileName: string,
   dryRun: boolean,
+  actor?: ImportActor,
 ): Promise<ImportResult> => {
-  if (dryRun) {
-    const preview = await previewFleetImport(buffer, fileName);
-    return {
-      ...preview,
-      created: 0,
-      skipped: preview.duplicateRows,
-      failed: preview.errorRows,
-      clientsCreated: 0,
-    };
-  }
-
-  const spreadsheet = await readSpreadsheet(buffer, {
+  const context = importContext(actor);
+  const sheet = await readSpreadsheet(buffer, {
     aliases: aliasesOf(FLEET_IMPORT_COLUMNS),
-    required: ['patente'],
+    required: [],
     fileName,
   });
-
-  return sequelize.transaction(async (transaction) => {
-    const parsedRows = await prepareRows(spreadsheet, transaction);
-    const resultRows: ImportRowPreview[] = [];
-    let created = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    for (const parsed of parsedRows) {
-      if (!parsed.data) {
-        failed += 1;
-        resultRows.push(toPreviewRow(parsed, 'error'));
-        continue;
-      }
-
-      if (parsed.duplicate) {
-        skipped += 1;
-        resultRows.push(toPreviewRow(parsed, 'duplicate'));
-        continue;
-      }
-
-      if (parsed.messages.length > 0) {
-        failed += 1;
-        resultRows.push(toPreviewRow(parsed, 'error'));
-        continue;
-      }
-
-      try {
-        await FleetVehicle.create({ ...parsed.data }, { transaction });
-        created += 1;
-        resultRows.push(toPreviewRow(parsed, 'created'));
-      } catch (error) {
-        failed += 1;
-        resultRows.push({
-          ...toPreviewRow(parsed, 'error'),
-          messages: [...parsed.messages, describeError(error)],
-        });
-      }
-    }
-
-    return {
-      ...buildPreview(fileName, spreadsheet, parsedRows),
-      rows: resultRows.slice(0, PREVIEW_ROW_LIMIT),
-      validRows: created,
-      duplicateRows: skipped,
-      errorRows: failed,
-      created,
-      skipped,
-      failed,
-      clientsCreated: 0,
-    };
-  });
+  const includePrivate = canAccessFleetOwner(context.role);
+  // This must run before permission/record reads or opening a transaction.
+  if (!includePrivate && sheet.rows.some((row) => hasCell(row.values.propietario)))
+    throw ApiError.forbidden(
+      'Solo admin y desarrollador pueden importar el propietario privado de flota.',
+    );
+  if (!sheet.mappedColumns.id && !sheet.mappedColumns.patente && !sheet.mappedColumns.codigoInterno)
+    throw ApiError.badRequest('Incluye la columna ID, Patente o Código interno.');
+  return executePlannedImport(
+    'fleet-vehicles',
+    buffer,
+    fileName,
+    dryRun,
+    sheet,
+    context,
+    async (transaction) =>
+      prepareRows(
+        sheet,
+        includePrivate,
+        await getImportAccess('fleet-vehicles', context),
+        transaction,
+      ),
+    includePrivate ? [] : ['propietario'],
+  );
 };
+
+export const previewFleetImport = async (
+  buffer: Buffer,
+  fileName: string,
+  actor?: ImportActor,
+): Promise<ImportPreview> => importFleetVehicles(buffer, fileName, true, actor);

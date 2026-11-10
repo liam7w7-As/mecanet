@@ -2,6 +2,7 @@ export const FLEET_VEHICLE_STATUSES = [
   'disponible',
   'en_mantencion',
   'fuera_de_servicio',
+  'dado_de_baja',
 ] as const;
 
 export type FleetVehicleStatus = (typeof FLEET_VEHICLE_STATUSES)[number];

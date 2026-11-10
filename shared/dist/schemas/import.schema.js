@@ -11,10 +11,20 @@ export const IMPORT_MODULES = ['catalog', 'vehicles', 'fleet-vehicles'];
 export const IMPORT_MAX_ROWS = 1_000;
 /** Tope de tamaño del archivo subido. */
 export const IMPORT_MAX_FILE_SIZE_MB = 10;
-export const IMPORT_ROW_STATUSES = ['valid', 'created', 'duplicate', 'error'];
+export const IMPORT_ROW_STATUSES = [
+    'valid',
+    'update',
+    'created',
+    'updated',
+    'unchanged',
+    'conflict',
+    'duplicate',
+    'error',
+];
 export const importModuleSchema = z.enum(IMPORT_MODULES);
 /** `?dryRun=true` genera la vista previa sin escribir en la base. */
 export const importRequestQuerySchema = z.object({
+    warehouseId: z.coerce.number().int().positive().optional(),
     dryRun: z
         .union([z.boolean(), z.enum(['true', 'false', '1', '0'])])
         .optional()

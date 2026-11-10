@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { Stagger, StaggerItem } from '../../components/animate-ui';
+import ListExportButtons from '../../components/common/ListExportButtons';
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
@@ -134,14 +135,15 @@ export const WorkOrdersPage = ({ personalOverview = false }: { personalOverview?
   const isAdmin = Boolean(user && ['desarrollador', 'admin'].includes(user.role));
   const now = useNow();
   const { fechaDesde, fechaHasta } = getDateRange(period, selectedMonth, selectedDate, now);
-  const workOrdersQuery = useWorkOrders({
+  const filters = {
     page,
     pageSize: 12,
     search: debouncedSearch || undefined,
     estado: status === 'all' ? undefined : status,
     fechaDesde,
     fechaHasta,
-  });
+  } satisfies Parameters<typeof useWorkOrders>[0];
+  const workOrdersQuery = useWorkOrders(filters);
   const statusMutation = useChangeWorkOrderStatusMutation();
   // Detalle completo para la vista previa: el diseño necesita
   // inspección, fotos y facturación además de los ítems de la lista.
@@ -189,6 +191,12 @@ export const WorkOrdersPage = ({ personalOverview = false }: { personalOverview?
             <span className="workshop-heading-mobile">{user?.role === 'mecanico' ? 'Mis órdenes' : 'Taller'}</span>
           </h1>
         </div>
+        <ListExportButtons
+          target="work-orders"
+          filters={filters}
+          disabled={workOrdersQuery.isPending || workOrdersQuery.isError}
+          className="self-end"
+        />
       </header>
 
       {personalOverview && <MechanicOverview />}

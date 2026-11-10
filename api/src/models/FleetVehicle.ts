@@ -80,6 +80,15 @@ export class FleetVehicle extends Model<
   @Column({ type: DataType.STRING(120), allowNull: true })
   declare responsable: string | null;
 
+  @Column({ type: DataType.STRING(180), allowNull: true })
+  declare propietario: CreationOptional<string | null>;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare fechaBaja: CreationOptional<Date | null>;
+
+  @Column({ type: DataType.STRING(500), allowNull: true })
+  declare motivoBaja: CreationOptional<string | null>;
+
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;
 

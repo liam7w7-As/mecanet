@@ -49,7 +49,7 @@ export const renderOfficialPdf = async (
         height,
         cacheBust: true,
         includeQueryParams: true,
-        pixelRatio: 2,
+        pixelRatio: 3,
         backgroundColor: '#ffffff',
         style: { margin: '0', transform: 'none', boxShadow: 'none', ...(options.grayscale ? { filter: 'grayscale(100%)' } : {}) },
         fetchRequestInit: { credentials: 'include' },
@@ -64,7 +64,7 @@ export const renderOfficialPdf = async (
         WIDTH * scale,
         height * scale,
         undefined,
-        'FAST',
+        'SLOW',
       );
     }
     return pdf.output('blob');

@@ -1,9 +1,17 @@
 import { createCatalogItemSchema } from '@unithor/shared';
-import { UniqueConstraintError } from 'sequelize';
+import { Transaction } from 'sequelize';
 
-import { sequelize } from '../../config/database.js';
-import { CatalogItem } from '../../models/CatalogItem.js';
 import { CATALOG_IMPORT_COLUMNS, aliasesOf } from './import-columns.js';
+import {
+  applyImportAccess,
+  changesBetween,
+  executePlannedImport,
+  getImportAccess,
+  hasCell,
+  importCell,
+  importContext,
+  importRecordId,
+} from './import-plan.service.js';
 import {
   normalizeKeyText,
   parseIntegerValue,
@@ -12,40 +20,27 @@ import {
   readSpreadsheet,
   upperTextValue,
 } from './spreadsheet.service.js';
+import { CatalogItem } from '../../models/CatalogItem.js';
+import { StockBalance } from '../../models/StockBalance.js';
+import { Warehouse } from '../../models/Warehouse.js';
+import { registerMovement } from '../warehouse.service.js';
 
-import type {
-  ImportPreview,
-  ImportResult,
-  ImportRowPreview,
-  ImportRowStatus,
-} from '@unithor/shared';
-import type { Transaction } from 'sequelize';
-import type { SpreadsheetData, SpreadsheetRow, SpreadsheetValue } from './spreadsheet.service.js';
+import type { ImportActor, ImportContext, ImportPlanRow } from './import-plan.service.js';
+import type { SpreadsheetData } from './spreadsheet.service.js';
+import type { ImportPreview, ImportResult } from '@unithor/shared';
 
-interface CatalogRowData {
+interface CatalogMetadata {
   tipo: 'parte' | 'estandar' | 'especifico';
-  codigo?: string | null;
+  codigo: string | null;
   nombre: string;
-  descripcion?: string | null;
+  descripcion: string | null;
   unidadMedida: 'unidad' | 'litro' | 'mililitro' | 'kilogramo' | 'juego' | 'servicio';
   precio: number;
-  stock: number;
   stockMinimo: number;
-  horasHombreEstandar?: number | null;
+  horasHombreEstandar: number | null;
 }
 
-interface ParsedCatalogRow {
-  row: number;
-  label: string;
-  values: Record<string, SpreadsheetValue>;
-  data: CatalogRowData | null;
-  messages: string[];
-  duplicate: boolean;
-}
-
-const PREVIEW_ROW_LIMIT = 200;
-
-const TIPO_LABELS: Record<string, CatalogRowData['tipo']> = {
+const TIPO_LABELS: Record<string, CatalogMetadata['tipo']> = {
   parte: 'parte',
   repuesto: 'parte',
   repuestos: 'parte',
@@ -65,7 +60,7 @@ const TIPO_LABELS: Record<string, CatalogRowData['tipo']> = {
   mantencion: 'especifico',
 };
 
-const UNIDAD_LABELS: Record<string, CatalogRowData['unidadMedida']> = {
+const UNIDAD_LABELS: Record<string, CatalogMetadata['unidadMedida']> = {
   unidad: 'unidad',
   unidades: 'unidad',
   un: 'unidad',
@@ -89,302 +84,357 @@ const UNIDAD_LABELS: Record<string, CatalogRowData['unidadMedida']> = {
   servicios: 'servicio',
 };
 
-const normalizeType = (value: string | null): CatalogRowData['tipo'] | null => {
-  if (!value) return null;
-  return TIPO_LABELS[normalizeKeyText(value)] ?? null;
+const FIELD_LABELS: Record<string, string> = {
+  tipo: 'Tipo',
+  codigo: 'Código',
+  nombre: 'Nombre',
+  descripcion: 'Descripción',
+  unidadMedida: 'Unidad de medida',
+  precio: 'Precio',
+  stockMinimo: 'Stock mínimo',
+  horasHombreEstandar: 'Horas hombre estándar',
+  stock: 'Stock final en el almacén seleccionado',
 };
 
-const normalizeUnit = (value: string | null): CatalogRowData['unidadMedida'] | null => {
-  if (!value) return 'unidad';
-  return UNIDAD_LABELS[normalizeKeyText(value)] ?? null;
-};
+const normalizedName = (value: string): string => normalizeKeyText(value).replace(/\s+/g, ' ');
+const nameKey = (nombre: string, tipo: CatalogMetadata['tipo']): string =>
+  `${tipo}:${normalizedName(nombre)}`;
 
-const addMessage = (messages: Set<string>, message: string): void => {
-  messages.add(message);
-};
-
-const parseRow = (row: SpreadsheetRow): ParsedCatalogRow => {
-  const messages = new Set<string>();
-
-  const rawTipo = parseTextValue(row.values.tipo);
-  const rawCodigo = upperTextValue(row.values.codigo);
-  const rawNombre = parseTextValue(row.values.nombre);
-  const rawDescripcion = parseTextValue(row.values.descripcion);
-  const rawUnidad = parseTextValue(row.values.unidadMedida);
-  const rawPrecio = row.values.precio ?? null;
-  const rawStock = row.values.stock ?? null;
-  const rawStockMinimo = row.values.stockMinimo ?? null;
-  const rawHoras = row.values.horasHombreEstandar ?? null;
-
-  const tipo = normalizeType(rawTipo) ?? (rawCodigo ? 'parte' : 'estandar');
-  if (rawTipo && !normalizeType(rawTipo)) {
-    addMessage(
-      messages,
-      `Tipo no reconocido: "${rawTipo}". Usa Repuesto, Servicio estándar o Servicio específico.`,
-    );
-  }
-
-  if (!rawNombre) {
-    addMessage(messages, 'El nombre es obligatorio.');
-  }
-
-  const unidadMedida = normalizeUnit(rawUnidad);
-  if (!unidadMedida) {
-    addMessage(messages, `Unidad de medida no reconocida: "${rawUnidad}".`);
-  }
-
-  const precio = parseNumberValue(rawPrecio);
-  if (rawPrecio !== null && String(rawPrecio).trim() !== '' && precio === null) {
-    addMessage(messages, 'El precio no es un número válido.');
-  }
-
-  const stock = parseIntegerValue(rawStock);
-  if (rawStock !== null && String(rawStock).trim() !== '' && stock === null) {
-    addMessage(messages, 'El stock debe ser un número entero.');
-  }
-
-  const stockMinimo = parseIntegerValue(rawStockMinimo);
-  if (rawStockMinimo !== null && String(rawStockMinimo).trim() !== '' && stockMinimo === null) {
-    addMessage(messages, 'El stock mínimo debe ser un número entero.');
-  }
-
-  const horasHombreEstandar = parseNumberValue(rawHoras);
-  if (rawHoras !== null && String(rawHoras).trim() !== '' && horasHombreEstandar === null) {
-    addMessage(messages, 'Las horas hombre deben ser un número válido.');
-  }
-
-  const payload = {
-    tipo,
-    codigo: rawCodigo,
-    nombre: rawNombre ?? '',
-    descripcion: rawDescripcion,
-    unidadMedida: unidadMedida ?? 'unidad',
-    precio: precio ?? 0,
-    stock: tipo === 'parte' ? (stock ?? 0) : 0,
-    stockMinimo: tipo === 'parte' ? (stockMinimo ?? 0) : 0,
-    horasHombreEstandar: tipo === 'parte' ? null : horasHombreEstandar,
-  };
-
-  const parsed = createCatalogItemSchema.safeParse(payload);
-  if (!parsed.success) {
-    for (const issue of parsed.error.issues) {
-      const field = issue.path.join('.');
-      addMessage(messages, field ? `${field}: ${issue.message}` : issue.message);
-    }
-  }
-
-  const label =
-    [rawCodigo, rawNombre].filter((value): value is string => Boolean(value)).join(' · ') ||
-    `Fila ${row.rowNumber}`;
-
-  return {
-    row: row.rowNumber,
-    label,
-    values: {
-      codigo: rawCodigo,
-      nombre: rawNombre,
-      tipo,
-      unidadMedida: unidadMedida ?? rawUnidad,
-      precio: precio ?? rawPrecio,
-      stock: stock ?? rawStock,
-      stockMinimo: stockMinimo ?? rawStockMinimo,
-      horasHombreEstandar,
-    },
-    data: messages.size === 0 && parsed.success ? parsed.data : null,
-    messages: [...messages],
-    duplicate: false,
-  };
-};
-
-const loadExistingKeys = async (
-  transaction?: Transaction,
-): Promise<{ codes: Set<string>; names: Set<string> }> => {
-  const items = await CatalogItem.findAll({
-    attributes: ['codigo', 'nombre'],
-    paranoid: false,
-    transaction,
-  });
-
-  return {
-    codes: new Set(
-      items
-        .map((item) => item.codigo)
-        .filter((code): code is string => Boolean(code))
-        .map((code) => code.toUpperCase()),
-    ),
-    names: new Set(items.map((item) => normalizeKeyText(item.nombre))),
-  };
-};
-
-const prepareRows = async (
-  spreadsheet: SpreadsheetData,
-  transaction?: Transaction,
-): Promise<ParsedCatalogRow[]> => {
-  const existing = await loadExistingKeys(transaction);
-  const seenCodes = new Set<string>();
-  const seenNames = new Set<string>();
-
-  return spreadsheet.rows.map((row) => {
-    const parsed = parseRow(row);
-    if (!parsed.data) return parsed;
-
-    const code = parsed.data.codigo;
-    const name = normalizeKeyText(parsed.data.nombre);
-
-    if (code) {
-      if (existing.codes.has(code) || seenCodes.has(code)) {
-        parsed.duplicate = true;
-        parsed.messages = ['Ya existe un registro con ese código; se omitirá.'];
-      } else {
-        seenCodes.add(code);
-      }
-    } else if (existing.names.has(name) || seenNames.has(name)) {
-      parsed.duplicate = true;
-      parsed.messages = ['Ya existe un registro con ese nombre; se omitirá.'];
-    }
-
-    if (!parsed.duplicate) {
-      seenNames.add(name);
-    }
-
-    return parsed;
-  });
-};
-
-const toPreviewRow = (
-  parsed: ParsedCatalogRow,
-  status: ImportRowStatus,
-): ImportRowPreview => ({
-  row: parsed.row,
-  status,
-  label: parsed.label,
-  values: parsed.values,
-  messages: parsed.messages,
+const metadataOf = (item: CatalogItem): CatalogMetadata => ({
+  tipo: item.tipo,
+  codigo: item.codigo,
+  nombre: item.nombre,
+  descripcion: item.descripcion,
+  unidadMedida: item.unidadMedida,
+  precio: Number(item.precio),
+  stockMinimo: Number(item.stockMinimo),
+  horasHombreEstandar: item.horasHombreEstandar === null ? null : Number(item.horasHombreEstandar),
 });
 
-const statusOf = (parsed: ParsedCatalogRow): ImportRowStatus => {
-  if (parsed.messages.length > 0 && !parsed.duplicate) return 'error';
-  if (parsed.duplicate) return 'duplicate';
-  return 'valid';
-};
-
-const buildPreview = (
+const prepareRows = async (
+  sheet: SpreadsheetData,
   fileName: string,
-  spreadsheet: SpreadsheetData,
-  parsedRows: ParsedCatalogRow[],
-): ImportPreview => {
-  const rows = parsedRows.map((parsed) => toPreviewRow(parsed, statusOf(parsed)));
-
-  return {
-    module: 'catalog',
-    fileName,
-    sheetName: spreadsheet.sheetName,
-    headerRow: spreadsheet.headerRow,
-    headers: spreadsheet.headers,
-    mappedColumns: spreadsheet.mappedColumns,
-    missingColumns: spreadsheet.missingColumns,
-    totalRows: spreadsheet.totalRows,
-    validRows: rows.filter((row) => row.status === 'valid').length,
-    duplicateRows: rows.filter((row) => row.status === 'duplicate').length,
-    errorRows: rows.filter((row) => row.status === 'error').length,
-    rows: rows.slice(0, PREVIEW_ROW_LIMIT),
-    truncated: spreadsheet.truncated,
-    maxRows: spreadsheet.maxRows,
-  };
-};
-
-const describeError = (error: unknown): string => {
-  if (error instanceof UniqueConstraintError) {
-    return 'Ya existe un registro con ese código o nombre.';
+  context: ImportContext,
+  transaction?: Transaction,
+): Promise<ImportPlanRow[]> => {
+  const access = await getImportAccess('catalog', context);
+  // Confirmation locks the identity space and inventory before the helper
+  // verifies the signed preview and opens each row's savepoint.
+  const lock = transaction ? Transaction.LOCK.UPDATE : undefined;
+  const items = await CatalogItem.findAll({
+    paranoid: false,
+    order: [['id', 'ASC']],
+    transaction,
+    lock,
+  });
+  const warehouse =
+    context.warehouseId === undefined
+      ? null
+      : await Warehouse.findByPk(context.warehouseId, { transaction, lock });
+  const balances = await StockBalance.findAll({
+    order: [
+      ['catalogItemId', 'ASC'],
+      ['warehouseId', 'ASC'],
+      ['id', 'ASC'],
+    ],
+    transaction,
+    lock,
+  });
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const byCode = new Map<string, CatalogItem[]>();
+  const byName = new Map<string, CatalogItem[]>();
+  const byItem = new Map<number, StockBalance[]>();
+  for (const item of items) {
+    const code = upperTextValue(item.codigo);
+    if (code) byCode.set(code, [...(byCode.get(code) ?? []), item]);
+    const key = nameKey(item.nombre, item.tipo);
+    byName.set(key, [...(byName.get(key) ?? []), item]);
   }
-  return error instanceof Error ? error.message : 'No fue posible crear el registro.';
+  for (const balance of balances) {
+    byItem.set(balance.catalogItemId, [...(byItem.get(balance.catalogItemId) ?? []), balance]);
+  }
+  const itemSnapshot = (item: CatalogItem) => ({
+    id: item.id,
+    ...metadataOf(item),
+    stock: Number(item.stock),
+    updatedAt: importCell(item.updatedAt),
+    deletedAt: importCell(item.deletedAt),
+    balances: (byItem.get(item.id) ?? []).map((balance) => ({
+      id: balance.id,
+      warehouseId: balance.warehouseId,
+      cantidad: Number(balance.cantidad),
+      updatedAt: importCell(balance.get('updatedAt')),
+    })),
+  });
+  const keysByRow: string[][] = [];
+  const plans = sheet.rows.map((row): ImportPlanRow => {
+    const messages: string[] = [];
+    let id: number | null = null;
+    try {
+      id = importRecordId(row);
+      if (hasCell(row.values.id) && !Number.isSafeInteger(parseNumberValue(row.values.id))) {
+        messages.push('El ID debe ser un entero positivo.');
+      }
+    } catch (error) {
+      messages.push(error instanceof Error ? error.message : 'El ID no es válido.');
+    }
+    const code = upperTextValue(row.values.codigo);
+    const name = parseTextValue(row.values.nombre);
+    const rawType = parseTextValue(row.values.tipo);
+    const type = rawType ? TIPO_LABELS[normalizedName(rawType)] : undefined;
+    if (rawType && !type) messages.push(`Tipo no reconocido: "${rawType}".`);
+    const candidates = hasCell(row.values.id)
+      ? id && byId.has(id)
+        ? [byId.get(id)!]
+        : []
+      : code
+        ? (byCode.get(code) ?? [])
+        : (byName.get(nameKey(name ?? '', type ?? 'estandar')) ?? []);
+    const existing = candidates.length === 1 ? candidates[0] : undefined;
+    const before = existing ? metadataOf(existing) : undefined;
+    const keys: string[] = [];
+    if (id) keys.push(`id:${id}`);
+    if (code) keys.push(`code:${code}`);
+    if (existing) {
+      keys.push(`id:${existing.id}`);
+      keys.push(
+        existing.codigo
+          ? `code:${upperTextValue(existing.codigo)}`
+          : `name:${nameKey(existing.nombre, existing.tipo)}`,
+      );
+    }
+    keysByRow.push(keys);
+    const plan: ImportPlanRow = {
+      row: row.rowNumber,
+      label:
+        [code ?? before?.codigo, name ?? before?.nombre].filter(Boolean).join(' · ') ||
+        `Fila ${row.rowNumber}`,
+      status: 'valid',
+      values: { ...row.values },
+      messages,
+      changes: [],
+      ...(existing ? { existingId: existing.id } : {}),
+      snapshot: {
+        access,
+        candidates: candidates.map(itemSnapshot),
+        warehouse: warehouse
+          ? {
+              id: warehouse.id,
+              codigo: warehouse.codigo,
+              nombre: warehouse.nombre,
+              activo: warehouse.activo,
+            }
+          : null,
+      },
+    };
+    const conflict = (message: string): void => {
+      plan.status = 'conflict';
+      messages.push(message);
+    };
+    if (hasCell(row.values.id) && !existing && messages.length === 0) {
+      conflict('El ID no existe. No se creará un registro ni se buscará por otra clave.');
+    }
+    if (candidates.length > 1)
+      conflict('La clave coincide con varios registros. Indica un ID inequívoco.');
+    if (existing?.deletedAt)
+      conflict('El registro está eliminado. La importación no restaura registros.');
+
+    const numeric = (field: string, fallback: number | null, integer = false): number | null => {
+      if (!hasCell(row.values[field])) return fallback;
+      const number = parseNumberValue(row.values[field]);
+      const parsed = integer ? parseIntegerValue(row.values[field]) : number;
+      if (number === null || (integer && (!Number.isSafeInteger(number) || number !== parsed))) {
+        messages.push(
+          `${FIELD_LABELS[field]}: debe ser un número ${integer ? 'entero ' : ''}válido.`,
+        );
+        return fallback;
+      }
+      if (integer && number > 2_147_483_647)
+        messages.push(`${FIELD_LABELS[field]}: excede el máximo permitido.`);
+      return number;
+    };
+    const rawUnit = parseTextValue(row.values.unidadMedida);
+    const unit = rawUnit
+      ? UNIDAD_LABELS[normalizedName(rawUnit)]
+      : (before?.unidadMedida ?? 'unidad');
+    if (!unit) messages.push(`Unidad de medida no reconocida: "${rawUnit}".`);
+    const suppliedStock = hasCell(row.values.stock);
+    const requestedStock = numeric('stock', 0, true) ?? 0;
+    const after: CatalogMetadata = {
+      tipo: type ?? before?.tipo ?? (code ? 'parte' : 'estandar'),
+      codigo: code ?? before?.codigo ?? null,
+      nombre: name ?? before?.nombre ?? '',
+      descripcion: parseTextValue(row.values.descripcion) ?? before?.descripcion ?? null,
+      unidadMedida: unit ?? 'unidad',
+      precio: numeric('precio', before?.precio ?? 0) ?? 0,
+      stockMinimo: numeric('stockMinimo', before?.stockMinimo ?? 0, true) ?? 0,
+      horasHombreEstandar: numeric('horasHombreEstandar', before?.horasHombreEstandar ?? null),
+    };
+    const stockOperation = suppliedStock && after.tipo === 'parte';
+    const targetStock = after.tipo === 'parte' ? requestedStock : 0;
+    const parsed = createCatalogItemSchema.safeParse({ ...after, stock: targetStock });
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues)
+        messages.push(`${issue.path.join('.')}: ${issue.message}`);
+    }
+    const finalCode = upperTextValue(after.codigo);
+    keys.push(finalCode ? `code:${finalCode}` : `name:${nameKey(after.nombre, after.tipo)}`);
+    const collisions = finalCode
+      ? (byCode.get(finalCode) ?? [])
+      : (byName.get(nameKey(after.nombre, after.tipo)) ?? []);
+    const identityChanged =
+      !before ||
+      finalCode !== upperTextValue(before.codigo) ||
+      (!finalCode && nameKey(after.nombre, after.tipo) !== nameKey(before.nombre, before.tipo));
+    if (identityChanged && collisions.some((item) => item.id !== existing?.id)) {
+      conflict(
+        'El código o el nombre y tipo sin código pertenecen a otro registro, posiblemente eliminado.',
+      );
+    }
+    const itemBalances = existing ? (byItem.get(existing.id) ?? []) : [];
+    const totalStock = itemBalances.reduce((sum, balance) => sum + Number(balance.cantidad), 0);
+    const currentStock = Number(
+      itemBalances.find((balance) => balance.warehouseId === context.warehouseId)?.cantidad ?? 0,
+    );
+    const stockChanged = stockOperation && targetStock !== currentStock;
+    plan.values = {
+      ...after,
+      stock: suppliedStock ? targetStock : null,
+      ...(id ? { id } : {}),
+      stockGlobal: existing ? Number(existing.stock) : 0,
+      stockTotalAlmacenes: totalStock,
+      stockAlmacenActual: warehouse ? currentStock : null,
+      warehouseId: warehouse?.id ?? context.warehouseId ?? null,
+      almacen: warehouse ? `${warehouse.codigo} · ${warehouse.nombre}` : null,
+    };
+    plan.changes = changesBetween(before ? { ...before } : {}, { ...after }, FIELD_LABELS);
+    if (suppliedStock && (!existing || (stockOperation && (warehouse || stockChanged)))) {
+      plan.changes.push(
+        ...changesBetween(
+          { stock: existing && warehouse ? currentStock : null },
+          { stock: targetStock },
+          {
+            ...FIELD_LABELS,
+            stock: warehouse ? `Stock final en ${warehouse.codigo}` : FIELD_LABELS.stock,
+          },
+        ),
+      );
+    }
+
+    if (
+      existing?.tipo === 'parte' &&
+      after.tipo !== 'parte' &&
+      (Number(existing.stock) > 0 || itemBalances.some((balance) => Number(balance.cantidad) > 0))
+    ) {
+      conflict(
+        'No se puede convertir un repuesto en servicio mientras tenga stock global o saldos positivos.',
+      );
+    }
+    if (stockOperation && existing && Number(existing.stock) !== totalStock) {
+      conflict(
+        'El stock global no coincide con la suma de los saldos por almacén. Requiere conciliación previa; importa solo metadatos dejando Stock vacío.',
+      );
+    }
+    const requiresWarehouse =
+      stockChanged || (stockOperation && !warehouse && (targetStock > 0 || totalStock > 0));
+    if (requiresWarehouse && (!warehouse || !warehouse.activo)) {
+      conflict(
+        'Selecciona un almacén activo para modificar el stock. Stock es el saldo final de ese almacén.',
+      );
+    }
+    if (requiresWarehouse && (!access.canStock || !context.userId)) {
+      conflict('Necesitas permisos almacen.read y almacen.create para modificar stock.');
+    }
+    if (plan.status !== 'conflict' && messages.length > 0) plan.status = 'error';
+    if (suppliedStock && after.tipo !== 'parte') {
+      messages.push(
+        'El stock informado se ignora para servicios y se normaliza a 0. No se registrará ningún movimiento de almacén.',
+      );
+    }
+    if (plan.status === 'valid' && existing)
+      plan.status = plan.changes.length > 0 ? 'update' : 'unchanged';
+    if (plan.status === 'valid' || plan.status === 'update') {
+      plan.apply = async (savepoint) => {
+        const metadataChanges = changesBetween(before ? { ...before } : {}, { ...after });
+        const patch = Object.fromEntries(
+          metadataChanges.map(({ field }) => [field, after[field as keyof CatalogMetadata]]),
+        );
+        const item =
+          existing ??
+          (await CatalogItem.create({ ...after, stock: 0 }, { transaction: savepoint }));
+        if (existing && metadataChanges.length > 0)
+          await item.update(patch, { transaction: savepoint });
+        // registerMovement synchronizes global stock from ALL warehouse balances.
+        // A zero final balance is a full salida because ajuste requires > 0.
+        if (stockChanged) {
+          await registerMovement(
+            {
+              catalogItemId: item.id,
+              warehouseId: warehouse!.id,
+              tipo: targetStock === 0 ? 'salida' : 'ajuste',
+              cantidad: targetStock === 0 ? currentStock : targetStock,
+              motivo: `Importación de catálogo, fila ${row.rowNumber}: saldo final`,
+            },
+            context.userId!,
+            {
+              transaction: savepoint,
+              referencia: `IMPORT-CATALOG:${fileName}`.slice(0, 100) + `:F${row.rowNumber}`,
+            },
+          );
+        }
+      };
+    }
+    return plan;
+  });
+
+  // Mark every member of a repeated target/key group, including its first row.
+  const owners = new Map<string, Set<number>>();
+  keysByRow.forEach((keys, index) => {
+    for (const key of keys) owners.set(key, (owners.get(key) ?? new Set()).add(index));
+  });
+  const repeated = new Set(
+    [...owners.values()].filter((indices) => indices.size > 1).flatMap((indices) => [...indices]),
+  );
+  return plans.map((plan, index) =>
+    applyImportAccess(
+      repeated.has(index)
+        ? {
+            ...plan,
+            status: 'conflict',
+            apply: undefined,
+            messages: [
+              ...plan.messages,
+              'El archivo repite el mismo registro o clave en varias filas. Resuelve todas las repeticiones.',
+            ],
+          }
+        : plan,
+      access,
+    ),
+  );
 };
 
-export const previewCatalogImport = async (
-  buffer: Buffer,
-  fileName: string,
-): Promise<ImportPreview> => {
-  const spreadsheet = await readSpreadsheet(buffer, {
+const readCatalogSpreadsheet = (buffer: Buffer, fileName: string): Promise<SpreadsheetData> =>
+  readSpreadsheet(buffer, {
     aliases: aliasesOf(CATALOG_IMPORT_COLUMNS),
     required: ['nombre'],
     fileName,
   });
 
-  const parsedRows = await prepareRows(spreadsheet);
-  return buildPreview(fileName, spreadsheet, parsedRows);
-};
+export const previewCatalogImport = async (
+  buffer: Buffer,
+  fileName: string,
+  actor?: ImportActor,
+): Promise<ImportPreview> => importCatalog(buffer, fileName, true, actor);
 
 export const importCatalog = async (
   buffer: Buffer,
   fileName: string,
   dryRun: boolean,
+  actor?: ImportActor,
 ): Promise<ImportResult> => {
-  if (dryRun) {
-    const preview = await previewCatalogImport(buffer, fileName);
-    return {
-      ...preview,
-      created: 0,
-      skipped: preview.duplicateRows,
-      failed: preview.errorRows,
-      clientsCreated: 0,
-    };
-  }
-
-  const spreadsheet = await readSpreadsheet(buffer, {
-    aliases: aliasesOf(CATALOG_IMPORT_COLUMNS),
-    required: ['nombre'],
-    fileName,
-  });
-
-  return sequelize.transaction(async (transaction) => {
-    const parsedRows = await prepareRows(spreadsheet, transaction);
-    const resultRows: ImportRowPreview[] = [];
-    let created = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    for (const parsed of parsedRows) {
-      if (!parsed.data) {
-        failed += 1;
-        resultRows.push(toPreviewRow(parsed, 'error'));
-        continue;
-      }
-
-      if (parsed.duplicate) {
-        skipped += 1;
-        resultRows.push(toPreviewRow(parsed, 'duplicate'));
-        continue;
-      }
-
-      if (parsed.messages.length > 0) {
-        failed += 1;
-        resultRows.push(toPreviewRow(parsed, 'error'));
-        continue;
-      }
-
-      try {
-        await CatalogItem.create({ ...parsed.data }, { transaction });
-        created += 1;
-        resultRows.push(toPreviewRow(parsed, 'created'));
-      } catch (error) {
-        failed += 1;
-        resultRows.push({
-          ...toPreviewRow(parsed, 'error'),
-          messages: [...parsed.messages, describeError(error)],
-        });
-      }
-    }
-
-    return {
-      ...buildPreview(fileName, spreadsheet, parsedRows),
-      rows: resultRows.slice(0, PREVIEW_ROW_LIMIT),
-      validRows: created,
-      duplicateRows: skipped,
-      errorRows: failed,
-      created,
-      skipped,
-      failed,
-      clientsCreated: 0,
-    };
-  });
+  const context = importContext(actor);
+  const sheet = await readCatalogSpreadsheet(buffer, fileName);
+  return executePlannedImport('catalog', buffer, fileName, dryRun, sheet, context, (transaction) =>
+    prepareRows(sheet, fileName, context, transaction),
+  );
 };

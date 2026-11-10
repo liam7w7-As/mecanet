@@ -13,6 +13,7 @@ import { up as ensurePurchases } from '../database/migrations/041-create-purchas
 import { up as ensureWorkOrderLabor } from '../database/migrations/042-create-work-order-labor.js';
 import { up as ensureQuotationWorkItemLinks } from '../database/migrations/043-link-quotation-work-items.js';
 import { up as ensureCustomerEmails } from '../database/migrations/044-create-customer-emails.js';
+import { up as ensureFleetRetirement } from '../database/migrations/045-fleet-retirement-and-private-owner.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -65,6 +66,7 @@ beforeAll(async () => {
   await ensureQuotationCommercial(sequelize.getQueryInterface());
   await ensureStartedWorkOrders(sequelize.getQueryInterface());
   await ensureFleetVehicles(sequelize.getQueryInterface());
+  await ensureFleetRetirement(sequelize.getQueryInterface());
   await ensurePurchases(sequelize.getQueryInterface());
   await ensureWorkOrderLabor(sequelize.getQueryInterface());
   await ensureQuotationWorkItemLinks(sequelize.getQueryInterface());

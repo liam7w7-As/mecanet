@@ -15,6 +15,7 @@ import { up as ensureFleetVehicles } from './database/migrations/040-create-flee
 import { up as ensureWorkOrderLabor } from './database/migrations/042-create-work-order-labor.js';
 import { up as ensureQuotationWorkItemLinks } from './database/migrations/043-link-quotation-work-items.js';
 import { up as ensureCustomerEmails } from './database/migrations/044-create-customer-emails.js';
+import { up as ensureFleetRetirement } from './database/migrations/045-fleet-retirement-and-private-owner.js';
 import { csrfProtection } from './middlewares/csrf-protection.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
@@ -175,6 +176,7 @@ if (env.NODE_ENV !== 'test') {
       logger.info('Conexión a base de datos MySQL establecida correctamente.');
       await ensureStartedWorkOrders(sequelize.getQueryInterface());
       await ensureFleetVehicles(sequelize.getQueryInterface());
+      await ensureFleetRetirement(sequelize.getQueryInterface());
       await ensureWorkOrderLabor(sequelize.getQueryInterface());
       await ensureQuotationWorkItemLinks(sequelize.getQueryInterface());
   await ensureCustomerEmails(sequelize.getQueryInterface());

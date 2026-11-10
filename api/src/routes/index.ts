@@ -8,6 +8,7 @@ import { dashboardRouter } from './dashboard.routes.js';
 import { financeRouter } from './finance.routes.js';
 import { fleetVehicleRouter } from './fleet-vehicle.routes.js';
 import { healthRouter } from './health.js';
+import { listExportRouter } from './list-export.routes.js';
 import { notificationRouter } from './notification.routes.js';
 import { paymentRouter } from './payment.routes.js';
 import { permissionRouter } from './permission.routes.js';
@@ -71,6 +72,7 @@ apiRouter.use('/payments', paymentRouter);
 
 // Reportes comerciales (/api/reports)
 apiRouter.use('/reports', reportRouter);
+apiRouter.use('/exports', listExportRouter);
 
 // Catálogo unificado de taller (/api/catalog)
 apiRouter.use('/catalog', catalogRouter);

@@ -26,9 +26,10 @@ import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { AnimateIcon } from '../animate-ui';
 import ImportModal from '../common/ImportModal';
+import ListExportButtons from '../common/ListExportButtons';
 import Pagination from '../common/Pagination';
 
-import type { FleetVehicle } from '../../types/entities';
+import type { FleetVehicle, FleetVehicleStatus } from '../../types/entities';
 
 const gridClassName = 'workspace-vehicle-grid';
 
@@ -65,10 +66,14 @@ export const FleetVehiclesTab = () => {
   const [formVehicle, setFormVehicle] = useState<FleetVehicle | null | undefined>(undefined);
   const [deleteVehicle, setDeleteVehicle] = useState<FleetVehicle | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [ownerVisibility, setOwnerVisibility] = useState<string | null>(null);
   const selectedVehicleId = Number(searchParams.get('fleetVehicleId'));
   const hasSelectedVehicle = Number.isInteger(selectedVehicleId) && selectedVehicleId > 0;
   const debouncedSearch = useDebouncedValue(search, 350);
   const user = useAuthStore((state) => state.user);
+  const viewerId = `${user?.id}:${user?.role}`;
+  const canViewOwner = user?.role === 'admin' || user?.role === 'desarrollador';
+  const showOwner = canViewOwner && ownerVisibility === viewerId;
   const canCreate = Boolean(user && hasUserPermission(user, 'flota', 'create'));
   const canEdit = Boolean(user && hasUserPermission(user, 'flota', 'update'));
   const canDelete = Boolean(user && hasUserPermission(user, 'flota', 'delete'));
@@ -77,13 +82,14 @@ export const FleetVehiclesTab = () => {
     (hasUserPermission(user, 'flota', 'import') || hasUserPermission(user, 'admin', 'import')),
   );
 
-  const fleetQuery = useFleetVehicles({
+  const filters = {
     page,
     pageSize: 20,
     search: debouncedSearch || undefined,
-    estado: estado ? (estado as 'disponible' | 'en_mantencion' | 'fuera_de_servicio') : undefined,
+    estado: estado ? (estado as FleetVehicleStatus) : undefined,
     vencimiento: vencimiento ? (vencimiento as 'proximo' | 'vencido') : undefined,
-  });
+  } satisfies Parameters<typeof useFleetVehicles>[0];
+  const fleetQuery = useFleetVehicles(filters);
   const deleteMutation = useDeleteFleetVehicleMutation();
 
   const openVehicle = (vehicleId: number): void => {
@@ -123,6 +129,12 @@ export const FleetVehiclesTab = () => {
     setPage(1);
   }, [estado, vencimiento]);
 
+  useEffect(() => {
+    setOwnerVisibility(null);
+    setFormVehicle(undefined);
+    setDeleteVehicle(null);
+  }, [user?.id, user?.role]);
+
   const detailPanelRef = useModalOverlay({ isOpen: hasSelectedVehicle, onClose: closeVehicle });
 
   const confirmDelete = (): void => {
@@ -140,8 +152,13 @@ export const FleetVehiclesTab = () => {
             Vehículos de uso interno de la empresa, con su documentación y vencimientos.
           </p>
         </div>
-        {canImport || canCreate ? (
           <div className="vehicle-toolbar-actions flex flex-wrap items-center gap-2">
+            <ListExportButtons
+              target="fleet-vehicles"
+              filters={filters}
+              includeOwner={showOwner}
+              disabled={fleetQuery.isPending || fleetQuery.isError}
+            />
             {canImport && (
               <button
                 type="button"
@@ -161,7 +178,6 @@ export const FleetVehiclesTab = () => {
               </button>
             )}
           </div>
-        ) : null}
       </div>
 
       <section className="vehicle-toolbar-fields" aria-label="Filtros de vehículos">
@@ -195,6 +211,7 @@ export const FleetVehiclesTab = () => {
             <option value="disponible">Disponible</option>
             <option value="en_mantencion">En mantención</option>
             <option value="fuera_de_servicio">Fuera de servicio</option>
+            <option value="dado_de_baja">Dado de baja</option>
           </select>
         </label>
         <label className="block">
@@ -214,6 +231,18 @@ export const FleetVehiclesTab = () => {
       </section>
 
       </div>
+
+      {canViewOwner && (
+        <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-brand-muted">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-brand-primary"
+            checked={showOwner}
+            onChange={(event) => setOwnerVisibility(event.target.checked ? viewerId : null)}
+          />
+          Mostrar propietario
+        </label>
+      )}
 
       <section aria-label="Listado de vehículos de flota">
         {(fleetQuery.isError || deleteMutation.isError) && (
@@ -239,9 +268,10 @@ export const FleetVehiclesTab = () => {
               return (
                 <VehicleDirectoryRow
                   key={vehicle.id} number={number} plate={vehicle.patente}
+                  privateSubline={showOwner && canViewOwner ? `Propietario: ${vehicle.propietario ?? 'Sin registrar'}` : undefined}
                   name={[vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' ') || 'Vehículo de flota'}
-                  reference={vehicle.codigoInterno ? 'Código ' + vehicle.codigoInterno : undefined}
-                  owner={vehicle.responsable ?? 'Sin responsable'} ownerLabel={vehicle.sucursal ?? 'Flota interna'}
+                  reference={[vehicle.codigoInterno ? `Código ${vehicle.codigoInterno}` : null, vehicle.sucursal].filter(Boolean).join(' · ') || undefined}
+                  owner={vehicle.responsable ?? 'Sin responsable'} ownerLabel="Responsable"
                   facts={<>{formatKilometres(vehicle.kilometraje)} · {summary.total} documento{summary.total === 1 ? '' : 's'}</>}
                   status={<FleetVehicleStatusBadge status={vehicle.estadoOperativo} />}
                   alerts={<><span className={summary.expired > 0 ? 'text-brand-coralInk' : summary.expiringSoon > 0 ? 'text-amber-700' : summary.total > 0 ? 'text-brand-mintInk' : ''}>{summary.expired > 0 ? summary.expired + ' documento(s) vencido(s)' : summary.expiringSoon > 0 ? summary.expiringSoon + ' por vencer en 30 días' : summary.total === 0 ? 'Sin documentos registrados' : 'Documentación al día'}</span>{summary.nextExpiry && <span> · <span>{formatDate(summary.nextExpiry.fechaVencimiento)}</span></span>}</>}
@@ -272,7 +302,7 @@ export const FleetVehiclesTab = () => {
         />
       </section>
 
-      {formVehicle !== undefined && (
+      {formVehicle !== undefined && (formVehicle ? canEdit : canCreate) && (
         <FleetVehicleFormModal
           vehicle={formVehicle}
           onClose={() => setFormVehicle(undefined)}
@@ -307,8 +337,9 @@ export const FleetVehiclesTab = () => {
               aria-label="Ficha del vehículo de flota"
             >
               <FleetVehicleDetail
-                key={selectedVehicleId}
+                key={`${viewerId}:${selectedVehicleId}`}
                 vehicleId={selectedVehicleId}
+                showOwner={showOwner}
                 onClose={closeVehicle}
               />
             </motion.section>

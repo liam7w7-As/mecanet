@@ -1,13 +1,29 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { catalogKeys } from './useCatalog';
 import { fleetVehicleKeys } from './useFleetVehicles';
 import { vehicleKeys } from './useVehicles';
+import { warehouseKeys } from './useWarehouses';
 import { api } from '../lib/api';
+import { hasUserPermission } from '../lib/permissions';
+import { useAuthStore } from '../stores/auth.store';
 
+import type { PaginatedResponse, Warehouse } from '../types/entities';
 import type { ImportPreview, ImportResult } from '@unithor/shared';
 
 export type ImportTarget = 'catalog' | 'vehicles' | 'fleet-vehicles';
+
+export interface ImportOptions {
+  warehouseId?: number;
+}
+
+export interface ConfirmImportOptions extends ImportOptions {
+  previewToken?: string;
+}
+
+export interface ImportMutationInput extends ConfirmImportOptions {
+  file: File;
+}
 
 const BASE_PATH: Record<ImportTarget, string> = {
   catalog: '/catalog',
@@ -45,9 +61,12 @@ const buildFormData = (file: File): FormData => {
 export const previewImport = async (
   target: ImportTarget,
   file: File,
+  options: ImportOptions = {},
 ): Promise<ImportPreview> => {
+  const query = new URLSearchParams({ dryRun: 'true' });
+  if (options.warehouseId !== undefined) query.set('warehouseId', String(options.warehouseId));
   const response = await api.post<{ preview: ImportPreview }>(
-    `${BASE_PATH[target]}/import?dryRun=true`,
+    `${BASE_PATH[target]}/import?${query}`,
     buildFormData(file),
   );
   return response.data.preview;
@@ -56,27 +75,55 @@ export const previewImport = async (
 export const confirmImport = async (
   target: ImportTarget,
   file: File,
+  options: ConfirmImportOptions = {},
 ): Promise<ImportResult> => {
+  const query = new URLSearchParams();
+  if (options.warehouseId !== undefined) query.set('warehouseId', String(options.warehouseId));
   const response = await api.post<{ result: ImportResult }>(
-    `${BASE_PATH[target]}/import`,
+    `${BASE_PATH[target]}/import${query.size ? `?${query}` : ''}`,
     buildFormData(file),
+    { headers: options.previewToken ? { 'X-Import-Preview': options.previewToken } : {} },
   );
   return response.data.result;
 };
 
 export const usePreviewImportMutation = (target: ImportTarget) =>
   useMutation({
-    mutationFn: (file: File) => previewImport(target, file),
+    mutationFn: ({ file, warehouseId }: ImportMutationInput) => previewImport(target, file, { warehouseId }),
   });
+
+export const useImportWarehouses = (enabled: boolean) => {
+  const user = useAuthStore((state) => state.user);
+  return useQuery({
+    queryKey: [...warehouseKeys.all, 'import', user?.id, user?.role, user?.permissions],
+    enabled: enabled && Boolean(user && hasUserPermission(user, 'almacen', 'read')),
+    queryFn: async () => {
+      const items: Warehouse[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const response = await api.get<PaginatedResponse<Warehouse>>('/warehouses', {
+          params: { page, pageSize: 100, soloActivos: true },
+        });
+        items.push(...response.data.items);
+        totalPages = response.data.totalPages;
+        page += 1;
+      } while (page <= totalPages);
+      return items;
+    },
+  });
+};
 
 export const useConfirmImportMutation = (target: ImportTarget) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (file: File) => confirmImport(target, file),
+    mutationFn: ({ file, warehouseId, previewToken }: ImportMutationInput) =>
+      confirmImport(target, file, { warehouseId, previewToken }),
     onSuccess: () => {
       if (target === 'catalog') {
         void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+        void queryClient.invalidateQueries({ queryKey: warehouseKeys.all });
         void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
         return;
       }

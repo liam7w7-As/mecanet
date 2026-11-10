@@ -1,7 +1,9 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '../lib/api';
+import { useAuthStore } from '../stores/auth.store';
 
+import type { UserPublic } from '../stores/auth.store';
 import type {
   FleetDocument,
   FleetDocumentVersion,
@@ -33,12 +35,19 @@ export interface FleetDocumentVersionsResponse {
 
 export type FleetVehicleQueryParams = Partial<FleetVehicleQueryInput>;
 
+type FleetViewer = Pick<UserPublic, 'id' | 'role'> | null;
+
+const viewerScope = (user: FleetViewer): string =>
+  `${user?.id ?? 'anonymous'}:${user?.role ?? 'none'}`;
+
 export const fleetVehicleKeys = {
   all: ['fleet-vehicles'] as const,
   lists: () => [...fleetVehicleKeys.all, 'list'] as const,
-  list: (params: FleetVehicleQueryParams) => [...fleetVehicleKeys.lists(), params] as const,
+  list: (params: FleetVehicleQueryParams, user: FleetViewer) =>
+    [...fleetVehicleKeys.lists(), viewerScope(user), params] as const,
   details: () => [...fleetVehicleKeys.all, 'detail'] as const,
-  detail: (id: number) => [...fleetVehicleKeys.details(), id] as const,
+  detail: (id: number, user: FleetViewer) =>
+    [...fleetVehicleKeys.details(), viewerScope(user), id] as const,
   versions: (vehicleId: number, documentId: number) =>
     [...fleetVehicleKeys.all, 'document-versions', vehicleId, documentId] as const,
 };
@@ -48,38 +57,66 @@ const invalidateFleetData = (queryClient: ReturnType<typeof useQueryClient>): vo
   void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 };
 
-export const useFleetVehicles = (queryParams: FleetVehicleQueryParams) =>
-  useQuery({
-    queryKey: fleetVehicleKeys.list(queryParams),
+export const useFleetVehicles = (queryParams: FleetVehicleQueryParams) => {
+  const user = useAuthStore((state) => state.user);
+
+  return useQuery({
+    queryKey: fleetVehicleKeys.list(queryParams, user),
     queryFn: async () => {
       const response = await api.get<PaginatedResponse<FleetVehicle>>('/fleet-vehicles', {
         params: queryParams,
       });
       return response.data;
     },
-    placeholderData: keepPreviousData,
+    // Conservar la página previa solo dentro de la misma identidad.
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[2] === viewerScope(user)
+        ? keepPreviousData(previousData)
+        : undefined,
+    enabled: user !== null,
   });
+};
 
-export const useFleetVehicle = (id: number | null) =>
-  useQuery({
-    queryKey: fleetVehicleKeys.detail(id ?? 0),
+export const useFleetVehicle = (id: number | null) => {
+  const user = useAuthStore((state) => state.user);
+
+  return useQuery({
+    queryKey: fleetVehicleKeys.detail(id ?? 0, user),
     queryFn: async () => {
       const response = await api.get<FleetVehicleResponse>(`/fleet-vehicles/${id}`);
       return response.data.fleetVehicle;
     },
-    enabled: id !== null && Number.isInteger(id) && id > 0,
+    enabled: user !== null && id !== null && Number.isInteger(id) && id > 0,
   });
+};
+
+const vehiclePayload = (data: CreateFleetVehicleInput | UpdateFleetVehicleInput) => {
+  const { propietario, ...publicData } = data;
+  const role = useAuthStore.getState().user?.role;
+  return {
+    ...publicData,
+    ...((role === 'admin' || role === 'desarrollador') && propietario !== undefined
+      ? { propietario: propietario?.trim() || null }
+      : {}),
+  };
+};
+
+const mutationViewer = (): FleetViewer => {
+  const user = useAuthStore.getState().user;
+  return user ? { id: user.id, role: user.role } : null;
+};
 
 export const useCreateFleetVehicleMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    onMutate: mutationViewer,
     mutationFn: async (data: CreateFleetVehicleInput) => {
-      const response = await api.post<FleetVehicleResponse>('/fleet-vehicles', data);
+      const response = await api.post<FleetVehicleResponse>('/fleet-vehicles', vehiclePayload(data));
       return response.data.fleetVehicle;
     },
-    onSuccess: (vehicle) => {
-      queryClient.setQueryData(fleetVehicleKeys.detail(vehicle.id), vehicle);
+    onSuccess: (vehicle, _data, viewer) => {
+      queryClient.setQueryData(fleetVehicleKeys.detail(vehicle.id, viewer ?? null), vehicle);
       invalidateFleetData(queryClient);
     },
   });
@@ -89,12 +126,13 @@ export const useUpdateFleetVehicleMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    onMutate: mutationViewer,
     mutationFn: async ({ id, data }: { id: number; data: UpdateFleetVehicleInput }) => {
-      const response = await api.patch<FleetVehicleResponse>(`/fleet-vehicles/${id}`, data);
+      const response = await api.patch<FleetVehicleResponse>(`/fleet-vehicles/${id}`, vehiclePayload(data));
       return response.data.fleetVehicle;
     },
-    onSuccess: (vehicle) => {
-      queryClient.setQueryData(fleetVehicleKeys.detail(vehicle.id), vehicle);
+    onSuccess: (vehicle, _data, viewer) => {
+      queryClient.setQueryData(fleetVehicleKeys.detail(vehicle.id, viewer ?? null), vehicle);
       invalidateFleetData(queryClient);
     },
   });

@@ -2,6 +2,7 @@ import { AlertCircle, CircleCheck, Eye, Pencil, Plus, Power, Search, ShieldCheck
 import { useEffect, useState } from 'react';
 
 import FormDialog from '../../components/common/FormDialog';
+import ListExportButtons from '../../components/common/ListExportButtons';
 import Pagination from '../../components/common/Pagination';
 import UserAvatar from '../../components/common/UserAvatar';
 import RolePermissionsPanel from '../../components/users/RolePermissionsPanel';
@@ -32,8 +33,9 @@ export const UsersPage = () => {
   const [statusTarget, setStatusTarget] = useState<AdminUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
-  const usersQuery = useUsers({ page, pageSize: 20, search: debouncedSearch || undefined,
-    roleId: roleId === 'all' ? undefined : Number(roleId), activo: status === 'all' ? undefined : status === 'active' });
+  const queryParams = { page, pageSize: 20, search: debouncedSearch || undefined,
+    roleId: roleId === 'all' ? undefined : Number(roleId), activo: status === 'all' ? undefined : status === 'active' };
+  const usersQuery = useUsers(queryParams);
   const rolesQuery = useRoles();
   const statusMutation = useToggleUserStatusMutation();
   const deleteMutation = useDeleteUserMutation();
@@ -78,6 +80,7 @@ export const UsersPage = () => {
         {statusFilters.map(({ value, label, icon: Icon }) => <button key={value} type="button" aria-pressed={status === value}
           onClick={() => setStatus(value)}><Icon aria-hidden="true" />{label}</button>)}
       </nav>{filtersActive && <button type="button" className="administration-clear" onClick={resetFilters}>Limpiar filtros</button>}</div>
+      <ListExportButtons target="users" filters={queryParams} disabled={usersQuery.isPending || usersQuery.isError} className="flex flex-wrap justify-end gap-2" />
       {queryError && <div className="administration-alert" role="alert"><AlertCircle aria-hidden="true" />
         {getApiErrorMessage(queryError, 'No fue posible cargar los usuarios o roles.')}
         <button type="button" onClick={() => { void usersQuery.refetch(); void rolesQuery.refetch(); }}>Reintentar</button>

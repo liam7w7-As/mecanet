@@ -20,21 +20,21 @@ const MODULE_COPY: Record<
   catalog: {
     title: 'Importar catálogo',
     intro:
-      'Usa esta plantilla para cargar servicios, trabajos y repuestos existentes. Las filas con un código o nombre que ya exista se omitirán sin modificar el registro actual.',
+      'Crea o actualiza servicios, trabajos y repuestos. El ID opcional tiene prioridad; sin ID se usan las claves naturales. Revisa los cambios antes de confirmar. Las celdas vacías conservan los datos existentes.',
     columns: CATALOG_IMPORT_COLUMNS,
     fileName: 'plantilla-catalogo.xlsx',
   },
   vehicles: {
     title: 'Importar vehículos de taller',
     intro:
-      'Carga vehículos de clientes. Si el propietario no existe, se creará automáticamente. Las patentes que ya existan en taller o flota se omitirán.',
+      'Crea o actualiza vehículos de clientes por ID o patente. Las celdas vacías conservan los datos existentes. Los clientes faltantes se crean solo con permiso; sus datos existentes nunca se modifican. Para placas de otro país usa Patente extranjera.',
     columns: VEHICLE_IMPORT_COLUMNS,
     fileName: 'plantilla-vehiculos-taller.xlsx',
   },
   'fleet-vehicles': {
     title: 'Importar vehículos de flota',
     intro:
-      'Carga vehículos de uso interno. Las patentes o códigos internos que ya existan se omitirán sin modificar el registro actual.',
+      'Crea o actualiza vehículos internos por ID, patente o código interno. Las celdas vacías conservan los datos existentes. No se restauran eliminados ni se reactivan vehículos dados de baja. Revisa los cambios antes de confirmar.',
     columns: FLEET_IMPORT_COLUMNS,
     fileName: 'plantilla-vehiculos-flota.xlsx',
   },
@@ -48,12 +48,7 @@ const addInstructionsSheet = (
     views: [{ state: 'frozen', ySplit: 1 }],
   });
 
-  sheet.columns = [
-    { width: 30 },
-    { width: 14 },
-    { width: 62 },
-    { width: 30 },
-  ];
+  sheet.columns = [{ width: 30 }, { width: 14 }, { width: 62 }, { width: 30 }];
 
   sheet.mergeCells('A1:D1');
   const title = sheet.getCell('A1');
@@ -72,9 +67,9 @@ const addInstructionsSheet = (
 
   const steps = [
     '1. Completa la hoja "Datos". No cambies los encabezados.',
-    '2. Una fila por registro. Las filas completamente vacías se ignoran.',
-    `3. Máximo ${1_000} filas por archivo y 10 MB de tamaño.`,
-    '4. Sube el archivo desde el botón Importar. Primero verás una vista previa.',
+    '2. Una fila por registro. No repitas IDs, claves naturales ni destinos. Un ID desconocido o eliminado genera conflicto.',
+    `3. Máximo ${1_000} filas y 10 MB. Al actualizar, vacío conserva el valor actual; 0 es un valor explícito.`,
+    '4. Sube el archivo y revisa la vista previa antes de confirmar. Una reimportación sin cambios no escribe registros.',
   ];
 
   sheet.getCell('A5').value = 'Cómo usar esta plantilla';
@@ -113,7 +108,7 @@ const addInstructionsSheet = (
   });
 
   sheet.getCell(`A${15 + copy.columns.length}`).value =
-    'Los registros existentes no se sobrescriben: se informan como omitidos en el resumen.';
+    'La vista previa distingue nuevos, actualizaciones, sin cambios y conflictos. Las celdas vacías conservan los datos al actualizar; no restauran registros eliminados.';
   sheet.getCell(`A${15 + copy.columns.length}`).font = {
     italic: true,
     size: 10,
@@ -174,8 +169,18 @@ const addDataSheet = (
   };
 };
 
-export const buildImportTemplate = async (module: ImportModule): Promise<Buffer> => {
-  const copy = MODULE_COPY[module];
+export const buildImportTemplate = async (
+  module: ImportModule,
+  includePrivateFields = false,
+): Promise<Buffer> => {
+  const moduleCopy = MODULE_COPY[module];
+  const copy = {
+    ...moduleCopy,
+    columns: moduleCopy.columns.filter(
+      (column) =>
+        module !== 'fleet-vehicles' || includePrivateFields || column.key !== 'propietario',
+    ),
+  };
   const workbook = new ExcelJS.Workbook();
 
   workbook.creator = 'UNITHOR';

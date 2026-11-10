@@ -2,6 +2,10 @@
   width: min(920px, 100%);
 }
 
+.import-dialog:focus {
+  outline: none;
+}
+
 .import-dialog .ui-modal-header {
   flex-shrink: 0;
   padding: 20px 24px 18px;
@@ -37,7 +41,8 @@
   margin-bottom: 16px;
 }
 
-.import-dialog-toolbar .reception-secondary-button {
+.import-dialog-toolbar .reception-secondary-button,
+.import-review-actions .reception-secondary-button {
   min-height: 38px;
   padding: 8px 14px;
   border: 0;
@@ -53,6 +58,68 @@
   color: #8a9fb9;
   font-size: 11px;
   line-height: 1.6;
+}
+
+.import-warehouse {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.import-warehouse label {
+  color: #526d94;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.import-warehouse select {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #cfdcec;
+  border-radius: 10px;
+  background: #f8fafd;
+  color: #284b79;
+  font-size: 12px;
+}
+
+.import-warehouse p,
+.import-review-actions p,
+.import-duplicates {
+  color: #6d86a7;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.import-warehouse .import-warehouse-error {
+  color: #9c4352;
+}
+
+.import-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+
+.import-review-actions button {
+  flex-shrink: 0;
+}
+
+.import-dialog button:disabled,
+.import-dialog select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.import-dialog button:focus-visible,
+.import-dialog select:focus-visible,
+.import-preview-table-wrap:focus-visible,
+.import-dropzone:focus-within {
+  outline: 2px solid #284b79;
+  outline-offset: 3px;
 }
 
 .import-dropzone {
@@ -93,6 +160,26 @@
 .import-dropzone span {
   color: #8a9fb9;
   font-size: 11px;
+}
+
+.import-dropzone-copy {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.import-dropzone--selected {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 16px;
+  text-align: left;
+}
+
+.import-dropzone--selected .import-dropzone-icon {
+  width: 26px;
+  height: 26px;
 }
 
 .import-inline-status {
@@ -145,7 +232,7 @@
 
 .import-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   margin-top: 18px;
 }
@@ -174,16 +261,24 @@
   font-variant-numeric: tabular-nums;
 }
 
-.import-summary--valid {
+.import-summary > .import-summary--valid {
   background: #edf8f3;
 }
 
-.import-summary--duplicate {
+.import-summary > .import-summary--update {
+  background: #eef4fb;
+}
+
+.import-summary > .import-summary--duplicate {
   background: #fdf8ec;
 }
 
-.import-summary--error {
+.import-summary > .import-summary--error {
   background: #fdf1f3;
+}
+
+.import-duplicates {
+  margin-top: 8px;
 }
 
 .import-preview {
@@ -221,6 +316,7 @@
 
 .import-preview-table {
   width: 100%;
+  min-width: 640px;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -253,14 +349,60 @@
 }
 
 .import-preview-label {
+  min-width: 150px;
   color: #284b79;
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 
+.import-existing-id {
+  display: block;
+  margin-top: 4px;
+  color: #6d86a7;
+  font-size: 10px;
+  font-weight: 400;
+}
+
 .import-preview-message {
+  min-width: 220px;
   color: #8095b1;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.import-changes {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.import-changes li > strong {
+  display: block;
+  color: #526d94;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.import-change-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 7px;
+}
+
+.import-change-before {
+  color: #8095b1;
+}
+
+.import-change-after {
+  color: #25644f;
+  font-weight: 500;
+}
+
+.import-status--unchanged {
+  background: #f1f5fb;
+  color: #526d94;
 }
 
 .import-status {
@@ -332,6 +474,10 @@
 }
 
 @media (max-width: 640px) {
+  .import-dialog .ui-modal-header {
+    padding: 16px;
+  }
+
   .import-dialog-body {
     padding: 16px;
   }
@@ -342,5 +488,19 @@
 
   .import-preview-table-wrap {
     max-height: 240px;
+  }
+
+  .import-summary > div {
+    padding: 10px;
+  }
+
+  .import-dialog-footer,
+  .import-dialog-footer > div {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .import-dialog-footer > div {
+    justify-content: flex-end;
   }
 }

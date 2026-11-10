@@ -2,6 +2,7 @@ export const FLEET_VEHICLE_STATUSES = [
     'disponible',
     'en_mantencion',
     'fuera_de_servicio',
+    'dado_de_baja',
 ];
 export const FLEET_DOCUMENT_EXPIRY_FILTERS = ['proximo', 'vencido'];
 /** Días de anticipación con los que un documento empieza a mostrarse en ámbar. */

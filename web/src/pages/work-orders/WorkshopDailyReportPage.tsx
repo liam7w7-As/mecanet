@@ -1,18 +1,17 @@
 import { WORK_ORDER_STATUS } from '@unithor/shared';
-import { AlertCircle, CheckCircle2, Clock3, Download, LoaderCircle, Users, Wrench } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock3, Users, Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import BrandLogo from '../../components/common/BrandLogo';
 import DatePicker from '../../components/common/DatePicker';
+import ListExportButtons from '../../components/common/ListExportButtons';
 import DashboardKpi from '../../components/dashboard/DashboardKpi';
 import WorkOrderStatusBadge from '../../components/work-orders/WorkOrderStatusBadge';
-import { downloadWorkshopDailyReportPdf, useWorkshopDailyReport } from '../../hooks/useWorkOrderLabor';
+import { useWorkshopDailyReport } from '../../hooks/useWorkOrderLabor';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatDateTime, toLocalDateInput } from '../../lib/formatters';
-import { hasUserPermission, ROLE_LABELS } from '../../lib/permissions';
-import { useAuthStore } from '../../stores/auth.store';
-import { notifyError, notifySuccess } from '../../stores/toast.store';
+import { ROLE_LABELS } from '../../lib/permissions';
 
 import type { Role } from '@unithor/shared';
 
@@ -21,21 +20,8 @@ const formatMinutes = (minutes: number): string => `${Math.floor(Math.max(0, min
 
 export const WorkshopDailyReportPage = () => {
   const [fecha, setFecha] = useState(() => toLocalDateInput(new Date()));
-  const [downloading, setDownloading] = useState(false);
-  const user = useAuthStore((state) => state.user);
-  const canExport = Boolean(user && hasUserPermission(user, 'taller', 'export'));
   const reportQuery = useWorkshopDailyReport(fecha);
   const report = reportQuery.data;
-  const downloadPdf = async (): Promise<void> => {
-    if (!canExport) return;
-    setDownloading(true);
-    try {
-      await downloadWorkshopDailyReportPdf(fecha);
-      notifySuccess('Reporte diario descargado.');
-    } catch (error) {
-      notifyError(getApiErrorMessage(error, 'No se pudo generar el reporte diario.'));
-    } finally { setDownloading(false); }
-  };
   const metrics = [
     { title: 'Horas registradas', value: report ? formatHours(report.totalHoras) : '—', detail: `${report?.totalSesiones ?? 0} sesiones de trabajo`, icon: Clock3, testId: 'daily-hours' },
     { title: 'Trabajos completados', value: String(report?.totalItemsCompletados ?? 0), detail: 'En la fecha seleccionada', icon: CheckCircle2, testId: 'daily-completed' },
@@ -43,7 +29,17 @@ export const WorkshopDailyReportPage = () => {
     { title: 'Órdenes con actividad', value: String(report?.ordenes.length ?? 0), detail: 'Trabajo registrado en el día', icon: Wrench, testId: 'daily-orders' },
   ];
   return <div className="workspace-page workspace-dashboard workshop-role-report min-w-0 space-y-5">
-    <header className="page-banner"><div><div className="dashboard-heading"><h1>Reporte diario de horas</h1><BrandLogo className="dashboard-heading-logo" /></div><p className="mt-1 text-sm text-brand-muted">Actividad del equipo y avances del taller</p></div><div className="workshop-report-tools"><DatePicker label="Fecha del reporte" value={fecha} onChange={setFecha} allowClear={false} />{canExport && <button type="button" className="primary-button" onClick={() => void downloadPdf()} disabled={downloading || reportQuery.isPending || reportQuery.isError}>{downloading ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}Descargar PDF</button>}</div></header>
+    <header className="page-banner">
+      <div><div className="dashboard-heading"><h1>Reporte diario de horas</h1><BrandLogo className="dashboard-heading-logo" /></div><p className="mt-1 text-sm text-brand-muted">Actividad del equipo y avances del taller</p></div>
+      <div className="workshop-report-tools">
+        <DatePicker label="Fecha del reporte" value={fecha} onChange={setFecha} allowClear={false} />
+        <ListExportButtons
+          target="workshop-daily"
+          filters={{ fecha }}
+          disabled={reportQuery.isPending || reportQuery.isError}
+        />
+      </div>
+    </header>
     {reportQuery.isError && <div className="workshop-overview-error" role="alert"><AlertCircle aria-hidden="true" /><span>{getApiErrorMessage(reportQuery.error, 'No se pudo cargar el reporte diario.')}</span><button type="button" onClick={() => void reportQuery.refetch()}>Reintentar</button></div>}
     <section className="dashboard-metrics" aria-label="Resumen de actividad diaria" aria-busy={reportQuery.isPending}>{metrics.map((metric) => <div className={`dashboard-kpi${reportQuery.isPending ? ' animate-pulse' : ''}`} key={metric.testId}><DashboardKpi {...metric} value={!report ? '—' : metric.value} /></div>)}</section>
     {report && <>

@@ -155,10 +155,11 @@ const DeleteDocumentDialog = ({
 
 interface FleetVehicleDetailProps {
   vehicleId: number;
+  showOwner?: boolean;
   onClose: () => void;
 }
 
-export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailProps) => {
+export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: FleetVehicleDetailProps) => {
   const profileId = useId();
   const [activeTab, setActiveTab] = useState<'data' | 'documents'>('data');
   const user = useAuthStore((state) => state.user);
@@ -172,6 +173,7 @@ export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailPro
   const canCreateFleet = Boolean(user && hasUserPermission(user, 'flota', 'create'));
   const canUpdateFleet = Boolean(user && hasUserPermission(user, 'flota', 'update'));
   const canDeleteFleet = Boolean(user && hasUserPermission(user, 'flota', 'delete'));
+  const canViewOwner = user?.role === 'admin' || user?.role === 'desarrollador';
 
   const closeControl = (
     <button
@@ -224,7 +226,10 @@ export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailPro
   return (
     <div className="vehicle-profile flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
       <header className="vehicle-profile-header">
-        <ModalHeader id={`${profileId}-title`} title={vehicle.patente} variant="brand" eyebrow="Flota interna" description={`${displayName || 'Vehículo de flota sin descripción técnica'}${vehicle.codigoInterno ? ` · Código ${vehicle.codigoInterno}` : ''}`} badge={<Car aria-hidden="true" />} actions={<FleetVehicleStatusBadge status={vehicle.estadoOperativo} />} onClose={onClose} closeLabel="Cerrar ficha" />
+        <ModalHeader id={`${profileId}-title`} title={vehicle.patente} variant="brand" eyebrow="Flota interna" description={<>
+          {showOwner && canViewOwner && <span className="mb-1 block break-words">Propietario: {vehicle.propietario ?? 'Sin registrar'}</span>}
+          <span>{`${displayName || 'Vehículo de flota sin descripción técnica'}${vehicle.codigoInterno ? ` · Código ${vehicle.codigoInterno}` : ''}`}</span>
+        </>} badge={<Car aria-hidden="true" />} actions={<FleetVehicleStatusBadge status={vehicle.estadoOperativo} />} onClose={onClose} closeLabel="Cerrar ficha" />
         {canUpdateFleet && <div className="vehicle-profile-actions"><button type="button" onClick={() => setIsEditingVehicle(true)} aria-label="Editar ficha"><Pencil aria-hidden="true" />Editar vehículo</button></div>}
       </header>
       <div className="reference-dialog-tabs vehicle-profile-tabs" role="tablist" aria-label="Información de flota" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
@@ -279,7 +284,7 @@ export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailPro
             <dl className="mt-2 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
               <Fact icon={Hash} label="Código interno" value={vehicle.codigoInterno ?? 'Sin código'} />
               <Fact icon={MapPin} label="Sucursal" value={vehicle.sucursal ?? 'Sin sucursal'} />
-              <Fact icon={UserRound} label="Responsable" value={vehicle.responsable ?? 'Sin responsable'} />
+              <Fact icon={UserRound} label="Responsable / encargado del vehículo" value={vehicle.responsable ?? 'Sin responsable'} />
               <Fact icon={Car} label="Marca y modelo" value={[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ') || 'Sin registrar'} />
               <Fact icon={CalendarDays} label="Año" value={vehicle.ano ? String(vehicle.ano) : 'Sin registrar'} />
               <Fact icon={Gauge} label="Kilometraje" value={formatKilometres(vehicle.kilometraje)} />
@@ -292,6 +297,12 @@ export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailPro
               <Fact icon={Hash} label="VIN / Chasis" value={vehicle.vinChasis ?? 'Sin registrar'} />
               <Fact icon={Wrench} label="Motor" value={vehicle.motor ?? 'Sin registrar'} />
               <Fact icon={CalendarDays} label="Registrado" value={formatDate(vehicle.createdAt)} />
+              {(vehicle.estadoOperativo === 'dado_de_baja' || vehicle.fechaBaja || vehicle.motivoBaja) && (
+                <>
+                  <Fact icon={CalendarDays} label="Última fecha de baja" value={vehicle.fechaBaja ? formatDate(vehicle.fechaBaja) : 'Sin registrar'} />
+                  <Fact icon={FileText} label="Motivo de la última baja" value={vehicle.motivoBaja ?? 'Sin motivo registrado'} />
+                </>
+              )}
             </dl>
           </section>
 
@@ -461,7 +472,7 @@ export const FleetVehicleDetail = ({ vehicleId, onClose }: FleetVehicleDetailPro
       </div>
 
       <footer className="reference-dialog-footer"><button type="button" className="secondary-button" onClick={onClose}>Cerrar</button></footer>
-      {isEditingVehicle && (
+      {isEditingVehicle && canUpdateFleet && (
         <FleetVehicleFormModal
           vehicle={vehicle}
           onClose={() => setIsEditingVehicle(false)}

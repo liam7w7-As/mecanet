@@ -9,10 +9,7 @@ import {
 import {
   AlertCircle,
   Ban,
-  FileSpreadsheet,
-  FileText,
   Landmark,
-  LoaderCircle,
   Plus,
   ReceiptText,
   Search,
@@ -23,22 +20,21 @@ import {
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import ListExportButtons from '../../components/common/ListExportButtons';
 import Pagination from '../../components/common/Pagination';
 import SupplierListModal from '../../components/purchases/SupplierListModal';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useDownloadPurchaseReport, usePurchases } from '../../hooks/usePurchases';
+import { usePurchases } from '../../hooks/usePurchases';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
-import { notifyError, notifySuccess } from '../../stores/toast.store';
 
 import type { PurchaseQueryParams } from '../../hooks/usePurchases';
 import type { Purchase } from '../../types/entities';
 import type {
   PurchaseDocumentType,
   PurchasePaymentType,
-  PurchaseReportQueryInput,
   PurchaseStatus,
 } from '@unithor/shared';
 
@@ -96,38 +92,12 @@ export const PurchasesPage = () => {
     fechaHasta: fechaHasta || undefined,
   };
   const purchasesQuery = usePurchases(queryParams);
-  const reportMutation = useDownloadPurchaseReport();
   const canCreate = Boolean(user && hasUserPermission(user, 'compras', 'create'));
-  const canExport = Boolean(user && hasUserPermission(user, 'compras', 'export'));
+  const validDateRange = !fechaDesde || !fechaHasta || fechaDesde <= fechaHasta;
 
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, status, payment, documentType, fechaDesde, fechaHasta]);
-
-  const purchaseFilters: PurchaseReportQueryInput = {
-    search: debouncedSearch || undefined,
-    estado: status === 'all' ? undefined : status,
-    formaPago: payment === 'all' ? undefined : payment,
-    tipoDocumento: documentType === 'all' ? undefined : documentType,
-    fechaDesde: fechaDesde || undefined,
-    fechaHasta: fechaHasta || undefined,
-  };
-
-  const downloadReport = (format: 'pdf' | 'excel'): void => {
-    reportMutation.mutate(
-      { format, filters: purchaseFilters },
-      {
-        onSuccess: () =>
-          notifySuccess(
-            format === 'pdf'
-              ? 'Reporte PDF de compras descargado.'
-              : 'Reporte Excel de compras descargado.',
-          ),
-        onError: (error) =>
-          notifyError(getApiErrorMessage(error, 'No fue posible generar el reporte de compras.')),
-      },
-    );
-  };
 
   const summary = purchasesQuery.data?.summary;
   const purchases = purchasesQuery.data?.items ?? [];
@@ -148,38 +118,8 @@ export const PurchasesPage = () => {
             <Truck className="h-4 w-4" aria-hidden="true" />
             Proveedores
           </button>
-          {canExport && (
-            <>
-              <button
-                type="button"
-                className="secondary-button text-sm font-medium"
-                onClick={() => downloadReport('pdf')}
-                disabled={reportMutation.isPending}
-                title="Descargar reporte PDF con el filtro actual"
-              >
-                {reportMutation.isPending && reportMutation.variables?.format === 'pdf' ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <FileText className="h-4 w-4" aria-hidden="true" />
-                )}
-                PDF
-              </button>
-              <button
-                type="button"
-                className="secondary-button text-sm font-medium"
-                onClick={() => downloadReport('excel')}
-                disabled={reportMutation.isPending}
-                title="Descargar reporte Excel con el filtro actual"
-              >
-                {reportMutation.isPending && reportMutation.variables?.format === 'excel' ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
-                )}
-                Excel
-              </button>
-            </>
-          )}
+          <ListExportButtons target="purchases" filters={queryParams}
+            disabled={purchasesQuery.isPending || purchasesQuery.isError || !validDateRange} />
           {canCreate && (
             <Link to="/purchases/new" className="primary-button">
               <Plus className="h-4 w-4" aria-hidden="true" />
@@ -333,14 +273,14 @@ export const PurchasesPage = () => {
           </div>
         </div>
 
-        {(purchasesQuery.isError || reportMutation.isError) && (
+        {purchasesQuery.isError && (
           <div
             className="flex items-center gap-2 border-b border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk"
             role="alert"
           >
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             {getApiErrorMessage(
-              purchasesQuery.error ?? reportMutation.error,
+              purchasesQuery.error,
               'No fue posible cargar las compras.',
             )}
           </div>

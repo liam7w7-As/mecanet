@@ -20,6 +20,7 @@ import VehicleDetailPage from '../../pages/vehicles/VehicleDetailPage';
 import { useAuthStore } from '../../stores/auth.store';
 import { AnimateIcon } from '../animate-ui';
 import ImportModal from '../common/ImportModal';
+import ListExportButtons from '../common/ListExportButtons';
 import Pagination from '../common/Pagination';
 import QuickVehicleSearch from '../common/QuickVehicleSearch';
 import VehicleFormModal from '../vehicles/VehicleFormModal';
@@ -60,7 +61,8 @@ export const WorkshopVehiclesTab = () => {
   const hasSelectedVehicle = Number.isInteger(selectedVehicleId) && selectedVehicleId > 0;
   const debouncedSearch = useDebouncedValue(search, 350);
   const user = useAuthStore((state) => state.user);
-  const vehiclesQuery = useVehicles({ page, pageSize: 20, search: debouncedSearch || undefined });
+  const filters = { page, pageSize: 20, search: debouncedSearch || undefined };
+  const vehiclesQuery = useVehicles(filters);
   const deleteMutation = useDeleteVehicleMutation();
   const canCreate = Boolean(
     user &&
@@ -126,8 +128,12 @@ export const WorkshopVehiclesTab = () => {
             Parque de clientes, recepción, órdenes de trabajo y cotizaciones.
           </p>
         </div>
-        {canImport || canCreate ? (
           <div className="vehicle-toolbar-actions flex flex-wrap items-center gap-2">
+            <ListExportButtons
+              target="vehicles"
+              filters={filters}
+              disabled={vehiclesQuery.isPending || vehiclesQuery.isError}
+            />
             {canImport && (
               <button
                 type="button"
@@ -147,7 +153,6 @@ export const WorkshopVehiclesTab = () => {
               </button>
             )}
           </div>
-        ) : null}
       </div>
 
       <section className="vehicle-toolbar-fields" aria-label="Filtros de vehículos">

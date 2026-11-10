@@ -2,8 +2,9 @@ import { z } from 'zod';
 export declare const normalizeChilePatente: (value: string) => string;
 export declare const isValidChilePatente: (value: string) => boolean;
 export declare const chilePatenteSchema: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
-export declare const createVehicleSchema: z.ZodObject<{
-    patente: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
+export declare const createVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
+    patente: z.ZodString;
+    esExtranjera: z.ZodOptional<z.ZodBoolean>;
     marca: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     modelo: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     ano: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -16,6 +17,7 @@ export declare const createVehicleSchema: z.ZodObject<{
     clientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     patente: string;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;
@@ -28,6 +30,59 @@ export declare const createVehicleSchema: z.ZodObject<{
     clientId?: number | null | undefined;
 }, {
     patente: string;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    clientId?: number | null | undefined;
+}>, {
+    patente: string;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    clientId?: number | null | undefined;
+}, {
+    patente: string;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    clientId?: number | null | undefined;
+}>, {
+    patente: string;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    clientId?: number | null | undefined;
+}, {
+    patente: string;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;
@@ -39,8 +94,9 @@ export declare const createVehicleSchema: z.ZodObject<{
     transmision?: string | null | undefined;
     clientId?: number | null | undefined;
 }>;
-export declare const updateVehicleSchema: z.ZodEffects<z.ZodObject<{
-    patente: z.ZodOptional<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>>;
+export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects<z.ZodObject<{
+    patente: z.ZodOptional<z.ZodString>;
+    esExtranjera: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     marca: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     modelo: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     ano: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
@@ -53,6 +109,7 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodObject<{
     clientId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
 }, "strip", z.ZodTypeAny, {
     patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;
@@ -65,6 +122,7 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodObject<{
     clientId?: number | null | undefined;
 }, {
     patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;
@@ -77,6 +135,7 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodObject<{
     clientId?: number | null | undefined;
 }>, {
     patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;
@@ -89,6 +148,59 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodObject<{
     clientId?: number | null | undefined;
 }, {
     patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    clientId?: number | null | undefined;
+}>, {
+    patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    clientId?: number | null | undefined;
+}, {
+    patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    clientId?: number | null | undefined;
+}>, {
+    patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    clientId?: number | null | undefined;
+}, {
+    patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;

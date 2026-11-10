@@ -1,3 +1,4 @@
+import { isValidChilePatente, normalizeChilePatente } from '@unithor/shared';
 import { Op } from 'sequelize';
 
 import { Client } from '../models/Client.js';
@@ -54,7 +55,11 @@ const clientInclude = {
 };
 
 const normalizePatente = (patente: string): string => {
-  return patente.replace(/[\s-]/g, '').trim().toUpperCase();
+  const trimmed = patente.trim().toUpperCase();
+  if (isValidChilePatente(trimmed)) {
+    return normalizeChilePatente(trimmed);
+  }
+  return trimmed;
 };
 
 const normalizeVinChasis = (vinChasis?: string | null): string | null | undefined => {
@@ -178,10 +183,21 @@ export const getVehicleById = async (id: number): Promise<VehiclePublic> => {
 };
 
 export const getVehicleByPatente = async (patente: string): Promise<VehiclePublic> => {
-  const vehicle = await Vehicle.findOne({
-    where: { patente: normalizePatente(patente) },
+  const normalized = normalizePatente(patente);
+  let vehicle = await Vehicle.findOne({
+    where: { patente: normalized },
     include: [clientInclude],
   });
+
+  if (!vehicle) {
+    const stripped = patente.replace(/[\s-]/g, '').trim().toUpperCase();
+    if (stripped !== normalized) {
+      vehicle = await Vehicle.findOne({
+        where: { patente: stripped },
+        include: [clientInclude],
+      });
+    }
+  }
 
   if (!vehicle) {
     throw ApiError.notFound('Vehículo no encontrado');

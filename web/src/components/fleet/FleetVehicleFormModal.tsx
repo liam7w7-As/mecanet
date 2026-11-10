@@ -11,6 +11,8 @@ import {
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { getApiErrorMessage, isApiConflict } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { hasUserPermission } from '../../lib/permissions';
+import { useAuthStore } from '../../stores/auth.store';
 import ModalHeader from '../common/ModalHeader';
 
 import type { FleetVehicle } from '../../types/entities';
@@ -36,6 +38,8 @@ interface FleetVehicleFormState {
   estadoOperativo: FleetVehicle['estadoOperativo'];
   sucursal: string;
   responsable: string;
+  propietario: string;
+  motivoBaja: string;
 }
 
 const normalizePlateInput = (value: string): string => normalizeChilePatente(value).slice(0, 8);
@@ -55,12 +59,14 @@ const getInitialState = (vehicle?: FleetVehicle | null): FleetVehicleFormState =
   estadoOperativo: vehicle?.estadoOperativo ?? 'disponible',
   sucursal: vehicle?.sucursal ?? '',
   responsable: vehicle?.responsable ?? '',
+  propietario: vehicle?.propietario ?? '',
+  motivoBaja: vehicle?.motivoBaja ?? '',
 });
 
 const inputClassName =
   'h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 aria-[invalid=true]:border-brand-coralInk';
 
-/** Alta y edición de vehículos internos de la empresa. No tienen cliente ni dueño. */
+/** Alta y edición de vehículos internos de la empresa. */
 export const FleetVehicleFormModal = ({
   vehicle,
   onClose,
@@ -71,6 +77,9 @@ export const FleetVehicleFormModal = ({
   const createMutation = useCreateFleetVehicleMutation();
   const updateMutation = useUpdateFleetVehicleMutation();
   const isEditing = Boolean(vehicle);
+  const user = useAuthStore((state) => state.user);
+  const canEditOwner = user?.role === 'admin' || user?.role === 'desarrollador';
+  const canSave = Boolean(user && hasUserPermission(user, 'flota', isEditing ? 'update' : 'create'));
   const activeMutation = isEditing ? updateMutation : createMutation;
   const close = (): void => { if (!activeMutation.isPending) onClose(); };
 
@@ -88,15 +97,18 @@ export const FleetVehicleFormModal = ({
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    if (activeMutation.isPending) return;
+    if (activeMutation.isPending || !canSave) return;
     setFieldErrors({});
     createMutation.reset();
     updateMutation.reset();
 
+    const { propietario, motivoBaja, ...publicForm } = form;
     const candidate = {
-      ...form,
+      ...publicForm,
       ano: form.ano === '' ? null : Number(form.ano),
       kilometraje: form.kilometraje === '' ? null : Number(form.kilometraje),
+      ...(canEditOwner ? { propietario: propietario.trim() || null } : {}),
+      ...(form.estadoOperativo === 'dado_de_baja' ? { motivoBaja } : {}),
     };
     const result = createFleetVehicleSchema.safeParse(candidate);
     if (!result.success) {
@@ -146,7 +158,7 @@ export const FleetVehicleFormModal = ({
         <ModalHeader
           id="fleet-vehicle-form-title"
           title={isEditing ? 'Editar vehículo de flota' : 'Nuevo vehículo de flota'}
-          description="Uso interno de la empresa, sin cliente ni propietario externo"
+          description="Vehículo de uso interno de la empresa"
           onClose={close}
           closeDisabled={activeMutation.isPending}
           variant="brand"
@@ -155,7 +167,7 @@ export const FleetVehicleFormModal = ({
 
         <form className="workspace-form reference-form" noValidate onSubmit={handleSubmit}>
           <div className="workspace-form-body reference-form-body">
-            <fieldset disabled={activeMutation.isPending} className="min-w-0 space-y-5">
+            <fieldset disabled={activeMutation.isPending || !canSave} className="min-w-0 space-y-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className="text-sm font-medium text-brand-ink">
               Patente
@@ -197,8 +209,32 @@ export const FleetVehicleFormModal = ({
                 <option value="disponible">Disponible</option>
                 <option value="en_mantencion">En mantención</option>
                 <option value="fuera_de_servicio">Fuera de servicio</option>
+                <option value="dado_de_baja">Dado de baja</option>
               </select>
             </label>
+            {form.estadoOperativo === 'dado_de_baja' && (
+              <div className="space-y-3 rounded-lg border border-brand-line bg-brand-pale/40 p-4 sm:col-span-2 lg:col-span-3">
+                <p id="fleet-vehicle-baja-help" className="text-sm leading-6 text-brand-muted">
+                  Al guardar, el vehículo quedará dado de baja. Su ficha, documentos y versiones
+                  se conservarán. La fecha se registra automáticamente al darlo de baja.
+                </p>
+                <label className="block text-sm font-medium text-brand-ink">
+                  Motivo de baja (opcional)
+                  <textarea
+                    className={`${inputClassName} h-auto min-h-24 py-2`}
+                    value={form.motivoBaja}
+                    onChange={(event) => setValue('motivoBaja', event.target.value)}
+                    maxLength={500}
+                    aria-describedby="fleet-vehicle-baja-help"
+                    aria-invalid={Boolean(fieldErrors.motivoBaja)}
+                    rows={3}
+                  />
+                  {fieldErrors.motivoBaja && (
+                    <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.motivoBaja}</span>
+                  )}
+                </label>
+              </div>
+            )}
             <label className="text-sm font-medium text-brand-ink">
               Marca
               <input
@@ -317,20 +353,44 @@ export const FleetVehicleFormModal = ({
               />
             </label>
             <label className="text-sm font-medium text-brand-ink sm:col-span-2 lg:col-span-3">
-              Responsable
+              <span>Responsable / encargado del vehículo</span>
               <input
                 className={inputClassName}
                 value={form.responsable}
                 onChange={(event) => setValue('responsable', event.target.value)}
                 aria-invalid={Boolean(fieldErrors.responsable)}
-                placeholder="Nombre de quien tiene el vehículo a cargo"
+                maxLength={120}
+                aria-describedby="fleet-vehicle-responsable-help"
+                placeholder="Encargado, taller o rentacar"
               />
+              <span id="fleet-vehicle-responsable-help" className="mt-1 block text-xs font-normal text-brand-muted">
+                Persona o entidad a cargo: encargado, taller o rentacar. Puede ser externa a la empresa.
+              </span>
               {fieldErrors.responsable && (
                 <span className="mt-1 block text-xs text-brand-coralInk">
                   {fieldErrors.responsable}
                 </span>
               )}
             </label>
+            {canEditOwner && (
+              <label className="text-sm font-medium text-brand-ink sm:col-span-2 lg:col-span-3">
+                <span>Propietario (privado)</span>
+                <input
+                  className={inputClassName}
+                  value={form.propietario}
+                  onChange={(event) => setValue('propietario', event.target.value)}
+                  maxLength={180}
+                  aria-describedby="fleet-vehicle-propietario-help"
+                  aria-invalid={Boolean(fieldErrors.propietario)}
+                />
+                <span id="fleet-vehicle-propietario-help" className="mt-1 block text-xs font-normal text-brand-muted">
+                  Visible solo para administradores y desarrolladores.
+                </span>
+                {fieldErrors.propietario && (
+                  <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.propietario}</span>
+                )}
+              </label>
+            )}
           </div>
 
           {mutationError && (
@@ -358,7 +418,7 @@ export const FleetVehicleFormModal = ({
             >
               Cancelar
             </button>
-            <button type="submit" className="primary-button" disabled={activeMutation.isPending}>
+            <button type="submit" className="primary-button" disabled={activeMutation.isPending || !canSave}>
               {activeMutation.isPending && (
                 <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
               )}

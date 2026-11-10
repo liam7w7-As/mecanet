@@ -3,12 +3,19 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import ListExportButtons from '../../../components/common/ListExportButtons';
 import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
 import UsersPage from '../UsersPage';
 
 import type { AdminUser, PermissionOption, RoleOption } from '../../../hooks/useUsers';
 import type { AxiosResponse } from 'axios';
+
+vi.mock('../../../components/common/ListExportButtons', () => ({
+  default: vi.fn(({ target, disabled }: { target: string; disabled?: boolean }) => (
+    <button type="button" data-testid={`export-${target}`} disabled={disabled}>Exportar {target}</button>
+  )),
+}));
 
 vi.mock('../../../lib/api', () => ({
   api: {
@@ -63,6 +70,9 @@ const usersResponse = {
   data: [adminUser, sellerUser],
   meta: { page: 1, limit: 20, total: 2, totalPages: 1, hasNext: false, hasPrev: false },
 };
+
+const exportProps = (target: string) => vi.mocked(ListExportButtons).mock.calls
+  .filter(([props]) => props.target === target).at(-1)![0];
 
 const renderPage = () => {
   const queryClient = new QueryClient({
@@ -188,10 +198,15 @@ describe('UsersPage', () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/users', { params: {
       page: 1, pageSize: 20, search: 'victor', roleId: 4, activo: false,
     } }));
+    expect(exportProps('users').filters).toEqual(vi.mocked(api.get).mock.calls
+      .filter(([url]) => url === '/users').at(-1)![1]!.params);
+    expect(screen.getByTestId('export-users')).toBeEnabled();
+    expect(screen.getByRole('tabpanel', { name: 'Cuentas' })).toContainElement(screen.getByTestId('export-users'));
     fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/users', { params: {
       page: 1, pageSize: 20, search: undefined, roleId: undefined, activo: undefined,
     } }));
+    expect(exportProps('users').filters).toEqual({ page: 1, pageSize: 20, search: undefined, roleId: undefined, activo: undefined });
   });
 
   it('abre el detalle sin mutaciones y protege las acciones sobre la cuenta propia', async () => {
@@ -277,10 +292,40 @@ describe('UsersPage', () => {
     expect(screen.queryByRole('button', { name: 'Nuevo usuario' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Editar Víctor Ventas' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Eliminar Víctor Ventas' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('export-users')).toBeEnabled();
     fireEvent.click(screen.getByRole('tab', { name: 'Permisos por rol' }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Vendedor' }));
     expect(await screen.findByRole('checkbox', { name: 'Lectura' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Guardar permisos' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('export-role-permissions')).toBeEnabled();
+    expect(exportProps('role-permissions').filters).toEqual({ roleId: 4 });
+    expect(screen.getByRole('tabpanel', { name: 'Permisos por rol' }))
+      .toContainElement(screen.getByTestId('export-role-permissions'));
+  });
+
+  it('exporta el rol seleccionado y conserva el destino al cancelar un cambio con borrador', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Permisos por rol' }));
+    await screen.findByRole('checkbox', { name: 'Lectura' });
+    expect(exportProps('role-permissions').filters).toEqual({ roleId: 2 });
+    fireEvent.click(screen.getByRole('tab', { name: 'Vendedor' }));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Creación' })).toBeChecked());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Edición' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Desarrollador' }));
+    expect(exportProps('role-permissions').filters).toEqual({ roleId: 4 });
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByRole('checkbox', { name: 'Edición' })).toBeChecked();
+    expect(exportProps('role-permissions').filters).toEqual({ roleId: 4 });
+  });
+
+  it('deshabilita la exportación durante la carga y ante un error del listado', async () => {
+    const baseGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, config) => url === '/users'
+      ? Promise.reject(new Error('Sin conexión')) : baseGet(url, config));
+    renderPage();
+    expect(screen.getByTestId('export-users')).toBeDisabled();
+    await screen.findByRole('alert');
+    expect(screen.getByTestId('export-users')).toBeDisabled();
   });
 
   it('bloquea el cambio de rol durante el guardado y conserva la selección si falla', async () => {

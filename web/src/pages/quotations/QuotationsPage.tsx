@@ -1,10 +1,11 @@
 import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
-import { Archive, ArchiveRestore, CalendarDays, CheckCheck, CircleDollarSign, Clock3, DollarSign, Download, FileSpreadsheet, FileText, LayoutGrid, Link2Off, LoaderCircle, Pencil, Plus, Search, Wrench, X } from 'lucide-react';
+import { Archive, ArchiveRestore, CalendarDays, CheckCheck, CircleDollarSign, Clock3, DollarSign, Download, FileText, LayoutGrid, Link2Off, LoaderCircle, Pencil, Plus, Search, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { AnimateIcon, AnimatedTableRow } from '../../components/animate-ui';
+import ListExportButtons from '../../components/common/ListExportButtons';
 import ModalHeader from '../../components/common/ModalHeader';
 import Pagination from '../../components/common/Pagination';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
@@ -15,7 +16,6 @@ import QuotationEditModal from '../../components/quotations/QuotationEditModal';
 import QuotationStatusBadge from '../../components/quotations/QuotationStatusBadge';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
-import { useDownloadCommercialExcel } from '../../hooks/usePayments';
 import { useArchiveQuotationMutation, useQuotation, useQuotations, useUnarchiveQuotationMutation } from '../../hooks/useQuotations';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate, formatTime } from '../../lib/formatters';
@@ -38,13 +38,6 @@ const STATUS_FILTERS: Array<{ value: StatusFilter; label: string; icon: LucideIc
   { value: 'por_verificar', label: 'Por verificar', icon: Search },
   { value: 'archived', label: 'Archivadas', icon: Archive },
 ];
-
-const toDateInput = (date: Date): string => date.toISOString().slice(0, 10);
-
-const firstDayOfMonth = (): string => {
-  const now = new Date();
-  return toDateInput(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
-};
 
 const QuotationSkeleton = () => (
   <>
@@ -128,7 +121,7 @@ export const QuotationsPage = () => {
   const [quotationToUnarchive, setQuotationToUnarchive] = useState<Quotation | null>(null);
   const unarchiveMutation = useUnarchiveQuotationMutation();
   const debouncedSearch = useDebouncedValue(search, 350);
-  const quotationsQuery = useQuotations({
+  const filters = {
     page,
     pageSize: 20,
     search: debouncedSearch || undefined,
@@ -137,8 +130,8 @@ export const QuotationsPage = () => {
     archiveStatus: status === 'archived' ? 'archived' : 'active',
     fechaDesde: fechaDesde || undefined,
     fechaHasta: fechaHasta || undefined,
-  });
-  const excelMutation = useDownloadCommercialExcel();
+  } satisfies Parameters<typeof useQuotations>[0];
+  const quotationsQuery = useQuotations(filters);
   // Detalle completo para la vista previa: la lista no trae ítems,
   // el diseño de vista previa necesita ítems y totales completos.
   const previewQuery = useQuotation(previewQuotationId ?? 0);
@@ -148,7 +141,6 @@ export const QuotationsPage = () => {
   const canPay = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
   const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
   const canConvert = Boolean(user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'create')));
-  const canExport = Boolean(user && hasUserPermission(user, 'comercial', 'export'));
 
   useEffect(() => setPage(1), [debouncedSearch, fechaDesde, fechaHasta, status]);
 
@@ -164,9 +156,16 @@ export const QuotationsPage = () => {
         </div>
       </div>
       {(fechaDesde || fechaHasta) && <div className="commercial-date-context"><CalendarDays aria-hidden="true" /><span>{fechaDesde ? formatDate(fechaDesde + 'T12:00:00') : 'Desde el inicio'} — {fechaHasta ? formatDate(fechaHasta + 'T12:00:00') : 'Sin fecha final'}</span><button type="button" aria-label="Quitar filtro de fechas" onClick={() => { setFechaDesde(''); setFechaHasta(''); }}><X aria-hidden="true" /></button></div>}
-      <div className="commercial-results-context"><span><strong>{quotationsQuery.data?.total ?? 0}</strong> cotizaciones · {STATUS_FILTERS.find((filter) => filter.value === status)?.label}</span>{canExport && <button type="button" aria-label="Exportar Excel" disabled={excelMutation.isPending} title="Sin fechas seleccionadas, exporta el mes actual" onClick={() => excelMutation.mutate({ fechaDesde: fechaDesde || firstDayOfMonth(), fechaHasta: fechaHasta || toDateInput(new Date()), estadoPago: status === 'all' || status === 'sin_ot' || status === 'archived' ? undefined : status })}>{excelMutation.isPending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <FileSpreadsheet aria-hidden="true" />}Exportar Excel</button>}</div>
+      <div className="commercial-results-context">
+        <span><strong>{quotationsQuery.data?.total ?? 0}</strong> cotizaciones · {STATUS_FILTERS.find((filter) => filter.value === status)?.label}</span>
+        <ListExportButtons
+          target="quotations"
+          filters={filters}
+          disabled={quotationsQuery.isPending || quotationsQuery.isError}
+        />
+      </div>
       <section className="commercial-register" aria-label="Listado de cotizaciones">
-        {(quotationsQuery.isError || excelMutation.isError || previewQuery.isError) && <div className="border-b border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(quotationsQuery.error ?? excelMutation.error ?? previewQuery.error, 'No fue posible completar la operación.')}</div>}
+        {(quotationsQuery.isError || previewQuery.isError) && <div className="border-b border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(quotationsQuery.error ?? previewQuery.error, 'No fue posible completar la operación.')}</div>}
 
         {quotationToArchive && (
           <div role="region" aria-label="Confirmar archivo" className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-line bg-brand-pale p-4">

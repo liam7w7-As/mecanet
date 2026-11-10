@@ -11,9 +11,11 @@ export declare const createFleetVehicleSchema: z.ZodObject<{
     kilometraje: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     combustible: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     transmision: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
-    estadoOperativo: z.ZodOptional<z.ZodEnum<["disponible", "en_mantencion", "fuera_de_servicio"]>>;
+    estadoOperativo: z.ZodOptional<z.ZodEnum<["disponible", "en_mantencion", "fuera_de_servicio", "dado_de_baja"]>>;
     sucursal: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     responsable: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    propietario: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    motivoBaja: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
 }, "strip", z.ZodTypeAny, {
     patente: string;
     marca?: string | null | undefined;
@@ -26,9 +28,11 @@ export declare const createFleetVehicleSchema: z.ZodObject<{
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
     codigoInterno?: string | null | undefined;
-    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
     sucursal?: string | null | undefined;
     responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
 }, {
     patente: string;
     marca?: string | null | undefined;
@@ -41,9 +45,11 @@ export declare const createFleetVehicleSchema: z.ZodObject<{
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
     codigoInterno?: string | null | undefined;
-    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
     sucursal?: string | null | undefined;
     responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
 }>;
 export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
     patente: z.ZodOptional<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>>;
@@ -57,9 +63,11 @@ export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
     kilometraje: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     combustible: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     transmision: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
-    estadoOperativo: z.ZodOptional<z.ZodOptional<z.ZodEnum<["disponible", "en_mantencion", "fuera_de_servicio"]>>>;
+    estadoOperativo: z.ZodOptional<z.ZodOptional<z.ZodEnum<["disponible", "en_mantencion", "fuera_de_servicio", "dado_de_baja"]>>>;
     sucursal: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     responsable: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
+    propietario: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
+    motivoBaja: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
 }, "strip", z.ZodTypeAny, {
     patente?: string | undefined;
     marca?: string | null | undefined;
@@ -72,9 +80,11 @@ export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
     codigoInterno?: string | null | undefined;
-    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
     sucursal?: string | null | undefined;
     responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
 }, {
     patente?: string | undefined;
     marca?: string | null | undefined;
@@ -87,9 +97,11 @@ export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
     codigoInterno?: string | null | undefined;
-    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
     sucursal?: string | null | undefined;
     responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
 }>, {
     patente?: string | undefined;
     marca?: string | null | undefined;
@@ -102,9 +114,11 @@ export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
     codigoInterno?: string | null | undefined;
-    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
     sucursal?: string | null | undefined;
     responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
 }, {
     patente?: string | undefined;
     marca?: string | null | undefined;
@@ -117,28 +131,30 @@ export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
     codigoInterno?: string | null | undefined;
-    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
     sucursal?: string | null | undefined;
     responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
 }>;
 export declare const fleetVehicleQuerySchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
     pageSize: z.ZodDefault<z.ZodNumber>;
 } & {
     search: z.ZodOptional<z.ZodString>;
-    estado: z.ZodOptional<z.ZodEnum<["disponible", "en_mantencion", "fuera_de_servicio"]>>;
+    estado: z.ZodOptional<z.ZodEnum<["disponible", "en_mantencion", "fuera_de_servicio", "dado_de_baja"]>>;
     vencimiento: z.ZodOptional<z.ZodEnum<["proximo", "vencido"]>>;
 }, "strip", z.ZodTypeAny, {
     page: number;
     pageSize: number;
     search?: string | undefined;
-    estado?: "disponible" | "en_mantencion" | "fuera_de_servicio" | undefined;
+    estado?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
     vencimiento?: "proximo" | "vencido" | undefined;
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
     search?: string | undefined;
-    estado?: "disponible" | "en_mantencion" | "fuera_de_servicio" | undefined;
+    estado?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
     vencimiento?: "proximo" | "vencido" | undefined;
 }>;
 export type CreateFleetVehicleInput = z.infer<typeof createFleetVehicleSchema>;

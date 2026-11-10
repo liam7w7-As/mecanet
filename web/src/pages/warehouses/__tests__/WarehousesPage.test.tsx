@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import ListExportButtons from '../../../components/common/ListExportButtons';
 import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
 import WarehousesPage from '../WarehousesPage';
@@ -15,6 +16,12 @@ import type {
   WarehouseWorkOrderRequest,
 } from '../../../types/entities';
 import type { AxiosResponse } from 'axios';
+
+vi.mock('../../../components/common/ListExportButtons', () => ({
+  default: vi.fn(({ target, disabled }: { target: string; disabled?: boolean }) => (
+    <button type="button" data-testid={`export-${target}`} disabled={disabled}>Exportar {target}</button>
+  )),
+}));
 
 vi.mock('../../../lib/api', () => ({
   api: {
@@ -115,6 +122,9 @@ const renderPage = (route = '/warehouses') => {
   );
 };
 
+const exportProps = (target: string) => vi.mocked(ListExportButtons).mock.calls
+  .filter(([props]) => props.target === target).at(-1)![0];
+
 describe('WarehousesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -176,6 +186,51 @@ describe('WarehousesPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Saldo inicial')).toBeInTheDocument();
     expect(screen.getByText('Ingreso')).toBeInTheDocument();
+  });
+
+  it('ubica cada exportación junto a su listado sin depender de la creación', async () => {
+    useAuthStore.setState({ user: { id: 9, nombre: 'Consulta', email: 'consulta@demo.cl', role: 'bodeguero',
+      permissions: [{ modulo: 'almacen', accion: 'read' }, { modulo: 'almacen', accion: 'export' }] } });
+    renderPage('/warehouses?tab=requests');
+    await within(await screen.findByRole('region', { name: 'Stock de CENTRAL' })).findByText('Kit Hilux GR');
+    expect(screen.queryByRole('button', { name: 'Nuevo almacén' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Almacenes' })).toContainElement(screen.getByTestId('export-warehouses'));
+    expect(exportProps('warehouses').filters).toEqual(vi.mocked(api.get).mock.calls
+      .find(([url]) => url === '/warehouses')![1]!.params);
+    expect(screen.getByRole('region', { name: 'Stock de CENTRAL' })).toContainElement(screen.getByTestId('export-stock-balances'));
+    expect(screen.getByTestId('export-stock-balances')).toBeEnabled();
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar en stock' }), { target: { value: '  KIT Hilux  ' } });
+    expect(exportProps('stock-balances').filters).toEqual({ warehouseId: 1, search: 'kit hilux' });
+    expect(within(screen.getByRole('region', { name: 'Stock de CENTRAL' })).getByText('Kit Hilux GR')).toBeInTheDocument();
+    expect(exportProps('warehouses').filters).toEqual({ page: 1, pageSize: 100 });
+    const requests = screen.getByLabelText('Solicitudes de repuestos para órdenes de trabajo');
+    expect(requests).toContainElement(screen.getByTestId('export-warehouse-requests'));
+    fireEvent.click(within(requests).getByRole('button', { name: 'Entregados' }));
+    fireEvent.change(within(requests).getByLabelText('Buscar solicitud de repuesto'), { target: { value: 'OT-0041' } });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/warehouses/requests', { params: {
+      page: 1, pageSize: 20, estado: 'entregada', search: 'OT-0041',
+    } }));
+    expect(exportProps('warehouse-requests').filters).toEqual(vi.mocked(api.get).mock.calls
+      .filter(([url]) => url === '/warehouses/requests').at(-1)![1]!.params);
+  });
+
+  it('reutiliza el filtro del kardex y deshabilita exportar rangos inválidos', async () => {
+    renderPage();
+    await within(await screen.findByRole('region', { name: 'Stock de CENTRAL' })).findByText('Kit Hilux GR');
+    const history = screen.getByLabelText('Kardex de movimientos');
+    fireEvent.click(within(history).getByText('Historial de movimientos', { exact: true }));
+    expect(history).toContainElement(screen.getByTestId('export-stock-movements'));
+    fireEvent.change(within(history).getByLabelText('Fecha desde'), { target: { value: '2026-09-01' } });
+    fireEvent.change(within(history).getByLabelText('Fecha hasta'), { target: { value: '2026-09-30' } });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/warehouses/movements/all', { params: {
+      page: 1, pageSize: 15, warehouseId: 1, fechaDesde: '2026-09-01', fechaHasta: '2026-09-30',
+    } }));
+    expect(exportProps('stock-movements').filters).toEqual(vi.mocked(api.get).mock.calls
+      .filter(([url]) => url === '/warehouses/movements/all').at(-1)![1]!.params);
+    expect(screen.getByTestId('export-stock-movements')).toBeEnabled();
+    fireEvent.change(within(history).getByLabelText('Fecha hasta'), { target: { value: '2026-08-31' } });
+    expect(screen.getByTestId('export-stock-movements')).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('La fecha desde no puede ser posterior');
   });
 
   it('marca los saldos bajo el mínimo configurado', async () => {
@@ -314,6 +369,8 @@ describe('WarehousesPage', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Seleccionar almacén' }), {
       target: { value: '2' },
     });
+    expect(exportProps('stock-balances').filters).toEqual({ warehouseId: 2, search: undefined });
+    expect(exportProps('stock-movements').filters).toEqual(expect.objectContaining({ warehouseId: 2 }));
     fireEvent.click(screen.getByText('Despacho a órdenes de trabajo', { exact: true }));
     expect(await screen.findByText('OT-2026-0041')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Entregar' }));

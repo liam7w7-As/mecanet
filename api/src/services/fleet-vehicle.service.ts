@@ -4,7 +4,7 @@ import {
   normalizeChilePatente,
   toFleetDateOnly,
 } from '@unithor/shared';
-import { Op, UniqueConstraintError } from 'sequelize';
+import { Op, UniqueConstraintError, literal } from 'sequelize';
 
 import { toFleetDocumentPublic } from './fleet-document.service.js';
 import { FleetDocument } from '../models/FleetDocument.js';
@@ -60,6 +60,9 @@ export interface FleetVehiclePublic {
   estadoOperativo: FleetVehicleStatus;
   sucursal: string | null;
   responsable: string | null;
+  propietario?: string | null;
+  fechaBaja: Date | null;
+  motivoBaja: string | null;
   createdAt: Date;
   updatedAt: Date;
   documentSummary: FleetVehicleDocumentSummaryPublic;
@@ -127,6 +130,7 @@ const buildDocumentSummary = (
 const toPublic = (
   vehicle: FleetVehicle,
   documentSummary: FleetVehicleDocumentSummaryPublic,
+  actorRole?: string,
 ): FleetVehiclePublic => ({
   id: vehicle.id,
   patente: vehicle.patente,
@@ -143,10 +147,21 @@ const toPublic = (
   estadoOperativo: vehicle.estadoOperativo,
   sucursal: vehicle.sucursal,
   responsable: vehicle.responsable,
+  ...(canAccessOwner(actorRole) ? { propietario: vehicle.propietario ?? null } : {}),
+  fechaBaja: vehicle.fechaBaja ?? null,
+  motivoBaja: vehicle.motivoBaja ?? null,
   createdAt: vehicle.createdAt,
   updatedAt: vehicle.updatedAt,
   documentSummary,
 });
+
+const canAccessOwner = (role?: string): boolean => role === 'admin' || role === 'desarrollador';
+
+const assertOwnerWriteAccess = (data: { propietario?: string | null }, actorRole?: string): void => {
+  if (data.propietario !== undefined && !canAccessOwner(actorRole)) {
+    throw ApiError.forbidden('Solo administración y desarrollador pueden modificar el propietario de flota');
+  }
+};
 
 const normalizeCodigo = (value: string | null | undefined): string | null => {
   if (!value) {
@@ -220,6 +235,7 @@ const orderDocuments = <T extends { fechaVencimiento: string | null; id: number 
 
 export const listFleetVehicles = async (
   query: FleetVehicleQueryInput,
+  actorRole?: string,
 ): Promise<ListFleetVehiclesResult> => {
   const pagination = getPagination(query);
   const where: FleetVehicleWhere = {};
@@ -261,11 +277,19 @@ export const listFleetVehicles = async (
 
   const { rows, count } = await FleetVehicle.findAndCountAll({
     where,
+    attributes: {
+      ...(!canAccessOwner(actorRole) ? { exclude: ['propietario'] } : {}),
+      // Project the rank so both the paginated subquery and outer document join can order by it.
+      include: [[literal("CASE `FleetVehicle`.`estado_operativo` WHEN 'disponible' THEN 0 WHEN 'en_mantencion' THEN 1 WHEN 'fuera_de_servicio' THEN 2 WHEN 'dado_de_baja' THEN 3 ELSE 4 END"), 'fleetStateOrder']],
+    },
     include,
     distinct: true,
     limit: pagination.limit,
     offset: pagination.offset,
-    order: [['id', 'DESC']],
+    order: [
+      [literal('`fleetStateOrder`'), 'ASC'],
+      ['id', 'DESC'],
+    ],
   });
 
   const ids = rows.map((row) => row.id);
@@ -290,7 +314,7 @@ export const listFleetVehicles = async (
 
   return {
     items: rows.map((vehicle) =>
-      toPublic(vehicle, buildDocumentSummary(documentsByVehicle.get(vehicle.id) ?? [])),
+      toPublic(vehicle, buildDocumentSummary(documentsByVehicle.get(vehicle.id) ?? []), actorRole),
     ),
     total: count,
     page: pagination.page,
@@ -299,8 +323,8 @@ export const listFleetVehicles = async (
   };
 };
 
-export const getFleetVehicleById = async (id: number): Promise<FleetVehicleDetailPublic> => {
-  const vehicle = await FleetVehicle.findByPk(id);
+export const getFleetVehicleById = async (id: number, actorRole?: string): Promise<FleetVehicleDetailPublic> => {
+  const vehicle = await FleetVehicle.findByPk(id, !canAccessOwner(actorRole) ? { attributes: { exclude: ['propietario'] } } : {});
   if (!vehicle) {
     throw ApiError.notFound('Vehículo de flota no encontrado');
   }
@@ -308,14 +332,16 @@ export const getFleetVehicleById = async (id: number): Promise<FleetVehicleDetai
   const documents = await FleetDocument.findAll({ where: { fleetVehicleId: id } });
 
   return {
-    ...toPublic(vehicle, buildDocumentSummary(documents)),
+    ...toPublic(vehicle, buildDocumentSummary(documents), actorRole),
     documents: orderDocuments(documents).map(toFleetDocumentPublic),
   };
 };
 
 export const createFleetVehicle = async (
   data: CreateFleetVehicleInput,
+  actorRole?: string,
 ): Promise<FleetVehicleDetailPublic> => {
+  assertOwnerWriteAccess(data, actorRole);
   const patente = normalizeChilePatente(data.patente);
   const codigoInterno = normalizeCodigo(data.codigoInterno);
 
@@ -338,9 +364,12 @@ export const createFleetVehicle = async (
       estadoOperativo: data.estadoOperativo ?? 'disponible',
       sucursal: data.sucursal ?? null,
       responsable: data.responsable ?? null,
+      propietario: data.propietario ?? null,
+      fechaBaja: data.estadoOperativo === 'dado_de_baja' ? new Date() : null,
+      motivoBaja: data.estadoOperativo === 'dado_de_baja' ? data.motivoBaja ?? null : null,
     });
 
-    return getFleetVehicleById(vehicle.id);
+    return getFleetVehicleById(vehicle.id, actorRole);
   } catch (error) {
     if (error instanceof UniqueConstraintError) {
       throw ApiError.conflict('Ya existe un vehículo de flota con esa patente o código interno');
@@ -352,7 +381,9 @@ export const createFleetVehicle = async (
 export const updateFleetVehicle = async (
   id: number,
   data: UpdateFleetVehicleInput,
+  actorRole?: string,
 ): Promise<FleetVehicleDetailPublic> => {
+  assertOwnerWriteAccess(data, actorRole);
   const vehicle = await FleetVehicle.findByPk(id);
   if (!vehicle) {
     throw ApiError.notFound('Vehículo de flota no encontrado');
@@ -375,6 +406,9 @@ export const updateFleetVehicle = async (
       | 'estadoOperativo'
       | 'sucursal'
       | 'responsable'
+      | 'propietario'
+      | 'fechaBaja'
+      | 'motivoBaja'
     >
   > = {};
 
@@ -406,6 +440,13 @@ export const updateFleetVehicle = async (
   if (data.estadoOperativo !== undefined) updatePayload.estadoOperativo = data.estadoOperativo;
   if (data.sucursal !== undefined) updatePayload.sucursal = data.sucursal;
   if (data.responsable !== undefined) updatePayload.responsable = data.responsable;
+  if (data.propietario !== undefined) updatePayload.propietario = data.propietario;
+  if (data.estadoOperativo === 'dado_de_baja' && vehicle.estadoOperativo !== 'dado_de_baja') {
+    updatePayload.fechaBaja = new Date();
+    updatePayload.motivoBaja = data.motivoBaja ?? null;
+  } else if (data.motivoBaja !== undefined && (data.estadoOperativo ?? vehicle.estadoOperativo) === 'dado_de_baja') {
+    updatePayload.motivoBaja = data.motivoBaja;
+  }
 
   try {
     await vehicle.update(updatePayload);
@@ -416,7 +457,7 @@ export const updateFleetVehicle = async (
     throw error;
   }
 
-  return getFleetVehicleById(vehicle.id);
+  return getFleetVehicleById(vehicle.id, actorRole);
 };
 
 export const deleteFleetVehicle = async (id: number): Promise<void> => {

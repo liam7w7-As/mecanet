@@ -18,6 +18,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import ListExportButtons from '../../components/common/ListExportButtons';
 import Pagination from '../../components/common/Pagination';
 import {
   StockMovementModal,
@@ -90,24 +91,27 @@ export const WarehousesPage = () => {
   const [selectedRequest, setSelectedRequest] = useState<WarehouseWorkOrderRequest | null>(null);
   const validDateRange = !fechaDesde || !fechaHasta || fechaDesde <= fechaHasta;
 
-  const warehousesQuery = useWarehouses({ page: 1, pageSize: 100 });
+  const warehouseFilters = { page: 1, pageSize: 100 };
+  const warehousesQuery = useWarehouses(warehouseFilters);
   const balancesQuery = useWarehouseBalances(selectedId);
+  const movementFilters = {
+    page: movementPage,
+    pageSize: 15,
+    warehouseId: selectedId ?? undefined,
+    fechaDesde: fechaDesde || undefined,
+    fechaHasta: fechaHasta || undefined,
+  };
   const movementsQuery = useStockMovements(
-    {
-      page: movementPage,
-      pageSize: 15,
-      warehouseId: selectedId ?? undefined,
-      fechaDesde: fechaDesde || undefined,
-      fechaHasta: fechaHasta || undefined,
-    },
+    movementFilters,
     selectedId !== null && validDateRange,
   );
-  const requestsQuery = useWarehouseRequests({
+  const requestFilters = {
     page: requestPage,
     pageSize: 20,
     estado: requestStatus,
     search: requestSearch || undefined,
-  });
+  };
+  const requestsQuery = useWarehouseRequests(requestFilters);
   const pendingRequestsCountQuery = useWarehouseRequests({
     page: 1,
     pageSize: 1,
@@ -137,8 +141,12 @@ export const WarehousesPage = () => {
     dispatchRef.current.scrollIntoView?.({ block: 'start' });
   }, [requestedTab]);
 
+  const balanceFilters = {
+    warehouseId: selectedId ?? undefined,
+    search: balanceSearch.trim().toLowerCase() || undefined,
+  };
   const filteredBalances = useMemo(() => {
-    const term = balanceSearch.trim().toLowerCase();
+    const term = balanceFilters.search;
     const balances = balancesQuery.data ?? [];
     if (!term) return balances;
     return balances.filter(
@@ -146,7 +154,7 @@ export const WarehousesPage = () => {
         balance.nombre.toLowerCase().includes(term) ||
         (balance.codigo ?? '').toLowerCase().includes(term),
     );
-  }, [balancesQuery.data, balanceSearch]);
+  }, [balancesQuery.data, balanceFilters.search]);
 
   return (
     <div className="workspace-page workspace-warehouses inventory-module min-w-0 space-y-5">
@@ -201,6 +209,8 @@ export const WarehousesPage = () => {
       )}
 
       <section aria-label="Almacenes">
+        <ListExportButtons target="warehouses" filters={warehouseFilters}
+          disabled={warehousesQuery.isPending || warehousesQuery.isError} className="mb-3 flex flex-wrap justify-end gap-2" />
         {warehousesQuery.isPending ? (
           <div className="h-16 animate-pulse rounded-xl bg-white" role="status">
             <span className="sr-only">Cargando almacenes…</span>
@@ -288,6 +298,8 @@ export const WarehousesPage = () => {
               </button>
             )}
           </div>
+          <ListExportButtons target="stock-balances" filters={balanceFilters}
+            disabled={balancesQuery.isPending || balancesQuery.isError} className="mb-3 flex flex-wrap justify-end gap-2" />
           <div className="inventory-stock-panel">
             <div className="inventory-table-scroll">
               <table className="inventory-stock-table">
@@ -401,6 +413,8 @@ export const WarehousesPage = () => {
           <ChevronDown aria-hidden="true" />
         </summary>
         <div className="inventory-dispatch-toolbar">
+          <ListExportButtons target="warehouse-requests" filters={requestFilters}
+            disabled={requestsQuery.isPending || requestsQuery.isError} className="mb-3 flex flex-wrap justify-end gap-2" />
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm text-brand-muted">
@@ -582,6 +596,9 @@ export const WarehousesPage = () => {
             </p>
           </div>
         </div>
+        <ListExportButtons target="stock-movements" filters={movementFilters}
+          disabled={movementsQuery.isPending || movementsQuery.isError || selectedId === null || !validDateRange}
+          className="flex flex-wrap justify-end gap-2 px-4 py-3" />
         {!validDateRange && (
           <p className="inventory-alert" role="alert">
             La fecha desde no puede ser posterior a la fecha hasta.

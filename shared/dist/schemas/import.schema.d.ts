@@ -12,19 +12,28 @@ export type ImportModule = (typeof IMPORT_MODULES)[number];
 export declare const IMPORT_MAX_ROWS = 1000;
 /** Tope de tamaño del archivo subido. */
 export declare const IMPORT_MAX_FILE_SIZE_MB = 10;
-export declare const IMPORT_ROW_STATUSES: readonly ["valid", "created", "duplicate", "error"];
+export declare const IMPORT_ROW_STATUSES: readonly ["valid", "update", "created", "updated", "unchanged", "conflict", "duplicate", "error"];
 export type ImportRowStatus = (typeof IMPORT_ROW_STATUSES)[number];
 export declare const importModuleSchema: z.ZodEnum<["catalog", "vehicles", "fleet-vehicles"]>;
 /** `?dryRun=true` genera la vista previa sin escribir en la base. */
 export declare const importRequestQuerySchema: z.ZodObject<{
+    warehouseId: z.ZodOptional<z.ZodNumber>;
     dryRun: z.ZodEffects<z.ZodOptional<z.ZodUnion<[z.ZodBoolean, z.ZodEnum<["true", "false", "1", "0"]>]>>, boolean, boolean | "0" | "1" | "true" | "false" | undefined>;
 }, "strip", z.ZodTypeAny, {
     dryRun: boolean;
+    warehouseId?: number | undefined;
 }, {
+    warehouseId?: number | undefined;
     dryRun?: boolean | "0" | "1" | "true" | "false" | undefined;
 }>;
 export type ImportRequestQuery = z.infer<typeof importRequestQuerySchema>;
 export type ImportCellValue = string | number | null;
+export interface ImportChange {
+    field: string;
+    label: string;
+    before: ImportCellValue;
+    after: ImportCellValue;
+}
 export interface ImportRowPreview {
     /** Número de fila real dentro del Excel, contando desde 1. */
     row: number;
@@ -35,6 +44,8 @@ export interface ImportRowPreview {
     values: Record<string, ImportCellValue>;
     /** Errores, advertencias o motivo de omisión. */
     messages: string[];
+    existingId?: number;
+    changes?: ImportChange[];
 }
 export interface ImportPreview {
     module: ImportModule;
@@ -52,6 +63,12 @@ export interface ImportPreview {
     rows: ImportRowPreview[];
     truncated: boolean;
     maxRows: number;
+    newRows?: number;
+    updateRows?: number;
+    unchangedRows?: number;
+    conflictRows?: number;
+    previewToken?: string;
+    warehouseId?: number;
 }
 export interface ImportResult extends ImportPreview {
     created: number;
@@ -59,4 +76,7 @@ export interface ImportResult extends ImportPreview {
     failed: number;
     /** Clientes creados automáticamente al importar vehículos de taller. */
     clientsCreated: number;
+    updated?: number;
+    unchanged?: number;
+    conflicts?: number;
 }

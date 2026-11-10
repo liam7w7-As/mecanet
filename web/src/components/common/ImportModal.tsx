@@ -11,21 +11,24 @@ import {
   Upload,
   XCircle,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import ModalHeader from './ModalHeader';
 import {
   downloadImportTemplate,
   useConfirmImportMutation,
+  useImportWarehouses,
   usePreviewImportMutation,
 } from '../../hooks/useImports';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
-import { getApiErrorMessage } from '../../lib/api-error';
+import { getApiErrorMessage, isApiConflict } from '../../lib/api-error';
+import { hasUserPermission } from '../../lib/permissions';
+import { useAuthStore } from '../../stores/auth.store';
 import { notifySuccess } from '../../stores/toast.store';
 
 import type { ImportTarget } from '../../hooks/useImports';
-import type { ImportPreview, ImportResult, ImportRowStatus } from '@unithor/shared';
+import type { ImportCellValue, ImportPreview, ImportResult, ImportRowStatus } from '@unithor/shared';
 
 interface ImportModalProps {
   target: ImportTarget;
@@ -39,19 +42,19 @@ const COPY: Record<
   catalog: {
     title: 'Importar catálogo',
     description:
-      'Sube un Excel con repuestos y servicios. Los códigos y nombres existentes se omiten: nunca se sobrescriben precios ni stock.',
+      'Sube un Excel con repuestos y servicios. Revisa los registros nuevos y los cambios en los existentes antes de confirmar.',
     success: 'Catálogo importado',
   },
   vehicles: {
     title: 'Importar vehículos de taller',
     description:
-      'Sube un Excel con vehículos de clientes. Las patentes existentes se omiten y los propietarios nuevos se crean automáticamente.',
+      'Sube un Excel con vehículos de clientes. Revisa las altas y actualizaciones; los propietarios nuevos se crean automáticamente.',
     success: 'Vehículos de taller importados',
   },
   'fleet-vehicles': {
     title: 'Importar vehículos de flota',
     description:
-      'Sube un Excel con vehículos de uso interno. Las patentes y códigos internos existentes se omiten sin modificarse.',
+      'Sube un Excel con vehículos de uso interno. Revisa los registros nuevos, las actualizaciones y los conflictos antes de confirmar.',
     success: 'Vehículos de flota importados',
   },
 };
@@ -61,17 +64,37 @@ const STATUS_META: Record<
   { label: string; icon: typeof CheckCircle2; className: string }
 > = {
   valid: {
-    label: 'Listo',
+    label: 'Nuevo',
     icon: CheckCircle2,
     className: 'bg-brand-mintPale text-brand-mintInk',
+  },
+  update: {
+    label: 'Actualizar',
+    icon: RotateCcw,
+    className: 'bg-brand-pale text-brand-primaryInk',
   },
   created: {
     label: 'Creado',
     icon: Check,
     className: 'bg-brand-pale text-brand-primaryInk',
   },
+  updated: {
+    label: 'Actualizado',
+    icon: Check,
+    className: 'bg-brand-pale text-brand-primaryInk',
+  },
+  unchanged: {
+    label: 'Sin cambios',
+    icon: CheckCircle2,
+    className: 'import-status--unchanged',
+  },
+  conflict: {
+    label: 'Conflicto',
+    icon: AlertTriangle,
+    className: 'bg-brand-goldPale text-brand-goldInk',
+  },
   duplicate: {
-    label: 'Omitido',
+    label: 'Duplicado',
     icon: AlertTriangle,
     className: 'bg-brand-goldPale text-brand-goldInk',
   },
@@ -90,8 +113,13 @@ const formatFileSize = (bytes: number): string => {
 
 export default function ImportModal({ target, onClose }: ImportModalProps) {
   const copy = COPY[target];
+  const user = useAuthStore((state) => state.user);
+  const canReadWarehouses = target === 'catalog' && Boolean(user && hasUserPermission(user, 'almacen', 'read'));
+  const warehousesQuery = useImportWarehouses(canReadWarehouses);
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestVersion = useRef(0);
   const [file, setFile] = useState<File | null>(null);
+  const [warehouseId, setWarehouseId] = useState<number | undefined>();
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +128,18 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
 
   const previewMutation = usePreviewImportMutation(target);
   const confirmMutation = useConfirmImportMutation(target);
+  // A preview belongs to the current actor and target, including in-flight responses.
+  useEffect(() => {
+    requestVersion.current += 1;
+    setPreview(null);
+    setResult(null);
+    setError(null);
+    setWarehouseId(undefined);
+    return () => { requestVersion.current += 1; };
+  }, [target, user]);
+
   const busy = previewMutation.isPending || confirmMutation.isPending || downloading;
+  const canConfirm = Boolean(file && preview && preview.validRows > 0 && preview.previewToken && !preview.truncated) && !busy && !result;
   const requestClose = (): void => {
     if (busy) return;
     onClose();
@@ -111,14 +150,31 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
     isPending: busy,
   });
 
-  const acceptFile = (nextFile: File | undefined): void => {
-    if (!nextFile) return;
-
+  const reviewFile = (nextFile: File): void => {
+    const version = ++requestVersion.current;
     setError(null);
     setPreview(null);
     setResult(null);
     previewMutation.reset();
     confirmMutation.reset();
+    previewMutation.mutate({ file: nextFile, warehouseId }, {
+      onSuccess: (value) => {
+        if (version === requestVersion.current) setPreview(value);
+      },
+      onError: (mutationError) => {
+        if (version !== requestVersion.current) return;
+        setError(getApiErrorMessage(mutationError, 'No fue posible leer la vista previa del archivo.'));
+      },
+    });
+  };
+
+  const acceptFile = (nextFile: File | undefined): void => {
+    if (!nextFile || busy) return;
+
+    requestVersion.current += 1;
+    setError(null);
+    setPreview(null);
+    setResult(null);
 
     if (!/\.xlsx$/i.test(nextFile.name)) {
       setFile(null);
@@ -133,16 +189,21 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
     }
 
     setFile(nextFile);
-    previewMutation.mutate(nextFile, {
-      onSuccess: (value) => setPreview(value),
-      onError: (mutationError) =>
-        setError(
-          getApiErrorMessage(mutationError, 'No fue posible leer la vista previa del archivo.'),
-        ),
-    });
+    reviewFile(nextFile);
+  };
+
+  const changeWarehouse = (value: string): void => {
+    if (busy) return;
+    requestVersion.current += 1;
+    setWarehouseId(value ? Number(value) : undefined);
+    setPreview(null);
+    setError(null);
+    previewMutation.reset();
+    confirmMutation.reset();
   };
 
   const reset = (): void => {
+    requestVersion.current += 1;
     setFile(null);
     setPreview(null);
     setResult(null);
@@ -153,17 +214,28 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
   };
 
   const confirm = (): void => {
-    if (!file) return;
+    if (!canConfirm || !file || !preview?.previewToken) return;
+    const version = requestVersion.current;
     setError(null);
-    confirmMutation.mutate(file, {
+    confirmMutation.mutate({ file, warehouseId, previewToken: preview.previewToken }, {
       onSuccess: (value) => {
+        if (version !== requestVersion.current) return;
+        setPreview(null);
         setResult(value);
         notifySuccess(
-          `${copy.success}: ${value.created} ${value.created === 1 ? 'registro creado' : 'registros creados'}.`,
+          `${copy.success}: ${value.created} ${value.created === 1 ? 'registro creado' : 'registros creados'} y ${value.updated ?? 0} ${(value.updated ?? 0) === 1 ? 'actualizado' : 'actualizados'}.`,
         );
       },
-      onError: (mutationError) =>
-        setError(getApiErrorMessage(mutationError, 'No fue posible importar el archivo.')),
+      onError: (mutationError) => {
+        if (version !== requestVersion.current) return;
+        if (isApiConflict(mutationError)) {
+          requestVersion.current += 1;
+          setPreview(null);
+          setError('La vista previa ya no está vigente: el archivo, los permisos o los registros cambiaron. Genera una nueva vista previa antes de confirmar. Conservamos tu archivo.');
+          return;
+        }
+        setError(getApiErrorMessage(mutationError, 'No fue posible importar el archivo.'));
+      },
     });
   };
 
@@ -182,7 +254,6 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
   };
 
   const activePreview = preview;
-  const canConfirm = Boolean(activePreview && activePreview.validRows > 0) && !confirmMutation.isPending;
 
   return createPortal(
     <div className="reception-edit-overlay reference-modal-overlay">
@@ -240,8 +311,42 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
             <ImportResultPanel result={result} />
           ) : (
             <>
+              {target === 'catalog' && (
+                <div className="import-warehouse">
+                  {canReadWarehouses && (
+                    <>
+                      <label htmlFor="import-warehouse">Almacén para el stock (opcional)</label>
+                      <select
+                        id="import-warehouse"
+                        value={warehouseId ?? ''}
+                        onChange={(event) => changeWarehouse(event.target.value)}
+                        disabled={busy || warehousesQuery.isLoading}
+                        aria-describedby="import-warehouse-help"
+                      >
+                        <option value="">Sin almacén seleccionado</option>
+                        {warehousesQuery.data?.map((warehouse) => (
+                          <option key={warehouse.id} value={warehouse.id}>
+                            {warehouse.codigo} · {warehouse.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  <p id="import-warehouse-help">
+                    El stock es el saldo final del almacén; no se suma. Un 0 explícito deja el saldo
+                    en 0 y una celda vacía lo conserva. Selecciona un almacén y asegúrate de tener
+                    permisos de inventario; sin almacén, un stock mayor a 0 genera conflicto.
+                    {canReadWarehouses && ' Cambiar el almacén requiere generar otra vista previa.'}
+                  </p>
+                  {canReadWarehouses && warehousesQuery.isError && (
+                    <p className="import-warehouse-error" role="alert">
+                      No fue posible cargar los almacenes. Puedes revisar el archivo sin seleccionar uno.
+                    </p>
+                  )}
+                </div>
+              )}
               <label
-                className={`import-dropzone${dragging ? ' import-dropzone--active' : ''}`}
+                className={`import-dropzone${file ? ' import-dropzone--selected' : ''}${dragging ? ' import-dropzone--active' : ''}`}
                 onDragOver={(event) => {
                   event.preventDefault();
                   if (!busy) setDragging(true);
@@ -257,6 +362,7 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
                 <input
                   ref={inputRef}
                   type="file"
+                  aria-label="Archivo Excel"
                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   className="sr-only"
                   onChange={(event) => {
@@ -266,20 +372,41 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
                   disabled={busy}
                 />
                 <Upload className="import-dropzone-icon" aria-hidden="true" />
-                <strong>
-                  {file ? file.name : 'Arrastra tu Excel aquí o haz clic para seleccionarlo'}
-                </strong>
-                <span>
-                  {file
-                    ? `${formatFileSize(file.size)} · ${previewMutation.isPending ? 'Leyendo archivo…' : 'Archivo .xlsx'}`
-                    : 'Solo archivos .xlsx'}
-                </span>
+                <div className="import-dropzone-copy">
+                  <strong>
+                    {file ? file.name : 'Arrastra tu Excel aquí o haz clic para seleccionarlo'}
+                  </strong>
+                  <span>
+                    {file
+                      ? `${formatFileSize(file.size)} · ${previewMutation.isPending ? 'Leyendo archivo…' : 'Archivo .xlsx'}`
+                      : 'Solo archivos .xlsx'}
+                  </span>
+                </div>
               </label>
+
+              {file && (
+                <div className="import-review-actions">
+                  <p>
+                    {activePreview
+                      ? 'Revisa los cambios de cada fila antes de importar.'
+                      : 'Genera la vista previa del archivo seleccionado para continuar.'}
+                  </p>
+                  <button
+                    type="button"
+                    className="reception-secondary-button"
+                    onClick={() => { if (!busy) reviewFile(file); }}
+                    disabled={busy}
+                  >
+                    <RotateCcw aria-hidden="true" />
+                    {activePreview ? 'Volver a previsualizar' : 'Generar vista previa'}
+                  </button>
+                </div>
+              )}
 
               {previewMutation.isPending && (
                 <div className="import-inline-status" role="status">
                   <LoaderCircle className="animate-spin" aria-hidden="true" />
-                  Validando filas y buscando duplicados…
+                  Comparando registros y preparando los cambios…
                 </div>
               )}
 
@@ -291,7 +418,15 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
               )}
 
               {activePreview && (
-                <ImportPreviewPanel preview={activePreview} />
+                <>
+                  {!activePreview.previewToken && (
+                    <div className="import-alert import-alert--warning" role="alert">
+                      <AlertTriangle aria-hidden="true" />
+                      <span>Genera una nueva vista previa para habilitar la importación.</span>
+                    </div>
+                  )}
+                  <ImportPreviewPanel preview={activePreview} />
+                </>
               )}
             </>
           )}
@@ -305,7 +440,9 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
                 ? 'Importación finalizada'
                 : activePreview
                   ? `${activePreview.validRows} listos para importar`
-                  : 'Sin archivo seleccionado'}
+                  : file
+                    ? 'Vista previa pendiente'
+                    : 'Sin archivo seleccionado'}
           </span>
           <div>
             {result ? (
@@ -364,56 +501,80 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
 }
 
 const ImportPreviewPanel = ({ preview }: { preview: ImportPreview }) => {
-  const shownRows = preview.rows.length;
+  const updates = preview.updateRows ?? preview.rows.filter((row) => row.status === 'update').length;
 
   return (
     <div className="import-preview">
       <div className="import-summary">
-        <div>
-          <span>Filas</span>
-          <strong>{preview.totalRows}</strong>
-        </div>
         <div className="import-summary--valid">
-          <span>Listas</span>
-          <strong>{preview.validRows}</strong>
+          <span>Nuevos</span>
+          <strong>{preview.newRows ?? Math.max(0, preview.validRows - updates)}</strong>
+        </div>
+        <div className="import-summary--update">
+          <span>Actualizar</span>
+          <strong>{updates}</strong>
+        </div>
+        <div>
+          <span>Sin cambios</span>
+          <strong>{preview.unchangedRows ?? preview.rows.filter((row) => row.status === 'unchanged').length}</strong>
         </div>
         <div className="import-summary--duplicate">
-          <span>Omitidas</span>
-          <strong>{preview.duplicateRows}</strong>
+          <span>Conflictos</span>
+          <strong>{preview.conflictRows ?? preview.rows.filter((row) => row.status === 'conflict').length}</strong>
         </div>
         <div className="import-summary--error">
-          <span>Con errores</span>
+          <span>Errores</span>
           <strong>{preview.errorRows}</strong>
         </div>
       </div>
+
+      {preview.duplicateRows > 0 && (
+        <p className="import-duplicates">
+          {preview.duplicateRows} {preview.duplicateRows === 1 ? 'fila duplicada omitida' : 'filas duplicadas omitidas'}.
+        </p>
+      )}
 
       {preview.truncated && (
         <div className="import-alert import-alert--warning" role="status">
           <AlertTriangle aria-hidden="true" />
           <span>
-            El archivo supera el máximo de {preview.maxRows} filas: solo se importarán las
-            primeras.
+            El archivo supera el máximo de {preview.maxRows} filas. Divide la planilla y
+            genera otra vista previa para continuar.
           </span>
         </div>
       )}
 
       <div className="import-preview-heading">
         <h3>Vista previa</h3>
-        <p>
-          Hoja «{preview.sheetName}». {shownRows < preview.totalRows
-            ? `Mostrando las primeras ${shownRows} de ${preview.totalRows} filas.`
-            : 'Revisa los registros antes de confirmar.'}
-        </p>
+        <p>Hoja «{preview.sheetName}» · {preview.totalRows} filas</p>
       </div>
 
-      <div className="import-preview-table-wrap">
-        <table className="import-preview-table">
+      <ImportRowsTable preview={preview} />
+    </div>
+  );
+};
+
+const formatCell = (value: ImportCellValue): string => value === null || value === '' ? 'Sin valor' : String(value);
+
+const ImportRowsTable = ({ preview }: { preview: ImportPreview }) => (
+  <>
+    {preview.totalRows > preview.rows.length && (
+      <div className="import-alert import-alert--warning" role="status">
+        <AlertTriangle aria-hidden="true" />
+        <span>
+          Se muestran las primeras {preview.rows.length} de {preview.totalRows} filas (máximo 200).
+          Los conteos y la importación incluyen todas las filas del archivo.
+        </span>
+      </div>
+    )}
+    <div className="import-preview-table-wrap" role="region" aria-label="Detalle de filas" tabIndex={0}>
+        <table className="import-preview-table" aria-label="Registros de la importación">
           <thead>
             <tr>
               <th scope="col">Fila</th>
               <th scope="col">Registro</th>
               <th scope="col">Estado</th>
-              <th scope="col">Detalle</th>
+              <th scope="col">Cambios y detalle</th>
             </tr>
           </thead>
           <tbody>
@@ -423,7 +584,12 @@ const ImportPreviewPanel = ({ preview }: { preview: ImportPreview }) => {
               return (
                 <tr key={`${row.row}-${row.label}`}>
                   <td className="import-preview-row-number">{row.row}</td>
-                  <td className="import-preview-label">{row.label}</td>
+                  <td className="import-preview-label">
+                    {row.label}
+                    {row.existingId !== undefined && (
+                      <span className="import-existing-id">ID existente: {row.existingId}</span>
+                    )}
+                  </td>
                   <td>
                     <span className={`import-status ${meta.className}`}>
                       <Icon aria-hidden="true" />
@@ -431,17 +597,31 @@ const ImportPreviewPanel = ({ preview }: { preview: ImportPreview }) => {
                     </span>
                   </td>
                   <td className="import-preview-message">
-                    {row.messages.length > 0 ? row.messages.join(' ') : '—'}
+                    {Boolean(row.changes?.length) && (
+                      <ul className="import-changes" aria-label={`Cambios de la fila ${row.row}`}>
+                        {row.changes?.map((change) => (
+                          <li key={change.field}>
+                            <strong>{change.label}</strong>
+                            <span className="import-change-values">
+                              <span className="import-change-before">{formatCell(change.before)}</span>
+                              <span aria-label="cambia a">→</span>
+                              <span className="import-change-after">{formatCell(change.after)}</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {row.messages.map((message, index) => <p key={index}>{message}</p>)}
+                    {!row.changes?.length && row.messages.length === 0 && '—'}
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-      </div>
     </div>
-  );
-};
+  </>
+);
 
 const ImportResultPanel = ({ result }: { result: ImportResult }) => (
   <div className="import-result">
@@ -449,7 +629,7 @@ const ImportResultPanel = ({ result }: { result: ImportResult }) => (
       <CheckCircle2 aria-hidden="true" />
       <div>
         <h3>Importación completada</h3>
-        <p>Los registros omitidos no fueron modificados.</p>
+        <p>{result.created} creados y {result.updated ?? 0} actualizados. Revisa el detalle de las filas.</p>
       </div>
     </div>
 
@@ -457,6 +637,18 @@ const ImportResultPanel = ({ result }: { result: ImportResult }) => (
       <div className="import-summary--valid">
         <span>Creados</span>
         <strong>{result.created}</strong>
+      </div>
+      <div className="import-summary--update">
+        <span>Actualizados</span>
+        <strong>{result.updated ?? 0}</strong>
+      </div>
+      <div>
+        <span>Sin cambios</span>
+        <strong>{result.unchanged ?? result.unchangedRows ?? 0}</strong>
+      </div>
+      <div className="import-summary--duplicate">
+        <span>Conflictos</span>
+        <strong>{result.conflicts ?? result.conflictRows ?? 0}</strong>
       </div>
       <div className="import-summary--duplicate">
         <span>Omitidos</span>
@@ -473,6 +665,12 @@ const ImportResultPanel = ({ result }: { result: ImportResult }) => (
         </div>
       )}
     </div>
+
+    <div className="import-preview-heading">
+      <h3>Detalle de la importación</h3>
+      <p>{result.totalRows} filas revisadas</p>
+    </div>
+    <ImportRowsTable preview={result} />
 
     {result.failed > 0 && (
       <div className="import-alert import-alert--error" role="alert">

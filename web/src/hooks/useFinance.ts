@@ -332,9 +332,11 @@ export const useDownloadFinancialReport = () =>
     mutationFn: async ({
       format,
       filters,
+      previewWindow,
     }: {
       format: FinancialReportFormat;
       filters: FinancialReportFilters;
+      previewWindow?: Window | null;
     }) => {
       const response = await api.get<Blob>(`/reports/finance/${format}`, {
         params: filters,
@@ -343,13 +345,19 @@ export const useDownloadFinancialReport = () =>
       const extension = format === 'excel' ? 'xlsx' : 'pdf';
       const filename = `Informe_Financiero_UNITHOR_${filters.fechaDesde}_${filters.fechaHasta}.${extension}`;
       const href = URL.createObjectURL(response.data);
-      const anchor = document.createElement('a');
-      anchor.href = href;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(href);
+      if (format === 'pdf') {
+        if (previewWindow && !previewWindow.closed) previewWindow.location.href = href;
+        else window.open(href, '_blank', 'noopener,noreferrer');
+      } else {
+        const anchor = document.createElement('a');
+        anchor.href = href;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+      window.setTimeout(() => URL.revokeObjectURL(href), format === 'pdf' ? 5 * 60_000 : 30_000);
       notifySuccess(`Reporte ${extension.toUpperCase()} generado correctamente.`);
     },
+    onError: (_error, variables) => variables.previewWindow?.close(),
   });

@@ -48,6 +48,8 @@ export const createFleetVehicleSchema = z.object({
     estadoOperativo: z.enum(FLEET_VEHICLE_STATUSES).optional(),
     sucursal: optionalString(120),
     responsable: optionalString(120),
+    propietario: optionalString(180),
+    motivoBaja: optionalString(500),
 });
 export const updateFleetVehicleSchema = createFleetVehicleSchema.partial().refine((data) => Object.keys(data).length > 0, {
     message: 'Debe enviar al menos un campo para actualizar',

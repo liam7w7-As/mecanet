@@ -10,7 +10,28 @@ export interface ImportColumnDefinition {
   list?: readonly string[];
 }
 
+const IMPORT_ID_COLUMN: ImportColumnDefinition = {
+  key: 'id',
+  header: 'ID',
+  required: false,
+  description:
+    'ID estable opcional del registro existente. Tiene prioridad sobre las claves naturales. Un ID desconocido o eliminado genera conflicto. Sin ID, se identifica por patente o código; solo se crea cuando no existe una coincidencia.',
+  example: null,
+  aliases: [
+    'id',
+    'id registro',
+    'identificador',
+    'record id',
+    'id vehiculo',
+    'id flota',
+    'id item',
+    'id catalogo',
+  ],
+  width: 12,
+};
+
 export const CATALOG_IMPORT_COLUMNS: readonly ImportColumnDefinition[] = [
+  IMPORT_ID_COLUMN,
   {
     key: 'tipo',
     header: 'Tipo',
@@ -117,8 +138,9 @@ const VEHICLE_BASE_COLUMNS: readonly ImportColumnDefinition[] = [
   {
     key: 'patente',
     header: 'Patente',
-    required: true,
-    description: 'Patente chilena, con o sin guion. Se normaliza automáticamente.',
+    required: false,
+    description:
+      'Obligatoria al crear. Patente con o sin guion; se normaliza automáticamente. En actualizaciones por ID, una celda vacía conserva la patente.',
     example: 'AB1234',
     aliases: ['patente', 'placa', 'n patente', 'nro patente', 'numero patente', 'ppu'],
     width: 14,
@@ -209,12 +231,31 @@ const VEHICLE_BASE_COLUMNS: readonly ImportColumnDefinition[] = [
 ];
 
 export const VEHICLE_IMPORT_COLUMNS: readonly ImportColumnDefinition[] = [
+  IMPORT_ID_COLUMN,
   ...VEHICLE_BASE_COLUMNS,
+  {
+    key: 'esExtranjera',
+    header: 'Patente extranjera',
+    required: false,
+    description:
+      'Sí o No (también 1 o 0). Sí permite patentes extranjeras. Vacío conserva el tipo de patente existente; al crear se asume chilena.',
+    example: 'No',
+    aliases: [
+      'patente extranjera',
+      'es extranjera',
+      'extranjera',
+      'placa extranjera',
+      'foreign plate',
+    ],
+    width: 20,
+    list: ['Sí', 'No'],
+  },
   {
     key: 'propietario',
     header: 'Propietario',
     required: false,
-    description: 'Nombre del cliente. Si no existe, se crea automáticamente.',
+    description:
+      'Nombre del cliente, identificado primero por RUT y luego por nombre. Si falta, se crea con permiso comercial.create o taller.create. Nunca se restauran clientes eliminados ni se editan sus datos; vacío conserva el cliente actual.',
     example: 'Carlos Muñoz',
     aliases: ['propietario', 'cliente', 'dueno', 'nombre propietario', 'nombre cliente'],
     width: 28,
@@ -249,11 +290,13 @@ export const VEHICLE_IMPORT_COLUMNS: readonly ImportColumnDefinition[] = [
 ];
 
 export const FLEET_IMPORT_COLUMNS: readonly ImportColumnDefinition[] = [
+  IMPORT_ID_COLUMN,
   {
     key: 'patente',
     header: 'Patente',
-    required: true,
-    description: 'Patente chilena del vehículo interno.',
+    required: false,
+    description:
+      'Patente chilena obligatoria al crear. Se identifica primero por ID, luego por patente o código interno. Vacío conserva la patente existente.',
     example: 'FLTA01',
     aliases: ['patente', 'placa', 'n patente', 'nro patente', 'numero patente', 'ppu'],
     width: 14,
@@ -272,11 +315,12 @@ export const FLEET_IMPORT_COLUMNS: readonly ImportColumnDefinition[] = [
     key: 'estadoOperativo',
     header: 'Estado operativo',
     required: false,
-    description: 'Disponible, En mantención o Fuera de servicio.',
+    description:
+      'Disponible, En mantención, Fuera de servicio o Dado de baja. Baja y Retirado también se interpretan como Dado de baja.',
     example: 'Disponible',
     aliases: ['estado', 'estado operativo', 'situacion', 'estado vehiculo'],
     width: 18,
-    list: ['Disponible', 'En mantención', 'Fuera de servicio'],
+    list: ['Disponible', 'En mantención', 'Fuera de servicio', 'Dado de baja'],
   },
   {
     key: 'sucursal',
@@ -295,6 +339,26 @@ export const FLEET_IMPORT_COLUMNS: readonly ImportColumnDefinition[] = [
     example: 'Carlos Muñoz',
     aliases: ['responsable', 'encargado', 'conductor', 'usuario'],
     width: 24,
+  },
+  {
+    key: 'propietario',
+    header: 'Propietario',
+    required: false,
+    description:
+      'Dato privado opcional de flota, solo para admin y desarrollador. Máximo 180 caracteres.',
+    example: 'Empresa propietaria',
+    aliases: ['propietario', 'dueno', 'nombre propietario'],
+    width: 28,
+  },
+  {
+    key: 'motivoBaja',
+    header: 'Motivo de baja',
+    required: false,
+    description:
+      'Motivo opcional, máximo 500 caracteres. Solo se conserva con estado Dado de baja; la fecha de baja se asigna en el servidor al crear.',
+    example: 'Retiro definitivo del vehículo',
+    aliases: ['motivo baja', 'motivo de baja', 'razon baja', 'razon de baja'],
+    width: 40,
   },
 ];
 

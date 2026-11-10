@@ -1,4 +1,4 @@
-export declare const FLEET_VEHICLE_STATUSES: readonly ["disponible", "en_mantencion", "fuera_de_servicio"];
+export declare const FLEET_VEHICLE_STATUSES: readonly ["disponible", "en_mantencion", "fuera_de_servicio", "dado_de_baja"];
 export type FleetVehicleStatus = (typeof FLEET_VEHICLE_STATUSES)[number];
 export declare const FLEET_DOCUMENT_EXPIRY_FILTERS: readonly ["proximo", "vencido"];
 export type FleetDocumentExpiryFilter = (typeof FLEET_DOCUMENT_EXPIRY_FILTERS)[number];

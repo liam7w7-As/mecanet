@@ -18,7 +18,16 @@ export const IMPORT_MAX_ROWS = 1_000;
 /** Tope de tamaño del archivo subido. */
 export const IMPORT_MAX_FILE_SIZE_MB = 10;
 
-export const IMPORT_ROW_STATUSES = ['valid', 'created', 'duplicate', 'error'] as const;
+export const IMPORT_ROW_STATUSES = [
+  'valid',
+  'update',
+  'created',
+  'updated',
+  'unchanged',
+  'conflict',
+  'duplicate',
+  'error',
+] as const;
 
 export type ImportRowStatus = (typeof IMPORT_ROW_STATUSES)[number];
 
@@ -26,6 +35,7 @@ export const importModuleSchema = z.enum(IMPORT_MODULES);
 
 /** `?dryRun=true` genera la vista previa sin escribir en la base. */
 export const importRequestQuerySchema = z.object({
+  warehouseId: z.coerce.number().int().positive().optional(),
   dryRun: z
     .union([z.boolean(), z.enum(['true', 'false', '1', '0'])])
     .optional()
@@ -35,6 +45,13 @@ export const importRequestQuerySchema = z.object({
 export type ImportRequestQuery = z.infer<typeof importRequestQuerySchema>;
 
 export type ImportCellValue = string | number | null;
+
+export interface ImportChange {
+  field: string;
+  label: string;
+  before: ImportCellValue;
+  after: ImportCellValue;
+}
 
 export interface ImportRowPreview {
   /** Número de fila real dentro del Excel, contando desde 1. */
@@ -46,6 +63,8 @@ export interface ImportRowPreview {
   values: Record<string, ImportCellValue>;
   /** Errores, advertencias o motivo de omisión. */
   messages: string[];
+  existingId?: number;
+  changes?: ImportChange[];
 }
 
 export interface ImportPreview {
@@ -64,6 +83,12 @@ export interface ImportPreview {
   rows: ImportRowPreview[];
   truncated: boolean;
   maxRows: number;
+  newRows?: number;
+  updateRows?: number;
+  unchangedRows?: number;
+  conflictRows?: number;
+  previewToken?: string;
+  warehouseId?: number;
 }
 
 export interface ImportResult extends ImportPreview {
@@ -72,4 +97,7 @@ export interface ImportResult extends ImportPreview {
   failed: number;
   /** Clientes creados automáticamente al importar vehículos de taller. */
   clientsCreated: number;
+  updated?: number;
+  unchanged?: number;
+  conflicts?: number;
 }

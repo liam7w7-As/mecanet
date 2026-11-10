@@ -92,6 +92,10 @@ export interface FleetVehicle {
   estadoOperativo: FleetVehicleStatus;
   sucursal: string | null;
   responsable: string | null;
+  /** Solo se incluye para administradores y desarrolladores. */
+  propietario?: string | null;
+  fechaBaja?: string | null;
+  motivoBaja?: string | null;
   createdAt: string;
   updatedAt: string;
   documentSummary: FleetVehicleDocumentSummary;

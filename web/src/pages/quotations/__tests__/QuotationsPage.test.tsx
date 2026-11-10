@@ -17,6 +17,15 @@ import type {
 } from '../../../types/entities';
 import type { AxiosResponse } from 'axios';
 
+const { listExportSpy } = vi.hoisted(() => ({ listExportSpy: vi.fn() }));
+
+vi.mock('../../../components/common/ListExportButtons', () => ({
+  default: (props: { target: string; filters: Record<string, unknown>; disabled?: boolean }) => {
+    listExportSpy(props);
+    return <div data-testid={`list-export-${props.target}`} />;
+  },
+}));
+
 vi.mock('../../../lib/api', () => ({
   api: {
     delete: vi.fn(),
@@ -772,38 +781,44 @@ describe('QuotationsPage', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
-  it('descarga el reporte comercial como archivo Excel', async () => {
-    const excelBlob = new Blob(['xlsx'], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    const createObjectUrl = vi.fn(() => 'blob:commercial-report');
-    const anchorClick = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(() => undefined);
-    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
-    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
-    vi.mocked(api.get).mockImplementation((url) => {
-      if (url === '/reports/commercial/excel') {
-        return Promise.resolve({ data: excelBlob } as AxiosResponse<Blob>);
-      }
-      return Promise.resolve({ data: listResponse } as AxiosResponse<PaginatedResponse<Quotation>>);
-    });
+  it.each([
+    ['Todas', { estadoPago: undefined, workOrderLinked: undefined, archiveStatus: 'active' }],
+    ['Sin OT', { estadoPago: undefined, workOrderLinked: false, archiveStatus: 'active' }],
+    ['Archivadas', { estadoPago: undefined, workOrderLinked: undefined, archiveStatus: 'archived' }],
+    ['Abono parcial', { estadoPago: 'parcial', workOrderLinked: undefined, archiveStatus: 'active' }],
+  ] as const)('comparte los filtros exactos de %s con la exportación sin recurrir al reporte comercial', async (tab, statusFilters) => {
+    useAuthStore.setState((state) => ({ user: { ...state.user!, role: 'vendedor', permissions: [
+      { modulo: 'comercial', accion: 'read' }, { modulo: 'comercial', accion: 'export' },
+    ] } }));
+    vi.mocked(api.get).mockResolvedValue({ data: { ...listResponse, total: 45, totalPages: 3 } });
     renderWithProviders(<QuotationsPage />);
     await screen.findByText('COT-2026-0031');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Exportar Excel' }));
-
-    await waitFor(() => {
-      expect(api.get).toHaveBeenCalledWith('/reports/commercial/excel', {
-        params: expect.objectContaining({
-          fechaDesde: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-          fechaHasta: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-        }),
-        responseType: 'blob',
-      });
-      expect(createObjectUrl).toHaveBeenCalledWith(excelBlob);
-      expect(anchorClick).toHaveBeenCalled();
+    expect(screen.queryByRole('link', { name: 'Nueva Cotización' })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('list-export-quotations')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Exportar Excel' })).not.toBeInTheDocument();
+    expect(listExportSpy.mock.lastCall?.[0].filters).toMatchObject({
+      fechaDesde: undefined, fechaHasta: undefined,
     });
+    fireEvent.click(screen.getByRole('tab', { name: tab }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fecha de emisión' }));
+    fireEvent.change(screen.getByLabelText('Fecha desde'), { target: { value: '2026-09-01' } });
+    fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '2026-10-31' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+    fireEvent.change(screen.getByLabelText('Buscar cotizaciones'), { target: { value: 'Cliente' } });
+    expect(listExportSpy.mock.lastCall?.[0].filters.search).toBeUndefined();
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/quotations', {
+      params: expect.objectContaining({ search: 'Cliente' }),
+    }));
+    fireEvent.change(screen.getByLabelText('Seleccionar página'), { target: { value: '2' } });
+    await waitFor(() => {
+      const props = listExportSpy.mock.lastCall?.[0];
+      expect(props).toMatchObject({ target: 'quotations', disabled: false });
+      expect(props.filters).toEqual({ page: 2, pageSize: 20, search: 'Cliente',
+        fechaDesde: '2026-09-01', fechaHasta: '2026-10-31', ...statusFilters,
+      });
+      expect(props.filters).toEqual(vi.mocked(api.get).mock.lastCall?.[1]?.params);
+    });
+    expect(vi.mocked(api.get).mock.calls.some(([url]) => url === '/reports/commercial/excel')).toBe(false);
   });
   it('aplica un rango válido y bloquea fechas invertidas sin consultar ese rango', async () => {
     renderWithProviders(<QuotationsPage />);
@@ -813,6 +828,7 @@ describe('QuotationsPage', () => {
     fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '2026-11-02' } });
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
     expect(screen.getByRole('alert')).toHaveTextContent('La fecha final debe ser igual o posterior');
+    expect(listExportSpy.mock.lastCall?.[0].filters).toMatchObject({ fechaDesde: undefined, fechaHasta: undefined });
     expect(api.get).not.toHaveBeenCalledWith('/quotations', { params: expect.objectContaining({ fechaDesde: '2026-11-10' }) });
     fireEvent.change(screen.getByLabelText('Fecha desde'), { target: { value: '2026-11-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
@@ -820,6 +836,14 @@ describe('QuotationsPage', () => {
     expect(screen.queryByLabelText('Fecha desde')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Quitar filtro de fechas' }));
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/quotations', { params: expect.objectContaining({ fechaDesde: undefined, fechaHasta: undefined }) }));
+  });
+
+  it('deshabilita la exportación de COT mientras carga y cuando falla el listado', async () => {
+    vi.mocked(api.get).mockRejectedValue(new Error('Sin conexión'));
+    renderWithProviders(<QuotationsPage />);
+    expect(listExportSpy.mock.lastCall?.[0].disabled).toBe(true);
+    await screen.findByRole('alert');
+    expect(listExportSpy.mock.lastCall?.[0].disabled).toBe(true);
   });
 
   it('descarta fechas sin aplicar al cerrar el desplegable y devuelve el foco', async () => {

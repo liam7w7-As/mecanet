@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import ListExportButtons from '../../../components/common/ListExportButtons';
 import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
 import FinancePage from '../FinancePage';
@@ -13,6 +14,12 @@ import type {
   FinancialAnalytics,
 } from '../../../hooks/useFinance';
 import type { AxiosResponse } from 'axios';
+
+vi.mock('../../../components/common/ListExportButtons', () => ({
+  default: vi.fn(({ target, disabled }: { target: string; disabled?: boolean }) => (
+    <button type="button" data-testid={`export-${target}`} disabled={disabled}>Exportar {target}</button>
+  )),
+}));
 
 vi.mock('../../../lib/api', () => ({
   api: {
@@ -209,6 +216,9 @@ const renderPage = (route = '/finance') => {
     </QueryClientProvider>,
   );
 };
+
+const exportProps = (target: string) => vi.mocked(ListExportButtons).mock.calls
+  .filter(([props]) => props.target === target).at(-1)![0];
 
 describe('FinancePage', () => {
   beforeEach(() => {
@@ -473,6 +483,7 @@ describe('FinancePage', () => {
         params: expect.objectContaining({ page: 2, estado: 'por_verificar' }),
       }),
     );
+    expect(exportProps('payments').filters).toEqual(expect.objectContaining({ page: 2, estado: 'por_verificar' }));
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar abonos' }), {
       target: { value: 'TRX-0091' },
     });
@@ -488,6 +499,62 @@ describe('FinancePage', () => {
       }),
     );
     expect(screen.getByRole('searchbox', { name: 'Buscar abonos' })).toHaveValue('TRX-0091');
+    expect(exportProps('payments').filters).toEqual(vi.mocked(api.get).mock.calls
+      .filter(([url]) => url === '/payments').at(-1)![1]!.params);
+  });
+
+  it('exporta exactamente los filtros propios de abonos y los limpia junto con el listado', async () => {
+    renderPage('/finance?tab=payments&paymentPage=3&paymentStatus=rechazado&paymentMethod=cheque&paymentSearch=TRX&paymentFrom=2026-09-01&paymentTo=2026-09-30');
+    await screen.findByText('TRX-0091');
+    expect(exportProps('payments').filters).toEqual({ page: 3, pageSize: 20, estado: 'rechazado', metodo: 'cheque', search: 'TRX',
+      fechaDesde: '2026-09-01', fechaHasta: '2026-09-30' });
+    const listing = screen.getByRole('region', { name: 'Listado de abonos' });
+    expect(listing).toContainElement(screen.getByTestId('export-payments'));
+    expect(screen.getByTestId('export-payments')).toBeEnabled();
+    expect(screen.queryByTestId('export-cash-day')).not.toBeInTheDocument();
+    fireEvent.click(within(listing).getByRole('button', { name: 'Limpiar filtros' }));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/payments', { params: {
+      page: 1, pageSize: 20, estado: undefined, metodo: undefined, search: undefined, fechaDesde: undefined, fechaHasta: undefined,
+    } }));
+    expect(exportProps('payments').filters).toEqual(vi.mocked(api.get).mock.calls
+      .filter(([url]) => url === '/payments').at(-1)![1]!.params);
+  });
+
+  it('deshabilita exportar abonos con fechas invertidas', async () => {
+    renderPage('/finance?paymentFrom=2026-10-02&paymentTo=2026-10-01');
+    expect(screen.getByTestId('export-payments')).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('La fecha desde debe ser anterior');
+    expect(vi.mocked(api.get).mock.calls.some(([url]) => url === '/payments')).toBe(false);
+    fireEvent.change(screen.getByLabelText('Abonos hasta'), { target: { value: '2026-10-31' } });
+    await waitFor(() => expect(screen.getByTestId('export-payments')).toBeEnabled());
+    expect(exportProps('payments').filters).toEqual(expect.objectContaining({ fechaDesde: '2026-10-02', fechaHasta: '2026-10-31' }));
+  });
+
+  it('exporta la fecha seleccionada de caja sin requerir crear movimientos', async () => {
+    useAuthStore.setState({ user: { id: 8, nombre: 'Consulta', email: 'consulta@demo.cl', role: 'finanzas',
+      permissions: [{ modulo: 'finanzas', accion: 'read' }, { modulo: 'finanzas', accion: 'export' }] } });
+    renderPage('/finance?tab=cash');
+    expect(screen.getByTestId('export-cash-day')).toBeDisabled();
+    await waitFor(() => expect(screen.getByTestId('export-cash-day')).toBeEnabled());
+    expect(screen.queryByRole('button', { name: 'Nuevo movimiento' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('export-payments')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Fecha del arqueo'), { target: { value: '2026-09-21' } });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/finance/day', { params: { fecha: '2026-09-21' } }));
+    expect(exportProps('cash-day').filters).toEqual({ fecha: '2026-09-21' });
+    expect(screen.getByRole('region', { name: 'Arqueo y cierre diario' })).toContainElement(screen.getByTestId('export-cash-day'));
+    fireEvent.change(screen.getByLabelText('Fecha del arqueo'), { target: { value: '' } });
+    expect(screen.getByTestId('export-cash-day')).toBeDisabled();
+  });
+
+  it.each(['payments', 'cash'] as const)('deshabilita exportar al fallar el listado de %s', async (tab) => {
+    const baseGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, config) => url === (tab === 'cash' ? '/finance/movements' : '/payments')
+      ? Promise.reject(new Error('Sin conexión')) : baseGet(url, config));
+    renderPage('/finance?tab=' + tab);
+    const button = screen.getByTestId(tab === 'cash' ? 'export-cash-day' : 'export-payments');
+    expect(button).toBeDisabled();
+    await screen.findByRole('alert');
+    expect(button).toBeDisabled();
   });
 
   it('oculta acciones de revisión, movimientos y cierre con permiso de solo lectura', async () => {

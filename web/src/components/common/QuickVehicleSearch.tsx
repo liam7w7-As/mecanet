@@ -68,7 +68,7 @@ export const QuickVehicleSearch = ({
     searchQuery.isSuccess &&
     !searchQuery.isFetching &&
     !searchQuery.isDebouncing &&
-    isValidChilePatente(normalizedTerm) &&
+    (isValidChilePatente(normalizedTerm) || trimmedTerm.length >= 3) &&
     !hasExactPlate;
   const canCreateClient =
     allowCreateClient &&
@@ -295,12 +295,12 @@ export const QuickVehicleSearch = ({
               className="mt-1 flex w-full items-center gap-2 border-t border-brand-line px-3 py-3 text-left text-sm font-semibold text-brand-primaryInk hover:bg-brand-line/40"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
-                setNewVehiclePlate(normalizedTerm);
+                setNewVehiclePlate(isValidChilePatente(normalizedTerm) ? normalizedTerm : trimmedTerm.toUpperCase());
                 setFocused(false);
               }}
             >
               <Plus className="h-4 w-4" aria-hidden="true" /> Registrar nuevo vehículo con patente{' '}
-              {normalizedTerm}
+              {isValidChilePatente(normalizedTerm) ? normalizedTerm : trimmedTerm.toUpperCase()}
             </button>
           )}
         </div>

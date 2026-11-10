@@ -6,10 +6,11 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useFinancePayments } from '../../hooks/useFinance';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
+import ListExportButtons from '../common/ListExportButtons';
 import Pagination from '../common/Pagination';
 
 import type { Payment } from '../../types/entities';
-import type { PaymentMethod, PaymentStatus } from '@unithor/shared';
+import type { PaymentMethod, PaymentQueryInput, PaymentStatus } from '@unithor/shared';
 
 const statusLabels = {
   confirmado: 'Confirmado',
@@ -53,18 +54,16 @@ export default function FinancePayments({
   const from = params.get('paymentFrom') ?? '';
   const to = params.get('paymentTo') ?? '';
   const validRange = !from || !to || from <= to;
-  const query = useFinancePayments(
-    {
-      page,
-      pageSize: 20,
-      search: useDebouncedValue(search, 300) || undefined,
-      estado: status || undefined,
-      metodo: method,
-      fechaDesde: from || undefined,
-      fechaHasta: to || undefined,
-    },
-    validRange,
-  );
+  const queryParams: Partial<PaymentQueryInput> = {
+    page,
+    pageSize: 20,
+    search: useDebouncedValue(search, 300) || undefined,
+    estado: status || undefined,
+    metodo: method,
+    fechaDesde: from || undefined,
+    fechaHasta: to || undefined,
+  };
+  const query = useFinancePayments(queryParams, validRange);
   const setFilter = (key: string, value: string) =>
     setParams(
       (current) => {
@@ -148,6 +147,8 @@ export default function FinancePayments({
         </label>
       </div>
       <div className="finance-list-toolbar">
+        <ListExportButtons target="payments" filters={queryParams}
+          disabled={query.isPending || query.isError || !validRange} />
         <div className="finance-filter-pills" role="group" aria-label="Filtrar abonos por estado">
           {statuses.map(({ value, label, icon: Icon }) => (
             <button

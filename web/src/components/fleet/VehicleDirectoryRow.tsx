@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 interface Props {
   number: number;
   plate: string;
+  privateSubline?: ReactNode;
   name: string;
   reference?: string;
   owner: string;
@@ -18,12 +19,12 @@ interface Props {
 }
 
 /** Compact reference row; the existing full record continues to open in its modal. */
-export default function VehicleDirectoryRow({ number, plate, name, reference, owner, ownerLabel, facts, status, alerts, onOpen, onEdit, onDelete }: Props) {
+export default function VehicleDirectoryRow({ number, plate, privateSubline, name, reference, owner, ownerLabel, facts, status, alerts, onOpen, onEdit, onDelete }: Props) {
   return (
     <article className="vehicle-directory-row">
       <button type="button" className="vehicle-directory-open" aria-label={`Abrir ficha de ${plate}`} onClick={onOpen} />
       <span className="vehicle-directory-number">#{number}</span>
-      <div className="vehicle-directory-identity"><strong>{plate}</strong><span>{name}</span>{reference && <small>{reference}</small>}</div>
+      <div className="vehicle-directory-identity"><strong>{plate}</strong>{privateSubline && <small className="break-words">{privateSubline}</small>}<span>{name}</span>{reference && <small>{reference}</small>}</div>
       <div className="vehicle-directory-owner"><small>{ownerLabel}</small><span>{owner}</span></div>
       <div className="vehicle-directory-meta"><div>{status}</div><p>{facts}</p>{alerts && <div className="vehicle-directory-alert">{alerts}</div>}</div>
       <footer className="vehicle-directory-actions">

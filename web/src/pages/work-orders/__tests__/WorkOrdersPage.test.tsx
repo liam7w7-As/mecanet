@@ -9,6 +9,7 @@ import { api } from '../../../lib/api';
 import { flushFormDrafts, loadFormDraft, saveFormDraft } from '../../../lib/form-recovery';
 import { workOrderRecoverySchema } from '../../../lib/form-recovery.schemas';
 import { useAuthStore } from '../../../stores/auth.store';
+import MyWorkOrdersPage from '../MyWorkOrdersPage';
 import WorkOrderCreatePage from '../WorkOrderCreatePage';
 import WorkOrderDetailPage from '../WorkOrderDetailPage';
 import WorkOrdersPage from '../WorkOrdersPage';
@@ -16,6 +17,15 @@ import WorkOrdersPage from '../WorkOrdersPage';
 import type { EditableWorkOrderItem } from '../../../components/work-orders/WorkOrderItemsEditor';
 import type { CatalogItem, Client, PaginatedResponse, QuickSearchResult, WorkOrder, WorkOrderWorksheet } from '../../../types/entities';
 import type { AxiosResponse } from 'axios';
+
+const { listExportSpy } = vi.hoisted(() => ({ listExportSpy: vi.fn() }));
+
+vi.mock('../../../components/common/ListExportButtons', () => ({
+  default: (props: { target: string; filters: Record<string, unknown>; disabled?: boolean }) => {
+    listExportSpy(props);
+    return <div data-testid={`list-export-${props.target}`} />;
+  },
+}));
 
 vi.mock('../../../lib/api', () => ({
   api: {
@@ -256,6 +266,52 @@ describe('WorkOrdersPage', () => {
     expect(screen.getByRole('tab', { name: 'Iniciadas' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Gestionar trabajo' })).not.toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Borrador' })).not.toBeInTheDocument();
+  });
+
+  it('comparte búsqueda, estado y rango mensual con la exportación de OT', async () => {
+    createWrapper(<WorkOrdersPage />);
+    await screen.findByText('OT-2026-0012');
+    fireEvent.click(screen.getByRole('tab', { name: 'Esperando repuesto' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Periodo de ingreso' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Por mes' }));
+    fireEvent.change(screen.getByLabelText('Mes de ingreso'), { target: { value: '2024-02' } });
+    fireEvent.change(screen.getByLabelText('Buscar órdenes de trabajo'), { target: { value: 'ABCD' } });
+    expect(listExportSpy.mock.lastCall?.[0].filters.search).toBeUndefined();
+    await waitFor(() => {
+      const props = listExportSpy.mock.lastCall?.[0];
+      expect(props).toMatchObject({ target: 'work-orders', disabled: false, filters: {
+        page: 1, pageSize: 12, search: 'ABCD', estado: 'esperando_repuesto',
+        fechaDesde: '2024-02-01', fechaHasta: '2024-02-29',
+      } });
+      expect(props.filters).toEqual(vi.mocked(api.get).mock.lastCall?.[1]?.params);
+    });
+  });
+
+  it('reutiliza la exportación para Mis órdenes sin agregar filtros de asignación del lado cliente', async () => {
+    useAuthStore.setState({ user: { id: 9, nombre: 'Mecánico', email: 'mecanico@demo.cl', role: 'mecanico', permissions: [
+      { modulo: 'taller', accion: 'read' }, { modulo: 'taller', accion: 'export' },
+    ] } });
+    const originalGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, config) => url === '/work-orders/mine'
+      ? Promise.resolve({ data: { items: [] } }) : originalGet(url, config));
+    createWrapper(<MyWorkOrdersPage />, '/my-work-orders');
+    await screen.findByText('OT-2026-0012');
+    expect(screen.queryByRole('link', { name: 'Nueva Orden de Trabajo' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('list-export-work-orders')).toBeInTheDocument();
+    const props = listExportSpy.mock.lastCall?.[0];
+    expect(props).toMatchObject({ target: 'work-orders', disabled: false });
+    expect(props.filters).toEqual({ page: 1, pageSize: 12, search: undefined, estado: undefined,
+      fechaDesde: undefined, fechaHasta: undefined,
+    });
+    expect(api.get).toHaveBeenCalledWith('/work-orders', { params: props.filters });
+  });
+
+  it('deshabilita la exportación de OT mientras carga y cuando falla el listado', async () => {
+    vi.mocked(api.get).mockRejectedValue(new Error('Sin conexión'));
+    createWrapper(<WorkOrdersPage />);
+    expect(listExportSpy.mock.lastCall?.[0].disabled).toBe(true);
+    await screen.findByRole('alert');
+    expect(listExportSpy.mock.lastCall?.[0].disabled).toBe(true);
   });
 
   it('muestra el reloj de taller y el avance por tareas en la card', async () => {

@@ -46,6 +46,7 @@ import './styles/reports-reference.css';
 import './styles/finance-reference.css';
 import './styles/settings-reference.css';
 import './styles/users-reference.css';
+import './styles/sales-access.css';
 import { MotionProvider } from './components/animate-ui/motion-config';
 import { BrandingProvider } from './components/common/BrandingContext';
 import { OfflineIndicator } from './components/pwa/OfflineIndicator';

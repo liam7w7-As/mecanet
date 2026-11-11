@@ -27,6 +27,7 @@ import {
   Printer,
   ReceiptText,
   RotateCcw,
+  Share2,
   ShieldCheck,
   Trash2,
   UserRound,
@@ -39,6 +40,7 @@ import { AnimateIcon } from '../../components/animate-ui';
 import CustomerEmailPanel from '../../components/common/CustomerEmailPanel';
 import { PageLoader, ProgressBar } from '../../components/common/LoadingIndicator';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
+import ShareSalesAccessModal from '../../components/common/ShareSalesAccessModal';
 import CancelStatusModal from '../../components/work-orders/CancelStatusModal';
 import PhotoSlotInput from '../../components/work-orders/PhotoSlotInput';
 import RevertStatusModal from '../../components/work-orders/RevertStatusModal';
@@ -180,6 +182,7 @@ export const WorkOrderDetailPage = () => {
   const [showReentryModal, setShowReentryModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
+  const [showShareAccessModal, setShowShareAccessModal] = useState(false);
   const [activeSection, setActiveSection] = useState('ot-summary');
   const now = useNow();
   const [shareOtOnOpen, setShareOtOnOpen] = useState(false);
@@ -320,6 +323,12 @@ export const WorkOrderDetailPage = () => {
           </div>
         </div>
         <div className="workshop-record-tools flex flex-wrap gap-2">
+          {isAdmin && (
+            <button type="button" onClick={() => setShowShareAccessModal(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink shadow-sm transition-all hover:bg-brand-pale hover:shadow">
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              Compartir acceso
+            </button>
+          )}
           {canManageWorksheet && (
             <button type="button" onClick={() => setShowManageModal(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-primaryInk bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow">
               <AnimateIcon variant="pulse" animateOnHover>
@@ -713,6 +722,14 @@ export const WorkOrderDetailPage = () => {
       {showDeliveryModal && <WorkOrderDeliveryModal workOrder={workOrder} onClose={() => setShowDeliveryModal(false)} />}
       {showDeliveryReceipt && <WorkOrderDeliveryReceiptModal workOrder={workOrder} onClose={() => setShowDeliveryReceipt(false)} />}
       {showReentryModal && <WorkOrderReentryModal workOrder={workOrder} onClose={() => setShowReentryModal(false)} />}
+      {showShareAccessModal && (
+        <ShareSalesAccessModal
+          scopeType="work_order"
+          targetId={workOrder.id}
+          codigo={workOrder.codigo}
+          onClose={() => setShowShareAccessModal(false)}
+        />
+      )}
       {showPdfModal && (
         <PdfPreviewModal
           type="work-order"

@@ -1,4 +1,4 @@
-import { Pencil } from 'lucide-react';
+import { Pencil, Share2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 import { useModalOverlay } from '../../hooks/useModalOverlay';
@@ -12,11 +12,13 @@ import type { AdminUser } from '../../hooks/useUsers';
 interface Props {
   user: AdminUser;
   canEdit: boolean;
+  canManageAccess: boolean;
   onClose: () => void;
   onEdit: () => void;
+  onManageAccess: () => void;
 }
 
-export default function UserDetailModal({ user, canEdit, onClose, onEdit }: Props) {
+export default function UserDetailModal({ user, canEdit, canManageAccess, onClose, onEdit, onManageAccess }: Props) {
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
   const fields = [
     ['Nombre de usuario', `@${user.username}`], ['Correo electrónico', user.email],
@@ -36,6 +38,11 @@ export default function UserDetailModal({ user, canEdit, onClose, onEdit }: Prop
       </div>
       <footer className="administration-profile-footer">
         <button type="button" className="administration-secondary" onClick={onClose}>Cerrar</button>
+        {canManageAccess && user.role.nombre === 'vendedor' && (
+          <button type="button" className="administration-secondary" onClick={onManageAccess}>
+            <Share2 aria-hidden="true" />Accesos OT/COT
+          </button>
+        )}
         {canEdit && <button type="button" className="administration-primary" onClick={onEdit}><Pencil aria-hidden="true" />Editar usuario</button>}
       </footer>
     </section>

@@ -8,6 +8,7 @@ import UserAvatar from '../../components/common/UserAvatar';
 import RolePermissionsPanel from '../../components/users/RolePermissionsPanel';
 import UserDetailModal from '../../components/users/UserDetailModal';
 import UserFormModal from '../../components/users/UserFormModal';
+import UserSalesAccessModal from '../../components/users/UserSalesAccessModal';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDeleteUserMutation, useRoles, useToggleUserStatusMutation, useUsers } from '../../hooks/useUsers';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -29,6 +30,7 @@ export const UsersPage = () => {
   const [page, setPage] = useState(1);
   const [formUser, setFormUser] = useState<AdminUser | null | undefined>(undefined);
   const [detailUser, setDetailUser] = useState<AdminUser | null>(null);
+  const [accessUser, setAccessUser] = useState<AdminUser | null>(null);
   const [statusTarget, setStatusTarget] = useState<AdminUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
@@ -41,6 +43,7 @@ export const UsersPage = () => {
   const canCreate = Boolean(currentUser && hasUserPermission(currentUser, 'admin', 'create'));
   const canUpdate = Boolean(currentUser && hasUserPermission(currentUser, 'admin', 'update'));
   const canDelete = Boolean(currentUser && hasUserPermission(currentUser, 'admin', 'delete'));
+  const canManageSalesAccess = Boolean(currentUser && ['desarrollador', 'admin'].includes(currentUser.role));
   const queryError = usersQuery.error ?? rolesQuery.error;
   const filtersActive = search !== '' || roleId !== 'all' || status !== 'all';
   useEffect(() => setPage(1), [debouncedSearch, roleId, status]);
@@ -124,7 +127,8 @@ export const UsersPage = () => {
           {rolesQuery.isError && <button type="button" onClick={() => void rolesQuery.refetch()}>Reintentar</button>}
         </div>)}
     </div>
-    {detailUser && <UserDetailModal user={detailUser} canEdit={canUpdate} onClose={() => setDetailUser(null)} onEdit={() => { setFormUser(detailUser); setDetailUser(null); }} />}
+    {detailUser && <UserDetailModal user={detailUser} canEdit={canUpdate} canManageAccess={canManageSalesAccess} onClose={() => setDetailUser(null)} onEdit={() => { setFormUser(detailUser); setDetailUser(null); }} onManageAccess={() => setAccessUser(detailUser)} />}
+    {accessUser && <UserSalesAccessModal user={accessUser} onClose={() => setAccessUser(null)} />}
     {formUser !== undefined && rolesQuery.data && <UserFormModal key={formUser?.id ?? 'new'} user={formUser} roles={rolesQuery.data} onClose={() => setFormUser(undefined)} />}
     {statusTarget && <FormDialog id="status-user-title" title={statusTarget.activo ? 'Desactivar cuenta' : 'Activar cuenta'}
       code={`@${statusTarget.username}`} context={statusTarget.nombre} dirty={false} pending={statusMutation.isPending}

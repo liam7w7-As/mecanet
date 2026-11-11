@@ -5,7 +5,7 @@ import { col, literal, Op, Transaction, where as sequelizeWhere } from 'sequeliz
 import { enqueueCustomerEmail, enqueueWorkOrderProgress } from './customer-email-queue.service.js';
 import { notifyByType } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
-import { assertSalesWorkOrderAccess, getSalesUserId, scopeSalesAssociations } from './sales-access.service.js';
+import { assertSalesWorkOrderAccess, getSalesScope, quotationWhere, scopeSalesAssociations, type SalesScope } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getInspectionPhoto } from './work-order-inspection-photo.service.js';
 import { assertWorkItemsRemovable, ensureQuotationItemLinks, itemIdentity } from './work-order-item-links.js';
@@ -563,10 +563,10 @@ const assertCatalogItemsExist = async (
 const getCompleteQuotation = async (
   id: number,
   transaction?: Transaction,
-  salesId?: number,
+  scope?: SalesScope,
 ): Promise<Quotation> => {
   const quotation = await Quotation.findOne({
-    where: { id, ...(salesId !== undefined ? { asesorId: salesId } : {}) },
+    where: { id, ...quotationWhere(scope) } as WhereOptions<InferAttributes<Quotation>>,
     include: scopeSalesAssociations([
       clientInclude,
       vehicleInclude,
@@ -583,7 +583,7 @@ const getCompleteQuotation = async (
         }],
       },
       itemsInclude,
-    ], salesId),
+    ], scope),
     transaction,
   });
 
@@ -614,8 +614,8 @@ export const listQuotations = async (
 ): Promise<ListQuotationsResult> => {
   const pagination = getPagination(query);
   const where: QuotationWhere = {};
-  const salesId = await getSalesUserId(userId);
-  if (salesId !== undefined) where.asesorId = salesId;
+  const scope = await getSalesScope(userId);
+  if (scope) where[Op.and] = [quotationWhere(scope)];
 
   if (query.search) {
     const searchPattern = `%${query.search}%`;
@@ -674,7 +674,7 @@ export const listQuotations = async (
 
   const { rows, count } = await Quotation.findAndCountAll({
     where,
-    include: scopeSalesAssociations([clientInclude, vehicleInclude, asesorInclude, workOrderInclude], salesId),
+    include: scopeSalesAssociations([clientInclude, vehicleInclude, asesorInclude, workOrderInclude], scope),
     limit: pagination.limit,
     offset: pagination.offset,
     order: [['createdAt', 'DESC']],
@@ -690,7 +690,7 @@ export const listQuotations = async (
 };
 
 export const getQuotationById = async (id: number, userId?: number): Promise<QuotationPublic> => {
-  const quotation = await getCompleteQuotation(id, undefined, await getSalesUserId(userId));
+  const quotation = await getCompleteQuotation(id, undefined, await getSalesScope(userId));
   return toQuotationPublic(quotation);
 };
 

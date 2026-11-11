@@ -8,6 +8,7 @@ import { wakeEmailQueue } from './customer-email-queue.service.js';
 import { removeStoredFile, storeFile } from './file-storage.service.js';
 import { hasPermission } from './permission.service.js';
 import { getQuotationById } from './quotation.service.js';
+import { getSalesScope } from './sales-access.service.js';
 import { getPublicBranding } from './settings.service.js';
 import { assertWorkOrderManagementAccess, getWorkOrderById } from './work-order.service.js';
 import { sequelize } from '../config/database.js';
@@ -56,25 +57,19 @@ export const listEmailPreparations = async (userId: number, role: string) => {
     (kind): kind is 'work_order' | 'quotation' => kind !== null,
   );
   if (!kinds.length) return { enabled: true, jobs: [] };
+  const scope = await getSalesScope(userId);
+  const scopeCondition = scope
+    ? literal(
+        `((CustomerEmail.kind = 'quotation' AND EXISTS (SELECT 1 FROM quotations q WHERE q.id = CustomerEmail.entity_id AND (q.asesor_id = ${scope.userId}${scope.quotationIds.length > 0 ? ` OR q.id IN (${scope.quotationIds.join(',')})` : ''}) AND q.deleted_at IS NULL)) OR (CustomerEmail.kind = 'work_order' AND EXISTS (SELECT 1 FROM work_orders ot WHERE ot.id = CustomerEmail.entity_id AND (ot.created_by = ${scope.userId}${scope.workOrderIds.length > 0 ? ` OR ot.id IN (${scope.workOrderIds.join(',')})` : ''}) AND ot.deleted_at IS NULL)))`,
+      )
+    : null;
   const emails = await CustomerEmail.findAll({
     where: {
       category: 'document',
       kind: { [Op.in]: kinds },
       status: { [Op.in]: ['waiting_documents', 'waiting_photos'] },
       nextAttemptAt: { [Op.lte]: new Date() },
-      ...(role === 'vendedor'
-        ? {
-            [Op.and]: [
-              literal(
-                "((CustomerEmail.kind = 'quotation' AND EXISTS (SELECT 1 FROM quotations q WHERE q.id = CustomerEmail.entity_id AND q.asesor_id = " +
-                  Number(userId) +
-                  " AND q.deleted_at IS NULL)) OR (CustomerEmail.kind = 'work_order' AND EXISTS (SELECT 1 FROM work_orders ot WHERE ot.id = CustomerEmail.entity_id AND ot.created_by = " +
-                  Number(userId) +
-                  ' AND ot.deleted_at IS NULL)))',
-              ),
-            ],
-          }
-        : {}),
+      ...(scopeCondition ? { [Op.and]: [scopeCondition] } : {}),
     },
     order: [['id', 'ASC']],
     limit: 20,

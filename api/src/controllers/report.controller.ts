@@ -16,6 +16,7 @@ import {
   generateWorkshopReportExcel,
   generateWorkshopReportPdf,
 } from '../services/operational-report.service.js';
+import { getSalesScope } from '../services/sales-access.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 import type {
@@ -29,11 +30,25 @@ import type {
 } from '@unithor/shared';
 import type { Request, Response } from 'express';
 
+/** Filtros de alcance que un vendedor aporta a cualquier reporte. */
+const getSalesReportScope = async (req: Request) => {
+  if (!req.user) return {};
+  const scope = await getSalesScope(req.user.id);
+  if (!scope) return {};
+  return {
+    salesUserId: scope.userId,
+    grantedWorkOrderIds: scope.workOrderIds,
+    grantedQuotationIds: scope.quotationIds,
+    // El vendedor no puede pedir el informe de otro asesor: su alcance manda.
+    asesorId: undefined,
+  };
+};
+
 export const getCommercialReportExcelHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const filters = {
       ...(res.locals.validatedQuery as CommercialReportFilters),
-      ...(req.user?.role === 'vendedor' ? { asesorId: req.user.id, salesUserId: req.user.id } : {}),
+      ...await getSalesReportScope(req),
     };
     const reportBuffer = await generateDetailedCommercialReportExcel(filters);
 
@@ -54,7 +69,7 @@ export const getCommercialReportPdfHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const filters = {
       ...(res.locals.validatedQuery as CommercialReportFilters),
-      ...(req.user?.role === 'vendedor' ? { asesorId: req.user.id, salesUserId: req.user.id } : {}),
+      ...await getSalesReportScope(req),
     };
     const pdfBytes = await generateCommercialReportPdf(filters);
 
@@ -72,7 +87,7 @@ export const getWorkshopReportExcelHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const filters = {
       ...(res.locals.validatedQuery as WorkshopReportFilters),
-      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+      ...await getSalesReportScope(req),
     };
     const reportBuffer = await generateWorkshopReportExcel(filters);
 
@@ -93,7 +108,7 @@ export const getWorkshopReportPdfHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const filters = {
       ...(res.locals.validatedQuery as WorkshopReportFilters),
-      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+      ...await getSalesReportScope(req),
     };
     const pdfBytes = await generateWorkshopReportPdf(filters);
 
@@ -144,7 +159,7 @@ export const getCatalogReportExcelHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const filters = {
       ...(res.locals.validatedQuery as CatalogReportFilters),
-      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+      ...await getSalesReportScope(req),
     };
     const reportBuffer = await generateCatalogReportExcel(filters);
 
@@ -165,7 +180,7 @@ export const getCatalogReportPdfHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const filters = {
       ...(res.locals.validatedQuery as CatalogReportFilters),
-      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+      ...await getSalesReportScope(req),
     };
     const pdfBytes = await generateCatalogReportPdf(filters);
 
@@ -183,7 +198,7 @@ export const getFleetReportExcelHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const filters = {
       ...(res.locals.validatedQuery as FleetReportFilters),
-      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+      ...await getSalesReportScope(req),
     };
     const reportBuffer = await generateFleetReportExcel(filters);
 
@@ -204,7 +219,7 @@ export const getFleetReportPdfHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const filters = {
       ...(res.locals.validatedQuery as FleetReportFilters),
-      salesUserId: req.user?.role === 'vendedor' ? req.user.id : undefined,
+      ...await getSalesReportScope(req),
     };
     const pdfBytes = await generateFleetReportPdf(filters);
 

@@ -20,3 +20,4 @@ export * from './settings.schema.js';
 export * from './supplier.schema.js';
 export * from './purchase.schema.js';
 export * from './import.schema.js';
+export * from './sales-access.schema.js';

@@ -17,6 +17,7 @@ import { QuotationItem } from './QuotationItem.js';
 import { RefreshToken } from './RefreshToken.js';
 import { Role } from './Role.js';
 import { RolePermission } from './RolePermission.js';
+import { SalesAccessGrant } from './SalesAccessGrant.js';
 import { StockBalance } from './StockBalance.js';
 import { StockMovement } from './StockMovement.js';
 import { Supplier } from './Supplier.js';
@@ -44,6 +45,7 @@ export const models = [
   Role,
   Permission,
   RolePermission,
+  SalesAccessGrant,
   User,
   RefreshToken,
   Client,
@@ -89,6 +91,7 @@ export {
   Role,
   Permission,
   RolePermission,
+  SalesAccessGrant,
   User,
   RefreshToken,
   Client,

@@ -1,7 +1,12 @@
-import { createUserSchema, updateUserSchema, userQuerySchema } from '@unithor/shared';
+import { createUserSchema, updateUserSchema, userQuerySchema, createSalesAccessGrantSchema, salesAccessGrantParamsSchema } from '@unithor/shared';
 import { Router } from 'express';
 import { z } from 'zod';
 
+import {
+  createUserSalesAccessHandler,
+  listUserSalesAccessHandler,
+  revokeUserSalesAccessHandler,
+} from '../controllers/sales-access.controller.js';
 import {
   createUserHandler,
   deleteUserHandler,
@@ -11,6 +16,7 @@ import {
   updateUserHandler,
 } from '../controllers/user.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
+import { authorizeRoles } from '../middlewares/authorize-roles.js';
 import { authorize } from '../middlewares/authorize.js';
 import { validate } from '../middlewares/validate.js';
 
@@ -51,4 +57,23 @@ userRouter.patch(
   authorize('admin', 'update'),
   validate({ params: idParamSchema, body: statusSchema }),
   toggleStatusHandler,
+);
+
+userRouter.get(
+  '/:id/sales-access',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: idParamSchema }),
+  listUserSalesAccessHandler,
+);
+userRouter.post(
+  '/:id/sales-access',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: idParamSchema, body: createSalesAccessGrantSchema }),
+  createUserSalesAccessHandler,
+);
+userRouter.delete(
+  '/:id/sales-access/:grantId',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: salesAccessGrantParamsSchema }),
+  revokeUserSalesAccessHandler,
 );

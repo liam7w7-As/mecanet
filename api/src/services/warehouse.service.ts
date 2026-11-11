@@ -1,6 +1,6 @@
 import { Op, Transaction } from 'sequelize';
 
-import { getSalesUserId } from './sales-access.service.js';
+import { getSalesScope } from './sales-access.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -715,11 +715,20 @@ export const listWorkOrderRequests = async (
 ): Promise<ListWarehouseWorkOrderRequestsResult> => {
   const pagination = getPagination(query);
   type RequestWhere = WhereOptions<InferAttributes<WorkOrderRequest>> & {
+    [Op.and]?: Array<Record<string, unknown>>;
     [Op.or]?: Array<Record<string, unknown>>;
   };
   const where: RequestWhere = { tipo: 'repuesto', estado: query.estado };
-  const salesId = await getSalesUserId(userId);
-  if (salesId !== undefined) where['$workOrder.created_by$'] = salesId;
+  const scope = await getSalesScope(userId);
+  if (scope) {
+    const visibility: Array<Record<string, unknown>> = [
+      { '$workOrder.created_by$': scope.userId },
+    ];
+    if (scope.workOrderIds.length > 0) {
+      visibility.push({ '$workOrder.id$': { [Op.in]: scope.workOrderIds } });
+    }
+    where[Op.and] = [{ [Op.or]: visibility }];
+  }
 
   if (query.search) {
     const pattern = `%${query.search}%`;

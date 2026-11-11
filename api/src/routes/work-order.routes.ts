@@ -19,10 +19,17 @@ import {
   createWorkOrderRequestSchema,
   reviewWorkOrderRequestSchema,
   updateWorkOrderExecutionSchema,
+  createRecordSalesAccessGrantSchema,
+  salesAccessGrantParamsSchema,
 } from '@unithor/shared';
 import { Router } from 'express';
 import { z } from 'zod';
 
+import {
+  createWorkOrderSalesAccessHandler,
+  listWorkOrderSalesAccessHandler,
+  revokeWorkOrderSalesAccessHandler,
+} from '../controllers/sales-access.controller.js';
 import {
   adjustItemHoursHandler,
   assignWorkOrderItemHandler,
@@ -128,6 +135,25 @@ const authorizePhotoUpload: RequestHandler = (req, res, next) => {
 
 workOrderRouter.use(authenticate);
 workOrderRouter.use(salesRecordAccess('work-order'));
+
+workOrderRouter.get(
+  '/:id/access',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: idParamSchema }),
+  listWorkOrderSalesAccessHandler,
+);
+workOrderRouter.post(
+  '/:id/access',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: idParamSchema, body: createRecordSalesAccessGrantSchema }),
+  createWorkOrderSalesAccessHandler,
+);
+workOrderRouter.delete(
+  '/:id/access/:grantId',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: salesAccessGrantParamsSchema }),
+  revokeWorkOrderSalesAccessHandler,
+);
 
 workOrderRouter.get(
   '/',

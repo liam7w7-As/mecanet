@@ -4,6 +4,8 @@ import {
   quotationQuerySchema,
   updateQuotationSchema,
   WORK_ORDER_INSPECTION_PHOTO_SLOTS,
+  createRecordSalesAccessGrantSchema,
+  salesAccessGrantParamsSchema,
 } from '@unithor/shared';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -20,8 +22,14 @@ import {
   unarchiveQuotationHandler,
   updateQuotationHandler,
 } from '../controllers/quotation.controller.js';
+import {
+  createQuotationSalesAccessHandler,
+  listQuotationSalesAccessHandler,
+  revokeQuotationSalesAccessHandler,
+} from '../controllers/sales-access.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorizeAny } from '../middlewares/authorize-any.js';
+import { authorizeRoles } from '../middlewares/authorize-roles.js';
 import { authorize } from '../middlewares/authorize.js';
 import { salesRecordAccess } from '../middlewares/sales-record-access.js';
 import { validate } from '../middlewares/validate.js';
@@ -34,6 +42,25 @@ const idParamSchema = z.object({
 
 quotationRouter.use(authenticate);
 quotationRouter.use(salesRecordAccess('quotation'));
+
+quotationRouter.get(
+  '/:id/access',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: idParamSchema }),
+  listQuotationSalesAccessHandler,
+);
+quotationRouter.post(
+  '/:id/access',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: idParamSchema, body: createRecordSalesAccessGrantSchema }),
+  createQuotationSalesAccessHandler,
+);
+quotationRouter.delete(
+  '/:id/access/:grantId',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: salesAccessGrantParamsSchema }),
+  revokeQuotationSalesAccessHandler,
+);
 
 quotationRouter.get(
   '/',

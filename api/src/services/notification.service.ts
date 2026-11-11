@@ -1,7 +1,7 @@
 import { NOTIFICATION_RECIPIENT_ROLES } from '@unithor/shared';
 import { literal, Op } from 'sequelize';
 
-import { getSalesUserId } from './sales-access.service.js';
+import { getSalesScope } from './sales-access.service.js';
 import { Notification } from '../models/Notification.js';
 import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
@@ -69,6 +69,7 @@ const DEFAULT_LEVEL: Record<NotificationType, NotificationLevel> = {
   fecha_entrega_vencida: 'critical',
   cotizacion_creada: 'info',
   cotizacion_convertida: 'info',
+  acceso_compartido: 'info',
 };
 
 const toPublic = (notification: Notification): NotificationPublic => ({
@@ -194,13 +195,25 @@ export const getUnreadCount = async (userId: number): Promise<number> =>
   Notification.count({ where: { ...await notificationScope(userId), leidaAt: null } });
 
 const notificationScope = async (userId: number) => {
-  const salesId = await getSalesUserId(userId);
-  if (salesId === undefined) return { userId };
-  // salesId comes from the authenticated user's integer database PK, not query input.
+  const scope = await getSalesScope(userId);
+  if (!scope) return { userId };
+  // Los ids provienen de la base de datos como enteros, no de input del usuario.
+  const workOrderCondition = [
+    `own_ot.created_by = ${scope.userId}`,
+    ...(scope.workOrderIds.length > 0
+      ? [`own_ot.id IN (${scope.workOrderIds.join(',')})`]
+      : []),
+  ].join(' OR ');
+  const quotationCondition = [
+    `own_cot.asesor_id = ${scope.userId}`,
+    ...(scope.quotationIds.length > 0
+      ? [`own_cot.id IN (${scope.quotationIds.join(',')})`]
+      : []),
+  ].join(' OR ');
   return { userId, [Op.and]: [
-    literal(`(Notification.work_order_id IS NULL OR EXISTS (SELECT 1 FROM work_orders own_ot WHERE own_ot.id = Notification.work_order_id AND own_ot.created_by = ${salesId} AND own_ot.deleted_at IS NULL))`),
-    literal(`(Notification.quotation_id IS NULL OR EXISTS (SELECT 1 FROM quotations own_cot WHERE own_cot.id = Notification.quotation_id AND own_cot.asesor_id = ${salesId} AND own_cot.deleted_at IS NULL))`),
-    literal(`(Notification.payment_id IS NULL OR EXISTS (SELECT 1 FROM payments own_payment JOIN quotations own_payment_cot ON own_payment_cot.id = own_payment.quotation_id WHERE own_payment.id = Notification.payment_id AND own_payment_cot.asesor_id = ${salesId} AND own_payment_cot.deleted_at IS NULL))`),
+    literal(`(Notification.work_order_id IS NULL OR EXISTS (SELECT 1 FROM work_orders own_ot WHERE own_ot.id = Notification.work_order_id AND (${workOrderCondition}) AND own_ot.deleted_at IS NULL))`),
+    literal(`(Notification.quotation_id IS NULL OR EXISTS (SELECT 1 FROM quotations own_cot WHERE own_cot.id = Notification.quotation_id AND (${quotationCondition}) AND own_cot.deleted_at IS NULL))`),
+    literal(`(Notification.payment_id IS NULL OR EXISTS (SELECT 1 FROM payments own_payment JOIN quotations own_payment_cot ON own_payment_cot.id = own_payment.quotation_id WHERE own_payment.id = Notification.payment_id AND (${quotationCondition.replaceAll('own_cot.', 'own_payment_cot.')}) AND own_payment_cot.deleted_at IS NULL))`),
   ] };
 };
 

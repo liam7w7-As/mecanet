@@ -10,7 +10,7 @@ import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 import { enqueueCustomerEmail, enqueueWorkOrderProgress } from './customer-email-queue.service.js';
 import { notifyByType, notifyUsers } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
-import { getSalesUserId, scopeSalesAssociations } from './sales-access.service.js';
+import { getSalesScope, scopeSalesAssociations, workOrderWhere, type SalesScope } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getLastWorkActivity } from './work-order-activity.service.js';
 import { assertWorkItemsRemovable, ensureQuotationItemLinks } from './work-order-item-links.js';
@@ -1490,8 +1490,13 @@ export const assertWorkOrderAccess = async (
   transaction?: Transaction,
 ): Promise<void> => {
   const role = await getActorRole(userId, transaction);
-  if (role === 'vendedor' && !await WorkOrder.count({ where: { id, createdBy: userId }, transaction })) {
-    throw ApiError.notFound('Orden de trabajo no encontrada');
+  if (role === 'vendedor') {
+    const scope = await getSalesScope(userId);
+    const allowed = await WorkOrder.count({
+      where: { id, ...workOrderWhere(scope) } as WorkOrderWhere,
+      transaction,
+    });
+    if (!allowed) throw ApiError.notFound('Orden de trabajo no encontrada');
   }
   if (role !== 'mecanico') return;
 
@@ -1521,10 +1526,10 @@ export const assertWorkOrderManagementAccess = async (
 const getCompleteWorkOrder = async (
   id: number,
   transaction?: Transaction,
-  salesId?: number,
+  scope?: SalesScope,
 ): Promise<WorkOrder> => {
   const workOrder = await WorkOrder.findOne({
-    where: { id, ...(salesId !== undefined ? { createdBy: salesId } : {}) },
+    where: { id, ...workOrderWhere(scope) } as WorkOrderWhere,
     include: scopeSalesAssociations([
       clientInclude,
       vehicleInclude,
@@ -1539,7 +1544,7 @@ const getCompleteWorkOrder = async (
       eventsInclude,
       progressReportsInclude,
       requestsInclude,
-    ], salesId),
+    ], scope),
     transaction,
   });
 
@@ -1558,7 +1563,8 @@ export const listWorkOrders = async (
   const where: WorkOrderWhere = {};
 
   const actorRole = await getActorRole(userId);
-  if (actorRole === 'vendedor') where.createdBy = userId;
+  const scope = actorRole === 'vendedor' ? await getSalesScope(userId) : undefined;
+  if (scope) where[Op.and] = [workOrderWhere(scope)];
   if (actorRole === 'mecanico') {
     const assignedItemOrders = await WorkOrderItem.findAll({
       attributes: ['workOrderId'],
@@ -1620,7 +1626,7 @@ export const listWorkOrders = async (
       assignedMechanicInclude,
       quotationInclude,
       { ...itemsInclude, separate: true },
-    ], actorRole === 'vendedor' ? userId : undefined),
+    ], scope),
     limit: pagination.limit,
     offset: pagination.offset,
     order: [['createdAt', 'DESC'], ['id', 'DESC']],
@@ -1643,7 +1649,7 @@ export const getWorkOrderById = async (
   if (userId !== undefined) {
     await assertWorkOrderAccess(id, userId);
   }
-  const workOrder = await getCompleteWorkOrder(id, undefined, await getSalesUserId(userId));
+  const workOrder = await getCompleteWorkOrder(id, undefined, await getSalesScope(userId));
   const activities = await getLastWorkActivity([id]);
   return toWorkOrderPublic(workOrder, activities.get(id) ?? null);
 };

@@ -142,6 +142,7 @@ const NOTIFICATION_PRESENTATION: Record<
   fecha_entrega_vencida: { label: 'Entrega vencida', dot: 'bg-brand-coralInk', icon: 'bell' },
   cotizacion_creada: { label: 'Cotización creada', dot: 'bg-brand-primaryInk', icon: 'file' },
   cotizacion_convertida: { label: 'Cotización convertida', dot: 'bg-brand-mint', icon: 'file' },
+  acceso_compartido: { label: 'Acceso compartido', dot: 'bg-brand-primaryInk', icon: 'file' },
 };
 
 export const getNotificationPresentation = (

@@ -6,7 +6,7 @@ import { Op, Transaction } from 'sequelize';
 import { assertAccountingDateOpen } from './cash-closure.service.js';
 import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { notifyByType } from './notification.service.js';
-import { assertSalesQuotationAccess, getSalesUserId } from './sales-access.service.js';
+import { assertSalesQuotationAccess, getSalesScope, quotationWhere } from './sales-access.service.js';
 import { sequelize } from '../config/database.js';
 import { Client } from '../models/Client.js';
 import { Payment } from '../models/Payment.js';
@@ -304,11 +304,12 @@ export const listPayments = async (query: PaymentQueryInput, userId?: number): P
     where.fecha = range;
   }
 
+  const scope = await getSalesScope(userId);
   const { rows, count } = await Payment.findAndCountAll({
     where: searchWhere ? { [Op.and]: [where, searchWhere] } : where,
     include: [creatorInclude, reviewerInclude, {
       ...quotationInclude,
-      ...((await getSalesUserId(userId)) !== undefined ? { required: true, where: { asesorId: userId } } : {}),
+      ...(scope ? { required: true, where: quotationWhere(scope) } : {}),
     }],
     distinct: true,
     subQuery: false,

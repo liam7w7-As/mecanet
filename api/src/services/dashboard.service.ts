@@ -6,6 +6,7 @@ import {
 import { Op, col } from 'sequelize';
 
 import { hasPermission } from './permission.service.js';
+import { getSalesScope, quotationWhere, workOrderWhere } from './sales-access.service.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
 import { FleetDocument } from '../models/FleetDocument.js';
@@ -62,7 +63,8 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     include: [{ model: Role, as: 'role', attributes: ['nombre'] }],
   });
   const role: RoleName = user?.role?.nombre ?? 'mecanico';
-  const quotationScope = role === 'vendedor' ? { asesorId: userId } : {};
+  const salesScope = role === 'vendedor' ? await getSalesScope(userId) : undefined;
+  const quotationScope = quotationWhere(salesScope) ?? {};
   Object.assign(pendingQuotationWhere, quotationScope);
   const isMechanic = role === 'mecanico';
   const isAdministrator = role === 'desarrollador' || role === 'admin';
@@ -77,7 +79,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
   }) : [];
   const workOrderScope = isMechanic
     ? { [Op.or]: [{ assignedMechanicId: userId }, { id: { [Op.in]: assignedItems.map((item) => item.workOrderId) } }] }
-    : role === 'vendedor' ? { createdBy: userId } : {};
+    : workOrderWhere(salesScope);
 
   const fleetWarningLimit = toFleetDateOnly(
     addDays(now, FLEET_EXPIRY_WARNING_DAYS),
@@ -210,7 +212,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
       ? Quotation.findAndCountAll({
           where: {
             workOrderId: null,
-            ...(role === 'vendedor' ? { asesorId: userId } : {}),
+            ...quotationScope,
           },
           attributes: ['id', 'codigo', 'total', 'createdAt'],
           include: [

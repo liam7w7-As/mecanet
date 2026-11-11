@@ -1,7 +1,7 @@
 import { z } from 'zod';
 export declare const notificationSchema: z.ZodObject<{
     id: z.ZodNumber;
-    tipo: z.ZodEnum<["solicitud_creada", "solicitud_aprobada", "solicitud_rechazada", "repuesto_por_entregar", "pago_por_verificar", "pago_verificado", "pago_rechazado", "ot_estado_cambiado", "ot_entregada", "mecanico_asignado", "reingreso_creado", "fecha_entrega_vencida", "cotizacion_creada", "cotizacion_convertida"]>;
+    tipo: z.ZodEnum<["solicitud_creada", "solicitud_aprobada", "solicitud_rechazada", "repuesto_por_entregar", "pago_por_verificar", "pago_verificado", "pago_rechazado", "ot_estado_cambiado", "ot_entregada", "mecanico_asignado", "reingreso_creado", "fecha_entrega_vencida", "cotizacion_creada", "cotizacion_convertida", "acceso_compartido"]>;
     nivel: z.ZodEnum<["info", "warning", "critical"]>;
     titulo: z.ZodString;
     mensaje: z.ZodString;
@@ -22,7 +22,7 @@ export declare const notificationSchema: z.ZodObject<{
     }>>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    tipo: "reingreso_creado" | "solicitud_creada" | "solicitud_aprobada" | "solicitud_rechazada" | "repuesto_por_entregar" | "pago_por_verificar" | "pago_verificado" | "pago_rechazado" | "ot_estado_cambiado" | "ot_entregada" | "mecanico_asignado" | "fecha_entrega_vencida" | "cotizacion_creada" | "cotizacion_convertida";
+    tipo: "reingreso_creado" | "solicitud_creada" | "solicitud_aprobada" | "solicitud_rechazada" | "repuesto_por_entregar" | "pago_por_verificar" | "pago_verificado" | "pago_rechazado" | "ot_estado_cambiado" | "ot_entregada" | "mecanico_asignado" | "fecha_entrega_vencida" | "cotizacion_creada" | "cotizacion_convertida" | "acceso_compartido";
     id: number;
     href: string;
     createdAt: string;
@@ -38,7 +38,7 @@ export declare const notificationSchema: z.ZodObject<{
         id: number;
     } | null;
 }, {
-    tipo: "reingreso_creado" | "solicitud_creada" | "solicitud_aprobada" | "solicitud_rechazada" | "repuesto_por_entregar" | "pago_por_verificar" | "pago_verificado" | "pago_rechazado" | "ot_estado_cambiado" | "ot_entregada" | "mecanico_asignado" | "fecha_entrega_vencida" | "cotizacion_creada" | "cotizacion_convertida";
+    tipo: "reingreso_creado" | "solicitud_creada" | "solicitud_aprobada" | "solicitud_rechazada" | "repuesto_por_entregar" | "pago_por_verificar" | "pago_verificado" | "pago_rechazado" | "ot_estado_cambiado" | "ot_entregada" | "mecanico_asignado" | "fecha_entrega_vencida" | "cotizacion_creada" | "cotizacion_convertida" | "acceso_compartido";
     id: number;
     href: string;
     createdAt: string;

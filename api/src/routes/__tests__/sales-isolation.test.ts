@@ -11,6 +11,7 @@ import { Quotation } from '../../models/Quotation.js';
 import { QuotationItem } from '../../models/QuotationItem.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
+import { SalesAccessGrant } from '../../models/SalesAccessGrant.js';
 import { User } from '../../models/User.js';
 import { Vehicle } from '../../models/Vehicle.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
@@ -55,11 +56,17 @@ describe('Sales record isolation', () => {
   };
   const csrf = (index = 0): string =>
     cookies[index].find((cookie) => cookie.startsWith('csrf_token='))?.slice(11) ?? '';
+  const adminCsrf = (): string =>
+    adminCookies.find((cookie) => cookie.startsWith('csrf_token='))?.slice(11) ?? '';
   const get = (url: string, index = 0) => request(app).get(url).set('Cookie', cookies[index]);
   const patch = (url: string) =>
     request(app).patch(url).set('Cookie', cookies[0]).set('X-CSRF-Token', csrf());
   const post = (url: string) =>
     request(app).post(url).set('Cookie', cookies[0]).set('X-CSRF-Token', csrf());
+  const adminPost = (url: string) =>
+    request(app).post(url).set('Cookie', adminCookies).set('X-CSRF-Token', adminCsrf());
+  const adminDelete = (url: string) =>
+    request(app).delete(url).set('Cookie', adminCookies).set('X-CSRF-Token', adminCsrf());
 
   beforeAll(async () => {
     const role = await Role.findOne({ where: { nombre: 'vendedor' } });
@@ -338,5 +345,83 @@ describe('Sales record isolation', () => {
     } finally {
       await quotations[0].update({ asesorId: sellers[0].id });
     }
+  });
+
+  it('shares a work order and its linked quotation with another advisor and notifies her', async () => {
+    expect((await get(`/api/work-orders/${orders[0].id}`, 1)).status).toBe(404);
+
+    const shared = await adminPost(`/api/work-orders/${orders[0].id}/access`).send({
+      userId: sellers[1].id,
+      includeLinkedRecord: true,
+    });
+    expect(shared.status).toBe(201);
+    expect(shared.body.grants.map((grant: { userId: number }) => grant.userId)).toContain(
+      sellers[1].id,
+    );
+
+    const orderDetail = await get(`/api/work-orders/${orders[0].id}`, 1);
+    expect(orderDetail.status).toBe(200);
+    expect(orderDetail.body.workOrder.codigo).toBe(orders[0].codigo);
+    expect((await get(`/api/quotations/${quotations[0].id}`, 1)).status).toBe(200);
+
+    const list = await get(`/api/work-orders?search=${encodeURIComponent(orders[0].codigo)}`, 1);
+    expect(list.body.items.map((item: { id: number }) => item.id)).toContain(orders[0].id);
+
+    const managed = await request(app)
+      .patch(`/api/work-orders/${orders[0].id}`)
+      .set('Cookie', cookies[1])
+      .set('X-CSRF-Token', csrf(1))
+      .send({ descripcion: 'Gestionada con acceso compartido' });
+    expect(managed.status).toBe(200);
+    expect(managed.body.workOrder.descripcion).toBe('Gestionada con acceso compartido');
+
+    // Un vendedor no puede administrar accesos, ni siquiera sobre su propia OT.
+    expect(
+      (
+        await post(`/api/work-orders/${orders[0].id}/access`).send({
+          userId: sellers[1].id,
+        })
+      ).status,
+    ).toBe(403);
+
+    expect(
+      await Notification.count({
+        where: { userId: sellers[1].id, tipo: 'acceso_compartido' },
+      }),
+    ).toBe(2);
+  });
+
+  it('revokes a shared grant without touching the linked record', async () => {
+    const grant = await SalesAccessGrant.findOne({
+      where: { userId: sellers[1].id, scopeType: 'work_order', targetId: orders[0].id },
+    });
+    if (!grant) throw new Error('Falta la concesión de la OT');
+
+    expect(
+      (await adminDelete(`/api/work-orders/${orders[0].id}/access/${grant.id}`)).status,
+    ).toBe(204);
+    expect((await get(`/api/work-orders/${orders[0].id}`, 1)).status).toBe(404);
+    // La cotización vinculada conserva su propia concesión.
+    expect((await get(`/api/quotations/${quotations[0].id}`, 1)).status).toBe(200);
+  });
+
+  it('ignores expired grants even when they remain listed for administration', async () => {
+    const expired = await adminPost(`/api/quotations/${quotations[0].id}/access`).send({
+      userId: sellers[1].id,
+      includeLinkedRecord: false,
+      expiresAt: '2020-01-01',
+    });
+    expect(expired.status).toBe(201);
+    expect(expired.body.grants.find((grant: { userId: number }) => grant.userId === sellers[1].id))
+      .toMatchObject({ expired: true });
+
+    expect((await get(`/api/quotations/${quotations[0].id}`, 1)).status).toBe(404);
+    const adminList = await request(app)
+      .get(`/api/quotations/${quotations[0].id}/access`)
+      .set('Cookie', adminCookies);
+    expect(adminList.status).toBe(200);
+    expect(
+      adminList.body.grants.find((grant: { userId: number }) => grant.userId === sellers[1].id),
+    ).toMatchObject({ expired: true });
   });
 });

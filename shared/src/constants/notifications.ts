@@ -17,6 +17,8 @@ export const NOTIFICATION_TYPES = [
   // Cotizaciones
   'cotizacion_creada',
   'cotizacion_convertida',
+  // Accesos compartidos por administración
+  'acceso_compartido',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -51,4 +53,6 @@ export const NOTIFICATION_RECIPIENT_ROLES: Record<NotificationType, readonly str
   fecha_entrega_vencida: ['desarrollador', 'admin', 'jefe', 'mecanico', 'vendedor'],
   cotizacion_creada: ['desarrollador', 'admin', 'jefe'],
   cotizacion_convertida: ['desarrollador', 'admin', 'jefe'],
+  // Dirigido a la vendedora que recibe el acceso.
+  acceso_compartido: [],
 };

@@ -14,6 +14,8 @@ import { up as ensureWorkOrderLabor } from '../database/migrations/042-create-wo
 import { up as ensureQuotationWorkItemLinks } from '../database/migrations/043-link-quotation-work-items.js';
 import { up as ensureCustomerEmails } from '../database/migrations/044-create-customer-emails.js';
 import { up as ensureFleetRetirement } from '../database/migrations/045-fleet-retirement-and-private-owner.js';
+import { up as ensureSalesAccessGrants } from '../database/migrations/046-create-sales-access-grants.js';
+import { up as ensureNotificationAccessShared } from '../database/migrations/047-add-notification-access-shared.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -58,6 +60,7 @@ const TRANSIENT = [
   'cash_movements',
   'daily_cash_closures',
   'notifications',
+  'sales_access_grants',
   'refresh_tokens',
 ];
 
@@ -71,6 +74,8 @@ beforeAll(async () => {
   await ensureWorkOrderLabor(sequelize.getQueryInterface());
   await ensureQuotationWorkItemLinks(sequelize.getQueryInterface());
   await ensureCustomerEmails(sequelize.getQueryInterface());
+  await ensureSalesAccessGrants(sequelize.getQueryInterface());
+  await ensureNotificationAccessShared(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
   await ensureImportPermissions();

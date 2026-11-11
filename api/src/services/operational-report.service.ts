@@ -2,7 +2,7 @@ import { getWorkOrderStatusLabel } from '@unithor/shared';
 import ExcelJS from 'exceljs';
 import { Op } from 'sequelize';
 
-import { scopeSalesAssociations } from './sales-access.service.js';
+import { quotationWhere, salesScopeFromFilters, scopeSalesAssociations, workOrderWhere } from './sales-access.service.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
 import { Payment } from '../models/Payment.js';
@@ -34,11 +34,17 @@ import type {
 import type { Includeable, InferAttributes, WhereOptions } from 'sequelize';
 
 type QuotationWhere = WhereOptions<InferAttributes<Quotation>> & {
+  [Op.and]?: WhereOptions<InferAttributes<Quotation>>[];
   [Op.or]?: WhereOptions<InferAttributes<Quotation>>[];
 };
 
-export interface SalesReportScope { salesUserId?: number }
+export interface SalesReportScope {
+  salesUserId?: number;
+  grantedWorkOrderIds?: number[];
+  grantedQuotationIds?: number[];
+}
 type WorkOrderWhere = WhereOptions<InferAttributes<WorkOrder>> & {
+  [Op.and]?: WhereOptions<InferAttributes<WorkOrder>>[];
   [Op.or]?: WhereOptions<InferAttributes<WorkOrder>>[];
 };
 type CatalogWhere = WhereOptions<InferAttributes<CatalogItem>> & {
@@ -97,8 +103,20 @@ const quotationVehicleLabel = (quotation: Quotation): string => vehicleLabel(quo
 
 const workOrderVehicleLabel = (workOrder: WorkOrder): string => vehicleLabel(workOrder.vehicle);
 
+const applyQuotationVisibility = (where: QuotationWhere, filters: SalesReportScope): void => {
+  const scope = salesScopeFromFilters(filters);
+  if (!scope) return;
+  where[Op.and] = [...(where[Op.and] ?? []), quotationWhere(scope)];
+};
+
+const applyWorkOrderVisibility = (where: WorkOrderWhere, filters: SalesReportScope): void => {
+  const scope = salesScopeFromFilters(filters);
+  if (!scope) return;
+  where[Op.and] = [...(where[Op.and] ?? []), workOrderWhere(scope)];
+};
+
 const buildCommercialWhere = (
-  filters: CommercialReportFilters,
+  filters: CommercialReportFilters & SalesReportScope,
   includeCreatedRange = true,
 ): QuotationWhere => {
   const where: QuotationWhere = includeCreatedRange
@@ -123,6 +141,7 @@ const buildCommercialWhere = (
       { notas: { [Op.like]: like } },
     ];
   }
+  applyQuotationVisibility(where, filters);
   return where;
 };
 
@@ -131,7 +150,6 @@ const buildWorkshopWhere = (filters: WorkshopReportFilters & SalesReportScope): 
     fechaIngreso: { [Op.between]: [startOfDayUtc(filters.fechaDesde), endOfDayUtc(filters.fechaHasta)] },
   };
   if (filters.estado !== undefined) where.estado = filters.estado;
-  if (filters.salesUserId !== undefined) where.createdBy = filters.salesUserId;
   if (filters.mechanicId !== undefined) where.assignedMechanicId = filters.mechanicId;
   if (filters.clientId !== undefined) where.clientId = filters.clientId;
   if (filters.vehicleId !== undefined) where.vehicleId = filters.vehicleId;
@@ -144,6 +162,7 @@ const buildWorkshopWhere = (filters: WorkshopReportFilters & SalesReportScope): 
       { billingName: { [Op.like]: like } },
     ];
   }
+  applyWorkOrderVisibility(where, filters);
   return where;
 };
 
@@ -251,7 +270,7 @@ const workshopIncludes: Includeable[] = [
 const getCommercialQuotations = (filters: CommercialReportFilters & SalesReportScope): Promise<Quotation[]> =>
   Quotation.findAll({
     where: buildCommercialWhere(filters),
-    include: scopeSalesAssociations(commercialIncludes, filters.salesUserId),
+    include: scopeSalesAssociations(commercialIncludes, salesScopeFromFilters(filters)),
     order: [
       ['createdAt', 'ASC'],
       ['id', 'ASC'],
@@ -260,7 +279,7 @@ const getCommercialQuotations = (filters: CommercialReportFilters & SalesReportS
     ],
   });
 
-const getCommercialPayments = (filters: CommercialReportFilters): Promise<Payment[]> =>
+const getCommercialPayments = (filters: CommercialReportFilters & SalesReportScope): Promise<Payment[]> =>
   Payment.findAll({
     where: {
       fecha: { [Op.between]: [startOfDayUtc(filters.fechaDesde), endOfDayUtc(filters.fechaHasta)] },
@@ -288,7 +307,7 @@ const getCommercialPayments = (filters: CommercialReportFilters): Promise<Paymen
 const getWorkshopWorkOrders = (filters: WorkshopReportFilters & SalesReportScope): Promise<WorkOrder[]> =>
   WorkOrder.findAll({
     where: buildWorkshopWhere(filters),
-    include: scopeSalesAssociations(workshopIncludes, filters.salesUserId),
+    include: scopeSalesAssociations(workshopIncludes, salesScopeFromFilters(filters)),
     order: [
       ['fechaIngreso', 'ASC'],
       ['id', 'ASC'],
@@ -1207,7 +1226,7 @@ const getCatalogUsageData = async (filters: CatalogReportFilters & SalesReportSc
           attributes: ['id', 'codigo', 'createdAt'],
           where: {
             createdAt: { [Op.between]: [startOfDayUtc(filters.fechaDesde), endOfDayUtc(filters.fechaHasta)] },
-            ...(filters.salesUserId !== undefined ? { asesorId: filters.salesUserId } : {}),
+            ...quotationWhere(salesScopeFromFilters(filters)),
           },
           required: true,
         },
@@ -1229,7 +1248,7 @@ const getCatalogUsageData = async (filters: CatalogReportFilters & SalesReportSc
           attributes: ['id', 'codigo', 'fechaIngreso'],
           where: {
             fechaIngreso: { [Op.between]: [startOfDayUtc(filters.fechaDesde), endOfDayUtc(filters.fechaHasta)] },
-            ...(filters.salesUserId !== undefined ? { createdBy: filters.salesUserId } : {}),
+            ...workOrderWhere(salesScopeFromFilters(filters)),
           },
           required: true,
         },
@@ -1496,7 +1515,7 @@ const getFleetData = async (filters: FleetReportFilters & SalesReportScope) => {
       order: [['patente', 'ASC']],
     }),
     WorkOrder.findAll({
-      where: { fechaIngreso: activityRange, ...(filters.salesUserId !== undefined ? { createdBy: filters.salesUserId } : {}) },
+      where: { fechaIngreso: activityRange, ...workOrderWhere(salesScopeFromFilters(filters)) },
       include: [
         { model: Client, as: 'client', attributes: ['id', 'rut', 'nombre'], required: false },
         { model: Vehicle, as: 'vehicle', attributes: ['id', 'patente', 'marca', 'modelo'], required: false },
@@ -1504,7 +1523,7 @@ const getFleetData = async (filters: FleetReportFilters & SalesReportScope) => {
       order: [['fechaIngreso', 'ASC']],
     }),
     Quotation.findAll({
-      where: { createdAt: activityRange, ...(filters.salesUserId !== undefined ? { asesorId: filters.salesUserId } : {}) },
+      where: { createdAt: activityRange, ...quotationWhere(salesScopeFromFilters(filters)) },
       include: [
         { model: Client, as: 'client', attributes: ['id', 'rut', 'nombre'], required: false },
         { model: Vehicle, as: 'vehicle', attributes: ['id', 'patente', 'marca', 'modelo'], required: false },

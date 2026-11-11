@@ -1,0 +1,264 @@
+/* Compras/Proveedores — adaptation of the Nov 2026 UNITHOR design system.
+   The supplied prototype has no dedicated Compras screen. Existing purchasing
+   fields and workflows are retained; selectors never reach documents/PDFs. */
+.workspace-purchases:is(.purchases-board, .purchases-create, .purchases-detail) {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  color: #294d7b;
+}
+.workspace-purchases:is(.purchases-board, .purchases-create, .purchases-detail) > :not([hidden]) ~ :not([hidden]) { margin-block: 0; }
+.workspace-purchases > header.purchases-heading,
+.workspace-purchases > header.purchases-create-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0;
+  min-height: 42px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.workspace-purchases > header.purchases-heading h1,
+.workspace-purchases > header.purchases-create-heading h1 { margin: 0; color: #303941; font-size: 25px; font-weight: 600; letter-spacing: -.6px; line-height: 1.4; }
+.workspace-purchases > header.purchases-heading p,
+.workspace-purchases > header.purchases-create-heading p { margin-block: 4px; color: #7185a3; font-size: 12px; line-height: 1.7; }
+.workspace-purchases .purchases-heading-actions { align-items: center; }
+.workspace-purchases :is(.primary-button, .secondary-button) {
+  min-height: 42px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: none;
+}
+.workspace-purchases .primary-button { background: #1d396a; color: #fff; }
+.workspace-purchases .primary-button:hover:not(:disabled) { background: #003570; }
+.workspace-purchases .secondary-button { border-color: #dfe7f2; background: #fff; color: #526f95; }
+.workspace-purchases :is(button, a, input, select, textarea):focus-visible { outline: 2px solid #91aed6; outline-offset: 3px; }
+.workspace-purchases :is(button, a):not(:disabled) { transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
+.workspace-purchases button:disabled { cursor: not-allowed; }
+.workspace-purchases .purchases-metrics > article {
+  min-width: 0;
+  padding: 18px 20px;
+  border: 0;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: none;
+}
+.workspace-purchases .purchases-metrics > article > p:first-child,
+.workspace-purchases .purchases-metrics > article > div > p { color: #7185a3; font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.workspace-purchases .purchases-metrics > article > p.text-2xl { color: #294d7b; font-size: clamp(20px, 2.1vw, 27px); font-weight: 600; letter-spacing: -.7px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.workspace-purchases .purchases-metrics > article > p:last-child { font-size: 11px; line-height: 1.6; }
+.workspace-purchases .purchases-register { min-width: 0; border: 0; border-radius: 22px; box-shadow: none; }
+.workspace-purchases .purchases-toolbar { padding: 18px 20px; border-color: #edf1f7; }
+.workspace-purchases .purchases-filter-grid { grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(120px, 1fr)); gap: 10px; }
+.workspace-purchases .purchases-filter-grid > label { min-width: 0; }
+.workspace-purchases .purchases-filter-caption { display: block; margin-bottom: 6px; color: #8296b3; font-size: 10px; font-weight: 500; }
+.workspace-purchases .purchases-filter-grid > label:nth-last-child(-n+2) { grid-column: span 2; }
+.workspace-purchases .purchases-filter-grid :is(input, select) { height: 42px; min-width: 0; border: 1px solid #e4eaf3; border-radius: 12px; background: #f8faff; color: #526f95; font-size: 12px; }
+.workspace-purchases .purchases-search > svg { top: 13px; }
+.workspace-purchases .purchases-search input { padding-left: 37px; }
+.workspace-purchases .purchases-table-frame { overflow: hidden; }
+.workspace-purchases .purchases-table { display: block; width: 100%; min-width: 0; }
+.workspace-purchases .purchases-table > thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.workspace-purchases .purchases-table > tbody { display: block; width: 100%; }
+.workspace-purchases .purchases-table tbody > tr:has(> td[colspan]) { display: block; width: 100%; }
+.workspace-purchases .purchases-table td[colspan] { display: block; width: 100%; text-align: center; }
+.workspace-purchases .purchases-table .purchases-record {
+  display: grid;
+  grid-template-columns: minmax(105px, .8fr) minmax(140px, 1.2fr) minmax(120px, 1fr) minmax(115px, .9fr) 95px;
+  grid-template-areas: 'code supplier association total actions' 'date document document payment state';
+  align-items: center;
+  gap: 12px 16px;
+  padding: 20px;
+  border: 0;
+  border-bottom: 1px solid #edf1f7;
+}
+.workspace-purchases .purchases-table .purchases-record:hover,
+.workspace-purchases .purchases-table .purchases-record:focus-within { background: #f8faff; }
+.workspace-purchases .purchases-table .purchases-record > td {
+  display: block;
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.workspace-purchases .purchases-table .purchases-record > td::before { display: none; }
+.workspace-purchases .purchases-table td[data-label=Compra] { grid-area: code; }
+.workspace-purchases .purchases-table td[data-label=Registro] { grid-area: date; color: #8b9db8; font-size: 11px; }
+.workspace-purchases .purchases-table td[data-label=Proveedor] { grid-area: supplier; }
+.workspace-purchases .purchases-table td[data-label=Comprobante] { grid-area: document; }
+.workspace-purchases .purchases-table td[data-label=Asociación] { grid-area: association; }
+.workspace-purchases .purchases-table td[data-label=Pago] { grid-area: payment; }
+.workspace-purchases .purchases-table td[data-label=Total] { grid-area: total; text-align: left; }
+.workspace-purchases .purchases-table td[data-label=Estado] { grid-area: state; justify-self: end; }
+.workspace-purchases .purchases-table td[data-label=Acciones] { grid-area: actions; }
+.workspace-purchases .purchases-table td[data-label=Compra] > a { color: #294d7b; font-family: inherit; font-size: 13px; font-weight: 600; }
+.workspace-purchases .purchases-table td[data-label=Proveedor] > span:first-child { color: #31557f; font-weight: 500; white-space: normal; overflow: visible; }
+.workspace-purchases .purchases-table td[data-label=Comprobante] > span { display: inline; color: #7185a3; font-size: 11px; font-weight: 400; }
+.workspace-purchases .purchases-table td[data-label=Comprobante] > span + span::before { content: ' · '; }
+.workspace-purchases .purchases-table td[data-label=Total] > span:first-child { color: #294d7b; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.workspace-purchases .purchases-table td[data-label=Acciones] a { min-height: 38px; border: 0; border-radius: 10px; background: #f0f4fa; color: #6684ad; font-size: 11px; }
+.workspace-purchases .purchases-table td[data-label=Acciones] a:hover { background: #e3ecf8; color: #294d7b; }
+.workspace-purchases .purchases-table td[data-label=Estado] > span { gap: 4px; padding: 5px 7px; border-radius: 8px; font-size: 10px; font-weight: 500; }
+.workspace-purchases .purchases-table td[data-label=Pago] > span { font-size: 11px; font-weight: 500; }
+.workspace-purchases .purchases-table td[data-label=Pago] > span + span { font-size: 9px; text-transform: none; }
+
+/* Creation, item/vehicle pickers and the complete record share the same surfaces. */
+.workspace-purchases.purchases-create :is(section.rounded-xl, aside > div.rounded-xl),
+.workspace-purchases.purchases-detail section.rounded-xl { min-width: 0; border-color: #e9eef6; border-radius: 20px; box-shadow: none; }
+.workspace-purchases.purchases-create :is(input:not([type=checkbox]):not([type=file]), select, textarea),
+.purchases-form-dialog :is(input:not([type=checkbox]):not([type=file]), select, textarea) {
+  min-width: 0;
+  border: 1px solid #dfe7f2;
+  border-radius: 12px;
+  background: #fff;
+  color: #294d7b;
+  font-size: 13px;
+  font-weight: 400;
+}
+.workspace-purchases.purchases-create :is(input, select) { min-height: 42px; }
+.workspace-purchases.purchases-create :is(input, textarea)::placeholder,
+.purchases-form-dialog :is(input, textarea)::placeholder { color: #95a8c1; }
+.workspace-purchases.purchases-create :is(input, select, textarea):focus,
+.purchases-form-dialog :is(input, select, textarea):focus { border-color: #9db7da; outline: 0; box-shadow: 0 0 0 3px #1d396a12; }
+.workspace-purchases.purchases-create [aria-invalid=true],
+.purchases-form-dialog [aria-invalid=true] { border-color: #bb5564; }
+.workspace-purchases.purchases-create :is(label, legend) { color: #526f95; font-size: 12px; font-weight: 500; }
+.workspace-purchases.purchases-create h2,
+.workspace-purchases.purchases-detail h2 { color: #294d7b; font-size: 14px; font-weight: 600; }
+.workspace-purchases .purchases-item-row { padding: 16px; border-color: #e4ebf5; border-radius: 16px; background: #f8faff; }
+.workspace-purchases .purchases-item-row > div:first-child > div:first-child > span { border-radius: 9px; background: #e7eff9; color: #526f95; }
+.workspace-purchases .purchases-items-editor button { min-height: 36px; border-radius: 10px; font-weight: 500; }
+.workspace-purchases .purchases-vehicle-picker > div:first-of-type { padding: 4px; gap: 4px; border-radius: 14px; background: #eef3fa; }
+.workspace-purchases .purchases-vehicle-picker button[aria-pressed] { padding-inline: 7px; border: 0; border-radius: 10px; background: transparent; color: #6983a6; font-size: 12px; font-weight: 500; }
+.workspace-purchases .purchases-vehicle-picker button[aria-pressed=true] { background: #1d396a; color: #fff; }
+.workspace-purchases .purchases-receipt-upload { border-color: #c6d5e9; background: #f6f9fd; border-radius: 16px; }
+.workspace-purchases .purchases-receipt-upload:focus-within { outline: 2px solid #91aed6; outline-offset: 3px; }
+.workspace-purchases :is(.purchases-supplier-picker, .purchases-vehicle-picker) .absolute.z-30,
+.workspace-purchases .purchases-catalog-picker { border-color: #dfe7f2; border-radius: 14px; box-shadow: 0 14px 32px #1d396a1c; }
+.workspace-purchases :is(.purchases-supplier-picker, .purchases-vehicle-picker) .absolute.z-30 button { min-height: 44px; font-weight: 400; }
+.workspace-purchases :is(.purchases-supplier-picker, .purchases-vehicle-picker) .absolute.z-30 button:hover { background: #edf3fb; }
+.workspace-purchases > header.purchases-detail-heading { padding: 22px 24px; border: 0; border-radius: 22px; background: #1d396a; }
+.workspace-purchases > header.purchases-detail-heading h1 { color: #fff; font-family: inherit; font-size: 25px; font-weight: 600; }
+.workspace-purchases > header.purchases-detail-heading p { color: #c3d3ed; font-size: 12px; }
+.workspace-purchases .purchases-detail-heading > div:first-child > a { border-color: #ffffff26; background: #ffffff12; color: #e1eafa; }
+.workspace-purchases .purchases-detail-actions .secondary-button { border-color: #ffffff35; background: #ffffff12; color: #edf3ff; }
+.workspace-purchases .purchases-detail-actions .primary-button { background: #fff; color: #1d396a; }
+.workspace-purchases .purchases-detail-actions .primary-button:hover { background: #eaf1fc; }
+.workspace-purchases .purchases-detail-actions .danger-button { min-height: 42px; border: 1px solid #ffb5bb66; border-radius: 12px; background: #ffffff0d; color: #ffced2; font-size: 12px; font-weight: 500; }
+.workspace-purchases.purchases-detail .workspace-table { border-spacing: 0; }
+.workspace-purchases.purchases-detail .workspace-table th { color: #8296b3; font-size: 10px; font-weight: 500; text-transform: none; }
+.workspace-purchases.purchases-detail .workspace-table td { font-size: 12px; }
+
+/* Specific forms: no global FormDialog changes; fixed header/footer, one scroll owner. */
+.reference-dialog.purchases-form-dialog { width: min(720px, 100%); max-width: 720px; border-radius: 24px; }
+.reference-dialog.purchases-form-dialog:is(.purchases-payment-dialog, .purchases-void-dialog) { width: min(640px, 100%); max-width: 640px; }
+.purchases-form-dialog .ui-modal-header { padding: 22px 24px 18px; border-bottom: 1px solid #edf1f7; background: #fff; }
+.purchases-form-dialog .ui-modal-header h2 { color: #1d396a; font-size: 18px; font-weight: 600; }
+.purchases-form-dialog .reception-edit-body { padding: 20px 24px; }
+.purchases-form-dialog label { color: #526f95; font-size: 12px; font-weight: 500; }
+.purchases-form-dialog :is(input, select) { min-height: 44px; }
+.purchases-form-dialog .reception-edit-footer { gap: 10px; padding: 16px 24px; background: #fff; }
+.purchases-form-dialog .reception-edit-footer > span { max-width: 300px; color: #8296b3; font-size: 11px; line-height: 1.6; }
+.purchases-form-dialog .reception-edit-footer > div { gap: 8px; }
+.purchases-form-dialog .reception-primary-button { min-height: 42px; border-radius: 12px; background: #1d396a; font-size: 12px; font-weight: 500; }
+.purchases-form-dialog .reception-secondary-button { min-height: 42px; border-color: #dfe7f2; border-radius: 12px; background: #fff; color: #526f95; font-size: 12px; font-weight: 500; }
+.purchases-void-dialog .reception-primary-button { background: #b64b59; }
+.purchases-void-dialog .reception-primary-button:hover:not(:disabled) { background: #963a47; }
+.purchases-form-dialog .reception-discard { flex-basis: 100%; }
+.purchases-suppliers-overlay { overflow: hidden; padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); }
+.reference-dialog.purchases-suppliers-dialog { display: flex; flex-direction: column; width: min(960px, 100%); max-width: 960px; min-height: 0; max-height: calc(100dvh - 40px); overflow: hidden; border: 0; border-radius: 24px; color: #294d7b; }
+.purchases-suppliers-dialog > :not(.purchases-suppliers-table-frame) { flex-shrink: 0; }
+.purchases-suppliers-dialog .purchases-suppliers-table-frame { flex: 1 1 auto; min-height: 0; max-height: none; overflow: auto; overscroll-behavior: contain; }
+.purchases-suppliers-dialog .purchases-suppliers-toolbar { padding: 16px 22px; border-color: #edf1f7; background: #f7f9fd; }
+.purchases-suppliers-dialog input:not([type=checkbox]) { height: 44px; border-color: #dfe7f2; border-radius: 12px; background: #fff; color: #294d7b; font-size: 12px; }
+.purchases-suppliers-dialog .purchases-suppliers-toolbar label { color: #7185a3; font-size: 12px; font-weight: 400; }
+.purchases-suppliers-dialog table { min-width: 0; }
+.purchases-suppliers-dialog th { padding: 12px 18px; color: #8296b3; font-size: 10px; font-weight: 500; text-transform: none; }
+.purchases-suppliers-dialog td { padding: 16px 18px; color: #526f95; font-size: 12px; overflow-wrap: anywhere; }
+.purchases-suppliers-dialog td:first-child > span:first-child { font-weight: 500; }
+.purchases-suppliers-dialog tr:hover td { background: #f8faff; }
+.purchases-suppliers-dialog td button { min-height: 40px; border: 0; border-radius: 10px; background: #f0f4fa; color: #6684ad; font-size: 11px; font-weight: 500; }
+.purchases-suppliers-dialog td button:hover { background: #e3ecf8; color: #294d7b; }
+.purchases-suppliers-dialog :is(button, input):focus-visible { outline: 2px solid #91aed6; outline-offset: 3px; }
+
+@media (max-width: 1100px) {
+  .workspace-purchases .purchases-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .workspace-purchases .purchases-filter-grid > label:nth-last-child(-n+2) { grid-column: auto; }
+  .workspace-purchases .purchases-table .purchases-record { grid-template-columns: minmax(80px, .7fr) minmax(120px, 1.2fr) minmax(90px, .8fr) minmax(90px, .8fr) 85px; gap: 12px; padding: 16px; }
+  .workspace-purchases .purchases-heading-actions { margin-left: 0; }
+  .workspace-purchases > header.purchases-heading { flex-wrap: wrap; }
+}
+@media (max-width: 700px) {
+  .workspace-purchases:is(.purchases-board, .purchases-create, .purchases-detail) { gap: 14px; }
+  .workspace-purchases > header.purchases-heading h1,
+  .workspace-purchases > header.purchases-create-heading h1 { font-size: 23px; }
+  .workspace-purchases .purchases-heading-actions { width: 100%; gap: 7px; }
+  .workspace-purchases .purchases-heading-actions > .primary-button { flex: 1 1 130px; }
+  .workspace-purchases .purchases-metrics > article { padding: 16px; }
+  .workspace-purchases .purchases-metrics > article > p.text-2xl { font-size: 22px; }
+  .workspace-purchases .purchases-toolbar { padding: 14px; }
+  .workspace-purchases .purchases-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-purchases .purchases-filter-grid > .purchases-search,
+  .workspace-purchases .purchases-filter-grid > label:nth-child(4) { grid-column: 1 / -1; }
+  .workspace-purchases .purchases-table .purchases-record {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'code actions' 'supplier supplier' 'association date' 'document document' 'payment total' 'state state';
+    gap: 12px 14px;
+    padding: 18px;
+  }
+  .workspace-purchases .purchases-table .purchases-record > td { display: block; text-align: left; }
+  .workspace-purchases .purchases-table td[data-label=Estado] { justify-self: start; }
+  .workspace-purchases .purchases-table td[data-label=Total] { text-align: right; }
+  .workspace-purchases .purchases-table td[data-label=Compra] > a { font-size: 14px; }
+  .workspace-purchases .purchases-table td[data-label=Acciones] a { min-height: 42px; }
+  .workspace-purchases.purchases-create :is(input:not([type=checkbox]):not([type=file]), select, textarea),
+  .workspace-purchases .purchases-filter-grid :is(input, select),
+  .purchases-form-dialog :is(input:not([type=checkbox]):not([type=file]), select, textarea),
+  .purchases-suppliers-dialog input:not([type=checkbox]) { font-size: 16px; }
+  .workspace-purchases > header.purchases-detail-heading { padding: 18px; }
+  .workspace-purchases > header.purchases-detail-heading h1 { font-size: 22px; }
+  .workspace-purchases .purchases-detail-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-purchases .purchases-detail-actions > :is(a, button) { justify-content: center; padding-inline: 10px; font-size: 11px; }
+  .purchases-form-dialog .reception-edit-body { padding: 18px 16px; }
+  .purchases-form-dialog .reception-edit-footer { padding: 14px 16px max(14px, env(safe-area-inset-bottom)); }
+  .purchases-suppliers-overlay { padding: 10px; }
+  .reference-dialog.purchases-suppliers-dialog { max-height: calc(100dvh - 24px); border-radius: 20px; }
+  .purchases-suppliers-dialog .purchases-suppliers-toolbar { padding: 14px 16px; }
+  .purchases-suppliers-dialog table,
+  .purchases-suppliers-dialog tbody { display: block; width: 100%; }
+  .purchases-suppliers-dialog thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .purchases-suppliers-dialog tbody > tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; padding: 16px; border-color: #edf1f7; }
+  .purchases-suppliers-dialog td { display: block; padding: 0; white-space: normal; }
+  .purchases-suppliers-dialog td[data-label=Proveedor],
+  .purchases-suppliers-dialog td[data-label=Contacto] { grid-column: 1 / -1; }
+  .purchases-suppliers-dialog td[data-label=Acciones] { grid-column: 1 / -1; justify-self: end; }
+}
+
+/* The sidebar also reduces the available content width on smaller tablets. */
+@container workspace (max-width: 720px) {
+  .workspace-purchases .purchases-table .purchases-record {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'code actions' 'supplier supplier' 'association date' 'document document' 'payment total' 'state state';
+    gap: 12px 14px;
+    padding: 18px;
+  }
+  .workspace-purchases .purchases-table .purchases-record > td { display: block; text-align: left; }
+  .workspace-purchases .purchases-table td[data-label=Estado] { justify-self: start; }
+  .workspace-purchases .purchases-table td[data-label=Total] { text-align: right; }
+  .workspace-purchases .purchases-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-purchases .purchases-filter-grid > .purchases-search,
+  .workspace-purchases .purchases-filter-grid > label:nth-child(4) { grid-column: 1 / -1; }
+}

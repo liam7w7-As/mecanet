@@ -148,7 +148,7 @@ export const FleetVehicleFormModal = ({
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="workspace-form-dialog workspace-dialog reference-dialog reference-form-dialog relative max-h-full w-full max-w-[760px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="workspace-form-dialog workspace-dialog reference-dialog reference-form-dialog fleet-vehicle-form-dialog relative max-h-full w-full overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog"
         tabIndex={-1}
         ref={setPanelNode}
@@ -161,14 +161,14 @@ export const FleetVehicleFormModal = ({
           description="Vehículo de uso interno de la empresa"
           onClose={close}
           closeDisabled={activeMutation.isPending}
-          variant="brand"
           badge={<Car aria-hidden="true" />}
         />
 
         <form className="workspace-form reference-form" noValidate onSubmit={handleSubmit}>
           <div className="workspace-form-body reference-form-body">
             <fieldset disabled={activeMutation.isPending || !canSave} className="min-w-0 space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="vehicle-form-section-heading"><h3>Identificación y operación</h3><span>Flota de uso interno</span></div>
+          <div className="vehicle-fleet-form-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className="text-sm font-medium text-brand-ink">
               Patente
               <input
@@ -213,7 +213,7 @@ export const FleetVehicleFormModal = ({
               </select>
             </label>
             {form.estadoOperativo === 'dado_de_baja' && (
-              <div className="space-y-3 rounded-lg border border-brand-line bg-brand-pale/40 p-4 sm:col-span-2 lg:col-span-3">
+              <div className="vehicle-fleet-baja vehicle-form-field-wide space-y-3 rounded-lg border border-brand-line bg-brand-pale/40 p-4 sm:col-span-2 lg:col-span-3">
                 <p id="fleet-vehicle-baja-help" className="text-sm leading-6 text-brand-muted">
                   Al guardar, el vehículo quedará dado de baja. Su ficha, documentos y versiones
                   se conservarán. La fecha se registra automáticamente al darlo de baja.
@@ -311,7 +311,7 @@ export const FleetVehicleFormModal = ({
                 <option value="gas">Gas</option>
               </select>
             </label>
-            <label className="text-sm font-medium text-brand-ink sm:col-span-2">
+            <label className="vehicle-form-field-vin text-sm font-medium text-brand-ink sm:col-span-2">
               VIN / Chasis
               <input
                 className={`${inputClassName} uppercase`}
@@ -352,7 +352,7 @@ export const FleetVehicleFormModal = ({
                 placeholder="Casa matriz"
               />
             </label>
-            <label className="text-sm font-medium text-brand-ink sm:col-span-2 lg:col-span-3">
+            <label className="vehicle-form-field-wide vehicle-fleet-responsible text-sm font-medium text-brand-ink sm:col-span-2 lg:col-span-3">
               <span>Responsable / encargado del vehículo</span>
               <input
                 className={inputClassName}
@@ -373,7 +373,7 @@ export const FleetVehicleFormModal = ({
               )}
             </label>
             {canEditOwner && (
-              <label className="text-sm font-medium text-brand-ink sm:col-span-2 lg:col-span-3">
+              <label className="vehicle-form-field-wide vehicle-fleet-private text-sm font-medium text-brand-ink sm:col-span-2 lg:col-span-3">
                 <span>Propietario (privado)</span>
                 <input
                   className={inputClassName}

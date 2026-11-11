@@ -105,12 +105,12 @@ export const SettingsPage = () => {
     <button type="button" onClick={() => void settingsQuery.refetch()}>Reintentar</button>
   </div>;
 
-  return <div className="workspace-page workspace-settings administration-page">
+  return <div className="workspace-page workspace-settings administration-page settings-reference-page">
     <header className="administration-heading"><h1>Configuración</h1><p>Identidad y documentos de la empresa</p></header>
     <section className="administration-settings-panel" aria-labelledby="settings-company-title">
       <header className="administration-panel-heading"><Building2 aria-hidden="true" /><div><h2 id="settings-company-title">Datos de la empresa</h2>
         <p>Esta información aparece en las órdenes de trabajo, cotizaciones y documentos del taller.</p></div></header>
-      <form onSubmit={submit} noValidate aria-busy={updateMutation.isPending}>
+      <form className="settings-company-form" onSubmit={submit} noValidate aria-busy={updateMutation.isPending}>
         {updateMutation.error && <div className="administration-alert" role="alert"><AlertCircle aria-hidden="true" />{getApiErrorMessage(updateMutation.error)}</div>}
         <fieldset disabled={busy} className="administration-settings-fields">
           <div className="administration-form-grid">
@@ -164,7 +164,7 @@ export const SettingsPage = () => {
     </section>
     {confirmRestore && <FormDialog id="restore-logo-title" title="Restaurar logo original" code="Identidad visual" context="Logo de la empresa"
       submitLabel="Restaurar logo" dirty={false} pending={deleteMutation.isPending} headerVariant="plain"
-      className="administration-form administration-confirm" statusText="Confirmación de identidad visual"
+      className="administration-form administration-confirm settings-reference-dialog" statusText="Confirmación de identidad visual"
       onClose={() => setConfirmRestore(false)} onSubmit={(event) => { event.preventDefault(); removeLogo(); }}>
       <p>Se volverá a utilizar el logo original de UNITHOR en el sistema y en los documentos.</p>
       {deleteMutation.error && <p role="alert" className="administration-alert">{getApiErrorMessage(deleteMutation.error)}</p>}

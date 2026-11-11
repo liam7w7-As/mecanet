@@ -26,6 +26,7 @@ import QuickVehicleSearch from '../common/QuickVehicleSearch';
 import VehicleFormModal from '../vehicles/VehicleFormModal';
 
 import type { Vehicle } from '../../types/entities';
+import type { ReactNode } from 'react';
 
 const formatKilometres = (value: number | null): string =>
   value === null ? '—' : `${new Intl.NumberFormat('es-CL').format(value)} km`;
@@ -50,7 +51,7 @@ const VehicleSkeleton = () => (
 );
 
 /** Parque de clientes: búsqueda de recepción, ficha y vínculos de taller/comercial. */
-export const WorkshopVehiclesTab = () => {
+export const WorkshopVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('search') ?? '');
   const [page, setPage] = useState(1);
@@ -119,10 +120,11 @@ export const WorkshopVehiclesTab = () => {
   };
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="vehicle-workshop-content min-w-0 space-y-5">
       <div className="vehicle-toolbar ">
+      {navigation}
       <div className="vehicle-toolbar-heading">
-        <div>
+        <div className="vehicle-reception-search">
           <h2 className="sr-only">Vehículos de taller</h2>
           <p className="sr-only">
             Parque de clientes, recepción, órdenes de trabajo y cotizaciones.
@@ -141,15 +143,6 @@ export const WorkshopVehiclesTab = () => {
                 onClick={() => setImportOpen(true)}
               >
                 <Upload className="h-4 w-4" aria-hidden="true" /> Importar
-              </button>
-            )}
-            {canCreate && (
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => setFormVehicle(null)}
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" /> Nuevo vehículo
               </button>
             )}
           </div>
@@ -178,12 +171,13 @@ export const WorkshopVehiclesTab = () => {
               className="h-10 w-full rounded-lg border border-brand-line bg-white pl-9 pr-3 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
+              aria-label="Filtrar vehículos de taller"
               placeholder="Patente, marca, modelo o VIN"
             />
           </span>
         </label>
       </section>
-
+      {canCreate && <button type="button" className="primary-button vehicle-toolbar-create" onClick={() => setFormVehicle(null)}><Plus className="h-4 w-4" aria-hidden="true" />Nuevo vehículo</button>}
       </div>
 
       <section aria-label="Listado de vehículos">
@@ -218,6 +212,12 @@ export const WorkshopVehiclesTab = () => {
                   reference={vehicle.vinChasis ? 'VIN: ' + vehicle.vinChasis : undefined}
                   owner={vehicle.client?.nombre ?? 'Sin propietario asignado'} ownerLabel="Propietario"
                   facts={<>{formatKilometres(vehicle.kilometraje)} · {vehicle.combustible ?? 'Sin combustible registrado'}</>}
+                  detailFacts={[
+                    { label: 'VIN / chasis', value: vehicle.vinChasis ?? 'Sin registrar' },
+                    { label: 'Kilometraje', value: formatKilometres(vehicle.kilometraje) },
+                    { label: 'Combustible', value: vehicle.combustible ?? 'Sin registrar' },
+                    { label: 'RUT del propietario', value: vehicle.client?.rut ?? 'Sin identificación' },
+                  ]}
                   status={<span className={missingCount > 0 ? 'text-amber-700' : 'text-brand-mintInk'}>{missingCount > 0 ? missingCount + ' datos pendientes' : 'Ficha completa'}</span>}
                   onOpen={() => openVehicle(vehicle.id)}
                   onEdit={canEdit ? () => setFormVehicle(vehicle) : undefined}
@@ -295,7 +295,7 @@ export const WorkshopVehiclesTab = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="workspace-dialog relative w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl"
+              className="workspace-dialog vehicle-delete-dialog relative w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl"
               role="dialog"
               aria-modal="true"
               aria-labelledby="delete-vehicle-title"

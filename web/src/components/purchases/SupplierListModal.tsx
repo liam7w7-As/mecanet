@@ -35,7 +35,7 @@ export const SupplierListModal = ({ onClose }: SupplierListModalProps) => {
   const suppliers = query.data?.items ?? [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
+    <div className="purchases-suppliers-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
         className="fixed inset-0 bg-brand-scrim/60"
@@ -44,7 +44,7 @@ export const SupplierListModal = ({ onClose }: SupplierListModalProps) => {
       />
       <section
         ref={panelRef}
-        className="relative w-full max-w-4xl rounded-xl bg-white shadow-2xl"
+        className="purchases-suppliers-dialog reference-dialog relative w-full max-w-4xl rounded-xl bg-white shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="suppliers-modal-title"
@@ -52,12 +52,13 @@ export const SupplierListModal = ({ onClose }: SupplierListModalProps) => {
         <ModalHeader
           id="suppliers-modal-title"
           title="Proveedores"
+          variant="brand"
           description="Las compras creadas con un nombre nuevo dejan al proveedor con datos incompletos hasta que administración lo complete."
           onClose={onClose}
           badge={<Truck className="h-6 w-6" aria-hidden="true" />}
         />
 
-        <div className="flex flex-col gap-3 border-y border-brand-line bg-brand-pale/40 px-7 py-4 sm:flex-row sm:items-center">
+        <div className="purchases-suppliers-toolbar flex flex-col gap-3 border-y border-brand-line bg-brand-pale/40 px-7 py-4 sm:flex-row sm:items-center">
           <label className="relative min-w-0 flex-1">
             <span className="sr-only">Buscar proveedor</span>
             <Search
@@ -90,7 +91,7 @@ export const SupplierListModal = ({ onClose }: SupplierListModalProps) => {
 
         <ListExportButtons target="suppliers" filters={queryParams} disabled={query.isPending || query.isError}
           className="flex flex-wrap justify-end gap-2 px-7 py-3" />
-        <div className="max-h-[58vh] overflow-y-auto">
+        <div className="purchases-suppliers-table-frame max-h-[58vh] overflow-y-auto">
           {query.isPending ? (
             <p className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-brand-muted">
               <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -102,20 +103,20 @@ export const SupplierListModal = ({ onClose }: SupplierListModalProps) => {
               <p className="mt-2">No hay proveedores que coincidan con el filtro.</p>
             </div>
           ) : (
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="bg-brand-line/40 text-xs uppercase text-brand-muted">
-                <tr>
-                  <th className="px-6 py-3 font-semibold">Proveedor</th>
-                  <th className="px-4 py-3 font-semibold">RUT</th>
-                  <th className="px-4 py-3 font-semibold">Contacto</th>
-                  <th className="px-4 py-3 font-semibold">Estado</th>
-                  {canEdit && <th className="px-6 py-3 text-right font-semibold">Acciones</th>}
+            <table role="table" className="w-full min-w-[720px] text-left text-sm">
+              <thead role="rowgroup" className="bg-brand-line/40 text-xs uppercase text-brand-muted">
+                <tr role="row">
+                  <th role="columnheader" className="px-6 py-3 font-semibold">Proveedor</th>
+                  <th role="columnheader" className="px-4 py-3 font-semibold">RUT</th>
+                  <th role="columnheader" className="px-4 py-3 font-semibold">Contacto</th>
+                  <th role="columnheader" className="px-4 py-3 font-semibold">Estado</th>
+                  {canEdit && <th role="columnheader" className="px-6 py-3 text-right font-semibold">Acciones</th>}
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {suppliers.map((supplier) => (
-                  <tr key={supplier.id} className="border-t border-brand-line">
-                    <td className="px-6 py-3">
+                  <tr role="row" key={supplier.id} className="border-t border-brand-line">
+                    <td role="cell" data-label="Proveedor" className="px-6 py-3">
                       <span className="font-semibold text-brand-ink">{supplier.nombre}</span>
                       {supplier.contactoNombre && (
                         <span className="mt-0.5 block text-xs text-brand-muted">
@@ -123,14 +124,14 @@ export const SupplierListModal = ({ onClose }: SupplierListModalProps) => {
                         </span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-brand-ink">
+                    <td role="cell" data-label="RUT" className="whitespace-nowrap px-4 py-3 font-mono text-xs text-brand-ink">
                       {supplier.rut ?? '—'}
                     </td>
-                    <td className="px-4 py-3 text-xs text-brand-muted">
+                    <td role="cell" data-label="Contacto" className="px-4 py-3 text-xs text-brand-muted">
                       <span className="block">{supplier.telefono ?? 'Sin teléfono'}</span>
                       <span className="block">{supplier.email ?? 'Sin email'}</span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td role="cell" data-label="Estado" className="px-4 py-3">
                       {supplier.datosCompletos ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-brand-mintPale px-2 py-1 text-xs font-bold text-brand-mintInk">
                           <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
@@ -144,7 +145,7 @@ export const SupplierListModal = ({ onClose }: SupplierListModalProps) => {
                       )}
                     </td>
                     {canEdit && (
-                      <td className="px-6 py-3 text-right">
+                      <td role="cell" data-label="Acciones" className="px-6 py-3 text-right">
                         <button
                           type="button"
                           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-brand-line px-3 text-xs font-semibold text-brand-primaryInk hover:border-brand-primary hover:bg-brand-pale"

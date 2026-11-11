@@ -72,7 +72,7 @@ export const SupplierCombobox = ({
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="purchases-supplier-picker relative">
       <label htmlFor={id} className="block text-sm font-semibold text-brand-ink">
         Proveedor
       </label>

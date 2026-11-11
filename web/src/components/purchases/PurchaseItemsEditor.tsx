@@ -53,7 +53,7 @@ const CatalogSearchPanel = ({
   const parts = query.data?.items ?? [];
 
   return (
-    <div className="mt-2 rounded-lg border border-brand-line bg-white p-2 shadow-lg">
+    <div className="purchases-catalog-picker mt-2 rounded-lg border border-brand-line bg-white p-2 shadow-lg">
       <div className="relative">
         <Search
           className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted"
@@ -139,7 +139,7 @@ export const PurchaseItemsEditor = ({
   };
 
   return (
-    <section className="rounded-xl border border-brand-line bg-white p-4 shadow-sm sm:p-5">
+    <section className="purchases-items-editor rounded-xl border border-brand-line bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-bold text-brand-primaryInk">Ítems de la compra</h2>
@@ -165,7 +165,7 @@ export const PurchaseItemsEditor = ({
           return (
             <div
               key={item.key}
-              className="rounded-xl border border-brand-line bg-brand-pale/20 p-4"
+              className="purchases-item-row rounded-xl border border-brand-line bg-brand-pale/20 p-4"
               aria-label={`Ítem ${index + 1}`}
             >
               <div className="flex items-center justify-between gap-2">

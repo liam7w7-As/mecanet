@@ -1,14 +1,13 @@
 import { voidPurchaseSchema } from '@unithor/shared';
-import { Ban, LoaderCircle } from 'lucide-react';
+import { Ban } from 'lucide-react';
 import { useState } from 'react';
 
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useVoidPurchaseMutation } from '../../hooks/usePurchases';
 import { getApiErrorMessage, getApiFieldErrors } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp } from '../../lib/formatters';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
-import ModalHeader from '../common/ModalHeader';
+import FormDialog from '../common/FormDialog';
 
 import type { FieldErrors } from '../../lib/form-errors';
 import type { Purchase } from '../../types/entities';
@@ -23,11 +22,6 @@ export const PurchaseVoidModal = ({ purchase, onClose, onVoided }: PurchaseVoidM
   const mutation = useVoidPurchaseMutation();
   const [motivo, setMotivo] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
-  const panelRef = useModalOverlay({
-    isOpen: true,
-    onClose,
-    isPending: mutation.isPending,
-  });
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -55,30 +49,21 @@ export const PurchaseVoidModal = ({ purchase, onClose, onVoided }: PurchaseVoidM
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button
-        type="button"
-        className="fixed inset-0 bg-brand-scrim/60"
-        aria-label="Cerrar anulación"
-        onClick={onClose}
-      />
-      <section
-        ref={panelRef}
-        className="relative w-full max-w-lg rounded-xl bg-white shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="purchase-void-title"
-      >
-        <ModalHeader
-          id="purchase-void-title"
-          title="Anular compra"
-          description={`${purchase.codigo} · ${formatClp(purchase.total)}`}
-          onClose={onClose}
-          badge={<Ban className="h-6 w-6" aria-hidden="true" />}
-          tone="warning"
-        />
-
-        <form onSubmit={submit} className="px-7 pb-7">
+    <FormDialog
+      id="purchase-void-title"
+      title="Anular compra"
+      code={purchase.codigo}
+      context={formatClp(purchase.total)}
+      className="purchases-form-dialog purchases-void-dialog"
+      headerVariant="plain"
+      headerIcon={<Ban className="h-5 w-5" aria-hidden="true" />}
+      submitLabel="Anular compra"
+      pending={mutation.isPending}
+      dirty={motivo !== ''}
+      statusText="Esta acción no se puede deshacer."
+      onClose={onClose}
+      onSubmit={submit}
+    >
           <div className="rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk">
             <p className="font-semibold">Esta acción no se puede deshacer.</p>
             <p className="mt-1 text-xs">
@@ -112,32 +97,7 @@ export const PurchaseVoidModal = ({ purchase, onClose, onVoided }: PurchaseVoidM
               {getApiErrorMessage(mutation.error, 'No fue posible anular la compra.')}
             </p>
           )}
-
-          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={mutation.isPending}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-coralInk px-4 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-60"
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Ban className="h-4 w-4" aria-hidden="true" />
-              )}
-              Anular compra
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
+    </FormDialog>
   );
 };
 

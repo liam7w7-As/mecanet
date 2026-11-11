@@ -1,4 +1,19 @@
-import { ArrowUpRight, Building2, Car, ClipboardList, FileText, Hash, LoaderCircle, Mail, MapPin, Pencil, Phone, Plus, Trash2, UserRound } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Building2,
+  Car,
+  ClipboardList,
+  FileText,
+  Hash,
+  LoaderCircle,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Plus,
+  Trash2,
+  UserRound,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -18,9 +33,6 @@ import Pagination from '../common/Pagination';
 import QuotationStatusBadge from '../quotations/QuotationStatusBadge';
 import VehicleFormModal from '../vehicles/VehicleFormModal';
 import WorkOrderStatusBadge from '../work-orders/WorkOrderStatusBadge';
-
-
-
 interface ClientDetailModalProps {
   clientId: number;
   canDelete: boolean;
@@ -111,8 +123,14 @@ export const ClientDetailModal = ({
   const activeTab = tabs.some((item) => item.id === tab) ? tab : 'data';
 
   const childOpen = isEditing || isVehicleFormOpen;
-  const close = (): void => { if (!deleteMutation.isPending && !childOpen) onClose(); };
-  const setPanelNode = useModalOverlay({ isOpen: true, onClose: close, isPending: deleteMutation.isPending });
+  const close = (): void => {
+    if (!deleteMutation.isPending && !childOpen) onClose();
+  };
+  const setPanelNode = useModalOverlay({
+    isOpen: true,
+    onClose: close,
+    isPending: deleteMutation.isPending,
+  });
   return createPortal(
     <>
       <div className="reference-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5" aria-hidden={childOpen || undefined}>
@@ -159,7 +177,10 @@ export const ClientDetailModal = ({
             <>
               <div className="client-profile-identity">
                 <span><ClientIcon aria-hidden="true" /></span>
-                <div><p>{client.tipo === 'empresa' ? 'Empresa' : 'Persona natural'}</p><h3>{client.nombre}</h3></div>
+                <div>
+                  <p>{client.tipo === 'empresa' ? 'Empresa' : 'Persona natural'}</p>
+                  <h3>{client.nombre}</h3>
+                </div>
               </div>
               <div
                 className="reference-dialog-tabs"
@@ -206,7 +227,7 @@ export const ClientDetailModal = ({
                 id={`${tabId}-${activeTab}-panel`}
                 aria-labelledby={`${tabId}-${activeTab}-tab`}
                 tabIndex={0}
-                className="reference-dialog-body min-h-0 overflow-y-auto overscroll-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-primary"
+                className="reference-dialog-body client-profile-body min-h-0 overflow-y-auto overscroll-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-primary"
               >
                 {activeTab === 'data' && (
                   <div className="client-profile-facts grid gap-3 px-5 py-3 sm:grid-cols-2 sm:px-6">
@@ -224,7 +245,7 @@ export const ClientDetailModal = ({
                       <ClientFact icon={MapPin} label="Comuna" value={client.comuna} />
                       <ClientFact icon={MapPin} label="Región" value={client.region} />
                     </dl>
-                    <section className="py-4 sm:col-span-2" aria-label="Notas del cliente">
+                    <section className="client-profile-notes py-4 sm:col-span-2" aria-label="Notas del cliente">
                       <h3 className="text-xs font-semibold text-brand-muted">Notas</h3>
                       <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-brand-ink">
                         {client.notas || 'Sin notas registradas.'}
@@ -245,7 +266,7 @@ export const ClientDetailModal = ({
                       {canCreateVehicle && (
                         <button
                           type="button"
-                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-brand-primaryInk px-3 text-xs font-semibold text-white hover:bg-brand-primaryInkHover"
+                          className="client-profile-action client-profile-action--primary"
                           onClick={() => setVehicleFormOpen(true)}
                         >
                           <Plus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -285,7 +306,7 @@ export const ClientDetailModal = ({
                             {canCreateOrder && (
                               <Link
                                 to={`/work-orders/new?clientId=${clientId}&vehicleId=${vehicle.id}`}
-                                className="inline-flex h-8 items-center gap-1 rounded-md border border-brand-line px-2.5 text-xs font-semibold text-brand-primaryInk hover:bg-brand-pale"
+                                className="client-profile-action"
                                 aria-label={`Nueva OT para ${vehicle.patente}`}
                               >
                                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -449,35 +470,14 @@ export const ClientDetailModal = ({
           )}
 
           {client && (
-            <footer className="reference-dialog-footer shrink-0 border-t border-brand-line bg-white px-5 py-3 sm:px-6">
-              <button type="button" className="secondary-button" onClick={close} disabled={deleteMutation.isPending}>Cerrar</button>
-            {canEdit && (
-              <button
-                type="button"
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-line px-3 text-sm font-semibold text-brand-ink transition hover:border-brand-primary/40 hover:text-brand-primaryInk"
-                onClick={() => setIsEditing(true)}
-              >
-                <Pencil className="h-4 w-4" aria-hidden="true" />
-                Editar
-              </button>
-            )}
-            {canCreateOrder && (
-              <Link
-                to={`/work-orders/new?clientId=${clientId}`}
-                className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-primary px-3 text-sm font-bold text-white transition hover:bg-brand-primaryHover shadow-xs"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Nueva OT
-              </Link>
-            )}
-
+            <footer className="reference-dialog-footer client-profile-footer shrink-0">
               {deleteMutation.isError && (
                 <p className="mb-3 text-sm text-brand-coralInk" role="alert">
                   {getApiErrorMessage(deleteMutation.error)}
                 </p>
               )}
               {isConfirmingDelete && canDelete ? (
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="client-profile-delete-confirm flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-brand-coralInk">¿Eliminar este cliente?</p>
                     <p className="mt-1 text-xs text-brand-muted">
@@ -489,7 +489,7 @@ export const ClientDetailModal = ({
                       type="button"
                       disabled={deleteMutation.isPending}
                       onClick={() => setConfirmingDelete(false)}
-                      className="h-8 rounded-md border border-brand-line px-3 text-xs font-semibold text-brand-muted"
+                      className="client-profile-action"
                     >
                       Cancelar
                     </button>
@@ -497,7 +497,7 @@ export const ClientDetailModal = ({
                       type="button"
                       disabled={deleteMutation.isPending}
                       onClick={() => deleteMutation.mutate(clientId, { onSuccess: onClose })}
-                      className="inline-flex h-8 items-center gap-2 rounded-md bg-brand-coralInk px-3 text-xs font-semibold text-white disabled:opacity-50"
+                      className="client-profile-action client-profile-action--danger"
                     >
                       {deleteMutation.isPending && (
                         <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -507,7 +507,7 @@ export const ClientDetailModal = ({
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between gap-3">
+                <div className="client-profile-record-meta flex items-center justify-between gap-3">
                   <p className="text-[11px] text-brand-muted">
                     Registrado el {formatDate(client.createdAt)}
                   </p>
@@ -527,6 +527,36 @@ export const ClientDetailModal = ({
                   )}
                 </div>
               )}
+              <div className="client-profile-footer-actions">
+                <button
+                  type="button"
+                  className="client-profile-action"
+                  onClick={close}
+                  disabled={deleteMutation.isPending}
+                >
+                  Cerrar
+                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    className="client-profile-action"
+                    onClick={() => setIsEditing(true)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                    Editar
+                  </button>
+                )}
+                {canCreateOrder && (
+                  <Link
+                    to={`/work-orders/new?clientId=${clientId}`}
+                    className="client-profile-action client-profile-action--primary"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Nueva OT
+                  </Link>
+                )}
+              </div>
             </footer>
           )}
         </motion.section>

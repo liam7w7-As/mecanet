@@ -1,0 +1,76 @@
+/* Configuration handoff: index.html, 2026-11-10. The reference measures
+   1050px for the company panel and 850px for its form content. Keep the live
+   company fields, logo storage and save/discard contracts intact. */
+.workspace-settings.settings-reference-page { container-type: inline-size; align-content: start; gap: 16px; }
+.workspace-settings.settings-reference-page > .administration-heading h1 { color: #303941; font-size: 26px; font-weight: 600; letter-spacing: -.6px; }
+.settings-reference-page .administration-heading > p { color: #8b9db8; font-size: 11px; }
+.workspace-settings.settings-reference-page > .administration-settings-panel { width: 100%; max-width: 1050px; min-width: 0; border: 0; border-radius: 24px; background: #fff; box-shadow: none; }
+.settings-reference-page .administration-panel-heading { display: flex; align-items: flex-start; gap: 12px; padding: 23px 24px 21px; }
+.settings-reference-page .administration-panel-heading > svg { width: 19px; height: 19px; flex-shrink: 0; margin-top: 1px; color: #8b9db8; }
+.settings-reference-page .administration-panel-heading h2 { color: #294d7b; font-size: 14px; font-weight: 600; }
+.settings-reference-page .administration-panel-heading p { max-width: 850px; margin-top: 5px; color: #8b9db8; font-size: 11px; line-height: 1.7; }
+.settings-reference-page .settings-company-form { width: 100%; max-width: 898px; min-width: 0; }
+.settings-reference-page .administration-settings-fields { padding: 0 24px 22px; }
+.settings-reference-page .administration-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; }
+.settings-reference-page .administration-form-grid > label { color: #8097b7; font-size: 11px; font-weight: 500; }
+.workspace-settings.settings-reference-page .administration-settings-fields input { height: 43px; min-height: 43px; margin-top: 7px; padding: 10px 13px; border: 1px solid transparent; border-radius: 12px; background: #f3f6fa; color: #526f96; font-size: 12px; line-height: 1.4; }
+.workspace-settings.settings-reference-page .administration-settings-fields input:focus { border-color: #9db7da; box-shadow: 0 0 0 3px #1d396a12; outline: 0; }
+.workspace-settings.settings-reference-page .administration-settings-fields input[aria-invalid=true] { border-color: #bd6171; }
+.settings-reference-page .administration-settings-fields input::placeholder { color: #95a8c1; }
+.settings-reference-page .administration-settings-subtitle { margin: 22px 0 16px; padding-top: 18px; border-color: #e7edf5; color: #294d7b; font-size: 13px; font-weight: 500; }
+.settings-reference-page .administration-settings-footer { flex-wrap: wrap; gap: 12px; margin: 0 24px; padding: 16px 0 22px; border-color: #edf2f8; }
+.settings-reference-page .administration-settings-footer > div:first-child { color: #7185a3; font-size: 11px; }
+.settings-reference-page .administration-settings-footer small { color: #8b9db8; font-size: 10px; }
+.settings-reference-page :is(.administration-primary, .administration-secondary) { min-height: 42px; padding: 10px 17px; border: 0; border-radius: 999px; font-size: 11px; font-weight: 500; }
+.settings-reference-page .administration-primary { background: #003570; color: #fff; }
+.settings-reference-page .administration-primary:hover:not(:disabled) { background: #1d396a; }
+.settings-reference-page .administration-secondary { background: #edf3fa; color: #5b7da8; }
+.settings-reference-page .administration-secondary:hover:not(:disabled) { background: #e3ecf8; color: #003570; }
+.settings-reference-page button:disabled { cursor: not-allowed; opacity: .5; }
+.settings-reference-page :is(button, a):focus-visible { outline: 2px solid #91aed6; outline-offset: 3px; }
+.settings-reference-page .administration-branding-body { max-width: 940px; grid-template-columns: minmax(180px, 250px) minmax(0, 1fr); gap: 24px; padding: 0 24px 24px; }
+.settings-reference-page .administration-logo-preview { min-height: 140px; padding: 20px; border: 1px solid #e7edf5; border-radius: 16px; background: #f8faff; }
+.settings-reference-page .administration-logo-preview img { max-height: 80px; object-fit: contain; }
+.settings-reference-page .administration-logo-preview p { color: #8b9db8; font-size: 10px; }
+.settings-reference-page .administration-logo-controls { color: #7185a3; font-size: 11px; line-height: 1.8; }
+.settings-reference-page .administration-logo-controls > div { gap: 8px; margin-top: 15px; }
+.settings-reference-page .administration-logo-controls > small { color: #8b9db8; }
+.settings-reference-page .administration-field-error { color: #ad5366; }
+
+.reference-dialog.administration-form.settings-reference-dialog { --reference-dialog-width: 560px; width: min(560px, 100%); max-width: 560px; border: 0; border-radius: 24px; }
+.settings-reference-dialog .ui-modal-header { padding: 22px 24px 18px; border-bottom: 1px solid #e7edf5; background: #fff; }
+.settings-reference-dialog .ui-modal-header h2 { color: #294d7b; font-size: 17px; font-weight: 600; }
+.settings-reference-dialog .ui-modal-description { color: #8b9db8; font-size: 11px; }
+.settings-reference-dialog .ui-modal-close { width: 36px; height: 36px; border-radius: 11px; background: #f3f6fa; color: #8b9db8; }
+.settings-reference-dialog .reception-edit-body { padding: 22px 24px; }
+.settings-reference-dialog .reception-edit-body > p { color: #7185a3; font-size: 12px; line-height: 1.8; }
+.settings-reference-dialog .reception-edit-footer { padding: 16px 24px; border-color: #e7edf5; background: #fff; }
+.settings-reference-dialog .reception-edit-footer > span { color: #8b9db8; font-size: 10px; }
+.settings-reference-dialog .reception-edit-footer :is(.reception-primary-button, .reception-secondary-button) { min-height: 42px; border: 0; border-radius: 999px; font-size: 12px; font-weight: 400; }
+.settings-reference-dialog .reception-primary-button { background: #003570; color: #fff; }
+.settings-reference-dialog .reception-secondary-button { background: #f3f6fa; color: #7185a3; }
+.settings-reference-dialog button:disabled { cursor: not-allowed; opacity: .5; }
+
+@container (max-width: 720px) {
+  .settings-reference-page .administration-branding-body { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .settings-reference-page .administration-logo-preview { max-width: 300px; }
+}
+@media (max-width: 699px) {
+  .workspace-settings.settings-reference-page > .administration-heading h1 { font-size: 23px; }
+  .settings-reference-page .administration-heading > p { display: none; }
+  .settings-reference-page .administration-panel-heading { gap: 10px; padding: 20px 18px 18px; }
+  .settings-reference-page .administration-panel-heading p { font-size: 11px; }
+  .settings-reference-page .administration-settings-fields { padding: 0 18px 20px; }
+  .settings-reference-page .administration-form-grid { grid-template-columns: minmax(0, 1fr); gap: 15px; }
+  .settings-reference-page .administration-wide { grid-column: auto; }
+  .workspace-settings.settings-reference-page .administration-settings-fields input { height: 44px; min-height: 44px; font-size: 16px; }
+  .settings-reference-page .administration-settings-footer { align-items: stretch; gap: 14px; margin-inline: 18px; padding: 16px 0 20px; }
+  .settings-reference-page .administration-settings-footer > div:last-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 8px; }
+  .settings-reference-page .administration-settings-footer button { padding-inline: 10px; }
+  .settings-reference-page .administration-branding-body { padding: 0 18px 20px; }
+  .settings-reference-page .administration-logo-preview { max-width: none; }
+  .settings-reference-page .administration-logo-controls > div { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .settings-reference-dialog .ui-modal-header { padding: 18px 16px; }
+  .settings-reference-dialog .reception-edit-body { padding: 18px 16px; }
+  .settings-reference-dialog .reception-edit-footer { padding: 14px 16px; }
+}

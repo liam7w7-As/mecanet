@@ -1,4 +1,4 @@
-import { formatRut, UNIT_MEASURE_LABELS } from '@unithor/shared';
+import { calculateQuotationPricing, formatRut, UNIT_MEASURE_LABELS } from '@unithor/shared';
 import { Car, LoaderCircle } from 'lucide-react';
 
 import { formatClp, formatDateTime } from '../../lib/formatters';
@@ -14,6 +14,7 @@ interface Props {
   inventoryLabels: Record<VehicleInventoryItem, string>;
   photoLabels: string[];
   mechanic?: string;
+  mechanics?: ReadonlyArray<{ id: number; nombre: string }>;
   quotationCode?: string;
   pending: boolean;
   error?: string;
@@ -29,7 +30,7 @@ export default function WorkOrderReceptionReview(props: Props) {
       <ModalHeader
         id="confirm-ot-title"
         title="Confirmar recepción de OT"
-        description="Revisa los datos antes de crear la orden."
+        description="Revisa tu orden antes de confirmar la recepción."
         variant="brand"
         onClose={props.onEdit}
         closeDisabled={pending}
@@ -41,7 +42,7 @@ export default function WorkOrderReceptionReview(props: Props) {
           </p>
         )}
         <div className="reception-review-vehicle">
-          <Car aria-hidden="true" />
+          <span className="reception-review-car-icon"><Car aria-hidden="true" /></span>
           <div>
             <strong>{data.vehicle?.patente}</strong>
             <p>
@@ -59,7 +60,7 @@ export default function WorkOrderReceptionReview(props: Props) {
           {(
             [
               ['Responsable', data.client],
-              ['Contacto', data.contactClient],
+              ['Contacto en taller', data.contactClient],
               ['Facturación', data.billingClient],
             ] as const
           ).map(([label, person]) => (
@@ -137,21 +138,33 @@ export default function WorkOrderReceptionReview(props: Props) {
           {items.length === 0 ? (
             <p className="reception-review-empty">Diagnóstico inicial, sin trabajos cargados.</p>
           ) : (
-            items.map((item) => (
-              <div key={item.key} className="reception-review-service-row">
-                <span>
-                  {item.descripcion}
-                  <small>
-                    {UNIT_MEASURE_LABELS[item.unidadMedida]}
-                    {item.horasHombreEstimadas
-                      ? ' · ' + item.horasHombreEstimadas + ' h / unidad'
-                      : ''}
-                  </small>
-                </span>
-                <span>{item.cantidad}</span>
-                <strong>{formatClp(Number(item.cantidad) * Number(item.precioUnitario))}</strong>
-              </div>
-            ))
+            items.map((item) => {
+              const mechanic = props.mechanics?.find((person) => person.id === item.assignedUserId);
+              // Use the same pricing helper as the quotation, including imported discounts.
+              const pricing = (() => {
+                try { return calculateQuotationPricing([item]); }
+                catch { return null; }
+              })();
+              return (
+                <div key={item.key} className="reception-review-service-row">
+                  <span>
+                    {item.descripcion}
+                    <small>
+                      {UNIT_MEASURE_LABELS[item.unidadMedida]}
+                      {item.horasHombreEstimadas
+                        ? ' · ' + item.horasHombreEstimadas + ' h / unidad'
+                        : ''}
+                    </small>
+                    {mechanic && <small>Mecánico: {mechanic.nombre}</small>}
+                    {pricing && pricing.descuentoLineas > 0 && (
+                      <small>Descuento: {formatClp(pricing.descuentoLineas)}</small>
+                    )}
+                  </span>
+                  <span>{item.cantidad}</span>
+                  <strong>{pricing ? formatClp(pricing.total) : 'Importe no disponible'}</strong>
+                </div>
+              );
+            })
           )}
         </section>
         <div className="reception-review-total">

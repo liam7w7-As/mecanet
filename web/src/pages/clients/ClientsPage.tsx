@@ -1,7 +1,7 @@
 import {
   AlertCircle,
-  ArrowUpRight,
   Building2,
+  FileText,
   Mail,
   Pencil,
   Phone,
@@ -10,7 +10,6 @@ import {
   UserRound,
   Users,
 } from 'lucide-react';
-import { motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -29,14 +28,11 @@ import type { Client } from '../../types/entities';
 
 type ClientTab = 'all' | 'cliente' | 'empresa';
 
-const tabs: Array<{ value: ClientTab; label: string }> = [
-  { value: 'all', label: 'Todos' },
-  { value: 'cliente', label: 'Personas' },
-  { value: 'empresa', label: 'Empresas' },
+const tabs: Array<{ value: ClientTab; label: string; icon: typeof Users }> = [
+  { value: 'all', label: 'Todos', icon: Users },
+  { value: 'cliente', label: 'Personas', icon: UserRound },
+  { value: 'empresa', label: 'Empresas', icon: Building2 },
 ];
-
-const rowClassName =
-  'grid grid-cols-[1.75rem_minmax(0,1fr)_auto] items-center gap-3 px-4 md:grid-cols-[2rem_minmax(0,1.5fr)_minmax(0,1fr)_5rem_4.5rem] md:gap-5';
 
 export const ClientsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -105,24 +101,22 @@ export const ClientsPage = () => {
 
   return (
     <div className="workspace-page workspace-clients min-w-0 space-y-5">
-      <header className="page-banner">
-        <div className="min-w-0">
-          <p className="text-sm text-brand-muted">Gestión comercial</p>
-          <h1 className="mt-1">Clientes</h1>
-        </div>
-        {canCreate && (
-          <button
-            type="button"
-            className="primary-button relative z-[1] ml-auto shrink-0"
-            onClick={() => setFormClient(null)}
-          >
-            <AnimateIcon icon={Plus} animation="spin" size={16} /> Nuevo cliente
-          </button>
-        )}
+      <header className="clients-heading">
+        <h1>Clientes</h1>
       </header>
 
-      <div className="flex flex-col gap-3 border-y border-brand-line bg-white px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex gap-1" role="tablist" aria-label="Tipo de cliente">
+      <div className="clients-toolbar">
+        <label className="clients-search">
+          <Search aria-hidden="true" />
+          <span className="sr-only">Buscar clientes</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Nombre, RUT o email"
+          />
+        </label>
+        <div className="clients-filters" role="tablist" aria-label="Tipo de cliente">
           {tabs.map((item, index) => {
             const isActive = tab === item.value;
             return (
@@ -132,13 +126,15 @@ export const ClientsPage = () => {
                 role="tab"
                 aria-selected={isActive}
                 tabIndex={isActive ? 0 : -1}
-                className={`relative h-9 rounded-lg px-3 text-sm font-semibold transition-colors ${isActive ? 'text-white' : 'text-brand-muted hover:bg-brand-pale'}`}
+                className="clients-filter"
                 onClick={() => changeTab(item.value)}
                 onKeyDown={(event) => {
                   let next: number;
                   if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
                   else if (event.key === 'ArrowLeft')
                     next = (index + tabs.length - 1) % tabs.length;
+                  else if (event.key === 'Home') next = 0;
+                  else if (event.key === 'End') next = tabs.length - 1;
                   else return;
                   event.preventDefault();
                   changeTab(tabs[next].value);
@@ -149,31 +145,28 @@ export const ClientsPage = () => {
                   tabButtons?.[next]?.focus();
                 }}
               >
-                {isActive && (
-                  <motion.span
-                    layoutId="clientTabIndicator"
-                    className="absolute inset-0 rounded-lg bg-brand-primaryInk"
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                  />
-                )}
-                <span className="relative z-10">{item.label}</span>
+                <item.icon aria-hidden="true" />
+                <span>{item.label}</span>
               </button>
             );
           })}
         </div>
-        <label className="relative block w-full sm:max-w-sm">
-          <Search
-            className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-brand-muted"
-            aria-hidden="true"
-          />
-          <span className="sr-only">Buscar clientes</span>
-          <input
-            className="h-9 w-full rounded-lg border border-brand-line bg-white pl-9 pr-3 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Nombre, RUT o email"
-          />
-        </label>
+        {canCreate && (
+          <button
+            type="button"
+            className="clients-new primary-button"
+            onClick={() => setFormClient(null)}
+          >
+            <AnimateIcon icon={Plus} animation="spin" size={16} /> Nuevo cliente
+          </button>
+        )}
+      </div>
+      <div className="clients-results">
+        <p role="status" aria-live="polite">
+          {clientsQuery.isPending ? 'Cargando clientes…' : clientsQuery.isError ? 'Listado no disponible' : (
+            <><strong>{clientsQuery.data?.total ?? 0}</strong> {clientsQuery.data?.total === 1 ? 'cliente' : 'clientes'}</>
+          )}
+        </p>
         <ListExportButtons
           target="clients"
           filters={filters}
@@ -183,7 +176,7 @@ export const ClientsPage = () => {
       </div>
 
       <section
-        className="workspace-directory min-w-0 border-y border-brand-line bg-white"
+        className="workspace-directory clients-directory min-w-0 bg-white"
         aria-label="Listado de clientes"
       >
         {clientsQuery.isError && (
@@ -195,16 +188,6 @@ export const ClientsPage = () => {
             {getApiErrorMessage(clientsQuery.error, 'No fue posible cargar los clientes')}
           </div>
         )}
-        <div
-          className={`${rowClassName} border-b border-brand-line bg-brand-line/40 py-3 text-[11px] font-semibold uppercase text-brand-muted`}
-          aria-hidden="true"
-        >
-          <span>N°</span>
-          <span>Cliente / Identificación</span>
-          <span className="hidden md:block">Contacto</span>
-          <span className="hidden md:block">Tipo</span>
-          <span className="text-right">Acciones</span>
-        </div>
         {clientsQuery.isPending ? (
           <div role="status" aria-label="Cargando clientes" className="divide-y divide-brand-line">
             {Array.from({ length: 6 }, (_, index) => (
@@ -218,23 +201,24 @@ export const ClientsPage = () => {
           <ul className="divide-y divide-brand-line">
             {clientsQuery.data?.items.map((client, index) => {
               const Icon = client.tipo === 'empresa' ? Building2 : UserRound;
+              const vehiclesCount = client.vehiclesCount ?? client.vehicles?.length;
               return (
                 <li
                   key={client.id}
-                  className={`workspace-directory-row ${rowClassName} group relative min-h-[84px] py-3 transition-colors hover:bg-brand-pale/60 focus-within:bg-brand-pale/60`}
+                  className="workspace-directory-row clients-directory-row group relative transition-colors"
                 >
                   <button
                     type="button"
-                    className="absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-primary"
+                    className="clients-row-open absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-brand-primary"
                     onClick={() => openDetail(client.id)}
                     aria-label={`Ver ${client.nombre}`}
                   />
-                  <span className="pointer-events-none relative font-mono text-xs tabular-nums text-brand-muted">
+                  <span className="clients-row-number pointer-events-none relative font-mono text-xs tabular-nums text-brand-muted">
                     #{(page - 1) * 20 + index + 1}
                   </span>
-                  <div className="pointer-events-none relative flex min-w-0 items-center gap-3">
+                  <div className="clients-identity pointer-events-none relative flex min-w-0 items-center gap-3">
                     <span
-                      className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:flex ${client.tipo === 'empresa' ? 'bg-brand-goldPale text-brand-goldInk' : 'bg-brand-pale text-brand-primaryInk'}`}
+                      className="clients-record-icon"
                     >
                       <Icon className="h-4 w-4" aria-hidden="true" />
                     </span>
@@ -245,13 +229,9 @@ export const ClientsPage = () => {
                       <p className="mt-1 font-mono text-xs text-brand-muted">
                         {client.rut ?? 'Sin identificación'}
                       </p>
-                      <p className="mt-1 text-xs text-brand-muted md:hidden">
-                        {client.tipo === 'empresa' ? 'Empresa' : 'Persona'}
-                        {client.telefono ? ` · ${client.telefono}` : ''}
-                      </p>
                     </div>
                   </div>
-                  <div className="pointer-events-none relative hidden min-w-0 space-y-1.5 text-xs text-brand-muted md:block">
+                  <div className="clients-contact pointer-events-none relative min-w-0 space-y-1.5 text-xs text-brand-muted">
                     <p className="flex items-center gap-2">
                       <Phone className="h-3.5 w-3.5 shrink-0 text-brand-muted" aria-hidden="true" />
                       <span className="truncate">{client.telefono ?? 'Sin teléfono'}</span>
@@ -261,12 +241,13 @@ export const ClientsPage = () => {
                       <span className="truncate">{client.email ?? 'Sin email'}</span>
                     </p>
                   </div>
-                  <span
-                    className={`pointer-events-none relative hidden justify-self-start rounded px-2 py-1 text-[11px] font-medium md:inline-flex ${client.tipo === 'empresa' ? 'bg-brand-goldPale text-brand-goldInk' : 'bg-brand-pale text-brand-primaryInk'}`}
-                  >
-                    {client.tipo === 'empresa' ? 'Empresa' : 'Persona'}
-                  </span>
-                  <div className="pointer-events-none relative flex items-center justify-end gap-1">
+                  <div className="clients-meta pointer-events-none relative">
+                    <span className="clients-type">{client.tipo === 'empresa' ? 'Empresa' : 'Persona'}</span>
+                    {vehiclesCount !== undefined && (
+                      <small>{vehiclesCount} {vehiclesCount === 1 ? 'vehículo' : 'vehículos'}</small>
+                    )}
+                  </div>
+                  <div className="clients-row-actions pointer-events-none relative flex items-center justify-end gap-1">
                     {canEdit && (
                       <button
                         type="button"
@@ -278,9 +259,15 @@ export const ClientsPage = () => {
                         <Pencil className="h-4 w-4" aria-hidden="true" />
                       </button>
                     )}
-                    <span className="flex h-8 w-8 items-center justify-center rounded-md text-brand-muted transition-colors group-hover:bg-brand-pale group-hover:text-brand-primaryInk">
-                      <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                    </span>
+                    <button
+                      type="button"
+                      className="pointer-events-auto"
+                      onClick={() => openDetail(client.id)}
+                      aria-label={`Ver ficha de ${client.nombre}`}
+                      title="Ver ficha del cliente"
+                    >
+                      <FileText className="h-4 w-4" aria-hidden="true" />
+                    </button>
                   </div>
                 </li>
               );

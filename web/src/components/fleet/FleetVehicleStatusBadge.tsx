@@ -39,7 +39,7 @@ export const FleetVehicleStatusBadge = ({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold ${item.className} ${className}`}
+      className={`fleet-status-badge inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold ${item.className} ${className}`}
     >
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.dotClassName}`} aria-hidden="true" />
       {item.label}

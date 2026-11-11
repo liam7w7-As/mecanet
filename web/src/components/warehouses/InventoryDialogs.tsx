@@ -226,7 +226,7 @@ export function WarehouseFormModal({
       onClose={onClose}
       headerVariant="brand"
       headerIcon={<WarehouseIcon aria-hidden="true" />}
-      className="inventory-form reference-form-dialog warehouse-form-dialog"
+      className="inventory-form reference-form-dialog warehouse-form-dialog warehouse-reference-dialog"
       onSubmit={(event) => {
         event.preventDefault();
         setError(null);
@@ -356,7 +356,7 @@ export function StockMovementModal({
       pending={mutation.isPending}
       onClose={onClose}
       headerVariant="plain"
-      className="inventory-form reference-form-dialog stock-form-dialog"
+      className="inventory-form reference-form-dialog stock-form-dialog warehouse-reference-dialog"
       submitDisabled={unavailable}
       onSubmit={(event) => {
         event.preventDefault();
@@ -506,7 +506,7 @@ export function StockTransferModal({
       pending={mutation.isPending}
       onClose={onClose}
       headerVariant="plain"
-      className="inventory-form reference-form-dialog stock-form-dialog"
+      className="inventory-form reference-form-dialog stock-form-dialog warehouse-reference-dialog"
       submitDisabled={balances.isPending || balances.isError || actives.length < 2}
       onSubmit={(event) => {
         event.preventDefault();
@@ -652,7 +652,7 @@ export function WarehouseDeliveryModal({
       pending={mutation.isPending}
       onClose={onClose}
       headerVariant="plain"
-      className="inventory-form reference-form-dialog stock-form-dialog"
+      className="inventory-form reference-form-dialog stock-form-dialog warehouse-reference-dialog"
       submitDisabled={
         warehouseId === null || balances.isPending || balances.isError || insufficient
       }

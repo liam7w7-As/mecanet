@@ -237,7 +237,7 @@ export const FinanceAnalyticsDashboard = () => {
 
   return (
     <section
-      className="finance-analytics min-w-0 space-y-5"
+      className="finance-analytics finance-reference-analytics min-w-0 space-y-5"
       aria-labelledby="financial-analytics-title"
     >
       <div className="insights-panel-heading flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">

@@ -105,7 +105,7 @@ export const CatalogItemDetailModal = ({
         initial={{ opacity: 0, scale: 0.98, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 360, damping: 32 }}
-        className="workspace-dialog reference-dialog inventory-profile-dialog relative flex w-full flex-col overflow-hidden bg-white shadow-2xl"
+        className="workspace-dialog reference-dialog inventory-profile-dialog catalog-detail-dialog relative flex w-full flex-col overflow-hidden bg-white shadow-2xl"
         role="dialog"
         tabIndex={-1}
         ref={setPanelNode}
@@ -196,7 +196,7 @@ export const CatalogItemDetailModal = ({
                   </div>
                 )}
               </dl>
-              <div>
+              <div className="catalog-description">
                 <h3 className="text-sm font-bold text-brand-primaryInk">Descripción</h3>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-muted">
                   {item.descripcion || 'Este item no tiene una descripción registrada.'}
@@ -242,7 +242,7 @@ export const CatalogItemDetailModal = ({
                     return (
                       <div
                         key={warehouse.id}
-                        className="flex items-center gap-3 rounded-lg border border-brand-line px-4 py-3"
+                        className="catalog-warehouse-row flex items-center gap-3 rounded-lg border border-brand-line px-4 py-3"
                       >
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-line/40 text-brand-primaryInk">
                           <Warehouse className="h-4 w-4" aria-hidden="true" />
@@ -304,7 +304,7 @@ export const CatalogItemDetailModal = ({
                     return (
                       <div
                         key={movement.id}
-                        className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_150px_90px] sm:items-center"
+                        className="catalog-movement-row grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_150px_90px] sm:items-center"
                       >
                         <div className="flex min-w-0 items-start gap-3">
                           <span

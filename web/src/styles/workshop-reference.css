@@ -1,0 +1,161 @@
+/* Taller / OT: final index.html handoff, 10 November 2026.
+   Palette tiers and all operational mutations remain owned by the existing code. */
+.workshop-board { --workshop-text: #294d7b; --workshop-muted: #879bb7; }
+.workshop-board-heading h1 { letter-spacing: -.45px; }
+.workshop-card-grid { gap: 20px; }
+.workshop-card { border-radius: 24px; }
+.workshop-card-band { border-radius: 10px; }
+.workshop-card-bottom { min-height: 46px; }
+.workshop-card-facts dd { color: #45617f; font-weight: 500; }
+.workshop-card-information .workshop-card-balance { font-variant-numeric: tabular-nums; }
+@media (hover: hover) and (pointer: fine) {
+  .workshop-card:hover { box-shadow: 0 5px 18px rgb(29 57 106 / 8%); }
+}
+
+/* The filter rail scrolls inside the toolbar, never the entire page. */
+@container workshop-board (min-width: 820px) {
+  .workshop-toolbar { display: flex; flex-wrap: nowrap; gap: 8px; }
+  .workshop-search { flex: 0 1 190px; min-width: 150px; max-width: 230px; }
+  .workshop-status-filters {
+    order: 2;
+    display: flex;
+    flex: 1 1 0;
+    flex-wrap: nowrap;
+    min-width: 0;
+    max-width: 100%;
+    gap: 6px;
+    padding-block: 3px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd6e4 transparent;
+  }
+  .workshop-status-filters > button { flex: none; }
+  .workshop-period-picker { order: 3; flex: 0 0 44px; margin-left: 0; }
+  .workshop-period-picker > button { width: 44px; justify-content: center; padding: 0; }
+  .workshop-period-picker > button > span,
+  .workshop-period-picker > button > svg:last-child { display: none; }
+  .workshop-toolbar .workshop-new-order { order: 4; flex: none; margin-left: 0; }
+}
+@container workshop-board (min-width: 1300px) {
+  .workshop-period-picker { flex-basis: 155px; }
+  .workshop-period-picker > button { width: 100%; justify-content: space-between; padding-inline: 12px; }
+  .workshop-period-picker > button > .workshop-period-full,
+  .workshop-period-picker > button > svg:last-child { display: inline; }
+}
+
+/* A compact navy identity leaves the working area to the checklist. */
+.workshop-manage-dialog { height: min(900px, calc(100dvh - 40px)); }
+.workshop-manage-dialog .ui-modal-header { min-height: 72px; padding: 12px 16px; }
+.workshop-manage-dialog .ui-modal-eyebrow { margin-bottom: 2px; font-size: 9px; line-height: 1.4; text-transform: uppercase; }
+.workshop-manage-dialog .ui-modal-title-row { display: inline-flex; vertical-align: baseline; }
+.workshop-manage-dialog .ui-modal-description { display: inline; margin: 0 0 0 10px; font-size: 10px; line-height: 1.6; }
+.workshop-manage-dialog .ui-modal-header-controls { gap: 8px; }
+.workshop-manage-dialog .ui-modal-close { border: 0; border-radius: 50%; background: #fff; color: #8091a9; }
+.workshop-manage-dialog .ui-modal-close:hover { background: #edf2f9; color: #1d396a; }
+.workshop-manage-dialog .workshop-dialog-tabs { gap: 7px; padding: 10px 0 14px; }
+.workshop-manage-dialog .workshop-dialog-tabs > button { min-height: 36px; padding: 8px 14px; font-size: 11px; }
+.workshop-manage-dialog .workshop-dialog-tabs > button svg { display: none; }
+.workshop-manage-dialog .workshop-header-tools > :is(button, a) { min-height: 36px; }
+.workshop-tool-compact { display: none; }
+.workshop-manage-dialog .workshop-dialog-footer { padding-block: 10px; }
+.workshop-manage-dialog .workshop-dialog-footer-actions > button { min-height: 36px; }
+
+/* Identity, delivery promise and the three people each keep their own place. */
+.workshop-manage-dialog .workshop-summary-people { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 16px; padding: 0; }
+.workshop-manage-dialog .workshop-summary-fact { min-width: 0; }
+.workshop-manage-dialog .workshop-summary-fact p { overflow-wrap: anywhere; }
+.workshop-manage-dialog .workshop-summary-people > .workshop-summary-fact--vehicle { grid-column: 1 / 3; grid-row: 1; align-items: center; min-height: 88px; padding: 14px 16px; border-radius: 13px; background: #f4f7fc; }
+.workshop-manage-dialog .workshop-summary-people > .workshop-summary-fact--delivery { grid-column: 3; grid-row: 1; min-height: 88px; align-items: center; padding: 14px; border-radius: 13px; background: #edf3fb; }
+.workshop-manage-dialog .workshop-summary-fact--delivery p:nth-child(2) { color: #1d396a; font-size: 14px; }
+.workshop-manage-dialog .workshop-owner-note { padding: 12px 14px; border-color: #e8edf4; border-radius: 11px; background: #f8fafc; font-size: 12px; }
+.workshop-manage-dialog .workshop-summary-metrics { gap: 10px; padding: 0; background: transparent; }
+.workshop-manage-dialog .workshop-summary-metrics > div { padding: 12px 14px; border: 0; border-radius: 12px; background: #f4f7fb; }
+.workshop-manage-dialog .workshop-summary-columns { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.workshop-manage-dialog .workshop-summary-work { padding: 16px; border-radius: 14px; background: #f5f7fb; }
+.workshop-manage-dialog .workshop-summary-progress { margin-bottom: 16px; padding-bottom: 14px; }
+.workshop-manage-dialog .workshop-summary-total { gap: 14px; margin-top: 14px; padding: 13px 15px; border: 0; border-radius: 11px; background: #1d396a; color: #fff; }
+.workshop-manage-dialog .workshop-summary-total > span:last-child { font-size: 21px; font-weight: 600; }
+.workshop-manage-dialog .workshop-summary-sidebar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.workshop-manage-dialog .workshop-summary-context { gap: 10px; }
+
+/* Same task surfaces in the modal and full record. Expanded content stays mounted. */
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-list { gap: 12px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-task { padding: 16px 18px; border: 0; border-radius: 14px; background: #f4f6f9; box-shadow: none; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-task-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(165px, 205px); align-items: start; gap: 16px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-task-title h3 { margin-top: 8px; color: #263d5d; font-size: 14px; line-height: 1.4; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-state { padding: 4px 9px; font-weight: 600; letter-spacing: .01em; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-assignee { font-size: 10px; color: #71839a; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-assignee select { border-color: transparent; background: #fff; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-task-controls { margin-top: 14px; gap: 12px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-actions > button { min-height: 34px; padding: 7px 11px; border-color: transparent; font-size: 11px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-task > .workshop-labor-details { margin-top: 9px; padding-top: 0; border: 0; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-details > summary { min-height: 36px; list-style: none; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-details > summary::-webkit-details-marker { display: none; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-details > summary::after { content: ''; flex: none; width: 7px; height: 7px; margin-inline: 5px; border-right: 1.5px solid #8097af; border-bottom: 1.5px solid #8097af; transform: rotate(45deg); }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-details[open] > summary::after { transform: rotate(225deg); }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-details > summary > span { margin-left: auto; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-detail-body { padding-top: 10px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-filters { margin-block: 12px 4px; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-filters > button { border-color: transparent; background: #f3f5f8; }
+:is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-filters > button[aria-pressed=true] { background: #e4eefb; }
+.workshop-manage-dialog .workshop-labor-board > .workshop-labor-details,
+.workshop-manage-dialog .workshop-execution-side > details { margin: 4px 0 0; padding: 0; border: 0; border-radius: 10px; background: transparent; }
+.workshop-manage-dialog .workshop-labor-board > .workshop-labor-details > summary,
+.workshop-manage-dialog .workshop-execution-side > details > summary { min-height: 40px; padding: 10px 12px; color: #365777; font-size: 12px; font-weight: 600; }
+.workshop-manage-dialog .workshop-labor-board > .workshop-labor-details[open],
+.workshop-manage-dialog .workshop-execution-side > details[open] { background: #f6f8fb; }
+.workshop-manage-dialog .workshop-labor-board > .workshop-labor-details > div,
+.workshop-manage-dialog .workshop-execution-side > details > div { padding: 0 12px 12px; }
+.workshop-manage-dialog .workshop-mechanic-panel[data-section=execution] .workshop-execution-side { grid-template-columns: minmax(0, 1fr); gap: 4px; margin-top: 10px; }
+.workshop-manage-dialog .workshop-request-history { padding: 18px; border-radius: 16px; background: #f4f6f9; }
+.workshop-manage-dialog .workshop-request-history > div:nth-child(2) > div { margin-top: 10px; padding: 12px; border: 1px solid #e5ecf5; border-radius: 10px; background: #fff; }
+.workshop-manage-dialog .workshop-request-form > div { background: #f4f6f9; }
+
+.workshop-record-page { max-width: 1280px; padding-bottom: 40px; }
+.workshop-record-header { padding: 20px 24px; border-radius: 17px; }
+.workshop-record-header > div:first-child p { color: #c2d5ef; font-size: 12px; letter-spacing: 0; text-transform: none; }
+.workshop-record-tools > :is(a, button) { border-radius: 10px; min-height: 40px; padding: 10px 13px; font-size: 12px; }
+.workshop-record-nav { width: 100%; flex-wrap: nowrap; overflow-x: auto; padding: 5px; border-radius: 12px; background: #fff; scrollbar-width: thin; }
+.workshop-record-nav a { flex: 1 0 auto; min-height: 40px; padding: 9px 12px; text-align: center; color: #8197b5; font-weight: 400; }
+.workshop-record-nav a:is(:hover, :focus-visible) { background: #edf3fb; color: #315582; }
+.workshop-record-page > section { border-radius: 17px; }
+.workshop-record-page > section h2 { color: #1d396a; font-size: 17px; }
+
+@media (max-width: 760px) {
+  .workshop-card-grid { gap: 14px; }
+  .workshop-manage-dialog { height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); padding: 10px 10px 0; }
+  .workshop-manage-dialog .ui-modal-header { min-height: 0; padding: 14px; }
+  .workshop-manage-dialog .ui-modal-header-controls { padding-right: 0; }
+  .workshop-manage-dialog .ui-modal-title-row h2 { font-size: 23px; }
+  .workshop-manage-dialog .ui-modal-description { display: block; margin: 4px 0 0; }
+  .workshop-manage-dialog .ui-modal-close { top: 10px; right: 10px; }
+  .workshop-manage-dialog .workshop-tool-label { display: none; }
+  .workshop-manage-dialog .workshop-tool-compact { display: inline; }
+  .workshop-manage-dialog .workshop-header-tools > :is(button, a) { gap: 5px; min-height: 40px; padding: 8px 10px; font-size: 10px; }
+  .workshop-manage-dialog .ui-modal-header-controls > .workshop-header-status { padding: 5px 8px; font-size: 10px; }
+  .workshop-manage-dialog .workshop-dialog-tabs { flex-wrap: nowrap; gap: 5px; padding-block: 10px; }
+  .workshop-manage-dialog .workshop-dialog-tabs > button { flex: 1 0 auto; min-height: 42px; padding: 8px 10px; font-size: 10px; }
+  .workshop-manage-dialog .workshop-summary-people { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .workshop-manage-dialog .workshop-summary-people > .workshop-summary-fact--vehicle { grid-column: 1 / -1; grid-row: 1; min-height: 80px; padding: 14px; }
+  .workshop-manage-dialog .workshop-summary-people > .workshop-summary-fact--delivery { grid-column: 1 / -1; grid-row: 2; min-height: 64px; padding: 12px; }
+  .workshop-manage-dialog .workshop-summary-fact--vehicle > span,
+  .workshop-manage-dialog .workshop-summary-fact--delivery > span { display: flex; }
+  .workshop-manage-dialog .workshop-summary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .workshop-manage-dialog .workshop-summary-work { padding: 13px; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-task { padding: 14px; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-task-top { grid-template-columns: minmax(0, 1fr) minmax(120px, 145px); gap: 10px; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-task-controls { flex-direction: column; align-items: stretch; gap: 10px; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-actions { justify-content: flex-start; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-actions > button { min-height: 44px; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-filters { flex-wrap: nowrap; min-width: 0; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin; }
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-filters > button { flex: none; min-height: 40px; }
+  .workshop-manage-dialog .workshop-dialog-footer { margin-inline: -10px; }
+  .workshop-manage-dialog .workshop-dialog-footer-actions { flex: none; width: auto; margin-left: auto; }
+  .workshop-manage-dialog .workshop-dialog-footer-actions > button { min-width: 80px; min-height: 44px; }
+  .workshop-record-header { padding: 18px 16px; }
+  .workshop-record-tools > :is(a, button) { min-height: 44px; }
+}
+@media (max-width: 380px) {
+  :is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-task-top { grid-template-columns: minmax(0, 1fr); }
+}

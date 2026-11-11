@@ -120,8 +120,8 @@ export const PurchaseDetailPage = () => {
         : 'Pendiente';
 
   return (
-    <div className="workspace-page workspace-purchases min-w-0 space-y-5">
-      <header className="flex flex-col gap-4">
+    <div className="workspace-page workspace-purchases purchases-detail min-w-0 space-y-5">
+      <header className="purchases-detail-heading flex flex-col gap-4">
         <div className="flex items-start gap-3">
           <Link
             to="/purchases"
@@ -158,7 +158,7 @@ export const PurchaseDetailPage = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 sm:justify-end">
+        <div className="purchases-detail-actions flex flex-wrap gap-2 sm:justify-end">
           <a
             href={`/api/purchases/${purchase.id}/receipt`}
             target="_blank"
@@ -241,7 +241,7 @@ export const PurchaseDetailPage = () => {
         </div>
       )}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Totales de la compra">
+      <section className="purchases-metrics grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Totales de la compra">
         <article className="rounded-xl border border-brand-line bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Total</p>
           <p className="mt-2 text-2xl font-bold text-brand-primaryInk">

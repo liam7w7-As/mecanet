@@ -61,7 +61,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
     pending={mutation.isPending} onClose={onClose} onSubmit={submit}
     submitDisabled={roles.length === 0 || Boolean(user && !dirty)}
     headerVariant="plain"
-    className="administration-form reference-form-dialog">
+    className="administration-form reference-form-dialog users-reference-form">
     {mutation.isError && <div className="administration-alert" role="alert">
       <AlertCircle aria-hidden="true" />{getApiErrorMessage(mutation.error, 'No fue posible guardar el usuario.')}
     </div>}

@@ -7,12 +7,15 @@ import {
   ChevronDown,
   Clock3,
   LoaderCircle,
+  ListFilter,
   LockKeyhole,
   Plus,
   ReceiptText,
   BarChart3,
   Scale,
+  Search,
   WalletCards,
+  X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -130,6 +133,43 @@ export const FinancePage = () => {
   const [voidReason, setVoidReason] = useState('');
   const summary = summaryQuery.data;
   const daily = dailyQuery.data;
+  const cashType = financeParams.get('cashType') ?? '';
+  const cashSearch = financeParams.get('cashSearch') ?? '';
+  const visibleMovements = movementsQuery.data?.filter((movement) => {
+    const text = [
+      movement.descripcion,
+      movement.referencia,
+      categoryLabels[movement.categoria],
+      methodLabels[movement.metodo],
+      movement.creator?.nombre,
+      movement.fecha,
+      formatDateTime(movement.fecha),
+      movement.voidReason,
+    ]
+      .join(' ')
+      .toLocaleLowerCase();
+    return (
+      (!['ingreso', 'egreso'].includes(cashType) || movement.tipo === cashType) &&
+      text.includes(cashSearch.trim().toLocaleLowerCase())
+    );
+  });
+  const setDirectoryFilter = (key: string, value: string): void => {
+    setFinanceParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (key === 'paymentSearch') {
+          if (current.get('tab') === 'verifications' && !current.has('paymentStatus'))
+            next.set('paymentStatus', 'por_verificar');
+          next.set('tab', 'payments');
+          next.delete('paymentPage');
+        }
+        if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      },
+      { replace: true },
+    );
+  };
 
   const openReview = (payment: Payment, decision: ReviewState['decision']): void => {
     verifyMutation.reset();
@@ -227,7 +267,7 @@ export const FinancePage = () => {
   };
 
   return (
-    <div className="workspace-page workspace-finance insights-page min-w-0 space-y-5">
+    <div className="workspace-page workspace-finance finance-reference insights-page min-w-0 space-y-5">
       <header className="insights-page-heading">
         <h1>Finanzas y Contabilidad</h1>
         <p>Cobranza, caja y análisis ejecutivo</p>
@@ -243,7 +283,7 @@ export const FinancePage = () => {
       )}
       {summaryQuery.isPending && (
         <div className="finance-kpi-grid" aria-label="Cargando panel financiero">
-          {Array.from({ length: 6 }, (_, index) => (
+          {Array.from({ length: 3 }, (_, index) => (
             <div key={index} className="finance-kpi-skeleton animate-pulse" />
           ))}
         </div>
@@ -256,9 +296,9 @@ export const FinancePage = () => {
             aria-label="Indicadores financieros"
           >
             <Metric
-              label="Recaudación del mes"
+              label="Abonos confirmados"
               value={formatClp(summary.metrics.revenueMonth)}
-              detail="Pagos confirmados desde el día 1"
+              detail="Mes actual · pagos confirmados desde el día 1"
               icon={WalletCards}
               tone="bg-brand-goldPale text-brand-goldInk"
             />
@@ -270,7 +310,7 @@ export const FinancePage = () => {
               tone="bg-cyan-100 text-cyan-800"
             />
             <Metric
-              label="Saldo por cobrar"
+              label="Por cobrar"
               value={formatClp(summary.metrics.receivableTotal)}
               detail={`${summary.metrics.receivableCount} cotización(es) con saldo`}
               icon={ReceiptText}
@@ -374,6 +414,44 @@ export const FinancePage = () => {
             </button>
           ))}
         </div>
+        {activeTab !== 'analytics' && (
+          <label className="finance-search finance-directory-search">
+            <Search aria-hidden="true" />
+            <span className="sr-only">
+              {activeTab === 'cash' ? 'Buscar movimientos de caja' : 'Buscar abonos'}
+            </span>
+            <input
+              type="search"
+              maxLength={100}
+              value={activeTab === 'cash' ? cashSearch : (financeParams.get('paymentSearch') ?? '')}
+              onChange={(event) =>
+                setDirectoryFilter(
+                  activeTab === 'cash' ? 'cashSearch' : 'paymentSearch',
+                  event.target.value,
+                )
+              }
+              placeholder={
+                activeTab === 'cash'
+                  ? 'Concepto, referencia o fecha'
+                  : 'Cotización, cliente o transacción'
+              }
+            />
+          </label>
+        )}
+        {activeTab === 'cash' && (
+          <label className="finance-cash-date">
+            <CalendarDays className="h-4 w-4 text-brand-primaryInk" aria-hidden="true" />
+            <span>Día de caja</span>
+            <input
+              type="date"
+              value={selectedDate}
+              max={todayIso()}
+              onChange={(event) => setSelectedDate(event.target.value)}
+              className="h-10 min-w-0 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary sm:w-auto"
+              aria-label="Fecha del arqueo"
+            />
+          </label>
+        )}
         <Link className="insights-secondary" to="/reports?section=finance">
           <ReceiptText aria-hidden="true" />
           Reportes
@@ -448,7 +526,7 @@ export const FinancePage = () => {
           className="finance-cash-body"
         >
           <section
-            className="min-w-0 overflow-hidden border border-brand-line bg-white shadow-sm"
+            className="finance-cash-summary min-w-0 overflow-hidden border border-brand-line bg-white shadow-sm"
             aria-labelledby="cash-count-title"
           >
             <div className="flex flex-col gap-3 border-b border-brand-line px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
@@ -461,20 +539,23 @@ export const FinancePage = () => {
                 </p>
               </div>
               <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                <label className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold text-brand-ink sm:flex-none">
-                  <CalendarDays className="h-4 w-4 text-brand-primaryInk" aria-hidden="true" />
-                  <span className="sr-only">Fecha del arqueo</span>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    max={todayIso()}
-                    onChange={(event) => setSelectedDate(event.target.value)}
-                    className="h-10 min-w-0 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary sm:w-auto"
-                    aria-label="Fecha del arqueo"
+                <div
+                  className="finance-day-export"
+                  title="Exporta la caja completa del día seleccionado; los filtros del directorio manual no se aplican al arqueo."
+                >
+                  <span>Exportar caja completa del día</span>
+                  <ListExportButtons
+                    target="cash-day"
+                    filters={{ fecha: selectedDate }}
+                    disabled={
+                      dailyQuery.isPending ||
+                      dailyQuery.isError ||
+                      movementsQuery.isPending ||
+                      movementsQuery.isError ||
+                      !selectedDate
+                    }
                   />
-                </label>
-                <ListExportButtons target="cash-day" filters={{ fecha: selectedDate }}
-                  disabled={dailyQuery.isPending || dailyQuery.isError || movementsQuery.isPending || movementsQuery.isError || !selectedDate} />
+                </div>
                 {canCreate && (
                   <button
                     type="button"
@@ -597,141 +678,158 @@ export const FinancePage = () => {
             )}
           </section>
 
-          <section
-            className="min-w-0 overflow-hidden border border-brand-line bg-white shadow-sm"
-            aria-labelledby="cash-movements-title"
-          >
-            <div className="flex flex-col gap-2 border-b border-brand-line px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-              <div>
-                <h2 id="cash-movements-title" className="font-bold text-brand-primaryInk">
-                  Ingresos y egresos manuales
-                </h2>
-                <p className="mt-1 text-sm text-brand-muted">
-                  Libro auditable de movimientos ajenos a pagos de cotizaciones.
-                </p>
-              </div>
-              <span className="rounded bg-brand-pale px-2 py-1 text-xs font-bold text-brand-ink">
-                {movementsQuery.data?.length ?? 0} movimiento(s)
-              </span>
+          <section className="finance-cash-directory" aria-labelledby="cash-movements-title">
+            <div className="finance-cash-directory-heading">
+              <h2 id="cash-movements-title">Ingresos y egresos manuales</h2>
+              <p>Libro auditable de movimientos ajenos a pagos de cotizaciones.</p>
             </div>
-            {movementsQuery.isPending ? (
-              <div className="flex min-h-28 items-center justify-center">
-                <LoaderCircle
-                  className="h-6 w-6 animate-spin text-brand-primaryInk"
-                  aria-label="Cargando movimientos"
-                />
-              </div>
-            ) : !movementsQuery.data?.length ? (
-              <p className="px-5 py-10 text-center text-sm text-brand-muted">
-                No hay movimientos manuales registrados para esta fecha.
-              </p>
-            ) : (
-              <div className="max-w-full overflow-x-auto overscroll-x-contain">
-                <table
-                  role="table"
-                  className="workspace-table w-full min-w-[900px] text-left text-sm"
-                >
-                  <thead
-                    role="rowgroup"
-                    className="bg-brand-line/40 text-xs uppercase text-brand-muted"
+            <div className="finance-list-toolbar">
+              <div
+                className="finance-filter-pills"
+                role="group"
+                aria-label="Filtrar movimientos por tipo"
+              >
+                {(
+                  [
+                    { value: '', label: 'Todos', icon: ListFilter },
+                    { value: 'ingreso', label: 'Ingresos', icon: ArrowUpCircle },
+                    { value: 'egreso', label: 'Egresos', icon: ArrowDownCircle },
+                  ] as const
+                ).map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={
+                      cashType === value || (!value && !['ingreso', 'egreso'].includes(cashType))
+                    }
+                    onClick={() => setDirectoryFilter('cashType', value)}
                   >
-                    <tr role="row">
-                      <th role="columnheader" className="px-4 py-3 font-semibold">
-                        Tipo
-                      </th>
-                      <th role="columnheader" className="px-4 py-3 font-semibold">
-                        Detalle
-                      </th>
-                      <th role="columnheader" className="px-4 py-3 font-semibold">
-                        Método
-                      </th>
-                      <th role="columnheader" className="px-4 py-3 font-semibold">
-                        Responsable
-                      </th>
-                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">
-                        Monto
-                      </th>
-                      <th role="columnheader" className="px-4 py-3 text-right font-semibold">
-                        Acción
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody role="rowgroup">
-                    {movementsQuery.data.map((movement) => (
-                      <tr
-                        role="row"
-                        key={movement.id}
-                        className={`border-t border-brand-line ${movement.voidedAt ? 'bg-brand-line/40 opacity-60' : ''}`}
-                      >
-                        <td role="cell" data-label="Tipo" className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-bold ${movement.tipo === 'ingreso' ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-coralPale text-brand-coralInk'}`}
-                          >
-                            {movement.tipo === 'ingreso' ? (
-                              <ArrowUpCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                            ) : (
-                              <ArrowDownCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                            )}
-                            {movement.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
-                          </span>
-                        </td>
-                        <td role="cell" data-label="Detalle" className="px-4 py-3">
-                          <p
-                            className={`font-semibold text-brand-ink ${movement.voidedAt ? 'line-through' : ''}`}
-                          >
-                            {movement.descripcion}
-                          </p>
-                          <p className="mt-0.5 text-xs text-brand-muted">
-                            {categoryLabels[movement.categoria]}
-                            {movement.referencia ? ` · ${movement.referencia}` : ''}
-                          </p>
-                          {movement.voidedAt && (
-                            <p className="mt-1 text-xs font-medium text-brand-coralInk">
-                              Anulado: {movement.voidReason}
-                            </p>
-                          )}
-                        </td>
-                        <td role="cell" data-label="Método" className="px-4 py-3 text-brand-muted">
-                          {methodLabels[movement.metodo]}
-                        </td>
-                        <td
-                          role="cell"
-                          data-label="Responsable"
-                          className="px-4 py-3 text-brand-muted"
-                        >
-                          {movement.creator?.nombre ?? 'Usuario eliminado'}
-                          <span className="block text-xs text-brand-muted">
-                            {formatDateTime(movement.fecha)}
-                          </span>
-                        </td>
-                        <td
-                          role="cell"
-                          data-label="Monto"
-                          className={`px-4 py-3 text-right font-bold ${movement.tipo === 'ingreso' ? 'text-brand-mintInk' : 'text-brand-coralInk'}`}
-                        >
-                          {movement.tipo === 'ingreso' ? '+' : '-'} {formatClp(movement.monto)}
-                        </td>
-                        <td role="cell" data-label="Acción" className="px-4 py-3 text-right">
-                          {canVoid && !movement.voidedAt && !daily?.isClosed && (
-                            <button
-                              type="button"
-                              className="h-8 rounded border border-brand-coral/30 px-3 text-xs font-semibold text-brand-coralInk hover:bg-brand-coralPale"
-                              onClick={() => {
-                                voidMovementMutation.reset();
-                                setVoidReason('');
-                                setVoidTarget(movement);
-                              }}
-                            >
-                              Anular
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    <Icon aria-hidden="true" />
+                    {label}
+                  </button>
+                ))}
               </div>
-            )}
+              <span className="finance-record-note" role="status">
+                {movementsQuery.isPending
+                  ? 'Cargando…'
+                  : `${visibleMovements?.length ?? 0} movimiento(s)`}
+              </span>
+              {(cashSearch || cashType) && (
+                <button
+                  type="button"
+                  className="finance-clear-filters"
+                  onClick={() => {
+                    setFinanceParams(
+                      (current) => {
+                        const next = new URLSearchParams(current);
+                        next.delete('cashType');
+                        next.delete('cashSearch');
+                        return next;
+                      },
+                      { replace: true },
+                    );
+                  }}
+                >
+                  Limpiar filtros de caja
+                </button>
+              )}
+            </div>
+            <div className="finance-record-list" aria-busy={movementsQuery.isFetching}>
+              {movementsQuery.isPending ? (
+                <div className="finance-empty">
+                  <LoaderCircle className="animate-spin" aria-label="Cargando movimientos" />
+                </div>
+              ) : movementsQuery.isError ? (
+                <div className="finance-alert">
+                  {getApiErrorMessage(
+                    movementsQuery.error,
+                    'No se pudieron cargar los movimientos.',
+                  )}
+                  <button type="button" onClick={() => void movementsQuery.refetch()}>
+                    Reintentar
+                  </button>
+                </div>
+              ) : !visibleMovements?.length ? (
+                <div className="finance-empty">
+                  <Banknote aria-hidden="true" />
+                  <p>
+                    {movementsQuery.data?.length
+                      ? 'No hay movimientos para estos filtros.'
+                      : 'No hay movimientos manuales registrados para esta fecha.'}
+                  </p>
+                </div>
+              ) : (
+                visibleMovements.map((movement) => (
+                  <article
+                    key={movement.id}
+                    className={
+                      'finance-payment-row finance-cash-row' +
+                      (movement.voidedAt ? ' is-voided' : '')
+                    }
+                  >
+                    {movement.tipo === 'ingreso' ? (
+                      <ArrowUpCircle className="finance-record-icon" aria-hidden="true" />
+                    ) : (
+                      <ArrowDownCircle className="finance-record-icon" aria-hidden="true" />
+                    )}
+                    <div className="finance-payment-identity">
+                      <strong>{movement.descripcion}</strong>
+                      <small>{formatDateTime(movement.fecha)}</small>
+                    </div>
+                    <div className="finance-payment-client">
+                      <strong>{movement.creator?.nombre ?? 'Usuario eliminado'}</strong>
+                      <small>
+                        {categoryLabels[movement.categoria]}
+                        {movement.referencia ? ` · ${movement.referencia}` : ''}
+                      </small>
+                      {movement.voidedAt && (
+                        <small className="finance-void-reason">
+                          Anulado: {movement.voidReason}
+                        </small>
+                      )}
+                    </div>
+                    <div className="finance-payment-status">
+                      <span
+                        className={
+                          'finance-status finance-status--' +
+                          (movement.voidedAt ? 'anulado' : movement.tipo)
+                        }
+                      >
+                        {movement.voidedAt
+                          ? 'Anulado'
+                          : movement.tipo === 'ingreso'
+                            ? 'Ingreso'
+                            : 'Egreso'}
+                      </span>
+                      <small>{methodLabels[movement.metodo]}</small>
+                    </div>
+                    <div className="finance-payment-amount">
+                      <small>Monto</small>
+                      <strong>
+                        {movement.tipo === 'ingreso' ? '+' : '−'} {formatClp(movement.monto)}
+                      </strong>
+                    </div>
+                    <div className="finance-payment-actions">
+                      {canVoid && !movement.voidedAt && !daily?.isClosed && (
+                        <button
+                          type="button"
+                          className="finance-reject"
+                          title="Anular movimiento"
+                          onClick={() => {
+                            voidMovementMutation.reset();
+                            setVoidReason('');
+                            setVoidTarget(movement);
+                          }}
+                        >
+                          <X aria-hidden="true" />
+                          <span className="sr-only">Anular</span>
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
           </section>
         </div>
       )}
@@ -756,7 +854,7 @@ export const FinancePage = () => {
             submitMovement();
           }}
           headerVariant="plain"
-          className="finance-form reference-form-dialog"
+          className="finance-form finance-reference-dialog reference-form-dialog"
           submitDisabled={
             !canCreate ||
             daily.isClosed ||
@@ -765,92 +863,43 @@ export const FinancePage = () => {
             !movementForm.fecha
           }
         >
-          <div className="finance-form-fields">
-            {' '}
-            <div className="mt-5 grid grid-cols-2 gap-2" aria-label="Tipo de movimiento">
-              {(['ingreso', 'egreso'] as const).map((tipo) => (
-                <button
-                  key={tipo}
-                  type="button"
-                  className={`flex h-11 items-center justify-center gap-2 rounded-lg border text-sm font-bold ${movementForm.tipo === tipo ? 'border-brand-primaryInk bg-brand-primaryInk text-white' : 'border-brand-line text-brand-ink'}`}
-                  onClick={() =>
-                    setMovementForm((current) => ({
-                      ...current,
-                      tipo,
-                      categoria: tipo === 'ingreso' ? 'apertura_caja' : 'gasto_operativo',
-                    }))
-                  }
-                >
-                  {tipo === 'ingreso' ? (
-                    <ArrowUpCircle className="h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <ArrowDownCircle className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  {tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
-                </button>
-              ))}
-            </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-brand-ink">
-                Categoría
-                <select
-                  value={movementForm.categoria}
-                  onChange={(event) =>
-                    setMovementForm((current) => ({
-                      ...current,
-                      categoria: event.target.value as CashMovementCategory,
-                    }))
-                  }
-                  className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
-                >
-                  {Object.entries(categoryLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-semibold text-brand-ink">
-                Método
-                <select
-                  value={movementForm.metodo}
-                  onChange={(event) =>
-                    setMovementForm((current) => ({
-                      ...current,
-                      metodo: event.target.value as PaymentMethod,
-                    }))
-                  }
-                  className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
-                >
-                  {Object.entries(methodLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-semibold text-brand-ink">
-                Monto
-                <CurrencyInput
-                  value={movementForm.monto}
-                  onChange={(value) => setMovementForm((current) => ({ ...current, monto: value }))}
-                  className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
-                  aria-label="Monto"
-                />
-              </label>
-              <label className="text-sm font-semibold text-brand-ink">
-                Fecha y hora
-                <input
-                  type="datetime-local"
-                  value={movementForm.fecha}
-                  max={`${todayIso()}T23:59`}
-                  onChange={(event) =>
-                    setMovementForm((current) => ({ ...current, fecha: event.target.value }))
-                  }
-                  className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
-                />
-              </label>
-            </div>
+          <div className="finance-form-fields finance-movement-fields">
+            <fieldset className="finance-movement-type">
+              <legend>Tipo de movimiento</legend>
+              <div className="grid grid-cols-2 gap-2" aria-label="Tipo de movimiento">
+                {(['ingreso', 'egreso'] as const).map((tipo) => (
+                  <button
+                    key={tipo}
+                    type="button"
+                    aria-pressed={movementForm.tipo === tipo}
+                    className={`flex h-11 items-center justify-center gap-2 rounded-lg border text-sm font-bold ${movementForm.tipo === tipo ? 'border-brand-primaryInk bg-brand-primaryInk text-white' : 'border-brand-line text-brand-ink'}`}
+                    onClick={() =>
+                      setMovementForm((current) => ({
+                        ...current,
+                        tipo,
+                        categoria: tipo === 'ingreso' ? 'apertura_caja' : 'gasto_operativo',
+                      }))
+                    }
+                  >
+                    {tipo === 'ingreso' ? (
+                      <ArrowUpCircle className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <ArrowDownCircle className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <label className="text-sm font-semibold text-brand-ink">
+              Monto
+              <CurrencyInput
+                value={movementForm.monto}
+                onChange={(value) => setMovementForm((current) => ({ ...current, monto: value }))}
+                className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
+                aria-label="Monto"
+              />
+            </label>
             <label className="mt-4 block text-sm font-semibold text-brand-ink">
               Descripción
               <input
@@ -863,7 +912,57 @@ export const FinancePage = () => {
                 placeholder="Ej. Compra urgente de insumos"
               />
             </label>
-            <label className="mt-4 block text-sm font-semibold text-brand-ink">
+            <label className="text-sm font-semibold text-brand-ink">
+              Fecha y hora
+              <input
+                type="datetime-local"
+                value={movementForm.fecha}
+                max={`${todayIso()}T23:59`}
+                onChange={(event) =>
+                  setMovementForm((current) => ({ ...current, fecha: event.target.value }))
+                }
+                className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
+              />
+            </label>
+            <label className="text-sm font-semibold text-brand-ink">
+              Categoría
+              <select
+                value={movementForm.categoria}
+                onChange={(event) =>
+                  setMovementForm((current) => ({
+                    ...current,
+                    categoria: event.target.value as CashMovementCategory,
+                  }))
+                }
+                className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
+              >
+                {Object.entries(categoryLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-brand-ink">
+              Método
+              <select
+                value={movementForm.metodo}
+                onChange={(event) =>
+                  setMovementForm((current) => ({
+                    ...current,
+                    metodo: event.target.value as PaymentMethod,
+                  }))
+                }
+                className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary"
+              >
+                {Object.entries(methodLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="finance-movement-reference mt-4 block text-sm font-semibold text-brand-ink">
               Referencia opcional
               <input
                 value={movementForm.referencia}
@@ -898,11 +997,10 @@ export const FinancePage = () => {
             submitVoidMovement();
           }}
           headerVariant="plain"
-          className="finance-form finance-form--destructive reference-form-dialog"
+          className="finance-form finance-reference-dialog finance-form--destructive reference-form-dialog"
           submitDisabled={!canVoid || voidReason.trim().length < 2}
         >
           <div className="finance-form-fields">
-            {' '}
             <p className="mt-2 text-sm leading-6 text-brand-muted">
               Se anulará {voidTarget.descripcion} por {formatClp(voidTarget.monto)}. El registro
               permanecerá visible para auditoría.
@@ -943,13 +1041,12 @@ export const FinancePage = () => {
           }}
           headerVariant="plain"
           className={
-            'finance-form reference-form-dialog' +
+            'finance-form finance-reference-dialog reference-form-dialog' +
             (review.decision === 'rechazar' ? ' finance-form--destructive' : '')
           }
           submitDisabled={!canReview}
         >
           <div className="finance-form-fields">
-            {' '}
             <p className="mt-2 text-sm leading-6 text-brand-muted">
               {review.decision === 'aprobar'
                 ? `Se sumarán ${formatClp(review.payment.monto)} al monto pagado de la cotización.`
@@ -1004,7 +1101,7 @@ export const FinancePage = () => {
             submitClosure();
           }}
           headerVariant="plain"
-          className="finance-form reference-form-dialog"
+          className="finance-form finance-reference-dialog reference-form-dialog"
           submitDisabled={
             !canCreate ||
             daily.isClosed ||
@@ -1015,7 +1112,6 @@ export const FinancePage = () => {
           }
         >
           <div className="finance-form-fields">
-            {' '}
             <p className="mt-2 text-sm leading-6 text-brand-muted">
               El sistema espera {formatClp(daily.totals.expectedCash)} en efectivo después de sumar
               ingresos y restar egresos. Una vez cerrado el día no aceptará movimientos con esta

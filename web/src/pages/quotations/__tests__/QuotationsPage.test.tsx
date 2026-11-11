@@ -424,6 +424,16 @@ describe('QuotationsPage', () => {
     );
   });
 
+  it('identifica el importe de la página cuando el listado tiene más cotizaciones', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { ...listResponse, total: 40, totalPages: 2 } });
+    renderWithProviders(<QuotationsPage />);
+
+    const total = await screen.findByText(/^Total de esta página/);
+    expect(total).toHaveTextContent('100.000');
+    expect(screen.queryByText(/^Total cotizado/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole('row', { name: /^Cotización / })).toHaveLength(2);
+  });
+
   it('agrupa la patente bajo el cliente y la OT en verde bajo el código COT', async () => {
     renderWithProviders(<QuotationsPage />);
     const code = await screen.findByRole('link', { name: linkedQuotation.codigo });

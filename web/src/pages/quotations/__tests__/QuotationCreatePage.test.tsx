@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -194,7 +194,12 @@ describe('QuotationCreatePage', () => {
     expect(screen.getByTestId('item-subtotal-0')).toHaveTextContent('$4.500');
     expect(screen.getByTestId('quotation-total')).toHaveTextContent('$4.000');
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }));
-    expect(await screen.findByRole('dialog', { name: 'Confirmar emisión' })).toBeInTheDocument();
+    const review = await screen.findByRole('dialog', { name: 'Confirmar emisión' });
+    expect(within(review).getByText('Filtro de aceite')).toBeInTheDocument();
+    expect(within(review).getByText('En 48 horas')).toBeInTheDocument();
+    expect(within(review).getByText('10 días')).toBeInTheDocument();
+    expect(within(review).getByText('$4.000')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar y crear' }));
     await screen.findByText('Cotización guardada');
     expect(api.post).toHaveBeenCalledWith('/quotations', expect.objectContaining({

@@ -1,5 +1,5 @@
 import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
-import { Archive, ArchiveRestore, CalendarDays, CheckCheck, CircleDollarSign, Clock3, DollarSign, Download, FileText, LayoutGrid, Link2Off, LoaderCircle, Pencil, Plus, Search, Wrench, X } from 'lucide-react';
+import { Archive, ArchiveRestore, CalendarDays, CheckCheck, ChevronRight, CircleDollarSign, Clock3, DollarSign, Download, FileText, LayoutGrid, Link2Off, LoaderCircle, Pencil, Plus, Search, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
@@ -141,28 +141,32 @@ export const QuotationsPage = () => {
   const canPay = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
   const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
   const canConvert = Boolean(user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'create')));
+  const pageTotal = quotationsQuery.data?.items.reduce((sum, quotation) => sum + Number(quotation.total), 0);
 
   useEffect(() => setPage(1), [debouncedSearch, fechaDesde, fechaHasta, status]);
 
   return (
-    <div className="commercial-board min-w-0 space-y-5">
+    <div className="commercial-board commercial-reference-board min-w-0 space-y-5">
       <header className="commercial-heading"><h1>Comercial y Cotizaciones</h1></header>
       <div className="commercial-toolbar">
         <label className="commercial-search"><Search aria-hidden="true" /><span className="sr-only">Buscar cotizaciones</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="COT o nombre del cliente" />{search && <button type="button" aria-label="Limpiar búsqueda" onClick={() => setSearch('')}><X aria-hidden="true" /></button>}</label>
         <QuotationDateFilter from={fechaDesde} to={fechaHasta} onApply={(from, to) => { setFechaDesde(from); setFechaHasta(to); setPage(1); }} />
         {canCreate && <Link to="/quotations/new" className="commercial-new primary-button"><Plus aria-hidden="true" /><span>Nueva Cotización</span></Link>}
         <div className="commercial-status-filters" role="tablist" aria-label="Filtrar cotizaciones por estado">
-          {STATUS_FILTERS.map(({ value, label, icon: Icon }) => <button key={value} type="button" role="tab" aria-selected={status === value} aria-label={label} title={value === 'archived' ? 'Archivadas manualmente o con vigencia vencida, sin OT ni abonos' : label} onClick={() => setStatus(value)}><Icon aria-hidden="true" /><span>{label}</span></button>)}
+          {STATUS_FILTERS.map(({ value, label, icon: Icon }) => <button key={value} type="button" role="tab" aria-selected={status === value} aria-label={label} title={value === 'archived' ? 'Archivadas manualmente o con vigencia vencida, sin OT ni abonos' : label} onClick={() => setStatus(value)}><Icon aria-hidden="true" /><span>{label}</span>{status === value && quotationsQuery.data && !quotationsQuery.isPlaceholderData && <b aria-hidden="true">{quotationsQuery.data.total}</b>}</button>)}
         </div>
       </div>
       {(fechaDesde || fechaHasta) && <div className="commercial-date-context"><CalendarDays aria-hidden="true" /><span>{fechaDesde ? formatDate(fechaDesde + 'T12:00:00') : 'Desde el inicio'} — {fechaHasta ? formatDate(fechaHasta + 'T12:00:00') : 'Sin fecha final'}</span><button type="button" aria-label="Quitar filtro de fechas" onClick={() => { setFechaDesde(''); setFechaHasta(''); }}><X aria-hidden="true" /></button></div>}
       <div className="commercial-results-context">
         <span><strong>{quotationsQuery.data?.total ?? 0}</strong> cotizaciones · {STATUS_FILTERS.find((filter) => filter.value === status)?.label}</span>
-        <ListExportButtons
-          target="quotations"
-          filters={filters}
-          disabled={quotationsQuery.isPending || quotationsQuery.isError}
-        />
+        <div className="commercial-results-actions">
+          {pageTotal !== undefined && !quotationsQuery.isError && !quotationsQuery.isPlaceholderData && <span className="commercial-view-total">{quotationsQuery.data?.total === quotationsQuery.data?.items.length ? 'Total cotizado' : 'Total de esta página'} <b>{formatClp(pageTotal)}</b></span>}
+          <ListExportButtons
+            target="quotations"
+            filters={filters}
+            disabled={quotationsQuery.isPending || quotationsQuery.isError}
+          />
+        </div>
       </div>
       <section className="commercial-register" aria-label="Listado de cotizaciones">
         {(quotationsQuery.isError || previewQuery.isError) && <div className="border-b border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">{getApiErrorMessage(quotationsQuery.error ?? previewQuery.error, 'No fue posible completar la operación.')}</div>}
@@ -244,15 +248,15 @@ export const QuotationsPage = () => {
                     </td>
                     <td data-label="Código COT" className="px-3.5 py-3">
                       <Link to={`/quotations/${quotation.id}`} onClick={(event) => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); setDetailQuotationId(quotation.id); } }} className="font-mono text-sm font-bold text-brand-primaryInk hover:underline">
+                        <FileText aria-hidden="true" />
                         {quotation.codigo}
                       </Link>
+                      <span className="commercial-code-meta"><time dateTime={quotation.createdAt}>{formatDate(quotation.createdAt)}</time>{quotation.asesor?.nombre && <><i aria-hidden="true">·</i><span title={quotation.asesor.nombre}>{quotation.asesor.nombre}</span></>}</span>
                       {quotation.workOrder && (
-                        <Link to={`/work-orders/${quotation.workOrder.id}`} className="mt-0.5 block font-mono text-xs font-bold text-emerald-700 hover:underline">
+                        <Link to={`/work-orders/${quotation.workOrder.id}`} className="commercial-linked-order mt-0.5 block font-mono text-xs font-bold text-emerald-700 hover:underline">
                           {quotation.workOrder.codigo}
                         </Link>
                       )}
-                      {quotation.asesor?.nombre && <span className="commercial-advisor" title={quotation.asesor.nombre}>{quotation.asesor.nombre}</span>}
-                      <span className="commercial-issued-inline">{formatDate(quotation.createdAt)}</span>
                       {status === 'archived' ? (
                         <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
                           <Archive className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -272,12 +276,13 @@ export const QuotationsPage = () => {
                       <span className="block break-words text-sm font-semibold text-brand-ink">{quotation.client?.nombre ?? 'Sin cliente'}</span>
                       <span className="block text-xs font-mono text-brand-muted">{quotation.client?.rut ?? 'Sin identificación'}</span>
                       {quotation.vehicle?.patente && (
-                        <span className="mt-1 inline-block rounded border border-brand-line bg-brand-pale px-1.5 py-0.5 font-mono text-xs font-bold text-brand-primaryInk">
-                          {quotation.vehicle.patente}
+                        <span className="commercial-client-vehicle">
+                          <b>{quotation.vehicle.patente}</b>
+                          {[quotation.vehicle.marca, quotation.vehicle.modelo].filter(Boolean).length > 0 && <span> · {[quotation.vehicle.marca, quotation.vehicle.modelo].filter(Boolean).join(' · ')}</span>}
                         </span>
                       )}
                     </td>
-                    <td data-label="Estado pago" className="px-3.5 py-3 whitespace-nowrap">
+                    <td data-label="Estado pago" data-payment-status={quotation.estadoPago} className="px-3.5 py-3 whitespace-nowrap">
                       <QuotationStatusBadge status={quotation.estadoPago} />
                     </td>
                     <td data-label="Emitida" className="hidden lg:table-cell px-3.5 py-3 text-xs text-brand-muted whitespace-nowrap">
@@ -328,6 +333,7 @@ export const QuotationsPage = () => {
                               title="Cotización pagada"
                             >
                               <Pencil className="h-4 w-4" aria-hidden="true" />
+                              <span className="commercial-action-label">Editar</span>
                             </button>
                           ) : (
                             <button
@@ -342,6 +348,7 @@ export const QuotationsPage = () => {
                                 ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
                                 : <AnimateIcon variant="wiggle" animateOnHover><Pencil className="h-4 w-4" aria-hidden="true" /></AnimateIcon>
                               }
+                              <span className="commercial-action-label">Editar</span>
                             </button>
                           )
                         )}
@@ -352,11 +359,13 @@ export const QuotationsPage = () => {
                         )}
                         <button type="button" className="group flex items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primary disabled:opacity-50" onClick={() => setPreviewQuotationId(quotation.id)} disabled={previewQuery.isPending && previewQuotationId === quotation.id} aria-label={`Vista previa PDF de ${quotation.codigo}`} title="Vista previa / Descargar PDF (mismo diseño)">
                           {previewQuery.isPending && previewQuotationId === quotation.id ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <AnimateIcon variant="bounce" animateOnHover><Download className="h-4 w-4" aria-hidden="true" /></AnimateIcon>}
+                          <span className="commercial-action-label">PDF</span>
                         </button>
                         <button type="button" className="group flex items-center justify-center rounded-lg bg-brand-pale text-brand-primaryInk hover:bg-brand-primaryHover hover:text-white" onClick={() => setDetailQuotationId(quotation.id)} aria-label={`Ver detalle de ${quotation.codigo}`} title="Ver detalle">
                           <AnimateIcon variant="hover-lift" animateOnHover>
-                            <FileText className="h-4 w-4" aria-hidden="true" />
+                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
                           </AnimateIcon>
+                          <span className="commercial-action-label">Ver detalle</span>
                         </button>
                       </div>
                     </td>

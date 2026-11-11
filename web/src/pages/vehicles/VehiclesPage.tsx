@@ -57,30 +57,31 @@ export const VehiclesPage = () => {
     setSearchParams({ tab: value });
   };
 
+  const parkTabs = tabs.length > 1 ? (
+    <AnimatedTabs
+      tabs={tabs}
+      activeTab={activeTab}
+      onChange={handleTabChange}
+      layoutId="vehicles-active-tab"
+      ariaLabel="Tipo de vehículos"
+      size="md"
+      className="vehicle-park-tabs relative z-[1]"
+    />
+  ) : null;
+
   return (
-    <div className="workspace-page workspace-vehicles min-w-0 space-y-5">
+    <div className="workspace-page workspace-vehicles vehicles-reference-page min-w-0 space-y-5">
       <header className="page-banner">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Parque vehicular</p>
           <h1 className="mt-1">Vehículos</h1>
         </div>
-        {tabs.length > 1 && (
-          <AnimatedTabs
-            tabs={tabs}
-            activeTab={activeTab}
-            onChange={handleTabChange}
-            layoutId="vehicles-active-tab"
-            ariaLabel="Tipo de vehículos"
-            size="md"
-            className="relative z-[1] ml-auto"
-          />
-        )}
       </header>
 
       {activeTab === 'flota' && canFleet ? (
-        <FleetVehiclesTab key="flota" />
+        <FleetVehiclesTab key="flota" navigation={parkTabs} />
       ) : canWorkshop ? (
-        <WorkshopVehiclesTab key="taller" />
+        <WorkshopVehiclesTab key="taller" navigation={parkTabs} />
       ) : null}
     </div>
   );

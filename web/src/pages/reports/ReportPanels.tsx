@@ -6,7 +6,7 @@ import {
   WORK_ORDER_STATUS,
   WORK_ORDER_STATUS_LABELS,
 } from '@unithor/shared';
-import { Download, FileText, Search } from 'lucide-react';
+import { Download, FileText, LoaderCircle, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { useCatalogItems } from '../../hooks/useCatalog';
@@ -85,7 +85,7 @@ const SearchFilter = ({
   onChange: (value: string) => void;
   placeholder: string;
 }) => (
-  <label className="relative block min-w-0">
+  <label className="report-filter-search relative block min-w-0">
     <span className="sr-only">Buscar</span>
     <Search
       className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted"
@@ -115,7 +115,7 @@ const PanelHeader = ({
       <h2 className="text-lg font-bold text-brand-primaryInk">{title}</h2>
       {description && <p className="mt-1 text-sm text-brand-muted">{description}</p>}
     </div>
-    <div className="flex flex-wrap items-center gap-2">{action}</div>
+    <div className="report-export-actions flex flex-wrap items-center gap-2">{action}</div>
   </div>
 );
 
@@ -175,20 +175,26 @@ export const FinanceReportPanel = ({
               <button
                 type="button"
                 className="secondary-button"
+                aria-busy={report.isPending && report.variables?.format === 'pdf'}
                 disabled={!validRange || report.isPending}
                 onClick={() => report.openPdf('finance', filters)}
               >
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Abrir PDF
+                {report.isPending && report.variables?.format === 'pdf' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <FileText className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'pdf' ? 'Generando PDF…' : 'Abrir PDF'}
               </button>
               <button
                 type="button"
                 className="primary-button"
+                aria-busy={report.isPending && report.variables?.format === 'excel'}
                 disabled={!validRange || report.isPending}
                 onClick={() => report.downloadExcel('finance', filters)}
               >
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Excel
+                {report.isPending && report.variables?.format === 'excel' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <Download className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'excel' ? 'Generando Excel…' : 'Excel'}
               </button>
             </>
           )
@@ -303,7 +309,7 @@ export const FinanceReportPanel = ({
         ) : (
           data && (
             <>
-              <div className="report-table-panel overflow-x-auto rounded-lg border border-brand-line bg-white">
+              <div className="report-table-panel report-summary-panel overflow-x-auto rounded-lg border border-brand-line bg-white">
                 <table
                   role="table"
                   className="workspace-table w-full min-w-[760px] text-left text-sm"
@@ -498,20 +504,26 @@ export const CommercialReportPanel = ({
               <button
                 type="button"
                 className="secondary-button"
+                aria-busy={report.isPending && report.variables?.format === 'pdf'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.openPdf('commercial', filters)}
               >
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Abrir PDF
+                {report.isPending && report.variables?.format === 'pdf' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <FileText className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'pdf' ? 'Generando PDF…' : 'Abrir PDF'}
               </button>
               <button
                 type="button"
                 className="primary-button"
+                aria-busy={report.isPending && report.variables?.format === 'excel'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.downloadExcel('commercial', filters)}
               >
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Excel
+                {report.isPending && report.variables?.format === 'excel' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <Download className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'excel' ? 'Generando Excel…' : 'Excel'}
               </button>
             </>
           )
@@ -675,20 +687,26 @@ export const WorkshopReportPanel = ({
               <button
                 type="button"
                 className="secondary-button"
+                aria-busy={report.isPending && report.variables?.format === 'pdf'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.openPdf('workshop', filters)}
               >
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Abrir PDF
+                {report.isPending && report.variables?.format === 'pdf' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <FileText className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'pdf' ? 'Generando PDF…' : 'Abrir PDF'}
               </button>
               <button
                 type="button"
                 className="primary-button"
+                aria-busy={report.isPending && report.variables?.format === 'excel'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.downloadExcel('workshop', filters)}
               >
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Excel
+                {report.isPending && report.variables?.format === 'excel' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <Download className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'excel' ? 'Generando Excel…' : 'Excel'}
               </button>
             </>
           )
@@ -859,20 +877,26 @@ export const InventoryReportPanel = ({
               <button
                 type="button"
                 className="secondary-button"
+                aria-busy={report.isPending && report.variables?.format === 'pdf'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.openPdf('inventory', filters)}
               >
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Abrir PDF
+                {report.isPending && report.variables?.format === 'pdf' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <FileText className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'pdf' ? 'Generando PDF…' : 'Abrir PDF'}
               </button>
               <button
                 type="button"
                 className="primary-button"
+                aria-busy={report.isPending && report.variables?.format === 'excel'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.downloadExcel('inventory', filters)}
               >
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Excel
+                {report.isPending && report.variables?.format === 'excel' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <Download className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'excel' ? 'Generando Excel…' : 'Excel'}
               </button>
             </>
           )
@@ -1056,20 +1080,26 @@ export const CatalogReportPanel = ({
               <button
                 type="button"
                 className="secondary-button"
+                aria-busy={report.isPending && report.variables?.format === 'pdf'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.openPdf('catalog', filters)}
               >
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Abrir PDF
+                {report.isPending && report.variables?.format === 'pdf' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <FileText className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'pdf' ? 'Generando PDF…' : 'Abrir PDF'}
               </button>
               <button
                 type="button"
                 className="primary-button"
+                aria-busy={report.isPending && report.variables?.format === 'excel'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.downloadExcel('catalog', filters)}
               >
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Excel
+                {report.isPending && report.variables?.format === 'excel' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <Download className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'excel' ? 'Generando Excel…' : 'Excel'}
               </button>
             </>
           )
@@ -1245,20 +1275,26 @@ export const FleetReportPanel = ({
               <button
                 type="button"
                 className="secondary-button"
+                aria-busy={report.isPending && report.variables?.format === 'pdf'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.openPdf('fleet', filters)}
               >
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Abrir PDF
+                {report.isPending && report.variables?.format === 'pdf' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <FileText className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'pdf' ? 'Generando PDF…' : 'Abrir PDF'}
               </button>
               <button
                 type="button"
                 className="primary-button"
+                aria-busy={report.isPending && report.variables?.format === 'excel'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.downloadExcel('fleet', filters)}
               >
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Excel
+                {report.isPending && report.variables?.format === 'excel' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <Download className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'excel' ? 'Generando Excel…' : 'Excel'}
               </button>
             </>
           )
@@ -1502,20 +1538,26 @@ export const AdministrationReportPanel = ({
               <button
                 type="button"
                 className="secondary-button"
+                aria-busy={report.isPending && report.variables?.format === 'pdf'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.openPdf('administration', filters)}
               >
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Abrir PDF
+                {report.isPending && report.variables?.format === 'pdf' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <FileText className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'pdf' ? 'Generando PDF…' : 'Abrir PDF'}
               </button>
               <button
                 type="button"
                 className="primary-button"
+                aria-busy={report.isPending && report.variables?.format === 'excel'}
                 disabled={!validRange || report.isPending || searchValue !== search}
                 onClick={() => report.downloadExcel('administration', filters)}
               >
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Excel
+                {report.isPending && report.variables?.format === 'excel' ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : <Download className="h-4 w-4" aria-hidden="true" />}
+                {report.isPending && report.variables?.format === 'excel' ? 'Generando Excel…' : 'Excel'}
               </button>
             </>
           )

@@ -1,5 +1,5 @@
-import { calculateQuotationPricing, createQuotationSchema } from '@unithor/shared';
-import { AlertCircle, ArrowLeft, CheckCircle2, LoaderCircle, Plus, ReceiptText, Save } from 'lucide-react';
+import { calculateQuotationPricing, createQuotationSchema, QUOTATION_PAYMENT_LABELS } from '@unithor/shared';
+import { AlertCircle, ArrowLeft, CheckCircle2, ClipboardCheck, LoaderCircle, Plus, ReceiptText, Save, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -130,17 +130,22 @@ const QuotationCreateForm = () => {
           </AnimateIcon>
         </Link>
         <div>
-          <p className="text-sm font-medium text-brand-muted">Emisión comercial</p>
+          <p className="text-sm font-medium text-brand-muted">Cliente, servicios y revisión</p>
           <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">Nueva Cotización</h1>
         </div>
       </header>
       <FormRecoveryBanner candidateAt={recovery.candidate?.updatedAt ?? null} ready={recovery.ready} saving={recovery.saving} savedAt={recovery.savedAt} error={recovery.error} onRecover={recovery.recover} onDiscard={() => void recovery.discard()} onRetry={() => void recovery.retry()} />
       <form onSubmit={submit} className="commercial-create-form overflow-hidden rounded-lg border border-brand-line bg-white shadow-sm">
         <fieldset disabled={!recovery.ready || createMutation.isPending} className="min-w-0">
+        <ol className="commercial-form-stages" aria-label="Etapas de cotización">
+          <li data-complete={Boolean(client)} aria-current={!client ? 'step' : undefined}><span aria-hidden="true">{client ? <CheckCircle2 /> : '1'}</span>Cliente</li>
+          <li aria-current={client ? 'step' : undefined}><span aria-hidden="true">2</span>Servicios</li>
+          <li><span aria-hidden="true">3</span>Revisión</li>
+        </ol>
         <div className="commercial-create-scroll">
         <section className="commercial-customer p-5 sm:p-6">
-          <h2 className="font-bold text-brand-primaryInk">Cliente</h2>
-          <div className="mt-3 flex max-w-2xl items-start gap-2">
+          <div className="commercial-customer-heading"><h2 className="quotation-section-title font-bold text-brand-primaryInk"><UserRound aria-hidden="true" />Cliente</h2><span>Destinatario de la cotización</span></div>
+          <div className="commercial-client-picker mt-3 flex max-w-2xl items-start gap-2">
             <div className="min-w-0 flex-1">
               <QuickVehicleSearch
                 mode="clients"
@@ -195,12 +200,13 @@ const QuotationCreateForm = () => {
             <QuotationCommercialFields value={commercial} onChange={setCommercial} errors={errors} />
             <QuotationDiscountSummary items={items} value={commercial} onChange={setCommercial} />
             {errors.descuentoValor && <p role="alert" className="text-sm text-brand-coralInk">{errors.descuentoValor}</p>}
-            <label className="block text-sm font-semibold text-brand-ink">Notas comerciales o garantía<textarea rows={3} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" /></label>
+            <label className="commercial-notes-field block text-sm font-semibold text-brand-ink">Notas comerciales o garantía<textarea rows={3} value={notas} onChange={(event) => setNotas(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-brand-line px-3 py-2 font-normal outline-none focus:border-brand-primary" /></label>
           </aside>
         </div>
         </div>
         {createMutation.isError && <div className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(createMutation.error)}</div>}
         <footer className="commercial-create-footer flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 p-4 sm:flex-row sm:justify-end">
+          <span className="commercial-create-footer-hint"><ClipboardCheck aria-hidden="true" />Revisa el resumen antes de emitir</span>
           <Link to="/quotations" className="inline-flex h-10 items-center justify-center rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink transition-colors hover:bg-brand-pale">Cancelar</Link>
           <button type="submit" className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow disabled:opacity-60" disabled={createMutation.isPending}>
             {createMutation.isPending ? (
@@ -230,6 +236,7 @@ const QuotationCreateForm = () => {
           clientName={client.nombre}
           items={items}
           commercial={commercial}
+          notas={notas}
           isPending={createMutation.isPending}
           onClose={closeConfirm}
           onConfirm={confirmCreate}
@@ -250,6 +257,7 @@ const QuotationCreateConfirm = ({
   clientName,
   items,
   commercial,
+  notas,
   isPending,
   onClose,
   onConfirm,
@@ -257,6 +265,7 @@ const QuotationCreateConfirm = ({
   clientName: string;
   items: EditableWorkOrderItem[];
   commercial: CommercialDraft;
+  notas: string;
   isPending: boolean;
   onClose: () => void;
   onConfirm: () => void;
@@ -303,7 +312,7 @@ const QuotationCreateConfirm = ({
           id="confirm-quotation-title"
           badge={<ReceiptText className="h-6 w-6" aria-hidden="true" />}
           tone="primary"
-          variant="brand"
+          variant="plain"
           eyebrow="Nueva cotización"
           title="Confirmar emisión"
           description="Revisa el resumen antes de crear la cotización."
@@ -311,7 +320,13 @@ const QuotationCreateConfirm = ({
           closeDisabled={isPending}
           closeLabel="Volver"
         />
-        <dl className="space-y-2.5 px-7 pb-2 text-sm tabular-nums">
+        <div className="commercial-confirm-body">
+        <ol className="commercial-form-stages" aria-label="Etapas de cotización">
+          <li data-complete="true"><span aria-hidden="true"><CheckCircle2 /></span>Cliente</li>
+          <li data-complete="true"><span aria-hidden="true"><CheckCircle2 /></span>Servicios</li>
+          <li aria-current="step"><span aria-hidden="true">3</span>Revisión</li>
+        </ol>
+        <dl className="commercial-confirm-summary space-y-2.5 text-sm tabular-nums">
           <div className="flex items-center justify-between gap-3">
             <dt className="text-brand-muted">Cliente</dt>
             <dd className="min-w-0 truncate font-semibold text-brand-ink">{clientName}</dd>
@@ -333,6 +348,20 @@ const QuotationCreateConfirm = ({
             <dd>{formatClp(total)}</dd>
           </div>
         </dl>
+        <section className="commercial-confirm-items" aria-label="Conceptos a emitir">
+          <h3>Servicios y repuestos</h3>
+          {items.length ? <ul>{items.map((item) => <li key={item.key}>
+            <span>{item.descripcion}<small>{item.cantidad} × {formatClp(Number(item.precioUnitario))}</small></span>
+            <strong>{formatClp(calculateQuotationPricing([item]).total)}</strong>
+          </li>)}</ul> : <p>Sin conceptos. Total cero.</p>}
+        </section>
+        <dl className="commercial-confirm-conditions">
+          <div><dt>Forma de pago</dt><dd>{QUOTATION_PAYMENT_LABELS[commercial.formaPago]}</dd></div>
+          <div><dt>Validez</dt><dd>{commercial.validezDias} días</dd></div>
+          {commercial.disponibilidadTrabajo && <div><dt>Disponibilidad del trabajo</dt><dd>{commercial.disponibilidadTrabajo}</dd></div>}
+          {notas && <div><dt>Notas comerciales o garantía</dt><dd>{notas}</dd></div>}
+        </dl>
+        </div>
         <footer className="reference-dialog-footer flex justify-end gap-2 px-5 py-4 sm:px-7">
           <button type="button" className="secondary-button" onClick={onClose} disabled={isPending}>
             Volver

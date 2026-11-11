@@ -1,4 +1,4 @@
-import { Check, CircleCheck, Clock3, ListFilter, ReceiptText, Search, X } from 'lucide-react';
+import { Check, CircleCheck, Clock3, ListFilter, ReceiptText, X } from 'lucide-react';
 import { useSearchParams, Link } from 'react-router-dom';
 
 import PaymentReceiptLink from './PaymentReceiptLink';
@@ -98,57 +98,7 @@ export default function FinancePayments({
 
   return (
     <section className="finance-payments" aria-label="Listado de abonos">
-      <div className="finance-payment-toolbar">
-        <label className="finance-search">
-          <Search aria-hidden="true" />
-          <span className="sr-only">Buscar abonos</span>
-          <input
-            type="search"
-            value={search}
-            maxLength={100}
-            onChange={(event) => setFilter('paymentSearch', event.target.value)}
-            placeholder="Cotización, cliente o transacción"
-          />
-        </label>
-        <label className="finance-compact-filter">
-          Método
-          <select
-            aria-label="Método de los abonos"
-            value={method ?? ''}
-            onChange={(event) => setFilter('paymentMethod', event.target.value)}
-          >
-            <option value="">Todos los métodos</option>
-            {Object.entries(methods).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="finance-compact-filter">
-          Desde
-          <input
-            aria-label="Abonos desde"
-            type="date"
-            value={from}
-            max={to || undefined}
-            onChange={(event) => setFilter('paymentFrom', event.target.value)}
-          />
-        </label>
-        <label className="finance-compact-filter">
-          Hasta
-          <input
-            aria-label="Abonos hasta"
-            type="date"
-            value={to}
-            min={from || undefined}
-            onChange={(event) => setFilter('paymentTo', event.target.value)}
-          />
-        </label>
-      </div>
       <div className="finance-list-toolbar">
-        <ListExportButtons target="payments" filters={queryParams}
-          disabled={query.isPending || query.isError || !validRange} />
         <div className="finance-filter-pills" role="group" aria-label="Filtrar abonos por estado">
           {statuses.map(({ value, label, icon: Icon }) => (
             <button
@@ -162,6 +112,51 @@ export default function FinancePayments({
             </button>
           ))}
         </div>
+        <details
+          className="finance-advanced-filters"
+          open={Boolean(method || from || to) || undefined}
+        >
+          <summary>
+            <ListFilter aria-hidden="true" /> Método y período
+          </summary>
+          <div className="finance-payment-toolbar">
+            <label className="finance-compact-filter">
+              Método
+              <select
+                aria-label="Método de los abonos"
+                value={method ?? ''}
+                onChange={(event) => setFilter('paymentMethod', event.target.value)}
+              >
+                <option value="">Todos los métodos</option>
+                {Object.entries(methods).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="finance-compact-filter">
+              Desde
+              <input
+                aria-label="Abonos desde"
+                type="date"
+                value={from}
+                max={to || undefined}
+                onChange={(event) => setFilter('paymentFrom', event.target.value)}
+              />
+            </label>
+            <label className="finance-compact-filter">
+              Hasta
+              <input
+                aria-label="Abonos hasta"
+                type="date"
+                value={to}
+                min={from || undefined}
+                onChange={(event) => setFilter('paymentTo', event.target.value)}
+              />
+            </label>
+          </div>
+        </details>
         <span className="finance-record-note" role="status">
           {query.isPending ? 'Cargando…' : (query.data?.total ?? 0) + ' abonos'}
         </span>
@@ -170,6 +165,12 @@ export default function FinancePayments({
             Limpiar filtros
           </button>
         )}
+        <ListExportButtons
+          target="payments"
+          filters={queryParams}
+          className="finance-list-export"
+          disabled={query.isPending || query.isError || !validRange}
+        />
       </div>
       {!validRange && (
         <p role="alert" className="finance-alert">
@@ -227,24 +228,26 @@ export default function FinancePayments({
                       <strong>{formatClp(payment.monto)}</strong>
                     </div>
                     <div className="finance-payment-actions">
-                      <PaymentReceiptLink payment={payment} />
+                      <PaymentReceiptLink payment={payment} compact />
                       {state === 'por_verificar' && canReview && (
                         <div>
                           <button
                             type="button"
                             className="finance-approve"
+                            title="Aprobar transferencia"
                             onClick={() => onReview(payment, 'aprobar')}
                           >
                             <Check aria-hidden="true" />
-                            Aprobar
+                            <span className="sr-only">Aprobar</span>
                           </button>
                           <button
                             type="button"
                             className="finance-reject"
+                            title="Rechazar transferencia"
                             onClick={() => onReview(payment, 'rechazar')}
                           >
                             <X aria-hidden="true" />
-                            Rechazar
+                            <span className="sr-only">Rechazar</span>
                           </button>
                         </div>
                       )}

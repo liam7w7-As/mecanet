@@ -123,6 +123,8 @@ describe('UsersPage', () => {
 
     expect(await screen.findByText('Ana Administradora')).toBeInTheDocument();
     expect(screen.getByText('Víctor Ventas')).toBeInTheDocument();
+    expect(screen.getByText('@victor')).toBeInTheDocument();
+    expect(screen.getByText('victor@unithor.local')).toBeInTheDocument();
     expect(screen.getAllByText('Administrador')).toHaveLength(2);
     expect(screen.getByText('Inactivo')).toBeInTheDocument();
     expect(screen.getByText('2 registros')).toBeInTheDocument();
@@ -148,6 +150,59 @@ describe('UsersPage', () => {
       password: 'Temporal2026!',
       roleId: 4,
     }));
+  });
+
+  it('exige ocho caracteres antes de enviar la contraseña temporal', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { user: sellerUser } } as AxiosResponse);
+    renderPage();
+    await screen.findByText('Ana Administradora');
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo usuario' }));
+    fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Nueva Cuenta' } });
+    fireEvent.change(screen.getByLabelText('Nombre de usuario'), { target: { value: 'nueva' } });
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: 'nueva@unithor.local' } });
+    fireEvent.change(screen.getByLabelText('Contraseña temporal'), { target: { value: 'Abc1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear usuario' }));
+    expect(screen.getByText('La contraseña debe tener al menos 8 caracteres')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Contraseña temporal'), { target: { value: 'Abc12345' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear usuario' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+  });
+
+  it('conserva el formulario tras un conflicto 409 y permite corregirlo y reintentar', async () => {
+    vi.mocked(api.patch).mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 409, data: { error: { message: 'El nombre de usuario ya está registrado.' } } },
+    }).mockResolvedValueOnce({ data: { user: sellerUser } } as AxiosResponse);
+    renderPage();
+    await screen.findByText('Víctor Ventas');
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Víctor Ventas' }));
+    fireEvent.change(screen.getByLabelText('Nombre de usuario'), { target: { value: 'ocupado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('El nombre de usuario ya está registrado.');
+    expect(screen.getByLabelText('Nombre de usuario')).toHaveValue('ocupado');
+    expect(screen.getByLabelText('Correo electrónico')).toHaveValue(sellerUser.email);
+    fireEvent.change(screen.getByLabelText('Nombre de usuario'), { target: { value: 'victor.nuevo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(api.patch).toHaveBeenLastCalledWith('/users/7', expect.objectContaining({ username: 'victor.nuevo' })));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('selecciona permisos por módulo y bloquea el guardado sin permisos', async () => {
+    vi.mocked(api.put).mockResolvedValue({ data: { permissions } } as AxiosResponse);
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Permisos por rol' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Vendedor' }));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Creación' })).toBeChecked());
+    fireEvent.click(screen.getByRole('button', { name: /Marcar todos los permisos de/ }));
+    expect(screen.getAllByRole('checkbox').every((input) => (input as HTMLInputElement).checked)).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /Desmarcar todos los permisos de/ }));
+    expect(screen.getByRole('button', { name: 'Guardar permisos' })).toBeDisabled();
+    expect(screen.getByText('Debe asignar al menos un permiso.')).toBeInTheDocument();
+    expect(api.put).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Marcar todos los permisos de/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar permisos' }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/roles/4/permissions', { roleId: 4, permissionIds: [1, 2, 3, 4] }));
   });
 
   it('actualiza la matriz de permisos del rol seleccionado', async () => {

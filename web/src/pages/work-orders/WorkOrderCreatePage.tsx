@@ -4,6 +4,7 @@ import {
   formatRut,
   FUEL_LEVELS,
   TIRE_CONDITIONS,
+  UNIT_MEASURE_LABELS,
   VEHICLE_INVENTORY_ITEMS,
 } from '@unithor/shared';
 import {
@@ -12,14 +13,18 @@ import {
   Camera,
   Car,
   Check,
+  CircleDot,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   LoaderCircle,
+  NotebookPen,
+  PackageCheck,
   Plus,
   Save,
   Search,
   Trash2,
+  Upload,
   UserRound,
   X,
 } from 'lucide-react';
@@ -201,7 +206,7 @@ interface SelectedClientCardProps {
 }
 
 const SelectedClientCard = ({ title, client, onClear, onChange }: SelectedClientCardProps) => (
-  <div className="reception-client-card rounded-lg border border-brand-line bg-white p-3">
+  <div className="reception-client-card rounded-lg border border-brand-line bg-white p-3" data-selected={Boolean(client)}>
     <div className="flex items-start justify-between gap-3">
       <p className="text-xs font-bold uppercase text-brand-muted">{title}</p>
       {client && onChange && (
@@ -232,7 +237,7 @@ const SelectedClientCard = ({ title, client, onClear, onChange }: SelectedClient
           <UserRound className="h-5 w-5" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="break-words font-bold text-brand-primaryInk">{client.nombre}</p>
+          <p className="reception-client-name break-words font-bold text-brand-primaryInk">{client.nombre}</p>
           <p className="mt-1 text-sm text-brand-muted">{clientSubtitle(client)}</p>
           {client.email && <p className="mt-1 truncate text-xs text-brand-muted">{client.email}</p>}
         </div>
@@ -271,6 +276,7 @@ const ClientSearchPicker = ({
     <section
       className="reception-client-picker rounded-lg border border-brand-line bg-white p-4"
       aria-label={label}
+      data-search-active={search.trim().length > 0}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -416,24 +422,29 @@ const ClientChoicePanel = ({
 };
 
 const InspectionDisclosure = ({
+  kind,
   title,
   summary = 'Opcional',
   initiallyOpen = false,
   children,
 }: {
+  kind: 'tires' | 'photos' | 'inventory' | 'notes';
   title: string;
   summary?: string;
   initiallyOpen?: boolean;
   children: ReactNode;
 }) => {
   const [open, setOpen] = useState(initiallyOpen);
+  const Icon = { tires: CircleDot, photos: Camera, inventory: PackageCheck, notes: NotebookPen }[kind];
   return (
     <details
       className="reception-disclosure"
+      data-inspection-section={kind}
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>
+        <span className="reception-disclosure-icon" aria-hidden="true"><Icon /></span>
         <span>{title}</span>
         <small>{summary}</small>
         <ChevronDown aria-hidden="true" />
@@ -1176,6 +1187,7 @@ const WorkOrderCreateForm = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 className="reception-step-content p-5 sm:p-6"
+                data-reception-step={activeStep}
               >
                 <div className="reception-step-heading">
                   <span>Paso {activeStep + 1} de 5</span>
@@ -1276,7 +1288,6 @@ const WorkOrderCreateForm = () => {
                       </div>
                     )}
                     {(vehicleSelectionOpen ||
-                      canAssignMechanic ||
                       vehicleOwnerIsDifferent ||
                       errors.vehicleId) && (
                       <section className="reception-vehicle-panel rounded-lg border border-brand-line bg-white p-4">
@@ -1288,15 +1299,9 @@ const WorkOrderCreateForm = () => {
                               puede quedar a nombre de otra persona que los entrega.
                             </p>
                           </div>
-                          <button
-                            type="button"
-                            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-primaryInk px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-primaryInkHover hover:text-white"
-                            onClick={() => setVehicleModalOpen(true)}
-                          >
-                            <Plus className="h-4 w-4" aria-hidden="true" /> Crear vehículo
-                          </button>
                         </div>
                         <div hidden={!vehicleSelectionOpen} className="mt-4">
+                          <div className="reception-vehicle-search-row">
                           <QuickVehicleSearch
                             presentation="reception"
                             onSelectVehicle={(next) => {
@@ -1306,6 +1311,14 @@ const WorkOrderCreateForm = () => {
                             suggestedClient={client}
                             placeholder="Buscar por patente, marca o modelo"
                           />
+                          <button
+                            type="button"
+                            className="reception-create-vehicle-action"
+                            onClick={() => setVehicleModalOpen(true)}
+                          >
+                            <Plus aria-hidden="true" /> Crear vehículo
+                          </button>
+                          </div>
                           {vehicle && (
                             <button
                               type="button"
@@ -1341,7 +1354,7 @@ const WorkOrderCreateForm = () => {
                 )}
 
                 {activeStep === 3 && (
-                  <div className="space-y-6">
+                  <div className="reception-inspection-grid">
                     {/* Fechas y motivo de ingreso */}
                     <section className="reception-basic-card rounded-lg border border-brand-line bg-brand-line/60 p-4">
                       <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-brand-primaryInk">
@@ -1426,6 +1439,7 @@ const WorkOrderCreateForm = () => {
                     </section>
 
                     <InspectionDisclosure
+                      kind="tires"
                       title="Estado de las llantas"
                       summary={
                         Object.entries(inspection).filter(
@@ -1473,6 +1487,7 @@ const WorkOrderCreateForm = () => {
                     </InspectionDisclosure>
 
                     <InspectionDisclosure
+                      kind="photos"
                       title="Fotos del vehículo"
                       summary={photos.length + '/9 fotos'}
                       initiallyOpen={photos.length > 0}
@@ -1497,11 +1512,13 @@ const WorkOrderCreateForm = () => {
                               <div
                                 key={slot}
                                 className="reception-photo-card overflow-hidden rounded-lg border border-brand-line bg-white"
+                                data-photo-slot={slot}
                               >
                                 <div className="flex items-center justify-between gap-2 border-b border-brand-line px-3 py-2">
                                   <p className="text-sm font-semibold text-brand-ink">
                                     {photoSlotLabels[slot]}
                                   </p>
+                                  {photo && <span className="reception-photo-ready"><Check aria-hidden="true" /> Lista</span>}
                                   {photo && (
                                     <button
                                       type="button"
@@ -1539,7 +1556,7 @@ const WorkOrderCreateForm = () => {
                                   {canUploadPhotos ? (
                                     <span className="reception-photo-actions flex gap-2">
                                       <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-brand-primaryInk bg-white px-3 text-xs font-bold text-brand-primaryInk hover:bg-brand-line/40">
-                                        {photo ? 'Cambiar foto' : 'Subir foto'}
+                                        <Upload aria-hidden="true" /><span data-short-label={photo ? 'Cambiar' : 'Subir'}>{photo ? 'Cambiar foto' : 'Elegir archivo'}</span>
                                         <input
                                           type="file"
                                           accept={INSPECTION_PHOTO_ACCEPT}
@@ -1553,7 +1570,7 @@ const WorkOrderCreateForm = () => {
                                         />
                                       </label>
                                       <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-brand-primaryInk px-3 text-xs font-bold text-white hover:bg-brand-primaryInkHover">
-                                        Cámara
+                                        <Camera aria-hidden="true" /><span data-short-label="Cámara">Cámara</span>
                                         <input
                                           type="file"
                                           accept="image/*"
@@ -1582,6 +1599,7 @@ const WorkOrderCreateForm = () => {
                     </InspectionDisclosure>
 
                     <InspectionDisclosure
+                      kind="inventory"
                       title="Inventario interno"
                       summary={inspection.inventario.length + ' elementos'}
                       initiallyOpen={inspection.inventario.length > 0}
@@ -1602,7 +1620,7 @@ const WorkOrderCreateForm = () => {
                                 onChange={() => toggleInventory(item)}
                                 className="h-4 w-4 rounded border-brand-line text-brand-primaryInk focus:ring-brand-primary"
                               />
-                              {inventoryLabels[item]}
+                              <span className="reception-inventory-name">{inventoryLabels[item]}</span>
                             </label>
                           ))}
                         </div>
@@ -1610,6 +1628,7 @@ const WorkOrderCreateForm = () => {
                     </InspectionDisclosure>
 
                     <InspectionDisclosure
+                      kind="notes"
                       title="Observaciones adicionales"
                       initiallyOpen={Boolean(inspection.objetosValor || inspection.observaciones)}
                     >
@@ -1644,7 +1663,7 @@ const WorkOrderCreateForm = () => {
                 )}
 
                 {activeStep === 4 && (
-                  <div className="space-y-4">
+                  <div className="reception-services-step space-y-4">
                     {!isConversion && (
                       <div className="reception-service-note rounded-lg border border-brand-primaryInk/20 bg-brand-line/60 px-4 py-3">
                         <p className="text-sm font-semibold text-brand-primaryInk">
@@ -1656,7 +1675,7 @@ const WorkOrderCreateForm = () => {
                     {isConversion ? (
                       <section
                         aria-label="Servicios de la cotización"
-                        className="min-w-0 space-y-3"
+                        className="reception-imported-services min-w-0 space-y-3"
                       >
                         <h2 className="font-semibold text-brand-primaryInk">
                           Servicios y repuestos de {quotationQuery.data?.codigo}
@@ -1675,13 +1694,39 @@ const WorkOrderCreateForm = () => {
                             <tbody>
                               {items.map((item) => (
                                 <tr key={item.key} className="border-b border-brand-line">
-                                  <td className="p-3">{item.descripcion}</td>
-                                  {canAssignMechanic && <td className="p-3">{item.tipoLinea !== 'parte' && <select aria-label={`Mecánico de ${item.descripcion}`} className={inputClassName} value={item.assignedUserId ?? ''} onChange={(event) => setItems((current) => current.map((line) => line.key === item.key ? { ...line, assignedUserId: event.target.value ? Number(event.target.value) : null } : line))}><option value="">Sin asignar</option>{(mechanicsQuery.data ?? []).map((mechanic) => <option key={mechanic.id} value={mechanic.id}>{mechanic.nombre}</option>)}</select>}</td>}
-                                  <td className="p-3 text-right">{item.cantidad}</td>
-                                  <td className="whitespace-nowrap p-3 text-right">
+                                  <td className="p-3">
+                                    {item.descripcion}
+                                    <small className="reception-imported-unit">
+                                      {UNIT_MEASURE_LABELS[item.unidadMedida]}
+                                      {item.horasHombreEstimadas ? ` · ${item.horasHombreEstimadas} h / unidad` : ''}
+                                    </small>
+                                  </td>
+                                  {canAssignMechanic && (
+                                    <td className="p-3" data-column="Mecánico del servicio">
+                                      {item.tipoLinea !== 'parte' && (
+                                        <select
+                                          aria-label={`Mecánico de ${item.descripcion}`}
+                                          className={inputClassName}
+                                          value={item.assignedUserId ?? ''}
+                                          onChange={(event) => setItems((current) => current.map((line) =>
+                                            line.key === item.key
+                                              ? { ...line, assignedUserId: event.target.value ? Number(event.target.value) : null }
+                                              : line,
+                                          ))}
+                                        >
+                                          <option value="">Sin asignar</option>
+                                          {(mechanicsQuery.data ?? []).map((mechanic) => (
+                                            <option key={mechanic.id} value={mechanic.id}>{mechanic.nombre}</option>
+                                          ))}
+                                        </select>
+                                      )}
+                                    </td>
+                                  )}
+                                  <td className="p-3 text-right" data-column="Cantidad">{item.cantidad}</td>
+                                  <td className="whitespace-nowrap p-3 text-right" data-column="Precio unitario">
                                     {formatClp(Number(item.precioUnitario))}
                                   </td>
-                                  <td className="whitespace-nowrap p-3 text-right">
+                                  <td className="whitespace-nowrap p-3 text-right" data-column="Subtotal">
                                     {formatClp(Number(item.cantidad) * Number(item.precioUnitario))}
                                   </td>
                                 </tr>
@@ -1880,6 +1925,7 @@ const WorkOrderCreateForm = () => {
                   mechanicsQuery.data?.find((mechanic) => mechanic.id === assignedMechanicId)
                     ?.nombre
                 }
+                mechanics={canAssignMechanic ? mechanicsQuery.data : undefined}
                 quotationCode={isConversion ? quotationQuery.data?.codigo : undefined}
                 pending={isSubmitting}
                 error={

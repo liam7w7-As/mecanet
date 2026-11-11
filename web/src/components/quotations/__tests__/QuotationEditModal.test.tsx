@@ -40,8 +40,8 @@ describe('QuotationEditModal line identity', () => {
         cantidad: 1,
         precioUnitario: 10000,
         subtotal: 10000,
-        estadoOperativo: 'pendiente',
-        notasOperativas: null,
+        estadoOperativo: id === 101 ? 'completado' : 'pendiente',
+        notasOperativas: id === 101 ? 'Trabajo revisado por el mecánico' : null,
       })),
     };
     vi.mocked(api.get).mockResolvedValue({ data: { items: [], total: 0 } } as AxiosResponse);
@@ -60,13 +60,15 @@ describe('QuotationEditModal line identity', () => {
     fireEvent.change(screen.getAllByDisplayValue('Trabajo duplicado')[0], {
       target: { value: 'Trabajo renombrado' },
     });
+    expect(screen.getByRole('combobox', { name: 'Avance 1' })).toHaveValue('completado');
+    expect(screen.getByRole('textbox', { name: 'Nota operativa 1' })).toHaveValue('Trabajo revisado por el mecánico');
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(api.patch).toHaveBeenCalledWith(
       '/quotations/10',
       expect.objectContaining({
         items: [
-          expect.objectContaining({ id: 101, descripcion: 'Trabajo renombrado' }),
+          expect.objectContaining({ id: 101, descripcion: 'Trabajo renombrado', estadoOperativo: 'completado', notasOperativas: 'Trabajo revisado por el mecánico' }),
           expect.objectContaining({ id: 102, descripcion: 'Trabajo duplicado' }),
         ],
       }),

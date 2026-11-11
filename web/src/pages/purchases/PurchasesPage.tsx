@@ -59,7 +59,7 @@ const PurchaseSkeleton = () => (
   <>
     {Array.from({ length: 6 }, (_, index) => (
       <tr key={index} className="border-t border-brand-line">
-        {Array.from({ length: 8 }, (_, cell) => (
+        {Array.from({ length: 9 }, (_, cell) => (
           <td key={cell} className="px-3 py-3.5">
             <div className="h-4 animate-pulse rounded bg-brand-pale" />
           </td>
@@ -103,13 +103,13 @@ export const PurchasesPage = () => {
   const purchases = purchasesQuery.data?.items ?? [];
 
   return (
-    <div className="workspace-page workspace-purchases min-w-0 space-y-5">
-      <header className="page-banner max-sm:!h-auto max-sm:flex-col max-sm:items-start max-sm:gap-3">
+    <div className="workspace-page workspace-purchases purchases-board min-w-0 space-y-5">
+      <header className="purchases-heading max-sm:flex-col max-sm:items-start max-sm:gap-3">
         <div className="min-w-0">
           <p className="text-sm text-brand-muted">Egresos con comprobante</p>
           <h1 className="mt-1">Compras</h1>
         </div>
-        <div className="relative z-[1] ml-auto flex flex-wrap gap-2">
+        <div className="purchases-heading-actions relative z-[1] ml-auto flex flex-wrap gap-2">
           <button
             type="button"
             className="secondary-button text-sm font-medium"
@@ -129,7 +129,7 @@ export const PurchasesPage = () => {
         </div>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen de compras">
+      <section className="purchases-metrics grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen de compras">
         <article className="rounded-xl border border-brand-line bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
@@ -185,12 +185,12 @@ export const PurchasesPage = () => {
       </section>
 
       <section
-        className="overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm"
+        className="purchases-register overflow-hidden rounded-xl border border-brand-line bg-white shadow-sm"
         aria-label="Listado de compras"
       >
-        <div className="border-b border-brand-line p-4 sm:p-5">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_150px_160px_170px_150px_150px]">
-            <label className="relative">
+        <div className="purchases-toolbar border-b border-brand-line p-4 sm:p-5">
+          <div className="purchases-filter-grid grid gap-3 md:grid-cols-2">
+            <label className="purchases-search relative">
               <span className="sr-only">Buscar compras</span>
               <Search
                 className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-brand-muted"
@@ -249,7 +249,7 @@ export const PurchasesPage = () => {
               </select>
             </label>
             <label>
-              <span className="sr-only">Fecha de registro desde</span>
+              <span className="purchases-filter-caption">Fecha de registro desde</span>
               <input
                 type="date"
                 value={fechaDesde}
@@ -260,7 +260,7 @@ export const PurchasesPage = () => {
               />
             </label>
             <label>
-              <span className="sr-only">Fecha de registro hasta</span>
+              <span className="purchases-filter-caption">Fecha de registro hasta</span>
               <input
                 type="date"
                 value={fechaHasta}
@@ -286,8 +286,8 @@ export const PurchasesPage = () => {
           </div>
         )}
 
-        <div className="max-w-full overflow-x-auto overscroll-x-contain">
-          <table role="table" className="workspace-table w-full min-w-[1040px] text-left text-sm">
+        <div className="purchases-table-frame max-w-full overflow-x-auto overscroll-x-contain">
+          <table role="table" className="purchases-table workspace-table w-full text-left text-sm">
             <thead role="rowgroup" className="bg-brand-line/40 text-[11px] uppercase text-brand-muted">
               <tr role="row">
                 <th role="columnheader" className="px-4 py-3 font-semibold">Compra</th>
@@ -330,7 +330,7 @@ export const PurchasesPage = () => {
                   return (
                     <tr role="row"
                       key={purchase.id}
-                      className="border-t border-brand-line align-top transition-colors hover:bg-brand-pale/30"
+                      className="purchases-record border-t border-brand-line align-top transition-colors hover:bg-brand-pale/30"
                     >
                       <td role="cell" data-label="Compra" className="px-4 py-3">
                         <Link
@@ -415,6 +415,7 @@ export const PurchasesPage = () => {
                         <div className="flex items-center justify-end gap-1">
                           <Link
                             to={`/purchases/${purchase.id}`}
+                            aria-label={`Ver compra ${purchase.codigo}`}
                             className="inline-flex h-9 items-center rounded-lg border border-brand-line px-2.5 text-xs font-semibold text-brand-primaryInk hover:bg-brand-pale"
                           >
                             Ver

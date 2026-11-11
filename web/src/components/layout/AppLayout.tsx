@@ -1,5 +1,6 @@
-import { ChevronDown, LogOut, Menu, PanelLeftClose, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import MobileMoreSheet from './MobileMoreSheet';
@@ -23,17 +24,17 @@ import PwaInstallButton from '../pwa/PwaInstallButton';
 import type { BadgeKey } from './navigation';
 
 interface SidebarContentProps {
-  onNavigate?: () => void;
   onToggle: () => void;
-  isDesktop: boolean;
+  isCollapsed: boolean;
 }
 
-const SidebarContent = ({ onNavigate, onToggle, isDesktop }: SidebarContentProps) => {
+const SidebarContent = ({ onToggle, isCollapsed }: SidebarContentProps) => {
   const { pathname } = useLocation();
   const user = useAuthStore((state) => state.user);
   const dashboardQuery = useDashboardSummary(user);
   const logoutMutation = useLogoutMutation();
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
+  const [railHint, setRailHint] = useState<{ path: string; label: string; left: number; top: number } | null>(null);
   const inbox = dashboardQuery.data?.operationalInbox;
 
   const badgeCounts: Record<BadgeKey, number> = {
@@ -46,6 +47,12 @@ const SidebarContent = ({ onNavigate, onToggle, isDesktop }: SidebarContentProps
   };
 
   const groups = getNavigationGroups(user);
+  const toggleLabel = isCollapsed ? 'Abrir navegación' : 'Plegar navegación';
+  const showRailHint = (element: HTMLElement, path: string, label: string) => {
+    if (!isCollapsed) return;
+    const bounds = element.getBoundingClientRect();
+    setRailHint({ path, label, left: bounds.right + 12, top: bounds.top + bounds.height / 2 });
+  };
 
   return (
     <>
@@ -54,59 +61,78 @@ const SidebarContent = ({ onNavigate, onToggle, isDesktop }: SidebarContentProps
         <button
           type="button"
           className="shell-icon-button shell-sidebar-toggle"
-          aria-label={isDesktop ? 'Plegar navegación' : 'Cerrar navegación'}
-          onClick={onToggle}
+          aria-label={toggleLabel}
+          title={toggleLabel}
+          aria-controls="shell-navigation-links"
+          aria-expanded={!isCollapsed}
+          onClick={() => { setRailHint(null); onToggle(); }}
         >
-          {isDesktop ? <PanelLeftClose aria-hidden="true" /> : <X aria-hidden="true" />}
+          <ChevronLeft aria-hidden="true" />
         </button>
       </div>
 
-      <nav className="nav-scroll" aria-label="Navegación principal">
-        {groups.map((group, index) => (
-          <div key={group.heading}>
+      <nav id="shell-navigation-links" className="nav-scroll" aria-label="Navegación principal" onScroll={() => setRailHint(null)} onKeyDown={(event) => { if (event.key === 'Escape') setRailHint(null); }}>
+        {groups.map((group, index) => {
+          // A folded rail always exposes every authorized icon, retaining the
+          // expanded sidebar's group preferences for when it opens again.
+          const groupClosed = !isCollapsed && collapsedGroups.includes(group.heading);
+          return <div key={group.heading} className="shell-nav-group">
             <button
               type="button"
               className="nav-heading shell-nav-heading"
-              aria-expanded={!collapsedGroups.includes(group.heading)}
+              hidden={isCollapsed}
+              aria-expanded={!groupClosed}
               aria-controls={`shell-nav-group-${index}`}
               onClick={() => setCollapsedGroups((current) => current.includes(group.heading)
                 ? current.filter((heading) => heading !== group.heading)
                 : [...current, group.heading])}
             >
               <span>{group.heading}</span>
-              <ChevronDown className={cn(collapsedGroups.includes(group.heading) && '-rotate-90')} aria-hidden="true" />
+              <ChevronDown className={cn(groupClosed && '-rotate-90')} aria-hidden="true" />
             </button>
-            <div id={`shell-nav-group-${index}`} hidden={collapsedGroups.includes(group.heading)}>
+            <div id={`shell-nav-group-${index}`} hidden={groupClosed}>
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const badgeCount = item.badge ? badgeCounts[item.badge] : 0;
+                const badgeId = `shell-nav-badge-${item.badge}`;
+                const description = [badgeCount > 0 && badgeId, isCollapsed && railHint?.path === item.path && 'shell-rail-tooltip'].filter(Boolean).join(' ') || undefined;
                 return (
                   <NavLink
                     key={item.path}
                     to={item.path}
-                    onClick={onNavigate}
+                    aria-label={item.label}
+                    aria-describedby={description}
+                    title={item.label}
+                    onClick={() => setRailHint(null)}
+                    onMouseEnter={(event) => showRailHint(event.currentTarget, item.path, item.label)}
+                    onMouseLeave={() => setRailHint(null)}
+                    onFocus={(event) => showRailHint(event.currentTarget, item.path, item.label)}
+                    onBlur={() => setRailHint(null)}
                     end={item.path === '/work-orders' && ['/work-orders/mine', '/work-orders/daily-report'].includes(pathname)}
                     className={({ isActive }) => cn('nav-item', isActive && 'active')}
                   >
-                    <AnimateIcon variant={item.variant} animateOnHover>
+                    <AnimateIcon variant={item.variant} animateOnHover animateOnTap={false}>
                       <Icon className="icon" aria-hidden="true" />
                     </AnimateIcon>
-                    <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">{item.label}</span>
+                    <span className="shell-nav-label min-w-0 flex-1 whitespace-normal break-words leading-snug">{item.label}</span>
                     {badgeCount > 0 && (
-                      <span className={cn('badge', badgeCount > 9 ? '' : 'count')}>
-                        {badgeCount > 99 ? '99+' : badgeCount}
+                      <span id={badgeId} className={cn('badge', badgeCount > 9 ? '' : 'count')}>
+                        <span aria-hidden="true">{badgeCount > 99 ? '99+' : badgeCount}</span>
+                        <span className="sr-only">{badgeCount} pendientes</span>
                       </span>
                     )}
                   </NavLink>
                 );
               })}
             </div>
-          </div>
-        ))}
+          </div>;
+        })}
       </nav>
 
+      {isCollapsed && railHint && createPortal(<div id="shell-rail-tooltip" role="tooltip" className="shell-rail-tooltip" style={{ left: railHint.left, top: railHint.top }}>{railHint.label}</div>, document.body)}
+
       {user && (
-        <div className="shell-account">
+        <div className="shell-account" role="group" aria-label="Cuenta y aplicación">
           <div className="shell-account-tools">
             <PwaInstallButton className="shell-install-button" />
             <NotificationBell />
@@ -144,37 +170,21 @@ export const AppLayout = () => {
   }
 
   return (
-    <div className={cn('app-shell redesign-shell', navigation.isCollapsed && 'shell-collapsed')}>
+    <div className={cn('app-shell redesign-shell', navigation.isDesktop && navigation.isCollapsed && 'shell-collapsed')}>
       <a href="#shell-content" className="shell-skip-link" tabIndex={navigation.isDrawerOpen ? -1 : 0}>Saltar al contenido</a>
       {navigation.isDesktop && <aside
         id="shell-navigation"
         className="sidebar"
         hidden={!navigation.isVisible}
-        ref={navigation.panelRef}
-        tabIndex={-1}
-        role={navigation.isDrawerOpen ? 'dialog' : undefined}
-        aria-modal={navigation.isDrawerOpen || undefined}
         aria-label="Menú de navegación"
       >
-        <SidebarContent onNavigate={navigation.closeMobile} onToggle={navigation.toggle} isDesktop={navigation.isDesktop} />
+        <SidebarContent onToggle={navigation.toggle} isCollapsed={navigation.isCollapsed} />
       </aside>}
 
       {navigation.isDrawerOpen && <MobileMoreSheet panelRef={navigation.panelRef} onClose={navigation.closeMobile} onProfile={() => { navigation.closeMobile(); setProfileOpen(true); }} />}
       {profileOpen && <UserProfileModal user={user} onClose={() => setProfileOpen(false)} />}
 
       <header className="topbar shell-topbar" hidden={navigation.isDesktop && !navigation.isCollapsed} {...backgroundAttributes}>
-        {navigation.isDesktop && <button
-          type="button"
-          className="shell-icon-button"
-          aria-label="Abrir navegación"
-          title="Abrir navegación"
-          aria-controls="shell-navigation"
-          aria-expanded={navigation.isVisible}
-          onClick={navigation.toggle}
-        >
-          <Menu className="icon" aria-hidden="true" />
-        </button>}
-
         <BrandLogo heightClassName="h-6" className="topbar-brand" />
 
         <span className="shell-context-label">{navigationGroups.flatMap((group) => group.items)
@@ -190,7 +200,7 @@ export const AppLayout = () => {
         </div>
       </main>
 
-      <MobileTabBar onOpenMenu={navigation.toggle} isMenuOpen={navigation.isDrawerOpen} />
+      {!navigation.isDesktop && <MobileTabBar onOpenMenu={navigation.toggle} isMenuOpen={navigation.isDrawerOpen} />}
 
       <CustomerEmailPreparation />
       <ToastViewport />

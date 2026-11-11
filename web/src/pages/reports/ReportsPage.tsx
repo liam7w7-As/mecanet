@@ -1,7 +1,6 @@
 import {
   BookOpen,
   ClipboardList,
-  FileBarChart2,
   RotateCcw,
   Landmark,
   PackageSearch,
@@ -145,16 +144,12 @@ export const ReportsPage = () => {
   };
 
   return (
-    <div className="workspace-page workspace-reports insights-page min-w-0 space-y-5">
+    <div className="workspace-page workspace-reports insights-page reports-reference-page min-w-0 space-y-5" data-report-area={selected}>
       <header className="insights-page-heading">
-        <h1>
-          <FileBarChart2 aria-hidden="true" />
-          Reportes
-        </h1>
-        <p>Informes por área y exportaciones</p>
-      </header>
-      <div className="report-workspace-heading">
-        <p>Seleccione un área, ajuste los filtros y revise los datos antes de exportar.</p>
+        <div>
+          <h1>Reportes</h1>
+          <p>Informes por área con vista previa y exportación.</p>
+        </div>
         <button
           type="button"
           className="insights-secondary"
@@ -163,7 +158,7 @@ export const ReportsPage = () => {
           <RotateCcw aria-hidden="true" />
           Limpiar filtros
         </button>
-      </div>
+      </header>
       <nav className="insights-tabs report-area-tabs" aria-label="Áreas de reportes">
         {visibleTabs.map(({ id, label, icon: Icon }) => (
           <button
@@ -179,10 +174,9 @@ export const ReportsPage = () => {
         ))}
       </nav>
 
-      <div className="report-preview-context">
-        <span>Vista previa del informe</span>
-        <p>Los filtros seleccionados se aplican al PDF y al archivo Excel.</p>
-      </div>
+      <p className="report-preview-context">
+        Los filtros seleccionados se aplican a la vista previa, al PDF y al archivo Excel.
+      </p>
       <div className="report-workspace">
         {selected === 'finance' && (
           <FinanceReportPanel

@@ -1,17 +1,17 @@
 # Taller: gestión y modales
 
-Referencia visual: https://unithordemo.netlify.app/ — revisión del 5 de noviembre de 2026.
+Referencia visual: https://unithordemo.netlify.app/ y `C:/Users/UnseR/Downloads/index.html` — revisión del 10 de noviembre de 2026.
 La versión publicada prevalece sobre el HTML anterior. No se importan datos ni lógica del demo.
 
 ## Tratamiento visual
 
-- Ficha rápida: superficie blanca de 948 px como máximo, radio de 24 px, margen interior de 16 px.
+- Ficha rápida: superficie blanca de 960 px como máximo, radio de 24 px, margen interior de 16 px; altura limitada al viewport, cabecera y acciones persistentes.
 - Cabecera azul `#1D396A`, esquinas de 16 px, código de 27 px y metadatos pequeños.
 - Herramientas PDF/detalle en la cabecera, estado y cierre independientes.
-- Pestañas centradas en forma de píldora: Resumen, Avances y Checklist, Solicitudes.
+- Pestañas centradas en forma de píldora: Resumen, Trabajos, Solicitudes y Precios (según rol). La cabecera compacta agrupa código y fecha en la misma línea en escritorio.
 - Paneles interiores suaves `#F5F6F8`, radio de 16 px, tipografía Poppins heredada del shell.
-- Resumen: identidad en dos columnas, métricas agrupadas, trabajos/avance a la izquierda y contexto/correo a la derecha.
-- Ejecución: checklist a la izquierda; reporte y bitácora a la derecha. Selector segmentado con selección blanca y texto verde solo para un trabajo completado.
+- Resumen: vehículo y compromiso de entrega destacados, tres identidades separadas debajo, métricas en cuatro tarjetas y trabajos de ancho completo. Se conserva el contexto real de inspección, cotización y correo. La disposición de entrega se extrae de `workshop-modal-delivery-style`; no se importan los datos simulados del demo.
+- Ejecución: tarjetas compactas sin bordes extra, responsable por trabajo, horas y acciones principales; notas e historial se despliegan dentro de cada trabajo. Observaciones generales, responsable general y reportes son filas desplegables. El texto verde se reserva para trabajos completados y cronómetros activos.
 - Solicitudes: formulario a la izquierda; historial y decisiones reales a la derecha.
 - Ficha completa: cabecera azul, navegación por secciones, superficies blancas de 18 px y controles equivalentes.
 - En móvil se apilan las columnas; cabecera, pestañas y acciones permanecen accesibles, y el cuerpo del modal tiene su propio scroll.
@@ -30,6 +30,10 @@ La versión publicada prevalece sobre el HTML anterior. No se importan datos ni 
 
 ## Alcance técnico
 
-Estilos de modales acotados en `web/src/styles/workshop-modals.css` y colores de cards en `web/src/styles/workshop.css`. Los diálogos de otros módulos y las hojas imprimibles no reciben estos estilos.
+Estilos existentes en `web/src/styles/workshop-modals.css`, adaptación final de la referencia en `web/src/styles/workshop-reference.css` y colores de cards en `web/src/styles/workshop.css`. La cuadrícula conserva un máximo de cuatro columnas y se reduce en tablet/móvil. El hover sigue abriendo la información anclada sin mover las tarjetas vecinas; en pantalla táctil y con teclado existe el control explícito. Los filtros mantienen un carril propio cuando no caben, sin generar scroll horizontal de página. Los diálogos de otros módulos y las hojas imprimibles no reciben estos estilos.
+
+Las solicitudes generales de repuestos siguen en la pestaña de Solicitudes, porque el contrato actual no las asocia a una tarea. No se inventan asociaciones ni bitácoras a partir del nombre del servicio ni se sustituye el historial real de horas por el historial simulado del prototipo.
+
+En la revisión de fase 4 (11-11-2026) se completó la adaptación de la ficha de página completa en `work-order-record-reference.css`: cabecera con acciones principales, enlaces por sección, vehículo/entrega e identidades, cuatro métricas y resumen de trabajos. Correo, comprobante de recepción y WhatsApp se agrupan en el resumen sin perder sus acciones. El resto de secciones y modales sigue usando sus permisos y servicios existentes. Las fotos y los PDF aprobados no cambian.
 
 El listado y detalle de OT añaden `lastWorkActivityAt`, calculado con los registros operativos existentes. La sincronización del checklist desde OT/COT registra los cambios de estado en el historial de trabajo. No se requieren nuevas columnas ni migraciones; `updatedAt` sigue indicando ediciones generales y no interviene en la excepción de 48 horas.

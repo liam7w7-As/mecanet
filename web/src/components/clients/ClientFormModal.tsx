@@ -85,11 +85,9 @@ const Field = ({
   className?: string;
 }) => (
   <div className={`reference-field min-w-0 ${className}`}>
-    <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-2 text-sm font-medium text-brand-ink">
+    <div className="client-field-label mb-1.5 flex flex-wrap items-baseline gap-x-1 text-sm font-medium text-brand-ink">
       <label htmlFor={`client-${name}`}>{label}</label>
-      <span aria-hidden="true" className="text-xs font-normal text-brand-muted">
-        {optional ? 'Opcional' : 'Obligatorio'}
-      </span>
+      {!optional && <span aria-hidden="true" className="client-field-required">*</span>}
     </div>
     {children}
     {error && (
@@ -345,14 +343,14 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
                   </div>
                   {!fieldErrors.rut && (
                     <p id="client-rut-hint" className="mt-1.5 text-xs text-brand-muted">
-                      Número de cédula o RUT, incluido el último dígito o K.
+                      Incluye el dígito verificador o K.
                     </p>
                   )}
                 </Field>
               </div>
 
               <section
-                className="reference-form-group"
+                className="reference-form-group client-form-contact"
                 aria-labelledby="client-contact-heading"
               >
                 <h3

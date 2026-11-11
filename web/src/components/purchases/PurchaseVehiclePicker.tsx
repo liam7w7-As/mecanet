@@ -113,7 +113,7 @@ export const PurchaseVehiclePicker = ({ value, onChange }: PurchaseVehiclePicker
         : null;
 
   return (
-    <fieldset>
+    <fieldset className="purchases-vehicle-picker">
       <legend className="text-sm font-semibold text-brand-ink">Vehículo asociado (opcional)</legend>
       <p className="mt-1 text-xs text-brand-muted">
         Normalmente un vehículo de taller. También puedes imputar la compra a un vehículo de flota.
@@ -132,6 +132,7 @@ export const PurchaseVehiclePicker = ({ value, onChange }: PurchaseVehiclePicker
               key={option.label}
               type="button"
               onClick={() => chooseOrigin(option.key)}
+              aria-pressed={active}
               className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-sm font-bold transition ${
                 active
                   ? 'bg-brand-primaryInk text-white'

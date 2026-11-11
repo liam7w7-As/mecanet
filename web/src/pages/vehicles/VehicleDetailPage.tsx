@@ -141,10 +141,7 @@ export const VehicleDetailPage = ({
   if (vehicleQuery.isPending || vehicleQuery.isError || !vehicleQuery.data) {
     return (
       <div className="min-h-0 overflow-y-auto">
-        {/* Cabecera sobre `surfaceDark`: los botones usan `text-white/70`, que
-          sobre índigo `#255DFF` no llega a 4.5:1. Sobre la superficie oscura
-          del tema `body.dark` del diseño sí. */}
-      <header className="flex items-center justify-between border-b border-brand-line bg-brand-page px-5 py-3 text-brand-ink">
+        <header className="flex items-center justify-between border-b border-brand-line bg-brand-page px-5 py-3 text-brand-ink">
           <p className="text-sm font-semibold">Ficha del vehículo</p>
           {closeControl}
         </header>
@@ -200,7 +197,7 @@ export const VehicleDetailPage = ({
   const activeTab = tabs.some((tab) => tab.id === selectedTab) ? selectedTab : 'details';
 
   return (
-    <div className="vehicle-profile flex min-h-0 min-w-0 flex-col overflow-hidden bg-white" aria-hidden={isEditing || undefined}>
+    <div className="vehicle-profile vehicle-profile--workshop flex min-h-0 min-w-0 flex-col overflow-hidden bg-white" aria-hidden={isEditing || undefined}>
       <header className="vehicle-profile-header">
         <ModalHeader
           id={`${tabId}-title`}
@@ -423,12 +420,12 @@ export const VehicleDetailPage = ({
                 No fue posible cargar el historial de taller.
               </p>
             ) : workOrders.length > 0 ? (
-              <div className="divide-y divide-brand-line">
+              <div className="vehicle-profile-history-list divide-y divide-brand-line">
                 {workOrders.map((order) => (
                   <Link
                     key={order.id}
                     to={`/work-orders/${order.id}`}
-                    className="group grid gap-2 px-5 py-3.5 transition-colors hover:bg-brand-pale sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:px-6"
+                    className="vehicle-profile-history-row group grid gap-2 px-5 py-3.5 transition-colors hover:bg-brand-pale sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:px-6"
                   >
                     <div>
                       <p className="font-mono text-xs font-bold text-brand-primaryInk">{order.codigo}</p>
@@ -480,14 +477,14 @@ export const VehicleDetailPage = ({
                 No fue posible cargar el historial comercial.
               </p>
             ) : quotations.length > 0 ? (
-              <div className="divide-y divide-brand-line">
+              <div className="vehicle-profile-history-list divide-y divide-brand-line">
                 {quotations.map((quotation) => {
                   const balance = Math.max(0, Number(quotation.total) - Number(quotation.pagado));
                   return (
                     <Link
                       key={quotation.id}
                       to={`/quotations/${quotation.id}`}
-                      className="group grid gap-2 px-5 py-3.5 transition-colors hover:bg-brand-pale sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:px-6"
+                      className="vehicle-profile-history-row group grid gap-2 px-5 py-3.5 transition-colors hover:bg-brand-pale sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:px-6"
                     >
                       <div>
                         <p className="font-mono text-xs font-bold text-brand-primaryInk">

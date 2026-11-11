@@ -171,7 +171,6 @@ export const VehicleFormModal = ({
           id="vehicle-form-title"
           title={isEditing ? 'Editar vehículo' : 'Nuevo vehículo'}
           description="Identificación, mecánica y propietario"
-          variant="brand"
           badge={<Car aria-hidden="true" />}
           onClose={close}
           closeDisabled={activeMutation.isPending}
@@ -181,8 +180,9 @@ export const VehicleFormModal = ({
           <div className="workspace-form-body reference-form-body">
           <fieldset className="reference-form-sections" disabled={activeMutation.isPending}>
           <legend className="sr-only">Datos del vehículo</legend>
-          <div className="reference-form-group grid gap-4 sm:grid-cols-2">
-            <div>
+          <div className="vehicle-form-section-heading"><h3>Identificación y mecánica</h3><span>La patente identifica al vehículo</span></div>
+          <div className="reference-form-group vehicle-technical-form-grid grid gap-4 sm:grid-cols-2">
+            <div className="vehicle-form-field-plate">
               <label className="text-sm font-medium text-brand-ink">
                 Patente
                 <input
@@ -238,11 +238,11 @@ export const VehicleFormModal = ({
               <input className={inputClassName} type="number" inputMode="numeric" value={form.kilometraje} onChange={(event) => setValue('kilometraje', event.target.value)} aria-invalid={Boolean(fieldErrors.kilometraje)} min="0" />
               {fieldErrors.kilometraje && <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.kilometraje}</span>}
             </label>
-            <label className="text-sm font-medium text-brand-ink">
+            <label className="vehicle-form-field-vin text-sm font-medium text-brand-ink">
               VIN / Chasis
               <input className={`${inputClassName} uppercase`} value={form.vinChasis} onChange={(event) => setValue('vinChasis', event.target.value.toUpperCase())} aria-invalid={Boolean(fieldErrors.vinChasis)} />
             </label>
-            <label className="text-sm font-medium text-brand-ink">
+            <label className="vehicle-form-field-engine text-sm font-medium text-brand-ink">
               Motor
               <input className={inputClassName} value={form.motor} onChange={(event) => setValue('motor', event.target.value)} aria-invalid={Boolean(fieldErrors.motor)} />
             </label>
@@ -307,13 +307,13 @@ export const VehicleFormModal = ({
                 {fieldErrors.clientId && <p className="mt-1 text-xs text-brand-coralInk">{fieldErrors.clientId}</p>}
 
                 {selectedClient ? (
-                  <div className="mt-2 flex items-center gap-2 border-l-2 border-brand-gold px-3 py-2 text-sm text-brand-ink">
+                  <div className="vehicle-owner-selected mt-2 flex items-center gap-2 border-l-2 border-brand-gold px-3 py-2 text-sm text-brand-ink">
                     <Check className="h-4 w-4 text-brand-mintInk" aria-hidden="true" />
                     <span className="font-semibold">{selectedClient.nombre}</span>
                     <span className="text-brand-muted">{selectedClient.rut ?? 'Sin RUT'}</span>
                   </div>
                 ) : (
-                  <div className="mt-2 max-h-40 overflow-y-auto border-y border-brand-line">
+                  <div className="vehicle-owner-results mt-2 max-h-40 overflow-y-auto border-y border-brand-line">
                     {clientsQuery.isFetching && <p className="px-3 py-3 text-sm text-brand-muted">Buscando clientes...</p>}
                     {!clientsQuery.isFetching && clientsQuery.data?.items.length === 0 && (
                       <p className="px-3 py-3 text-sm text-brand-muted">No se encontraron clientes</p>

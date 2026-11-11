@@ -113,7 +113,7 @@ const DeleteDocumentDialog = ({
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className="workspace-dialog relative w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl"
+        className="workspace-dialog vehicle-delete-dialog relative w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl"
         role="dialog"
         aria-modal="true"
         ref={setPanelNode}
@@ -224,7 +224,7 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
   };
 
   return (
-    <div className="vehicle-profile flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
+    <div className="vehicle-profile vehicle-profile--fleet flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
       <header className="vehicle-profile-header">
         <ModalHeader id={`${profileId}-title`} title={vehicle.patente} variant="brand" eyebrow="Flota interna" description={<>
           {showOwner && canViewOwner && <span className="mb-1 block break-words">Propietario: {vehicle.propietario ?? 'Sin registrar'}</span>}
@@ -277,7 +277,7 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
 
       <div className="reference-dialog-body vehicle-profile-body">
         <div className="p-5 sm:p-6">
-          <section role="tabpanel" id={`${profileId}-data-panel`} aria-labelledby={`${profileId}-data-tab`} hidden={activeTab !== 'data'} tabIndex={0}>
+          <section role="tabpanel" id={`${profileId}-data-panel`} aria-labelledby={`${profileId}-data-tab`} hidden={activeTab !== 'data'} tabIndex={0} className="fleet-profile-technical">
             <h2 id="fleet-vehicle-data-title" className="flex items-center gap-2 text-base font-semibold text-brand-ink">
               <Settings2 className="h-4 w-4 text-brand-muted" aria-hidden="true" /> Datos del vehículo
             </h2>
@@ -307,7 +307,7 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
           </section>
 
           <section role="tabpanel" id={`${profileId}-documents-panel`} aria-labelledby={`${profileId}-documents-tab`} hidden={activeTab !== 'documents'} tabIndex={0} className="min-w-0">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="fleet-documents-heading flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 id="fleet-documents-title" className="flex items-center gap-2 text-base font-semibold text-brand-ink">
                   <FileText className="h-4 w-4 text-brand-muted" aria-hidden="true" /> Documentos
@@ -339,13 +339,13 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
                 </p>
               </div>
             ) : (
-              <ul className="mt-4 space-y-3">
+              <ul className="fleet-document-list mt-4 space-y-3">
                 {vehicle.documents.map((document) => (
                   <li
                     key={document.id}
-                    className="rounded-xl border border-brand-line bg-white p-4 shadow-sm"
+                    className="fleet-document-row rounded-xl border border-brand-line bg-white p-4 shadow-sm"
                   >
-                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                    <div className="fleet-document-row-heading flex min-w-0 flex-wrap items-start justify-between gap-2">
                       <div className="flex min-w-0 items-start gap-2.5">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-pale text-brand-primaryInk">
                           <FileText className="h-4 w-4" aria-hidden="true" />
@@ -363,7 +363,7 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
                       <FleetExpiryBadge expiry={document.expiry} />
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-brand-pale/40 px-3 py-2 text-xs text-brand-muted">
+                    <div className="fleet-document-row-dates mt-3 grid grid-cols-2 gap-2 rounded-lg bg-brand-pale/40 px-3 py-2 text-xs text-brand-muted">
                       <p>
                         <span className="block text-[11px] uppercase">Emisión</span>
                         <span className="font-medium text-brand-ink">
@@ -380,7 +380,7 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
                       </p>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-brand-line pt-3">
+                    <div className="fleet-document-row-actions mt-3 flex flex-wrap items-center gap-2 border-t border-brand-line pt-3">
                       {document.tieneArchivo ? (
                         <>
                           <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-brand-muted">
@@ -446,7 +446,7 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
                     </div>
 
                     {document.notas && (
-                      <p className="mt-2 whitespace-pre-line break-words border-t border-brand-line pt-2 text-xs text-brand-muted">
+                      <p className="fleet-document-row-notes mt-2 whitespace-pre-line break-words border-t border-brand-line pt-2 text-xs text-brand-muted">
                         {document.notas}
                       </p>
                     )}

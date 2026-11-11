@@ -172,6 +172,31 @@ describe('ClientsPage', () => {
     expect(screen.getByText('123456785')).toBeInTheDocument();
     expect(screen.getByText('cliente@demo.cl')).toBeInTheDocument();
     expect(screen.getByText('#1')).toBeInTheDocument();
+    expect(screen.getByText('2 vehículos')).toBeInTheDocument();
+  });
+
+  it('omite el conteo de vehículos cuando el servidor no lo informa', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { ...clientsResponse, items: [{ ...client, vehiclesCount: undefined }] },
+    } as AxiosResponse<PaginatedResponse<Client>>);
+    createWrapper(<ClientsPage />);
+    await screen.findByText('Cliente Demo');
+    expect(screen.queryByText(/^\d+ vehículos?$/)).not.toBeInTheDocument();
+  });
+
+  it('permite recorrer los filtros con el teclado y mantiene el foco en el seleccionado', async () => {
+    createWrapper(<ClientsPage />);
+    await screen.findByText('Cliente Demo');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Todos' }), { key: 'End' });
+    const companies = screen.getByRole('tab', { name: 'Empresas' });
+    expect(companies).toHaveFocus();
+    expect(companies).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/clients', {
+      params: expect.objectContaining({ tipo: 'empresa' }),
+    }));
+    fireEvent.keyDown(companies, { key: 'Home' });
+    expect(screen.getByRole('tab', { name: 'Todos' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Todos' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('comparte búsqueda debounced, tipo y página con la exportación sin requerir creación', async () => {

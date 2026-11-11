@@ -33,7 +33,7 @@ export const FleetDocumentVersionsModal = ({
   const setPanelNode = useModalOverlay({ isOpen: true, onClose });
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
+    <div className="reference-modal-overlay fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
         className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
@@ -44,9 +44,10 @@ export const FleetDocumentVersionsModal = ({
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="workspace-dialog relative max-h-full w-full max-w-[640px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="workspace-dialog reference-dialog fleet-document-versions-dialog relative max-h-full w-full max-w-[680px] rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog"
         ref={setPanelNode}
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="fleet-document-versions-title"
       >
@@ -54,10 +55,11 @@ export const FleetDocumentVersionsModal = ({
           id="fleet-document-versions-title"
           title="Historial de versiones"
           description={document.nombre}
+          badge={<FileClock aria-hidden="true" />}
           onClose={onClose}
         />
 
-        <div className="space-y-4 px-5 pb-6 pt-0 sm:px-6">
+        <div className="fleet-document-versions-body space-y-4 px-5 pb-6 pt-0 sm:px-6">
           {versionsQuery.isPending && (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-brand-muted" role="status">
               <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -80,7 +82,7 @@ export const FleetDocumentVersionsModal = ({
 
           {versionsQuery.data && (
             <>
-              <div className="rounded-xl border border-brand-primary/20 bg-brand-pale/50 p-4">
+              <div className="fleet-document-current-version rounded-xl border border-brand-primary/20 bg-brand-pale/50 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 text-sm font-semibold text-brand-primaryInk">
@@ -142,7 +144,7 @@ export const FleetDocumentVersionsModal = ({
                     Aún no hay versiones anteriores para este documento.
                   </p>
                 ) : (
-                  <ul className="mt-3 divide-y divide-brand-line rounded-xl border border-brand-line">
+                  <ul className="fleet-document-version-list mt-3 divide-y divide-brand-line rounded-xl border border-brand-line">
                     {versionsQuery.data.versions.map((version) => (
                       <li key={version.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                         <span className="inline-flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg bg-brand-pale px-2 text-xs font-bold text-brand-primaryInk">
@@ -188,6 +190,7 @@ export const FleetDocumentVersionsModal = ({
             </>
           )}
         </div>
+        <footer className="reference-dialog-footer"><button type="button" className="secondary-button" onClick={onClose}>Cerrar</button></footer>
       </motion.section>
     </div>
   );

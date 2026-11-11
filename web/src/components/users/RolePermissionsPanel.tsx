@@ -75,13 +75,14 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
     if (parsed.success) updateMutation.mutate(parsed.data, { onSuccess: () => setDraft(null) });
   };
 
-  return <section className="administration-permissions" aria-labelledby="permission-matrix-title" aria-busy={updateMutation.isPending}>
+  return <section className="administration-permissions users-reference-permissions" aria-labelledby="permission-matrix-title" aria-busy={updateMutation.isPending}>
     <header className="administration-panel-heading"><ShieldCheck aria-hidden="true" /><div><h2 id="permission-matrix-title">Matriz dinámica de permisos</h2>
       <p>Selecciona un rol y revisa su acceso a cada área.</p></div></header>
     <div className="administration-permission-content">
       <div className="administration-role-tabs" role="tablist" aria-label="Seleccionar rol">{roles.map((role) => {
         const RoleIcon = ROLE_ICONS[role.nombre] ?? Shield;
         return <button key={role.id} type="button" role="tab" aria-selected={role.id === roleId}
+          aria-controls="users-role-permissions" id={`users-role-${role.id}`}
           disabled={updateMutation.isPending} onClick={() => requestRole(role)}><RoleIcon aria-hidden="true" />{getRoleLabel(role.nombre)}</button>;
       })}</div>
       <ListExportButtons target="role-permissions" filters={{ roleId: roleId ?? undefined }}
@@ -99,6 +100,7 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
           {selectedRole?.nombre === 'vendedor' && <p>Clientes y vehículos compartidos; OT, cotizaciones y pagos propios.</p>}
           {!canUpdate && <p>Acceso de solo lectura a esta matriz.</p>}
         </div>}
+      <div id="users-role-permissions" role="tabpanel" aria-labelledby={roleId === null ? undefined : `users-role-${roleId}`} aria-busy={loading}>
       {loading ? <div className="administration-empty" role="status"><LoaderCircle className="animate-spin" aria-hidden="true" /><p>Cargando permisos del rol…</p></div> : !loadError && <>
         <p className="administration-permission-count">Módulos y Acciones ({displayedIds.size} de {totalAvailable} activos)</p>
         <div className="administration-module-grid">{groupedPermissions.map(([module, permissions]) => {
@@ -107,6 +109,7 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
           return <section key={module} className="administration-module" aria-label={`Permisos de ${MODULE_LABELS[module]}`}>
             <header><h3><ModuleIcon aria-hidden="true" />{MODULE_LABELS[module]}</h3>
               {!isProtectedRole && canUpdate && <button type="button" disabled={locked} onClick={() => toggleModule(permissions.map((permission) => permission.id))}
+                aria-pressed={allChecked}
                 aria-label={`${allChecked ? 'Desmarcar' : 'Marcar'} todos los permisos de ${MODULE_LABELS[module]}`}><CheckCheck aria-hidden="true" />{allChecked ? 'Desmarcar todo' : 'Marcar todo'}</button>}
             </header>
             <div>{permissions.map((permission) => <label key={permission.id} className={displayedIds.has(permission.id) ? 'is-selected' : ''}>
@@ -116,6 +119,7 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
           </section>;
         })}</div>
       </>}
+      </div>
     </div>
     <footer className="administration-permission-footer"><div role="status">
       {updateMutation.isPending ? 'Guardando permisos…' : updateMutation.isSuccess ? 'Permisos actualizados correctamente' : dirty ? 'Hay cambios sin guardar' : `${displayedIds.size} permiso(s) seleccionado(s) para este rol`}

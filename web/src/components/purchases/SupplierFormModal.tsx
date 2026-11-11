@@ -1,13 +1,12 @@
 import { updateSupplierSchema } from '@unithor/shared';
-import { BadgeAlert, BadgeCheck, LoaderCircle, Save } from 'lucide-react';
+import { BadgeCheck } from 'lucide-react';
 import { useState } from 'react';
 
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useUpdateSupplierMutation } from '../../hooks/usePurchases';
 import { getApiFieldErrors, getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
-import ModalHeader from '../common/ModalHeader';
+import FormDialog from '../common/FormDialog';
 import RutInput from '../common/RutInput';
 
 import type { FieldErrors } from '../../lib/form-errors';
@@ -31,7 +30,6 @@ export const SupplierFormModal = ({ supplier, onClose, onSaved }: SupplierFormMo
   const [notas, setNotas] = useState(supplier.notas ?? '');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const panelRef = useModalOverlay({ isOpen: true, onClose, isPending: mutation.isPending });
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -72,40 +70,25 @@ export const SupplierFormModal = ({ supplier, onClose, onSaved }: SupplierFormMo
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button
-        type="button"
-        className="fixed inset-0 bg-brand-scrim/60"
-        aria-label="Cerrar proveedor"
-        onClick={onClose}
-      />
-      <section
-        ref={panelRef}
-        className="relative w-full max-w-2xl rounded-xl bg-white shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="supplier-modal-title"
-      >
-        <ModalHeader
-          id="supplier-modal-title"
-          title="Datos del proveedor"
-          description={
-            supplier.datosCompletos
-              ? 'Actualiza la información comercial del proveedor.'
-              : 'Completa RUT y un canal de contacto para cerrar la ficha.'
-          }
-          onClose={onClose}
-          badge={
-            supplier.datosCompletos ? (
-              <BadgeCheck className="h-6 w-6" aria-hidden="true" />
-            ) : (
-              <BadgeAlert className="h-6 w-6" aria-hidden="true" />
-            )
-          }
-          tone={supplier.datosCompletos ? 'success' : 'gold'}
-        />
-
-        <form onSubmit={submit} className="px-7 pb-7">
+    <FormDialog
+      id="supplier-modal-title"
+      title="Datos del proveedor"
+      code={supplier.nombre}
+      context={supplier.datosCompletos
+        ? 'Información comercial del proveedor'
+        : 'Completa RUT y un canal de contacto'}
+      className="purchases-form-dialog supplier-form-dialog"
+      headerVariant="plain"
+      headerIcon={<BadgeCheck className="h-5 w-5" aria-hidden="true" />}
+      submitLabel="Guardar datos"
+      pending={mutation.isPending}
+      dirty={JSON.stringify([nombre, rut, telefono, email, direccion, contactoNombre, notas]) !==
+        JSON.stringify([supplier.nombre, supplier.rut ?? '', supplier.telefono ?? '',
+          supplier.email ?? '', supplier.direccion ?? '', supplier.contactoNombre ?? '', supplier.notas ?? ''])}
+      statusText="Se considera completo con nombre, RUT y teléfono o email."
+      onClose={onClose}
+      onSubmit={submit}
+    >
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-brand-ink sm:col-span-2">
               Nombre o razón social
@@ -196,36 +179,7 @@ export const SupplierFormModal = ({ supplier, onClose, onSaved }: SupplierFormMo
               {formError}
             </p>
           )}
-
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-brand-muted">
-              Se considera completo con nombre, RUT y teléfono o email.
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
-                onClick={onClose}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={mutation.isPending}
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-60"
-              >
-                {mutation.isPending ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Save className="h-4 w-4" aria-hidden="true" />
-                )}
-                Guardar datos
-              </button>
-            </div>
-          </div>
-        </form>
-      </section>
-    </div>
+    </FormDialog>
   );
 };
 

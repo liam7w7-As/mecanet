@@ -11,7 +11,6 @@ import UserFormModal from '../../components/users/UserFormModal';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDeleteUserMutation, useRoles, useToggleUserStatusMutation, useUsers } from '../../hooks/useUsers';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { formatDate } from '../../lib/formatters';
 import { getRoleLabel, hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
@@ -53,7 +52,7 @@ export const UsersPage = () => {
     { value: 'inactive' as const, label: 'Inactivos', icon: UserRoundX },
   ];
 
-  return <div className="workspace-page workspace-users administration-page">
+  return <div className="workspace-page workspace-users administration-page users-reference-page">
     <header className="administration-heading"><h1>Usuarios</h1><p>Equipo, roles y acceso</p></header>
     <div className="administration-tabs" role="tablist" aria-label="Administración de acceso">
       <button type="button" role="tab" aria-selected={view === 'accounts'} aria-controls="accounts-panel"
@@ -67,25 +66,28 @@ export const UsersPage = () => {
           <input type="search" aria-label="Buscar usuarios" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre, usuario o correo" />
           {search && <button type="button" onClick={() => setSearch('')} aria-label="Limpiar búsqueda de usuarios"><X aria-hidden="true" /></button>}
         </label>
+        <nav className="administration-filter-pills" aria-label="Filtrar usuarios por estado">
+          {statusFilters.map(({ value, label, icon: Icon }) => <button key={value} type="button" aria-pressed={status === value}
+            onClick={() => setStatus(value)}><Icon aria-hidden="true" />{label}</button>)}
+        </nav>
+        {canCreate && <button type="button" className="administration-primary" onClick={() => setFormUser(null)}
+          disabled={rolesQuery.isPending || !rolesQuery.data?.length}><Plus aria-hidden="true" />Nuevo usuario</button>}
+      </div>
+      <div className="users-reference-list-tools">
         <label className="administration-role-filter"><span className="sr-only">Filtrar por rol</span>
           <select value={roleId} onChange={(event) => setRoleId(event.target.value)} disabled={rolesQuery.isPending || rolesQuery.isError}>
             <option value="all">Todos los roles</option>
             {rolesQuery.data?.map((role) => <option key={role.id} value={role.id}>{getRoleLabel(role.nombre)}</option>)}
           </select>
         </label>
-        {canCreate && <button type="button" className="administration-primary" onClick={() => setFormUser(null)}
-          disabled={rolesQuery.isPending || !rolesQuery.data?.length}><Plus aria-hidden="true" />Nuevo usuario</button>}
+        {filtersActive && <button type="button" className="administration-clear" onClick={resetFilters}>Limpiar filtros</button>}
+        <ListExportButtons target="users" filters={queryParams} disabled={usersQuery.isPending || usersQuery.isError} className="users-reference-exports flex flex-wrap justify-end gap-2" />
       </div>
-      <div className="administration-filter-row"><nav className="administration-filter-pills" aria-label="Filtrar usuarios por estado">
-        {statusFilters.map(({ value, label, icon: Icon }) => <button key={value} type="button" aria-pressed={status === value}
-          onClick={() => setStatus(value)}><Icon aria-hidden="true" />{label}</button>)}
-      </nav>{filtersActive && <button type="button" className="administration-clear" onClick={resetFilters}>Limpiar filtros</button>}</div>
-      <ListExportButtons target="users" filters={queryParams} disabled={usersQuery.isPending || usersQuery.isError} className="flex flex-wrap justify-end gap-2" />
       {queryError && <div className="administration-alert" role="alert"><AlertCircle aria-hidden="true" />
         {getApiErrorMessage(queryError, 'No fue posible cargar los usuarios o roles.')}
         <button type="button" onClick={() => { void usersQuery.refetch(); void rolesQuery.refetch(); }}>Reintentar</button>
       </div>}
-      <p className="administration-result-count" aria-live="polite">{usersQuery.data?.meta.total ?? 0} usuarios{usersQuery.isFetching && !usersQuery.isPending ? ' · Actualizando…' : ''}</p>
+      <p className="administration-result-count" aria-live="polite"><strong>{usersQuery.data?.meta.total ?? 0}</strong> usuarios{usersQuery.isFetching && !usersQuery.isPending ? ' · Actualizando…' : ''}</p>
       <section className="administration-directory" aria-label="Listado de usuarios" aria-busy={usersQuery.isPending}>
         {usersQuery.isPending ? <div aria-label="Cargando usuarios" role="status">{Array.from({ length: 5 }, (_, row) =>
           <div key={row} className="administration-row-skeleton animate-pulse"><span /><span /><span /></div>)}</div> :
@@ -93,11 +95,11 @@ export const UsersPage = () => {
             const isSelf = currentUser?.id === user.id;
             return <article key={user.id} className="administration-user-row" aria-label={user.nombre}>
               <button type="button" className="administration-user-identity" onClick={() => setDetailUser(user)} aria-label={`Ver ${user.nombre}`}>
-                <UserAvatar user={user} size="sm" /><span><strong>{user.nombre}{isSelf && <em>Tu cuenta</em>}</strong>
-                  <small>@{user.username}</small><small>{user.email}</small></span>
+                <UserAvatar user={user} size="sm" className="users-reference-avatar" /><span><strong>{user.nombre}{isSelf && <em>Tu cuenta</em>}</strong>
+                  <small className="users-reference-user-contact"><span>@{user.username}</span><span>{user.email}</span></small></span>
               </button>
               <div className="administration-user-role"><small>Rol</small><strong>{getRoleLabel(user.role.nombre)}</strong></div>
-              <div className="administration-user-state"><span className={`administration-status ${user.activo ? 'is-active' : 'is-inactive'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span><small>Desde {formatDate(user.createdAt)}</small></div>
+              <div className="administration-user-state"><span className={`administration-status ${user.activo ? 'is-active' : 'is-inactive'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></div>
               <div className="administration-row-actions">
                 <button type="button" onClick={() => setDetailUser(user)} aria-label={`Detalle de ${user.nombre}`} title="Ver detalle"><Eye aria-hidden="true" /></button>
                 {canUpdate && <><button type="button" onClick={() => setFormUser(user)} aria-label={`Editar ${user.nombre}`} title="Editar"><Pencil aria-hidden="true" /></button>
@@ -127,14 +129,14 @@ export const UsersPage = () => {
     {statusTarget && <FormDialog id="status-user-title" title={statusTarget.activo ? 'Desactivar cuenta' : 'Activar cuenta'}
       code={`@${statusTarget.username}`} context={statusTarget.nombre} dirty={false} pending={statusMutation.isPending}
       submitLabel={statusTarget.activo ? 'Desactivar cuenta' : 'Activar cuenta'} headerVariant="plain" headerIcon={<Power aria-hidden="true" />}
-      className="administration-form administration-confirm" statusText="Confirmación de acceso" onClose={() => setStatusTarget(null)}
+      className="administration-form administration-confirm users-reference-confirm" statusText="Confirmación de acceso" onClose={() => setStatusTarget(null)}
       onSubmit={(event) => { event.preventDefault(); if (!statusMutation.isPending) statusMutation.mutate({ id: statusTarget.id, activo: !statusTarget.activo }, { onSuccess: () => setStatusTarget(null) }); }}>
       <p>{statusTarget.activo ? `Se cerrarán las sesiones de ${statusTarget.nombre}. La cuenta no podrá ingresar hasta que se reactive.` : `${statusTarget.nombre} recuperará el acceso con su rol actual.`}</p>
       {statusMutation.error && <p className="administration-alert" role="alert">{getApiErrorMessage(statusMutation.error)}</p>}
     </FormDialog>}
     {deleteTarget && <FormDialog id="delete-user-title" title="Eliminar usuario" code={`@${deleteTarget.username}`} context={deleteTarget.nombre}
       dirty={false} pending={deleteMutation.isPending} submitLabel="Eliminar usuario" headerVariant="plain" headerIcon={<Trash2 aria-hidden="true" />}
-      className="administration-form administration-confirm administration-confirm-danger" statusText="Eliminación con historial conservado"
+      className="administration-form administration-confirm administration-confirm-danger users-reference-confirm" statusText="Eliminación con historial conservado"
       onClose={() => setDeleteTarget(null)} onSubmit={(event) => { event.preventDefault(); if (!deleteMutation.isPending) deleteMutation.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) }); }}>
       <p>La cuenta de <strong>{deleteTarget.nombre}</strong> quedará inactiva y se cerrarán todas sus sesiones. El registro se conservará para auditoría.</p>
       {deleteMutation.error && <p className="administration-alert" role="alert">{getApiErrorMessage(deleteMutation.error)}</p>}

@@ -130,9 +130,8 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
       headerVariant="plain"
       className="inventory-form reference-form-dialog catalog-form-dialog"
     >
-      <div className="inventory-form-fields">
-        {' '}
-        <fieldset>
+      <div className="inventory-form-fields catalog-editor-fields">
+        <fieldset className="catalog-type-selector">
           <legend className="mb-2 text-sm font-medium text-brand-ink">Tipo de item</legend>
           <div className="grid gap-2 sm:grid-cols-3">
             {typeOptions.map((option) => {
@@ -153,7 +152,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
             })}
           </div>
         </fieldset>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="catalog-field-grid grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-medium text-brand-ink">
             {form.tipo === 'parte' ? 'Código de repuesto' : 'Código interno (opcional)'}
             <input

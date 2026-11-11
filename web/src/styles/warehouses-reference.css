@@ -1,0 +1,97 @@
+/* Warehouse handoff: index.html, 2026-11-10. Keep operational controls and
+   export scopes together without changing inventory, dispatch or transfer rules. */
+.workspace-warehouses { container-type: inline-size; }
+.workspace-warehouses .inventory-page-heading h1 { font-weight: 600; }
+.workspace-warehouses .inventory-page-heading > p { display: none; }
+.workspace-warehouses .inventory-toolbar { gap: 10px; }
+.workspace-warehouses .inventory-toolbar .inventory-primary { background: #003570; }
+.workspace-warehouses .inventory-toolbar .inventory-primary:hover { background: #1d396a; }
+.workspace-warehouses .inventory-search input { border-radius: 999px; }
+.workspace-warehouses .inventory-context-bar {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px;
+}
+.workspace-warehouses .inventory-warehouse-selector { flex: 1 1 600px; order: 0; gap: 12px; }
+.workspace-warehouses .inventory-warehouse-selector > label { flex-basis: 380px; color: #7185a3; font-size: 11px; }
+.workspace-warehouses .inventory-warehouse-selector select { height: 44px; margin-top: 8px; border-radius: 12px; color: #294d7b; font-size: 13px; }
+.workspace-warehouses .inventory-location-actions button { color: #7185a3; font-size: 12px; }
+.workspace-warehouses .inventory-context-exports { display: flex; flex-wrap: wrap; gap: 8px; order: 1; margin-left: auto; }
+.workspace-warehouses .inventory-warehouse-heading { flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.workspace-warehouses .inventory-warehouse-heading h2 { color: #294d7b; font-size: 14px; font-weight: 600; }
+.workspace-warehouses .inventory-warehouse-heading > .inventory-heading-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto;
+}
+.workspace-warehouses .inventory-heading-actions > [aria-label="Exportar registros de esta vista"] { display: flex; gap: 8px; }
+.workspace-warehouses .inventory-heading-actions > .inventory-secondary { min-height: 40px; border-radius: 12px; font-size: 12px; }
+.workspace-warehouses .inventory-stock-panel { border-radius: 22px; }
+.workspace-warehouses .inventory-stock-table th { color: #8b9db8; font-size: 11px; }
+.workspace-warehouses .inventory-stock-table td { padding-block: 18px; }
+.workspace-warehouses .inventory-stock-table tbody tr:last-child td { border-bottom: 0; }
+.workspace-warehouses .inventory-product { gap: 12px; }
+.workspace-warehouses .inventory-product > svg { color: #8b9db8; }
+.workspace-warehouses .inventory-product strong { color: #294d7b; font-size: 13px; font-weight: 500; }
+.workspace-warehouses .inventory-product small { color: #8b9db8; font-size: 11px; }
+.workspace-warehouses .inventory-row-movement { min-height: 36px; padding: 8px 13px; background: #f3f6fa; color: #7185a3; }
+.workspace-warehouses .inventory-row-movement:hover { background: #e7eef8; color: #003570; }
+.workspace-warehouses .inventory-history { border-radius: 20px; }
+.workspace-warehouses .inventory-history > summary { color: #294d7b; }
+.workspace-warehouses .inventory-history > summary:hover { background: #f7f9fc; }
+.workspace-warehouses .inventory-history > summary:focus-visible { outline: 2px solid #7096c8; outline-offset: -3px; }
+.workspace-warehouses .inventory-history .inventory-dispatch-filters { flex-wrap: wrap; }
+.workspace-warehouses .inventory-history .inventory-dispatch-filters button { min-height: 40px; }
+.workspace-warehouses .inventory-history .inventory-dispatch-filters button[aria-pressed=true] { background: #003570; }
+.workspace-warehouses .inventory-stock-summary { color: #7185a3; line-height: 1.6; }
+
+.warehouse-reference-dialog.inventory-form { --reference-dialog-width: 650px; }
+.warehouse-reference-dialog.inventory-form.warehouse-form-dialog { --reference-dialog-width: 560px; }
+.warehouse-reference-dialog.inventory-form .ui-modal-header { padding: 20px 22px; }
+.warehouse-reference-dialog.inventory-form .ui-modal-header h2 { color: #294d7b; font-size: 17px; font-weight: 600; }
+.warehouse-reference-dialog.inventory-form .ui-modal-header--brand h2 { color: #fff; font-size: 19px; }
+.warehouse-reference-dialog.inventory-form .ui-modal-header--brand { background: #1d396a; }
+.warehouse-reference-dialog .ui-modal-header--plain .ui-modal-description { color: #8b9db8; }
+.warehouse-reference-dialog.inventory-form .inventory-form-fields { gap: 16px; }
+.warehouse-reference-dialog.inventory-form .inventory-form-grid { gap: 14px; }
+.warehouse-reference-dialog.inventory-form .inventory-form-fields label { color: #7185a3; font-size: 11px; }
+.warehouse-reference-dialog.inventory-form.reference-form-dialog :is(input:not([type=checkbox]), select, textarea) {
+  min-width: 0; min-height: 42px; border: 1px solid transparent;
+  border-radius: 11px; background: #f3f6fa; color: #294d7b; font-size: 13px;
+}
+.warehouse-reference-dialog.inventory-form.reference-form-dialog :is(input:not([type=checkbox]), select, textarea):focus {
+  border-color: #9db7da; outline: none; box-shadow: 0 0 0 3px #1d396a12;
+}
+.warehouse-reference-dialog.inventory-form .inventory-picker-input input { padding-left: 38px; padding-right: 40px; }
+.warehouse-reference-dialog .inventory-picker-results { border-color: #e7edf5; border-radius: 12px; }
+.warehouse-reference-dialog .inventory-balance-preview { border: 0; border-radius: 13px; background: #f3f6fa; }
+.warehouse-reference-dialog .inventory-balance-preview--invalid { background: #fff1f2; }
+.warehouse-reference-dialog .inventory-active-control { padding: 16px; }
+.warehouse-reference-dialog.inventory-form .reception-edit-footer { gap: 12px; padding: 16px 22px; }
+.warehouse-reference-dialog.inventory-form .reception-edit-footer > span { color: #8b9db8; font-size: 10px; }
+.warehouse-reference-dialog.inventory-form .reception-edit-footer .reception-primary-button { min-height: 42px; background: #003570; }
+.warehouse-reference-dialog.inventory-form .reception-edit-footer .reception-primary-button:hover:not(:disabled) { background: #1d396a; }
+.warehouse-reference-dialog.inventory-form .reception-edit-footer .reception-secondary-button { min-height: 42px; background: #f3f6fa; color: #7185a3; }
+.warehouse-reference-dialog.inventory-form button:disabled { cursor: not-allowed; opacity: .5; }
+
+@container (max-width: 950px) {
+  .workspace-warehouses .inventory-warehouse-selector { flex-basis: 100%; }
+  .workspace-warehouses .inventory-context-exports { flex-basis: 100%; justify-content: flex-end; }
+  .workspace-warehouses .inventory-warehouse-selector > label { flex: 1 1 260px; }
+}
+@media (max-width: 640px) {
+  .workspace-warehouses .inventory-context-bar { gap: 10px; }
+  .workspace-warehouses .inventory-warehouse-selector { gap: 10px; }
+  .workspace-warehouses .inventory-warehouse-selector > label { flex-basis: 100%; }
+  .workspace-warehouses .inventory-warehouse-selector select { font-size: 16px; }
+  .workspace-warehouses .inventory-warehouse-heading { gap: 12px; }
+  .workspace-warehouses .inventory-warehouse-heading > .inventory-heading-actions { width: 100%; justify-content: space-between; }
+  .workspace-warehouses .inventory-heading-actions > .inventory-secondary { padding: 9px 12px; font-size: 11px; }
+  .workspace-warehouses .inventory-stock-table td { padding: 0; }
+  .workspace-warehouses .inventory-product > span { display: block; }
+  .workspace-warehouses .inventory-product small { display: block; margin-top: 5px; }
+  .workspace-warehouses .inventory-row-movement { padding: 0; }
+  .warehouse-reference-dialog.inventory-form .ui-modal-header { padding: 18px; }
+  .warehouse-reference-dialog.inventory-form .reception-edit-body { padding: 18px; }
+  .warehouse-reference-dialog.inventory-form .reception-edit-footer { padding: 14px 18px; }
+  .warehouse-reference-dialog.inventory-form.reference-form-dialog :is(input:not([type=checkbox]), select, textarea) { font-size: 16px; }
+  .warehouse-reference-dialog.inventory-form .inventory-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .warehouse-reference-dialog.inventory-form .reception-edit-footer > div { display: flex; width: 100%; gap: 8px; }
+  .warehouse-reference-dialog.inventory-form .reception-edit-footer > div > button { flex: 1; padding-inline: 10px; }
+}

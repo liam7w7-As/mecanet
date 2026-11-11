@@ -112,7 +112,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
       onClose={onClose}
       onSubmit={handleSubmit}
       headerVariant="plain"
-      className="inventory-form reference-form-dialog stock-form-dialog"
+      className="inventory-form reference-form-dialog stock-form-dialog catalog-stock-dialog"
       submitDisabled={
         warehousesQuery.isPending ||
         warehousesQuery.isError ||
@@ -122,7 +122,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
         selectedWarehouse === undefined
       }
     >
-      <div className="inventory-form-fields">
+      <div className="inventory-form-fields catalog-stock-fields">
         <div className="inventory-profile-hero">
           <Boxes aria-hidden="true" />
           <div>
@@ -130,7 +130,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
             <h3>{item.nombre}</h3>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2" role="group" aria-label="Tipo de movimiento">
+        <div className="catalog-movement-selector grid grid-cols-2 gap-2" role="group" aria-label="Tipo de movimiento">
           <button
             type="button"
             className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors ${
@@ -189,7 +189,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
           )}
         </label>
 
-        <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-brand-line bg-brand-line/40 text-center">
+        <div className="catalog-stock-preview grid grid-cols-3 overflow-hidden rounded-lg border border-brand-line bg-brand-line/40 text-center" aria-live="polite" aria-atomic="true">
           <div className="p-3">
             <p className="text-[11px] font-semibold uppercase text-brand-muted">En bodega</p>
             <p className="mt-1 text-xl font-bold text-brand-primaryInk" data-testid="current-stock">

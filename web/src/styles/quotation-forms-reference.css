@@ -1,0 +1,257 @@
+/* Quotation forms only. Source: index.html, commercial-refinement-style, final
+   cascade (2026-11-10). Keep the live page, review and operational fields. */
+:is(.commercial-create-page, .commercial-editor-dialog, .commercial-confirm-dialog) {
+  --quotation-heading: #1d396a;
+  --quotation-text: #4f6d94;
+  --quotation-muted: #7d94b2;
+  --quotation-line: #edf1f7;
+  --quotation-field: #f3f6fa;
+  color: var(--quotation-text);
+}
+
+.commercial-create-page { gap: 14px; }
+.commercial-create-page .commercial-create-heading { align-items: center; gap: 12px; }
+.commercial-create-page .commercial-create-heading > a {
+  width: 40px; height: 40px; margin: 0; border-radius: 12px;
+  background: #fff; color: #7d94b2;
+}
+.commercial-create-page .commercial-create-heading h1 {
+  margin-top: 2px; color: var(--quotation-heading); font-size: 22px;
+  font-weight: 600; letter-spacing: -.35px; line-height: 1.4;
+}
+.commercial-create-page .commercial-create-heading p { font-size: 11px; }
+.commercial-create-page .commercial-create-form { border: 0; border-radius: 24px; }
+
+:is(.commercial-create-page, .commercial-confirm-dialog) .commercial-form-stages {
+  display: grid; flex: none; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px; margin: 0; padding: 18px 22px 0; list-style: none;
+}
+:is(.commercial-create-page, .commercial-confirm-dialog) .commercial-form-stages > li {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-width: 0; min-height: 42px; padding: 8px; border-radius: 11px;
+  background: #f1f4f9; color: #7d94b2; font-size: 11px; font-weight: 500;
+}
+:is(.commercial-create-page, .commercial-confirm-dialog) .commercial-form-stages > li > span {
+  display: grid; place-items: center; flex: none; width: 20px; height: 20px;
+  border: 1px solid #dbe4f0; border-radius: 7px; font-size: 10px;
+}
+:is(.commercial-create-page, .commercial-confirm-dialog) .commercial-form-stages svg { width: 15px; height: 15px; }
+:is(.commercial-create-page, .commercial-confirm-dialog) .commercial-form-stages > li[data-complete=true] { color: #426490; }
+:is(.commercial-create-page, .commercial-confirm-dialog) .commercial-form-stages > li[data-complete=true] > span { border-color: transparent; }
+:is(.commercial-create-page, .commercial-confirm-dialog) .commercial-form-stages > li[aria-current=step] {
+  background: var(--quotation-heading); color: #fff;
+}
+:is(.commercial-create-page, .commercial-confirm-dialog) .commercial-form-stages > li[aria-current=step] > span {
+  border-color: #ffffff45; background: #ffffff12; color: #fff;
+}
+
+.commercial-create-page .commercial-customer { display: block; padding: 20px 22px; border-bottom: 1px solid var(--quotation-line); }
+.commercial-create-page .commercial-customer-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 14px; }
+.commercial-create-page .commercial-customer-heading > span { color: var(--quotation-muted); font-size: 11px; }
+.commercial-create-page .commercial-client-picker { max-width: none; align-items: stretch; gap: 8px; }
+.commercial-create-page .commercial-client-picker > button {
+  height: 42px; border: 0; border-radius: 12px; padding-inline: 15px;
+  background: var(--quotation-heading); font-size: 11px; font-weight: 500; box-shadow: none;
+}
+.commercial-create-page .commercial-client-selection {
+  margin-top: 12px; padding: 12px 14px; border: 1px solid #e2eaf5;
+  border-radius: 12px; background: #f7f9fc;
+}
+.commercial-create-page .commercial-client-selection > svg { width: 18px; height: 18px; color: #577ba5; }
+.commercial-create-page .commercial-client-selection p { color: var(--quotation-text); font-size: 12px; }
+.commercial-create-page .commercial-client-selection p:first-child { color: #8398b5; font-size: 9px; font-weight: 500; letter-spacing: .04em; }
+.commercial-create-page .commercial-client-selection p:last-child:not(:first-child) { overflow-wrap: anywhere; }
+.commercial-create-page .commercial-client-selection button { min-height: 34px; border: 0; border-radius: 10px; background: #edf2fa; color: #5f7da5; font-size: 11px; font-weight: 500; }
+.commercial-create-page .commercial-customer > p { font-size: 12px; }
+
+.commercial-create-page .commercial-create-workspace {
+  grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 20px 22px;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-section-title {
+  display: flex; align-items: center; gap: 8px; margin-top: 0;
+  color: var(--quotation-heading); font-size: 13px; font-weight: 600;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-section-title::before { content: none; }
+:is(.commercial-create-page, .commercial-editor-dialog) .commercial-create-terms > .quotation-commercial-fields > .quotation-section-title::before { content: none; }
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-section-title > svg { flex: none; width: 16px; height: 16px; color: #6482a9; }
+
+/* Style the shared item editor through its quotation parents. OT remains intact. */
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-items > h2 { margin-bottom: 14px; color: var(--quotation-heading); font-size: 14px; font-weight: 600; }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-items > h2::before { content: none; }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-items-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-catalog {
+  position: static; padding: 14px; border: 1px solid var(--quotation-line);
+  border-radius: 16px; background: #fbfcfe;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-catalog h3,
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-selection-heading h3 { color: #58769f; font-size: 12px; font-weight: 500; }
+:is(.commercial-create-page, .commercial-editor-dialog) [aria-label='Tipo de catálogo'] {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) [aria-label='Tipo de catálogo'] > button {
+  min-height: 38px; min-width: 0; padding: 7px 5px; border: 0;
+  border-radius: 11px; color: #7d94b2; font-size: 10px; font-weight: 500;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) [aria-label='Tipo de catálogo'] > button[aria-pressed=true] { background: var(--quotation-heading); color: #fff; }
+:is(.commercial-create-page, .commercial-editor-dialog) [aria-label='Resultados del catálogo'] { max-height: 288px; scrollbar-width: thin; }
+:is(.commercial-create-page, .commercial-editor-dialog) [aria-label='Resultados del catálogo'] > button {
+  min-height: 58px; margin-top: 4px; padding: 10px; border: 1px solid var(--quotation-line); border-radius: 12px;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) [aria-label='Resultados del catálogo'] > button > span:nth-child(2) > span:first-child { color: var(--quotation-text); font-size: 12px; font-weight: 500; }
+:is(.commercial-create-page, .commercial-editor-dialog) [aria-label='Resultados del catálogo'] > button > span:nth-child(2) > span:last-child { font-size: 10px; }
+:is(.commercial-create-page, .commercial-editor-dialog) [aria-label='Resultados del catálogo'] > button[aria-pressed=true] { border-color: #cad8ea; background: #eaf0f8; }
+:is(.commercial-create-page, .commercial-editor-dialog) [aria-label='Resultados del catálogo'] > button[aria-pressed=true] > span:first-child { border-color: #1d396a; background: #1d396a; color: #fff; }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-catalog-price { color: #58769f; font-size: 11px; font-weight: 500; }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-catalog-price > span { color: #45678f; }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-selected-items { max-height: none; padding: 0; overflow: visible; }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-selection-heading { gap: 10px; padding-bottom: 12px; border-color: var(--quotation-line); }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-selection-heading button {
+  min-height: 36px; padding: 8px 12px; border: 0; border-radius: 11px;
+  background: #edf2fa; color: #5f7da5; font-size: 11px; font-weight: 500;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-item-row {
+  margin: 0; padding: 14px 0; border: 0; border-bottom: 1px solid var(--quotation-line);
+  border-radius: 0; background: #fff;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-item-row label { color: var(--quotation-muted); font-size: 11px; font-weight: 500; }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-item-values { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-item-values > div > div { height: 42px; border: 0; border-radius: 12px; background: var(--quotation-field); }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-item-values > div > div > input { height: 42px; padding: 0; background: transparent; }
+:is(.commercial-create-page, .commercial-editor-dialog) .reception-item-values > div > div > button { width: 32px; border-radius: 10px; }
+
+:is(.commercial-create-page, .commercial-editor-dialog) :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  width: 100%; min-width: 0; max-width: 100%; height: 42px;
+  border: 1px solid transparent; border-radius: 12px; background: var(--quotation-field);
+  color: var(--quotation-text); font-family: inherit; font-size: 12px; font-weight: 400;
+  box-shadow: none;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) textarea { height: auto; min-height: 76px; padding: 10px 12px; resize: vertical; }
+:is(.commercial-create-page, .commercial-editor-dialog) :is(input, textarea)::placeholder { color: #8195b1; opacity: 1; }
+:is(.commercial-create-page, .commercial-editor-dialog) :is(input, select, textarea):disabled { color: #8b9cb4; background: #edf1f6; cursor: not-allowed; }
+:is(.commercial-create-page, .commercial-editor-dialog) :is(input, select, textarea)[aria-invalid=true] { border-color: #c87883; }
+:is(.commercial-create-page, .commercial-editor-dialog, .commercial-confirm-dialog) :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid #91afd7; outline-offset: 2px;
+}
+
+:is(.commercial-create-page, .commercial-editor-dialog) .commercial-create-terms {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px; padding: 18px; border: 1px solid var(--quotation-line); border-radius: 16px; background: #fff;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-commercial-fields > .quotation-commercial-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-commercial-fields label,
+:is(.commercial-create-page, .commercial-editor-dialog) .commercial-notes-field { color: var(--quotation-muted); font-size: 11px; font-weight: 500; }
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-pricing-summary {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px;
+  margin: 0; padding: 0; border: 0;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-pricing-summary .quotation-discount-inputs { grid-template-columns: minmax(0, 1fr) minmax(0, .85fr); gap: 8px; }
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-pricing-breakdown { color: #7185a3; font-size: 11px; }
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-pricing-breakdown > div > dd { flex: none; font-weight: 500; }
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-pricing-breakdown > .quotation-pricing-total {
+  align-items: center; min-height: 60px; margin-top: 14px; padding: 12px 14px;
+  border: 0; border-radius: 12px; background: var(--quotation-heading); color: #fff;
+}
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-pricing-total > dt { font-size: 12px; font-weight: 500; }
+:is(.commercial-create-page, .commercial-editor-dialog) .quotation-pricing-total > dd { font-size: 22px; line-height: 1.3; }
+:is(.commercial-create-page, .commercial-editor-dialog) .commercial-create-terms > .commercial-notes-field { grid-column: 1 / -1; }
+
+.commercial-create-page .commercial-create-footer { display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 14px 22px; }
+.commercial-create-page .commercial-create-footer-hint { display: flex; flex: 1; align-items: center; gap: 7px; color: #8398b5; font-size: 10px; }
+.commercial-create-page .commercial-create-footer-hint svg { width: 15px; height: 15px; flex: none; }
+.commercial-create-page .commercial-create-footer :is(a, button) { min-height: 40px; padding: 10px 15px; border: 0; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.commercial-create-page .commercial-create-footer > a { background: #eff3f9; color: #5b79a2; }
+.commercial-create-page .commercial-create-footer > button { background: var(--quotation-heading); }
+
+.commercial-editor-dialog.reference-dialog { --reference-dialog-width: 960px; }
+.commercial-editor-dialog .ui-modal-header { padding: 17px 22px; border-bottom: 1px solid #f0f3f8; }
+.commercial-editor-dialog .ui-modal-header > div:first-child { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 4px; }
+.commercial-editor-dialog .ui-modal-header .ui-modal-badge { grid-row: 1 / 3; width: 34px; height: 34px; margin: 0; border-radius: 11px; background: #f1f4f9; }
+.commercial-editor-dialog .ui-modal-badge svg { width: 17px; height: 17px; }
+.commercial-editor-dialog .ui-modal-header h2 { font-size: 17px; }
+.commercial-editor-dialog .ui-modal-description { margin-top: 0; font-size: 11px; }
+.commercial-editor-dialog .ui-modal-close { width: 34px; height: 34px; min-width: 34px; min-height: 34px; border-radius: 11px; background: #f1f4f9; }
+.commercial-editor-dialog .reception-edit-body { padding: 18px 22px; }
+.commercial-editor-dialog .commercial-editor-content { gap: 18px; }
+.commercial-editor-dialog .commercial-editor-context { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 14px; padding-bottom: 12px; border-bottom: 1px solid var(--quotation-line); color: #8398b5; font-size: 11px; }
+.commercial-editor-dialog .commercial-editor-context > span:first-child { color: var(--quotation-heading); font-weight: 500; }
+.commercial-editor-dialog .reception-edit-footer { padding: 14px 22px; border-color: #f0f3f8; }
+.commercial-editor-dialog .reception-edit-footer :is(.reception-primary-button, .reception-secondary-button) { min-height: 40px; padding: 10px 14px; font-size: 11px; font-weight: 500; }
+
+.commercial-confirm-dialog.reference-dialog {
+  display: flex; flex-direction: column; width: min(100%, 800px); max-width: 800px;
+  overflow: hidden; border: 0; border-radius: 24px;
+}
+.commercial-confirm-dialog .ui-modal-header { flex: none; padding: 17px 22px; border-bottom: 1px solid #f0f3f8; }
+.commercial-confirm-dialog .ui-modal-header > div:first-child { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 2px 10px; }
+.commercial-confirm-dialog .ui-modal-badge { grid-row: 1 / 4; width: 34px; height: 34px; margin: 0; border-radius: 11px; background: #f1f4f9; }
+.commercial-confirm-dialog .ui-modal-badge svg { width: 17px; height: 17px; }
+.commercial-confirm-dialog .ui-modal-header h2 { color: var(--quotation-heading); font-size: 17px; }
+.commercial-confirm-dialog .ui-modal-eyebrow { color: #8398b5; font-size: 9px; font-weight: 500; }
+.commercial-confirm-dialog .ui-modal-description { margin: 0; font-size: 11px; }
+.commercial-confirm-dialog .ui-modal-close { width: 34px; height: 34px; min-width: 34px; min-height: 34px; border-radius: 11px; background: #f1f4f9; }
+.commercial-confirm-dialog .commercial-confirm-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 22px; scrollbar-width: thin; }
+.commercial-confirm-dialog .commercial-form-stages { padding: 0; margin-bottom: 18px; }
+.commercial-confirm-dialog .commercial-confirm-summary { color: var(--quotation-text); }
+.commercial-confirm-dialog .commercial-confirm-summary > div { align-items: baseline; }
+.commercial-confirm-dialog .commercial-confirm-summary dt { color: #7d94b2; font-size: 12px; }
+.commercial-confirm-dialog .commercial-confirm-summary dd { max-width: 72%; color: var(--quotation-heading); font-size: 13px; font-weight: 500; text-align: right; }
+.commercial-confirm-dialog .commercial-confirm-summary > div:last-child { padding: 12px 0; border-color: var(--quotation-line); }
+.commercial-confirm-dialog .commercial-confirm-summary > div:last-child dd { font-size: 22px; font-weight: 600; }
+.commercial-confirm-dialog .commercial-confirm-items { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--quotation-line); }
+.commercial-confirm-dialog .commercial-confirm-items h3 { margin-bottom: 8px; color: var(--quotation-heading); font-size: 12px; font-weight: 600; }
+.commercial-confirm-dialog .commercial-confirm-items ul { margin: 0; padding: 0; list-style: none; }
+.commercial-confirm-dialog .commercial-confirm-items li { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--quotation-line); font-size: 12px; }
+.commercial-confirm-dialog .commercial-confirm-items li > span { min-width: 0; overflow-wrap: anywhere; }
+.commercial-confirm-dialog .commercial-confirm-items small { display: block; margin-top: 3px; color: var(--quotation-muted); font-size: 10px; }
+.commercial-confirm-dialog .commercial-confirm-items strong { flex: none; color: var(--quotation-heading); font-weight: 500; }
+.commercial-confirm-dialog .commercial-confirm-items > p { font-size: 12px; }
+.commercial-confirm-dialog .commercial-confirm-conditions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; margin-top: 16px; padding: 14px; border-radius: 12px; background: #f7f9fc; }
+.commercial-confirm-dialog .commercial-confirm-conditions dt { color: var(--quotation-muted); font-size: 10px; }
+.commercial-confirm-dialog .commercial-confirm-conditions dd { margin-top: 4px; color: var(--quotation-text); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.commercial-confirm-dialog .reference-dialog-footer { flex: none; padding: 14px 22px; }
+.commercial-confirm-dialog .reference-dialog-footer > button { min-height: 40px; border: 0; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.commercial-confirm-dialog .reference-dialog-footer > .primary-button { background: var(--quotation-heading); }
+.commercial-confirm-dialog .reference-dialog-footer > .secondary-button { background: #eff3f9; color: #5b79a2; }
+
+@container (min-width: 700px) {
+  :is(.commercial-create-page, .commercial-editor-dialog) .reception-items-layout { grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr); }
+}
+@media (min-width: 1600px) {
+  .commercial-create-page .commercial-create-workspace { grid-template-columns: minmax(0, 1fr) 300px; }
+  .commercial-create-page .commercial-create-terms { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .commercial-create-page { gap: 10px; }
+  .commercial-create-page .commercial-create-heading h1 { margin: 0; font-size: 19px; }
+  .commercial-create-page .commercial-form-stages { gap: 5px; padding: 12px 12px 0; }
+  :is(.commercial-create-page, .commercial-confirm-dialog) .commercial-form-stages > li { gap: 5px; min-height: 40px; padding: 8px 5px; font-size: 10px; }
+  .commercial-create-page .commercial-customer { padding: 16px 12px; }
+  .commercial-create-page .commercial-customer-heading > span { font-size: 10px; }
+  .commercial-create-page .commercial-client-picker > button { width: 42px; padding: 0; justify-content: center; }
+  .commercial-create-page .commercial-client-picker > button > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .commercial-create-page .commercial-create-workspace { gap: 16px; padding: 16px 12px; }
+  :is(.commercial-create-page, .commercial-editor-dialog) .commercial-create-terms { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 14px; }
+  :is(.commercial-create-page, .commercial-editor-dialog) :is(input:not([type=checkbox]):not([type=radio]), select, textarea) { font-size: 16px; }
+  :is(.commercial-create-page, .commercial-editor-dialog) .reception-catalog { padding: 12px; }
+  :is(.commercial-create-page, .commercial-editor-dialog) .reception-selection-heading > div { gap: 6px; }
+  :is(.commercial-create-page, .commercial-editor-dialog) .reception-selection-heading button { min-height: 40px; }
+  :is(.commercial-create-page, .commercial-editor-dialog) .reception-item-row button[title='Quitar ítem'] { min-width: 40px; min-height: 42px; }
+  :is(.commercial-create-page, .commercial-editor-dialog) .quotation-pricing-breakdown { font-size: 12px; }
+  .commercial-create-page .commercial-create-footer { padding: 10px 12px max(10px, env(safe-area-inset-bottom)); }
+  .commercial-create-page .commercial-create-footer-hint { display: none; }
+  .commercial-create-page .commercial-create-footer > :is(a, button) { flex: 1; min-height: 44px; padding-inline: 10px; }
+  .commercial-editor-dialog .ui-modal-header,
+  .commercial-confirm-dialog .ui-modal-header { padding: 12px; }
+  .commercial-editor-dialog .ui-modal-header h2,
+  .commercial-confirm-dialog .ui-modal-header h2 { font-size: 15px; }
+  .commercial-editor-dialog .ui-modal-close,
+  .commercial-confirm-dialog .ui-modal-close { width: 40px; height: 40px; min-width: 40px; min-height: 40px; }
+  .commercial-editor-dialog .reception-edit-body,
+  .commercial-confirm-dialog .commercial-confirm-body { padding: 12px; }
+  .commercial-editor-dialog .reception-edit-footer,
+  .commercial-confirm-dialog .reference-dialog-footer { gap: 8px; padding: 10px 12px max(10px, env(safe-area-inset-bottom)); }
+  .commercial-editor-dialog .reception-edit-footer :is(.reception-primary-button, .reception-secondary-button),
+  .commercial-confirm-dialog .reference-dialog-footer > button { flex: 1; min-height: 44px; }
+  .commercial-confirm-dialog.reference-dialog { border-radius: 18px; }
+  .commercial-confirm-dialog .commercial-confirm-conditions { grid-template-columns: minmax(0, 1fr); }
+}

@@ -1,0 +1,96 @@
+/* Reporting adaptation of index.html (2026-11-10). The reference contains a
+   compact executive summary; keep all live areas, filters and document scopes. */
+.workspace-reports.reports-reference-page { container-type: inline-size; }
+.workspace-reports.reports-reference-page > .insights-page-heading { align-items: center; gap: 16px; }
+.workspace-reports.reports-reference-page .insights-page-heading h1 { color: #303941; font-size: 26px; font-weight: 600; letter-spacing: -.6px; }
+.reports-reference-page .insights-page-heading > div { min-width: 0; }
+.reports-reference-page .insights-page-heading > div > p { margin-top: 5px; color: #7185a3; font-size: 11px; line-height: 1.6; }
+.workspace-reports.reports-reference-page .insights-page-heading > .insights-secondary { flex-shrink: 0; min-height: 42px; color: #7185a3; font-size: 12px; }
+.reports-reference-page .insights-secondary:hover:not(:disabled) { background: #e8eef7; color: #003570; }
+.workspace-reports.reports-reference-page > .report-area-tabs { flex-wrap: wrap; gap: 8px; overflow: visible; padding: 0; }
+.workspace-reports.reports-reference-page .report-area-tabs > button { min-height: 42px; padding: 10px 16px; font-size: 12px; font-weight: 400; }
+.workspace-reports.reports-reference-page .report-area-tabs > button[aria-current=page] { background: #003570; }
+.workspace-reports.reports-reference-page .report-area-tabs > button:not([aria-current=page]):hover { background: #e8eef7; color: #1d396a; }
+.workspace-reports.reports-reference-page > .report-preview-context { display: block; margin-top: 12px; color: #7185a3; font-size: 11px; line-height: 1.7; }
+.reports-reference-page .report-workspace > section { min-width: 0; }
+.workspace-reports.reports-reference-page .report-panel-heading { gap: 14px; padding: 22px 22px 16px; border-radius: 22px 22px 0 0; }
+.workspace-reports.reports-reference-page .report-panel-heading h2 { color: #294d7b; font-size: 16px; font-weight: 600; }
+.reports-reference-page .report-panel-heading > div:first-child > p { color: #8b9db8; font-size: 11px; line-height: 1.6; }
+.reports-reference-page .report-export-actions { flex-shrink: 0; }
+.workspace-reports.reports-reference-page .report-export-actions :is(.primary-button, .secondary-button) { min-height: 42px; padding-inline: 17px; font-size: 12px; font-weight: 400; }
+.workspace-reports.reports-reference-page .report-export-actions .primary-button { background: #003570; }
+.workspace-reports.reports-reference-page .report-export-actions .primary-button:hover:not(:disabled) { background: #1d396a; }
+.workspace-reports.reports-reference-page .report-export-actions .secondary-button { background: #f3f6fa; color: #526f95; }
+.workspace-reports.reports-reference-page .report-export-actions .secondary-button:hover:not(:disabled) { background: #e8eef7; color: #003570; }
+.workspace-reports.reports-reference-page .report-panel-heading + .report-filters { margin-top: 0; }
+.workspace-reports.reports-reference-page .report-filters {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 14px; padding: 6px 22px 22px; border-radius: 0 0 22px 22px;
+}
+.reports-reference-page .report-filters label { color: #7185a3; font-size: 11px; font-weight: 400; }
+.workspace-reports.reports-reference-page .report-filters :is(input:not([type=checkbox]), select) {
+  height: 44px; min-height: 44px; border: 1px solid transparent; border-radius: 11px;
+  background: #f3f6fa; color: #294d7b; font-size: 13px;
+}
+.workspace-reports.reports-reference-page .report-filter-search input { padding-left: 38px; }
+.reports-reference-page .report-filter-search > svg { top: 14px; left: 13px; color: #8b9db8; }
+.workspace-reports.reports-reference-page .report-filters :is(input:not([type=checkbox]), select):focus {
+  outline: none; border-color: #9db7da; box-shadow: 0 0 0 3px #1d396a12;
+}
+.reports-reference-page .report-filters input[type=checkbox] { width: 16px; height: 16px; accent-color: #003570; }
+.reports-reference-page .report-filters :is(input, select):disabled { opacity: .55; cursor: not-allowed; }
+.reports-reference-page :is(button, a):focus-visible { outline: 2px solid #91aed6; outline-offset: 3px; }
+.reports-reference-page button:disabled { opacity: .5; cursor: not-allowed; }
+.workspace-reports.reports-reference-page .report-table-panel { min-width: 0; border: 0; border-radius: 22px; }
+.workspace-reports.reports-reference-page .report-table-panel table { width: 100%; }
+.workspace-reports.reports-reference-page .report-table-panel th { padding: 14px 18px; background: #f7f8fb; color: #8b9db8; font-size: 11px; font-weight: 400; }
+.workspace-reports.reports-reference-page .report-table-panel td { padding: 17px 18px; border-color: #e7edf5; color: #294d7b; font-size: 12px; line-height: 1.65; white-space: normal; overflow-wrap: anywhere; }
+.workspace-reports.reports-reference-page .report-table-panel tr:hover > td { background: #f8faff; }
+.workspace-reports.reports-reference-page .report-table-panel td:is([data-label=Total], [data-label=Pagado], [data-label=Saldo], [data-label=Venta], [data-label=Cobrado], [data-label=Precio], [data-label=Stock]) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.reports-reference-page .report-table-panel > div:has(> h3) { padding: 18px 20px; border-color: #e7edf5; }
+.reports-reference-page .report-table-panel h3 { color: #294d7b; font-size: 14px; font-weight: 500; }
+.workspace-reports.reports-reference-page .report-workspace .report-preview-grid { gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); }
+.reports-reference-page .report-workspace > section > p.text-sm { color: #7185a3; font-size: 12px; }
+.reports-reference-page .report-table-panel a { color: #003570; }
+.reports-reference-page .report-table-panel a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* The six existing filtered totals use the reference's compact metric tiles.
+   Keep the table's headers available to assistive technology. */
+.workspace-reports.reports-reference-page .report-summary-panel { overflow: visible; border-radius: 0; background: transparent; }
+.workspace-reports.reports-reference-page .report-summary-panel table,
+.workspace-reports.reports-reference-page .report-summary-panel tbody { display: block; width: 100%; min-width: 0; }
+.reports-reference-page .report-summary-panel thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.workspace-reports.reports-reference-page .report-summary-panel tbody > tr { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; padding: 0; border: 0; background: transparent; }
+.workspace-reports.reports-reference-page .report-summary-panel td { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; min-height: 100px; gap: 10px; padding: 18px; border: 0; border-radius: 20px; background: #fff; color: #003570; font-size: clamp(17px, 1.6vw, 23px); font-weight: 600; letter-spacing: -.5px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.workspace-reports.reports-reference-page .report-summary-panel td::before { content: attr(data-label); display: block; color: #7185a3; font-size: 11px; font-weight: 400; letter-spacing: 0; line-height: 1.5; }
+.workspace-reports.reports-reference-page .report-summary-panel tr:hover > td { background: #fff; }
+
+@container (max-width: 1000px) {
+  .workspace-reports.reports-reference-page .report-summary-panel tbody > tr { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .workspace-reports.reports-reference-page .report-workspace .report-preview-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@container (max-width: 560px) {
+  .workspace-reports.reports-reference-page .report-summary-panel tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .workspace-reports.reports-reference-page .report-summary-panel td { min-height: 96px; padding: 16px; font-size: 20px; }
+  .workspace-reports.reports-reference-page .report-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .reports-reference-page .report-filters > :is(div, label):has(.report-date-filters),
+  .reports-reference-page .report-filters > .report-date-filters,
+  .reports-reference-page .report-filters > .report-filter-search { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .workspace-reports.reports-reference-page .insights-page-heading h1 { font-size: 23px; }
+  .reports-reference-page .insights-page-heading > div > p { max-width: 210px; }
+  .workspace-reports.reports-reference-page .insights-page-heading > .insights-secondary { min-height: 40px; padding: 9px 12px; font-size: 11px; }
+  .workspace-reports.reports-reference-page .report-area-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .workspace-reports.reports-reference-page .report-area-tabs > button { min-width: 0; justify-content: flex-start; gap: 6px; padding: 10px 12px; font-size: 11px; white-space: normal; text-align: left; }
+  .reports-reference-page .report-area-tabs > button > svg { flex-shrink: 0; }
+  .workspace-reports.reports-reference-page .report-panel-heading { padding: 18px 16px 14px; }
+  .reports-reference-page .report-export-actions { width: 100%; }
+  .reports-reference-page .report-export-actions > button { flex: 1; }
+  .workspace-reports.reports-reference-page .report-filters { padding: 4px 16px 18px; }
+  .workspace-reports.reports-reference-page .report-filters :is(input:not([type=checkbox]), select) { font-size: 16px; }
+  .reports-reference-page .report-date-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .workspace-reports.reports-reference-page .report-table-panel td { padding: 12px 14px; }
+  .workspace-reports.reports-reference-page .report-summary-panel td { padding: 16px; }
+  .reports-reference-page .report-table-panel > div:has(> h3) { padding: 16px; }
+}

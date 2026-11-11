@@ -79,20 +79,22 @@ const SummaryRow = ({
   label,
   value,
   hint,
+  kind,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   hint?: string | null;
+  kind?: 'vehicle' | 'delivery';
 }) => (
-  <div className="flex items-start gap-3">
+  <div className={`workshop-summary-fact ${kind ? `workshop-summary-fact--${kind}` : ''} flex items-start gap-3`}>
     <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-pale text-brand-muted">
       {icon}
     </span>
     <div className="min-w-0">
       <p className="text-[10px] font-bold uppercase tracking-wide text-brand-muted">{label}</p>
-      <p className="truncate text-sm font-semibold text-brand-ink">{value}</p>
-      {hint && <p className="truncate text-xs text-brand-muted">{hint}</p>}
+      <p className="text-sm font-semibold text-brand-ink">{value}</p>
+      {hint && <p className="text-xs text-brand-muted">{hint}</p>}
     </div>
   </div>
 );
@@ -199,7 +201,7 @@ export const WorkOrderQuickDetailModal = ({
             description={workOrder ? `Ingreso ${formatDate(workOrder.fechaIngreso)}${workOrder.fechaEntrega ? ` · Entrega prometida ${formatDate(workOrder.fechaEntrega)}` : ''}` : undefined}
             actions={workOrder ? <>
               {showFinancials && <div className="workshop-header-tools" role="group" aria-label="Documentos y detalle de la orden">
-                <button type="button" disabled={savePending} aria-label="Vista previa PDF" onClick={() => requestLeave('pdf')}><Download aria-hidden="true" />Vista previa PDF</button>
+                <button type="button" disabled={savePending} aria-label="Vista previa PDF" onClick={() => requestLeave('pdf')}><Download aria-hidden="true" /><span className="workshop-tool-label">Vista previa PDF</span><span className="workshop-tool-compact" aria-hidden="true">PDF</span></button>
                 <Link to={`/work-orders/${workOrder.id}`} onClick={(event) => { event.preventDefault(); requestLeave('detail'); }} aria-label="Abrir detalle completo">Detalle completo<ArrowUpRight aria-hidden="true" /></Link>
               </div>}
               <WorkOrderStatusBadge className="workshop-header-status" status={workOrder.estado} />
@@ -243,6 +245,7 @@ export const WorkOrderQuickDetailModal = ({
           <div className="workshop-summary p-5 sm:p-6" hidden={view !== 'summary' && canOperate}>
             <div className="workshop-summary-people grid gap-3 sm:grid-cols-2">
               <SummaryRow
+                kind="vehicle"
                 icon={<Car className="h-4 w-4" aria-hidden="true" />}
                 label="Vehículo"
                 value={workOrder.vehicle?.patente ?? 'Sin patente'}
@@ -266,6 +269,13 @@ export const WorkOrderQuickDetailModal = ({
                 value={workOrder.billing?.nombre ?? workOrder.billingClient?.nombre ?? 'Cliente de la orden'}
                 hint={workOrder.billing?.rut ?? workOrder.billingClient?.rut ?? null}
               />}
+              <SummaryRow
+                kind="delivery"
+                icon={<CalendarClock className="h-4 w-4" aria-hidden="true" />}
+                label={workOrder.delivery ? 'Entrega registrada' : 'Entrega prometida'}
+                value={workOrder.delivery ? formatDateTime(workOrder.delivery.deliveredAt) : workOrder.fechaEntrega ? formatDateTime(workOrder.fechaEntrega) : 'Sin fecha prometida'}
+                hint={workOrder.delivery ? 'Recepción del vehículo confirmada' : 'Fecha de compromiso del taller'}
+              />
             </div>
 
             {workOrder.vehicleOwner && workOrder.vehicleOwner.nombre !== workOrder.client?.nombre && (
@@ -382,7 +392,7 @@ export const WorkOrderQuickDetailModal = ({
                         </div>
                       ))}
                     </div>
-                    {showFinancials && <div className="mt-3 flex items-center justify-between border-t-2 border-brand-primaryInk pt-2 text-sm font-bold text-brand-primaryInk">
+                    {showFinancials && <div className="workshop-summary-total mt-3 flex items-center justify-between border-t-2 border-brand-primaryInk pt-2 text-sm font-bold text-brand-primaryInk">
                       <span>Total estimado</span>
                       <span>{formatClp(estimatedTotal)}</span>
                     </div>}

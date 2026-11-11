@@ -1168,7 +1168,7 @@ describe('WorkOrdersPage', () => {
 
     expect(await screen.findByText('Recepción y facturación')).toBeInTheDocument();
     expect(screen.getByText('Juan Recepción')).toBeInTheDocument();
-    expect(screen.getByText('Empresa Factura SpA')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Recepción y facturación' })).getByText('Empresa Factura SpA')).toBeInTheDocument();
     expect(screen.getByText('Inspección de ingreso')).toBeInTheDocument();
     expect(screen.getByText('Rayón lateral derecho')).toBeInTheDocument();
     expect(screen.getByText('Rueda de repuesto')).toBeInTheDocument();

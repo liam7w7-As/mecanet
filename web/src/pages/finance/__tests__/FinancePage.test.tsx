@@ -542,6 +542,8 @@ describe('FinancePage', () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/finance/day', { params: { fecha: '2026-09-21' } }));
     expect(exportProps('cash-day').filters).toEqual({ fecha: '2026-09-21' });
     expect(screen.getByRole('region', { name: 'Arqueo y cierre diario' })).toContainElement(screen.getByTestId('export-cash-day'));
+    expect(screen.getAllByLabelText('Fecha del arqueo')).toHaveLength(1);
+    expect(screen.getByLabelText('Fecha del arqueo').closest('.finance-section-toolbar')).not.toBeNull();
     fireEvent.change(screen.getByLabelText('Fecha del arqueo'), { target: { value: '' } });
     expect(screen.getByTestId('export-cash-day')).toBeDisabled();
   });
@@ -555,6 +557,36 @@ describe('FinancePage', () => {
     expect(button).toBeDisabled();
     await screen.findByRole('alert');
     expect(button).toBeDisabled();
+  });
+
+  it('filtra caja por tipo y referencia sin alterar el arqueo ni perder filtros de abonos', async () => {
+    const baseGet = vi.mocked(api.get).getMockImplementation()!;
+    const movement = { id: 10, tipo: 'egreso', categoria: 'gasto_operativo', monto: 5000,
+      metodo: 'efectivo', descripcion: 'Compra de útiles', referencia: 'DOC-10',
+      fecha: '2026-09-22T12:00:00.000Z', voidedAt: null, voidReason: null,
+      creator: { id: 1, nombre: 'Finanzas Demo' } };
+    vi.mocked(api.get).mockImplementation((url, config) => url === '/finance/movements'
+      ? Promise.resolve({ data: { items: [movement, { ...movement, id: 11, tipo: 'ingreso', descripcion: 'Fondo inicial', referencia: 'DOC-11' }] } } as AxiosResponse)
+      : baseGet(url, config));
+    renderPage('/finance?tab=cash&paymentSearch=TRX&paymentStatus=por_verificar');
+    await screen.findByText('Compra de útiles');
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresos' }));
+    expect(screen.getByText('Fondo inicial')).toBeInTheDocument();
+    expect(screen.queryByText('Compra de útiles')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar movimientos de caja' }), { target: { value: 'DOC-10' } });
+    expect(screen.getByText('No hay movimientos para estos filtros.')).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('group', { name: 'Filtrar movimientos por tipo' })).getByRole('button', { name: 'Todos' }));
+    expect(screen.getByText('Compra de útiles')).toBeInTheDocument();
+    expect(exportProps('cash-day').filters).toEqual({ fecha: dailySummary.fecha });
+    expect(screen.getByText('Exportar caja completa del día')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Abonos' }));
+    expect(screen.getByRole('searchbox', { name: 'Buscar abonos' })).toHaveValue('TRX');
+    fireEvent.click(screen.getByRole('tab', { name: 'Caja' }));
+    expect(screen.getByRole('searchbox', { name: 'Buscar movimientos de caja' })).toHaveValue('DOC-10');
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros de caja' }));
+    expect(screen.getByText('Fondo inicial')).toBeInTheDocument();
+    expect(screen.getByText('Compra de útiles')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('oculta acciones de revisión, movimientos y cierre con permiso de solo lectura', async () => {

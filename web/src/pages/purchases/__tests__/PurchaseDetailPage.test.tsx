@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -118,5 +118,58 @@ describe('PurchaseDetailPage', () => {
     expect(screen.queryByRole('button', { name: /Anular compra/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Completar proveedor/ })).not.toBeInTheDocument();
     expect(screen.getByText('El pago total está pendiente.')).toBeInTheDocument();
+  });
+
+  it('conserva los datos de pago al cancelar y bloquea el cierre durante el registro', async () => {
+    let finishPayment: ((value: AxiosResponse<{ purchase: typeof purchaseFixture }>) => void) | undefined;
+    vi.mocked(api.post).mockImplementation(() => new Promise((resolve) => { finishPayment = resolve; }));
+    renderPage('jefe');
+    fireEvent.click(await screen.findByRole('button', { name: 'Registrar pago' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Pagar compra a crédito' }));
+    fireEvent.change(dialog.getByLabelText('Banco'), { target: { value: 'BCI' } });
+    fireEvent.change(dialog.getByLabelText('N.º de operación'), { target: { value: 'OP-700' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancelar' }));
+    expect(dialog.getByRole('alertdialog', { name: 'Descartar edición' })).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Seguir editando' }));
+    expect(dialog.getByLabelText('Banco')).toHaveValue('BCI');
+    fireEvent.click(dialog.getByRole('button', { name: 'Registrar pago total' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/purchases/7/payment', {
+      metodo: 'transferencia', referencia: null, banco: 'BCI', numeroOperacion: 'OP-700',
+    }));
+    expect(dialog.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
+    expect(dialog.getByRole('button', { name: 'Cerrar' })).toBeDisabled();
+    finishPayment?.({ data: { purchase: purchaseFixture } } as AxiosResponse<{ purchase: typeof purchaseFixture }>);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Pagar compra a crédito' })).not.toBeInTheDocument());
+  });
+
+  it('conserva el motivo de anulación hasta confirmar y envía la misma operación', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { purchase: purchaseFixture } } as AxiosResponse);
+    renderPage('admin');
+    fireEvent.click(await screen.findByRole('button', { name: 'Anular compra' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Anular compra' }));
+    fireEvent.change(dialog.getByLabelText('Motivo de la anulación'), { target: { value: 'Documento duplicado' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Seguir editando' }));
+    expect(dialog.getByLabelText('Motivo de la anulación')).toHaveValue('Documento duplicado');
+    fireEvent.click(dialog.getByRole('button', { name: 'Anular compra' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/purchases/7/void', { motivo: 'Documento duplicado' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Anular compra' })).not.toBeInTheDocument());
+  });
+
+  it('protege la edición del proveedor sin guardar al cerrar el formulario', async () => {
+    renderPage('admin');
+    const openSupplier = (await screen.findAllByRole('button', { name: /Completar proveedor/ }))[0];
+    await waitFor(() => expect(openSupplier).toBeEnabled());
+    fireEvent.click(openSupplier);
+    const dialog = within(await screen.findByRole('dialog', { name: 'Datos del proveedor' }));
+    fireEvent.change(dialog.getByLabelText('Contacto'), { target: { value: 'Contacto de compras' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancelar' }));
+    expect(dialog.getByRole('alertdialog', { name: 'Descartar edición' })).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Seguir editando' }));
+    expect(dialog.getByLabelText('Contacto')).toHaveValue('Contacto de compras');
+    expect(api.patch).not.toHaveBeenCalled();
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Descartar cambios' }));
+    expect(screen.queryByRole('dialog', { name: 'Datos del proveedor' })).not.toBeInTheDocument();
   });
 });

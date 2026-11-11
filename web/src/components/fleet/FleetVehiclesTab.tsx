@@ -30,6 +30,7 @@ import ListExportButtons from '../common/ListExportButtons';
 import Pagination from '../common/Pagination';
 
 import type { FleetVehicle, FleetVehicleStatus } from '../../types/entities';
+import type { ReactNode } from 'react';
 
 const gridClassName = 'workspace-vehicle-grid';
 
@@ -57,7 +58,7 @@ const selectClassName =
   'h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15';
 
 /** Listado de vehículos de uso interno, aislado del parque de clientes. */
-export const FleetVehiclesTab = () => {
+export const FleetVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('search') ?? '');
   const [estado, setEstado] = useState('');
@@ -143,8 +144,9 @@ export const FleetVehiclesTab = () => {
   };
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="vehicle-fleet-content min-w-0 space-y-5">
       <div className="vehicle-toolbar vehicle-toolbar-fleet">
+      {navigation}
       <div className="vehicle-toolbar-heading">
         <div>
           <h2 className="sr-only">Vehículos de flota</h2>
@@ -168,15 +170,6 @@ export const FleetVehiclesTab = () => {
                 <Upload className="h-4 w-4" aria-hidden="true" /> Importar
               </button>
             )}
-            {canCreate && (
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => setFormVehicle(null)}
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" /> Nuevo vehículo de flota
-              </button>
-            )}
           </div>
       </div>
 
@@ -194,6 +187,7 @@ export const FleetVehiclesTab = () => {
               className="h-10 w-full rounded-lg border border-brand-line bg-white pl-9 pr-3 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
+              aria-label="Buscar en flota"
               placeholder="Patente, código, marca, modelo o responsable"
             />
           </span>
@@ -229,11 +223,11 @@ export const FleetVehiclesTab = () => {
           </select>
         </label>
       </section>
-
+      {canCreate && <button type="button" className="primary-button vehicle-toolbar-create" onClick={() => setFormVehicle(null)}><Plus className="h-4 w-4" aria-hidden="true" />Nuevo vehículo de flota</button>}
       </div>
 
       {canViewOwner && (
-        <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-brand-muted">
+        <label className="vehicle-owner-visibility inline-flex cursor-pointer items-center gap-2 text-sm text-brand-muted">
           <input
             type="checkbox"
             className="h-4 w-4 accent-brand-primary"
@@ -273,6 +267,12 @@ export const FleetVehiclesTab = () => {
                   reference={[vehicle.codigoInterno ? `Código ${vehicle.codigoInterno}` : null, vehicle.sucursal].filter(Boolean).join(' · ') || undefined}
                   owner={vehicle.responsable ?? 'Sin responsable'} ownerLabel="Responsable"
                   facts={<>{formatKilometres(vehicle.kilometraje)} · {summary.total} documento{summary.total === 1 ? '' : 's'}</>}
+                  detailFacts={[
+                    { label: 'Kilometraje', value: formatKilometres(vehicle.kilometraje) },
+                    { label: 'Documentos registrados', value: String(summary.total) },
+                    { label: 'Vencidos', value: String(summary.expired) },
+                    { label: 'Por vencer', value: String(summary.expiringSoon) },
+                  ]}
                   status={<FleetVehicleStatusBadge status={vehicle.estadoOperativo} />}
                   alerts={<><span className={summary.expired > 0 ? 'text-brand-coralInk' : summary.expiringSoon > 0 ? 'text-amber-700' : summary.total > 0 ? 'text-brand-mintInk' : ''}>{summary.expired > 0 ? summary.expired + ' documento(s) vencido(s)' : summary.expiringSoon > 0 ? summary.expiringSoon + ' por vencer en 30 días' : summary.total === 0 ? 'Sin documentos registrados' : 'Documentación al día'}</span>{summary.nextExpiry && <span> · <span>{formatDate(summary.nextExpiry.fechaVencimiento)}</span></span>}</>}
                   onOpen={() => openVehicle(vehicle.id)}
@@ -362,7 +362,7 @@ export const FleetVehiclesTab = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="workspace-dialog relative w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl"
+              className="workspace-dialog vehicle-delete-dialog relative w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl"
               role="dialog"
               aria-modal="true"
               aria-labelledby="delete-fleet-vehicle-title"

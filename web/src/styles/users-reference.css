@@ -1,0 +1,187 @@
+/* Users only. Load after administration.css and the shared modal styles. */
+.users-reference-page,
+.users-reference-form,
+.users-reference-detail,
+.users-reference-confirm {
+  font-family: Poppins, sans-serif;
+  --users-ink: #303941;
+  --users-navy: #003570;
+  --users-muted: #8094af;
+  --users-soft: #f3f6fa;
+}
+
+.workspace-page.users-reference-page { gap: 18px; }
+.workspace-users.users-reference-page > .administration-heading h1 { color: #303941; font-size: 26px; line-height: 1.3; font-weight: 650; }
+.users-reference-page .administration-heading > p { margin: 0; color: var(--users-muted); }
+.users-reference-page .administration-tabs { gap: 7px; }
+.users-reference-page :is(.administration-tabs, .administration-filter-pills, .administration-role-tabs) > button { font-size: 11px; }
+.users-reference-page :is(.administration-tabs, .administration-role-tabs) > button[aria-selected=true],
+.users-reference-page .administration-filter-pills > button[aria-pressed=true] { background: var(--users-navy); color: #fff; }
+.users-reference-page .administration-accounts:not([hidden]) { gap: 12px; }
+.users-reference-page .administration-toolbar { display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; gap: 8px; }
+.users-reference-page .administration-search { width: 100%; }
+.users-reference-page .administration-search input { color: #4a6b95; font-family: inherit; }
+.users-reference-page .administration-filter-pills { flex-wrap: nowrap; gap: 6px; }
+.users-reference-page .administration-filter-pills > button { min-width: 90px; min-height: 46px; padding: 10px 13px; }
+.users-reference-page .administration-primary,
+.users-reference-detail .administration-primary,
+.users-reference-form .reception-primary-button,
+.users-reference-confirm .reception-primary-button { background: var(--users-navy); color: #fff; }
+.users-reference-page .administration-primary:hover:not(:disabled),
+.users-reference-detail .administration-primary:hover:not(:disabled),
+.users-reference-form .reception-primary-button:hover:not(:disabled),
+.users-reference-confirm .reception-primary-button:hover:not(:disabled) { background: #174b83; }
+.users-reference-page .users-reference-list-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-width: 0; }
+.users-reference-page .administration-role-filter { width: 180px; }
+.users-reference-page .administration-role-filter select { height: 38px; padding-inline: 13px; color: #6b82a0; background-color: #ffffffb3; }
+.users-reference-page .administration-clear { margin-left: 0; }
+.users-reference-page .users-reference-exports { margin-left: auto; }
+.users-reference-page .administration-result-count { margin: 1px 2px 0; color: #8b9db7; font-size: 11px; }
+.users-reference-page .administration-result-count strong { color: #5477a3; font-size: 12px; font-weight: 600; }
+.users-reference-page .administration-directory { border-radius: 22px; box-shadow: none; }
+.users-reference-page .administration-user-row { grid-template-columns: minmax(0, 1.6fr) minmax(110px, 1fr) minmax(70px, .6fr) 136px; gap: 16px; min-height: 85px; padding: 16px 20px; border-color: #eff3f8; }
+.users-reference-page .administration-user-identity { gap: 12px; }
+.users-reference-page .administration-user-identity strong { color: var(--users-ink); font-size: 13px; font-weight: 600; line-height: 1.55; }
+.users-reference-page .administration-user-identity small { margin-top: 3px; color: #8193ac; font-size: 11px; line-height: 1.6; }
+.users-reference-page .administration-user-identity .users-reference-user-contact { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.users-reference-page .users-reference-user-contact > span { min-width: 0; overflow-wrap: anywhere; }
+.users-reference-page .users-reference-avatar { width: 32px; height: 32px; border-radius: 11px; background: #eff4fa; background-image: none; color: #6484ad; box-shadow: none; font-weight: 500; }
+.users-reference-page .users-reference-avatar img { border-radius: 11px; }
+.users-reference-page .administration-user-role > small { color: #8c9db5; font-size: 10px; }
+.users-reference-page .administration-user-role > strong { color: #6480a2; font-size: 12px; }
+.users-reference-page .administration-status { gap: 6px; font-size: 11px; background: transparent; padding: 0; }
+.users-reference-page .administration-status::before { width: 5px; height: 5px; flex: none; }
+.users-reference-page .administration-status.is-active { color: #668f7b; }
+.users-reference-page .administration-status.is-inactive { color: #8a97aa; }
+.users-reference-page .administration-row-actions > button { height: 36px; color: #8198b8; }
+.users-reference-page .administration-row-actions > button:hover:not(:disabled) { background: #edf2fa; color: var(--users-navy); }
+.users-reference-page .administration-row-actions > .administration-danger-action:hover:not(:disabled) { color: #b45b69; background: #fff0f3; }
+.users-reference-page .administration-row-skeleton { min-height: 85px; padding: 22px 20px; }
+
+/* The role editor uses the same white panels and navy pill controls. */
+.users-reference-page .users-reference-permissions { border-radius: 22px; }
+.users-reference-permissions .administration-panel-heading { padding: 22px 24px; }
+.users-reference-permissions .administration-panel-heading h2 { margin: 0; color: var(--users-ink); font-size: 17px; }
+.users-reference-permissions .administration-role-tabs { gap: 7px; }
+.users-reference-permissions .administration-role-tabs > button { min-height: 40px; padding: 9px 14px; background: var(--users-soft); }
+.users-reference-permissions .administration-role-summary { padding: 14px 16px; border-radius: 14px; background: var(--users-soft); }
+.users-reference-permissions .administration-role-summary > strong { color: var(--users-ink); }
+.users-reference-permissions .administration-permission-count { margin: 0 0 12px; }
+.users-reference-permissions .administration-module-grid { gap: 14px; }
+.users-reference-permissions .administration-module { padding: 16px; border-color: #e9eff6; border-radius: 16px; }
+.users-reference-permissions .administration-module > header { flex-wrap: wrap; }
+.users-reference-permissions .administration-module h3 { color: #47658c; font-weight: 600; }
+.users-reference-permissions .administration-module header > button { min-height: 34px; color: #59789d; font-size: 10px; }
+.users-reference-permissions .administration-module > div { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.users-reference-permissions .administration-module label { min-height: 42px; font-size: 11px; }
+.users-reference-permissions .administration-module label.is-selected { background: #edf3fb; border-color: #d8e5f4; color: #3f608b; }
+.users-reference-permissions .administration-module input { width: 15px; height: 15px; accent-color: var(--users-navy); }
+.users-reference-permissions .administration-permission-footer { flex-wrap: wrap; background: #fff; }
+.users-reference-permissions .administration-permission-footer > div:last-child { flex-wrap: wrap; }
+
+/* These classes live on the portal dialogs, independent of the page scope. */
+.reference-dialog.users-reference-form,
+.reference-dialog.users-reference-detail { width: 100%; max-width: 760px; border-radius: 24px; background: #fff; box-shadow: 0 24px 80px #14223b26; }
+.users-reference-form .ui-modal-header,
+.users-reference-detail .ui-modal-header,
+.users-reference-confirm .ui-modal-header { flex-shrink: 0; align-items: center; padding: 20px 24px; border-bottom: 1px solid #edf1f7; background: #fff; }
+.users-reference-form .ui-modal-header h2,
+.users-reference-detail .ui-modal-header h2,
+.users-reference-confirm .ui-modal-header h2 { margin: 0; color: var(--users-ink); font-size: 17px; font-weight: 600; line-height: 1.5; }
+.users-reference-form .ui-modal-description { margin-top: 3px; font-size: 10px; color: var(--users-muted); }
+.users-reference-form .ui-modal-close,
+.users-reference-detail .ui-modal-close,
+.users-reference-confirm .ui-modal-close { width: 34px; height: 34px; border-radius: 12px; background: var(--users-soft); color: #7c91ad; }
+.users-reference-form fieldset.reception-edit-body { display: grid; align-content: start; gap: 16px; padding: 24px; }
+.users-reference-form .administration-form-grid { gap: 18px; }
+.reference-dialog.users-reference-form .administration-form-grid > label,
+.users-reference-form .administration-password-field > label { color: #7287a4; font-size: 12px; font-weight: 400; }
+.reference-dialog.reference-form-dialog.users-reference-form :is(input:not([type=checkbox]):not([type=radio]), select) { height: 44px; margin-top: 7px; padding-inline: 13px; border: 1px solid #e4ebf4; border-radius: 12px; background: #f7f9fc; color: #45658d; font-family: inherit; font-size: 12px; }
+.reference-dialog.users-reference-form :is(input, select):focus { border-color: #9db7da; box-shadow: 0 0 0 3px #0035700c; }
+.reference-dialog.users-reference-form :is(input, select)[aria-invalid=true] { border-color: #bb5564; }
+.reference-dialog.users-reference-form .administration-password input { padding-right: 46px; }
+.users-reference-form .administration-password > button { top: 4px; border-radius: 9px; }
+.users-reference-form .administration-form-note { padding: 12px 14px; border-radius: 12px; background: var(--users-soft); }
+.users-reference-form .reception-edit-footer,
+.users-reference-confirm .reception-edit-footer { flex-wrap: wrap; gap: 12px; padding: 16px 24px; background: #fff; border-top: 1px solid #edf1f7; }
+.users-reference-form .reception-edit-footer > span,
+.users-reference-confirm .reception-edit-footer > span { color: var(--users-muted); font-size: 10px; }
+.users-reference-form .reception-edit-footer > div:not(.reception-discard),
+.users-reference-confirm .reception-edit-footer > div:not(.reception-discard) { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+.users-reference-form .reception-edit-footer button,
+.users-reference-confirm .reception-edit-footer button { min-height: 42px; border: 0; border-radius: 999px; padding: 10px 18px; font-family: inherit; font-size: 11px; }
+.users-reference-form .reception-secondary-button,
+.users-reference-confirm .reception-secondary-button,
+.users-reference-detail .administration-secondary { background: #f1f5fb; color: #6f87a9; }
+.users-reference-form .reception-discard,
+.users-reference-confirm .reception-discard { flex-basis: 100%; }
+.reference-dialog.administration-form.users-reference-confirm { --reference-dialog-width: 510px; width: min(510px, 100%); max-width: 510px; }
+.users-reference-confirm.administration-confirm-danger .reception-primary-button { background: #a45c6c; }
+.users-reference-detail .administration-profile-body { padding: 22px 24px; }
+.users-reference-detail .administration-profile-hero { gap: 13px; margin-bottom: 18px; padding: 18px; border-radius: 16px; background: #1d396a; }
+.users-reference-detail .users-reference-avatar { width: 38px; height: 38px; border-radius: 12px; background: #ffffff12; background-image: none; color: #d9e5f6; box-shadow: none; }
+.users-reference-detail .users-reference-avatar img { border-radius: 12px; }
+.users-reference-detail .administration-profile-hero small { color: #bfd0e8; font-size: 10px; }
+.users-reference-detail .administration-profile-hero h2 { margin-top: 4px; color: #fff; font-size: 20px; line-height: 1.5; }
+.users-reference-detail .administration-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.users-reference-detail .administration-facts > div { min-width: 0; padding: 13px 14px; border-radius: 12px; background: var(--users-soft); }
+.users-reference-detail .administration-facts dt { color: #8196b2; font-size: 10px; }
+.users-reference-detail .administration-facts dd { margin: 5px 0 0; color: #54759f; font-size: 12px; line-height: 1.7; }
+.users-reference-detail .administration-profile-footer { flex-wrap: wrap; padding: 16px 24px; background: #fff; }
+.users-reference-detail .administration-profile-footer button { min-height: 42px; }
+.users-reference-page :is(button, input, select):focus-visible,
+.users-reference-form :is(button, input, select):focus-visible,
+.users-reference-detail button:focus-visible,
+.users-reference-confirm button:focus-visible { outline: 2px solid #7096c8; outline-offset: 3px; }
+
+@media (max-width: 1100px) {
+  .users-reference-page .administration-toolbar { grid-template-columns: minmax(0, 1fr) auto; }
+  .users-reference-page .administration-search { grid-column: 1; grid-row: 1; }
+  .users-reference-page .administration-toolbar > .administration-primary { grid-column: 2; grid-row: 1; }
+  .users-reference-page .administration-filter-pills { grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; }
+  .users-reference-page .administration-filter-pills > button { min-height: 42px; }
+  .users-reference-page .administration-user-row { grid-template-columns: minmax(0, 1.4fr) minmax(90px, .8fr) 65px 136px; gap: 12px; padding-inline: 16px; }
+}
+
+@media (max-width: 680px) {
+  .workspace-page.users-reference-page { gap: 14px; }
+  .workspace-users.users-reference-page > .administration-heading h1 { color: #303941; font-size: 26px; }
+  .users-reference-page .administration-heading > p { display: none; }
+  .users-reference-page .administration-search input { font-size: 16px; }
+  .users-reference-page .administration-toolbar > .administration-primary { padding-inline: 13px; font-size: 10px; }
+  .users-reference-page .administration-filter-pills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .users-reference-page .administration-filter-pills > button { min-width: 0; padding: 9px 6px; }
+  .users-reference-page .administration-role-filter { width: 155px; max-width: 100%; }
+  .users-reference-page .administration-role-filter select { font-size: 16px; }
+  .users-reference-page .users-reference-exports { max-width: 100%; }
+  .users-reference-page .administration-user-row { grid-template-columns: minmax(0, 1fr) auto; gap: 12px 8px; min-height: 0; padding: 15px; }
+  .users-reference-page .administration-user-identity { grid-column: 1 / -1; }
+  .users-reference-page .administration-user-role { grid-column: 1; padding-left: 44px; }
+  .users-reference-page .administration-user-state { grid-column: 2; }
+  .users-reference-page .administration-row-actions { grid-column: 1 / -1; gap: 8px; border-top: 1px solid #f0f3f8; padding-top: 8px; }
+  .users-reference-page .administration-row-actions > button { width: 44px; height: 40px; background: #f5f8fc; }
+  .users-reference-permissions .administration-panel-heading { padding: 20px 16px; }
+  .users-reference-permissions .administration-permission-content { padding-inline: 16px; }
+  .users-reference-permissions .administration-module-grid { grid-template-columns: minmax(0, 1fr); }
+  .users-reference-permissions .administration-role-tabs > button { flex: 1 1 130px; }
+  .users-reference-permissions .administration-permission-footer { align-items: stretch; padding: 16px; }
+  .users-reference-form .ui-modal-header,
+  .users-reference-detail .ui-modal-header,
+  .users-reference-confirm .ui-modal-header { padding: 16px; }
+  .users-reference-form .administration-form-grid { grid-template-columns: minmax(0, 1fr); gap: 15px; }
+  .users-reference-form fieldset.reception-edit-body,
+  .users-reference-detail .administration-profile-body { padding: 18px 16px; }
+  .reference-dialog.reference-form-dialog.users-reference-form :is(input:not([type=checkbox]):not([type=radio]), select) { font-size: 16px; }
+  .users-reference-form .reception-edit-footer,
+  .users-reference-confirm .reception-edit-footer,
+  .users-reference-detail .administration-profile-footer { padding: 14px 16px; }
+  .users-reference-detail .administration-profile-hero { padding: 14px; }
+  .users-reference-detail .administration-profile-hero h2 { font-size: 18px; }
+}
+
+@media (max-width: 380px) {
+  .users-reference-page .administration-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .users-reference-page .administration-toolbar > .administration-primary { grid-column: 1; grid-row: 3; justify-self: end; }
+  .users-reference-page .administration-user-role { padding-left: 0; }
+  .users-reference-detail .administration-facts { grid-template-columns: minmax(0, 1fr); }
+}

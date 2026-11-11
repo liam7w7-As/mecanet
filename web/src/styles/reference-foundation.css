@@ -1,0 +1,146 @@
+/* Latest design handoff: index.html, 2026-11-10.
+   Shared application primitives only; printable documents keep their own styles. */
+:root {
+  --ref-heading: #1d396a;
+  --ref-action: #003570;
+  --ref-text: #294d7b;
+  --ref-muted: #7185a3;
+  --ref-line: #e7edf5;
+  --ref-surface: #f2f2f3;
+  --ref-dialog-compact: 560px;
+  --ref-dialog-standard: 650px;
+  --ref-dialog-document: 680px;
+  --ref-dialog-client: 720px;
+  --ref-dialog-form: 760px;
+  --ref-dialog-vehicle: 820px;
+  --ref-dialog-payment: 920px;
+  --ref-dialog-detail: 940px;
+  --ref-dialog-wide: 960px;
+}
+
+.redesign-shell {
+  --ui-text: var(--ref-text);
+  --ui-muted: var(--ref-muted);
+  --ui-line: var(--ref-line);
+  --ui-soft: var(--ref-surface);
+}
+
+/* The width is chosen by the content family, never by a blanket scale factor. */
+.reference-dialog.warehouse-form-dialog { --reference-dialog-width: var(--ref-dialog-compact); }
+.reference-dialog.inventory-form { --reference-dialog-width: var(--ref-dialog-standard); }
+.reference-dialog.inventory-form.warehouse-form-dialog { --reference-dialog-width: var(--ref-dialog-compact); }
+.reference-dialog.catalog-form-dialog,
+.reference-dialog.administration-form { --reference-dialog-width: var(--ref-dialog-form); }
+.reference-dialog.inventory-form.catalog-form-dialog { --reference-dialog-width: var(--ref-dialog-form); }
+.reference-dialog.client-form-dialog { --reference-dialog-width: var(--ref-dialog-client); }
+.reference-dialog.vehicle-form-dialog,
+.reference-dialog.fleet-vehicle-form-dialog { --reference-dialog-width: var(--ref-dialog-vehicle); }
+.reference-dialog.fleet-document-form-dialog { --reference-dialog-width: var(--ref-dialog-document); }
+.reference-dialog.vehicle-profile-dialog { --reference-dialog-width: var(--ref-dialog-detail); }
+.reference-dialog.commercial-form-dialog,
+.reference-dialog.commercial-detail-dialog { --reference-dialog-width: var(--ref-dialog-wide); }
+.reference-dialog.commercial-payment-dialog { --reference-dialog-width: var(--ref-dialog-payment); }
+.workshop-manage-dialog { --reference-dialog-width: var(--ref-dialog-wide); }
+.reception-create-review { --reference-dialog-width: var(--ref-dialog-vehicle); }
+.workshop-delivery-dialog { --reference-dialog-width: 900px; }
+
+:is(.reference-dialog, .workshop-manage-dialog, .reception-create-review, .workshop-delivery-dialog) {
+  min-width: 0;
+  max-width: 100%;
+  max-height: calc(100dvh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  border-radius: 24px;
+}
+:is(.reference-dialog, .workshop-manage-dialog, .reception-create-review, .workshop-delivery-dialog):focus {
+  outline: none;
+}
+
+:is(.reference-dialog, .workshop-manage-dialog, .reception-create-review, .workshop-delivery-dialog):is(
+  .inventory-form, .administration-form, .client-form-dialog, .vehicle-form-dialog,
+  .fleet-vehicle-form-dialog, .fleet-document-form-dialog, .vehicle-profile-dialog,
+  .commercial-payment-dialog, .commercial-form-dialog, .commercial-detail-dialog,
+  .workshop-manage-dialog, .reception-create-review, .workshop-delivery-dialog
+) {
+  width: min(100%, var(--reference-dialog-width));
+  max-width: var(--reference-dialog-width);
+}
+
+.reference-modal-overlay {
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+
+/* Forms have one scroll owner, with the heading and actions always reachable. */
+.reference-dialog.reference-form-dialog {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.reference-form-dialog > .reference-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.reference-form-dialog .reference-form-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.reference-dialog > .ui-modal-header,
+.reference-dialog > header,
+.reference-dialog > .reference-dialog-footer,
+.reference-form-dialog .reference-dialog-footer,
+.reference-dialog .reception-edit-footer {
+  flex-shrink: 0;
+}
+.reference-dialog .ui-modal-header { padding: 22px 24px 18px; }
+.reference-dialog .ui-modal-title-row { flex-wrap: wrap; }
+.reference-dialog .ui-modal-header:not(.ui-modal-header--brand) :is(h1, h2) {
+  color: var(--ref-heading);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.reference-dialog .ui-modal-description { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.reference-dialog .ui-modal-header--brand { background: var(--ref-heading); }
+.reference-dialog .ui-modal-close { flex: none; min-width: 36px; min-height: 36px; }
+
+.reference-dialog :is(.reception-primary-button, .reception-secondary-button),
+.reference-dialog .reference-dialog-footer > :is(.primary-button, .secondary-button) {
+  min-height: 40px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.reference-dialog .reception-primary-button { background: var(--ref-heading); color: #fff; }
+.reference-dialog .reception-primary-button:hover:not(:disabled) { background: var(--ref-action); }
+.reference-dialog .reception-secondary-button { border-color: var(--ref-line); }
+.reference-dialog :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid #91b2dc;
+  outline-offset: 3px;
+}
+.reference-dialog button:disabled { cursor: not-allowed; }
+
+@media (max-width: 760px) {
+  .reference-modal-overlay {
+    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+      max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  }
+  :is(.reference-dialog, .workshop-manage-dialog, .reception-create-review, .workshop-delivery-dialog) {
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    border-radius: 20px;
+  }
+  .reference-dialog .ui-modal-header { gap: 10px; padding: 18px 16px 14px; }
+  .reference-dialog .ui-modal-close { min-width: 40px; min-height: 40px; }
+  .reference-dialog.reference-form-dialog :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+    font-size: 16px;
+  }
+  .reference-dialog .reference-dialog-footer,
+  .reference-dialog .reception-edit-footer { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+}

@@ -1,4 +1,5 @@
 import { QUOTATION_PAYMENT_LABELS, QUOTATION_PAYMENT_METHODS } from '@unithor/shared';
+import { SlidersHorizontal } from 'lucide-react';
 
 import type { Quotation } from '../../types/entities';
 import type { DiscountType, QuotationPaymentMethod } from '@unithor/shared';
@@ -26,19 +27,19 @@ export default function QuotationCommercialFields({ value, onChange, errors = {}
   onChange: (value: CommercialDraft) => void;
   errors?: Record<string, string>;
 }) {
-  return <section className="space-y-3" aria-label="Condiciones de la cotización">
-    <h2 className="font-bold text-brand-primaryInk">Condiciones de la cotización</h2>
-    <div className="grid gap-4 lg:grid-cols-[1.1fr_1.5fr_0.65fr]">
+  return <section className="quotation-commercial-fields space-y-3" aria-label="Condiciones de la cotización">
+    <h2 className="quotation-section-title font-bold text-brand-primaryInk"><SlidersHorizontal aria-hidden="true" />Condiciones de la cotización</h2>
+    <div className="quotation-commercial-grid grid gap-4 lg:grid-cols-[1.1fr_1.5fr_0.65fr]">
       <label className="min-w-0 text-sm font-semibold text-brand-ink">Forma de pago
-        <select className={fieldClass} value={value.formaPago} onChange={(event) => onChange({ ...value, formaPago: event.target.value as QuotationPaymentMethod })}>
+        <select className={fieldClass} value={value.formaPago} aria-invalid={Boolean(errors.formaPago)} onChange={(event) => onChange({ ...value, formaPago: event.target.value as QuotationPaymentMethod })}>
           {QUOTATION_PAYMENT_METHODS.map((method) => <option key={method} value={method}>{QUOTATION_PAYMENT_LABELS[method]}</option>)}
         </select>
       </label>
       <label className="min-w-0 text-sm font-semibold text-brand-ink">Disponibilidad del trabajo
-        <input className={fieldClass} value={value.disponibilidadTrabajo} maxLength={200} placeholder="Ej. Desde el lunes, previa coordinación" onChange={(event) => onChange({ ...value, disponibilidadTrabajo: event.target.value })} />
+        <input className={fieldClass} value={value.disponibilidadTrabajo} aria-invalid={Boolean(errors.disponibilidadTrabajo)} maxLength={200} placeholder="Ej. Desde el lunes, previa coordinación" onChange={(event) => onChange({ ...value, disponibilidadTrabajo: event.target.value })} />
       </label>
       <label className="min-w-0 text-sm font-semibold text-brand-ink">Validez (días)
-        <input type="number" min={1} max={365} step={1} className={fieldClass} value={value.validezDias} onChange={(event) => onChange({ ...value, validezDias: event.target.value })} />
+        <input type="number" min={1} max={365} step={1} className={fieldClass} value={value.validezDias} aria-invalid={Boolean(errors.validezDias)} onChange={(event) => onChange({ ...value, validezDias: event.target.value })} />
       </label>
     </div>
     {['formaPago', 'disponibilidadTrabajo', 'validezDias'].map((key) => errors[key] && <p key={key} role="alert" className="text-sm text-brand-coralInk">{errors[key]}</p>)}

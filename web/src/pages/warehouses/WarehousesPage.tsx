@@ -208,9 +208,9 @@ export const WarehousesPage = () => {
         </div>
       )}
 
-      <section aria-label="Almacenes">
+      <section aria-label="Almacenes" className="inventory-context-bar">
         <ListExportButtons target="warehouses" filters={warehouseFilters}
-          disabled={warehousesQuery.isPending || warehousesQuery.isError} className="mb-3 flex flex-wrap justify-end gap-2" />
+          disabled={warehousesQuery.isPending || warehousesQuery.isError} className="inventory-context-exports" />
         {warehousesQuery.isPending ? (
           <div className="h-16 animate-pulse rounded-xl bg-white" role="status">
             <span className="sr-only">Cargando almacenes…</span>
@@ -283,6 +283,9 @@ export const WarehousesPage = () => {
               </span>
               {!selected.activo && <span className="inventory-inactive">Inactivo</span>}
             </div>
+            <div className="inventory-heading-actions">
+              <ListExportButtons target="stock-balances" filters={balanceFilters}
+                disabled={balancesQuery.isPending || balancesQuery.isError} />
             {canUpdate && (
               <button
                 className="inventory-secondary"
@@ -297,9 +300,8 @@ export const WarehousesPage = () => {
                 Editar almacén
               </button>
             )}
+            </div>
           </div>
-          <ListExportButtons target="stock-balances" filters={balanceFilters}
-            disabled={balancesQuery.isPending || balancesQuery.isError} className="mb-3 flex flex-wrap justify-end gap-2" />
           <div className="inventory-stock-panel">
             <div className="inventory-table-scroll">
               <table className="inventory-stock-table">

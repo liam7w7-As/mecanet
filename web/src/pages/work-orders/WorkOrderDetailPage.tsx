@@ -9,7 +9,9 @@ import {
   AlertCircle,
   ArrowLeft,
   Building2,
+  CalendarDays,
   Camera,
+  Car,
   ClipboardCheck,
   Download,
   Eye,
@@ -60,6 +62,7 @@ import { formatClp, formatDateTime } from '../../lib/formatters';
 import { validateInspectionFile } from '../../lib/inspection-photos';
 import { canUploadWorkOrderInspectionPhotos, hasUserPermission } from '../../lib/permissions';
 import { buildPdfShareText } from '../../lib/whatsapp';
+import { getElapsedInfo, getWorkOrderProgress, useNow } from '../../lib/work-order-progress';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
@@ -177,6 +180,8 @@ export const WorkOrderDetailPage = () => {
   const [showReentryModal, setShowReentryModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
+  const [activeSection, setActiveSection] = useState('ot-summary');
+  const now = useNow();
   const [shareOtOnOpen, setShareOtOnOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Partial<Record<WorkOrderInspectionPhotoSlot, number>>>({});
   const user = useAuthStore((state) => state.user);
@@ -296,15 +301,14 @@ export const WorkOrderDetailPage = () => {
     return <div className="rounded-lg border border-brand-coral/30 bg-brand-coralPale p-5 text-brand-coralInk" role="alert"><p className="font-semibold">No fue posible cargar la orden</p><p className="mt-1 text-sm">{getApiErrorMessage(workOrderQuery.error, 'Orden de trabajo no encontrada.')}</p><Link to="/work-orders" className="mt-4 inline-flex text-sm font-semibold underline">Volver al listado</Link></div>;
   }
 
+  const progress = getWorkOrderProgress(workOrder);
+  const elapsed = getElapsedInfo(workOrder, now);
+
   return (
     <div className="workshop-record-page min-w-0 space-y-5">
+      <Link to="/work-orders" className="workshop-record-back" aria-label="Volver a órdenes"><ArrowLeft aria-hidden="true" />Volver a órdenes</Link>
       <header className="workshop-record-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex items-start gap-3">
-          <Link to="/work-orders" className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:bg-brand-pale" aria-label="Volver a órdenes" title="Volver">
-            <AnimateIcon variant="slide-left" animateOnHover>
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            </AnimateIcon>
-          </Link>
           <div>
             <p className="text-sm font-medium text-brand-muted">Ficha de taller · Orden de trabajo</p>
             <div className="mt-1 flex flex-wrap items-center gap-3">
@@ -312,6 +316,7 @@ export const WorkOrderDetailPage = () => {
               <WorkOrderStatusBadge className="workshop-header-status" status={workOrder.estado} />
               {workOrder.tipoIngreso && workOrder.tipoIngreso !== 'normal' && <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${workOrder.tipoIngreso === 'garantia' ? 'bg-brand-goldPale text-brand-goldInk' : 'bg-brand-pale text-brand-primaryInk'}`}>{workOrder.tipoIngreso === 'garantia' ? 'Garantía' : 'Reingreso'}{workOrder.coberturaGarantia ? ' cubierta' : ''}</span>}
             </div>
+            <p className="workshop-record-entered">Ingreso {formatDateTime(workOrder.fechaIngreso)}</p>
           </div>
         </div>
         <div className="workshop-record-tools flex flex-wrap gap-2">
@@ -331,6 +336,47 @@ export const WorkOrderDetailPage = () => {
               Editar ficha
             </button>
           )}
+          <button type="button" className="workshop-record-official inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow" onClick={() => setShowPdfModal(true)}>
+            <Eye className="h-4 w-4" aria-hidden="true" />OT oficial / Imprimir
+          </button>
+        </div>
+      </header>
+      <nav className="workshop-record-nav" aria-label="Secciones de la orden de trabajo">
+        {([
+          ['ot-summary', 'Resumen', Gauge], ['ot-reception', 'Recepción', ClipboardCheck],
+          ['ot-photos', 'Fotos', Camera], ['ot-control', 'Avances y checklist', Wrench],
+          ['ot-activity', 'Actividad y costos', History],
+        ] as const).map(([section, label, Icon]) => <a key={section} href={`#${section}`} aria-current={activeSection === section ? 'location' : undefined} onClick={() => setActiveSection(section)}><Icon aria-hidden="true" />{label}</a>)}
+      </nav>
+
+      {(statusMutation.isError || uploadPhotosMutation.isError || deletePhotoMutation.isError || receptionPdfMutation.isError || shareReceptionPdfMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(statusMutation.error ?? uploadPhotosMutation.error ?? deletePhotoMutation.error ?? receptionPdfMutation.error ?? shareReceptionPdfMutation.error)}</div>}
+
+      <section className="workshop-record-overview" id="ot-summary" aria-labelledby="work-order-summary-title">
+        <h2 id="work-order-summary-title" className="sr-only">Resumen de la orden</h2>
+        <div className="workshop-record-people">
+          <div className="workshop-record-vehicle"><Car aria-hidden="true" /><div><span>Vehículo</span><strong>{workOrder.vehicle?.patente ?? 'Sin vehículo'}</strong><small>{[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos técnicos'}</small><small>Propietario registrado: {workOrder.vehicleOwner?.nombre ?? 'Sin propietario'}</small></div></div>
+          <div className="workshop-record-promised"><CalendarDays aria-hidden="true" /><div><span>Fecha de entrega</span><strong>{workOrder.fechaEntrega ? formatDateTime(workOrder.fechaEntrega) : 'Sin fecha de entrega'}</strong></div></div>
+          <div><UserRound aria-hidden="true" /><div><span>Cliente</span><strong>{workOrder.client?.nombre ?? 'Sin cliente asignado'}</strong><small>{workOrder.client?.rut ?? 'Sin identificación'}</small><small>{workOrder.client?.telefono ?? 'Sin teléfono'}</small></div></div>
+          <div><Wrench aria-hidden="true" /><div><span>Mecánico responsable</span><strong>{workOrder.assignedMechanic?.nombre ?? 'Sin asignar'}</strong><small>Creada por {workOrder.creator?.nombre ?? 'Sin registro'}</small></div></div>
+          <div><Building2 aria-hidden="true" /><div><span>Facturación</span><strong>{getContactLine(workOrder.billing?.nombre, workOrder.client?.nombre ?? 'Sin facturación')}</strong><small>{getContactLine(workOrder.billing?.rut, workOrder.client?.rut ?? 'Sin identificación')}</small></div></div>
+        </div>
+        <dl className="workshop-record-metrics" aria-label="Indicadores de la orden">
+          <div><dt>Avance</dt><dd>{progress.percent}%</dd><small>{progress.completed}/{progress.total} trabajos medibles</small></div>
+          <div><dt>{elapsed.running ? 'Tiempo en taller' : 'Duración total'}</dt><dd>{elapsed.text.replace(/^En taller |^Duración total: /g, '')}</dd><small>{elapsed.overdue ? 'Entrega prometida vencida' : workOrder.fechaEntrega ? 'Con fecha de entrega' : 'Sin entrega prometida'}</small></div>
+          <div><dt>Kilometraje</dt><dd>{workOrder.kilometrajeIngreso === null ? 'Sin registrar' : `${workOrder.kilometrajeIngreso.toLocaleString('es-CL')} km`}</dd><small>Kilometraje de ingreso</small></div>
+          <div><dt>Total estimado</dt><dd>{formatClp(total)}</dd><small>{workOrder.quotation?.codigo ?? 'Sin cotización vinculada'}</small></div>
+        </dl>
+        <div className="workshop-record-work-summary">
+          <div className="workshop-record-progress"><span><Gauge aria-hidden="true" />Avance operativo</span><strong>{progress.percent}%</strong><progress max={100} value={progress.percent} aria-label="Avance operativo" /></div>
+          <h3><ClipboardCheck aria-hidden="true" />Trabajos y repuestos ({workOrder.items?.length ?? 0})</h3>
+          {workOrder.items?.length ? <ul>{workOrder.items.map((item) => <li key={item.id} data-completed={item.estadoOperativo === 'completado'}><span className="workshop-record-task-dot" aria-hidden="true" /><div><strong>{item.descripcion}</strong><small>{item.cantidad} {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ?? item.unidadMedida} · {ITEM_OPERATIONAL_STATUS_LABELS[item.estadoOperativo] ?? item.estadoOperativo}</small></div><div><strong>{formatClp(item.subtotal)}</strong><small>{formatClp(item.precioUnitario)} c/u</small></div></li>)}</ul> : <p>Diagnóstico inicial, sin trabajos o repuestos cargados.</p>}
+          <div className="workshop-record-estimate"><span>Total estimado</span><strong>{formatClp(total)}</strong></div>
+          <div className="workshop-record-diagnosis"><h3>Motivo de ingreso / diagnóstico</h3><p>{workOrder.descripcion ?? 'Sin observaciones registradas.'}</p></div>
+        </div>
+        <div className="workshop-record-correspondence"><CustomerEmailPanel kind="work_order" id={workOrder.id} /></div>
+        <section className="workshop-record-documents" aria-label="Documentos y compartir">
+          <div><h3>Documentos y compartir</h3><p>El comprobante de recepción y la OT oficial son documentos independientes.</p></div>
+          <div>
           <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-primaryInk bg-white px-4 text-sm font-semibold text-brand-primaryInk shadow-sm transition-all hover:bg-brand-line/40 hover:shadow" onClick={() => receptionPdfMutation.downloadPdf(workOrder.id, workOrder.codigo)} disabled={receptionPdfMutation.isPending}>
             {receptionPdfMutation.isPending ? (
               <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -379,12 +425,6 @@ export const WorkOrderDetailPage = () => {
             )}
             WhatsApp nota
           </button>
-          <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow" onClick={() => setShowPdfModal(true)}>
-            <AnimateIcon variant="bounce" animateOnHover>
-              <Eye className="h-4 w-4" aria-hidden="true" />
-            </AnimateIcon>
-            OT oficial / Imprimir
-          </button>
           <button
             type="button"
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 shadow-sm transition-all hover:bg-emerald-100 hover:shadow"
@@ -396,25 +436,8 @@ export const WorkOrderDetailPage = () => {
             <MessageCircle className="h-4 w-4" aria-hidden="true" />
             WhatsApp OT
           </button>
-        </div>
-      </header>
-      <nav className="workshop-record-nav" aria-label="Secciones de la orden de trabajo">
-        <a href="#ot-summary">Resumen</a><a href="#ot-reception">Recepción</a>
-        <a href="#ot-photos">Fotos</a><a href="#ot-control">Control del taller</a>
-        <a href="#ot-activity">Actividad y costos</a>
-      </nav>
-      <CustomerEmailPanel kind="work_order" id={workOrder.id} />
-
-      {(statusMutation.isError || uploadPhotosMutation.isError || deletePhotoMutation.isError || receptionPdfMutation.isError || shareReceptionPdfMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(statusMutation.error ?? uploadPhotosMutation.error ?? deletePhotoMutation.error ?? receptionPdfMutation.error ?? shareReceptionPdfMutation.error)}</div>}
-
-      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" id="ot-summary" aria-labelledby="work-order-summary-title">
-        <div className="border-b border-brand-line px-5 py-4"><h2 id="work-order-summary-title" className="font-bold text-brand-primaryInk">Resumen de la orden</h2></div>
-        <div className="grid divide-y divide-brand-line md:grid-cols-3 md:divide-x md:divide-y-0">
-          <div className="p-5"><div className="flex items-center gap-2 text-sm font-semibold text-brand-muted"><Wrench className="h-4 w-4" aria-hidden="true" />Vehículo</div><p className="mt-3 font-mono text-xl font-bold text-brand-primaryInk">{workOrder.vehicle?.patente ?? 'Sin vehículo'}</p><p className="mt-1 text-sm text-brand-muted">{[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos técnicos'}</p><p className="mt-2 text-xs text-brand-muted">Propietario registrado: {workOrder.vehicleOwner?.nombre ?? 'Sin propietario'}</p><p className="mt-2 flex items-center gap-1 text-xs text-brand-muted"><Gauge className="h-3.5 w-3.5" aria-hidden="true" />{workOrder.kilometrajeIngreso === null ? 'Kilometraje no registrado' : `${workOrder.kilometrajeIngreso.toLocaleString('es-CL')} km`}</p></div>
-          <div className="p-5"><div className="flex items-center gap-2 text-sm font-semibold text-brand-muted"><UserRound className="h-4 w-4" aria-hidden="true" />Cliente</div><p className="mt-3 font-semibold text-brand-ink">{workOrder.client?.nombre ?? 'Sin cliente asignado'}</p><p className="mt-1 text-sm text-brand-muted">{workOrder.client?.rut ?? 'Sin identificación'}</p><p className="mt-2 text-xs text-brand-muted">{workOrder.client?.telefono ?? 'Sin teléfono'}</p></div>
-          <div className="p-5"><p className="text-sm font-semibold text-brand-muted">Registro</p><dl className="mt-3 space-y-2 text-sm"><div className="flex justify-between gap-3"><dt className="text-brand-muted">Ingreso</dt><dd className="text-right font-medium text-brand-ink">{formatDateTime(workOrder.fechaIngreso)}</dd></div><div className="flex justify-between gap-3"><dt className="text-brand-muted">Entrega</dt><dd className="text-right font-medium text-brand-ink">{formatDateTime(workOrder.fechaEntrega)}</dd></div><div className="flex justify-between gap-3"><dt className="text-brand-muted">Creada por</dt><dd className="text-right font-medium text-brand-ink">{workOrder.creator?.nombre ?? 'Sin registro'}</dd></div><div className="flex justify-between gap-3"><dt className="text-brand-muted">Mecánico</dt><dd className="text-right font-medium text-brand-ink">{workOrder.assignedMechanic?.nombre ?? 'Sin asignar'}</dd></div></dl></div>
-        </div>
-        <div className="border-t border-brand-line px-5 py-4"><p className="text-xs font-semibold uppercase text-brand-muted">Motivo de ingreso / diagnóstico</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-ink">{workOrder.descripcion ?? 'Sin observaciones registradas.'}</p></div>
+          </div>
+        </section>
       </section>
 
       <section className="overflow-hidden rounded-lg border border-brand-line bg-white" id="ot-reception" aria-labelledby="reception-billing-title">
@@ -661,7 +684,7 @@ export const WorkOrderDetailPage = () => {
 
       <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="work-order-items-title">
         <div className="flex flex-col gap-3 border-b border-brand-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 id="work-order-items-title" className="font-bold text-brand-primaryInk">Trabajos y repuestos</h2><p className="mt-1 text-sm text-brand-muted">Checklist operativo y detalle económico registrado en la orden.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-brand-line/40 px-3 py-1.5 text-xs font-bold text-brand-primaryInk">{itemProgress.completed}/{itemProgress.total} completados</span>{itemProgress.active > 0 && <span className="rounded-md bg-brand-pale px-3 py-1.5 text-xs font-bold text-brand-primaryInk">{itemProgress.active} en proceso</span>}{canManage && workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada' ? <button type="button" className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-primaryInk bg-white px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-line/40" onClick={() => setShowItemsModal(true)}><Pencil className="h-4 w-4" aria-hidden="true" />Editar trabajos y precios</button> : <Printer className="h-5 w-5 text-brand-muted" aria-hidden="true" />}</div></div>
-        <div className="max-w-full overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[1060px] text-left text-sm"><thead className="bg-brand-line/40 text-xs uppercase text-brand-muted"><tr><th className="px-4 py-3 font-semibold">Descripción</th><th className="px-4 py-3 font-semibold">Avance</th><th className="px-4 py-3 font-semibold">Stock</th><th className="px-4 py-3 font-semibold">Nota</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th><th className="px-4 py-3 text-right font-semibold">Precio unitario</th><th className="px-4 py-3 text-right font-semibold">Subtotal</th></tr></thead><tbody>{workOrder.items?.map((item) => <tr key={item.id} className="border-t border-brand-line"><td className="px-4 py-3 font-medium text-brand-ink"><span>{item.descripcion}</span>{item.catalogItem?.codigo && <span className="ml-2 rounded bg-brand-pale px-1.5 py-0.5 font-mono text-[11px] text-brand-muted">{item.catalogItem.codigo}</span>}</td><td className="px-4 py-3"><span className="rounded-md bg-brand-pale px-2 py-1 text-xs font-semibold text-brand-ink">{ITEM_OPERATIONAL_STATUS_LABELS[item.estadoOperativo] ?? item.estadoOperativo}</span></td><td className="px-4 py-3">{item.catalogItem?.tipo === 'parte' ? <div className="flex flex-col gap-1"><span className={`w-fit rounded-md px-2 py-1 text-xs font-bold ${item.stockConsumido ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-goldPale text-brand-goldInk'}`}>{item.stockConsumido ? `Consumido: ${item.stockConsumidoCantidad}` : 'Pendiente consumo'}</span><span className="text-xs text-brand-muted">Disponible: {item.catalogItem.stock ?? 0}</span></div> : <span className="text-brand-muted">-</span>}</td><td className="max-w-64 px-4 py-3 text-brand-muted">{item.notasOperativas ?? '-'}</td><td className="px-4 py-3 text-right text-brand-muted">{item.cantidad} {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ?? item.unidadMedida}</td><td className="px-4 py-3 text-right text-brand-muted">{formatClp(item.precioUnitario)}</td><td className="px-4 py-3 text-right font-semibold text-brand-primaryInk">{formatClp(item.subtotal)}</td></tr>)}</tbody></table></div>
+        <div className="max-w-full overflow-x-auto overscroll-x-contain"><table className="workshop-record-items-table w-full min-w-[1060px] text-left text-sm"><thead className="bg-brand-line/40 text-xs uppercase text-brand-muted"><tr><th className="px-4 py-3 font-semibold">Descripción</th><th className="px-4 py-3 font-semibold">Avance</th><th className="px-4 py-3 font-semibold">Stock</th><th className="px-4 py-3 font-semibold">Nota</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th><th className="px-4 py-3 text-right font-semibold">Precio unitario</th><th className="px-4 py-3 text-right font-semibold">Subtotal</th></tr></thead><tbody>{workOrder.items?.map((item) => <tr key={item.id} className="border-t border-brand-line"><td data-label="Descripción" className="px-4 py-3 font-medium text-brand-ink"><span>{item.descripcion}</span>{item.catalogItem?.codigo && <span className="ml-2 rounded bg-brand-pale px-1.5 py-0.5 font-mono text-[11px] text-brand-muted">{item.catalogItem.codigo}</span>}</td><td data-label="Avance" className="px-4 py-3"><span className="rounded-md bg-brand-pale px-2 py-1 text-xs font-semibold text-brand-ink">{ITEM_OPERATIONAL_STATUS_LABELS[item.estadoOperativo] ?? item.estadoOperativo}</span></td><td data-label="Stock" className="px-4 py-3">{item.catalogItem?.tipo === 'parte' ? <div className="flex flex-col gap-1"><span className={`w-fit rounded-md px-2 py-1 text-xs font-bold ${item.stockConsumido ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-goldPale text-brand-goldInk'}`}>{item.stockConsumido ? `Consumido: ${item.stockConsumidoCantidad}` : 'Pendiente consumo'}</span><span className="text-xs text-brand-muted">Disponible: {item.catalogItem.stock ?? 0}</span></div> : <span className="text-brand-muted">-</span>}</td><td data-label="Nota" className="max-w-64 px-4 py-3 text-brand-muted">{item.notasOperativas ?? '-'}</td><td data-label="Cantidad" className="px-4 py-3 text-right text-brand-muted">{item.cantidad} {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ?? item.unidadMedida}</td><td data-label="Precio unitario" className="px-4 py-3 text-right text-brand-muted">{formatClp(item.precioUnitario)}</td><td data-label="Subtotal" className="px-4 py-3 text-right font-semibold text-brand-primaryInk">{formatClp(item.subtotal)}</td></tr>)}</tbody></table></div>
         {workOrder.items?.length === 0 && <p className="px-5 py-8 text-center text-sm text-brand-muted">Diagnóstico inicial, sin trabajos o repuestos cargados.</p>}
         <div className="flex justify-end border-t border-brand-line bg-brand-line/40 px-5 py-4"><div className="text-right"><p className="text-xs font-semibold uppercase text-brand-muted">Total estimado</p><p className="mt-1 text-2xl font-bold text-brand-primaryInk">{formatClp(total)}</p></div></div>
       </section>

@@ -1,76 +1,12 @@
-import { Car, ClipboardList, Gauge, LayoutGrid, ReceiptText, Wrench } from 'lucide-react';
+import { Ellipsis, House, Wrench } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 import { useDashboardSummary } from '../../hooks/useDashboard';
-import { hasUserPermission } from '../../lib/permissions';
+import { getMobilePrimaryItems } from '../../hooks/useShellNavigation';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth.store';
 
-import type { PermissionDefinition, Role } from '@unithor/shared';
-import type { LucideIcon } from 'lucide-react';
-
-/** Contadores del inbox operativo, misma semántica que los badges del cajón. */
-type BadgeKey = 'dashboard' | 'workOrders' | 'quotations' | 'vehicles';
-
-interface MobileTab {
-  label: string;
-  path: string;
-  icon: LucideIcon;
-  permissions: PermissionDefinition[];
-  badge?: BadgeKey;
-  /** Si se indica, la pestaña solo se muestra a esos roles. */
-  roles?: Role[];
-}
-
-/**
- * Pestañas fijas para móvil. Es el subconjunto más usado de `navigationGroups`
- * (AppLayout): como máximo 4 enlaces + "Más", para que quepan en 320px sin
- * apretar las etiquetas. El resto de secciones viven en el panel inferior de Más.
- */
-const mobileTabs: MobileTab[] = [
-  {
-    label: 'Mi taller',
-    path: '/work-orders/mine',
-    icon: Wrench,
-    permissions: [{ modulo: 'taller', accion: 'read' }],
-    roles: ['mecanico'],
-  },
-  {
-    label: 'Inicio',
-    path: '/dashboard',
-    icon: Gauge,
-    permissions: [
-      { modulo: 'taller', accion: 'read' },
-      { modulo: 'comercial', accion: 'read' },
-    ],
-    badge: 'dashboard',
-  },
-  {
-    label: 'OTs',
-    path: '/work-orders',
-    icon: ClipboardList,
-    permissions: [{ modulo: 'taller', accion: 'read' }],
-    badge: 'workOrders',
-  },
-  {
-    label: 'Cotiz.',
-    path: '/quotations',
-    icon: ReceiptText,
-    permissions: [{ modulo: 'comercial', accion: 'read' }],
-    badge: 'quotations',
-  },
-  {
-    label: 'Vehículos',
-    path: '/vehicles',
-    icon: Car,
-    permissions: [
-      { modulo: 'taller', accion: 'read' },
-      { modulo: 'comercial', accion: 'read' },
-      { modulo: 'flota', accion: 'read' },
-    ],
-    badge: 'vehicles',
-  },
-];
+import type { BadgeKey } from './navigation';
 
 interface MobileTabBarProps {
   /** Abre el panel inferior con el resto de secciones. */
@@ -89,17 +25,11 @@ export const MobileTabBar = ({ onOpenMenu, isMenuOpen = false }: MobileTabBarPro
     workOrders: (inbox?.counts.approvals ?? 0) + (inbox?.counts.assignedWorkOrders ?? 0),
     quotations: inbox?.counts.quotationFollowUps ?? 0,
     vehicles: inbox?.counts.fleetDocumentAlerts ?? 0,
+    warehouses: (inbox?.counts.warehouseDeliveries ?? 0) + (inbox?.counts.stockAlerts ?? 0),
+    finance: inbox?.counts.paymentVerifications ?? 0,
   };
 
-  const tabs = mobileTabs.filter((tab) => {
-    if (!user) return false;
-    // El mecánico solo ve su ficha de trabajo.
-    if (user.role === 'mecanico') return tab.roles?.includes('mecanico') ?? false;
-    if (tab.roles && !tab.roles.includes(user.role)) return false;
-    return tab.permissions.some((permission) =>
-      hasUserPermission(user, permission.modulo, permission.accion),
-    );
-  });
+  const tabs = getMobilePrimaryItems(user);
 
   // "Más" se marca activo cuando la ruta actual no corresponde a ninguna
   // pestaña, para que el usuario siempre sepa dónde está parado.
@@ -112,19 +42,22 @@ export const MobileTabBar = ({ onOpenMenu, isMenuOpen = false }: MobileTabBarPro
     <nav className="tabbar" aria-label="Navegación principal (móvil)" {...(isMenuOpen ? { inert: '', 'aria-hidden': true as const } : {})}>
       <div className="tabbar-inner">
         {tabs.map((tab) => {
-          const Icon = tab.icon;
+          const Icon = tab.path === '/dashboard' ? House : tab.path.startsWith('/work-orders') ? Wrench : tab.icon;
           const badgeCount = tab.badge ? badgeCounts[tab.badge] : 0;
+          const badgeId = `mobile-tab-badge-${tab.badge}`;
           return (
             <NavLink
               key={tab.path}
               to={tab.path}
+              aria-label={tab.label}
+              aria-describedby={badgeCount > 0 ? badgeId : undefined}
               end={tab.path === '/work-orders' && ['/work-orders/mine', '/work-orders/daily-report'].includes(pathname)}
               className={({ isActive }) => cn('tab-item', isActive && 'active')}
             >
               <span className="tab-icon">
                 <Icon aria-hidden="true" />
                 {badgeCount > 0 && (
-                  <span className="tab-badge">{badgeCount > 99 ? '99+' : badgeCount}</span>
+                  <span id={badgeId} className="tab-badge"><span aria-hidden="true">{badgeCount > 99 ? '99+' : badgeCount}</span><span className="sr-only">{badgeCount} pendientes</span></span>
                 )}
               </span>
               <span className="tab-label">{tab.label}</span>
@@ -134,14 +67,15 @@ export const MobileTabBar = ({ onOpenMenu, isMenuOpen = false }: MobileTabBarPro
 
         <button
           type="button"
-          className={cn('tab-item', moreIsActive && 'active')}
+          className={cn('tab-item', (moreIsActive || isMenuOpen) && 'active')}
           aria-label="Abrir todas las secciones"
+          aria-haspopup="dialog"
           aria-controls="mobile-more"
           aria-expanded={isMenuOpen}
           onClick={onOpenMenu}
         >
           <span className="tab-icon">
-            <LayoutGrid aria-hidden="true" />
+            <Ellipsis aria-hidden="true" />
           </span>
           <span className="tab-label">Más</span>
         </button>

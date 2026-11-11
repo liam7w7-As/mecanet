@@ -1,0 +1,296 @@
+/* Phase 3 · newest commercial handoff (index.html, 2026-11-10).
+   Screen-only scope: approved PDFs, financial rules and query filters stay separate. */
+.commercial-board .commercial-toolbar { gap: 12px 8px; }
+.commercial-board .commercial-results-context { min-height: 34px; }
+.commercial-board .commercial-table tbody tr { transition: background-color 160ms ease, box-shadow 160ms ease; }
+.commercial-board .commercial-table [data-label='Cliente'] > span:first-child { line-height: 1.65; }
+.commercial-board .commercial-table [data-label='Acciones'] button {
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  flex: none;
+}
+.commercial-board .commercial-table [data-label='Acciones'] button:disabled { cursor: not-allowed; opacity: .4; }
+
+/* The directory follows the final cq-row composition, rather than the old
+   compressed nine-column layout. Real numbering and operational actions remain. */
+.commercial-reference-board .commercial-heading h1 { font-size: 25px; font-weight: 650; }
+.commercial-reference-board .commercial-results-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+.commercial-view-total { color: #8a9bb4; font-size: 10px; }
+.commercial-view-total b { margin-left: 6px; color: #486b99; font-weight: 550; font-variant-numeric: tabular-nums; }
+.commercial-reference-board .commercial-results-actions button { min-height: 32px; border: 0; border-radius: 11px; box-shadow: none; }
+.commercial-reference-board .commercial-status-filters > button { font-size: 10px; }
+.commercial-reference-board .commercial-status-filters > button > b {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  min-width: 17px; min-height: 17px; padding: 0 3px; border-radius: 6px;
+  background: #ffffff20; color: inherit; font-size: 8px; font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.commercial-reference-board .commercial-table tbody tr {
+  grid-template-columns: 24px minmax(170px,1.1fr) minmax(190px,1.5fr) minmax(108px,.8fr) repeat(3,minmax(76px,.55fr)) minmax(156px,1.1fr);
+  align-items: center; gap: 14px; min-height: 94px; padding: 17px 20px;
+}
+.commercial-reference-board .commercial-table td { grid-column: auto; grid-row: auto; }
+.commercial-reference-board .commercial-table [data-label='N°'] {
+  width: 22px; height: 22px; margin-top: 1px; font-size: 9px;
+  background: #f3f6fa; color: #8b9db8;
+}
+.commercial-reference-board .commercial-table [data-label='Código COT'] > a:first-child {
+  display: flex; align-items: flex-start; gap: 8px; font-size: 14px;
+  font-weight: 650; line-height: 1.45;
+}
+.commercial-reference-board .commercial-table [data-label='Código COT'] > a:first-child svg {
+  width: 17px; height: 17px; flex: none; margin-top: 1px; color: #7e97ba;
+}
+.commercial-reference-board .commercial-table [data-label='Código COT'] > .commercial-code-meta {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 5px;
+  margin-top: 5px; padding-left: 25px; color: #8a9bb4; font-size: 9px; line-height: 1.6;
+}
+.commercial-code-meta time { flex: none; }
+.commercial-code-meta i { color: #a6b5c9; font-style: normal; }
+.commercial-code-meta > span { min-width: 0; overflow-wrap: anywhere; }
+.commercial-reference-board .commercial-table [data-label='Código COT'] > .commercial-linked-order {
+  display: block; width: fit-content; max-width: 100%; margin-top: 5px;
+  padding-left: 25px; color: #328367; font-family: inherit; font-size: 14px; font-weight: 600;
+}
+.commercial-reference-board .commercial-table [data-label='Cliente'] > span:first-child {
+  font-size: 12px; font-weight: 550; line-height: 1.6; color: #4f6c93;
+}
+.commercial-reference-board .commercial-table [data-label='Cliente'] > span:nth-child(2) {
+  margin-top: 4px; font-family: inherit; font-size: 10px; line-height: 1.6; color: #8a9db8;
+}
+.commercial-reference-board .commercial-table [data-label='Cliente'] > .commercial-client-vehicle {
+  display: block; margin-top: 3px; padding: 0; border: 0; border-radius: 0;
+  background: transparent; color: #8a9db8; font-family: inherit; font-size: 10px; line-height: 1.7; font-weight: 400;
+}
+.commercial-client-vehicle b { color: #637fa5; font-weight: 550; white-space: nowrap; }
+.commercial-reference-board .commercial-table [data-label='Estado pago'] > span {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 0; max-width: 100%;
+  padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  color: #8a9bb4; font-size: 10px; line-height: 1.5; font-weight: 400; white-space: normal;
+}
+.commercial-reference-board .commercial-table [data-label='Estado pago'] > span::before {
+  content: ''; width: 5px; height: 5px; flex: none; border-radius: 50%; background: #9baac0;
+}
+.commercial-reference-board .commercial-table [data-payment-status='total'] > span { color: #5a967e; }
+.commercial-reference-board .commercial-table [data-payment-status='total'] > span::before { background: #78b59b; }
+.commercial-reference-board .commercial-table :is([data-payment-status='parcial'],[data-payment-status='por_verificar']) > span { color: #b48b52; }
+.commercial-reference-board .commercial-table :is([data-payment-status='parcial'],[data-payment-status='por_verificar']) > span::before { background: #caa571; }
+.commercial-reference-board .commercial-table [data-payment-status='ot_finalizado'] > span { color: #526f96; }
+.commercial-reference-board .commercial-table :is([data-label='Total'],[data-label='Pagado'],[data-label='Saldo']) {
+  font-size: 11px; line-height: 1.5; font-weight: 500;
+}
+.commercial-reference-board .commercial-table :is([data-label='Total'],[data-label='Pagado'],[data-label='Saldo'])::before {
+  margin-bottom: 5px; color: #9aabc1; font-size: 8px; line-height: 1.4;
+}
+.commercial-reference-board .commercial-table [data-label='Pagado']::before { content: 'Abonado'; }
+.commercial-reference-board .commercial-table [data-label='Saldo'] { color: #294d7b; font-weight: 600; }
+.commercial-reference-board .commercial-table [data-label='Acciones'] > div { gap: 0; }
+.commercial-reference-board .commercial-table [data-label='Acciones'] button { width: 36px; height: 36px; min-width: 36px; border-radius: 12px; }
+.commercial-reference-board .commercial-table [data-label='Acciones'] button:last-child svg { width: 15px; height: 15px; }
+.commercial-action-label { display: none; }
+
+@container (min-width: 601px) and (max-width: 1250px) {
+  .commercial-reference-board .commercial-table tbody tr { grid-template-columns: 24px repeat(12,minmax(0,1fr)); gap: 10px 14px; padding: 16px 18px; }
+  .commercial-reference-board .commercial-table [data-label='N°'] { grid-column: 1; grid-row: 1; }
+  .commercial-reference-board .commercial-table [data-label='Código COT'] { grid-column: 2 / 6; grid-row: 1; }
+  .commercial-reference-board .commercial-table [data-label='Cliente'] { grid-column: 6 / 10; grid-row: 1; }
+  .commercial-reference-board .commercial-table [data-label='Acciones'] { grid-column: 10 / 14; grid-row: 1; }
+  .commercial-reference-board .commercial-table [data-label='Estado pago'] { grid-column: 2 / 6; grid-row: 2; }
+  .commercial-reference-board .commercial-table [data-label='Total'] { grid-column: 6 / 9; grid-row: 2; }
+  .commercial-reference-board .commercial-table [data-label='Pagado'] { grid-column: 9 / 11; grid-row: 2; }
+  .commercial-reference-board .commercial-table [data-label='Saldo'] { grid-column: 11 / 14; grid-row: 2; }
+}
+@media (min-width: 1024px) and (max-width: 1399px) {
+  .commercial-reference-board .commercial-status-filters > button { gap: 4px; padding-inline: 4px; font-size: 9px; }
+  .commercial-reference-board .commercial-status-filters > button > svg { display: none; }
+}
+
+/* Wide operational dialogs keep a single scrolling body and persistent actions. */
+.reference-dialog.commercial-detail-dialog .commercial-detail-body { scrollbar-width: thin; }
+.reference-dialog.commercial-detail-dialog .commercial-detail-identity { gap: 10px; }
+.reference-dialog.commercial-detail-dialog .commercial-detail-identity > div { background: #f6f8fb; }
+.reference-dialog.commercial-detail-dialog .commercial-detail-metrics { gap: 10px; }
+.reference-dialog.commercial-detail-dialog .commercial-detail-metrics > div { padding: 14px; }
+.reference-dialog.commercial-detail-dialog .commercial-category-filters > button { min-height: 38px; }
+.reference-dialog.commercial-detail-dialog .commercial-concepts-toolbar > button { min-height: 38px; }
+.reference-dialog.commercial-detail-dialog .commercial-detail-footer svg { flex: none; }
+.reference-dialog.commercial-detail-dialog .commercial-detail-footer :is(button,a):focus-visible,
+.reference-dialog.commercial-payment-dialog :is(button,input,select):focus-visible {
+  outline: 2px solid #91afd7;
+  outline-offset: 2px;
+}
+
+.reference-dialog.commercial-payment-dialog .commercial-payment-grid { align-items: stretch; }
+.reference-dialog.commercial-payment-dialog .commercial-payment-work { background: #f7f9fc; }
+.reference-dialog.commercial-payment-dialog .commercial-payment-fields { padding: 22px 24px; }
+.reference-dialog.commercial-payment-dialog .commercial-payment-balance {
+  border: 1px solid #e4ebf5;
+  background: #edf2fa;
+  border-radius: 14px;
+}
+.reference-dialog.commercial-payment-dialog .commercial-payment-balance > button {
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #fff;
+  color: #294d7b;
+  text-decoration: none;
+  font-weight: 500;
+}
+.reference-dialog.commercial-payment-dialog .commercial-payment-balance > button:hover:not(:disabled) { background: #e0e9f6; }
+.reference-dialog.commercial-payment-dialog .commercial-payment-fields :is(input:not([type='file']),select) {
+  min-height: 44px;
+  border-color: #e7edf5;
+  background: #f6f8fb;
+  color: #294d7b;
+}
+.reference-dialog.commercial-payment-dialog .commercial-payment-fields > label:first-of-type input {
+  height: 52px;
+  background: #fff;
+  border-color: #cad7e9;
+}
+.reference-dialog.commercial-payment-dialog .commercial-payment-bank {
+  border: 1px solid #eee2bf;
+  border-radius: 13px;
+  background: #fffcf3;
+}
+.reference-dialog.commercial-payment-dialog .commercial-payment-bank p { font-size: 12px; line-height: 1.7; }
+.reference-dialog.commercial-payment-dialog .commercial-receipt-upload {
+  display: block;
+  padding: 14px;
+  border: 1px dashed #c5d3e6;
+  border-radius: 13px;
+  background: #f8fafd;
+}
+.commercial-receipt-label { display: flex; align-items: center; gap: 8px; }
+.commercial-receipt-label svg { width: 16px; height: 16px; flex: none; color: #708aad; }
+.reference-dialog.commercial-payment-dialog .commercial-receipt-upload input {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 11px;
+}
+.reference-dialog.commercial-payment-dialog .commercial-receipt-upload input::file-selector-button {
+  min-height: 40px;
+  margin-right: 10px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #e8eef8;
+  color: #294d7b;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.commercial-receipt-hint { display: block; margin-top: 6px; color: #7185a3; font-size: 10px; font-weight: 400; line-height: 1.6; }
+.reference-dialog.commercial-payment-dialog .commercial-receipt-preview { background: #fff; }
+.reference-dialog.commercial-payment-dialog .commercial-payment-work :is(li p,li > span:last-child) { font-size: 12px; }
+.reference-dialog.commercial-payment-dialog .commercial-payment-work li > span:last-child { font-variant-numeric: tabular-nums; }
+
+/* Reference's compact mobile toolbar: all seven filters stay accessible by name. */
+@media (max-width: 1023px) {
+  .commercial-board .commercial-heading { margin-bottom: 12px; }
+  .commercial-board .commercial-toolbar { grid-template-columns: minmax(0,1fr) 92px 46px; }
+  .commercial-board .commercial-toolbar:not(:has(.commercial-new)) { grid-template-columns: minmax(0,1fr) 92px; }
+  .commercial-board .commercial-search { grid-column: 1; grid-row: 1; padding-inline: 12px; }
+  .commercial-board .commercial-search input { font-size: 16px; }
+  .commercial-board .commercial-date-picker { grid-column: 2; grid-row: 1; }
+  .commercial-board .commercial-date-picker > button { gap: 5px; padding-inline: 8px; font-size: 11px; }
+  .commercial-board .commercial-date-picker form { right: 0; left: auto; }
+  .commercial-board .commercial-toolbar .commercial-new { grid-column: 3; grid-row: 1; width: 46px; padding: 0; }
+  .commercial-board .commercial-new > span,
+  .commercial-board .commercial-status-filters > button > span,
+  .commercial-reference-board .commercial-status-filters > button > b {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .commercial-board .commercial-new svg { width: 20px; height: 20px; }
+  .commercial-board .commercial-status-filters { grid-row: 2; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 5px; }
+  .commercial-board .commercial-status-filters > button { min-height: 44px; padding: 8px 3px; }
+  .commercial-board .commercial-status-filters > button > svg { width: 19px; height: 19px; }
+  .commercial-reference-board .commercial-status-filters > button > b { min-width: 0; min-height: 0; }
+  .commercial-reference-board .commercial-results-actions { gap: 7px; }
+  .commercial-reference-board .commercial-view-total { font-size: 9px; }
+}
+
+/* Same hierarchy as the reference: code/status, full client name, financial strip, actions.
+   Explicit cells remain real table cells, including page numbering and paid amounts. */
+@container (max-width: 600px) {
+  .commercial-board .commercial-table tbody tr {
+    grid-template-columns: 24px repeat(6,minmax(0,1fr));
+    gap: 10px 8px;
+    padding: 16px 14px;
+  }
+  .commercial-board .commercial-table [data-label='Código COT'] { grid-column: 2 / 6; grid-row: 1; }
+  .commercial-board .commercial-table [data-label='Código COT'] > a:first-child { font-size: 14px; }
+  .commercial-board .commercial-table [data-label='Código COT'] > .commercial-advisor { max-width: 100%; }
+  .commercial-board .commercial-table [data-label='Estado pago'] { grid-column: 6 / 8; grid-row: 1; align-self: start; text-align: right; }
+  .commercial-board .commercial-table [data-label='Estado pago'] > span { max-width: 100%; font-size: 10px; }
+  .commercial-board .commercial-table [data-label='Cliente'] { grid-column: 2 / 8; grid-row: 2; }
+  .commercial-board .commercial-table [data-label='Cliente'] > span:first-child { font-size: 12px; }
+  .commercial-board .commercial-table :is([data-label='Total'],[data-label='Pagado'],[data-label='Saldo']) {
+    grid-row: 3;
+    padding-block: 10px;
+    border-block: 1px solid #edf1f7;
+    text-align: left;
+    font-size: 12px;
+  }
+  .commercial-board .commercial-table [data-label='Total'] { grid-column: 2 / 4; }
+  .commercial-board .commercial-table [data-label='Pagado'] { grid-column: 4 / 6; }
+  .commercial-board .commercial-table [data-label='Saldo'] { grid-column: 6 / 8; }
+  .commercial-board .commercial-table [data-label='Acciones'] { grid-column: 2 / 8; grid-row: 4; }
+  .commercial-board .commercial-table [data-label='Acciones'] > div { justify-content: flex-end; gap: 4px; }
+  .commercial-board .commercial-table [data-label='Acciones'] button { width: 40px; height: 40px; min-width: 40px; }
+  .commercial-reference-board .commercial-table [data-label='N°'] { grid-column: 1; grid-row: 1; }
+  .commercial-reference-board .commercial-table [data-label='Código COT'] { grid-column: 2 / 6; grid-row: 1; }
+  .commercial-reference-board .commercial-table [data-label='Cliente'] { grid-column: 2 / 8; grid-row: 2; }
+  .commercial-reference-board .commercial-table [data-label='Estado pago'] { grid-column: 6 / 8; grid-row: 1; }
+  .commercial-reference-board .commercial-table [data-label='Total'] { grid-column: 2 / 4; grid-row: 3; }
+  .commercial-reference-board .commercial-table [data-label='Pagado'] { grid-column: 4 / 6; grid-row: 3; }
+  .commercial-reference-board .commercial-table [data-label='Saldo'] { grid-column: 6 / 8; grid-row: 3; }
+  .commercial-reference-board .commercial-table [data-label='Acciones'] { grid-column: 2 / 8; grid-row: 4; }
+  .commercial-reference-board .commercial-table [data-label='Cliente'] { padding-left: 25px; }
+  .commercial-reference-board .commercial-table [data-label='Código COT'] > .commercial-code-meta { font-size: 8px; }
+  .commercial-reference-board .commercial-table [data-label='Código COT'] > .commercial-linked-order { padding-left: 25px; font-size: 13px; }
+  .commercial-reference-board .commercial-table :is([data-label='Total'],[data-label='Pagado'],[data-label='Saldo']) { font-size: 12px; text-align: left; }
+  .commercial-reference-board .commercial-table [data-label='Acciones'] > div { gap: 5px; }
+  .commercial-reference-board .commercial-table [data-label='Acciones'] button { width: 40px; height: 40px; min-width: 40px; }
+  .commercial-reference-board .commercial-table [data-label='Acciones'] button:has(.commercial-action-label) { flex: 1 1 70px; gap: 5px; width: auto; font-size: 9px; }
+  .commercial-reference-board .commercial-table [data-label='Acciones'] .commercial-action-label { display: inline; }
+  .commercial-reference-board .commercial-table [data-label='Acciones'] button:last-child > :first-child { order: 1; }
+}
+
+@media (max-width: 767px) {
+  .reference-dialog.commercial-payment-dialog .commercial-payment-work { padding: 10px 16px; }
+  .reference-dialog.commercial-payment-dialog .commercial-payment-fields { padding: 18px 16px; }
+  .reference-dialog.commercial-payment-dialog .commercial-payment-fields :is(input:not([type='file']),select) { font-size: 16px; }
+  .reference-dialog.commercial-payment-dialog .commercial-payment-fields > label:first-of-type input { font-size: 24px; }
+  .reference-dialog.commercial-detail-dialog .commercial-detail-metrics { gap: 6px; }
+  .reference-dialog.commercial-detail-dialog .commercial-detail-metrics > div { padding: 12px 10px; }
+  .reference-dialog.commercial-detail-dialog .commercial-detail-identity { grid-template-columns: minmax(0,1fr); }
+  .reference-dialog.commercial-detail-dialog .commercial-category-filters { display: grid; width: 100%; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+  .reference-dialog.commercial-detail-dialog .commercial-category-filters > button { justify-content: flex-start; min-height: 44px; font-size: 10px; }
+  .reference-dialog.commercial-detail-dialog .commercial-category-filters > button > span:first-of-type { flex: 1; text-align: left; }
+  .reference-dialog.commercial-detail-dialog .commercial-concepts-toolbar > button { width: 100%; min-height: 42px; justify-content: center; }
+  .reference-dialog.commercial-detail-dialog .commercial-detail-metrics strong { font-size: clamp(13px,3.6vw,17px); }
+}
+@media (max-width: 359px) {
+  .commercial-board .commercial-toolbar { grid-template-columns: minmax(0,1fr) 44px 46px; gap: 9px 6px; }
+  .commercial-board .commercial-toolbar:not(:has(.commercial-new)) { grid-template-columns: minmax(0,1fr) 44px; }
+  .commercial-board .commercial-date-picker > button > span,
+  .commercial-board .commercial-date-picker > button > svg:last-child { display: none; }
+  .commercial-board .commercial-date-picker form { right: -52px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .commercial-board .commercial-table tbody tr { transition: none; }
+}

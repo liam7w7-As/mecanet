@@ -1,5 +1,5 @@
 import { PAYMENT_BANKS, PAYMENT_METHODS, createPaymentSchema } from '@unithor/shared';
-import { AlertCircle, Banknote, ChevronDown, Pencil, X } from 'lucide-react';
+import { AlertCircle, Banknote, ChevronDown, Pencil, Upload, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import PaymentWorkSummary from './PaymentWorkSummary';
@@ -141,6 +141,7 @@ export const PaymentFormModal = ({
   const initialDate = useRef(fecha);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const summaryId = useId();
+  const receiptId = useId();
   const receiptInput = useRef<HTMLInputElement>(null);
   const [receiptPreview, setReceiptPreview] = useState('');
   useEffect(() => {
@@ -196,7 +197,7 @@ export const PaymentFormModal = ({
           </div>
 
           <div className="commercial-payment-fields min-w-0 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-brand-gold bg-brand-line/40 px-4 py-3">
+            <div className="commercial-payment-balance flex flex-wrap items-center justify-between gap-3 border-l-4 border-brand-gold bg-brand-line/40 px-4 py-3">
               <div>
                 <p className="text-xs font-semibold text-brand-muted">Disponible para abonar</p>
                 <p
@@ -266,7 +267,7 @@ export const PaymentFormModal = ({
               </div>
             )}
             {metodo === 'transferencia' && (
-              <div className="space-y-3 border-l-4 border-brand-gold bg-brand-goldPale px-4 py-3">
+              <div className="commercial-payment-bank space-y-3 border-l-4 border-brand-gold bg-brand-goldPale px-4 py-3">
                 <p className="text-sm text-brand-ink">
                   La transferencia quedará pendiente hasta que Finanzas confirme su recepción.
                 </p>
@@ -291,7 +292,7 @@ export const PaymentFormModal = ({
                 </label>
               </div>
             )}
-            <div className="space-y-3 border-t border-brand-line pt-4">
+            <div className="commercial-payment-evidence space-y-3 border-t border-brand-line pt-4">
               <label className="block text-sm font-semibold text-brand-ink">
                 Número de transacción
                 <input
@@ -308,12 +309,14 @@ export const PaymentFormModal = ({
                   </span>
                 )}
               </label>
-              <label className="block text-sm font-semibold text-brand-ink">
-                Comprobante de pago
+              <div className="commercial-receipt-upload block text-sm font-semibold text-brand-ink">
+                <label htmlFor={receiptId} className="commercial-receipt-label"><Upload aria-hidden="true" />Comprobante de pago</label>
                 <input
+                  id={receiptId}
                   ref={receiptInput}
                   type="file"
                   accept="image/jpeg,image/png,image/webp,application/pdf"
+                  aria-describedby={`${receiptId}-hint`}
                   aria-required={metodo === 'transferencia'}
                   onChange={(event) => {
                     const file = event.target.files?.[0] ?? null;
@@ -322,6 +325,7 @@ export const PaymentFormModal = ({
                   }}
                   className="mt-2 block w-full rounded-lg border border-brand-line bg-white px-3 py-2 text-sm font-normal text-brand-ink file:mr-3 file:rounded-md file:border-0 file:bg-brand-primaryInk file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-primaryInk"
                 />
+                <span id={`${receiptId}-hint`} className="commercial-receipt-hint">Adjunte una imagen JPG, PNG, WebP o un PDF.</span>
                 {comprobantePago && (
                   <span className="mt-1 block text-xs font-normal text-brand-muted">
                     {comprobantePago}
@@ -332,7 +336,7 @@ export const PaymentFormModal = ({
                     {errors.comprobantePago}
                   </span>
                 )}
-              </label>
+              </div>
               {receiptFile && <div className="commercial-receipt-preview">
                 {receiptPreview && <img src={receiptPreview} alt="Vista previa del comprobante" />}
                 <span><strong>{receiptFile.name}</strong><small>{Math.max(1, Math.round(receiptFile.size / 1024))} KB · {receiptFile.type === 'application/pdf' ? 'PDF' : 'Imagen'}</small></span>

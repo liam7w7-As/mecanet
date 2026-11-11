@@ -199,8 +199,8 @@ export const PurchaseCreatePage = () => {
   const today = todayInputValue();
 
   return (
-    <div className="workspace-page workspace-purchases min-w-0 space-y-5">
-      <header className="flex items-start gap-3">
+    <div className="workspace-page workspace-purchases purchases-create min-w-0 space-y-5">
+      <header className="purchases-create-heading flex items-start gap-3">
         <Link
           to="/purchases"
           className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:bg-brand-pale"
@@ -223,7 +223,7 @@ export const PurchaseCreatePage = () => {
       <form
         id="purchase-form"
         onSubmit={submit}
-        className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]"
+        className="purchases-create-form grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]"
       >
         <div className="workspace-page workspace-purchases min-w-0 space-y-5">
           <section className="rounded-xl border border-brand-line bg-white p-4 shadow-sm sm:p-5">
@@ -384,7 +384,7 @@ export const PurchaseCreatePage = () => {
                     </button>
                   </div>
                 ) : (
-                  <label className="mt-2 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-brand-line bg-brand-pale/30 px-4 py-7 text-center transition-colors hover:border-brand-primary hover:bg-brand-pale/60">
+                  <label className="purchases-receipt-upload mt-2 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-brand-line bg-brand-pale/30 px-4 py-7 text-center transition-colors hover:border-brand-primary hover:bg-brand-pale/60">
                     <FileUp className="h-7 w-7 text-brand-primaryInk" aria-hidden="true" />
                     <span className="text-sm font-semibold text-brand-primaryInk">
                       Adjuntar PDF o imagen del comprobante

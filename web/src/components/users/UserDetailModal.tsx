@@ -23,14 +23,14 @@ export default function UserDetailModal({ user, canEdit, onClose, onEdit }: Prop
     ['Rol asignado', getRoleLabel(user.role.nombre)], ['Estado', user.activo ? 'Activo' : 'Inactivo'],
     ['Creado', formatDateTime(user.createdAt)], ['Última actualización', formatDateTime(user.updatedAt)],
   ];
-  return createPortal(<div className="reference-modal-overlay administration-modal-overlay">
+  return createPortal(<div className="reference-modal-overlay administration-modal-overlay users-reference-detail-overlay">
     <button type="button" className="administration-backdrop" tabIndex={-1} onClick={onClose} aria-label="Cerrar detalle de usuario" />
     <section ref={setPanelNode} role="dialog" aria-modal="true" aria-labelledby="user-detail-name" tabIndex={-1}
-      className="reference-dialog administration-profile">
+      className="reference-dialog administration-profile users-reference-detail">
       <ModalHeader id="user-detail-title" title="Detalle de usuario" onClose={onClose} />
       <div className="administration-profile-body">
-        <div className="administration-profile-hero"><UserAvatar user={user} size="md" />
-          <div><small>Cuenta #{user.id}</small><h2 id="user-detail-name">{user.nombre}</h2></div>
+        <div className="administration-profile-hero"><UserAvatar user={user} size="md" className="users-reference-avatar" />
+          <div><small>Usuario · Cuenta #{user.id}</small><h2 id="user-detail-name">{user.nombre}</h2></div>
         </div>
         <dl className="administration-facts">{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       </div>

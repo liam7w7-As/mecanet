@@ -1,0 +1,238 @@
+/* Navigation refinements from index.html, including its final account card.
+   Import after the existing presentation styles. */
+.shell-rail-tooltip {
+  position: fixed;
+  z-index: 60;
+  max-width: 260px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: #1d396a;
+  color: #fff;
+  box-shadow: 0 4px 14px #142b5020;
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.redesign-shell .mobile-more-label { flex: 1; }
+.redesign-shell .mobile-more-grid .mobile-more-badge {
+  flex: none;
+  min-width: 20px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #eef3fa;
+  color: #1d396a;
+  font-size: 10px;
+  text-align: center;
+}
+
+@media (min-width: 1024px) {
+  .redesign-shell .shell-brand {
+    height: 76px;
+    padding: 12px 18px;
+  }
+
+  .redesign-shell .shell-brand img { width: 174px; height: auto; }
+  .redesign-shell .shell-sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: #8796a6;
+  }
+  .redesign-shell .shell-sidebar-toggle > svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 1.6;
+    transition: transform .24s ease;
+  }
+  .redesign-shell .shell-nav-heading { border-radius: 8px; }
+  .redesign-shell .shell-nav-heading:hover { background: #e8ecf1; color: #003570; }
+
+  .redesign-shell .shell-account {
+    display: grid;
+    flex: none;
+    gap: 10px;
+    margin: 10px 12px 14px;
+    padding: 12px;
+    border: 1px solid #e7edf5;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 3px 14px rgb(29 57 106 / 3%);
+  }
+  .redesign-shell .shell-account-tools {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+  }
+  .redesign-shell .shell-install-button {
+    flex: 1;
+    justify-content: center;
+    gap: 7px;
+    min-width: 0;
+    min-height: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0 11px;
+    border-radius: 11px;
+    background: #f2f6fb;
+    color: #6a85a9;
+    line-height: 1.4;
+  }
+  .redesign-shell .shell-install-button > svg { width: 16px; height: 16px; stroke-width: 1.7; }
+  .redesign-shell .shell-account-tools > div { flex: none; margin-left: auto; }
+  .redesign-shell .shell-account-tools .icon-button {
+    width: 36px;
+    height: 36px;
+    padding: 8px;
+    border-radius: 11px;
+    background: #f2f6fb;
+    color: #6a85a9;
+  }
+  .redesign-shell .shell-account-tools .icon-button > svg { width: 18px; height: 18px; color: inherit; }
+  .redesign-shell .shell-account-tools .cart-count {
+    top: -5px;
+    right: -5px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 4px;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    background: #c76874;
+    font-size: 11px;
+    line-height: 16px;
+  }
+  .redesign-shell .shell-account-profile {
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid #edf2f8;
+  }
+  .redesign-shell .shell-account .user-menu-trigger {
+    min-height: 44px;
+    gap: 9px;
+    padding: 4px 0;
+    border-radius: 11px;
+    background: transparent;
+  }
+  .redesign-shell .shell-account .user-menu-trigger > div:first-child,
+  .redesign-shell .shell-account .user-menu-trigger > div:first-child > img {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+  }
+  .redesign-shell .shell-account .user-menu-trigger > div:nth-child(2) { flex: 1; }
+  .redesign-shell .shell-account .user-menu-trigger p {
+    max-width: 100%;
+    color: #294d7b;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 19px;
+  }
+  .redesign-shell .shell-account .user-menu-trigger > div > span {
+    margin-top: 1px;
+    color: #8b9fba;
+    font-size: 11px;
+    line-height: 16px;
+  }
+  .redesign-shell .shell-account .user-menu-trigger > svg { width: 12px; height: 12px; color: #94a8c2; }
+  .redesign-shell .shell-account-profile > .shell-icon-button {
+    width: 32px;
+    height: 34px;
+    padding: 7px;
+    border-radius: 10px;
+    background: #f6f8fc;
+    color: #879dbb;
+  }
+  .redesign-shell .shell-account-profile > .shell-icon-button > svg { width: 17px; height: 17px; }
+  .redesign-shell .shell-account-tools :is(.shell-install-button, .icon-button):hover { background: #e8eff9; color: #365b8b; }
+  .redesign-shell .shell-account .user-menu-trigger:hover { background: #f6f8fc; }
+  .redesign-shell .shell-account-profile > .shell-icon-button:hover { background: #faf0f3; color: #b77887; }
+  .redesign-shell .shell-account button:focus-visible { outline: 2px solid #91afd7; outline-offset: 3px; }
+
+  .redesign-shell.shell-collapsed { --ui-sidebar-width: 76px; --ui-sidebar-offset: 76px; }
+  .redesign-shell.shell-collapsed > .shell-main,
+  .redesign-shell.shell-collapsed > .shell-topbar { margin-left: 76px; }
+  .redesign-shell.shell-collapsed .shell-brand { justify-content: center; padding: 12px; }
+  .redesign-shell.shell-collapsed .shell-brand img { display: none; }
+  .redesign-shell.shell-collapsed .shell-sidebar-toggle > svg { transform: rotate(180deg); }
+  .redesign-shell.shell-collapsed .nav-scroll { padding: 0 12px 12px; }
+  .redesign-shell.shell-collapsed .shell-nav-group { margin-top: 10px; }
+  .redesign-shell.shell-collapsed .nav-item {
+    position: relative;
+    justify-content: center;
+    gap: 0;
+    width: 44px;
+    min-height: 44px;
+    margin: 4px auto;
+    padding: 0;
+    border-radius: 12px;
+  }
+  .redesign-shell.shell-collapsed .shell-nav-label { display: none; }
+  .redesign-shell.shell-collapsed .nav-item .badge {
+    position: absolute;
+    top: -2px;
+    right: -4px;
+    width: auto;
+    min-width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0 4px;
+    font-size: 9px;
+    line-height: 18px;
+  }
+  .redesign-shell.shell-collapsed .shell-account { gap: 8px; margin: 8px; padding: 6px; border-radius: 14px; }
+  .redesign-shell.shell-collapsed .shell-account-tools,
+  .redesign-shell.shell-collapsed .shell-account-profile { flex-direction: column; gap: 8px; }
+  .redesign-shell.shell-collapsed .shell-account-tools > div { margin: 0; }
+  .redesign-shell.shell-collapsed .shell-install-button { flex: none; width: 36px; padding: 0; }
+  .redesign-shell.shell-collapsed .shell-install-button > span { display: none; }
+  .redesign-shell.shell-collapsed .shell-account-profile > .sidebar-user-menu { flex: none; width: 40px; }
+  .redesign-shell.shell-collapsed .shell-account .user-menu-trigger { justify-content: center; width: 40px; padding: 3px; }
+  .redesign-shell.shell-collapsed .user-menu-trigger > div:nth-child(2),
+  .redesign-shell.shell-collapsed .user-menu-trigger > svg { display: none; }
+  .redesign-shell.shell-collapsed .sidebar-user-popover { inset: auto auto 0 calc(100% + 12px); }
+  .redesign-shell.shell-collapsed .shell-account .popover-notifications {
+    inset: auto auto 16px 88px;
+    max-height: calc(100dvh - 32px);
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .redesign-shell > .sidebar, .shell-rail-tooltip { display: none; }
+  .redesign-shell > .tabbar {
+    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    border: 0;
+    border-radius: 20px 20px 0 0;
+    background: #fff;
+    box-shadow: 0 -4px 28px rgb(29 57 106 / 7%);
+  }
+  .redesign-shell .tabbar-inner { max-width: 600px; }
+  .redesign-shell .tab-item {
+    justify-content: center;
+    min-height: 58px;
+    padding: 4px 0;
+    border-radius: 13px;
+    color: #8b9bb1;
+    font-size: 10px;
+    line-height: 1.4;
+    touch-action: manipulation;
+  }
+  .redesign-shell .tab-item .tab-icon { width: 44px; height: 31px; border-radius: 13px; }
+  .redesign-shell .tab-item .tab-icon svg { width: 21px; height: 21px; stroke-width: 1.7; }
+  .redesign-shell .tab-item.active { background: transparent; color: #1d396a; font-weight: 600; }
+  .redesign-shell .tab-item.active .tab-icon { background: #edf2f9; color: #1d396a; }
+  .redesign-shell .tab-item[aria-expanded="true"] .tab-icon { background: #1d396a; color: #fff; }
+  .redesign-shell .tab-item:focus-visible { outline: 2px solid #91afd7; outline-offset: -2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .redesign-shell > .sidebar,
+  .redesign-shell > .shell-main,
+  .redesign-shell > .shell-topbar,
+  .redesign-shell .shell-sidebar-toggle > svg { transition: none; }
+}
+
+@media print {
+  .shell-rail-tooltip { display: none; }
+  .redesign-shell.shell-collapsed > .shell-main { margin-left: 0; }
+}

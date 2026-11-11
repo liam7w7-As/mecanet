@@ -148,7 +148,7 @@ export const FleetDocumentFormModal = ({
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        className="workspace-form-dialog workspace-dialog reference-dialog reference-form-dialog relative max-h-full w-full max-w-[680px] overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
+        className="workspace-form-dialog workspace-dialog reference-dialog reference-form-dialog fleet-document-form-dialog relative max-h-full w-full overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl"
         role="dialog"
         tabIndex={-1}
         ref={setPanelNode}
@@ -159,6 +159,7 @@ export const FleetDocumentFormModal = ({
           id="fleet-document-form-title"
           title={isEditing ? 'Editar documento' : 'Agregar documento'}
           description="Nombre libre, referencia y fechas. El archivo es opcional."
+          badge={<FileText aria-hidden="true" />}
           onClose={close}
           closeDisabled={activeMutation.isPending}
         />
@@ -166,7 +167,7 @@ export const FleetDocumentFormModal = ({
         <form className="workspace-form reference-form" noValidate onSubmit={handleSubmit}>
           <div className="workspace-form-body reference-form-body">
             <fieldset disabled={activeMutation.isPending} className="min-w-0 space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="fleet-document-fields grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-medium text-brand-ink sm:col-span-2">
               Nombre del documento
               <input
@@ -254,7 +255,7 @@ export const FleetDocumentFormModal = ({
             </label>
           </div>
 
-          <fieldset className="border-t border-brand-line pt-5">
+          <fieldset className="fleet-document-upload border-t border-brand-line pt-5">
             <legend className="text-sm font-semibold text-brand-primaryInk">
               Archivo {isEditing ? '(reemplazo opcional)' : '(opcional)'}
             </legend>
@@ -293,7 +294,7 @@ export const FleetDocumentFormModal = ({
                 </button>
               </div>
             ) : (
-              <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-brand-line bg-brand-pale/30 px-4 py-5 text-center transition-colors hover:border-brand-primary/50 hover:bg-brand-pale/60">
+              <label className="fleet-document-file-picker mt-3 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-brand-line bg-brand-pale/30 px-4 py-5 text-center transition-colors hover:border-brand-primary/50 hover:bg-brand-pale/60">
                 <Paperclip className="h-5 w-5 text-brand-muted" aria-hidden="true" />
                 <span className="mt-1 text-sm font-semibold text-brand-ink">
                   Seleccionar PDF, JPG, PNG o WebP

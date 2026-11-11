@@ -1,15 +1,14 @@
 import { PAYMENT_METHODS, registerPurchasePaymentSchema } from '@unithor/shared';
-import { LoaderCircle, WalletCards } from 'lucide-react';
+import { WalletCards } from 'lucide-react';
 import { useState } from 'react';
 
-import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useRegisterPurchasePaymentMutation } from '../../hooks/usePurchases';
 import { getApiErrorMessage, getApiFieldErrors } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp } from '../../lib/formatters';
 import { PAYMENT_METHOD_LABELS } from '../../lib/purchase-labels';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
-import ModalHeader from '../common/ModalHeader';
+import FormDialog from '../common/FormDialog';
 
 import type { FieldErrors } from '../../lib/form-errors';
 import type { Purchase } from '../../types/entities';
@@ -35,11 +34,6 @@ export const PurchasePaymentModal = ({
   const [banco, setBanco] = useState('');
   const [numeroOperacion, setNumeroOperacion] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
-  const panelRef = useModalOverlay({
-    isOpen: true,
-    onClose,
-    isPending: mutation.isPending,
-  });
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -73,30 +67,21 @@ export const PurchasePaymentModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
-      <button
-        type="button"
-        className="fixed inset-0 bg-brand-scrim/60"
-        aria-label="Cerrar pago"
-        onClick={onClose}
-      />
-      <section
-        ref={panelRef}
-        className="relative w-full max-w-lg rounded-xl bg-white shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="purchase-payment-title"
-      >
-        <ModalHeader
-          id="purchase-payment-title"
-          title="Pagar compra a crédito"
-          description={`${purchase.codigo} · ${purchase.supplier.nombre}`}
-          onClose={onClose}
-          badge={<WalletCards className="h-6 w-6" aria-hidden="true" />}
-          tone="success"
-        />
-
-        <form onSubmit={submit} className="px-7 pb-7">
+    <FormDialog
+      id="purchase-payment-title"
+      title="Pagar compra a crédito"
+      code={purchase.codigo}
+      context={purchase.supplier.nombre}
+      className="purchases-form-dialog purchases-payment-dialog"
+      headerVariant="plain"
+      headerIcon={<WalletCards className="h-5 w-5" aria-hidden="true" />}
+      submitLabel="Registrar pago total"
+      pending={mutation.isPending}
+      dirty={metodo !== 'transferencia' || Boolean(referencia || banco || numeroOperacion)}
+      statusText="El pago es total y genera un egreso de caja."
+      onClose={onClose}
+      onSubmit={submit}
+    >
           <div className="rounded-lg border border-brand-line bg-brand-pale/60 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
               Total a pagar
@@ -170,32 +155,7 @@ export const PurchasePaymentModal = ({
               {getApiErrorMessage(mutation.error, 'No fue posible registrar el pago.')}
             </p>
           )}
-
-          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={mutation.isPending}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <WalletCards className="h-4 w-4" aria-hidden="true" />
-              )}
-              Registrar pago total
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
+    </FormDialog>
   );
 };
 

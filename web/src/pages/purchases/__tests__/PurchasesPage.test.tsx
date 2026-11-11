@@ -86,7 +86,7 @@ describe('PurchasesPage', () => {
     expect(summary.getByText('Compras')).toBeInTheDocument();
     expect(summary.getByText('IVA 19%')).toBeInTheDocument();
 
-    expect(screen.getByRole('link', { name: 'Ver' })).toHaveAttribute('href', '/purchases/7');
+    expect(screen.getByRole('link', { name: 'Ver compra COMP-000007' })).toHaveAttribute('href', '/purchases/7');
     expect(screen.getByRole('link', { name: 'Ver comprobante de COMP-000007' })).toHaveAttribute(
       'href',
       '/api/purchases/7/receipt',

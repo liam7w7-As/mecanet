@@ -1,4 +1,4 @@
-import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import { Car, ChevronDown, Eye, Pencil, Trash2 } from 'lucide-react';
 
 import type { ReactNode } from 'react';
 
@@ -13,25 +13,47 @@ interface Props {
   facts: ReactNode;
   status: ReactNode;
   alerts?: ReactNode;
+  detailFacts?: ReadonlyArray<{ label: string; value: string }>;
   onOpen: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
 }
 
-/** Compact reference row; the existing full record continues to open in its modal. */
-export default function VehicleDirectoryRow({ number, plate, privateSubline, name, reference, owner, ownerLabel, facts, status, alerts, onOpen, onEdit, onDelete }: Props) {
+/** The summary expands locally; the explicit record action opens the existing modal. */
+export default function VehicleDirectoryRow({ number, plate, privateSubline, name, reference, owner, ownerLabel, facts, status, alerts, detailFacts, onOpen, onEdit, onDelete }: Props) {
   return (
-    <article className="vehicle-directory-row">
-      <button type="button" className="vehicle-directory-open" aria-label={`Abrir ficha de ${plate}`} onClick={onOpen} />
-      <span className="vehicle-directory-number">#{number}</span>
-      <div className="vehicle-directory-identity"><strong>{plate}</strong>{privateSubline && <small className="break-words">{privateSubline}</small>}<span>{name}</span>{reference && <small>{reference}</small>}</div>
-      <div className="vehicle-directory-owner"><small>{ownerLabel}</small><span>{owner}</span></div>
-      <div className="vehicle-directory-meta"><div>{status}</div><p>{facts}</p>{alerts && <div className="vehicle-directory-alert">{alerts}</div>}</div>
-      <footer className="vehicle-directory-actions">
-        {onEdit && <button type="button" aria-label={`Editar ${plate}`} title="Editar vehículo" onClick={onEdit}><Pencil aria-hidden="true" /></button>}
-        {onDelete && <button type="button" aria-label={`Eliminar ${plate}`} title="Eliminar vehículo" onClick={onDelete}><Trash2 aria-hidden="true" /></button>}
-        <span className="vehicle-directory-chevron" aria-hidden="true"><ChevronRight /></span>
-      </footer>
+    <article className="vehicle-directory-row vehicle-reference-row">
+      <details className="vehicle-directory-accordion">
+        <summary className="vehicle-directory-summary" aria-label={`Desplegar resumen de ${plate}`}>
+          <span className="vehicle-directory-number">#{number}</span>
+          <span className="vehicle-directory-symbol" aria-hidden="true"><Car /></span>
+          <span className="vehicle-directory-identity">
+            <strong>{plate}</strong>
+            {privateSubline && <small className="vehicle-directory-private">{privateSubline}</small>}
+            <span>{name}</span>
+          </span>
+          <span className="vehicle-directory-owner"><small>{ownerLabel}</small><span>{owner}</span></span>
+          <span className="vehicle-directory-meta">
+            <span>{status}</span>
+            {alerts && <span className="vehicle-directory-alert">{alerts}</span>}
+          </span>
+          <span className="vehicle-directory-chevron" aria-hidden="true"><ChevronDown /></span>
+        </summary>
+        <div className="vehicle-directory-expanded">
+          <dl className="vehicle-directory-expanded-facts">
+            {detailFacts ? detailFacts.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>) : <div><dt>Información del vehículo</dt><dd>{facts}</dd></div>}
+          </dl>
+          {reference && <p className="vehicle-directory-expanded-reference">{reference}</p>}
+          <div className="vehicle-directory-expanded-footer">
+            <p className="vehicle-directory-hint">Consulta el detalle y su historial en la ficha completa.</p>
+            <footer className="vehicle-directory-actions">
+              <button type="button" className="vehicle-directory-profile-action" aria-label={`Abrir ficha de ${plate}`} title="Ver ficha completa" onClick={onOpen}><Eye aria-hidden="true" /><span>Ver ficha</span></button>
+              {onEdit && <button type="button" aria-label={`Editar ${plate}`} title="Editar vehículo" onClick={onEdit}><Pencil aria-hidden="true" /></button>}
+              {onDelete && <button type="button" className="vehicle-directory-delete" aria-label={`Eliminar ${plate}`} title="Eliminar vehículo" onClick={onDelete}><Trash2 aria-hidden="true" /></button>}
+            </footer>
+          </div>
+        </div>
+      </details>
     </article>
   );
 }

@@ -66,24 +66,24 @@ const typeMeta: Record<CatalogType, { label: string; icon: typeof Package; class
 
 const AvailabilityBadge = ({ item }: { item: CatalogItem }) => {
   if (item.tipo !== 'parte') {
-    return <span className="text-xs font-semibold text-brand-muted">Sin inventario</span>;
+    return <span className="catalog-availability catalog-availability--service">No aplica</span>;
   }
   if (item.stock === 0) {
     return (
-      <span className="inline-flex rounded-md bg-brand-coralPale px-2 py-1 text-xs font-bold text-brand-coralInk">
+      <span className="catalog-availability catalog-availability--empty">
         Sin stock
       </span>
     );
   }
   if (item.stock <= item.stockMinimo || item.stock <= 5) {
     return (
-      <span className="inline-flex rounded-md bg-brand-goldPale px-2 py-1 text-xs font-bold text-brand-goldInk">
+      <span className="catalog-availability catalog-availability--low">
         Crítico · {item.stock}
       </span>
     );
   }
   return (
-    <span className="inline-flex rounded-md bg-brand-mintPale px-2 py-1 text-xs font-bold text-brand-mintInk">
+    <span className="catalog-availability catalog-availability--available">
       {item.stock} unidades
     </span>
   );
@@ -175,11 +175,6 @@ export const CatalogPage = () => {
             placeholder="Producto, servicio o código"
           />
         </label>
-        <ListExportButtons
-          target="catalog"
-          filters={filters}
-          disabled={catalogQuery.isPending || catalogQuery.isError}
-        />
         {canImport && (
           <button
             type="button"
@@ -234,15 +229,22 @@ export const CatalogPage = () => {
           </label>
         )}
       </div>
-      <p className="inventory-result-count" role="status">
-        {catalogQuery.isPending ? (
-          'Cargando catálogo…'
-        ) : (
-          <>
-            <strong>{catalogQuery.data?.total ?? 0}</strong> items
-          </>
-        )}
-      </p>
+      <div className="catalog-results-bar">
+        <p className="inventory-result-count" role="status">
+          {catalogQuery.isPending ? (
+            'Cargando catálogo…'
+          ) : (
+            <>
+              <strong>{catalogQuery.data?.total ?? 0}</strong> items
+            </>
+          )}
+        </p>
+        <ListExportButtons
+          target="catalog"
+          filters={filters}
+          disabled={catalogQuery.isPending || catalogQuery.isError}
+        />
+      </div>
       <section
         className="inventory-directory"
         aria-label="Listado de catálogo"
@@ -264,6 +266,7 @@ export const CatalogPage = () => {
               <article
                 key={item.id}
                 className="inventory-catalog-row"
+                data-catalog-type={item.tipo}
                 onClick={() => setDetailItem(item)}
               >
                 <span
@@ -426,7 +429,7 @@ function CatalogDeleteDialog({
         aria-modal="true"
         aria-busy={pending}
         aria-labelledby="delete-catalog-title"
-        className="workspace-dialog reference-dialog inventory-profile-dialog inventory-delete-dialog relative bg-white shadow-2xl"
+        className="workspace-dialog reference-dialog inventory-profile-dialog inventory-delete-dialog catalog-delete-dialog relative bg-white shadow-2xl"
       >
         <ModalHeader
           id="delete-catalog-title"

@@ -5,6 +5,7 @@ import { col, literal, Op, Transaction, where as sequelizeWhere } from 'sequeliz
 import { enqueueCustomerEmail, enqueueWorkOrderProgress } from './customer-email-queue.service.js';
 import { notifyByType } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
+import { propagateLinkedSalesAccess } from './sales-access-grant.service.js';
 import { assertSalesWorkOrderAccess, getSalesScope, quotationWhere, scopeSalesAssociations, type SalesScope } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getInspectionPhoto } from './work-order-inspection-photo.service.js';
@@ -667,9 +668,10 @@ export const listQuotations = async (
     const archived: QuotationWhere = {
       [Op.or]: [{ archivedAt: { [Op.not]: null } }, expired],
     };
-    where[Op.and] = query.archiveStatus === 'archived'
-      ? [archived]
-      : [{ [Op.not]: archived }];
+    where[Op.and] = [
+      ...(where[Op.and] ?? []),
+      query.archiveStatus === 'archived' ? archived : { [Op.not]: archived },
+    ];
   }
 
   const { rows, count } = await Quotation.findAndCountAll({
@@ -736,7 +738,7 @@ export const createQuotation = async (
   data: CreateQuotationInput,
   asesorId: number,
 ): Promise<QuotationPublic> => {
-  const result = await sequelize.transaction(async (transaction) => {
+  const result = await sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED }, async (transaction) => {
     let clientId = data.clientId ?? null;
     let vehicleId = data.vehicleId ?? null;
     let items = data.items;
@@ -744,8 +746,7 @@ export const createQuotation = async (
     if (data.workOrderId !== undefined && data.workOrderId !== null) {
       await assertSalesWorkOrderAccess(data.workOrderId, asesorId, transaction);
       const workOrder = await WorkOrder.findByPk(data.workOrderId, {
-        include: [{ model: WorkOrderItem }],
-        transaction,
+        include: [{ model: WorkOrderItem }], transaction, lock: transaction.LOCK.UPDATE,
       });
 
       if (!workOrder) {
@@ -806,6 +807,11 @@ export const createQuotation = async (
     }
     if (quotation.workOrderId !== null) {
       await ensureQuotationItemLinks(quotation.id, quotation.workOrderId, transaction);
+      await propagateLinkedSalesAccess(
+        { scopeType: 'work_order', targetId: quotation.workOrderId },
+        { scopeType: 'quotation', targetId: quotation.id, codigo: quotation.codigo, ownerId: quotation.asesorId },
+        asesorId, transaction,
+      );
     }
 
     await enqueueCustomerEmail({ kind: 'quotation', entityId: quotation.id, userId: asesorId, dedupeKey: `created:quotation:${quotation.id}`, target: { recipient: emailClient?.email ?? null, name: emailClient?.nombre ?? 'Cliente', code: quotation.codigo } }, transaction);
@@ -942,7 +948,7 @@ export const convertQuotationToWorkOrder = async (
   userId: number,
   data: ConvertQuotationInput,
 ): Promise<ConvertQuotationResult> => {
-  const converted = await sequelize.transaction(async (transaction) => {
+  const converted = await sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED }, async (transaction) => {
     const quotation = await Quotation.findByPk(quotationId, {
       include: [{ model: QuotationItem }],
       transaction,
@@ -993,6 +999,11 @@ export const convertQuotationToWorkOrder = async (
     );
 
     await quotation.update({ workOrderId: workOrder.id, vehicleId: workOrder.vehicleId, clientId: quotation.clientId ?? clientId }, { transaction });
+    await propagateLinkedSalesAccess(
+      { scopeType: 'quotation', targetId: quotation.id },
+      { scopeType: 'work_order', targetId: workOrder.id, codigo: workOrder.codigo, ownerId: workOrder.createdBy },
+      userId, transaction,
+    );
     const createdItems = await WorkOrderItem.findAll({
       where: { workOrderId: workOrder.id }, order: [['id', 'ASC']], transaction,
     });

@@ -74,6 +74,9 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   })
   declare activo: CreationOptional<boolean>;
 
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare salesAccessAll: CreationOptional<boolean>;
+
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;
 

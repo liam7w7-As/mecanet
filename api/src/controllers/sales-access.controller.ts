@@ -5,6 +5,8 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import type {
   CreateRecordSalesAccessGrantInput,
   CreateSalesAccessGrantInput,
+  SalesAccessRecordsQuery,
+  UpdateSalesAccessInput,
 } from '@unithor/shared';
 import type { Request, Response } from 'express';
 
@@ -17,8 +19,23 @@ const getParam = (req: Request, key: string): number => Number(req.params[key]);
 
 export const listUserSalesAccessHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const grants = await salesAccessService.listUserSalesAccessGrants(getParam(req, 'id'));
-    res.status(200).json({ grants });
+    res.status(200).json(await salesAccessService.getUserSalesAccess(getParam(req, 'id')));
+  },
+);
+
+export const updateUserSalesAccessHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json(await salesAccessService.updateUserSalesAccess(
+      getParam(req, 'id'), req.body as UpdateSalesAccessInput, getCurrentUserId(req),
+    ));
+  },
+);
+
+export const listUserSalesAccessRecordsHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json(await salesAccessService.listUserSalesAccessRecords(
+      getParam(req, 'id'), res.locals.validatedQuery as SalesAccessRecordsQuery,
+    ));
   },
 );
 

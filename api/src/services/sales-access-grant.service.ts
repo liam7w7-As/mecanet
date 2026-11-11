@@ -1,6 +1,8 @@
 import { SALES_ACCESS_SCOPE_LABELS } from '@unithor/shared';
+import { Op } from 'sequelize';
 
 import { notifyUsers } from './notification.service.js';
+import { loadSalesAccessTargets, lockSalesAccessTargets, salesRecordKey, searchSalesAccessRecords } from './sales-access-record.service.js';
 import { sequelize } from '../config/database.js';
 import { Quotation } from '../models/Quotation.js';
 import { Role } from '../models/Role.js';
@@ -9,10 +11,14 @@ import { User } from '../models/User.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { ApiError } from '../utils/ApiError.js';
 
+import type { SalesAccessRecord, SalesAccessTarget } from './sales-access-record.service.js';
 import type {
   CreateRecordSalesAccessGrantInput,
   CreateSalesAccessGrantInput,
   SalesAccessScopeType,
+  SalesAccessMode,
+  SalesAccessRecordsQuery,
+  UpdateSalesAccessInput,
 } from '@unithor/shared';
 import type { Transaction } from 'sequelize';
 
@@ -27,6 +33,9 @@ export interface SalesAccessGrantPublic {
   expiresAt: Date | null;
   expired: boolean;
   createdAt: Date;
+  clientName?: string | null;
+  patente?: string | null;
+  linkedRecord?: SalesAccessRecord | null;
 }
 
 export interface SalesAccessRecordGrantPublic {
@@ -51,13 +60,15 @@ const isExpired = (expiresAt: Date | null): boolean =>
 
 const assertGrantee = async (granteeId: number, transaction?: Transaction): Promise<User> => {
   const user = await User.findByPk(granteeId, {
-    attributes: ['id', 'nombre', 'username', 'activo'],
-    include: [{ model: Role, as: 'role', attributes: ['nombre'] }],
+    attributes: ['id', 'nombre', 'username', 'activo', 'roleId', 'salesAccessAll'],
     transaction,
+    // All writers lock the same row before reading or changing grants.
+    ...(transaction ? { lock: transaction.LOCK.UPDATE } : {}),
   });
   if (!user) throw ApiError.notFound('Usuario no encontrado');
   if (!user.activo) throw ApiError.badRequest('El usuario no está activo');
-  if (user.role?.nombre !== 'vendedor') {
+  const role = await Role.findByPk(user.roleId, { attributes: ['nombre'], transaction });
+  if (role?.nombre !== 'vendedor') {
     throw ApiError.badRequest('Solo se puede compartir acceso con usuarios con rol vendedor');
   }
   return user;
@@ -72,6 +83,7 @@ const getTargetInfo = async (
     const workOrder = await WorkOrder.findByPk(targetId, {
       attributes: ['id', 'codigo', 'createdBy'],
       transaction,
+      ...(transaction ? { lock: transaction.LOCK.UPDATE } : {}),
     });
     if (!workOrder) throw ApiError.notFound('Orden de trabajo no encontrada');
     return { codigo: workOrder.codigo, ownerId: workOrder.createdBy };
@@ -80,6 +92,7 @@ const getTargetInfo = async (
   const quotation = await Quotation.findByPk(targetId, {
     attributes: ['id', 'codigo', 'asesorId'],
     transaction,
+    ...(transaction ? { lock: transaction.LOCK.UPDATE } : {}),
   });
   if (!quotation) throw ApiError.notFound('Cotización no encontrada');
   return { codigo: quotation.codigo, ownerId: quotation.asesorId };
@@ -172,33 +185,26 @@ const notifyGrantedRecords = async (
 
 export const listUserSalesAccessGrants = async (
   granteeId: number,
+  transaction?: Transaction,
 ): Promise<SalesAccessGrantPublic[]> => {
   const grants = await SalesAccessGrant.findAll({
     where: { userId: granteeId },
     include: grantInclude,
     order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    transaction,
   });
-
-  const workOrderIds = grants.filter((grant) => grant.scopeType === 'work_order').map((grant) => grant.targetId);
-  const quotationIds = grants.filter((grant) => grant.scopeType === 'quotation').map((grant) => grant.targetId);
-  const [workOrders, quotations] = await Promise.all([
-    workOrderIds.length
-      ? WorkOrder.findAll({ where: { id: workOrderIds }, attributes: ['id', 'codigo'], paranoid: false })
-      : [],
-    quotationIds.length
-      ? Quotation.findAll({ where: { id: quotationIds }, attributes: ['id', 'codigo'], paranoid: false })
-      : [],
-  ]);
-  const codes = new Map<string, string>();
-  workOrders.forEach((workOrder) => codes.set(`work_order:${workOrder.id}`, workOrder.codigo));
-  quotations.forEach((quotation) => codes.set(`quotation:${quotation.id}`, quotation.codigo));
+  // Keep historical targetCodigo (including soft-deleted targets) for old consumers.
+  const targets = await loadSalesAccessTargets(grants, transaction, true);
 
   return grants.map((grant) => ({
     id: grant.id,
     userId: grant.userId,
     scopeType: grant.scopeType,
     targetId: grant.targetId,
-    targetCodigo: codes.get(`${grant.scopeType}:${grant.targetId}`) ?? null,
+    targetCodigo: targets.get(salesRecordKey(grant))?.codigo ?? null,
+    clientName: targets.get(salesRecordKey(grant))?.clientName ?? null,
+    patente: targets.get(salesRecordKey(grant))?.patente ?? null,
+    linkedRecord: targets.get(salesRecordKey(grant))?.linkedRecord ?? null,
     grantedBy: grant.grantedBy,
     grantedByName: grant.grantedByUser?.nombre ?? null,
     expiresAt: grant.expiresAt,
@@ -206,6 +212,81 @@ export const listUserSalesAccessGrants = async (
     createdAt: grant.createdAt,
   }));
 };
+
+export const getUserSalesAccess = async (granteeId: number) =>
+  sequelize.transaction(async (transaction) => {
+    const user = await User.findByPk(granteeId, {
+      attributes: ['id', 'salesAccessAll'], transaction, lock: transaction.LOCK.SHARE,
+    });
+    if (!user) throw ApiError.notFound('Usuario no encontrado');
+    const grants = await listUserSalesAccessGrants(granteeId, transaction);
+    const mode: SalesAccessMode = user.salesAccessAll ? 'all'
+      : grants.some((grant) => !grant.expired) ? 'selected' : 'own';
+    return { mode, grants };
+  });
+
+export const listUserSalesAccessRecords = async (granteeId: number, query: SalesAccessRecordsQuery) => {
+  await assertGrantee(granteeId);
+  return searchSalesAccessRecords(granteeId, query);
+};
+
+export const updateUserSalesAccess = async (
+  granteeId: number,
+  input: UpdateSalesAccessInput,
+  grantedBy: number,
+) => sequelize.transaction(async (transaction) => {
+  if (input.mode === 'selected' && input.records?.length) {
+    await lockSalesAccessTargets(input.records, transaction);
+  }
+  const user = await assertGrantee(granteeId, transaction);
+  const hadAllAccess = user.salesAccessAll;
+  const newRecords: SalesAccessTarget[] = [];
+  if (input.mode === 'selected') {
+    if (!input.records?.length) throw ApiError.badRequest('Selecciona al menos un registro');
+    const targets = await loadSalesAccessTargets(input.records, transaction);
+    const desired = new Map<string, SalesAccessTarget>();
+    // Validate the complete request before changing anything, including explicit owned selections.
+    for (const record of input.records) {
+      const target = targets.get(salesRecordKey(record));
+      if (!target) throw ApiError.badRequest('Uno o más registros no existen o fueron eliminados');
+      if (target.ownerId === granteeId) throw ApiError.badRequest(`${target.codigo} ya pertenece a esta vendedora`);
+      desired.set(salesRecordKey(target), target);
+      if (target.linkedRecord) {
+        const linked = targets.get(salesRecordKey(target.linkedRecord));
+        if (linked && linked.ownerId !== granteeId) desired.set(salesRecordKey(linked), linked);
+      }
+    }
+    const existing = await SalesAccessGrant.findAll({ where: { userId: granteeId }, transaction });
+    const surviving = new Set(existing.filter((grant) => desired.has(salesRecordKey(grant)) && !isExpired(grant.expiresAt))
+      .map(salesRecordKey));
+    const removedIds = existing.filter((grant) => !surviving.has(salesRecordKey(grant))).map((grant) => grant.id);
+    if (removedIds.length) {
+      await SalesAccessGrant.destroy({ where: { userId: granteeId, id: { [Op.in]: removedIds } }, transaction });
+    }
+    newRecords.push(...[...desired.values()].filter((target) => !surviving.has(salesRecordKey(target))));
+    if (newRecords.length) {
+      await SalesAccessGrant.bulkCreate(newRecords.map((record) => ({
+        userId: granteeId, scopeType: record.scopeType, targetId: record.targetId,
+        grantedBy, expiresAt: null,
+      })), { transaction });
+    }
+  } else {
+    await SalesAccessGrant.destroy({ where: { userId: granteeId }, transaction });
+  }
+  await user.update({ salesAccessAll: input.mode === 'all' }, { transaction });
+  // One notification for an access expansion; repeated saves and revocations stay silent.
+  if ((input.mode === 'all' && !hadAllAccess) || (newRecords.length > 0 && !hadAllAccess)) {
+    await notifyUsers([granteeId], {
+      tipo: 'acceso_compartido',
+      titulo: input.mode === 'all' ? 'Acceso compartido: todas las OT y COT' : 'Acceso compartido actualizado',
+      mensaje: input.mode === 'all'
+        ? 'Un administrador te dio acceso a todas las órdenes de trabajo y cotizaciones, incluidas las futuras.'
+        : `Un administrador te dio acceso a ${newRecords.length} registros adicionales de OT y COT.`,
+      href: '/work-orders', actorId: grantedBy,
+    }, transaction);
+  }
+  return { mode: input.mode, grants: await listUserSalesAccessGrants(granteeId, transaction) };
+});
 
 export const createUserSalesAccessGrant = async (
   granteeId: number,
@@ -215,11 +296,12 @@ export const createUserSalesAccessGrant = async (
   const expiresAt = input.expiresAt ?? null;
 
   await sequelize.transaction(async (transaction) => {
-    const grantee = await assertGrantee(granteeId, transaction);
     const target = await getTargetInfo(input.scopeType, input.targetId, transaction);
+    const grantee = await assertGrantee(granteeId, transaction);
     if (target.ownerId === grantee.id) {
       throw ApiError.badRequest(`${target.codigo} ya pertenece a esta vendedora`);
     }
+    if (grantee.salesAccessAll) return;
 
     const createdRecords: GrantedRecord[] = [];
     const mainCreated = await upsertGrant(
@@ -257,6 +339,51 @@ export const createUserSalesAccessGrant = async (
   return listUserSalesAccessGrants(granteeId);
 };
 
+/** Called when a new counterpart is linked, with the source locked at READ COMMITTED. */
+export const propagateLinkedSalesAccess = async (
+  source: Pick<SalesAccessRecord, 'scopeType' | 'targetId'>,
+  target: SalesAccessRecord & { ownerId: number | null },
+  actorId: number,
+  transaction: Transaction,
+): Promise<void> => {
+  // A fresh committed read on the same connection avoids an earlier transaction snapshot.
+  // Grant writers lock the source first, so a new grant waits and then sees the new link.
+  const candidates = await SalesAccessGrant.findAll({
+    attributes: ['userId'], where: { scopeType: source.scopeType, targetId: source.targetId },
+    raw: true, transaction,
+  });
+  const userIds = [...new Set(candidates.map((grant) => grant.userId))].sort((a, b) => a - b);
+  if (!userIds.length) return;
+  const users = await User.findAll({
+    attributes: ['id', 'activo', 'roleId', 'salesAccessAll'], where: { id: userIds },
+    order: [['id', 'ASC']], transaction, lock: transaction.LOCK.UPDATE,
+  });
+  const sellerRole = await Role.findOne({ where: { nombre: 'vendedor' }, attributes: ['id'], transaction });
+  const eligibleIds = users.filter((user) => user.activo && !user.salesAccessAll && user.roleId === sellerRole?.id && user.id !== target.ownerId)
+    .map((user) => user.id);
+  if (!eligibleIds.length) return;
+  // Current locking read after User locks prevents an own/reset from resurrecting access.
+  const sources = await SalesAccessGrant.findAll({
+    where: {
+      userId: eligibleIds, scopeType: source.scopeType, targetId: source.targetId,
+      [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }],
+    }, transaction, lock: transaction.LOCK.UPDATE,
+  });
+  if (!sources.length) return;
+  await SalesAccessGrant.bulkCreate(sources.map((grant) => ({
+    userId: grant.userId, scopeType: target.scopeType, targetId: target.targetId,
+    expiresAt: grant.expiresAt, grantedBy: grant.grantedBy,
+  })), { transaction });
+  await notifyUsers(sources.map((grant) => grant.userId), {
+    tipo: 'acceso_compartido', titulo: `Acceso compartido: ${target.codigo}`,
+    mensaje: `El registro compartido ahora incluye ${target.codigo}.`,
+    href: target.scopeType === 'work_order' ? `/work-orders/${target.targetId}` : `/quotations/${target.targetId}`,
+    workOrderId: target.scopeType === 'work_order' ? target.targetId : null,
+    quotationId: target.scopeType === 'quotation' ? target.targetId : null,
+    actorId,
+  }, transaction);
+};
+
 export const createRecordSalesAccessGrant = async (
   scopeType: SalesAccessScopeType,
   targetId: number,
@@ -277,9 +404,12 @@ export const revokeUserSalesAccessGrant = async (
   granteeId: number,
   grantId: number,
 ): Promise<void> => {
-  const grant = await SalesAccessGrant.findOne({ where: { id: grantId, userId: granteeId } });
-  if (!grant) throw ApiError.notFound('Acceso no encontrado');
-  await grant.destroy();
+  await sequelize.transaction(async (transaction) => {
+    await User.findByPk(granteeId, { attributes: ['id'], transaction, lock: transaction.LOCK.UPDATE });
+    const grant = await SalesAccessGrant.findOne({ where: { id: grantId, userId: granteeId }, transaction });
+    if (!grant) throw ApiError.notFound('Acceso no encontrado');
+    await grant.destroy({ transaction });
+  });
 };
 
 export const revokeRecordSalesAccessGrant = async (
@@ -289,7 +419,7 @@ export const revokeRecordSalesAccessGrant = async (
 ): Promise<void> => {
   const grant = await SalesAccessGrant.findOne({ where: { id: grantId, scopeType, targetId } });
   if (!grant) throw ApiError.notFound('Acceso no encontrado');
-  await grant.destroy();
+  await revokeUserSalesAccessGrant(grant.userId, grant.id);
 };
 
 export const listRecordSalesAccessGrantees = async (

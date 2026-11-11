@@ -1,0 +1,100 @@
+/* One user-level configuration for seller visibility. */
+.reference-dialog.administration-form.sales-access-settings { --reference-dialog-width: 760px; width: min(760px,100%); max-width: 760px; }
+.sales-access-settings fieldset.reception-edit-body { gap: 18px; }
+.sales-access-settings .sales-access-modes { min-width: 0; margin: 0; padding: 0; border: 0; }
+.sales-access-modes > legend { margin-bottom: 12px; color: #344f72; font-size: 13px; font-weight: 500; }
+.sales-access-modes > div { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
+.sales-access-modes label { position: relative; display: grid; grid-template-columns: 32px minmax(0,1fr); align-items: center; gap: 9px; min-width: 0; min-height: 94px; padding: 14px 12px; border: 1px solid #e5ebf4; border-radius: 15px; background: #fff; cursor: pointer; }
+.sales-access-modes label:hover { border-color: #a9bfda; background: #fafcfe; }
+.sales-access-modes label[data-selected=true] { border-color: #94aecf; background: #edf3fb; }
+.sales-access-modes input[type=radio] { position: absolute; width: 1px; height: 1px; padding: 0; clip-path: inset(50%); overflow: hidden; }
+.sales-access-modes label:focus-within { outline: 2px solid #7297c6; outline-offset: 3px; }
+.sales-access-modes label > svg:not(.sales-access-mode-check) { width: 31px; height: 31px; padding: 7px; border-radius: 10px; background: #f1f5fa; color: #7490b3; }
+.sales-access-modes label[data-selected=true] > svg:not(.sales-access-mode-check) { background: #dfe9f7; color: #003570; }
+.sales-access-modes strong { display: block; color: #34577e; font-size: 11px; line-height: 1.6; font-weight: 600; }
+.sales-access-modes small { display: block; margin-top: 3px; color: #8396b0; font-size: 9px; line-height: 1.6; }
+.sales-access-mode-check { position: absolute; top: 6px; right: 7px; width: 12px; height: 12px; color: #3c699f; }
+.sales-access-modes:disabled { opacity: .55; }
+.sales-access-explanation { display: flex; align-items: flex-start; gap: 13px; padding: 17px; border-radius: 14px; background: #f4f7fb; }
+.sales-access-explanation > svg { flex: none; width: 20px; height: 20px; margin-top: 2px; color: #7994b6; }
+.sales-access-explanation strong { color: #426389; font-size: 12px; font-weight: 500; }
+.sales-access-explanation p { margin-top: 6px; color: #7b91ae; font-size: 11px; line-height: 1.8; }
+.sales-access-explanation.is-all { background: #ecf3fc; }
+.sales-access-role-note { display: flex; align-items: flex-start; gap: 8px; color: #8497b1; font-size: 10px; line-height: 1.8; }
+.sales-access-role-note svg { flex: none; width: 15px; height: 15px; margin-top: 1px; }
+.sales-access-picker { display: grid; gap: 11px; min-width: 0; }
+.sales-access-picker-intro strong { color: #426389; font-size: 12px; font-weight: 500; }
+.sales-access-picker-intro p { margin-top: 4px; color: #8297b1; font-size: 10px; line-height: 1.7; }
+.sales-access-picker-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.sales-access-record-tabs { display: flex; flex-wrap: wrap; gap: 5px; }
+.sales-access-record-tabs button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 8px 12px; border-radius: 999px; background: #f3f6fa; color: #8196b1; font-size: 10px; }
+.sales-access-record-tabs button[aria-selected=true] { background: #003570; color: #fff; }
+.sales-access-record-tabs b { min-width: 18px; padding: 1px 4px; border-radius: 6px; background: #ffffff20; font-size: 9px; font-weight: 500; }
+.sales-access-clear { min-height: 36px; padding: 6px 2px; color: #8e7280; font-size: 10px; }
+.sales-access-search-field { display: flex; align-items: center; gap: 9px; min-width: 0; padding-inline: 12px; border: 1px solid #e5ebf4; border-radius: 12px; background: #f7f9fc; }
+.sales-access-search-field > svg { flex: none; width: 16px; height: 16px; color: #93a6be; }
+.reference-dialog.reference-form-dialog.users-reference-form.sales-access-settings .sales-access-search-field input { flex: 1; min-width: 0; height: 44px; margin: 0; padding: 0; border: 0; border-radius: 0; outline: 0; background: transparent; box-shadow: none; font-size: 12px; }
+.sales-access-search-field input::-webkit-search-cancel-button { display: none; }
+.sales-access-search-field:focus-within { outline: 2px solid #b0c3dc; outline-offset: 1px; }
+.sales-access-search-field button { display: grid; place-items: center; flex: none; width: 30px; height: 36px; color: #8197b3; }
+.sales-access-search-field button svg { width: 14px; height: 14px; }
+.sales-access-type-filter { display: flex; flex-wrap: wrap; gap: 6px; }
+.sales-access-type-filter button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 7px 11px; border: 1px solid #e7edf5; border-radius: 10px; color: #889ab3; font-size: 10px; }
+.sales-access-type-filter button[aria-pressed=true] { border-color: #d1deee; background: #eef3fa; color: #365f90; }
+.sales-access-type-filter svg { width: 14px; height: 14px; }
+.sales-access-record-list { min-width: 0; max-height: min(330px,36dvh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; border: 1px solid #e7edf5; border-radius: 14px; background: #fff; }
+.sales-access-record-row { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 76px; padding: 12px; border-bottom: 1px solid #edf1f7; cursor: pointer; }
+.sales-access-record-row:last-child { border-bottom: 0; }
+.sales-access-record-row:hover { background: #f8fafd; }
+.sales-access-record-row[data-selected=true] { background: #edf4fc; }
+.sales-access-record-row[data-owned=true] { background: #fafbfd; cursor: default; }
+.sales-access-record-row input[type=checkbox] { flex: none; width: 16px; height: 16px; margin: 0; accent-color: #003570; }
+.sales-access-record-icon { display: grid; place-items: center; flex: none; width: 30px; height: 32px; border-radius: 9px; background: #f1f5fa; color: #7490b3; }
+.sales-access-record-icon svg { width: 15px; height: 15px; }
+.sales-access-record-info { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.sales-access-record-info strong { color: #315680; font-size: 11px; font-weight: 600; overflow-wrap: anywhere; }
+.sales-access-record-info strong small { color: #6f8cad; font-size: 10px; font-weight: 400; }
+.sales-access-record-info > span { color: #7b92af; font-size: 10px; overflow-wrap: anywhere; }
+.sales-access-record-info > small { color: #9aa9be; font-size: 9px; overflow-wrap: anywhere; }
+.sales-access-record-row em { flex: none; padding: 4px 7px; border-radius: 6px; background: #eef2f7; color: #8e9eb4; font-size: 9px; font-style: normal; }
+.sales-access-selected-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #edf1f7; background: #f7fafd; }
+.sales-access-selected-row:last-child { border-bottom: 0; }
+.sales-access-selected-row > svg { flex: none; width: 16px; height: 16px; color: #547da8; }
+.sales-access-selected-row > div { flex: 1; min-width: 0; }
+.sales-access-selected-row strong { color: #315680; font-size: 11px; font-weight: 600; overflow-wrap: anywhere; }
+.sales-access-selected-row strong span { font-weight: 400; color: #6f8cad; }
+.sales-access-selected-row small { display: block; margin-top: 4px; color: #8197b1; font-size: 10px; overflow-wrap: anywhere; }
+.sales-access-selected-row button { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 9px; background: #fff; color: #8d7a89; }
+.sales-access-selected-row button svg { width: 15px; height: 15px; }
+.sales-access-feedback { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; min-height: 110px; padding: 18px; color: #8398b3; font-size: 11px; line-height: 1.8; text-align: center; }
+.sales-access-feedback svg { flex: none; width: 16px; height: 16px; }
+.sales-access-feedback button { padding: 7px 12px; border-radius: 9px; background: #edf3fb; color: #426389; }
+.sales-access-picker-pagination { display: flex; align-items: center; justify-content: space-between; gap: 9px; color: #8b9db7; font-size: 10px; }
+.sales-access-picker-pagination > div { display: flex; align-items: center; gap: 8px; }
+.sales-access-picker-pagination button { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: #f3f6fa; color: #6e8cb2; }
+.sales-access-picker-pagination button svg { width: 15px; height: 15px; }
+.sales-access-selection-hint { color: #8398b3; font-size: 10px; line-height: 1.7; }
+.sales-access-settings button:disabled { opacity: .5; cursor: not-allowed; }
+.sales-access-settings :is(button,input):focus-visible { outline: 2px solid #7297c6; outline-offset: 3px; }
+.sales-access-settings .sales-access-search-field input:focus-visible { outline: 0; }
+
+@media (min-width: 681px) {
+  .users-sales-access-enabled.users-reference-page .administration-user-row { grid-template-columns: minmax(0,1.6fr) minmax(110px,1fr) minmax(60px,.6fr) 172px; }
+}
+@media (min-width: 681px) and (max-width: 1100px) {
+  .users-sales-access-enabled.users-reference-page .administration-user-row { grid-template-columns: minmax(0,1.3fr) minmax(95px,.8fr) 65px 172px; }
+}
+@media (max-width: 600px) {
+  .sales-access-settings fieldset.reception-edit-body { gap: 14px; }
+  .sales-access-modes > div { grid-template-columns: minmax(0,1fr); gap: 7px; }
+  .sales-access-modes label { grid-template-columns: 32px minmax(0,1fr); min-height: 66px; padding: 10px 13px; }
+  .sales-access-modes label > span { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; padding-right: 10px; }
+  .sales-access-modes small { margin-top: 0; }
+  .sales-access-mode-check { top: 50%; right: 13px; transform: translateY(-50%); }
+  .sales-access-record-list { max-height: 270px; }
+  .reference-dialog.reference-form-dialog.users-reference-form.sales-access-settings .sales-access-search-field input { font-size: 16px; }
+  .sales-access-record-icon { display: none; }
+  .sales-access-record-row { padding: 12px 10px; }
+  .sales-access-role-note { font-size: 9px; }
+  .sales-access-settings .reception-edit-footer > div:not(.reception-discard) { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+}

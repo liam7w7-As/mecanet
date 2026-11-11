@@ -1,11 +1,13 @@
-import { createUserSchema, updateUserSchema, userQuerySchema, createSalesAccessGrantSchema, salesAccessGrantParamsSchema } from '@unithor/shared';
+import { createUserSchema, updateUserSchema, userQuerySchema, createSalesAccessGrantSchema, salesAccessGrantParamsSchema, updateSalesAccessSchema, salesAccessRecordsQuerySchema } from '@unithor/shared';
 import { Router } from 'express';
 import { z } from 'zod';
 
 import {
   createUserSalesAccessHandler,
   listUserSalesAccessHandler,
+  listUserSalesAccessRecordsHandler,
   revokeUserSalesAccessHandler,
+  updateUserSalesAccessHandler,
 } from '../controllers/sales-access.controller.js';
 import {
   createUserHandler,
@@ -70,6 +72,18 @@ userRouter.post(
   authorizeRoles('desarrollador', 'admin'),
   validate({ params: idParamSchema, body: createSalesAccessGrantSchema }),
   createUserSalesAccessHandler,
+);
+userRouter.put(
+  '/:id/sales-access',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: idParamSchema, body: updateSalesAccessSchema }),
+  updateUserSalesAccessHandler,
+);
+userRouter.get(
+  '/:id/sales-access/records',
+  authorizeRoles('desarrollador', 'admin'),
+  validate({ params: idParamSchema, query: salesAccessRecordsQuerySchema }),
+  listUserSalesAccessRecordsHandler,
 );
 userRouter.delete(
   '/:id/sales-access/:grantId',

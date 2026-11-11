@@ -1,4 +1,4 @@
-import { AlertCircle, CircleCheck, Eye, Pencil, Plus, Power, Search, ShieldCheck, Trash2, UserCog, UserRoundX, UsersRound, X } from 'lucide-react';
+import { AlertCircle, CircleCheck, Eye, Pencil, Plus, Power, Search, Share2, ShieldCheck, Trash2, UserCog, UserRoundX, UsersRound, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import FormDialog from '../../components/common/FormDialog';
@@ -8,7 +8,7 @@ import UserAvatar from '../../components/common/UserAvatar';
 import RolePermissionsPanel from '../../components/users/RolePermissionsPanel';
 import UserDetailModal from '../../components/users/UserDetailModal';
 import UserFormModal from '../../components/users/UserFormModal';
-import UserSalesAccessModal from '../../components/users/UserSalesAccessModal';
+import UserSalesAccessSettingsModal from '../../components/users/UserSalesAccessSettingsModal';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDeleteUserMutation, useRoles, useToggleUserStatusMutation, useUsers } from '../../hooks/useUsers';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -55,7 +55,7 @@ export const UsersPage = () => {
     { value: 'inactive' as const, label: 'Inactivos', icon: UserRoundX },
   ];
 
-  return <div className="workspace-page workspace-users administration-page users-reference-page">
+  return <div className={`workspace-page workspace-users administration-page users-reference-page ${canManageSalesAccess ? 'users-sales-access-enabled' : ''}`}>
     <header className="administration-heading"><h1>Usuarios</h1><p>Equipo, roles y acceso</p></header>
     <div className="administration-tabs" role="tablist" aria-label="Administración de acceso">
       <button type="button" role="tab" aria-selected={view === 'accounts'} aria-controls="accounts-panel"
@@ -105,6 +105,8 @@ export const UsersPage = () => {
               <div className="administration-user-state"><span className={`administration-status ${user.activo ? 'is-active' : 'is-inactive'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></div>
               <div className="administration-row-actions">
                 <button type="button" onClick={() => setDetailUser(user)} aria-label={`Detalle de ${user.nombre}`} title="Ver detalle"><Eye aria-hidden="true" /></button>
+                {canManageSalesAccess && user.role.nombre === 'vendedor' && <button type="button" className="sales-access-action" onClick={() => setAccessUser(user)}
+                  disabled={!user.activo} aria-label={`Acceso OT/COT de ${user.nombre}`} title={user.activo ? 'Configurar acceso a OT y cotizaciones' : 'Activa la cuenta para configurar su acceso'}><Share2 aria-hidden="true" /></button>}
                 {canUpdate && <><button type="button" onClick={() => setFormUser(user)} aria-label={`Editar ${user.nombre}`} title="Editar"><Pencil aria-hidden="true" /></button>
                   <button type="button" onClick={() => { statusMutation.reset(); setStatusTarget(user); }} disabled={isSelf && user.activo}
                     aria-label={`${user.activo ? 'Desactivar' : 'Activar'} ${user.nombre}`}
@@ -127,8 +129,8 @@ export const UsersPage = () => {
           {rolesQuery.isError && <button type="button" onClick={() => void rolesQuery.refetch()}>Reintentar</button>}
         </div>)}
     </div>
-    {detailUser && <UserDetailModal user={detailUser} canEdit={canUpdate} canManageAccess={canManageSalesAccess} onClose={() => setDetailUser(null)} onEdit={() => { setFormUser(detailUser); setDetailUser(null); }} onManageAccess={() => setAccessUser(detailUser)} />}
-    {accessUser && <UserSalesAccessModal user={accessUser} onClose={() => setAccessUser(null)} />}
+    {detailUser && <UserDetailModal user={detailUser} canEdit={canUpdate} canManageAccess={canManageSalesAccess} onClose={() => setDetailUser(null)} onEdit={() => { setFormUser(detailUser); setDetailUser(null); }} onManageAccess={() => { setAccessUser(detailUser); setDetailUser(null); }} />}
+    {accessUser && <UserSalesAccessSettingsModal key={accessUser.id} user={accessUser} onClose={() => setAccessUser(null)} />}
     {formUser !== undefined && rolesQuery.data && <UserFormModal key={formUser?.id ?? 'new'} user={formUser} roles={rolesQuery.data} onClose={() => setFormUser(undefined)} />}
     {statusTarget && <FormDialog id="status-user-title" title={statusTarget.activo ? 'Desactivar cuenta' : 'Activar cuenta'}
       code={`@${statusTarget.username}`} context={statusTarget.nombre} dirty={false} pending={statusMutation.isPending}

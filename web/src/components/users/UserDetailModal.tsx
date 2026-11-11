@@ -39,7 +39,7 @@ export default function UserDetailModal({ user, canEdit, canManageAccess, onClos
       <footer className="administration-profile-footer">
         <button type="button" className="administration-secondary" onClick={onClose}>Cerrar</button>
         {canManageAccess && user.role.nombre === 'vendedor' && (
-          <button type="button" className="administration-secondary" onClick={onManageAccess}>
+          <button type="button" className="administration-secondary" onClick={onManageAccess} disabled={!user.activo} title={user.activo ? undefined : 'Activa la cuenta para configurar su acceso'}>
             <Share2 aria-hidden="true" />Accesos OT/COT
           </button>
         )}

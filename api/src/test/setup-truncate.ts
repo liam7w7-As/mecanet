@@ -16,6 +16,7 @@ import { up as ensureCustomerEmails } from '../database/migrations/044-create-cu
 import { up as ensureFleetRetirement } from '../database/migrations/045-fleet-retirement-and-private-owner.js';
 import { up as ensureSalesAccessGrants } from '../database/migrations/046-create-sales-access-grants.js';
 import { up as ensureNotificationAccessShared } from '../database/migrations/047-add-notification-access-shared.js';
+import { up as ensureUserSalesAccessAll } from '../database/migrations/048-add-user-sales-access-all.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -76,6 +77,7 @@ beforeAll(async () => {
   await ensureCustomerEmails(sequelize.getQueryInterface());
   await ensureSalesAccessGrants(sequelize.getQueryInterface());
   await ensureNotificationAccessShared(sequelize.getQueryInterface());
+  await ensureUserSalesAccessAll(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
   await ensureImportPermissions();

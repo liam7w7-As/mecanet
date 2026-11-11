@@ -39,11 +39,12 @@ export const salesScopeFromFilters = (filters: SalesScopeFilters): SalesScope | 
 export const getSalesScope = async (userId?: number): Promise<SalesScope | undefined> => {
   if (userId === undefined) return undefined;
   const user = await User.findByPk(userId, {
-    attributes: ['id', 'activo'],
+    attributes: ['id', 'activo', 'salesAccessAll'],
     include: [{ model: Role, as: 'role', attributes: ['nombre'] }],
   });
   if (!user?.activo) throw ApiError.unauthorized();
   if (user.role?.nombre !== 'vendedor') return undefined;
+  if (user.salesAccessAll) return undefined;
 
   const now = new Date();
   const grants = await SalesAccessGrant.findAll({

@@ -1,5 +1,35 @@
 import { z } from 'zod';
 export const SALES_ACCESS_SCOPE_TYPES = ['work_order', 'quotation'];
+export const SALES_ACCESS_MODES = ['own', 'selected', 'all'];
+export const salesAccessRecordSchema = z.object({
+    scopeType: z.enum(SALES_ACCESS_SCOPE_TYPES),
+    targetId: z.number().int().positive().safe(),
+}).strict();
+export const updateSalesAccessSchema = z.object({
+    mode: z.enum(SALES_ACCESS_MODES),
+    records: z.array(salesAccessRecordSchema).max(500).optional(),
+}).strict().superRefine((input, ctx) => {
+    if (input.mode === 'selected' && !input.records?.length) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['records'],
+            message: 'Selecciona al menos un registro',
+        });
+    }
+}).transform((input) => ({
+    ...input,
+    ...(input.records ? {
+        records: [...new Map(input.records.map((record) => [
+                `${record.scopeType}:${record.targetId}`, record,
+            ])).values()],
+    } : {}),
+}));
+export const salesAccessRecordsQuerySchema = z.object({
+    scopeType: z.enum(SALES_ACCESS_SCOPE_TYPES),
+    search: z.string().trim().max(100).optional(),
+    page: z.coerce.number().int().positive().safe().default(1),
+    pageSize: z.coerce.number().int().positive().max(20).default(10),
+}).strict();
 export const SALES_ACCESS_SCOPE_LABELS = {
     work_order: 'Orden de trabajo',
     quotation: 'Cotización',

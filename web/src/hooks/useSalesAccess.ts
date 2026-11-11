@@ -1,8 +1,42 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '../lib/api';
 
-import type { SalesAccessScopeType } from '@unithor/shared';
+import type { SalesAccessMode, SalesAccessScopeType, UpdateSalesAccessInput } from '@unithor/shared';
+
+export interface SalesAccessRecordRef {
+  scopeType: SalesAccessScopeType;
+  targetId: number;
+  codigo: string;
+}
+
+export interface SalesAccessRecord extends SalesAccessRecordRef {
+  clientName: string | null;
+  patente: string | null;
+  ownerName: string | null;
+  owned: boolean;
+  linkedRecord: SalesAccessRecordRef | null;
+}
+
+export interface UserSalesAccessSettings {
+  mode: SalesAccessMode;
+  grants: UserSalesAccessGrant[];
+}
+
+interface SalesAccessRecordsResponse {
+  items: SalesAccessRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+interface SalesAccessRecordsQuery {
+  scopeType: SalesAccessScopeType;
+  search?: string;
+  page: number;
+  pageSize: number;
+}
 
 /**
  * El formulario envía la fecha como `YYYY-MM-DD`; el backend la normaliza a fin
@@ -32,6 +66,9 @@ export interface UserSalesAccessGrant {
   expiresAt: string | null;
   expired: boolean;
   createdAt: string;
+  clientName?: string | null;
+  patente?: string | null;
+  linkedRecord?: SalesAccessRecordRef | null;
 }
 
 export interface RecordSalesAccessGrant {
@@ -71,9 +108,38 @@ const recordResource = (scopeType: SalesAccessScopeType): string =>
 export const salesAccessKeys = {
   all: ['sales-access'] as const,
   user: (userId: number) => [...salesAccessKeys.all, 'user', userId] as const,
+  settings: (userId: number) => [...salesAccessKeys.user(userId), 'settings'] as const,
+  records: (userId: number, params: SalesAccessRecordsQuery) => [...salesAccessKeys.user(userId), 'records', params] as const,
   record: (scopeType: SalesAccessScopeType, targetId: number) =>
     [...salesAccessKeys.all, 'record', scopeType, targetId] as const,
   advisors: ['sales-access', 'advisors'] as const,
+};
+
+export const useUserSalesAccessSettings = (userId: number) => useQuery({
+  queryKey: salesAccessKeys.settings(userId),
+  queryFn: async () => (await api.get<UserSalesAccessSettings>(`/users/${userId}/sales-access`)).data,
+  enabled: Number.isInteger(userId) && userId > 0,
+  staleTime: 0,
+});
+
+export const useSalesAccessRecords = (userId: number, params: SalesAccessRecordsQuery, enabled: boolean) => useQuery({
+  queryKey: salesAccessKeys.records(userId, params),
+  queryFn: async () => (await api.get<SalesAccessRecordsResponse>(`/users/${userId}/sales-access/records`, { params })).data,
+  enabled: enabled && Number.isInteger(userId) && userId > 0,
+  placeholderData: keepPreviousData,
+});
+
+export const useUpdateUserSalesAccess = (userId: number) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: UpdateSalesAccessInput) => (await api.put<UserSalesAccessSettings>(`/users/${userId}/sales-access`, data)).data,
+    onSuccess: (settings) => {
+      queryClient.setQueryData(salesAccessKeys.settings(userId), settings);
+      for (const key of ['sales-access', 'users', 'work-orders', 'quotations', 'quotation-payments', 'payments', 'dashboard', 'finance', 'reports']) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    },
+  });
 };
 
 export const useUserSalesAccess = (userId: number) =>

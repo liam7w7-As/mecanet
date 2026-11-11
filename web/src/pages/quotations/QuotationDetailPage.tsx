@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, Banknote, DollarSign, Eye, LoaderCircle, Pencil, ReceiptText, Share2, Trash2, UserRound } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Banknote, DollarSign, Eye, LoaderCircle, Pencil, ReceiptText, Trash2, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -6,7 +6,6 @@ import { AnimateIcon } from '../../components/animate-ui';
 import CustomerEmailPanel from '../../components/common/CustomerEmailPanel';
 import FormDialog from '../../components/common/FormDialog';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
-import ShareSalesAccessModal from '../../components/common/ShareSalesAccessModal';
 import PaymentFormModal, { PAYMENT_METHOD_LABELS } from '../../components/quotations/PaymentFormModal';
 import PaymentStatusBadge from '../../components/quotations/PaymentStatusBadge';
 import QuotationEditModal from '../../components/quotations/QuotationEditModal';
@@ -37,7 +36,6 @@ export const QuotationDetailPage = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(searchParams.get('payment') === 'true');
   const [showEditModal, setShowEditModal] = useState(searchParams.get('edit') === 'true');
   const [showPdfModal, setShowPdfModal] = useState(false);
-  const [showShareAccessModal, setShowShareAccessModal] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
   const user = useAuthStore((state) => state.user);
   const quotation = quotationQuery.data;
@@ -52,7 +50,6 @@ export const QuotationDetailPage = () => {
   const canCreatePayment = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
   const canDeletePayment = Boolean(user && (hasUserPermission(user, 'comercial', 'delete') || hasUserPermission(user, 'finanzas', 'delete')));
   const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
-  const isAdmin = Boolean(user && ['desarrollador', 'admin'].includes(user.role));
 
   if (quotationQuery.isPending) {
     return <div className="flex min-h-72 items-center justify-center"><LoaderCircle className="h-8 w-8 animate-spin text-brand-primaryInk" aria-label="Cargando cotización" /></div>;
@@ -80,12 +77,6 @@ export const QuotationDetailPage = () => {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {isAdmin && (
-            <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink shadow-sm transition-all hover:bg-brand-pale hover:shadow" onClick={() => setShowShareAccessModal(true)}>
-              <Share2 className="h-4 w-4" aria-hidden="true" />
-              Compartir acceso
-            </button>
-          )}
           <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-primaryInk bg-white px-4 text-sm font-semibold text-brand-primaryInk shadow-sm transition-all hover:bg-brand-line/40 hover:shadow" onClick={() => setShowPdfModal(true)}>
             <AnimateIcon variant="bounce" animateOnHover>
               <Eye className="h-4 w-4" aria-hidden="true" />
@@ -138,14 +129,6 @@ export const QuotationDetailPage = () => {
           type="quotation"
           quotation={quotation}
           onClose={() => setShowPdfModal(false)}
-        />
-      )}
-      {showShareAccessModal && (
-        <ShareSalesAccessModal
-          scopeType="quotation"
-          targetId={quotation.id}
-          codigo={quotation.codigo}
-          onClose={() => setShowShareAccessModal(false)}
         />
       )}
     </div>

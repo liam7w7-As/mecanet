@@ -4,6 +4,8 @@ import { Op } from 'sequelize';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { getQuotationGrossTotal } from '@unithor/shared';
+
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { CashClosure } from '../../models/CashClosure.js';
@@ -730,7 +732,10 @@ describe('Operational list exports (real authentication and role scope)', () => 
             const order = records.find((row) => row.OT === orders[0].codigo)!;
             expect(order['Avance (%)']).toBe(50);
             expect(order['Tareas completadas']).toBe('1/2');
-            expect(order['Total estimado']).toBe(350);
+            // Linked orders use the authoritative COT, including its discounts, rather than checklist prices.
+            const grossTotal = getQuotationGrossTotal(Number(quotations[0].total));
+            expect(order['Total estimado']).toBe(grossTotal);
+            expect(order['Saldo pendiente']).toBe(grossTotal - Number(quotations[0].pagado));
           }
           if (entry.target === 'payments') {
             expect(records[0]['Estado']).toBe('Por verificar');

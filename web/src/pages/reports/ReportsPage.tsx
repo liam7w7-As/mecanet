@@ -20,7 +20,7 @@ import {
   WorkshopReportPanel,
 } from './ReportPanels';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { hasUserPermission } from '../../lib/permissions';
+import { canExportReport, canReadReport } from '../../lib/report-access';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { UserPublic } from '../../stores/auth.store';
@@ -36,55 +36,48 @@ interface ReportTab {
   allowed: (user: UserPublic) => boolean;
 }
 
-const canRead = (
-  user: UserPublic,
-  module: 'finanzas' | 'comercial' | 'taller' | 'almacen' | 'admin',
-) => hasUserPermission(user, module, 'read');
-
 const TABS: ReportTab[] = [
   {
     id: 'finance',
     label: 'Finanzas',
     icon: Landmark,
-    allowed: (user) => canRead(user, 'finanzas'),
+    allowed: (user) => canReadReport(user, 'finance'),
   },
   {
     id: 'commercial',
     label: 'Comercial',
     icon: ReceiptText,
-    allowed: (user) => canRead(user, 'comercial'),
+    allowed: (user) => canReadReport(user, 'commercial'),
   },
   {
     id: 'workshop',
     label: 'Taller',
     icon: ClipboardList,
-    allowed: (user) => canRead(user, 'taller'),
+    allowed: (user) => canReadReport(user, 'workshop'),
   },
   {
     id: 'inventory',
     label: 'Almacenes',
     icon: Warehouse,
-    allowed: (user) => canRead(user, 'almacen'),
+    allowed: (user) => canReadReport(user, 'inventory'),
   },
   {
     id: 'catalog',
     label: 'Catálogo',
     icon: PackageSearch,
-    allowed: (user) =>
-      canRead(user, 'almacen') || canRead(user, 'taller') || canRead(user, 'comercial'),
+    allowed: (user) => canReadReport(user, 'catalog'),
   },
   {
     id: 'fleet',
     label: 'Clientes y vehículos',
     icon: BookOpen,
-    allowed: (user) =>
-      user.role !== 'mecanico' && (canRead(user, 'comercial') || canRead(user, 'taller')),
+    allowed: (user) => canReadReport(user, 'fleet'),
   },
   {
     id: 'administration',
     label: 'Cuentas',
     icon: Users,
-    allowed: (user) => canRead(user, 'admin'),
+    allowed: (user) => canReadReport(user, 'administration'),
   },
 ];
 
@@ -181,61 +174,43 @@ export const ReportsPage = () => {
         {selected === 'finance' && (
           <FinanceReportPanel
             {...filters}
-            canExport={hasUserPermission(user, 'finanzas', 'export')}
+            canExport={canExportReport(user, 'finance')}
           />
         )}
         {selected === 'commercial' && (
           <CommercialReportPanel
             {...filters}
-            canExport={
-              hasUserPermission(user, 'comercial', 'export') ||
-              hasUserPermission(user, 'finanzas', 'export')
-            }
+            canExport={canExportReport(user, 'commercial')}
           />
         )}
         {selected === 'workshop' && (
           <WorkshopReportPanel
             {...filters}
-            canExport={
-              hasUserPermission(user, 'taller', 'export') ||
-              hasUserPermission(user, 'finanzas', 'export')
-            }
+            canExport={canExportReport(user, 'workshop')}
           />
         )}
         {selected === 'inventory' && (
           <InventoryReportPanel
             {...filters}
-            canExport={
-              hasUserPermission(user, 'almacen', 'export') ||
-              hasUserPermission(user, 'finanzas', 'export')
-            }
+            canExport={canExportReport(user, 'inventory')}
           />
         )}
         {selected === 'catalog' && (
           <CatalogReportPanel
             {...filters}
-            canExport={
-              hasUserPermission(user, 'almacen', 'export') ||
-              hasUserPermission(user, 'taller', 'export') ||
-              hasUserPermission(user, 'comercial', 'export') ||
-              hasUserPermission(user, 'finanzas', 'export')
-            }
+            canExport={canExportReport(user, 'catalog')}
           />
         )}
         {selected === 'fleet' && (
           <FleetReportPanel
             {...filters}
-            canExport={
-              hasUserPermission(user, 'comercial', 'export') ||
-              hasUserPermission(user, 'taller', 'export') ||
-              hasUserPermission(user, 'finanzas', 'export')
-            }
+            canExport={canExportReport(user, 'fleet')}
           />
         )}
         {selected === 'administration' && (
           <AdministrationReportPanel
             {...filters}
-            canExport={hasUserPermission(user, 'admin', 'export')}
+            canExport={canExportReport(user, 'administration')}
           />
         )}
       </div>

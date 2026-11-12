@@ -7,6 +7,7 @@ import { buildLogoUrl, useCompanySettings, useDeleteCompanyLogo, useUpdateCompan
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatDateTime } from '../../lib/formatters';
+import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
@@ -29,12 +30,14 @@ const toFormState = (data: CompanySettings): FormState => ({
 
 export const SettingsPage = () => {
   const user = useAuthStore((state) => state.user);
-  const canEdit = Boolean(user && ['desarrollador', 'admin'].includes(user.role));
-  const settingsQuery = useCompanySettings(canEdit);
+  const canView = Boolean(user && hasUserPermission(user, 'admin', 'read'));
+  const canEdit = Boolean(canView && user && hasUserPermission(user, 'admin', 'update'));
+  const settingsQuery = useCompanySettings(canView);
   const updateMutation = useUpdateCompanySettings();
   const uploadMutation = useUploadCompanyLogo();
   const deleteMutation = useDeleteCompanyLogo();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const submission = useRef(false);
   const [draft, setDraft] = useState<FormState | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [confirmRestore, setConfirmRestore] = useState(false);
@@ -59,7 +62,7 @@ export const SettingsPage = () => {
   };
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    if (!dirty || busy) return;
+    if (!canEdit || !dirty || busy || submission.current) return;
     updateMutation.reset();
     const result = updateCompanySettingsSchema.safeParse(form);
     if (!result.success) {
@@ -68,25 +71,31 @@ export const SettingsPage = () => {
       return;
     }
     setFieldErrors({});
+    submission.current = true;
     updateMutation.mutate(result.data, {
       onSuccess: () => { setDraft(null); notifySuccess('Configuración de la empresa actualizada.'); },
       onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo guardar la configuración.')),
+      onSettled: () => { submission.current = false; },
     });
   };
   const onPickFile = (file: File | undefined): void => {
-    if (!file || busy) return;
+    if (!canEdit || !file || busy || submission.current) return;
     if (!LOGO_TYPES.includes(file.type)) { notifyError('Selecciona un logo JPEG, PNG, WebP o SVG.'); return; }
     if (file.size > LOGO_MAX_MB * 1024 * 1024) { notifyError(`El logo no puede superar ${LOGO_MAX_MB} MB.`); return; }
+    submission.current = true;
     uploadMutation.mutate(file, {
       onSuccess: () => notifySuccess('Logo actualizado. Se aplicará en el login, el menú y los documentos.'),
       onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo subir el logo.')),
+      onSettled: () => { submission.current = false; },
     });
   };
   const removeLogo = (): void => {
-    if (busy) return;
+    if (!canEdit || busy || submission.current) return;
+    submission.current = true;
     deleteMutation.mutate(undefined, {
       onSuccess: () => { setConfirmRestore(false); notifySuccess('Se restauró el logo original del sistema.'); },
       onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo restaurar el logo.')),
+      onSettled: () => { submission.current = false; },
     });
   };
   const logoSrc = settingsQuery.data ? buildLogoUrl({ ...settingsQuery.data, tieneLogo: settingsQuery.data.logo.tieneLogo, logoUpdatedAt: settingsQuery.data.logo.updatedAt }) : '/marca.webp';
@@ -98,7 +107,7 @@ export const SettingsPage = () => {
       {fieldErrors[name] && <span id={`company-${name}-error`} className="administration-field-error">{fieldErrors[name]}</span>}
     </label>;
 
-  if (!canEdit) return <div className="administration-notice">Solo los administradores pueden ver y modificar la configuración de la empresa.</div>;
+  if (!canView) return <div className="administration-notice">No tienes permiso para ver la configuración de la empresa.</div>;
   if (settingsQuery.isPending) return <div className="administration-empty" role="status"><LoaderCircle className="animate-spin" aria-hidden="true" /><p>Cargando configuración</p></div>;
   if (settingsQuery.isError) return <div className="administration-alert" role="alert"><AlertCircle aria-hidden="true" />
     {getApiErrorMessage(settingsQuery.error, 'No fue posible cargar la configuración')}
@@ -107,12 +116,13 @@ export const SettingsPage = () => {
 
   return <div className="workspace-page workspace-settings administration-page settings-reference-page">
     <header className="administration-heading"><h1>Configuración</h1><p>Identidad y documentos de la empresa</p></header>
+    {!canEdit && <p role="status" className="administration-notice">Configuración de solo lectura. Se necesita permiso de edición de Administración para guardar cambios.{dirty ? ' Los datos escritos se conservan.' : ''}</p>}
     <section className="administration-settings-panel" aria-labelledby="settings-company-title">
       <header className="administration-panel-heading"><Building2 aria-hidden="true" /><div><h2 id="settings-company-title">Datos de la empresa</h2>
         <p>Esta información aparece en las órdenes de trabajo, cotizaciones y documentos del taller.</p></div></header>
       <form className="settings-company-form" onSubmit={submit} noValidate aria-busy={updateMutation.isPending}>
         {updateMutation.error && <div className="administration-alert" role="alert"><AlertCircle aria-hidden="true" />{getApiErrorMessage(updateMutation.error)}</div>}
-        <fieldset disabled={busy} className="administration-settings-fields">
+        <fieldset disabled={busy || !canEdit} className="administration-settings-fields">
           <div className="administration-form-grid">
             {renderField('razonSocial', 'Razón social *', { autoComplete: 'organization' })}
             {renderField('nombreComercial', 'Nombre comercial', { placeholder: 'UNITHOR' })}
@@ -135,7 +145,7 @@ export const SettingsPage = () => {
         </div><div>
           <button type="button" className="administration-secondary" disabled={!dirty || busy}
             onClick={() => { setDraft(null); setFieldErrors({}); updateMutation.reset(); }}><RotateCcw aria-hidden="true" />Descartar</button>
-          <button type="submit" className="administration-primary" disabled={!dirty || busy}>
+          <button type="submit" className="administration-primary" disabled={!canEdit || !dirty || busy}>
             {updateMutation.isPending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}Guardar cambios
           </button>
         </div></footer>
@@ -149,11 +159,11 @@ export const SettingsPage = () => {
         {!settingsQuery.data?.logo.tieneLogo && <p>Logo original del sistema</p>}
       </div><div className="administration-logo-controls">
         <p>JPEG, PNG, WebP o SVG de hasta {LOGO_MAX_MB} MB. Preferiblemente horizontal y con fondo transparente.</p>
-        <input ref={fileInputRef} type="file" accept={LOGO_TYPES.join(',')} className="sr-only" aria-label="Seleccionar logo" disabled={busy}
+        <input ref={fileInputRef} type="file" accept={LOGO_TYPES.join(',')} className="sr-only" aria-label="Seleccionar logo" disabled={busy || !canEdit}
           onChange={(event) => { onPickFile(event.target.files?.[0]); event.target.value = ''; }} />
-        <div><button type="button" className="administration-primary" disabled={busy} onClick={() => fileInputRef.current?.click()}>
+        <div><button type="button" className="administration-primary" disabled={busy || !canEdit} onClick={() => fileInputRef.current?.click()}>
           {uploadMutation.isPending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Upload aria-hidden="true" />}Subir logo</button>
-          {settingsQuery.data?.logo.tieneLogo && <button type="button" className="administration-secondary" disabled={busy}
+          {settingsQuery.data?.logo.tieneLogo && <button type="button" className="administration-secondary" disabled={busy || !canEdit}
             onClick={() => { deleteMutation.reset(); setConfirmRestore(true); }}><Trash2 aria-hidden="true" />Restaurar logo original</button>}
         </div>
         {uploadMutation.isPending && <p role="status">Subiendo logo…</p>}
@@ -165,6 +175,7 @@ export const SettingsPage = () => {
     {confirmRestore && <FormDialog id="restore-logo-title" title="Restaurar logo original" code="Identidad visual" context="Logo de la empresa"
       submitLabel="Restaurar logo" dirty={false} pending={deleteMutation.isPending} headerVariant="plain"
       className="administration-form administration-confirm settings-reference-dialog" statusText="Confirmación de identidad visual"
+      submitDisabled={!canEdit}
       onClose={() => setConfirmRestore(false)} onSubmit={(event) => { event.preventDefault(); removeLogo(); }}>
       <p>Se volverá a utilizar el logo original de UNITHOR en el sistema y en los documentos.</p>
       {deleteMutation.error && <p role="alert" className="administration-alert">{getApiErrorMessage(deleteMutation.error)}</p>}

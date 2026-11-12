@@ -161,7 +161,7 @@ describe('VehicleDetailPage', () => {
     expect(within(detailDialog).getByRole('tab', { name: /Cotizaciones/ })).toHaveFocus();
     expect(await screen.findByText('COT-2026-0041')).toBeInTheDocument();
     expect(screen.queryByText('OT-2026-0031')).not.toBeInTheDocument();
-    expect(screen.getByText('$100.000')).toBeInTheDocument();
+    expect(screen.getByText('$128.500')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Nueva OT' })).toHaveAttribute(
       'href',
       '/work-orders/new?vehicleId=12',

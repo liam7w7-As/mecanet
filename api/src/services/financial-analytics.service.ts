@@ -1,3 +1,4 @@
+import { getQuotationGrossTotal } from '@unithor/shared';
 import { Op } from 'sequelize';
 
 import { CashMovement } from '../models/CashMovement.js';
@@ -173,6 +174,9 @@ export interface FinancialReportData {
 const DAY_MS = 86_400_000;
 const money = (value: number | string | null | undefined): number =>
   Math.round(Number(value ?? 0) * 100) / 100;
+/** Total de cotización con IVA, que es el monto efectivamente cobrado. */
+const quotationTotal = (value: number | string | null | undefined): number =>
+  getQuotationGrossTotal(Number(value ?? 0));
 
 const startOfDay = (date: string): Date => new Date(`${date}T00:00:00.000Z`);
 const endOfDay = (date: string): Date => new Date(`${date}T23:59:59.999Z`);
@@ -351,7 +355,6 @@ const loadDataset = async (
           attributes: ['id', 'codigo'],
           where: quotationWhere,
           required: true,
-          paranoid: false,
         },
         {
           model: CatalogItem,
@@ -369,7 +372,7 @@ const loadDataset = async (
 };
 
 const calculateKpis = (dataset: FinancialDataset): FinancialKpis => {
-  const grossSales = money(dataset.quotations.reduce((sum, item) => sum + money(item.total), 0));
+  const grossSales = money(dataset.quotations.reduce((sum, item) => sum + quotationTotal(item.total), 0));
   const paidOnQuotations = money(
     dataset.quotations.reduce((sum, item) => sum + money(item.pagado), 0),
   );
@@ -386,7 +389,7 @@ const calculateKpis = (dataset: FinancialDataset): FinancialKpis => {
   );
   const receivable = money(
     dataset.quotations.reduce(
-      (sum, item) => sum + Math.max(0, money(item.total) - money(item.pagado)),
+      (sum, item) => sum + Math.max(0, quotationTotal(item.total) - money(item.pagado)),
       0,
     ),
   );
@@ -451,7 +454,7 @@ const buildTopSellers = (
   dataset.quotations.forEach((quotation) => {
     const row = ensure(quotation.asesor?.id ?? null, quotation.asesor?.nombre ?? 'Sin asesor');
     row.quotationCount += 1;
-    row.grossSales = money(row.grossSales + money(quotation.total));
+    row.grossSales = money(row.grossSales + quotationTotal(quotation.total));
   });
   dataset.payments.forEach((payment) => {
     const row = ensure(
@@ -523,9 +526,9 @@ const buildTopClients = (dataset: FinancialDataset): FinancialAnalytics['topClie
       quotation.client?.rut ?? null,
     );
     row.quotationCount += 1;
-    row.grossSales = money(row.grossSales + money(quotation.total));
+    row.grossSales = money(row.grossSales + quotationTotal(quotation.total));
     row.receivable = money(
-      row.receivable + Math.max(0, money(quotation.total) - money(quotation.pagado)),
+      row.receivable + Math.max(0, quotationTotal(quotation.total) - money(quotation.pagado)),
     );
   });
   dataset.payments.forEach((payment) => {
@@ -575,7 +578,7 @@ const buildQuotationStatuses = (
       share: 0,
     };
     row.count += 1;
-    row.amount = money(row.amount + money(quotation.total));
+    row.amount = money(row.amount + quotationTotal(quotation.total));
     statuses.set(quotation.estadoPago, row);
   });
   return [...statuses.values()]
@@ -657,7 +660,7 @@ const buildTrend = (
   }
   dataset.quotations.forEach((quotation) => {
     const row = ensure(quotation.createdAt);
-    row.grossSales = money(row.grossSales + money(quotation.total));
+    row.grossSales = money(row.grossSales + quotationTotal(quotation.total));
   });
   dataset.payments.forEach((payment) => {
     const row = ensure(payment.fecha);
@@ -803,9 +806,9 @@ export const getFinancialReportData = async (
       advisor: quotation.asesor?.nombre ?? 'Sin asesor',
       status: quotation.estadoPago,
       subtotal: money(quotation.subtotal),
-      total: money(quotation.total),
+      total: quotationTotal(quotation.total),
       paid: money(quotation.pagado),
-      receivable: money(Math.max(0, money(quotation.total) - money(quotation.pagado))),
+      receivable: money(Math.max(0, quotationTotal(quotation.total) - money(quotation.pagado))),
       workOrderLinked: quotation.workOrderId !== null,
     })),
     payments: current.payments.map((payment) => ({

@@ -1,4 +1,4 @@
-import { calculateQuotationPricing, createQuotationSchema, QUOTATION_PAYMENT_LABELS } from '@unithor/shared';
+import { calculateQuotationPricing, createQuotationSchema, getQuotationTaxBreakdown, QUOTATION_PAYMENT_LABELS } from '@unithor/shared';
 import { AlertCircle, ArrowLeft, CheckCircle2, ClipboardCheck, LoaderCircle, Plus, ReceiptText, Save, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -271,21 +271,9 @@ const QuotationCreateConfirm = ({
   onConfirm: () => void;
 }) => {
   const setPanelNode = useModalOverlay({ isOpen: true, onClose, isPending });
-  let subtotal = 0;
-  let discounts = 0;
-  let total = 0;
-  try {
-    const pricing = calculateQuotationPricing(items, commercial);
-    subtotal = pricing.subtotal;
-    discounts = pricing.descuentoLineas + pricing.descuentoGeneral;
-    total = pricing.total;
-  } catch {
-    total = items.reduce(
-      (sum, item) => sum + Math.max(0, Number(item.cantidad) || 0) * Math.max(0, Number(item.precioUnitario) || 0),
-      0,
-    );
-    subtotal = total;
-  }
+  const pricing = calculateQuotationPricing(items, commercial);
+  const tax = getQuotationTaxBreakdown(pricing.total);
+  const discounts = pricing.descuentoTotal;
 
   return createPortal(
     <div className="reference-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
@@ -336,16 +324,24 @@ const QuotationCreateConfirm = ({
             <dd className="font-semibold text-brand-ink">{items.length}</dd>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="text-brand-muted">Subtotal</dt>
-            <dd className="font-semibold text-brand-ink">{formatClp(subtotal)}</dd>
+            <dt className="text-brand-muted">Importe sin descuentos</dt>
+            <dd className="font-semibold text-brand-ink">{formatClp(pricing.subtotal)}</dd>
           </div>
           <div className="flex items-center justify-between gap-3">
             <dt className="text-brand-muted">Descuentos</dt>
             <dd className="font-semibold text-brand-mintInk">{discounts > 0 ? `- ${formatClp(discounts)}` : '$0'}</dd>
           </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-brand-muted">Subtotal neto</dt>
+            <dd className="font-semibold text-brand-ink">{formatClp(tax.neto)}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-brand-muted">IVA (19%)</dt>
+            <dd className="font-semibold text-brand-ink">{formatClp(tax.iva)}</dd>
+          </div>
           <div className="flex items-center justify-between gap-3 border-t-2 border-brand-primaryInk pt-3 text-base font-bold text-brand-primaryInk">
-            <dt>Total</dt>
-            <dd>{formatClp(total)}</dd>
+            <dt>Total con IVA</dt>
+            <dd data-testid="quotation-confirm-total">{formatClp(tax.total)}</dd>
           </div>
         </dl>
         <section className="commercial-confirm-items" aria-label="Conceptos a emitir">

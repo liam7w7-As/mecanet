@@ -1,5 +1,6 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { useSalesScopeEpoch } from './useSalesScopeEpoch';
 import { api } from '../lib/api';
 
 import type { PaginatedResponse, Quotation, WorkOrder } from '../types/entities';
@@ -29,8 +30,9 @@ export const quotationKeys = {
   detail: (id: number) => [...quotationKeys.details(), id] as const,
 };
 
-export const useQuotations = (queryParams: QuotationQueryParams, enabled = true) =>
-  useQuery({
+export const useQuotations = (queryParams: QuotationQueryParams, enabled = true) => {
+  const epoch = useSalesScopeEpoch();
+  return useQuery({
     queryKey: quotationKeys.list(queryParams),
     queryFn: async () => {
       const response = await api.get<PaginatedResponse<Quotation>>('/quotations', {
@@ -39,9 +41,11 @@ export const useQuotations = (queryParams: QuotationQueryParams, enabled = true)
       return response.data;
     },
     enabled,
-    placeholderData: keepPreviousData,
+    meta: { salesScopeEpoch: epoch },
+    placeholderData: (previous, query) => query?.meta?.salesScopeEpoch === epoch ? previous : undefined,
     refetchInterval: 60_000,
   });
+};
 
 export const useQuotation = (id: number) =>
   useQuery({

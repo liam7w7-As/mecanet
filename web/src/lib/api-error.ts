@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 interface ApiErrorBody {
   error?: {
@@ -7,6 +7,20 @@ interface ApiErrorBody {
     details?: unknown;
   };
 }
+
+/** Downloads return error bodies as Blob too; keep the API's useful message. */
+export const normalizeBlobApiError = async (error: unknown): Promise<unknown> => {
+  if (!axios.isAxiosError<unknown>(error) || !(error.response?.data instanceof Blob)) return error;
+  try {
+    const body: unknown = JSON.parse(await error.response.data.text());
+    if (body && typeof body === 'object' && 'error' in body && body.error && typeof body.error === 'object' && 'message' in body.error && typeof body.error.message === 'string') {
+      return new AxiosError(error.message, error.code, error.config, error.request, {
+        ...error.response, data: { error: { message: body.error.message } },
+      });
+    }
+  } catch { /* A proxy error may be HTML instead of JSON. */ }
+  return error;
+};
 
 export const isApiConflict = (error: unknown): boolean =>
   axios.isAxiosError<ApiErrorBody>(error) && error.response?.status === 409;

@@ -1,6 +1,6 @@
-import { getWorkOrderStatusLabel } from '@unithor/shared';
+import { getQuotationGrossTotal, getWorkOrderStatusLabel } from '@unithor/shared';
 import ExcelJS from 'exceljs';
-import { Op } from 'sequelize';
+import { col, Op, where as sequelizeWhere } from 'sequelize';
 
 import { quotationWhere, salesScopeFromFilters, scopeSalesAssociations, workOrderWhere } from './sales-access.service.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -22,7 +22,13 @@ import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { getReportBranding } from './reports/report-branding.js';
 import { ReportDocument } from './reports/report-layout.js';
+import { ApiError } from '../utils/ApiError.js';
 
+import type { CatalogItemPublic } from './catalog.service.js';
+import type { ClientPublic } from './client.service.js';
+import type { UserPublic } from './user.service.js';
+import type { VehiclePublic } from './vehicle.service.js';
+import type { StockMovementPublic } from './warehouse.service.js';
 import type {
   CatalogReportFilters,
   CommercialReportFilters,
@@ -72,6 +78,9 @@ const startOfDayUtc = (date: string): Date => new Date(`${date}T00:00:00.000Z`);
 const endOfDayUtc = (date: string): Date => new Date(`${date}T23:59:59.999Z`);
 
 const asNumber = (value: number | string | null | undefined): number => Number(value ?? 0);
+/** Monto de cotización con IVA para los reportes financieros. */
+const asQuotationTotal = (value: number | string | null | undefined): number =>
+  getQuotationGrossTotal(asNumber(value));
 
 const money = (value: number | string | null | undefined): string =>
   new Intl.NumberFormat('es-CL', {
@@ -131,7 +140,7 @@ const buildCommercialWhere = (
   if (filters.clientId !== undefined) where.clientId = filters.clientId;
   if (filters.vehicleId !== undefined) where.vehicleId = filters.vehicleId;
   if (filters.workOrderId !== undefined) where.workOrderId = filters.workOrderId;
-  if (filters.workOrderLinked !== undefined) {
+  if (filters.workOrderLinked !== undefined && filters.workOrderId === undefined) {
     where.workOrderId = filters.workOrderLinked ? { [Op.not]: null } : { [Op.is]: null };
   }
   if (filters.search) {
@@ -139,18 +148,28 @@ const buildCommercialWhere = (
     where[Op.or] = [
       { codigo: { [Op.like]: like } },
       { notas: { [Op.like]: like } },
+      sequelizeWhere(col('client.nombre'), { [Op.like]: like }),
+      sequelizeWhere(col('client.rut'), { [Op.like]: like }),
+      sequelizeWhere(col('vehicle.patente'), { [Op.like]: like }),
     ];
   }
   applyQuotationVisibility(where, filters);
   return where;
 };
 
-const buildWorkshopWhere = (filters: WorkshopReportFilters & SalesReportScope): WorkOrderWhere => {
+const buildWorkshopWhere = (filters: WorkshopReportFilters & SalesReportScope, itemAssignedOrderIds: number[] = []): WorkOrderWhere => {
   const where: WorkOrderWhere = {
     fechaIngreso: { [Op.between]: [startOfDayUtc(filters.fechaDesde), endOfDayUtc(filters.fechaHasta)] },
   };
   if (filters.estado !== undefined) where.estado = filters.estado;
-  if (filters.mechanicId !== undefined) where.assignedMechanicId = filters.mechanicId;
+  if (filters.mechanicId !== undefined) {
+    where[Op.and] = [{
+      [Op.or]: [
+        { assignedMechanicId: filters.mechanicId },
+        ...(itemAssignedOrderIds.length ? [{ id: { [Op.in]: itemAssignedOrderIds } }] : []),
+      ],
+    }];
+  }
   if (filters.clientId !== undefined) where.clientId = filters.clientId;
   if (filters.vehicleId !== undefined) where.vehicleId = filters.vehicleId;
   if (filters.search) {
@@ -160,6 +179,9 @@ const buildWorkshopWhere = (filters: WorkshopReportFilters & SalesReportScope): 
       { descripcion: { [Op.like]: like } },
       { contactName: { [Op.like]: like } },
       { billingName: { [Op.like]: like } },
+      sequelizeWhere(col('client.nombre'), { [Op.like]: like }),
+      sequelizeWhere(col('client.rut'), { [Op.like]: like }),
+      sequelizeWhere(col('vehicle.patente'), { [Op.like]: like }),
     ];
   }
   applyWorkOrderVisibility(where, filters);
@@ -283,6 +305,10 @@ const getCommercialPayments = (filters: CommercialReportFilters & SalesReportSco
   Payment.findAll({
     where: {
       fecha: { [Op.between]: [startOfDayUtc(filters.fechaDesde), endOfDayUtc(filters.fechaHasta)] },
+      ...(filters.search ? {
+        [Op.or]: ['quotation.codigo', 'quotation.notas', 'quotation->client.nombre', 'quotation->client.rut', 'quotation->vehicle.patente']
+          .map((field) => sequelizeWhere(col(field), { [Op.like]: `%${filters.search}%` })),
+      } : {}),
     },
     include: [
       { model: User, as: 'creator', attributes: ['id', 'nombre'], required: false },
@@ -290,7 +316,7 @@ const getCommercialPayments = (filters: CommercialReportFilters & SalesReportSco
         model: Quotation,
         as: 'quotation',
         attributes: ['id', 'codigo', 'estadoPago', 'asesorId', 'clientId', 'vehicleId', 'workOrderId'],
-        where: buildCommercialWhere(filters, false),
+        where: buildCommercialWhere({ ...filters, search: undefined }, false),
         required: true,
         include: [
           { model: Client, as: 'client', attributes: ['id', 'nombre', 'rut'], required: false },
@@ -304,9 +330,14 @@ const getCommercialPayments = (filters: CommercialReportFilters & SalesReportSco
     ],
   });
 
-const getWorkshopWorkOrders = (filters: WorkshopReportFilters & SalesReportScope): Promise<WorkOrder[]> =>
-  WorkOrder.findAll({
-    where: buildWorkshopWhere(filters),
+const getWorkshopWorkOrders = async (filters: WorkshopReportFilters & SalesReportScope): Promise<WorkOrder[]> => {
+  const assignedItems = filters.mechanicId === undefined ? [] : await WorkOrderItem.findAll({
+    attributes: ['workOrderId'],
+    where: { assignedUserId: filters.mechanicId },
+    group: ['workOrderId'],
+  });
+  return WorkOrder.findAll({
+    where: buildWorkshopWhere(filters, assignedItems.map((item) => item.workOrderId)),
     include: scopeSalesAssociations(workshopIncludes, salesScopeFromFilters(filters)),
     order: [
       ['fechaIngreso', 'ASC'],
@@ -316,6 +347,7 @@ const getWorkshopWorkOrders = (filters: WorkshopReportFilters & SalesReportScope
       [{ model: WorkOrderRequest, as: 'requests' }, 'createdAt', 'ASC'],
     ],
   });
+};
 
 const setupWorkbook = (): ExcelJS.Workbook => {
   const workbook = new ExcelJS.Workbook();
@@ -497,9 +529,9 @@ export async function generateDetailedCommercialReportExcel(filters: CommercialR
       advisor: quotation.asesor?.nombre ?? '',
       workOrder: quotation.workOrder?.codigo ?? 'Sin OT',
       status: humanize(quotation.estadoPago),
-      total: asNumber(quotation.total),
+      total: asQuotationTotal(quotation.total),
       paid: asNumber(quotation.pagado),
-      balance: Math.max(0, asNumber(quotation.total) - asNumber(quotation.pagado)),
+      balance: Math.max(0, asQuotationTotal(quotation.total) - asNumber(quotation.pagado)),
       notes: quotation.notas ?? '',
     })),
     'TOTALES GENERALES',
@@ -577,9 +609,12 @@ export async function generateCommercialReportPdf(filters: CommercialReportFilte
     getCommercialQuotations(filters),
     getCommercialPayments(filters),
   ]);
-  const total = quotations.reduce((sum, quotation) => sum + asNumber(quotation.total), 0);
+  const total = quotations.reduce((sum, quotation) => sum + asQuotationTotal(quotation.total), 0);
   const paid = quotations.reduce((sum, quotation) => sum + asNumber(quotation.pagado), 0);
-  const pending = Math.max(0, total - paid);
+  const pending = quotations.reduce(
+    (sum, quotation) => sum + Math.max(0, asQuotationTotal(quotation.total) - asNumber(quotation.pagado)),
+    0,
+  );
   const doc = await createReportDocument(
     'Reporte comercial detallado',
     commercialSubtitle(filters),
@@ -608,7 +643,7 @@ export async function generateCommercialReportPdf(filters: CommercialReportFilte
       vehicle: quotationVehicleLabel(quotation),
       workOrder: quotation.workOrder?.codigo ?? 'Sin OT',
       status: humanize(quotation.estadoPago),
-      total: money(quotation.total),
+      total: money(asQuotationTotal(quotation.total)),
     })),
   );
   doc.section('Servicios y repuestos ofrecidos').table(
@@ -653,10 +688,10 @@ export async function generateCommercialReportPdf(filters: CommercialReportFilte
 }
 
 const workOrderProgress = (workOrder: WorkOrder): number => {
-  const items = workOrder.items ?? [];
+  const items = (workOrder.items ?? []).filter((item) => item.estadoOperativo !== 'omitido');
   if (items.length === 0) return 0;
   const completed = items.filter((item) => item.estadoOperativo === 'completado').length;
-  return Math.round((completed / items.length) * 100);
+  return completed === items.length ? 100 : Math.min(99, Math.round((completed / items.length) * 100));
 };
 
 export async function generateWorkshopReportExcel(filters: WorkshopReportFilters & SalesReportScope): Promise<Buffer> {
@@ -687,7 +722,7 @@ export async function generateWorkshopReportExcel(filters: WorkshopReportFilters
     ],
     workOrders.map((workOrder) => {
       const quotation = workOrder.quotation;
-      const total = quotation ? asNumber(quotation.total) : 0;
+      const total = quotation ? asQuotationTotal(quotation.total) : 0;
       const paid = quotation ? asNumber(quotation.pagado) : 0;
       return {
         code: workOrder.codigo,
@@ -818,7 +853,7 @@ export async function generateWorkshopReportExcel(filters: WorkshopReportFilters
 export async function generateWorkshopReportPdf(filters: WorkshopReportFilters & SalesReportScope): Promise<Uint8Array> {
   const workOrders = await getWorkshopWorkOrders(filters);
   const active = workOrders.filter((order) => !['entregada', 'cancelada'].includes(order.estado)).length;
-  const linkedQuotationTotal = workOrders.reduce((sum, order) => sum + asNumber(order.quotation?.total), 0);
+  const linkedQuotationTotal = workOrders.reduce((sum, order) => sum + asQuotationTotal(order.quotation?.total), 0);
   const linkedPaid = workOrders.reduce((sum, order) => sum + asNumber(order.quotation?.pagado), 0);
   const doc = await createReportDocument(
     'Reporte de taller y progreso de OT',
@@ -991,8 +1026,10 @@ const getInventoryData = async (filters: InventoryReportFilters) => {
   if (filters.catalogItemId !== undefined) movementWhere.catalogItemId = filters.catalogItemId;
   if (filters.tipo !== undefined) movementWhere.tipo = filters.tipo;
 
-  const [warehouses, balances, movements] = await Promise.all([
-    Warehouse.findAll({ order: [['nombre', 'ASC']] }),
+  const [warehouseOptions, balances, movements] = await Promise.all([
+    Warehouse.findAll({
+      order: [['nombre', 'ASC']],
+    }),
     StockBalance.findAll({
       where: balanceWhere,
       include: [
@@ -1017,14 +1054,7 @@ const getInventoryData = async (filters: InventoryReportFilters) => {
           model: CatalogItem,
           as: 'catalogItem',
           attributes: ['id', 'codigo', 'nombre'],
-          where: filters.search
-            ? {
-                [Op.or]: [
-                  { codigo: { [Op.like]: `%${filters.search}%` } },
-                  { nombre: { [Op.like]: `%${filters.search}%` } },
-                ],
-              }
-            : undefined,
+          where: filters.search ? catalogWhere : undefined,
           required: Boolean(filters.search),
         },
         { model: Warehouse, as: 'warehouse', attributes: ['id', 'codigo', 'nombre'], required: true },
@@ -1046,7 +1076,16 @@ const getInventoryData = async (filters: InventoryReportFilters) => {
     return true;
   });
 
-  return { warehouses, balances: filteredBalances, movements };
+  // Stock describes the current balance of the same item in the same warehouse.
+  // Apply it to the movement table too, so preview and both exports share it.
+  const balanceKeys = new Set(filteredBalances.map((balance) => `${balance.warehouseId}:${balance.catalogItemId}`));
+  const filteredMovements = filters.stock === 'todos'
+    ? movements
+    : movements.filter((movement) => balanceKeys.has(`${movement.warehouseId}:${movement.catalogItemId}`));
+  const warehouses = filters.warehouseId === undefined
+    ? warehouseOptions
+    : warehouseOptions.filter((warehouse) => warehouse.id === filters.warehouseId);
+  return { warehouses, warehouseOptions, balances: filteredBalances, movements: filteredMovements };
 };
 
 export async function generateInventoryReportExcel(filters: InventoryReportFilters): Promise<Buffer> {
@@ -1213,6 +1252,7 @@ export async function generateInventoryReportPdf(filters: InventoryReportFilters
 
 const getCatalogUsageData = async (filters: CatalogReportFilters & SalesReportScope) => {
   const catalogWhere = buildCatalogWhere(filters);
+  const filterCatalogLines = Boolean(filters.tipo || filters.search || filters.stock !== 'todos');
   const [items, quotedItems, workItems] = await Promise.all([
     CatalogItem.findAll({
       where: catalogWhere,
@@ -1235,7 +1275,7 @@ const getCatalogUsageData = async (filters: CatalogReportFilters & SalesReportSc
           as: 'catalogItem',
           attributes: ['id', 'codigo', 'nombre', 'tipo'],
           where: catalogWhere,
-          required: false,
+          required: filterCatalogLines,
         },
       ],
       order: [['createdAt', 'ASC']],
@@ -1257,7 +1297,7 @@ const getCatalogUsageData = async (filters: CatalogReportFilters & SalesReportSc
           as: 'catalogItem',
           attributes: ['id', 'codigo', 'nombre', 'tipo'],
           where: catalogWhere,
-          required: false,
+          required: filterCatalogLines,
         },
       ],
       order: [['createdAt', 'ASC']],
@@ -1490,6 +1530,7 @@ const getFleetData = async (filters: FleetReportFilters & SalesReportScope) => {
 
   if (filters.clientType !== undefined) clientWhere.tipo = filters.clientType;
   if (filters.clientId !== undefined) clientWhere.id = filters.clientId;
+  if (filters.clientId !== undefined) vehicleWhere.clientId = filters.clientId;
   if (filters.vehicleId !== undefined) vehicleWhere.id = filters.vehicleId;
   if (filters.search) {
     const like = `%${filters.search}%`;
@@ -1507,17 +1548,27 @@ const getFleetData = async (filters: FleetReportFilters & SalesReportScope) => {
     ];
   }
 
-  const [clients, vehicles, workOrders, quotations] = await Promise.all([
-    Client.findAll({ where: clientWhere, order: [['nombre', 'ASC']] }),
+  const [clients, vehicles, allWorkOrders, allQuotations] = await Promise.all([
+    Client.findAll({
+      where: clientWhere,
+      include: [{ model: Vehicle, as: 'vehicles', attributes: ['id'], required: false }],
+      order: [['nombre', 'ASC'], ['id', 'ASC']],
+    }),
     Vehicle.findAll({
       where: vehicleWhere,
-      include: [{ model: Client, as: 'client', attributes: ['id', 'rut', 'nombre'], required: false }],
+      include: [{
+        model: Client,
+        as: 'client',
+        attributes: ['id', 'rut', 'nombre', 'tipo', 'telefono'],
+        ...(filters.clientType !== undefined ? { where: { tipo: filters.clientType } } : {}),
+        required: filters.clientType !== undefined,
+      }],
       order: [['patente', 'ASC']],
     }),
     WorkOrder.findAll({
       where: { fechaIngreso: activityRange, ...workOrderWhere(salesScopeFromFilters(filters)) },
       include: [
-        { model: Client, as: 'client', attributes: ['id', 'rut', 'nombre'], required: false },
+        { model: Client, as: 'client', attributes: ['id', 'rut', 'nombre', 'tipo'], required: false },
         { model: Vehicle, as: 'vehicle', attributes: ['id', 'patente', 'marca', 'modelo'], required: false },
       ],
       order: [['fechaIngreso', 'ASC']],
@@ -1525,12 +1576,24 @@ const getFleetData = async (filters: FleetReportFilters & SalesReportScope) => {
     Quotation.findAll({
       where: { createdAt: activityRange, ...quotationWhere(salesScopeFromFilters(filters)) },
       include: [
-        { model: Client, as: 'client', attributes: ['id', 'rut', 'nombre'], required: false },
+        { model: Client, as: 'client', attributes: ['id', 'rut', 'nombre', 'tipo'], required: false },
         { model: Vehicle, as: 'vehicle', attributes: ['id', 'patente', 'marca', 'modelo'], required: false },
       ],
       order: [['createdAt', 'ASC']],
     }),
   ]);
+
+  const clientIds = new Set(clients.map((client) => client.id));
+  const vehicleIds = new Set(vehicles.map((vehicle) => vehicle.id));
+  const matchesHistory = (record: WorkOrder | Quotation): boolean =>
+    (filters.clientId === undefined || record.clientId === filters.clientId) &&
+    (filters.vehicleId === undefined || record.vehicleId === filters.vehicleId) &&
+    (filters.clientType === undefined || record.client?.tipo === filters.clientType) &&
+    (!filters.search ||
+      (record.clientId !== null && clientIds.has(record.clientId)) ||
+      (record.vehicleId !== null && vehicleIds.has(record.vehicleId)));
+  const workOrders = allWorkOrders.filter(matchesHistory);
+  const quotations = allQuotations.filter(matchesHistory);
 
   const clientCounters = new Map<number, HistoryCounters>();
   const vehicleCounters = new Map<number, HistoryCounters>();
@@ -1556,7 +1619,7 @@ const getFleetData = async (filters: FleetReportFilters & SalesReportScope) => {
     if (quotation.clientId !== null) {
       const current = clientCounters.get(quotation.clientId) ?? emptyCounters();
       current.quotations += 1;
-      current.total += asNumber(quotation.total);
+      current.total += asQuotationTotal(quotation.total);
       current.paid += asNumber(quotation.pagado);
       current.lastActivity = bumpDate(current.lastActivity, quotation.createdAt);
       clientCounters.set(quotation.clientId, current);
@@ -1564,19 +1627,21 @@ const getFleetData = async (filters: FleetReportFilters & SalesReportScope) => {
     if (quotation.vehicleId !== null) {
       const current = vehicleCounters.get(quotation.vehicleId) ?? emptyCounters();
       current.quotations += 1;
-      current.total += asNumber(quotation.total);
+      current.total += asQuotationTotal(quotation.total);
       current.paid += asNumber(quotation.pagado);
       current.lastActivity = bumpDate(current.lastActivity, quotation.createdAt);
       vehicleCounters.set(quotation.vehicleId, current);
     }
   });
 
+  const selectedClients = filters.vehicleId === undefined ? clients
+    : clients.filter((client) => vehicles.some((vehicle) => vehicle.clientId === client.id));
   const filteredClients = filters.onlyWithHistory
-    ? clients.filter((client) => {
+    ? selectedClients.filter((client) => {
         const counters = clientCounters.get(client.id);
         return Boolean(counters && (counters.workOrders > 0 || counters.quotations > 0));
       })
-    : clients;
+    : selectedClients;
   const filteredVehicles = filters.onlyWithHistory
     ? vehicles.filter((vehicle) => {
         const counters = vehicleCounters.get(vehicle.id);
@@ -1714,7 +1779,7 @@ export async function generateFleetReportExcel(filters: FleetReportFilters & Sal
       client: quotation.client?.nombre ?? '',
       vehicle: quotationVehicleLabel(quotation),
       status: humanize(quotation.estadoPago),
-      total: asNumber(quotation.total),
+      total: asQuotationTotal(quotation.total),
       paid: asNumber(quotation.pagado),
     })),
     'TOTAL HISTORIAL COT',
@@ -1725,7 +1790,7 @@ export async function generateFleetReportExcel(filters: FleetReportFilters & Sal
 
 export async function generateFleetReportPdf(filters: FleetReportFilters & SalesReportScope): Promise<Uint8Array> {
   const { clients, vehicles, workOrders, quotations, clientCounters, vehicleCounters } = await getFleetData(filters);
-  const quotedTotal = quotations.reduce((sum, quotation) => sum + asNumber(quotation.total), 0);
+  const quotedTotal = quotations.reduce((sum, quotation) => sum + asQuotationTotal(quotation.total), 0);
   const doc = await createReportDocument(
     'Reporte de clientes, vehículos e historial',
     fleetSubtitle(filters),
@@ -1817,8 +1882,8 @@ const buildUserWhere = (filters: AdministrationReportFilters): UserWhere => {
   return where;
 };
 
-const getAdministrationReportData = async (filters: AdministrationReportFilters) => {
-  const users = await User.findAll({
+const getAdministrationUsers = (filters: AdministrationReportFilters): Promise<User[]> =>
+  User.findAll({
     where: buildUserWhere(filters),
     include: [
       {
@@ -1838,6 +1903,164 @@ const getAdministrationReportData = async (filters: AdministrationReportFilters)
     order: [['nombre', 'ASC']],
   });
 
+const PREVIEW_LIMIT = 10;
+
+interface InventoryBalancePreview {
+  warehouseId: number;
+  catalogItemId: number;
+  codigo: string | null;
+  nombre: string;
+  cantidad: number;
+  warehouseCodigo: string;
+  warehouseNombre: string;
+}
+
+/** Preview DTOs are explicit: Sequelize associations and private fields never leave here. */
+export async function getInventoryReportPreview(filters: InventoryReportFilters): Promise<{
+  items: StockMovementPublic[];
+  total: number;
+  balances: { items: InventoryBalancePreview[]; total: number };
+  warehouses: Array<{ id: number; codigo: string; nombre: string; activo: boolean }>;
+}> {
+  const { warehouseOptions, balances, movements } = await getInventoryData(filters);
+  return {
+    warehouses: warehouseOptions.map((warehouse) => ({
+      id: warehouse.id, codigo: warehouse.codigo, nombre: warehouse.nombre, activo: warehouse.activo,
+    })),
+    balances: {
+      total: balances.length,
+      items: balances.slice(0, PREVIEW_LIMIT).map((balance) => ({
+        warehouseId: balance.warehouseId,
+        catalogItemId: balance.catalogItemId,
+        codigo: balance.catalogItem?.codigo ?? null,
+        nombre: balance.catalogItem?.nombre ?? 'Ítem eliminado',
+        cantidad: Number(balance.cantidad),
+        warehouseCodigo: balance.warehouse?.codigo ?? '',
+        warehouseNombre: balance.warehouse?.nombre ?? '',
+      })),
+    },
+    total: movements.length,
+    items: movements.slice(0, PREVIEW_LIMIT).map((movement) => ({
+      id: movement.id,
+      catalogItemId: movement.catalogItemId,
+      warehouseId: movement.warehouseId,
+      tipo: movement.tipo,
+      cantidad: Number(movement.cantidad),
+      saldoResultante: Number(movement.saldoResultante),
+      motivo: movement.motivo,
+      referencia: movement.referencia,
+      createdBy: movement.createdBy,
+      fecha: movement.fecha,
+      codigo: movement.catalogItem?.codigo ?? null,
+      nombre: movement.catalogItem?.nombre ?? 'Ítem eliminado',
+      warehouseCodigo: movement.warehouse?.codigo ?? '',
+      warehouseNombre: movement.warehouse?.nombre ?? '',
+    })),
+  };
+}
+
+export async function getCatalogReportPreview(filters: CatalogReportFilters & SalesReportScope): Promise<{ items: CatalogItemPublic[]; total: number }> {
+  const { items } = await getCatalogUsageData(filters);
+  return {
+    total: items.length,
+    items: items.slice(0, PREVIEW_LIMIT).map((item) => ({
+      id: item.id,
+      tipo: item.tipo,
+      codigo: item.codigo,
+      nombre: item.nombre,
+      descripcion: item.descripcion,
+      unidadMedida: item.unidadMedida,
+      precio: Number(item.precio),
+      stock: Number(item.stock),
+      stockMinimo: Number(item.stockMinimo ?? 0),
+      horasHombreEstandar: item.horasHombreEstandar == null ? null : Number(item.horasHombreEstandar),
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    })),
+  };
+}
+
+export async function getFleetReportPreview(filters: FleetReportFilters & SalesReportScope): Promise<{
+  clients: { items: Array<ClientPublic & { vehiclesCount: number }>; total: number };
+  vehicles: { items: VehiclePublic[]; total: number };
+}> {
+  const { clients, vehicles } = await getFleetData(filters);
+  return {
+    clients: {
+      total: filters.scope === 'vehicles' ? 0 : clients.length,
+      items: filters.scope === 'vehicles' ? [] : clients.slice(0, PREVIEW_LIMIT).map((client) => ({
+        id: client.id,
+        rut: client.rut,
+        nombre: client.nombre,
+        tipo: client.tipo,
+        email: client.email,
+        telefono: client.telefono,
+        direccion: client.direccion,
+        region: client.region,
+        comuna: client.comuna,
+        notas: client.notas,
+        createdAt: client.createdAt,
+        updatedAt: client.updatedAt,
+        vehiclesCount: client.vehicles?.length ?? 0,
+      })),
+    },
+    vehicles: {
+      total: filters.scope === 'clients' ? 0 : vehicles.length,
+      items: filters.scope === 'clients' ? [] : vehicles.slice(0, PREVIEW_LIMIT).map((vehicle) => ({
+        id: vehicle.id,
+        patente: vehicle.patente,
+        marca: vehicle.marca,
+        modelo: vehicle.modelo,
+        ano: vehicle.ano,
+        color: vehicle.color,
+        vinChasis: vehicle.vinChasis,
+        motor: vehicle.motor,
+        kilometraje: vehicle.kilometraje,
+        combustible: vehicle.combustible,
+        transmision: vehicle.transmision,
+        clientId: vehicle.clientId,
+        createdAt: vehicle.createdAt,
+        updatedAt: vehicle.updatedAt,
+        client: vehicle.client ? {
+          id: vehicle.client.id,
+          rut: vehicle.client.rut,
+          nombre: vehicle.client.nombre,
+          tipo: vehicle.client.tipo,
+          telefono: vehicle.client.telefono,
+        } : null,
+      })),
+    },
+  };
+}
+
+export async function getAdministrationReportPreview(filters: AdministrationReportFilters): Promise<{
+  data: Array<UserPublic & { deletedAt: Date | null }>;
+  meta: { total: number };
+}> {
+  // Share the report's user query, without loading sessions for a public preview.
+  const users = await getAdministrationUsers(filters);
+  return {
+    meta: { total: users.length },
+    data: users.slice(0, PREVIEW_LIMIT).map((user) => {
+      if (!user.role) throw ApiError.internal('Usuario sin rol asociado');
+      return {
+        id: user.id,
+        nombre: user.nombre,
+        username: user.username,
+        email: user.email,
+        roleId: user.roleId,
+        activo: user.activo,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        deletedAt: user.deletedAt,
+        role: { id: user.role.id, nombre: user.role.nombre },
+      };
+    }),
+  };
+}
+
+const getAdministrationReportData = async (filters: AdministrationReportFilters) => {
+  const users = await getAdministrationUsers(filters);
   const userIds = users.map((user) => user.id);
   const tokens = userIds.length > 0
     ? await RefreshToken.findAll({

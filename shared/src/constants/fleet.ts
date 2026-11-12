@@ -25,3 +25,12 @@ export const FLEET_DOCUMENT_FILE_MIME_TYPES = [
 ] as const;
 
 export type FleetDocumentFileMimeType = (typeof FLEET_DOCUMENT_FILE_MIME_TYPES)[number];
+
+/** Fixed reception slots; records and previous files remain in fleet_documents. */
+export const FLEET_REQUIRED_DOCUMENTS = [
+  { type: 'permiso_circulacion', nombre: 'Permiso de circulación' },
+  { type: 'soap', nombre: 'Seguro obligatorio SOAP' },
+  { type: 'revision_tecnica', nombre: 'Revisión técnica' },
+] as const;
+
+export type FleetRequiredDocumentType = (typeof FLEET_REQUIRED_DOCUMENTS)[number]['type'];

@@ -39,13 +39,12 @@ const isPng = (buffer: Buffer): boolean =>
   buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
 
 /**
- * SVG solo si se declara como tal: puede contener scripts, así que se acepta
- * únicamente si el cliente lo declara Y el contenido arranca con <svg. El SVG
- * tampoco pasa por el renderizado de PDF, queda para la app web.
+ * SVG solo si el elemento raíz es svg, con declaración XML, doctype y
+ * comentarios opcionales. Una declaración XML sola no identifica una imagen.
  */
 const isSvg = (buffer: Buffer): boolean => {
-  const head = buffer.subarray(0, 1024).toString('utf8').trimStart();
-  return head.startsWith('<svg') || head.startsWith('<?xml');
+  const source = buffer.toString('utf8').trimStart();
+  return /^(?:<\?xml\s[^?]*\?>\s*)?(?:(?:<!--[\s\S]*?-->|<!DOCTYPE\s+svg(?:\s[^>]*?)?>)\s*)*<svg(?:\s|\/?>)/.test(source);
 };
 
 const isJpeg = (buffer: Buffer): boolean =>
@@ -74,12 +73,16 @@ const detectImage = (buffer: Buffer): DetectedImage => {
 };
 
 const getOrCreateRow = async (transaction?: Transaction): Promise<CompanySettings> => {
-  const existing = await CompanySettings.findByPk(SINGLETON_ID, { transaction });
+  const existing = await CompanySettings.findByPk(SINGLETON_ID, {
+    transaction,
+    ...(transaction ? { lock: transaction.LOCK.UPDATE } : {}),
+  });
   if (existing) {
     return existing;
   }
-  return CompanySettings.create(
-    {
+  const [settings] = await CompanySettings.findOrCreate({
+    where: { id: SINGLETON_ID },
+    defaults: {
       id: SINGLETON_ID,
       razonSocial: 'UNITHOR SERVICIOS INTEGRALES SPA',
       nombreComercial: 'UNITHOR',
@@ -92,8 +95,9 @@ const getOrCreateRow = async (transaction?: Transaction): Promise<CompanySetting
       email: null,
       sitioWeb: null,
     },
-    { transaction },
-  );
+    transaction,
+  });
+  return settings;
 };
 
 const toLogoPublic = (settings: CompanySettings): CompanyLogoPublic => {

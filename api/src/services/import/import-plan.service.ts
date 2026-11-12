@@ -167,6 +167,7 @@ interface PreviewClaims {
   userId: number;
   warehouseId: number | null;
   file: string;
+  fileName: string;
   plan: string;
   expires: number;
 }
@@ -177,6 +178,7 @@ const signature = (payload: string) =>
 const issuePreview = (
   module: ImportModule,
   buffer: Buffer,
+  fileName: string,
   rows: ImportPlanRow[],
   context: ImportContext,
 ): string | undefined => {
@@ -186,6 +188,7 @@ const issuePreview = (
     userId: context.userId,
     warehouseId: context.warehouseId ?? null,
     file: fileDigest(buffer),
+    fileName,
     plan: digest(rows),
     expires: Date.now() + 30 * 60 * 1000,
   };
@@ -195,6 +198,7 @@ const issuePreview = (
 const assertPreview = (
   module: ImportModule,
   buffer: Buffer,
+  fileName: string,
   rows: ImportPlanRow[],
   context: ImportContext,
 ): void => {
@@ -222,6 +226,7 @@ const assertPreview = (
       claims.warehouseId !== (context.warehouseId ?? null) ||
       claims.expires <= Date.now() ||
       claims.file !== fileDigest(buffer) ||
+      claims.fileName !== fileName ||
       claims.plan !== digest(rows)
     )
       throw invalid();
@@ -262,7 +267,7 @@ export const buildImportPreview = (
     rows: rows.slice(0, 200).map((row) => publicRow(row, privateFields)),
     truncated: sheet.truncated,
     maxRows: sheet.maxRows,
-    previewToken: issuePreview(module, buffer, rows, context),
+    previewToken: issuePreview(module, buffer, fileName, rows, context),
     warehouseId: context.warehouseId,
   };
 };
@@ -305,7 +310,7 @@ export const executePlannedImport = async (
         failed: preview.errorRows,
         clientsCreated: 0,
       };
-    assertPreview(module, buffer, rows, context);
+    assertPreview(module, buffer, fileName, rows, context);
     if (!transaction) throw ApiError.internal('Importación sin transacción');
     let created = 0;
     let updated = 0;

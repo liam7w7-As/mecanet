@@ -1,6 +1,34 @@
 export const DISCOUNT_TYPES = ['porcentaje', 'fijo'] as const;
 export type DiscountType = (typeof DISCOUNT_TYPES)[number];
 
+/** IVA aplicado a las cotizaciones. Coincide con el documento impreso. */
+export const QUOTATION_TAX_RATE = 0.19;
+
+export interface QuotationTaxBreakdown {
+  neto: number;
+  iva: number;
+  total: number;
+}
+
+/**
+ * Separa el neto de una cotización en neto + IVA.
+ *
+ * El IVA se redondea al peso igual que en el PDF (`Math.round`), de modo que
+ * la vista, los abonos y el documento muestran siempre el mismo monto.
+ */
+export function getQuotationTaxBreakdown(neto: number): QuotationTaxBreakdown {
+  const base = Number.isFinite(neto) && neto > 0 ? neto : 0;
+  const iva = Math.round(base * QUOTATION_TAX_RATE);
+  // Preserve monetary precision after adding IVA (14.99 + 3 is not exact in JS).
+  const total = Math.round((base + iva) * 100) / 100;
+  return { neto: base, iva, total };
+}
+
+/** Monto final a cobrar: neto de la cotización más su IVA. */
+export function getQuotationGrossTotal(neto: number): number {
+  return getQuotationTaxBreakdown(neto).total;
+}
+
 export interface DiscountInput {
   descuentoTipo?: DiscountType | null;
   descuentoValor?: number | string;

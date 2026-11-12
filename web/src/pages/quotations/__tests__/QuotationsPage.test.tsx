@@ -341,7 +341,7 @@ describe('QuotationsPage', () => {
     await screen.findByLabelText('Notas comerciales');
     const dialog = await screen.findByRole('dialog', { name: 'Editar cotización' });
     fireEvent.change(within(dialog).getByLabelText('Notas comerciales'), { target: { value: 'Conservar condiciones' } });
-    expect(within(dialog).getByTestId('quotation-edit-total')).toHaveTextContent('44.100');
+    expect(within(dialog).getByTestId('quotation-edit-total')).toHaveTextContent('52.479');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
     await within(dialog).findByRole('alert');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
@@ -395,7 +395,7 @@ describe('QuotationsPage', () => {
 
     expect(await screen.findByText('COT-2026-0031')).toBeInTheDocument();
     expect(screen.getAllByText('Abono parcial').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('$40.000').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$49.500').length).toBeGreaterThan(0);
     expect(screen.getByText('OT-2026-0012')).toBeInTheDocument();
   });
 
@@ -429,7 +429,7 @@ describe('QuotationsPage', () => {
     renderWithProviders(<QuotationsPage />);
 
     const total = await screen.findByText(/^Total de esta página/);
-    expect(total).toHaveTextContent('100.000');
+    expect(total).toHaveTextContent('119.000');
     expect(screen.queryByText(/^Total cotizado/)).not.toBeInTheDocument();
     expect(screen.getAllByRole('row', { name: /^Cotización / })).toHaveLength(2);
   });
@@ -510,6 +510,52 @@ describe('QuotationsPage', () => {
     const date = dialog.querySelector('time')?.getAttribute('datetime');
     expect(date).toBeTruthy();
     expect(Math.abs(new Date(date ?? '').getTime() - Date.now())).toBeLessThan(60_000);
+  });
+
+  it.each([
+    { pending: false, amount: 17.99, display: '17,99' },
+    { pending: true, amount: 7.99, display: '7,99' },
+  ])('completa un saldo decimal exacto (transferencia pendiente: $pending)', async ({ pending, amount, display }) => {
+    const payments: Payment[] = pending
+      ? [{ ...initialPayment, monto: 10, metodo: 'transferencia', estado: 'por_verificar' }]
+      : [];
+    paymentSummary = { ...createPaymentSummary(0, payments), total: 17.99, saldoPendiente: 17.99 };
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data:
+      url === `/quotations/${quotation.id}/payments` ? paymentSummary
+        : url === `/quotations/${quotation.id}` ? { quotation: { ...quotation, total: 14.99, pagado: 0 } }
+          : listResponse,
+    }));
+    vi.mocked(api.post).mockImplementation(() => {
+      paymentSummary = { ...paymentSummary, pagado: amount, saldoPendiente: pending ? 10 : 0, estadoPago: pending ? 'por_verificar' : 'total' };
+      return Promise.resolve({ data: {
+        payment: { ...initialPayment, monto: amount },
+        quotation: { id: quotation.id, codigo: quotation.codigo, ...paymentSummary },
+      } });
+    });
+    renderDetail(`/quotations/${quotation.id}?payment=true`);
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abono' });
+    expect(await within(dialog).findByTestId('payment-available-balance')).toHaveTextContent(display);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Completar saldo' }));
+    expect(within(dialog).getByLabelText('Monto del abono')).toHaveValue(display);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Registrar abono' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/payments',
+      expect.objectContaining({ quotationId: quotation.id, monto: amount })));
+  });
+
+  it('conserva monto y comprobante del abono al retirar creación sin perder lectura', async () => {
+    useAuthStore.setState({ user: { id: 1, nombre: 'Vendedor', email: 'vendedor@test.local', role: 'vendedor' } });
+    renderDetail(`/quotations/${quotation.id}?payment=true`);
+    const dialog = within(await screen.findByRole('dialog', { name: 'Registrar abono' }));
+    await dialog.findByTestId('payment-available-balance');
+    fireEvent.change(dialog.getByLabelText('Monto del abono'), { target: { value: '5000' } });
+    const file = new File(['pdf'], 'comprobante-pendiente.pdf', { type: 'application/pdf' });
+    fireEvent.change(dialog.getByLabelText('Comprobante de pago'), { target: { files: [file] } });
+    act(() => useAuthStore.setState({ user: { ...useAuthStore.getState().user!, permissions: [{ modulo: 'comercial', accion: 'read' }] } }));
+    expect(dialog.getByLabelText('Monto del abono')).toHaveValue('5.000');
+    expect(dialog.getAllByText('comprobante-pendiente.pdf').length).toBeGreaterThan(0);
+    expect(dialog.getByRole('button', { name: 'Registrar abono' })).toBeDisabled();
+    fireEvent.submit(dialog.getByRole('button', { name: 'Registrar abono' }).closest('form')!);
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('actualiza el saldo mostrado después de registrar un abono', async () => {

@@ -36,7 +36,8 @@ export type DevicePlatform = 'ios' | 'android' | 'desktop';
 export const detectPlatform = (): DevicePlatform => {
   if (typeof window === 'undefined') return 'desktop';
   const ua = window.navigator.userAgent.toLowerCase();
-  if (/iphone|ipad|ipod/.test(ua)) return 'ios';
+  if (/iphone|ipad|ipod/.test(ua)
+    || (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1)) return 'ios';
   if (/android/.test(ua)) return 'android';
   return 'desktop';
 };
@@ -69,9 +70,13 @@ export const usePwaInstall = () => {
     };
 
     window.addEventListener('appinstalled', handleAppInstalled);
+    const displayMode = window.matchMedia?.('(display-mode: standalone)');
+    const handleDisplayMode = () => setIsInstalled(checkIsAppInstalled());
+    displayMode?.addEventListener('change', handleDisplayMode);
 
     return () => {
       window.removeEventListener('appinstalled', handleAppInstalled);
+      displayMode?.removeEventListener('change', handleDisplayMode);
     };
   }, []);
 
@@ -86,7 +91,8 @@ export const usePwaInstall = () => {
         await promptToUse.prompt();
         const choice = await promptToUse.userChoice;
         if (choice.outcome === 'accepted') {
-          setIsInstalled(true);
+          // Aceptar el diálogo no confirma que la instalación haya terminado.
+          // Esperar appinstalled o el modo standalone, en todos los botones.
           setShowInstructions(false);
           return true;
         }
@@ -107,7 +113,8 @@ export const usePwaInstall = () => {
   };
 
   return {
-    isInstallable: !isInstalled,
+    isInstallable: !isInstalled && Boolean(installPrompt),
+    canShowInstallHelp: !isInstalled && window.isSecureContext === true && 'serviceWorker' in navigator,
     isInstalled,
     hasNativePrompt: Boolean(installPrompt),
     showInstructions,

@@ -1,10 +1,19 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render as renderView, screen, waitFor, within } from '@testing-library/react';
 import { WORK_ORDER_INSPECTION_PHOTO_SLOTS } from '@unithor/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { formatClp } from '../../../lib/formatters';
 import PdfPreviewModal, { OfficialDocumentSheets } from '../PdfPreviewModal';
 
 import type { Quotation, WorkOrder } from '../../../types/entities';
+import type { ReactNode } from 'react';
+
+const render = (view: ReactNode) => renderView(
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })}>
+    {view}
+  </QueryClientProvider>,
+);
 
 const mockWorkOrder: WorkOrder = {
   id: 101,
@@ -188,6 +197,47 @@ describe('PdfPreviewModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it.each([
+    { name: 'sin descuentos', lineType: null, lineValue: 0, generalType: null, generalValue: 0,
+      lineNet: 65000, lineDiscount: 0, generalDiscount: 0, neto: 80000, iva: 15200, total: 95200 },
+    { name: 'descuento fijo por ítem y general porcentual', lineType: 'fijo', lineValue: 10000, generalType: 'porcentaje', generalValue: 10,
+      lineNet: 55000, lineDiscount: 10000, generalDiscount: 7000, neto: 63000, iva: 11970, total: 74970 },
+    { name: 'descuento porcentual por ítem y general fijo', lineType: 'porcentaje', lineValue: 10, generalType: 'fijo', generalValue: 3500,
+      lineNet: 58500, lineDiscount: 6500, generalDiscount: 3500, neto: 70000, iva: 13300, total: 83300 },
+    { name: 'descuento general del 100%', lineType: null, lineValue: 0, generalType: 'porcentaje', generalValue: 100,
+      lineNet: 65000, lineDiscount: 0, generalDiscount: 80000, neto: 0, iva: 0, total: 0 },
+  ] as const)('muestra netos e IVA una vez en vista previa y documento oficial: $name', (scenario) => {
+    const workOrder: WorkOrder = {
+      ...mockWorkOrder,
+      descuentoTipo: scenario.generalType,
+      descuentoValor: scenario.generalValue,
+      quotation: { id: 202, codigo: 'COT-2026-0202', estadoPago: 'por_pagar', total: scenario.total, pagado: 0, saldoPendiente: scenario.total },
+      items: mockWorkOrder.items!.map((item, index) => index === 0
+        ? { ...item, descuentoTipo: scenario.lineType, descuentoValor: scenario.lineValue }
+        : item),
+    };
+    const before = JSON.stringify(workOrder);
+    render(<PdfPreviewModal type="work-order" workOrder={workOrder} onClose={onClose} />);
+
+    const preview = screen.getByRole('dialog').querySelector('.pdf-paper-sheet')!;
+    const official = document.querySelector('#unithor-print-portal [data-official-template]')!;
+    const summaryValue = (root: Element, label: string) => within(root as HTMLElement).getByText(label).parentElement;
+    for (const root of [preview, official]) {
+      expect(within(root as HTMLElement).getAllByRole('row', { hidden: true })[1]).toHaveTextContent(formatClp(scenario.lineNet));
+      expect(summaryValue(root, 'Neto:')).toHaveTextContent(formatClp(scenario.neto));
+      expect(summaryValue(root, 'IVA (19%):')).toHaveTextContent(formatClp(scenario.iva));
+      expect(summaryValue(root, 'TOTAL:')).toHaveTextContent(formatClp(scenario.total));
+      if (scenario.lineDiscount) expect(summaryValue(root, 'Dto. por ítem:')).toHaveTextContent(`−${formatClp(scenario.lineDiscount)}`);
+      if (scenario.generalDiscount) {
+        const label = scenario.generalType === 'porcentaje' ? `Dto. general (${scenario.generalValue}%):` : 'Dto. general:';
+        expect(summaryValue(root, label)).toHaveTextContent(`−${formatClp(scenario.generalDiscount)}`);
+      }
+    }
+    expect(official.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
+    expect(official).toHaveTextContent('CONDICIONES GENERALES DEL SERVICIO');
+    expect(JSON.stringify(workOrder)).toBe(before);
   });
 
   it('renderiza la previsualización de OT en Página 1 (Anverso)', () => {

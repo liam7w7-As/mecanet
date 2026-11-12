@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import PublicRoute from './components/layout/PublicRoute';
+import { APP_ROUTES } from './lib/route-access';
 import { getSessionHomePath } from './lib/session-navigation';
 import LoginPage from './pages/auth/LoginPage';
 import CatalogPage from './pages/catalog/CatalogPage';
@@ -55,220 +56,185 @@ export const App = () => (
       <Route element={<AppLayout />}>
         <Route index element={<HomeRedirect />} />
         <Route
-          path="/dashboard"
+          path={APP_ROUTES.dashboard.path}
           element={
-            <ProtectedRoute
-              requiredAnyPermission={[
-                { modulo: 'taller', accion: 'read' },
-                { modulo: 'comercial', accion: 'read' },
-              ]}
-            >
+            <ProtectedRoute access={APP_ROUTES.dashboard}>
               <DashboardEntry />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/work-orders"
+          path={APP_ROUTES.workOrders.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.workOrders}>
               <WorkOrdersPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/work-orders/new"
+          path={APP_ROUTES.workOrderCreate.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'create' }]}>
+            <ProtectedRoute access={APP_ROUTES.workOrderCreate}>
               <WorkOrderCreatePage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/work-orders/mine"
+          path={APP_ROUTES.myWorkOrders.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.myWorkOrders}>
               <MyWorkOrdersPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/work-orders/daily-report"
+          path={APP_ROUTES.dailyReport.path}
           element={
-            <ProtectedRoute allowedRoles={['desarrollador', 'admin', 'jefe']}>
+            <ProtectedRoute access={APP_ROUTES.dailyReport}>
               <WorkshopDailyReportPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/work-orders/:id/ficha"
+          path={APP_ROUTES.worksheet.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.worksheet}>
               <WorksheetEntry />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/work-orders/:id"
+          path={APP_ROUTES.workOrderDetail.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'taller', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.workOrderDetail}>
               <WorkOrderDetailPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/quotations"
+          path={APP_ROUTES.quotations.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.quotations}>
               <QuotationsPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/quotations/new"
+          path={APP_ROUTES.quotationCreate.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'create' }]}>
+            <ProtectedRoute access={APP_ROUTES.quotationCreate}>
               <QuotationCreatePage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/quotations/:quotationId/convert-to-ot"
+          path={APP_ROUTES.quotationConvert.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[
-              { modulo: 'comercial', accion: 'update' },
-              { modulo: 'taller', accion: 'create' },
-            ]}>
+            <ProtectedRoute access={APP_ROUTES.quotationConvert}>
               <WorkOrderCreatePage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/quotations/:id"
+          path={APP_ROUTES.quotationDetail.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'comercial', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.quotationDetail}>
               <QuotationDetailPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/purchases"
+          path={APP_ROUTES.purchases.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'compras', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.purchases}>
               <PurchasesPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/purchases/new"
+          path={APP_ROUTES.purchaseCreate.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'compras', accion: 'create' }]}>
+            <ProtectedRoute access={APP_ROUTES.purchaseCreate}>
               <PurchaseCreatePage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/purchases/:id"
+          path={APP_ROUTES.purchaseDetail.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'compras', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.purchaseDetail}>
               <PurchaseDetailPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/finance"
+          path={APP_ROUTES.finance.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'finanzas', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.finance}>
               <FinancePage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/reports"
+          path={APP_ROUTES.reports.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[
-              { modulo: 'finanzas', accion: 'read' },
-              { modulo: 'comercial', accion: 'read' },
-              { modulo: 'taller', accion: 'read' },
-              { modulo: 'almacen', accion: 'read' },
-              { modulo: 'admin', accion: 'read' },
-            ]}>
+            <ProtectedRoute access={APP_ROUTES.reports}>
               <ReportsPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/clients"
+          path={APP_ROUTES.clients.path}
           element={
-            <ProtectedRoute
-              requiredAnyPermission={[
-                { modulo: 'comercial', accion: 'read' },
-                { modulo: 'taller', accion: 'read' },
-              ]}
-            >
+            <ProtectedRoute access={APP_ROUTES.clients}>
               <ClientsPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/vehicles"
+          path={APP_ROUTES.vehicles.path}
           element={
-            <ProtectedRoute
-              requiredAnyPermission={[
-                { modulo: 'taller', accion: 'read' },
-                { modulo: 'comercial', accion: 'read' },
-                { modulo: 'flota', accion: 'read' },
-              ]}
-            >
+            <ProtectedRoute access={APP_ROUTES.vehicles}>
               <VehiclesPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/vehicles/:id"
+          path={APP_ROUTES.vehicleDetail.path}
           element={
-            <ProtectedRoute
-              requiredAnyPermission={[
-                { modulo: 'taller', accion: 'read' },
-                { modulo: 'comercial', accion: 'read' },
-              ]}
-            >
+            <ProtectedRoute access={APP_ROUTES.vehicleDetail}>
               <VehicleDetailPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/catalog"
+          path={APP_ROUTES.catalog.path}
           element={
-            <ProtectedRoute
-              requiredAnyPermission={[
-                { modulo: 'taller', accion: 'read' },
-                { modulo: 'comercial', accion: 'read' },
-              ]}
-            >
+            <ProtectedRoute access={APP_ROUTES.catalog}>
               <CatalogPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/warehouses"
+          path={APP_ROUTES.warehouses.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'almacen', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.warehouses}>
               <WarehousesPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/users"
+          path={APP_ROUTES.users.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'admin', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.users}>
               <UsersPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/settings"
+          path={APP_ROUTES.settings.path}
           element={
-            <ProtectedRoute requiredAnyPermission={[{ modulo: 'admin', accion: 'read' }]}>
+            <ProtectedRoute access={APP_ROUTES.settings}>
               <SettingsPage />
             </ProtectedRoute>
           }

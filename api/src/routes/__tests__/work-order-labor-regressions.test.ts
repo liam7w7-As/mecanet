@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
+import { CatalogItem } from '../../models/CatalogItem.js';
 import { Client } from '../../models/Client.js';
 import { Quotation } from '../../models/Quotation.js';
 import { QuotationItem } from '../../models/QuotationItem.js';
@@ -16,6 +17,7 @@ import { WorkOrderItemProgressEvent } from '../../models/WorkOrderItemProgressEv
 import { WorkOrderItemSession } from '../../models/WorkOrderItemSession.js';
 import { WorkOrderObservation } from '../../models/WorkOrderObservation.js';
 import { WorkOrderProgressReport } from '../../models/WorkOrderProgressReport.js';
+import { WorkOrderRequest } from '../../models/WorkOrderRequest.js';
 import { hashPassword } from '../../utils/password.js';
 
 const password = 'LaborRegression2026!';
@@ -171,6 +173,46 @@ describe('Labor integrity and mechanic privacy regressions', () => {
     }
     const invalid = await mutate('post', '/api/work-orders', { clientId: client.id, vehicleId: vehicle.id, items: [{ descripcion: 'Responsable inválido', assignedUserId: admin.id }] });
     expect(invalid.status).toBe(400);
+  });
+
+  it('rejects legacy checklist batches touching another mechanic inherited work atomically', async () => {
+    const { order, quotation, items } = await createOrder(['Trabajo heredado', 'Trabajo individual']);
+    await runTimer(order.id, items[0].id, 30);
+    expect((await mutate('post', `/api/work-orders/${order.id}/items/${items[0].id}/assignment`, {
+      assignedUserId: null,
+    })).status).toBe(200);
+    await items[0].update({ notasOperativas: 'Diagnóstico conservado' });
+    await items[1].update({ assignedUserId: mechanics[1].id });
+    const sessionIds = (await WorkOrderItemSession.findAll({ where: { workOrderId: order.id } })).map((session) => session.id);
+    const eventIds = (await WorkOrderItemProgressEvent.findAll({ where: { workOrderId: order.id } })).map((event) => event.id);
+    const beforeLines = (await lines(quotation.id)).map((line) => line.toJSON());
+    const sheet = await get(`/api/work-orders/${order.id}/worksheet`, 2);
+    expect(sheet.body.worksheet.items.find((item: { id: number }) => item.id === items[0].id).canWork).toBe(false);
+
+    const denied = await mutate('patch', `/api/work-orders/${order.id}/execution`, {
+      items: [
+        { id: items[1].id, estadoOperativo: 'en_proceso' },
+        { id: items[0].id, estadoOperativo: 'completado', notasOperativas: 'Cambio ajeno' },
+      ],
+      reporte: { porcentaje: 100, comentario: 'Reporte que debe revertirse' },
+    }, 2);
+    expect(denied.status).toBe(403);
+    expect((await items[0].reload()).estadoOperativo).toBe('en_proceso');
+    expect(items[0].notasOperativas).toBe('Diagnóstico conservado');
+    expect(Number(items[0].horasHombreReales)).toBe(0.5);
+    expect((await items[1].reload()).estadoOperativo).toBe('pendiente');
+    expect((await lines(quotation.id)).map((line) => line.toJSON())).toEqual(beforeLines);
+    expect((await WorkOrderItemSession.findAll({ where: { workOrderId: order.id } })).map((session) => session.id)).toEqual(sessionIds);
+    expect((await WorkOrderItemProgressEvent.findAll({ where: { workOrderId: order.id } })).map((event) => event.id)).toEqual(eventIds);
+    expect(await WorkOrderProgressReport.count({ where: { workOrderId: order.id } })).toBe(0);
+
+    expect((await mutate('patch', `/api/work-orders/${order.id}/execution`, {
+      items: [{ id: items[1].id, estadoOperativo: 'en_proceso' }],
+    }, 2)).status).toBe(200);
+    expect((await mutate('patch', `/api/work-orders/${order.id}/execution`, {
+      items: [{ id: items[0].id, estadoOperativo: 'completado' }],
+    }, 1)).status).toBe(200);
+    expect(Number((await items[0].reload()).horasHombreReales)).toBe(0.5);
   });
 
   it('reassigns running work without losing the previous mechanic hours and notes', async () => {
@@ -615,6 +657,110 @@ describe('Labor integrity and mechanic privacy regressions', () => {
         .enCurso,
     ).toBe(false);
   });
+  it.each([
+    ['entregada', 'repuesto'],
+    ['cancelada', 'repuesto'],
+    ['entregada', 'aumento_precio'],
+    ['cancelada', 'aumento_precio'],
+  ] as const)('does not approve legacy %s order requests (%s) or mutate its mirror COT', async (estado, tipo) => {
+    const { order, quotation, items } = await createOrder();
+    await runTimer(order.id, items[0].id, 30, true);
+    const part = await CatalogItem.findOne({ where: { tipo: 'parte' } });
+    if (!part) throw new Error('Missing seeded part');
+    const body = tipo === 'repuesto'
+      ? { tipo, catalogItemId: part.id, cantidad: 1, motivo: 'Repuesto pendiente de revisión' }
+      : { tipo, workOrderItemId: items[0].id, precioSugerido: 18000, motivo: 'Aumento pendiente de revisión' };
+    expect((await mutate('post', `/api/work-orders/${order.id}/requests`, body, tipo === 'repuesto' ? 1 : 4)).status).toBe(201);
+    const pending = await WorkOrderRequest.findOne({ where: { workOrderId: order.id, tipo } });
+    if (!pending) throw new Error('Missing pending request');
+    await order.update({ estado });
+    const beforeItem = (await items[0].reload()).toJSON();
+    const beforeQuotation = (await quotation.reload()).toJSON();
+    const beforeLines = (await lines(quotation.id)).map((line) => line.toJSON());
+    const result = await mutate('patch', `/api/work-orders/${order.id}/requests/${pending.id}`, { decision: 'aprobar' });
+    expect(result.status).toBe(400);
+    expect(result.body.error.message).toContain('cerrada');
+    expect((await pending.reload()).estado).toBe('pendiente');
+    expect(pending.reviewedAt).toBeNull();
+    expect(await WorkOrderItem.count({ where: { workOrderId: order.id } })).toBe(1);
+    expect((await items[0].reload()).toJSON()).toEqual(beforeItem);
+    expect((await quotation.reload()).toJSON()).toEqual(beforeQuotation);
+    expect((await lines(quotation.id)).map((line) => line.toJSON())).toEqual(beforeLines);
+
+    // Reviewing a closed order may still dismiss a pending request without changing its work.
+    expect((await mutate('patch', `/api/work-orders/${order.id}/requests/${pending.id}`, {
+      decision: 'rechazar', comentario: 'La orden ya está cerrada',
+    })).status).toBe(200);
+    expect((await pending.reload()).estado).toBe('rechazada');
+    expect((await lines(quotation.id)).map((line) => line.toJSON())).toEqual(beforeLines);
+  });
+
+  it.each([false, true])('approves legacy increases using canonical links and preserves labor and discounts (legacy link: %s)', async (legacyLink) => {
+    const { order, quotation, items } = await createOrder(legacyLink
+      ? ['Servicio sin vínculo', 'Servicio registrado']
+      : ['Servicio duplicado', 'Servicio duplicado']);
+    await runTimer(order.id, items[0].id, 30, true);
+    await runTimer(order.id, items[1].id, 15, true);
+    const beforeLines = await lines(quotation.id);
+    await beforeLines[0].update({ descuentoTipo: 'porcentaje', descuentoValor: 10, subtotal: 9000 });
+    await beforeLines[1].update({ descuentoTipo: 'fijo', descuentoValor: 1000, subtotal: 9000 });
+    await quotation.update({ descuentoTipo: 'porcentaje', descuentoValor: 10, total: 16200 });
+    if (legacyLink) await QuotationItem.update({ workOrderItemId: null }, { where: { quotationId: quotation.id } });
+    const beforeItems = await Promise.all(items.map(async (item) => (await item.reload()).toJSON()));
+    const sessionIds = (await WorkOrderItemSession.findAll({ where: { workOrderId: order.id } })).map((session) => session.id);
+    expect((await mutate('post', `/api/work-orders/${order.id}/requests`, {
+      tipo: 'aumento_precio', workOrderItemId: items[1].id, precioSugerido: 18000, motivo: 'Aumento del segundo servicio',
+    }, 4)).status).toBe(201);
+    const pending = await WorkOrderRequest.findOne({ where: { workOrderId: order.id, tipo: 'aumento_precio' } });
+    if (!pending) throw new Error('Missing price request');
+    const result = await mutate('patch', `/api/work-orders/${order.id}/requests/${pending.id}`, { decision: 'aprobar' });
+    expect(result.status, JSON.stringify(result.body)).toBe(200);
+    const savedLines = await lines(quotation.id);
+    expect(savedLines.map((line) => line.id)).toEqual(beforeLines.map((line) => line.id));
+    expect(savedLines.map((line) => line.workOrderItemId)).toEqual(items.map((item) => item.id));
+    expect(savedLines.map((line) => Number(line.precioUnitario))).toEqual([10000, 18000]);
+    expect(savedLines.map((line) => Number(line.subtotal))).toEqual([9000, 17000]);
+    expect(savedLines.map((line) => line.descuentoTipo)).toEqual(['porcentaje', 'fijo']);
+    expect(Number((await quotation.reload()).total)).toBe(23400);
+    expect(quotation.descuentoTipo).toBe('porcentaje');
+    expect(Number(quotation.descuentoValor)).toBe(10);
+    expect((await items[0].reload()).toJSON()).toEqual(beforeItems[0]);
+    const savedItem = (await items[1].reload()).toJSON();
+    expect(savedItem).toMatchObject({
+      assignedUserId: beforeItems[1].assignedUserId,
+      horasHombreReales: beforeItems[1].horasHombreReales,
+      estadoOperativo: beforeItems[1].estadoOperativo,
+    });
+    expect((await WorkOrderItemSession.findAll({ where: { workOrderId: order.id } })).map((session) => session.id)).toEqual(sessionIds);
+  });
+
+  it.each(['ambiguous', 'missing'] as const)('rolls back legacy price approval when its COT link is %s', async (link) => {
+    const { order, quotation, items } = await createOrder(['Servicio duplicado', 'Servicio duplicado']);
+    await runTimer(order.id, items[1].id, 30, true);
+    const quotationLines = await lines(quotation.id);
+    if (link === 'ambiguous') {
+      await QuotationItem.update({ workOrderItemId: null }, { where: { quotationId: quotation.id } });
+    } else {
+      await quotationLines[1].destroy();
+    }
+    expect((await mutate('post', `/api/work-orders/${order.id}/requests`, {
+      tipo: 'aumento_precio', workOrderItemId: items[1].id, precioSugerido: 18000, motivo: 'Vinculación a revisar',
+    }, 4)).status).toBe(201);
+    const pending = await WorkOrderRequest.findOne({ where: { workOrderId: order.id, tipo: 'aumento_precio' } });
+    if (!pending) throw new Error('Missing price request');
+    const beforeItem = (await items[1].reload()).toJSON();
+    const beforeLines = (await lines(quotation.id)).map((line) => line.toJSON());
+    const beforeQuotation = (await quotation.reload()).toJSON();
+    const result = await mutate('patch', `/api/work-orders/${order.id}/requests/${pending.id}`, { decision: 'aprobar' });
+    expect(result.status).toBe(400);
+    expect(result.body.error.message).toContain(link === 'ambiguous' ? 'ambigua' : 'vinculado');
+    expect((await items[1].reload()).toJSON()).toEqual(beforeItem);
+    expect((await pending.reload()).estado).toBe('pendiente');
+    expect(pending.reviewedAt).toBeNull();
+    expect((await lines(quotation.id)).map((line) => line.toJSON())).toEqual(beforeLines);
+    expect((await quotation.reload()).toJSON()).toEqual(beforeQuotation);
+  });
+
   it('keeps chief price proposals pending until administration approves and synchronizes the COT', async () => {
     const { order, quotation, items } = await createOrder();
     const path = `/api/work-orders/${order.id}/price-suggestions`;

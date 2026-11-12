@@ -10,7 +10,7 @@ import { User } from '../models/User.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { ApiError } from '../utils/ApiError.js';
 
-import type { SalesAccessMode } from '@unithor/shared';
+import type { SalesAccessMode, SalesAccessSessionQuery } from '@unithor/shared';
 import type { Includeable, Transaction, WhereOptions } from 'sequelize';
 
 /**
@@ -71,7 +71,8 @@ export const getSalesScope = async (userId?: number): Promise<SalesScope | undef
 /** Opaque cache revision for the current seller; grant details never leave the server. */
 export const getCurrentSalesAccess = async (
   userId: number,
-): Promise<{ mode: SalesAccessMode; revision: string }> => sequelize.transaction(async (transaction) => {
+  requested: SalesAccessSessionQuery = {},
+): Promise<{ mode: SalesAccessMode; revision: string; records?: { workOrderIds: number[]; quotationIds: number[] } }> => sequelize.transaction(async (transaction) => {
   // Grant writers lock this same User row, keeping the flag and grants consistent.
   const user = await User.findByPk(userId, {
     attributes: ['id', 'activo', 'salesAccessAll'],
@@ -94,7 +95,21 @@ export const getCurrentSalesAccess = async (
     all: user.salesAccessAll,
     grants: grants.map((grant) => [grant.id, grant.scopeType, grant.targetId, grant.expiresAt?.toISOString() ?? null]),
   })).digest('hex');
-  return { mode, revision };
+  if (requested.workOrderIds === undefined && requested.quotationIds === undefined) return { mode, revision };
+  const scope: SalesScope | undefined = user.salesAccessAll ? undefined : {
+    restricted: true, userId,
+    workOrderIds: grants.filter((grant) => grant.scopeType === 'work_order').map((grant) => grant.targetId),
+    quotationIds: grants.filter((grant) => grant.scopeType === 'quotation').map((grant) => grant.targetId),
+  };
+  const [orders, quotations] = await Promise.all([
+    requested.workOrderIds?.length ? WorkOrder.findAll({
+      attributes: ['id'], where: { [Op.and]: [{ id: { [Op.in]: requested.workOrderIds } }, workOrderWhere(scope)] }, transaction,
+    }) : [],
+    requested.quotationIds?.length ? Quotation.findAll({
+      attributes: ['id'], where: { [Op.and]: [{ id: { [Op.in]: requested.quotationIds } }, quotationWhere(scope)] }, transaction,
+    }) : [],
+  ]);
+  return { mode, revision, records: { workOrderIds: orders.map((order) => order.id), quotationIds: quotations.map((quotation) => quotation.id) } };
 });
 
 export const workOrderWhere = (scope?: SalesScope): WhereOptions<WorkOrder> => {

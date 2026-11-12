@@ -159,10 +159,9 @@ const SidebarContent = ({ onToggle, isCollapsed }: SidebarContentProps) => {
 
 export const AppLayout = () => {
   const user = useAuthStore((state) => state.user);
-  const salesAccessVersion = useSalesAccessSession();
+  useSalesAccessSession();
   const { pathname } = useLocation();
   const navigation = useShellNavigation(pathname);
-  const isSalesView = /^\/(dashboard|work-orders|quotations|finance|reports|clients|vehicles)(\/|$)/.test(pathname);
   const [profileOpen, setProfileOpen] = useState(false);
   const backgroundAttributes = navigation.isDrawerOpen
     ? { inert: '', 'aria-hidden': true as const }
@@ -197,7 +196,7 @@ export const AppLayout = () => {
 
       <main id="shell-content" className="shell-main" tabIndex={-1} {...backgroundAttributes}>
         <div className="container">
-          <PageTransition key={isSalesView ? salesAccessVersion : user.id} routeKey={pathname}>
+          <PageTransition key={user.id} routeKey={pathname}>
             <Outlet />
           </PageTransition>
         </div>

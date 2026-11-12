@@ -38,8 +38,13 @@ const row = (snapshot: unknown = { id: 1, version: 'initial' }): ImportPlanRow =
   snapshot,
   apply: vi.fn().mockResolvedValue(undefined),
 });
-const execute = (rows: ImportPlanRow[], context: ImportContext, dryRun = false, buffer = file) =>
-  executePlannedImport('vehicles', buffer, 'datos.xlsx', dryRun, sheet, context, async () => rows);
+const execute = (
+  rows: ImportPlanRow[],
+  context: ImportContext,
+  dryRun = false,
+  buffer = file,
+  fileName = 'datos.xlsx',
+) => executePlannedImport('vehicles', buffer, fileName, dryRun, sheet, context, async () => rows);
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -65,7 +70,7 @@ describe('Vista previa vinculada al archivo y a los registros', () => {
     expect(planned.apply).toHaveBeenCalledOnce();
   });
 
-  it.each(['file', 'user', 'warehouse', 'record', 'signature', 'expiry'] as const)(
+  it.each(['file', 'filename', 'user', 'warehouse', 'record', 'signature', 'expiry'] as const)(
     'rechaza revisión obsoleta o alterada (%s) sin escribir',
     async (cause) => {
       const now = Date.now();
@@ -79,7 +84,13 @@ describe('Vista previa vinculada al archivo y a los registros', () => {
       if (cause === 'signature') context.previewToken += 'tampered';
       if (cause === 'expiry') clock.mockReturnValue(now + 31 * 60 * 1000);
       await expect(
-        execute([planned], context, false, cause === 'file' ? Buffer.from('other-file') : file),
+        execute(
+          [planned],
+          context,
+          false,
+          cause === 'file' ? Buffer.from('other-file') : file,
+          cause === 'filename' ? 'renamed.xlsx' : 'datos.xlsx',
+        ),
       ).rejects.toMatchObject({ statusCode: 409, code: 'IMPORT_PREVIEW_CHANGED' });
       expect(planned.apply).not.toHaveBeenCalled();
     },

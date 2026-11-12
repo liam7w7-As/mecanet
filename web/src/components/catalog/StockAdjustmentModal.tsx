@@ -13,6 +13,8 @@ import {
   useWarehouses,
 } from '../../hooks/useWarehouses';
 import { getApiErrorMessage } from '../../lib/api-error';
+import { hasUserPermission } from '../../lib/permissions';
+import { useAuthStore } from '../../stores/auth.store';
 import { notifySuccess } from '../../stores/toast.store';
 import FormDialog from '../common/FormDialog';
 
@@ -26,7 +28,10 @@ interface StockAdjustmentModalProps {
 type MovementType = 'ingreso' | 'salida';
 
 export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProps) => {
-  const warehousesQuery = useWarehouses({ page: 1, pageSize: 100, soloActivos: true });
+  const user = useAuthStore((state) => state.user);
+  const canRead = Boolean(user && hasUserPermission(user, 'almacen', 'read'));
+  const canMove = canRead && Boolean(user && hasUserPermission(user, 'almacen', 'create'));
+  const warehousesQuery = useWarehouses({ page: 1, pageSize: 100, soloActivos: true }, canRead);
   const activeWarehouses = useMemo(
     () => warehousesQuery.data?.items.filter((warehouse) => warehouse.activo) ?? [],
     [warehousesQuery.data],
@@ -55,6 +60,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (!canMove || movementMutation.isPending || warehousesQuery.isPending || warehousesQuery.isError || balancesQuery.isPending || balancesQuery.isError || !selectedWarehouse) return;
     movementMutation.reset();
     const errors: Record<string, string> = {};
 
@@ -114,7 +120,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
       headerVariant="plain"
       className="inventory-form reference-form-dialog stock-form-dialog catalog-stock-dialog"
       submitDisabled={
-        warehousesQuery.isPending ||
+        !canMove || warehousesQuery.isPending ||
         warehousesQuery.isError ||
         balancesQuery.isPending ||
         balancesQuery.isError ||
@@ -122,7 +128,8 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
         selectedWarehouse === undefined
       }
     >
-      <div className="inventory-form-fields catalog-stock-fields">
+      <fieldset disabled={!canMove} className="inventory-form-fields catalog-stock-fields min-w-0">
+        {!canMove && <p role="status">Se requiere acceso de lectura y creación en almacenes para registrar el movimiento.</p>}
         <div className="inventory-profile-hero">
           <Boxes aria-hidden="true" />
           <div>
@@ -289,7 +296,7 @@ export const StockAdjustmentModal = ({ item, onClose }: StockAdjustmentModalProp
             No se pudo consultar el saldo del almacén. Reintente antes de registrar el movimiento.
           </p>
         )}
-      </div>
+      </fieldset>
     </FormDialog>
   );
 };

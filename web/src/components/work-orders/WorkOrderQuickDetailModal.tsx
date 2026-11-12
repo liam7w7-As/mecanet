@@ -28,8 +28,10 @@ import WorkOrderMechanicPanel from './WorkOrderMechanicPanel';
 import WorkOrderStatusBadge from './WorkOrderStatusBadge';
 import { useManagedWorkOrder } from '../../hooks/useManagedWorkOrder';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
+import { useSalesAccessRecord } from '../../hooks/useSalesAccessRecord';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
+import { getWorkOrderPricing, getWorkOrderTotal } from '../../lib/work-order-pricing';
 import {
   PROGRESS_TIER_STYLES,
   TASK_DOT_STYLES,
@@ -118,6 +120,7 @@ export const WorkOrderQuickDetailModal = ({
   onPreviewPdf,
   initialView = 'summary',
 }: WorkOrderQuickDetailModalProps) => {
+  useSalesAccessRecord('work_order', workOrderId, onClose);
   const [view, setView] = useState<'summary' | 'execution' | 'requests' | 'prices'>(initialView);
   const [priceRequest, setPriceRequest] = useState<{ itemId: number }>();
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -163,20 +166,18 @@ export const WorkOrderQuickDetailModal = ({
   }, [hasDirtyChanges, savePending]);
   const now = Date.now();
 
+  const pricing = useMemo(() => workOrder ? getWorkOrderPricing(workOrder) : null, [workOrder]);
   const grouped = useMemo(() => {
-    const items = workOrder?.items ?? [];
+    const items = (workOrder?.items ?? []).map((item, index) => ({ item, price: pricing!.lines[index]! }));
     return TYPE_ORDER
-      .map((type) => ({ type, items: items.filter((item) => item.tipoLinea === type) }))
+      .map((type) => ({ type, items: items.filter(({ item }) => item.tipoLinea === type) }))
       .filter((group) => group.items.length > 0);
-  }, [workOrder?.items]);
+  }, [workOrder?.items, pricing]);
 
   const progress = workOrder ? getWorkOrderProgress(workOrder) : null;
   const tier = progress ? PROGRESS_TIER_STYLES[progress.tier] : null;
   const elapsed = workOrder ? getElapsedInfo(workOrder, now) : null;
-  const estimatedTotal = (workOrder?.items ?? []).reduce(
-    (total, item) => total + Number(item.subtotal),
-    0,
-  );
+  const estimatedTotal = workOrder ? getWorkOrderTotal(workOrder) : 0;
 
   return createPortal(
     <div className="workshop-dialog-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
@@ -307,7 +308,7 @@ export const WorkOrderQuickDetailModal = ({
                 hint="Kilometraje de ingreso"
               />
               {showFinancials && <MetricTile
-                label="Total estimado"
+                label="Total estimado (IVA incluido)"
                 value={formatClp(estimatedTotal)}
                 hint={workOrder.quotation ? `COT ${QUOTATION_STATUS_LABELS[workOrder.quotation.estadoPago]}` : 'Sin cotización espejo'}
                 tone="text-brand-primaryInk"
@@ -353,11 +354,11 @@ export const WorkOrderQuickDetailModal = ({
                               {TYPE_LABELS[group.type]}
                             </p>
                             {showFinancials && <p className="text-xs font-semibold text-brand-muted">
-                              {formatClp(group.items.reduce((sum, item) => sum + Number(item.subtotal), 0))}
+                              {formatClp(group.items.reduce((sum, { price }) => sum + price.subtotal, 0))} neto
                             </p>}
                           </div>
                           <ul className="divide-y divide-brand-line">
-                            {group.items.map((item) => (
+                            {group.items.map(({ item, price }) => (
                               <li key={item.id} className="flex items-start gap-3 px-3 py-2.5">
                                 <span
                                   className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TASK_DOT_STYLES[item.estadoOperativo] ?? 'bg-brand-line'}`}
@@ -383,8 +384,9 @@ export const WorkOrderQuickDetailModal = ({
                                   )}
                                 </div>
                                 {showFinancials && <div className="shrink-0 text-right">
-                                  <p className="text-sm font-semibold text-brand-ink">{formatClp(item.subtotal)}</p>
+                                  <p className="text-sm font-semibold text-brand-ink">{formatClp(price.subtotal)} neto</p>
                                   <p className="text-[11px] text-brand-muted">{formatClp(item.precioUnitario)} c/u</p>
+                                  {price.descuentoMonto > 0 && <p className="text-[11px] text-brand-muted">Dto. −{formatClp(price.descuentoMonto)}</p>}
                                 </div>}
                               </li>
                             ))}
@@ -392,8 +394,15 @@ export const WorkOrderQuickDetailModal = ({
                         </div>
                       ))}
                     </div>
+                    {showFinancials && pricing && <dl className="mt-3 space-y-1 text-xs text-brand-muted">
+                      {pricing.descuentoTotal > 0 && <div className="flex justify-between gap-3"><dt>Subtotal bruto</dt><dd>{formatClp(pricing.subtotal)}</dd></div>}
+                      {pricing.descuentoLineas > 0 && <div className="flex justify-between gap-3"><dt>Descuentos por ítem</dt><dd>−{formatClp(pricing.descuentoLineas)}</dd></div>}
+                      {pricing.descuentoGeneral > 0 && <div className="flex justify-between gap-3"><dt>Dto. general{workOrder.descuentoTipo === 'porcentaje' ? ` (${workOrder.descuentoValor}%)` : ''}</dt><dd>−{formatClp(pricing.descuentoGeneral)}</dd></div>}
+                      <div className="flex justify-between gap-3"><dt>Neto</dt><dd>{formatClp(pricing.neto)}</dd></div>
+                      <div className="flex justify-between gap-3"><dt>IVA (19%)</dt><dd>{formatClp(pricing.iva)}</dd></div>
+                    </dl>}
                     {showFinancials && <div className="workshop-summary-total mt-3 flex items-center justify-between border-t-2 border-brand-primaryInk pt-2 text-sm font-bold text-brand-primaryInk">
-                      <span>Total estimado</span>
+                      <span>Total estimado (IVA incluido)</span>
                       <span>{formatClp(estimatedTotal)}</span>
                     </div>}
                   </div>

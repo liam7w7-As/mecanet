@@ -1,5 +1,8 @@
 import { Download, MoreVertical, PlusSquare, Share, Smartphone, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { createPortal } from 'react-dom';
+
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 
 import type { DevicePlatform } from '../../hooks/usePwaInstall';
 
@@ -10,10 +13,11 @@ interface PwaInstallModalProps {
 }
 
 export const PwaInstallModal = ({ isOpen, platform, onClose }: PwaInstallModalProps) => {
-  return (
+  const panelRef = useModalOverlay({ isOpen, onClose });
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="pwa-install-overlay fixed inset-0 z-[80] flex items-center justify-center p-4">
           {/* Fondo oscuro traslúcido */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -26,6 +30,8 @@ export const PwaInstallModal = ({ isOpen, platform, onClose }: PwaInstallModalPr
 
           {/* Tarjeta modal */}
           <motion.div
+            ref={panelRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby="pwa-install-title"
@@ -33,7 +39,7 @@ export const PwaInstallModal = ({ isOpen, platform, onClose }: PwaInstallModalPr
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-            className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+            className="pwa-install-dialog relative z-10 w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
           >
             {/* Botón cerrar */}
             <button
@@ -55,7 +61,7 @@ export const PwaInstallModal = ({ isOpen, platform, onClose }: PwaInstallModalPr
                   Instalar UNITHOR
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Acceso directo y experiencia de app nativa en tu dispositivo
+                  Opciones según tu navegador y dispositivo
                 </p>
               </div>
             </div>
@@ -74,7 +80,7 @@ export const PwaInstallModal = ({ isOpen, platform, onClose }: PwaInstallModalPr
                           1
                         </span>
                         <span>
-                          En la barra inferior de <strong>Safari</strong>, toca el botón de <strong>Compartir</strong>{' '}
+                          Abre esta página en <strong>Safari</strong> y toca el botón de <strong>Compartir</strong>{' '}
                           <Share className="inline h-3.5 w-3.5 text-blue-600 align-text-bottom" />.
                         </span>
                       </li>
@@ -121,7 +127,7 @@ export const PwaInstallModal = ({ isOpen, platform, onClose }: PwaInstallModalPr
                           2
                         </span>
                         <span>
-                          Selecciona <strong>&quot;Instalar aplicación&quot;</strong> (o <strong>&quot;Instalar UNITHOR&quot;</strong>).
+                          Si aparece, selecciona <strong>&quot;Instalar aplicación&quot;</strong> (o <strong>&quot;Instalar UNITHOR&quot;</strong>).
                         </span>
                       </li>
                       <li className="flex items-start gap-2.5">
@@ -150,7 +156,7 @@ export const PwaInstallModal = ({ isOpen, platform, onClose }: PwaInstallModalPr
                           1
                         </span>
                         <span>
-                          Haz clic en el icono <strong>⊕ (Instalar)</strong> ubicado al extremo derecho de la barra de direcciones de tu navegador.
+                          Si aparece el icono <strong>⊕ (Instalar)</strong> en la barra de direcciones, haz clic en él.
                         </span>
                       </li>
                       <li className="flex items-start gap-2.5">
@@ -170,7 +176,7 @@ export const PwaInstallModal = ({ isOpen, platform, onClose }: PwaInstallModalPr
               {/* Beneficios rápidos */}
               <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
                 <Smartphone className="h-4 w-4 text-[#18335c] shrink-0" />
-                <span>La app se abrirá en pantalla completa y responderá mucho más rápido.</span>
+                <span>La disponibilidad depende del navegador. Consultar y guardar datos requiere conexión a internet.</span>
               </div>
             </div>
 
@@ -187,7 +193,8 @@ export const PwaInstallModal = ({ isOpen, platform, onClose }: PwaInstallModalPr
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };
 

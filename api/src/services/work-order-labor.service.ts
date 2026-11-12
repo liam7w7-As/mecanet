@@ -174,6 +174,7 @@ export interface WorksheetItem {
   totalMinutes: number;
   observationsCount: number;
   canWork: boolean;
+  awaitingWarehouseDelivery: boolean;
   sessions: Array<{ id: number; userName: string | null; startedAt: Date; endedAt: Date | null; minutes: number; kind: string; note: string | null }>;
 }
 
@@ -380,6 +381,9 @@ export const getWorkOrderWorksheet = async (
       totalMinutes,
       observationsCount: observationsByItem.get(item.id) ?? 0,
       canWork: workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada' && (role !== 'mecanico' || (item.assignedUserId !== null ? item.assignedUserId === userId : workOrder.assignedMechanicId === userId)),
+      awaitingWarehouseDelivery: !item.stockConsumido && requests.some(
+        (request) => request.estado === 'aprobada' && request.workOrderItemId === item.id,
+      ),
       sessions: itemSessions.map((session) => ({ id: session.id, userName: session.userName, startedAt: session.startedAt, endedAt: session.endedAt, minutes: getSessionMinutes(session, now), kind: session.kind, note: session.note })),
     };
   });
@@ -678,6 +682,23 @@ export const completeItemTimer = async (
     assertEditable(workOrder);
     const item = await findItem(workOrderId, itemId, transaction, true);
     assertItemAccess(item, workOrder, role, userId);
+
+    if (!item.stockConsumido) {
+      const pendingWarehouseDelivery = await WorkOrderRequest.findOne({
+        where: {
+          workOrderId,
+          workOrderItemId: item.id,
+          tipo: 'repuesto',
+          estado: 'aprobada',
+        },
+        transaction,
+      });
+      if (pendingWarehouseDelivery) {
+        throw ApiError.badRequest(
+          `Bodega debe entregar el repuesto "${item.descripcion}" antes de marcarlo como completado`,
+        );
+      }
+    }
 
     const session = await WorkOrderItemSession.findOne({
       where: { workOrderItemId: item.id, status: 'abierta' },

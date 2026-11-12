@@ -1,4 +1,5 @@
-import { Op } from 'sequelize';
+import { getQuotationGrossTotal, QUOTATION_TAX_RATE } from '@unithor/shared';
+import { Op, fn, literal } from 'sequelize';
 
 import { listPayments } from './payment.service.js';
 import { CashMovement } from '../models/CashMovement.js';
@@ -42,10 +43,15 @@ const pendingQuotationStatuses: QuotationStatus[] = [
   'por_verificar',
 ];
 
+const moneyValue = (value: number): number => Math.round(value * 100) / 100;
+
 export const getFinanceSummary = async (): Promise<FinanceSummary> => {
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Match the UTC accounting dates used by daily cash and financial analytics.
+  const todayStart = new Date(`${now.toISOString().slice(0, 10)}T00:00:00.000Z`);
+  const todayEnd = new Date(todayStart.getTime() + 86_400_000 - 1);
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1) - 1);
   const quotationWhere = { estadoPago: { [Op.in]: pendingQuotationStatuses } };
 
   const [
@@ -64,24 +70,29 @@ export const getFinanceSummary = async (): Promise<FinanceSummary> => {
     pendingQuotations,
   ] = await Promise.all([
     Payment.sum('monto', {
-      where: { estado: 'confirmado', fecha: { [Op.gte]: todayStart } },
+      where: { estado: 'confirmado', fecha: { [Op.between]: [todayStart, todayEnd] } },
     }),
     Payment.sum('monto', {
-      where: { estado: 'confirmado', fecha: { [Op.gte]: monthStart } },
+      where: { estado: 'confirmado', fecha: { [Op.between]: [monthStart, monthEnd] } },
     }),
     CashMovement.sum('monto', {
-      where: { tipo: 'egreso', voidedAt: null, fecha: { [Op.gte]: todayStart } },
+      where: { tipo: 'egreso', voidedAt: null, fecha: { [Op.between]: [todayStart, todayEnd] } },
     }),
     CashMovement.sum('monto', {
-      where: { tipo: 'egreso', voidedAt: null, fecha: { [Op.gte]: monthStart } },
+      where: { tipo: 'egreso', voidedAt: null, fecha: { [Op.between]: [monthStart, monthEnd] } },
     }),
     CashMovement.sum('monto', {
-      where: { tipo: 'ingreso', voidedAt: null, fecha: { [Op.gte]: todayStart } },
+      where: { tipo: 'ingreso', voidedAt: null, fecha: { [Op.between]: [todayStart, todayEnd] } },
     }),
     Payment.count({ where: { estado: 'por_verificar' } }),
     Payment.sum('monto', { where: { estado: 'por_verificar' } }),
     Quotation.count({ where: quotationWhere }),
-    Quotation.sum('total', { where: quotationWhere }),
+    Quotation.findOne({
+      // IVA is rounded per document before summing the payable totals.
+      attributes: [[fn('SUM', literal(`\`Quotation\`.\`total\` + ROUND(\`Quotation\`.\`total\` * ${QUOTATION_TAX_RATE}, 0)`)), 'total']],
+      where: quotationWhere,
+      raw: true,
+    }).then((row) => Number(row?.total ?? 0)),
     Quotation.sum('pagado', { where: quotationWhere }),
     listPayments({ page: 1, pageSize: 10, estado: 'por_verificar' }),
     listPayments({ page: 1, pageSize: 10 }),
@@ -100,14 +111,15 @@ export const getFinanceSummary = async (): Promise<FinanceSummary> => {
       revenueMonth: Number(revenueMonth ?? 0),
       expensesToday: Number(expensesToday ?? 0),
       expensesMonth: Number(expensesMonth ?? 0),
-      netCashToday:
+      netCashToday: moneyValue(
         Number(revenueToday ?? 0) +
         Number(manualIncomeToday ?? 0) -
         Number(expensesToday ?? 0),
-      receivableTotal: Math.max(
+      ),
+      receivableTotal: moneyValue(Math.max(
         0,
         Number(receivableTotal ?? 0) - Number(receivablePaid ?? 0),
-      ),
+      )),
       receivableCount,
       pendingTransferCount,
       pendingTransferAmount: Number(pendingTransferAmount ?? 0),
@@ -117,9 +129,12 @@ export const getFinanceSummary = async (): Promise<FinanceSummary> => {
     pendingQuotations: pendingQuotations.map((quotation) => ({
       id: quotation.id,
       codigo: quotation.codigo,
-      total: Number(quotation.total),
+      total: getQuotationGrossTotal(Number(quotation.total)),
       pagado: Number(quotation.pagado),
-      saldoPendiente: Math.max(0, Number(quotation.total) - Number(quotation.pagado)),
+      saldoPendiente: moneyValue(Math.max(
+        0,
+        getQuotationGrossTotal(Number(quotation.total)) - Number(quotation.pagado),
+      )),
       estadoPago: quotation.estadoPago,
       client: quotation.client
         ? { id: quotation.client.id, nombre: quotation.client.nombre }

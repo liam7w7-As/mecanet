@@ -15,11 +15,15 @@ import {
   type PDFFont,
   type PDFPage,
 } from 'pdf-lib';
+import sharp from 'sharp';
 
 import { getReportBranding, type ReportBranding } from './reports/report-branding.js';
+import { getWorkOrderDocumentPricing } from './reports/work-order-document-pricing.js';
 import { readInspectionPhotoBytes } from './work-order-inspection-photo.service.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
+import { Quotation } from '../models/Quotation.js';
+import { QuotationItem } from '../models/QuotationItem.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
@@ -295,7 +299,7 @@ const drawDocumentHeader = (ctx: PdfContext, section?: string): number => {
   const codeSize = section ? 10 : 14;
   page.drawText(workOrderCode, {
     x: A4_WIDTH - MARGIN - fonts.bold.widthOfTextAtSize(workOrderCode, codeSize),
-    y: A4_HEIGHT - (section ? 31 : 36),
+    y: A4_HEIGHT - (section ? 31 : 81),
     size: codeSize,
     font: fonts.bold,
     color: rgb(1, 1, 1),
@@ -447,6 +451,8 @@ const getWorkOrderForPdf = async (workOrderId: number): Promise<WorkOrder> => {
         attributes: [
           'id',
           'catalogItemId',
+          'tipoLinea',
+          'unidadMedida',
           'descripcion',
           'cantidad',
           'precioUnitario',
@@ -465,6 +471,17 @@ const getWorkOrderForPdf = async (workOrderId: number): Promise<WorkOrder> => {
             paranoid: false,
           },
         ],
+      },
+      {
+        model: Quotation,
+        as: 'quotation',
+        attributes: ['id', 'descuentoTipo', 'descuentoValor'],
+        include: [{
+          model: QuotationItem,
+          as: 'items',
+          separate: true,
+          attributes: ['id', 'quotationId', 'workOrderItemId', 'catalogItemId', 'tipoLinea', 'unidadMedida', 'descripcion', 'descuentoTipo', 'descuentoValor'],
+        }],
       },
       { model: User, as: 'creator', attributes: ['id', 'nombre', 'email'] },
       {
@@ -486,10 +503,16 @@ const embedPhoto = async (
   pdfDoc: PDFDocument,
   photo: WorkOrderInspectionPhoto,
 ): Promise<PDFImage | null> => {
-  if (photo.mimeType !== 'image/jpeg' && photo.mimeType !== 'image/png') return null;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.mimeType)) return null;
 
   try {
     const bytes = await readInspectionPhotoBytes(photo.storageKey);
+    if (photo.mimeType === 'image/webp') {
+      const png = await sharp(bytes).rotate()
+        .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+        .png().toBuffer();
+      return await pdfDoc.embedPng(png);
+    }
     return photo.mimeType === 'image/jpeg'
       ? await pdfDoc.embedJpg(bytes)
       : await pdfDoc.embedPng(bytes);
@@ -637,26 +660,27 @@ const drawReceptionAndVehicle = (ctx: PdfContext, workOrder: WorkOrder, startY: 
     { label: 'Ingreso', value: formatDate(workOrder.fechaIngreso, true) },
     { label: 'Entrega', value: formatDate(workOrder.fechaEntrega, true) },
     { label: 'Asesor', value: valueOrFallback(workOrder.creator?.nombre) },
-    {
+    ...(vehicle ? [{
       label: 'Combustible',
       value: inspection?.nivelCombustible
         ? FUEL_LABELS[inspection.nivelCombustible]
         : 'No registrado',
-    },
+    }] : []),
     { label: 'Estado', value: getWorkOrderStatusLabel(workOrder.estado) },
   ];
+  const receptionWidth = vehicle ? width : CONTENT_WIDTH;
   const rowTwoHeight = Math.max(
-    measureInfoCard(vehicleEntries, ctx.fonts, width),
-    measureInfoCard(receptionEntries, ctx.fonts, width),
+    vehicle ? measureInfoCard(vehicleEntries, ctx.fonts, width) : 0,
+    measureInfoCard(receptionEntries, ctx.fonts, receptionWidth),
   );
-  drawInfoCard(ctx, 'Vehículo recibido', vehicleEntries, MARGIN, cursorY, width, rowTwoHeight);
+  if (vehicle) drawInfoCard(ctx, 'Vehículo recibido', vehicleEntries, MARGIN, cursorY, width, rowTwoHeight);
   drawInfoCard(
     ctx,
     'Recepción',
     receptionEntries,
-    MARGIN + width + gap,
+    vehicle ? MARGIN + width + gap : MARGIN,
     cursorY,
-    width,
+    receptionWidth,
     rowTwoHeight,
   );
   return cursorY - rowTwoHeight - 16;
@@ -839,6 +863,7 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
   let cursorY = addPage(ctx, 'SERVICIOS Y REPUESTOS');
   cursorY = drawSectionTitle(ctx, 'Detalle operativo y valorización', cursorY);
   const items = (workOrder.items ?? []).slice().sort((left, right) => left.id - right.id);
+  const { pricing, tax: { neto, iva, total } } = getWorkOrderDocumentPricing(items, workOrder.quotation);
   const widths = [62, 194, 70, 40, 74, 79];
   const xPositions = widths.reduce<number[]>((positions, width) => {
     positions.push(positions[positions.length - 1] + width);
@@ -853,7 +878,7 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
       height: 24,
       color: PRIMARY,
     });
-    ['Tipo', 'Descripción', 'Estado', 'Cant.', 'P. unitario', 'Subtotal'].forEach(
+    ['Tipo', 'Descripción', 'Estado', 'Cant.', 'P. unitario', 'Subt. neto'].forEach(
       (label, index) => {
         ctx.page.drawText(label, {
           x: xPositions[index] + 5,
@@ -868,7 +893,6 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
   };
 
   drawTableHeader();
-  let total = 0;
   let completed = 0;
   let consumedParts = 0;
 
@@ -892,7 +916,7 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
   }
 
   let rowIndex = 0;
-  for (const item of items) {
+  for (const [itemIndex, item] of items.entries()) {
     const description = item.notasOperativas
       ? `${item.descripcion}\nNota: ${item.notasOperativas}`
       : item.descripcion;
@@ -913,8 +937,7 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
             ? 'Específico'
             : 'Libre';
     const status = item.estadoOperativo.replace(/_/g, ' ');
-    const subtotal = Number(item.subtotal);
-    total += subtotal;
+    const subtotal = pricing.lines[itemIndex]!.subtotal;
     if (item.estadoOperativo === 'completado') completed += 1;
     if (item.stockConsumido) consumedParts += item.stockConsumidoCantidad;
 
@@ -990,7 +1013,22 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
     rowIndex += 1;
   }
 
-  if (cursorY < 210) cursorY = addPage(ctx, 'RESUMEN Y CONFORMIDAD');
+  const amounts: Array<[string, number]> = [];
+  if (pricing.descuentoTotal > 0) amounts.push(['Subtotal antes de descuentos', pricing.subtotal]);
+  if (pricing.descuentoLineas > 0) amounts.push(['Descuento por ítem', -pricing.descuentoLineas]);
+  if (pricing.descuentoGeneral > 0) amounts.push(['Descuento general', -pricing.descuentoGeneral]);
+  amounts.push(['Neto', neto], ['IVA (19%)', iva]);
+  if (cursorY < 210 + amounts.length * 14) cursorY = addPage(ctx, 'RESUMEN Y CONFORMIDAD');
+  cursorY -= 12;
+  for (const [label, amount] of amounts) {
+    ctx.page.drawText(label, { x: MARGIN + 230, y: cursorY, size: 8, font: ctx.fonts.regular, color: MUTED });
+    const value = amount < 0 ? `-${formatMoney(-amount)}` : formatMoney(amount);
+    ctx.page.drawText(value, {
+      x: A4_WIDTH - MARGIN - ctx.fonts.regular.widthOfTextAtSize(value, 8),
+      y: cursorY, size: 8, font: ctx.fonts.regular, color: TEXT,
+    });
+    cursorY -= 14;
+  }
   cursorY -= 14;
   ctx.page.drawRectangle({
     x: MARGIN,
@@ -1174,7 +1212,7 @@ export async function generateWorkOrderReceptionPdf(
   cursorY -= 32;
 
   cursorY = drawReceptionAndVehicle(ctx, workOrder, cursorY);
-  drawInspection(ctx, workOrder, cursorY);
+  if (workOrder.vehicle) drawInspection(ctx, workOrder, cursorY);
   await drawPhotos(ctx, workOrder);
   drawItems(ctx, workOrder);
   drawFooters(ctx);

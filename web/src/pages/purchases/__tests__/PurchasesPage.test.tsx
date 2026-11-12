@@ -103,6 +103,20 @@ describe('PurchasesPage', () => {
     expect(screen.getByRole('button', { name: /Proveedores/ })).toBeInTheDocument();
   });
 
+  it.each([false, true])('muestra el estado real de una compra anulada (pagada antes: %s)', async (wasPaid) => {
+    vi.mocked(api.get).mockResolvedValue({ data: { ...purchaseListResponse, items: [{
+      ...purchaseListResponse.items[0], estado: 'anulada',
+      pagadoAt: wasPaid ? '2026-10-20T12:30:00.000Z' : null,
+      cashMovementId: wasPaid ? 20 : null,
+    }] } } as AxiosResponse);
+    renderPage('finanzas');
+    await screen.findByText('COMP-000007');
+    const row = within(screen.getByRole('row', { name: /COMP-000007/ }));
+    expect(row.getByText(wasPaid ? 'Pago anulado' : 'Sin pago')).toBeInTheDocument();
+    expect(row.queryByText('Pagada')).not.toBeInTheDocument();
+    expect(row.queryByText('Pendiente')).not.toBeInTheDocument();
+  });
+
   it('permite crear y exportar al jefe de taller', async () => {
     renderPage('jefe');
 

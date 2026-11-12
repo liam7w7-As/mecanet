@@ -1,5 +1,5 @@
 import { PAYMENT_METHODS } from '@unithor/shared';
-import { fn, col, Op, Transaction } from 'sequelize';
+import { fn, col, Op, Transaction, DatabaseError } from 'sequelize';
 
 import { sequelize } from '../config/database.js';
 import { CashClosure } from '../models/CashClosure.js';
@@ -63,6 +63,33 @@ const closerInclude = {
 };
 
 const moneyValue = (value: number): number => Math.round(value * 100) / 100;
+
+/**
+ * Keep the open-day check and its aggregates in one serializable transaction.
+ * Concurrent inserts into an open date can deadlock on InnoDB range locks;
+ * retry the whole rolled-back operation so callers receive the business result.
+ * File storage and notifications must stay outside this callback.
+ */
+export const withAccountingTransaction = async <T>(
+  work: (transaction: SequelizeTransaction) => Promise<T>,
+): Promise<T> => {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await sequelize.transaction(
+        { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+        work,
+      );
+    } catch (error) {
+      const code = error instanceof DatabaseError
+        ? (error.parent as Error & { code?: string }).code
+        : undefined;
+      if (code !== 'ER_LOCK_DEADLOCK') throw error;
+      if (attempt >= 3) {
+        throw ApiError.conflict('La caja está siendo modificada por otra operación. Reintente');
+      }
+    }
+  }
+};
 
 const emptyMethodTotals = (): PaymentMethodTotals => ({
   efectivo: 0,
@@ -197,7 +224,10 @@ export const assertAccountingDateOpen = async (
   transaction: SequelizeTransaction,
 ): Promise<void> => {
   const fecha = getAccountingDate(date);
-  const closure = await CashClosure.findOne({ where: { fecha }, transaction });
+  // The range lock also protects dates without a closure row from a concurrent close.
+  const closure = await CashClosure.findOne({
+    where: { fecha }, transaction, lock: transaction.LOCK.SHARE,
+  });
   if (closure) {
     throw ApiError.badRequest(`La caja del ${fecha} ya está cerrada y no admite movimientos`);
   }
@@ -207,8 +237,7 @@ export const closeCashDay = async (
   data: CloseCashDayInput,
   userId: number,
 ): Promise<DailyCashSummary> => {
-  await sequelize.transaction(
-    { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+  await withAccountingTransaction(
     async (transaction) => {
       const existing = await CashClosure.findOne({
         where: { fecha: data.fecha },

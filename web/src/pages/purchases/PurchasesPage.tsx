@@ -388,7 +388,11 @@ export const PurchasesPage = () => {
                         <span className="block font-semibold text-brand-ink">
                           {PURCHASE_PAYMENT_TYPE_LABELS[purchase.formaPago]}
                         </span>
-                        {pendingCredit ? (
+                        {purchase.estado === 'anulada' || purchase.cashMovement?.voidedAt ? (
+                          <span className="mt-1 inline-flex rounded bg-brand-coralPale px-1.5 py-0.5 text-[10px] font-bold uppercase text-brand-coralInk">
+                            {purchase.pagadoAt || purchase.cashMovementId ? 'Pago anulado' : 'Sin pago'}
+                          </span>
+                        ) : pendingCredit ? (
                           <span className="mt-1 inline-flex rounded bg-brand-goldPale px-1.5 py-0.5 text-[10px] font-bold uppercase text-brand-goldInk">
                             Pendiente
                           </span>

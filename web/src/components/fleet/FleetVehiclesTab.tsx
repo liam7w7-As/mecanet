@@ -262,6 +262,7 @@ export const FleetVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => 
             {fleetQuery.data?.items.map((vehicle, index) => {
               const number = (page - 1) * 20 + index + 1;
               const summary = vehicle.documentSummary;
+              const requiredPending = summary.required?.pending.length ?? 0;
               return (
                 <VehicleDirectoryRow
                   key={vehicle.id} number={number} plate={vehicle.patente}
@@ -277,7 +278,7 @@ export const FleetVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => 
                     { label: 'Por vencer', value: String(summary.expiringSoon) },
                   ]}
                   status={<FleetVehicleStatusBadge status={vehicle.estadoOperativo} />}
-                  alerts={<><span className={summary.expired > 0 ? 'text-brand-coralInk' : summary.expiringSoon > 0 ? 'text-amber-700' : summary.total > 0 ? 'text-brand-mintInk' : ''}>{summary.expired > 0 ? summary.expired + ' documento(s) vencido(s)' : summary.expiringSoon > 0 ? summary.expiringSoon + ' por vencer en 30 días' : summary.total === 0 ? 'Sin documentos registrados' : 'Documentación al día'}</span>{summary.nextExpiry && <span> · <span>{formatDate(summary.nextExpiry.fechaVencimiento)}</span></span>}</>}
+                  alerts={<><span className={summary.expired > 0 ? 'text-brand-coralInk' : summary.expiringSoon > 0 || requiredPending > 0 ? 'text-amber-700' : summary.required?.complete === 3 ? 'text-brand-mintInk' : ''}>{summary.expired > 0 ? summary.expired + ' documento(s) vencido(s)' : summary.expiringSoon > 0 ? summary.expiringSoon + ' por vencer en 30 días' : requiredPending > 0 ? requiredPending + ' obligatorio(s) pendiente(s)' : summary.required?.complete === 3 ? 'Documentación al día' : summary.total === 0 ? 'Sin documentos registrados' : 'Documentos registrados'}</span>{summary.nextExpiry && <span> · <span>{formatDate(summary.nextExpiry.fechaVencimiento)}</span></span>}</>}
                   tone={vehicle.estadoOperativo === 'fuera_de_servicio' ? 'danger' : vehicle.estadoOperativo === 'dado_de_baja' ? 'muted' : undefined}
                   open={expandedVehicleId === vehicle.id}
                   onOpenChange={(next) => setExpandedVehicleId(next ? vehicle.id : null)}

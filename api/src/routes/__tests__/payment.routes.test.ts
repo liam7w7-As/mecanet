@@ -2,6 +2,8 @@ import { Op } from 'sequelize';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { getQuotationGrossTotal } from '@unithor/shared';
+
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { Client } from '../../models/Client.js';
@@ -198,6 +200,10 @@ describe('Payment Routes (E2E)', () => {
   it('registra abonos parciales y completa automáticamente la cotización', async () => {
     const devCookies = await loginAs('dev@unithor.local');
     const quotation = await createQuotationFixture('01', clientId, 100000);
+    // El saldo se cobra sobre el total con IVA, igual que el PDF.
+    const grossTotal = getQuotationGrossTotal(100000);
+    const firstAmount = 40000;
+    const secondAmount = grossTotal - firstAmount;
 
     const firstResponse = await request(app)
       .post('/api/payments')
@@ -205,22 +211,22 @@ describe('Payment Routes (E2E)', () => {
       .set('X-CSRF-Token', devCookies.csrfToken)
       .send({
         quotationId: quotation.id,
-        monto: 40000,
+        monto: firstAmount,
         metodo: 'efectivo',
       });
 
     expect(firstResponse.status).toBe(201);
     expect(firstResponse.body.payment).toMatchObject({
       quotationId: quotation.id,
-      monto: 40000,
+      monto: firstAmount,
       metodo: 'efectivo',
       createdBy: devUserId,
     });
     expect(firstResponse.body.quotation).toMatchObject({
       id: quotation.id,
-      total: 100000,
-      pagado: 40000,
-      saldoPendiente: 60000,
+      total: grossTotal,
+      pagado: firstAmount,
+      saldoPendiente: grossTotal - firstAmount,
       estadoPago: 'parcial',
     });
 
@@ -230,21 +236,21 @@ describe('Payment Routes (E2E)', () => {
       .set('X-CSRF-Token', devCookies.csrfToken)
       .send({
         quotationId: quotation.id,
-        monto: 60000,
+        monto: secondAmount,
         metodo: 'tarjeta_debito',
       });
 
     expect(secondResponse.status).toBe(201);
     expect(secondResponse.body.quotation).toMatchObject({
       id: quotation.id,
-      total: 100000,
-      pagado: 100000,
+      total: grossTotal,
+      pagado: grossTotal,
       saldoPendiente: 0,
       estadoPago: 'total',
     });
 
     const reloadedQuotation = await Quotation.findByPk(quotation.id);
-    expect(Number(reloadedQuotation?.pagado)).toBe(100000);
+    expect(Number(reloadedQuotation?.pagado)).toBe(grossTotal);
     expect(reloadedQuotation?.estadoPago).toBe('total');
 
     const historyResponse = await request(app)
@@ -254,8 +260,8 @@ describe('Payment Routes (E2E)', () => {
     expect(historyResponse.status).toBe(200);
     expect(historyResponse.body).toMatchObject({
       quotationId: quotation.id,
-      total: 100000,
-      pagado: 100000,
+      total: grossTotal,
+      pagado: grossTotal,
       saldoPendiente: 0,
       estadoPago: 'total',
     });
@@ -265,7 +271,8 @@ describe('Payment Routes (E2E)', () => {
   it('rechaza abonar sobre una cotización ya pagada', async () => {
     const devCookies = await loginAs('dev@unithor.local');
     const quotation = await createQuotationFixture('02', clientId, 50000);
-    await quotation.update({ pagado: 50000, estadoPago: 'total' });
+    const grossTotal = getQuotationGrossTotal(50000);
+    await quotation.update({ pagado: grossTotal, estadoPago: 'total' });
 
     const response = await request(app)
       .post('/api/payments')
@@ -286,6 +293,7 @@ describe('Payment Routes (E2E)', () => {
   it('rechaza pagos superiores al saldo pendiente', async () => {
     const devCookies = await loginAs('dev@unithor.local');
     const quotation = await createQuotationFixture('03', clientId, 50000);
+    const grossTotal = getQuotationGrossTotal(50000);
 
     const response = await request(app)
       .post('/api/payments')
@@ -293,13 +301,13 @@ describe('Payment Routes (E2E)', () => {
       .set('X-CSRF-Token', devCookies.csrfToken)
       .send({
         quotationId: quotation.id,
-        monto: 50001,
+        monto: grossTotal + 1,
         metodo: 'cheque',
       });
 
     expect(response.status).toBe(400);
     expect(response.body.error.message).toContain(
-      'El abono supera el saldo pendiente disponible. Saldo restante: 50000',
+      `El abono supera el saldo pendiente disponible. Saldo restante: ${grossTotal}`,
     );
 
     const paymentCount = await Payment.count({ where: { quotationId: quotation.id } });
@@ -309,6 +317,7 @@ describe('Payment Routes (E2E)', () => {
   it('anula un pago y recalcula saldo y estado de la cotización', async () => {
     const devCookies = await loginAs('dev@unithor.local');
     const quotation = await createQuotationFixture('04', clientId, 80000);
+    const grossTotal = getQuotationGrossTotal(80000);
 
     const createResponse = await request(app)
       .post('/api/payments')
@@ -332,9 +341,9 @@ describe('Payment Routes (E2E)', () => {
       message: 'Pago anulado correctamente',
       quotation: {
         id: quotation.id,
-        total: 80000,
+        total: grossTotal,
         pagado: 0,
-        saldoPendiente: 80000,
+        saldoPendiente: grossTotal,
         estadoPago: 'por_pagar',
       },
     });
@@ -388,6 +397,7 @@ describe('Payment Routes (E2E)', () => {
     const devCookies = await loginAs('dev@unithor.local');
     const bodegueroCookies = await loginAs(`${TEST_EMAIL_PREFIX}bodeguero@unithor.local`);
     const quotation = await createQuotationFixture('06', clientId, 100000);
+    const grossTotal = getQuotationGrossTotal(100000);
 
     const receiptBytes = Buffer.from('%PDF-1.4\n% comprobante test\n');
     const createResponse = await request(app)
@@ -417,7 +427,7 @@ describe('Payment Routes (E2E)', () => {
     );
     expect(createResponse.body.quotation).toMatchObject({
       pagado: 0,
-      saldoPendiente: 100000,
+      saldoPendiente: grossTotal,
       estadoPago: 'por_verificar',
     });
 
@@ -448,7 +458,7 @@ describe('Payment Routes (E2E)', () => {
     });
     expect(approveResponse.body.quotation).toMatchObject({
       pagado: 40000,
-      saldoPendiente: 60000,
+      saldoPendiente: grossTotal - 40000,
       estadoPago: 'parcial',
     });
 

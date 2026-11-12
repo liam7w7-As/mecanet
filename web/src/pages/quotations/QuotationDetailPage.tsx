@@ -1,3 +1,4 @@
+import { getQuotationGrossTotal, type PaymentMethod } from '@unithor/shared';
 import { AlertCircle, ArrowLeft, Banknote, DollarSign, Eye, LoaderCircle, Pencil, ReceiptText, Trash2, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -18,7 +19,6 @@ import { hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { Payment } from '../../types/entities';
-import type { PaymentMethod } from '@unithor/shared';
 
 const getPaymentMethodLabel = (method: string | null): string =>
   method && method in PAYMENT_METHOD_LABELS
@@ -29,18 +29,20 @@ export const QuotationDetailPage = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
+  const canViewWorkOrder = Boolean(user && hasUserPermission(user, 'taller', 'read'));
   const quotationId = Number(id);
   const quotationQuery = useQuotation(quotationId);
   const paymentsQuery = useQuotationPayments(quotationId);
   const deletePaymentMutation = useDeletePaymentMutation();
-  const [showPaymentModal, setShowPaymentModal] = useState(searchParams.get('payment') === 'true');
-  const [showEditModal, setShowEditModal] = useState(searchParams.get('edit') === 'true');
+  const [showPaymentModal, setShowPaymentModal] = useState(() => searchParams.get('payment') === 'true' && Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create'))));
+  const [showEditModal, setShowEditModal] = useState(searchParams.get('edit') === 'true' && canEdit);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
-  const user = useAuthStore((state) => state.user);
   const quotation = quotationQuery.data;
   const summary = paymentsQuery.data;
-  const total = summary?.total ?? quotation?.total ?? 0;
+  const total = summary?.total ?? getQuotationGrossTotal(quotation?.total ?? 0);
   const paid = summary?.pagado ?? quotation?.pagado ?? 0;
   const balance = summary?.saldoPendiente ?? Math.max(0, total - paid);
   const pendingTransferAmount = summary?.payments
@@ -49,7 +51,6 @@ export const QuotationDetailPage = () => {
   const availableBalance = Math.max(0, balance - pendingTransferAmount);
   const canCreatePayment = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
   const canDeletePayment = Boolean(user && (hasUserPermission(user, 'comercial', 'delete') || hasUserPermission(user, 'finanzas', 'delete')));
-  const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
 
   if (quotationQuery.isPending) {
     return <div className="flex min-h-72 items-center justify-center"><LoaderCircle className="h-8 w-8 animate-spin text-brand-primaryInk" aria-label="Cargando cotización" /></div>;
@@ -83,7 +84,7 @@ export const QuotationDetailPage = () => {
             </AnimateIcon>
             Ver PDF / Imprimir
           </button>
-          {canEdit && quotation.estadoPago !== 'total' && (
+          {canEdit && (
             <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-primaryInk bg-white px-4 text-sm font-semibold text-brand-primaryInk shadow-sm transition-all hover:bg-brand-line/40 hover:shadow" onClick={() => setShowEditModal(true)}>
               <AnimateIcon variant="wiggle" animateOnHover>
                 <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -97,9 +98,9 @@ export const QuotationDetailPage = () => {
 
       {(paymentsQuery.isError || deletePaymentMutation.isError) && <div className="flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(paymentsQuery.error ?? deletePaymentMutation.error)}</div>}
 
-      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-label="Resumen financiero"><div className="grid divide-y divide-brand-line sm:grid-cols-3 sm:divide-x sm:divide-y-0"><div className="p-5"><p className="text-xs font-semibold uppercase text-brand-muted">Total cotizado</p><p className="mt-2 text-2xl font-bold text-brand-ink">{formatClp(total)}</p></div><div className="p-5"><p className="text-xs font-semibold uppercase text-brand-muted">Monto pagado</p><p className="mt-2 text-2xl font-bold text-brand-mintInk" data-testid="quotation-paid">{formatClp(paid)}</p>{pendingTransferAmount > 0 && <p className="mt-1 text-xs font-semibold text-brand-goldInk">{formatClp(pendingTransferAmount)} en verificación</p>}</div><div className="bg-brand-line/40 p-5"><p className="text-xs font-semibold uppercase text-brand-primaryInk">Saldo pendiente</p><p className="mt-2 text-2xl font-bold text-brand-primaryInk" data-testid="quotation-balance">{formatClp(balance)}</p>{pendingTransferAmount > 0 && <p className="mt-1 text-xs text-brand-muted">Disponible para nuevos abonos: {formatClp(availableBalance)}</p>}</div></div></section>
+      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-label="Resumen financiero"><div className="grid divide-y divide-brand-line sm:grid-cols-3 sm:divide-x sm:divide-y-0"><div className="p-5"><p className="text-xs font-semibold uppercase text-brand-muted">Total cotizado</p><p className="mt-2 text-2xl font-bold text-brand-ink">{formatClp(total)}</p><p className="mt-1 text-xs text-brand-muted">IVA (19%) incluido</p></div><div className="p-5"><p className="text-xs font-semibold uppercase text-brand-muted">Monto pagado</p><p className="mt-2 text-2xl font-bold text-brand-mintInk" data-testid="quotation-paid">{formatClp(paid)}</p>{pendingTransferAmount > 0 && <p className="mt-1 text-xs font-semibold text-brand-goldInk">{formatClp(pendingTransferAmount)} en verificación</p>}</div><div className="bg-brand-line/40 p-5"><p className="text-xs font-semibold uppercase text-brand-primaryInk">Saldo pendiente</p><p className="mt-2 text-2xl font-bold text-brand-primaryInk" data-testid="quotation-balance">{formatClp(balance)}</p>{pendingTransferAmount > 0 && <p className="mt-1 text-xs text-brand-muted">Disponible para nuevos abonos: {formatClp(availableBalance)}</p>}</div></div></section>
 
-      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="quotation-info-title"><div className="border-b border-brand-line px-5 py-4"><h2 id="quotation-info-title" className="font-bold text-brand-primaryInk">Información comercial</h2></div><div className={`grid divide-y divide-brand-line ${quotation.vehicle ? 'md:grid-cols-3' : 'md:grid-cols-2'} md:divide-x md:divide-y-0`}><div className="p-5"><p className="flex items-center gap-2 text-sm font-semibold text-brand-muted"><UserRound className="h-4 w-4" aria-hidden="true" />Cliente</p><p className="mt-3 font-semibold text-brand-ink">{quotation.client?.nombre ?? 'Sin cliente'}</p><p className="mt-1 text-sm text-brand-muted">{quotation.client?.rut ?? 'Sin identificación'}</p></div>{quotation.vehicle && <div className="p-5"><p className="text-sm font-semibold text-brand-muted">Vehículo</p><p className="mt-3 font-mono text-lg font-bold text-brand-primaryInk">{quotation.vehicle?.patente ?? 'Sin vehículo'}</p><p className="mt-1 text-sm text-brand-muted">{[quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos técnicos'}</p></div>}<div className="p-5"><p className="text-sm font-semibold text-brand-muted">Referencia</p><p className="mt-3 text-sm text-brand-ink">Asesor: <strong>{quotation.asesor?.nombre ?? 'Sin registro'}</strong></p><p className="mt-2 text-sm text-brand-ink">OT: {quotation.workOrder ? <Link to={`/work-orders/${quotation.workOrder.id}`} className="font-mono font-bold text-brand-primaryInk hover:underline">{quotation.workOrder.codigo}</Link> : 'No vinculada'}</p></div></div><div className="border-t border-brand-line px-5 py-4"><p className="text-xs font-semibold uppercase text-brand-muted">Notas comerciales</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-ink">{quotation.notas ?? 'Sin notas registradas.'}</p></div></section>
+      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="quotation-info-title"><div className="border-b border-brand-line px-5 py-4"><h2 id="quotation-info-title" className="font-bold text-brand-primaryInk">Información comercial</h2></div><div className={`grid divide-y divide-brand-line ${quotation.vehicle ? 'md:grid-cols-3' : 'md:grid-cols-2'} md:divide-x md:divide-y-0`}><div className="p-5"><p className="flex items-center gap-2 text-sm font-semibold text-brand-muted"><UserRound className="h-4 w-4" aria-hidden="true" />Cliente</p><p className="mt-3 font-semibold text-brand-ink">{quotation.client?.nombre ?? 'Sin cliente'}</p><p className="mt-1 text-sm text-brand-muted">{quotation.client?.rut ?? 'Sin identificación'}</p></div>{quotation.vehicle && <div className="p-5"><p className="text-sm font-semibold text-brand-muted">Vehículo</p><p className="mt-3 font-mono text-lg font-bold text-brand-primaryInk">{quotation.vehicle?.patente ?? 'Sin vehículo'}</p><p className="mt-1 text-sm text-brand-muted">{[quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos técnicos'}</p></div>}<div className="p-5"><p className="text-sm font-semibold text-brand-muted">Referencia</p><p className="mt-3 text-sm text-brand-ink">Asesor: <strong>{quotation.asesor?.nombre ?? 'Sin registro'}</strong></p><p className="mt-2 text-sm text-brand-ink">OT: {quotation.workOrder ? canViewWorkOrder ? <Link to={`/work-orders/${quotation.workOrder.id}`} className="font-mono font-bold text-brand-primaryInk hover:underline">{quotation.workOrder.codigo}</Link> : quotation.workOrder.codigo : 'No vinculada'}</p></div></div><div className="border-t border-brand-line px-5 py-4"><p className="text-xs font-semibold uppercase text-brand-muted">Notas comerciales</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-ink">{quotation.notas ?? 'Sin notas registradas.'}</p></div></section>
 
       <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="quotation-items-title"><div className="border-b border-brand-line px-5 py-4"><h2 id="quotation-items-title" className="font-bold text-brand-primaryInk">Conceptos cotizados</h2></div><div className="max-w-full overflow-x-auto overscroll-x-contain"><table className="commercial-data-table w-full min-w-[920px] text-left text-sm"><thead className="bg-brand-line/40 text-xs uppercase text-brand-muted"><tr><th className="px-4 py-3 font-semibold">Descripción</th><th className="px-4 py-3 font-semibold">Nota operativa</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th><th className="px-4 py-3 text-right font-semibold">Precio unitario</th><th className="px-4 py-3 text-right font-semibold">Subtotal</th></tr></thead><tbody>{quotation.items?.map((item) => <tr key={item.id} className="border-t border-brand-line"><td data-label="Descripción" className="px-4 py-3 font-medium text-brand-ink">{item.descripcion}</td><td data-label="Nota operativa" className="max-w-64 px-4 py-3 text-brand-muted">{item.notasOperativas ?? '-'}</td><td data-label="Cantidad" className="px-4 py-3 text-right text-brand-muted">{item.cantidad}</td><td data-label="Precio unitario" className="px-4 py-3 text-right text-brand-muted">{formatClp(item.precioUnitario)}</td><td data-label="Subtotal" className="px-4 py-3 text-right font-semibold text-brand-primaryInk">{formatClp(item.subtotal)}</td></tr>)}</tbody></table></div>{quotation.items?.length === 0 && <p className="px-5 py-8 text-center text-sm text-brand-muted">Sin conceptos cotizados.</p>}</section>
 

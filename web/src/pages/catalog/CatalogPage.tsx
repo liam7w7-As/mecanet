@@ -139,7 +139,7 @@ export const CatalogPage = () => {
     (hasUserPermission(user, 'taller', 'import') || hasUserPermission(user, 'admin', 'import')),
   );
   const canViewInventory = Boolean(user && hasUserPermission(user, 'almacen', 'read'));
-  const canAdjustStock = Boolean(user && hasUserPermission(user, 'almacen', 'create'));
+  const canAdjustStock = canViewInventory && Boolean(user && hasUserPermission(user, 'almacen', 'create'));
 
   useEffect(() => setPage(1), [debouncedSearch, tab, onlyInStock]);
 
@@ -149,7 +149,7 @@ export const CatalogPage = () => {
   };
 
   const confirmDelete = (): void => {
-    if (!deleteItem) return;
+    if (!deleteItem || !canDelete || deleteMutation.isPending) return;
     deleteMutation.mutate(deleteItem.id, {
       onSuccess: () => {
         if (detailItem?.id === deleteItem.id) setDetailItem(null);

@@ -80,6 +80,18 @@ export declare const salesAccessRecordsQuerySchema: z.ZodObject<{
     search?: string | undefined;
 }>;
 export type SalesAccessRecordsQuery = z.infer<typeof salesAccessRecordsQuerySchema>;
+/** Checks only the authenticated seller's access to records open in the UI. */
+export declare const salesAccessSessionQuerySchema: z.ZodObject<{
+    workOrderIds: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, number[], string>, z.ZodArray<z.ZodNumber, "many">>>;
+    quotationIds: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, number[], string>, z.ZodArray<z.ZodNumber, "many">>>;
+}, "strip", z.ZodTypeAny, {
+    workOrderIds?: number[] | undefined;
+    quotationIds?: number[] | undefined;
+}, {
+    workOrderIds?: string | undefined;
+    quotationIds?: string | undefined;
+}>;
+export type SalesAccessSessionQuery = z.infer<typeof salesAccessSessionQuerySchema>;
 export declare const SALES_ACCESS_SCOPE_LABELS: Record<SalesAccessScopeType, string>;
 export declare const createSalesAccessGrantSchema: z.ZodObject<{
     scopeType: z.ZodEnum<["work_order", "quotation"]>;

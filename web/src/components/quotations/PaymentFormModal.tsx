@@ -5,9 +5,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import PaymentWorkSummary from './PaymentWorkSummary';
 import { useCreatePaymentMutation, useQuotationPayments } from '../../hooks/usePayments';
 import { useQuotation } from '../../hooks/useQuotations';
+import { useSalesAccessRecord } from '../../hooks/useSalesAccessRecord';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp, formatDateTime } from '../../lib/formatters';
+import { hasUserPermission } from '../../lib/permissions';
+import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 import CurrencyInput from '../common/CurrencyInput';
 import FormDialog from '../common/FormDialog';
@@ -50,6 +53,10 @@ export const PaymentFormModal = ({
   saldoPendiente,
   onClose,
 }: PaymentFormModalProps) => {
+  const user = useAuthStore((state) => state.user);
+  const canCreate = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
+  const submissionInFlight = useRef(false);
+  useSalesAccessRecord('quotation', quotationId, onClose);
   const createMutation = useCreatePaymentMutation();
   const quotationQuery = useQuotation(quotationId);
   const paymentsQuery = useQuotationPayments(quotationId);
@@ -69,24 +76,24 @@ export const PaymentFormModal = ({
       payment.estado === 'por_verificar' ? total + Number(payment.monto) : total,
     0,
   );
-  const availableBalance = summary
+  const availableBalance = Math.round(100 * (summary
     ? Math.max(0, summary.saldoPendiente - pendingAmount)
-    : saldoPendiente;
+    : saldoPendiente)) / 100;
   const numericAmount = Number(monto) || 0;
   const validAmount = numericAmount > 0 && numericAmount <= availableBalance;
-  const projectedBalance = Math.max(0, (summary?.saldoPendiente ?? saldoPendiente) - numericAmount);
+  const projectedBalance = Math.round(100 * Math.max(0, (summary?.saldoPendiente ?? saldoPendiente) - numericAmount)) / 100;
   const loadingSummary = quotationQuery.isPending || paymentsQuery.isPending;
   const summaryError = quotationQuery.isError || paymentsQuery.isError;
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    if (loadingSummary || summaryError || createMutation.isPending) return;
+    if (!canCreate || loadingSummary || summaryError || createMutation.isPending || submissionInFlight.current) return;
     createMutation.reset();
     const numericAmount = Number(monto);
 
     if (numericAmount > availableBalance) {
       setErrors({
-        monto: `El abono no puede superar el saldo pendiente de ${formatClp(availableBalance)}.`,
+        monto: `El abono no puede superar el saldo pendiente de ${formatClp(availableBalance, 2)}.`,
       });
       return;
     }
@@ -125,12 +132,14 @@ export const PaymentFormModal = ({
       paymentPayload.set('comprobantePago', receiptFile);
     }
 
+    submissionInFlight.current = true;
     createMutation.mutate(paymentPayload, {
+      onSettled: () => { submissionInFlight.current = false; },
       onSuccess: () => {
         notifySuccess(
           metodo === 'transferencia'
-            ? `Transferencia de ${formatClp(numericAmount)} enviada a verificación.`
-            : `Abono de ${formatClp(numericAmount)} registrado.`,
+            ? `Transferencia de ${formatClp(numericAmount, 2)} enviada a verificación.`
+            : `Abono de ${formatClp(numericAmount, 2)} registrado.`,
         );
         onClose();
       },
@@ -156,9 +165,10 @@ export const PaymentFormModal = ({
     context={quotationQuery.data?.client?.nombre ?? 'Cotización'} submitLabel="Registrar abono"
     dirty={dirty} pending={createMutation.isPending} onClose={onClose} onSubmit={submit}
     className="commercial-form-dialog commercial-payment-dialog" headerVariant="brand" headerIcon={<Banknote aria-hidden="true" />}
-    submitDisabled={loadingSummary || summaryError || availableBalance <= 0}
+    submitDisabled={!canCreate || loadingSummary || summaryError || availableBalance <= 0}
     statusText={metodo === 'transferencia' ? 'Sujeto a verificación de Finanzas' : 'El abono se asociará a esta cotización'}>
-          <div className="commercial-payment-grid">
+          {!canCreate && <p role="status">Tu permiso actual no permite registrar abonos. Conservamos los datos y el comprobante ingresados.</p>}
+          <fieldset disabled={!canCreate} className="commercial-payment-grid min-w-0">
           <div className="commercial-payment-work">
             <button type="button" className="commercial-work-toggle" aria-expanded={summaryExpanded} aria-controls={summaryId} onClick={() => setSummaryExpanded((current) => !current)}><Banknote aria-hidden="true" />Trabajos y saldo<ChevronDown aria-hidden="true" /></button>
             <div id={summaryId} className={summaryExpanded ? 'commercial-work-body is-expanded' : 'commercial-work-body'}>
@@ -204,7 +214,7 @@ export const PaymentFormModal = ({
                   className="mt-1 text-xl font-bold text-brand-primaryInk"
                   data-testid="payment-available-balance"
                 >
-                  {loadingSummary || summaryError ? '—' : formatClp(availableBalance)}
+                  {loadingSummary || summaryError ? '—' : formatClp(availableBalance, 2)}
                 </p>
               </div>
               <button
@@ -222,6 +232,7 @@ export const PaymentFormModal = ({
             <label className="block text-sm font-semibold text-brand-ink">
               Monto del abono
               <CurrencyInput
+                allowDecimals
                 value={monto}
                 onChange={setMonto}
                 className="mt-2 h-10 w-full rounded-lg border border-brand-line px-3 font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
@@ -262,7 +273,7 @@ export const PaymentFormModal = ({
                   className="text-base text-brand-primaryInk"
                   data-testid="payment-projected-balance"
                 >
-                  {formatClp(projectedBalance)}
+                  {formatClp(projectedBalance, 2)}
                 </strong>
               </div>
             )}
@@ -406,7 +417,7 @@ export const PaymentFormModal = ({
               </div>
             )}
           </div>
-          </div>
+          </fieldset>
   </FormDialog>;
 };
 

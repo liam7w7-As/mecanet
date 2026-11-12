@@ -1,9 +1,11 @@
 import {
   FLEET_EXPIRY_WARNING_DAYS,
   getFleetExpiryInfo,
+  getQuotationGrossTotal,
+  QUOTATION_TAX_RATE,
   toFleetDateOnly,
 } from '@unithor/shared';
-import { Op, col } from 'sequelize';
+import { Op, col, fn, literal } from 'sequelize';
 
 import { hasPermission } from './permission.service.js';
 import { getSalesScope, quotationWhere, workOrderWhere } from './sales-access.service.js';
@@ -110,7 +112,12 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     }),
     WorkOrder.count({ where: { ...workOrderScope, estado: 'esperando_repuesto' } }),
     isMechanic ? Promise.resolve(0) : Quotation.count({ where: pendingQuotationWhere }),
-    isMechanic ? Promise.resolve(0) : Quotation.sum('total', { where: pendingQuotationWhere }),
+    isMechanic ? Promise.resolve(0) : Quotation.findOne({
+      // Round IVA per quotation, matching the PDF without loading every row.
+      attributes: [[fn('SUM', literal(`\`Quotation\`.\`total\` + ROUND(\`Quotation\`.\`total\` * ${QUOTATION_TAX_RATE}, 0)`)), 'total']],
+      where: pendingQuotationWhere,
+      raw: true,
+    }).then((row) => Number(row?.total ?? 0)),
     isMechanic ? Promise.resolve(0) : Quotation.sum('pagado', { where: pendingQuotationWhere }),
     isMechanic ? Promise.resolve(0) : Payment.sum('monto', {
       where: { estado: 'confirmado', fecha: { [Op.gte]: monthStart } },
@@ -402,7 +409,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
     unlinkedQuotations: unlinkedQuotations.map((quotation) => ({
       id: quotation.id,
       codigo: quotation.codigo,
-      total: Number(quotation.total),
+      total: getQuotationGrossTotal(Number(quotation.total)),
       estadoPago: quotation.estadoPago,
       client: quotation.client
         ? { id: quotation.client.id, nombre: quotation.client.nombre }

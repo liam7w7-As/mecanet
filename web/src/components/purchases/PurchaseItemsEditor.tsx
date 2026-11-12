@@ -232,6 +232,7 @@ export const PurchaseItemsEditor = ({
                 <label className="block text-xs font-semibold uppercase tracking-wide text-brand-muted">
                   Precio unitario neto
                   <CurrencyInput
+                    allowDecimals
                     value={item.precioUnitario}
                     onChange={(value) => updateItem(item.key, { precioUnitario: value })}
                     className="mt-1.5 h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm font-normal normal-case tracking-normal text-brand-ink outline-none focus:border-brand-primary"
@@ -350,7 +351,7 @@ export const PurchaseItemsEditor = ({
                       catalogItemId: part.id,
                       catalogItem: part,
                       descripcion: part.nombre,
-                      precioUnitario: String(Math.round(part.precio)),
+                      precioUnitario: String(part.precio),
                       afectaStock: false,
                       warehouseId: null,
                     });

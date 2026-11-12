@@ -84,6 +84,8 @@ export declare const workOrderItemInputSchema: z.ZodObject<{
     horasHombreEstimadas: z.ZodOptional<z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>>;
     estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
     notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+    descuentoValor: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     cantidad: number;
     precioUnitario: number;
@@ -95,6 +97,8 @@ export declare const workOrderItemInputSchema: z.ZodObject<{
     catalogItemId?: number | null | undefined;
     horasHombreEstimadas?: number | null | undefined;
     notasOperativas?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
 }, {
     descripcion: string;
     cantidad?: number | undefined;
@@ -106,6 +110,8 @@ export declare const workOrderItemInputSchema: z.ZodObject<{
     tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
     horasHombreEstimadas?: unknown;
     notasOperativas?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
 }>;
 export declare const createWorkOrderSchema: z.ZodObject<{
     emailPhotoSlots: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodEnum<["frontal", "trasera", "lateral_izquierdo", "lateral_derecho", "frontal_izquierdo", "frontal_derecho", "trasero_izquierdo", "trasero_derecho", "interior"]>, "many">, ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[], ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[]>>;
@@ -129,6 +135,8 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         horasHombreEstimadas: z.ZodOptional<z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>>;
         estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+        descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+        descuentoValor: z.ZodOptional<z.ZodNumber>;
     } & {
         assignedUserId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
@@ -142,6 +150,8 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         catalogItemId?: number | null | undefined;
         horasHombreEstimadas?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
     }, {
         descripcion: string;
@@ -154,6 +164,8 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         horasHombreEstimadas?: unknown;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
     }>, "many">>;
     inspection: z.ZodOptional<z.ZodObject<{
@@ -184,6 +196,8 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         objetosValor?: string | null | undefined;
         observaciones?: string | null | undefined;
     }>>;
+    descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+    descuentoValor: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     items: {
         cantidad: number;
@@ -196,12 +210,16 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         catalogItemId?: number | null | undefined;
         horasHombreEstimadas?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
     }[];
     vehicleId: number;
     fechaIngreso?: string | null | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     emailPhotoSlots?: ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[] | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
@@ -232,10 +250,14 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         horasHombreEstimadas?: unknown;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     emailPhotoSlots?: ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[] | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
@@ -273,6 +295,8 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         horasHombreEstimadas: z.ZodOptional<z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>>;
         estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+        descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+        descuentoValor: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         cantidad: number;
         precioUnitario: number;
@@ -284,6 +308,8 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         catalogItemId?: number | null | undefined;
         horasHombreEstimadas?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }, {
         descripcion: string;
         cantidad?: number | undefined;
@@ -295,6 +321,8 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         horasHombreEstimadas?: unknown;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }>, "many">>;
     inspection: z.ZodOptional<z.ZodEffects<z.ZodObject<{
         inventario: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodEnum<["botiquin", "chaleco_reflectante", "extintor", "triangulo", "control_remoto", "manual", "radio", "usb", "rueda_repuesto", "llave_ruedas", "gata", "herramientas", "perno_seguridad", "enganche", "antena", "tapa_combustible", "tapas_ruedas", "limpiaparabrisas"]>, "many">, ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[], ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[]>>;
@@ -342,6 +370,8 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         objetosValor?: string | null | undefined;
         observaciones?: string | null | undefined;
     }>>;
+    descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+    descuentoValor: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     fechaIngreso?: string | null | undefined;
     items?: {
@@ -355,9 +385,13 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         catalogItemId?: number | null | undefined;
         horasHombreEstimadas?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     vehicleId?: number | undefined;
@@ -386,9 +420,13 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         horasHombreEstimadas?: unknown;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     vehicleId?: number | undefined;
@@ -417,9 +455,13 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         catalogItemId?: number | null | undefined;
         horasHombreEstimadas?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     vehicleId?: number | undefined;
@@ -448,9 +490,13 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         horasHombreEstimadas?: unknown;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     vehicleId?: number | undefined;

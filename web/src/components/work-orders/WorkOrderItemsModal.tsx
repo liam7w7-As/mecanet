@@ -1,4 +1,4 @@
-import { updateWorkOrderSchema } from '@unithor/shared';
+import { calculateQuotationPricing, updateWorkOrderSchema } from '@unithor/shared';
 import { AlertCircle } from 'lucide-react';
 import { useRef, useState } from 'react';
 
@@ -7,9 +7,11 @@ import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from './WorkOrderItems
 import { useUpdateWorkOrderMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import QuotationDiscountSummary from '../quotations/QuotationDiscountSummary';
 
 import type { EditableWorkOrderItem } from './WorkOrderItemsEditor';
 import type { WorkOrder } from '../../types/entities';
+import type { DiscountDraft } from '../quotations/QuotationDiscountSummary';
 
 
 
@@ -30,6 +32,8 @@ const toEditableItems = (workOrder: WorkOrder): EditableWorkOrderItem[] =>
     unidadMedida: item.unidadMedida,
     cantidad: String(item.cantidad),
     precioUnitario: String(item.precioUnitario),
+    descuentoTipo: item.descuentoTipo ?? null,
+    descuentoValor: String(item.descuentoValor ?? 0),
     horasHombreEstimadas:
       item.horasHombreEstimadas === null ? '' : String(item.horasHombreEstimadas),
     estadoOperativo: item.estadoOperativo,
@@ -39,7 +43,8 @@ const toEditableItems = (workOrder: WorkOrder): EditableWorkOrderItem[] =>
 export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalProps) => {
   const updateMutation = useUpdateWorkOrderMutation();
   const [items, setItems] = useState<EditableWorkOrderItem[]>(() => toEditableItems(workOrder));
-  const initialItems = useRef(JSON.stringify(items));
+  const [discount, setDiscount] = useState<DiscountDraft>({ descuentoTipo: workOrder.descuentoTipo ?? null, descuentoValor: String(workOrder.descuentoValor ?? 0) });
+  const initialItems = useRef(JSON.stringify({ items, discount }));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
@@ -47,6 +52,7 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
     updateMutation.reset();
 
     const result = updateWorkOrderSchema.safeParse({
+      ...discount,
       items: items
         .filter((item) => item.descripcion.trim().length > 0)
         .map((item) => ({
@@ -57,6 +63,8 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
           unidadMedida: item.unidadMedida,
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
+          descuentoTipo: item.descuentoTipo ?? null,
+          descuentoValor: item.descuentoValor ?? 0,
           horasHombreEstimadas: item.horasHombreEstimadas,
           estadoOperativo: item.estadoOperativo,
           notasOperativas: item.notasOperativas,
@@ -67,6 +75,11 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
       setErrors(getFieldErrors(result.error.issues));
       return;
     }
+    try { calculateQuotationPricing(result.data.items ?? [], discount); }
+    catch (error) {
+      setErrors({ _form: error instanceof Error ? error.message : 'Descuento inválido' });
+      return;
+    }
 
     setErrors({});
     updateMutation.mutate({ id: workOrder.id, data: result.data }, { onSuccess: onClose });
@@ -75,7 +88,7 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
   return (
     <WorkOrderEditDialog id="edit-work-items-title" title="Editar trabajos y repuestos" code={workOrder.codigo}
       context={workOrder.vehicle?.patente ?? 'Taller'} submitLabel="Guardar trabajos"
-      dirty={JSON.stringify(items) !== initialItems.current} pending={updateMutation.isPending}
+      dirty={JSON.stringify({ items, discount }) !== initialItems.current} pending={updateMutation.isPending}
       onClose={onClose} onSubmit={submit}>
           <div>
             <WorkOrderItemsEditor
@@ -85,8 +98,10 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
               errors={errors}
               title="Checklist de servicios y repuestos"
               description="Actualice avances, notas, cantidades o trabajos adicionales."
-              totalLabel="Total operativo"
+              showDiscounts
+              showTotal={false}
             />
+            <QuotationDiscountSummary items={items.filter((item) => item.descripcion.trim())} value={discount} onChange={setDiscount} testId="work-order-edit-total" />
           </div>
           {(errors._form || updateMutation.isError) && (
             <div className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2 text-sm text-brand-coralInk" role="alert">

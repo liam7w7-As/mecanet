@@ -115,10 +115,10 @@ export const salesAccessKeys = {
   advisors: ['sales-access', 'advisors'] as const,
 };
 
-export const useUserSalesAccessSettings = (userId: number) => useQuery({
+export const useUserSalesAccessSettings = (userId: number, enabled = true) => useQuery({
   queryKey: salesAccessKeys.settings(userId),
   queryFn: async () => (await api.get<UserSalesAccessSettings>(`/users/${userId}/sales-access`)).data,
-  enabled: Number.isInteger(userId) && userId > 0,
+  enabled: enabled && Number.isInteger(userId) && userId > 0,
   staleTime: 0,
 });
 

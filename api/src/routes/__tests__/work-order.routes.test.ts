@@ -2,6 +2,8 @@ import { Op } from 'sequelize';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { getQuotationGrossTotal } from '@unithor/shared';
+
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { CatalogItem } from '../../models/CatalogItem.js';
@@ -377,8 +379,8 @@ describe('Work Order Routes (E2E)', () => {
     expect(response.body.workOrder.quotation).toEqual(
       expect.objectContaining({
         codigo: mirrorQuotation?.codigo,
-        total: 33000,
-        saldoPendiente: 33000,
+        total: getQuotationGrossTotal(33000),
+        saldoPendiente: getQuotationGrossTotal(33000),
       }),
     );
   });

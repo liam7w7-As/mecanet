@@ -95,7 +95,7 @@ describe('ImportModal', () => {
     mocks.warehousesQuery.isLoading = false;
     mocks.warehousesQuery.isError = false;
     useAuthStore.setState({
-      user: { id: 1, role: 'mecanico', nombre: 'Prueba', email: 'test@example.test', permissions: [] },
+      user: { id: 1, role: 'mecanico', nombre: 'Prueba', email: 'test@example.test', permissions: [{ modulo: 'taller', accion: 'import' }] },
     });
   });
 
@@ -348,6 +348,41 @@ describe('ImportModal', () => {
     act(() => previous.onSuccess(buildPreview()));
     expect(screen.queryByText('Vista previa')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Importar' })).toBeDisabled();
+  });
+
+  it('conserva la vista previa cuando la sesión se restaura con los mismos permisos', () => {
+    mocks.previewMutation.mutate.mockImplementation((_input, options) => options.onSuccess(buildPreview()));
+    render(<ImportModal target="catalog" onClose={vi.fn()} />);
+    selectFile(new File(['xlsx'], 'catalogo.xlsx'));
+    act(() => useAuthStore.setState({ user: { ...useAuthStore.getState().user! } }));
+    fireEvent.click(screen.getByRole('button', { name: 'Importar 1 registro' }));
+    expect(mocks.confirmMutation.mutate).toHaveBeenCalledWith(expect.objectContaining({ previewToken: 'preview-original' }), expect.any(Object));
+  });
+
+  it('bloquea nuevas peticiones al retirar el permiso y conserva el archivo para revisarlo', () => {
+    mocks.previewMutation.mutate.mockImplementation((_input, options) => options.onSuccess(buildPreview()));
+    render(<ImportModal target="catalog" onClose={vi.fn()} />);
+    selectFile(new File(['xlsx'], 'catalogo.xlsx'));
+    act(() => useAuthStore.setState({ user: { ...useAuthStore.getState().user!, permissions: [] } }));
+    expect(screen.getByText('catalogo.xlsx')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Importar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Descargar plantilla' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Generar vista previa' })).toBeDisabled();
+    expect(mocks.confirmMutation.mutate).not.toHaveBeenCalled();
+  });
+
+  it('avisa antes de descartar el archivo y permite continuar con la misma revisión', () => {
+    mocks.previewMutation.mutate.mockImplementation((_input, options) => options.onSuccess(buildPreview()));
+    const onClose = vi.fn();
+    render(<ImportModal target="catalog" onClose={onClose} />);
+    const file = new File(['xlsx'], 'catalogo.xlsx');
+    selectFile(file);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    const confirmation = screen.getByRole('alertdialog', { name: 'Descartar importación' });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Seguir revisando' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Importar 1 registro' }));
+    expect(mocks.confirmMutation.mutate.mock.lastCall?.[0].file).toBe(file);
   });
 
   it('muestra los estados aplicados y notifica creados y actualizados', () => {

@@ -65,6 +65,7 @@ export const useCreatePaymentMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['finance'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['reports'] });
     },
   });
 };
@@ -92,6 +93,7 @@ export const useDeletePaymentMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['finance'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['reports'] });
     },
   });
 };

@@ -137,4 +137,114 @@ describe('Work management without losing context', () => {
     expect(within(other).queryByRole('button', { name: 'Iniciar' })).not.toBeInTheDocument();
   });
 
+  it('restores hour validation comments and preserves them after a failed save', async () => {
+    open();
+    const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    fireEvent.click(within(task).getByText('Administrar trabajo', { selector: 'summary' }));
+    const note = within(task).getByLabelText('Comentario de validación de Revisión de suspensión');
+    fireEvent.change(note, { target: { value: 'Horas revisadas con el mecánico' } });
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('Sin conexión'));
+    fireEvent.click(within(task).getByRole('button', { name: 'Validar horas' }));
+    await within(task).findByRole('alert');
+    expect(note).toHaveValue('Horas revisadas con el mecánico');
+    vi.mocked(api.post).mockImplementationOnce(async () => {
+      worksheet = { ...worksheet, items: worksheet.items.map((item) => item.id === 10
+        ? { ...item, laborValidatedAt: new Date().toISOString(), laborValidationNote: 'Horas revisadas con el mecánico' }
+        : item) };
+      return { data: { worksheet } };
+    });
+    fireEvent.click(within(task).getByRole('button', { name: 'Validar horas' }));
+    expect(await within(task).findByText('Validación: Horas revisadas con el mecánico')).toBeInTheDocument();
+    expect(api.post).toHaveBeenLastCalledWith(`/work-orders/${order.id}/items/10/hours/validate`, { comentario: 'Horas revisadas con el mecánico' });
+    expect(note).toHaveValue('');
+    expect(within(task).getByRole('region', { name: 'Historial de horas de Revisión de suspensión' })).toHaveTextContent('0 h 45 min');
+  });
+
+  it('keeps drafts and saved hours when workshop update permission is removed while open', async () => {
+    open();
+    const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    fireEvent.change(within(task).getByLabelText('Nota técnica de Revisión de suspensión'), { target: { value: 'Diagnóstico pendiente de guardar' } });
+    act(() => useAuthStore.setState({ user: { id: 7, nombre: 'Ana Jefa', email: 'qa@example.test', role: 'jefe', permissions: [{ modulo: 'taller', accion: 'read' }] } }));
+    const preserved = screen.getByLabelText('Nota técnica de Revisión de suspensión');
+    expect(preserved).toHaveValue('Diagnóstico pendiente de guardar');
+    expect(preserved).toBeDisabled();
+    expect(screen.getByRole('region', { name: 'Historial de horas de Revisión de suspensión' })).toHaveTextContent('0 h 45 min');
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('retains several observation attachments and retries them without losing the text', async () => {
+    open();
+    const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    const input = within(task).getByLabelText('Adjuntar imágenes o PDF');
+    const first = new File(['foto'], 'diagnostico.jpg', { type: 'image/jpeg' });
+    const second = new File(['pdf'], 'medicion.pdf', { type: 'application/pdf' });
+    fireEvent.change(input, { target: { files: [first] } });
+    fireEvent.change(input, { target: { files: [second] } });
+    fireEvent.change(within(task).getByLabelText('Observación de Revisión de suspensión'), { target: { value: 'Adjunto diagnóstico y mediciones' } });
+    expect(within(task).getByRole('button', { name: 'Quitar diagnostico.jpg' })).toBeInTheDocument();
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('Sin conexión'));
+    fireEvent.click(within(task).getByRole('button', { name: 'Guardar observación' }));
+    await within(task).findByRole('alert');
+    expect(within(task).getByLabelText('Observación de Revisión de suspensión')).toHaveValue('Adjunto diagnóstico y mediciones');
+    expect(within(task).getByRole('button', { name: 'Quitar medicion.pdf' })).toBeInTheDocument();
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { worksheet } });
+    fireEvent.click(within(task).getByRole('button', { name: 'Guardar observación' }));
+    await waitFor(() => expect(within(task).getByLabelText('Observación de Revisión de suspensión')).toHaveValue(''));
+    for (const [url, data] of vi.mocked(api.post).mock.calls) {
+      expect(url).toBe(`/work-orders/${order.id}/observations`);
+      expect(data).toBeInstanceOf(FormData);
+      const form = data as FormData;
+      expect(form.get('texto')).toBe('Adjunto diagnóstico y mediciones');
+      expect(form.getAll('files')).toEqual([first, second]);
+    }
+  });
+
+  it('blocks oversized observation files before requesting the API and keeps valid selections', async () => {
+    open();
+    const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    const valid = new File(['foto'], 'valida.jpg', { type: 'image/jpeg' });
+    const huge = new File(['foto'], 'grande.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(huge, 'size', { value: 10 * 1024 * 1024 + 1 });
+    fireEvent.change(within(task).getByLabelText('Adjuntar imágenes o PDF'), { target: { files: [valid, huge] } });
+    expect(within(task).getByRole('alert')).toHaveTextContent('grande.jpg: el archivo supera el límite de 10 MB.');
+    expect(within(task).getByRole('button', { name: 'Guardar observación' })).toBeDisabled();
+    fireEvent.click(within(task).getByRole('button', { name: 'Quitar grande.jpg' }));
+    expect(within(task).getByRole('button', { name: 'Quitar valida.jpg' })).toBeInTheDocument();
+    expect(within(task).getByRole('button', { name: 'Guardar observación' })).toBeEnabled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('shows request history without approval actions for a read-only chief', async () => {
+    useAuthStore.setState({ user: { id: 7, nombre: 'Ana Jefa', email: 'qa@example.test', role: 'jefe', permissions: [{ modulo: 'taller', accion: 'read' }] } });
+    const request = { id: 8, tipo: 'repuesto', estado: 'pendiente', workOrderItemId: null, catalogItemId: 2,
+      motivo: 'Filtro adicional', cantidad: 1, precioSugerido: null, precioAprobado: null, reviewNote: null, reviewedAt: null,
+      deliveredWarehouseId: null, deliveredBy: null, deliveredAt: null, deliveryNote: null, createdAt: new Date().toISOString() };
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url.endsWith('/worksheet') ? { worksheet }
+      : url.endsWith('/price-suggestions') ? { suggestions }
+        : url === `/work-orders/${order.id}` ? { workOrder: { ...order, requests: [request] } }
+          : { items: [], mechanics: [] } }));
+    open();
+    fireEvent.click(await screen.findByRole('button', { name: /^Solicitudes/ }));
+    expect(screen.getByText('Filtro adicional')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Aprobar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rechazar' })).not.toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('explains a pending warehouse delivery and keeps completion disabled until it arrives', async () => {
+    worksheet.items[0] = { ...worksheet.items[0], tipoLinea: 'parte', awaitingWarehouseDelivery: true };
+    open();
+    const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    expect(within(task).getByText(/Pendiente de entrega por bodega/)).toBeInTheDocument();
+    fireEvent.click(within(task).getByRole('button', { name: 'Marcar usado' }));
+    expect(api.post).not.toHaveBeenCalled();
+    expect(within(task).getByRole('button', { name: 'Marcar usado' })).toBeDisabled();
+  });
+
 });

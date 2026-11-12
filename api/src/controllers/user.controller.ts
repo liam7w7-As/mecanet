@@ -42,11 +42,7 @@ export const updateUserHandler = asyncHandler(
     const currentUserId = getCurrentUserId(req);
     const data = req.body as UpdateUserInput;
 
-    if (id === currentUserId && data.activo === false) {
-      throw ApiError.badRequest('Un usuario no puede desactivarse a sí mismo');
-    }
-
-    const user = await userService.updateUser(id, data);
+    const user = await userService.updateUser(id, data, currentUserId);
     res.status(200).json({ user });
   },
 );

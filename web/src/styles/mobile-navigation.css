@@ -23,3 +23,46 @@
 @media (prefers-reduced-motion: no-preference) { .mobile-more-sheet { animation: more-sheet-in .2s ease-out; } }
 @keyframes more-sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @media print { .mobile-more-overlay { display: none; } }
+
+/* PWA overlays live in body, above the More sheet and outside its scroll clip. */
+.pwa-install-overlay {
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.pwa-install-dialog {
+  max-height: calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+}
+.pwa-network-position {
+  top: max(8px, env(safe-area-inset-top, 0px));
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+}
+
+@media (max-width: 1023.98px) {
+  /* These pages place the logo over the content instead of reserving a topbar. */
+  .redesign-shell:has(.workshop-board, .workspace-vehicles, .workspace-warehouses) > .shell-main {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .mobile-more-sheet {
+    max-height: min(760px, 90dvh, calc(100dvh - env(safe-area-inset-top, 0px)));
+  }
+  .mobile-more-sheet > header {
+    padding-left: max(22px, env(safe-area-inset-left, 0px));
+    padding-right: max(22px, env(safe-area-inset-right, 0px));
+  }
+  .mobile-more-sheet > header > div { min-width: 0; overflow-wrap: anywhere; }
+  .mobile-more-body {
+    padding-left: max(18px, env(safe-area-inset-left, 0px));
+    padding-right: max(18px, env(safe-area-inset-right, 0px));
+  }
+  /* Match the JS mobile breakpoint, including tablets between 900 and 1024px. */
+  .pwa-reload-prompt.tabbar-safe {
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    max-width: min(384px, calc(100% - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+    max-height: calc(100dvh - 102px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+  }
+}

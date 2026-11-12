@@ -6,7 +6,9 @@ import { useRegisterPurchasePaymentMutation } from '../../hooks/usePurchases';
 import { getApiErrorMessage, getApiFieldErrors } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp } from '../../lib/formatters';
+import { hasUserPermission } from '../../lib/permissions';
 import { PAYMENT_METHOD_LABELS } from '../../lib/purchase-labels';
+import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 import FormDialog from '../common/FormDialog';
 
@@ -28,6 +30,8 @@ export const PurchasePaymentModal = ({
   onClose,
   onPaid,
 }: PurchasePaymentModalProps) => {
+  const user = useAuthStore((state) => state.user);
+  const canPay = Boolean(user && hasUserPermission(user, 'compras', 'update')) && purchase.estado === 'registrada' && purchase.formaPago === 'credito' && !purchase.pagadoAt && !purchase.cashMovementId;
   const mutation = useRegisterPurchasePaymentMutation();
   const [metodo, setMetodo] = useState<PaymentMethod>('transferencia');
   const [referencia, setReferencia] = useState('');
@@ -37,6 +41,7 @@ export const PurchasePaymentModal = ({
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (!canPay || mutation.isPending) return;
     const parsed = registerPurchasePaymentSchema.safeParse({
       metodo,
       referencia: referencia.trim() || null,
@@ -77,11 +82,14 @@ export const PurchasePaymentModal = ({
       headerIcon={<WalletCards className="h-5 w-5" aria-hidden="true" />}
       submitLabel="Registrar pago total"
       pending={mutation.isPending}
+      submitDisabled={!canPay}
       dirty={metodo !== 'transferencia' || Boolean(referencia || banco || numeroOperacion)}
       statusText="El pago es total y genera un egreso de caja."
       onClose={onClose}
       onSubmit={submit}
     >
+      {!canPay && <p role="status" className="mb-3 text-sm text-brand-muted">El pago no está disponible con el estado o los permisos actuales. Conservamos los datos ingresados.</p>}
+      <fieldset disabled={!canPay || mutation.isPending} className="min-w-0">
           <div className="rounded-lg border border-brand-line bg-brand-pale/60 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
               Total a pagar
@@ -155,6 +163,7 @@ export const PurchasePaymentModal = ({
               {getApiErrorMessage(mutation.error, 'No fue posible registrar el pago.')}
             </p>
           )}
+      </fieldset>
     </FormDialog>
   );
 };

@@ -1,13 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { quotationKeys } from '../../../hooks/useQuotations';
 import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
 import QuotationDetailModal from '../QuotationDetailModal';
 
 import type { Quotation, QuotationPaymentSummary } from '../../../types/entities';
+import type { Role } from '@unithor/shared';
 import type { AxiosResponse } from 'axios';
 
 vi.mock('../../../lib/api', () => ({
@@ -49,8 +51,10 @@ const mockQuotation: Quotation = {
       cantidad: 1,
       precioUnitario: 80000,
       subtotal: 80000,
+      descuentoTipo: 'porcentaje',
+      descuentoValor: 10,
       estadoOperativo: 'pendiente',
-      notasOperativas: null,
+      notasOperativas: 'Conservar diagnóstico y horas de la OT vinculada',
       catalogItem: { id: 10, tipo: 'estandar', codigo: 'SRV-01', nombre: 'Mantenimiento' },
     },
     {
@@ -62,6 +66,8 @@ const mockQuotation: Quotation = {
       cantidad: 1,
       precioUnitario: 45000,
       subtotal: 45000,
+      descuentoTipo: 'fijo',
+      descuentoValor: 1000,
       estadoOperativo: 'completado',
       notasOperativas: null,
       catalogItem: { id: 20, tipo: 'parte', codigo: 'REP-05', nombre: 'Pastillas' },
@@ -75,6 +81,8 @@ const mockQuotation: Quotation = {
       cantidad: 1,
       precioUnitario: 25000,
       subtotal: 25000,
+      descuentoTipo: 'fijo',
+      descuentoValor: 500,
       estadoOperativo: 'pendiente',
       notasOperativas: '[Sugerido: Pendiente] Nivel crítico detectado en inspección técnica',
       catalogItem: { id: 30, tipo: 'parte', codigo: 'REP-09', nombre: 'Líquido DOT4' },
@@ -91,12 +99,25 @@ const mockPaymentSummary: QuotationPaymentSummary = {
   payments: [],
 };
 
+let currentQuotation: Quotation;
+
+const expectItemActions = (allowed: boolean) => {
+  const actions = [
+    screen.queryByRole('button', { name: 'Sugerir Repuesto / Servicio' }),
+    screen.queryByRole('button', { name: /Aprobar/i }),
+    screen.queryByRole('button', { name: /Rechazar/i }),
+    screen.queryByTitle('Ajustar precio de servicio'),
+    screen.queryAllByTitle('Marcar como aplicado / entregado al vehículo')[0] ?? null,
+  ];
+  actions.forEach((action) => allowed ? expect(action).toBeInTheDocument() : expect(action).toBeNull());
+};
+
 const renderModal = (props: { quotationId?: number; onClose?: () => void } = {}) => {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
 
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <QuotationDetailModal
@@ -106,11 +127,13 @@ const renderModal = (props: { quotationId?: number; onClose?: () => void } = {})
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  return { ...view, queryClient };
 };
 
 describe('QuotationDetailModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    currentQuotation = structuredClone(mockQuotation);
     useAuthStore.setState({
       user: { id: 1, nombre: 'Jefe Taller UNITHOR', email: 'jefe@unithor.local', role: 'jefe' },
       isAuthenticated: true,
@@ -119,7 +142,7 @@ describe('QuotationDetailModal', () => {
 
     vi.mocked(api.get).mockImplementation((url) => {
       if (url === '/quotations/42') {
-        return Promise.resolve({ data: { quotation: mockQuotation } } as AxiosResponse);
+        return Promise.resolve({ data: { quotation: currentQuotation } } as AxiosResponse);
       }
       if (url === '/quotations/42/payments') {
         return Promise.resolve({ data: mockPaymentSummary } as AxiosResponse);
@@ -130,9 +153,151 @@ describe('QuotationDetailModal', () => {
       return Promise.reject(new Error(`Unhandled GET: ${url}`));
     });
 
-    vi.mocked(api.patch).mockResolvedValue({
-      data: { quotation: mockQuotation },
-    } as AxiosResponse);
+    vi.mocked(api.patch).mockImplementation(() => Promise.resolve({
+      data: { quotation: currentQuotation },
+    } as AxiosResponse));
+  });
+
+  it.each<[Role, boolean]>([
+    ['desarrollador', true], ['admin', true], ['jefe', true], ['vendedor', true],
+    ['mecanico', false], ['bodeguero', false], ['finanzas', false],
+  ])('alinea las acciones de %s con comercial:update (%s)', async (role, allowed) => {
+    useAuthStore.setState({ user: { id: 1, nombre: role, email: 'user@test.local', role } });
+    renderModal();
+    await screen.findByText(currentQuotation.codigo);
+    expectItemActions(allowed);
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it.each<Role>(['jefe', 'vendedor'])('respeta comercial:update revocado al %s', async (role) => {
+    useAuthStore.setState({ user: { id: 1, nombre: role, email: 'user@test.local', role,
+      permissions: [{ modulo: 'comercial', accion: 'read' }] } });
+    renderModal();
+    await screen.findByText(currentQuotation.codigo);
+    expectItemActions(false);
+  });
+
+  it.each<Role>(['mecanico', 'bodeguero', 'finanzas'])('respeta comercial:update concedido al %s', async (role) => {
+    useAuthStore.setState({ user: { id: 1, nombre: role, email: 'user@test.local', role,
+      permissions: [{ modulo: 'comercial', accion: 'update' }] } });
+    renderModal();
+    await screen.findByText(currentQuotation.codigo);
+    expectItemActions(true);
+  });
+
+  it.each(['total', 'entregada', 'cancelada'])('no ofrece cambios de líneas para %s', async (state) => {
+    if (state === 'total') currentQuotation.estadoPago = 'total';
+    else currentQuotation.workOrder!.estado = state;
+    renderModal();
+    await screen.findByText(currentQuotation.codigo);
+    expectItemActions(false);
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it.each(['en_progreso', 'esperando_repuesto', 'finalizada'])('mantiene acciones permitidas en una OT %s', async (state) => {
+    currentQuotation.workOrder!.estado = state;
+    renderModal();
+    await screen.findByText(currentQuotation.codigo);
+    expectItemActions(true);
+  });
+
+  it.each(['revocado', 'pagada', 'entregada'])('retira formularios abiertos cuando cambia el acceso: %s', async (change) => {
+    const { queryClient } = renderModal();
+    fireEvent.click(await screen.findByTitle('Ajustar precio de servicio'));
+    fireEvent.click(screen.getByRole('button', { name: 'Sugerir Repuesto / Servicio' }));
+    expect(screen.getByTitle('Guardar precio')).toBeInTheDocument();
+    act(() => {
+      if (change === 'revocado') {
+        useAuthStore.setState({ user: { id: 1, nombre: 'Jefe', email: 'jefe@test.local', role: 'jefe', permissions: [] } });
+      } else {
+        queryClient.setQueryData(quotationKeys.detail(42), {
+          ...currentQuotation,
+          ...(change === 'pagada' ? { estadoPago: 'total' } : { workOrder: { ...currentQuotation.workOrder, estado: 'entregada' } }),
+        });
+      }
+    });
+    await waitFor(() => expect(screen.queryByText('Sugerir nuevo concepto técnico (Hallazgo en taller)')).not.toBeInTheDocument());
+    expect(screen.queryByTitle('Guardar precio')).not.toBeInTheDocument();
+    expectItemActions(false);
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it.each(['checklist', 'precio', 'aprobar', 'rechazar', 'sugerir'] as const)('conserva IDs, descuentos y notas al operar: %s', async (action) => {
+    useAuthStore.setState({ user: { id: 1, nombre: 'Vendedor', email: 'sales@test.local', role: 'vendedor' } });
+    renderModal();
+    await screen.findByText(currentQuotation.codigo);
+    const expectedItems = currentQuotation.items!.map(({ subtotal: _subtotal, catalogItem: _catalogItem, ...item }) => item);
+    if (action === 'checklist') {
+      fireEvent.click(screen.getAllByTitle('Marcar como aplicado / entregado al vehículo')[0]);
+      expectedItems[0].estadoOperativo = 'completado';
+    } else if (action === 'precio') {
+      fireEvent.click(screen.getByTitle('Ajustar precio de servicio'));
+      fireEvent.change(screen.getByLabelText('Nuevo precio unitario 1'), { target: { value: '95000' } });
+      fireEvent.click(screen.getByTitle('Guardar precio'));
+      expectedItems[0].precioUnitario = 95000;
+    } else if (action === 'aprobar' || action === 'rechazar') {
+      fireEvent.click(screen.getByRole('button', { name: action === 'aprobar' ? /Aprobar/i : /Rechazar/i }));
+      expectedItems[2].notasOperativas = `[Sugerido: ${action === 'aprobar' ? 'Aprobado' : 'Rechazado'}] Nivel crítico detectado en inspección técnica`;
+      if (action === 'rechazar') Object.assign(expectedItems[2], { precioUnitario: 0, descuentoTipo: null, descuentoValor: 0, estadoOperativo: 'omitido' });
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: 'Sugerir Repuesto / Servicio' }));
+      fireEvent.change(screen.getByPlaceholderText('Ej. Pastillas de freno delanteras...'), { target: { value: 'Filtro adicional' } });
+      fireEvent.change(screen.getByLabelText('Precio unitario'), { target: { value: '12000' } });
+      fireEvent.submit(screen.getByPlaceholderText('Ej. Pastillas de freno delanteras...').closest('form')!);
+    }
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(1));
+    expect(api.patch).toHaveBeenCalledWith('/quotations/42', {
+      items: action === 'sugerir' ? [...expectedItems, {
+        catalogItemId: null, descripcion: 'Filtro adicional', tipoLinea: 'parte', unidadMedida: 'unidad',
+        cantidad: 1, precioUnitario: 12000, estadoOperativo: 'pendiente', notasOperativas: '[Sugerido: Pendiente]',
+      }] : expectedItems,
+    });
+  });
+
+  it('categoriza un repuesto libre por tipoLinea aunque su descripción mencione instalación', async () => {
+    Object.assign(currentQuotation.items![2], { descripcion: 'Instalacion soporte', catalogItem: null });
+    renderModal();
+    fireEvent.click(await screen.findByRole('button', { name: /Repuestos y Accesorios/i }));
+    expect(screen.getByText('Instalacion soporte')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Servicios Estándar/i }));
+    expect(screen.queryByText('Instalacion soporte')).not.toBeInTheDocument();
+  });
+
+  it('abre la gestión del taller directamente para el jefe y protege el concepto pendiente', async () => {
+    const onClose = vi.fn();
+    renderModal({ onClose });
+    expect(await screen.findByRole('link', { name: 'Gestionar trabajo' })).toHaveAttribute('href', '/work-orders?manage=15');
+    fireEvent.click(screen.getByRole('button', { name: 'Sugerir Repuesto / Servicio' }));
+    fireEvent.change(screen.getByPlaceholderText('Ej. Pastillas de freno delanteras...'), { target: { value: 'Diagnóstico aún sin guardar' } });
+    fireEvent.click(screen.getByRole('link', { name: 'Gestionar trabajo' }));
+    const confirm = screen.getByRole('alertdialog', { name: 'Descartar edición de cotización' });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByPlaceholderText('Ej. Pastillas de freno delanteras...')).toHaveValue('Diagnóstico aún sin guardar');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Descartar cambios' }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('protege un precio sin guardar al cerrar el detalle', async () => {
+    const onClose = vi.fn();
+    renderModal({ onClose });
+    fireEvent.click(await screen.findByTitle('Ajustar precio de servicio'));
+    fireEvent.change(screen.getByLabelText('Nuevo precio unitario 1'), { target: { value: '99000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByLabelText('Nuevo precio unitario 1')).toHaveValue('99.000');
+  });
+
+  it('mantiene la referencia de OT para finanzas sin enlaces a un taller no autorizado', async () => {
+    useAuthStore.setState({ user: { id: 1, nombre: 'Finanzas', email: 'fin@test.local', role: 'finanzas' } });
+    renderModal();
+    expect(await screen.findByText('OT · OT-2026-0015')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /OT ·/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Gestionar trabajo' })).not.toBeInTheDocument();
   });
 
 

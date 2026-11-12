@@ -270,6 +270,25 @@ describe('Work order mechanic workflow (E2E)', () => {
     expect(approvedPartRequest).toMatchObject({ estado: 'aprobada' });
     expect(approvedPartRequest.workOrderItemId).toEqual(expect.any(Number));
 
+    const worksheetBeforeDelivery = await request(app)
+      .get(`/api/work-orders/${assignedWorkOrderId}/worksheet`)
+      .set('Cookie', authCookie(mechanicCookies));
+    expect(worksheetBeforeDelivery.status).toBe(200);
+    expect(worksheetBeforeDelivery.body.worksheet.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: approvedPartRequest.workOrderItemId, awaitingWarehouseDelivery: true }),
+      expect.objectContaining({ id: serviceItemId, awaitingWarehouseDelivery: false }),
+    ]));
+
+    const prematureTimerCompletion = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/items/${approvedPartRequest.workOrderItemId}/complete`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({ notasOperativas: 'No debe aplicarse antes de la entrega' });
+    expect(prematureTimerCompletion.status).toBe(400);
+    expect(prematureTimerCompletion.body.error.message).toContain('Bodega debe entregar');
+    expect((await WorkOrderItem.findByPk(approvedPartRequest.workOrderItemId))?.estadoOperativo).toBe('pendiente');
+    expect((await StockBalance.findOne({ where: { warehouseId, catalogItemId: partId } }))?.cantidad).toBe(10);
+
     const prematureCompletion = await request(app)
       .patch(`/api/work-orders/${assignedWorkOrderId}/execution`)
       .set('Cookie', authCookie(mechanicCookies))
@@ -304,6 +323,14 @@ describe('Work order mechanic workflow (E2E)', () => {
     });
     expect((await StockBalance.findOne({ where: { warehouseId, catalogItemId: partId } }))?.cantidad).toBe(8);
 
+    const worksheetAfterDelivery = await request(app)
+      .get(`/api/work-orders/${assignedWorkOrderId}/worksheet`)
+      .set('Cookie', authCookie(mechanicCookies));
+    expect(worksheetAfterDelivery.status).toBe(200);
+    expect(worksheetAfterDelivery.body.worksheet.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: approvedPartRequest.workOrderItemId, awaitingWarehouseDelivery: false }),
+    ]));
+
     const completionAfterDelivery = await request(app)
       .patch(`/api/work-orders/${assignedWorkOrderId}/execution`)
       .set('Cookie', authCookie(mechanicCookies))
@@ -312,6 +339,17 @@ describe('Work order mechanic workflow (E2E)', () => {
         items: [{ id: approvedPartRequest.workOrderItemId, estadoOperativo: 'completado' }],
       });
     expect(completionAfterDelivery.status).toBe(200);
+
+    const timerCompletionAfterDelivery = await request(app)
+      .post(`/api/work-orders/${assignedWorkOrderId}/items/${approvedPartRequest.workOrderItemId}/complete`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({});
+    expect(timerCompletionAfterDelivery.status).toBe(200);
+    expect(timerCompletionAfterDelivery.body.worksheet.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: approvedPartRequest.workOrderItemId, awaitingWarehouseDelivery: false }),
+    ]));
+    expect((await StockBalance.findOne({ where: { warehouseId, catalogItemId: partId } }))?.cantidad).toBe(8);
 
     const approvePriceResponse = await request(app)
       .patch(`/api/work-orders/${assignedWorkOrderId}/requests/${priceRequest.id}`)

@@ -26,4 +26,5 @@ export * from './types/index.js';
 export * from './utils/inspection-photo-layout.js';
 export * from './utils/rut.js';
 export * from './utils/fleet-expiry.js';
+export * from './utils/fleet-documents.js';
 export * from './utils/purchase-pricing.js';

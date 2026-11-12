@@ -18,7 +18,7 @@ import {
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import CurrencyInput from '../../components/common/CurrencyInput';
@@ -32,7 +32,9 @@ import { useWarehouses } from '../../hooks/useWarehouses';
 import { getApiErrorMessage, getApiFieldErrors } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp } from '../../lib/formatters';
+import { hasUserPermission } from '../../lib/permissions';
 import { PAYMENT_METHOD_LABELS, formatFileSize, todayInputValue } from '../../lib/purchase-labels';
+import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
 import type { PurchaseItemDraft } from '../../components/purchases/PurchaseItemsEditor';
@@ -81,9 +83,21 @@ const SectionHeading = ({ title, detail }: { title: string; detail: string }) =>
 );
 
 export const PurchaseCreatePage = () => {
+  const user = useAuthStore((state) => state.user);
+  const canSave = Boolean(user && hasUserPermission(user, 'compras', 'create'));
   const navigate = useNavigate();
   const createMutation = useCreatePurchaseMutation();
-  const warehousesQuery = useWarehouses({ page: 1, pageSize: 100 });
+  const submissionInFlight = useRef(false);
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent): void => {
+      if (!submissionInFlight.current) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, []);
+  const warehousesQuery = useWarehouses({ page: 1, pageSize: 100, soloActivos: true });
   const warehouses = (warehousesQuery.data?.items ?? []).filter((warehouse) => warehouse.activo);
 
   const [supplier, setSupplier] = useState<SupplierSelection>({ supplierId: null, nombre: '' });
@@ -139,6 +153,7 @@ export const PurchaseCreatePage = () => {
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (!canSave || submissionInFlight.current || createMutation.isPending) return;
     createMutation.reset();
     setErrors({});
 
@@ -181,6 +196,7 @@ export const PurchaseCreatePage = () => {
       return;
     }
 
+    submissionInFlight.current = true;
     createMutation.mutate(
       { data: parsed.data as CreatePurchaseInput, comprobante },
       {
@@ -189,6 +205,7 @@ export const PurchaseCreatePage = () => {
           navigate(`/purchases/${purchase.id}`);
         },
         onError: (error) => {
+          submissionInFlight.current = false;
           setErrors(getApiFieldErrors(error));
           notifyError(getApiErrorMessage(error, 'No fue posible registrar la compra.'));
         },
@@ -197,12 +214,17 @@ export const PurchaseCreatePage = () => {
   };
 
   const today = todayInputValue();
+  const guardPendingNavigation = (event: React.MouseEvent<HTMLAnchorElement>): void => {
+    if (submissionInFlight.current) event.preventDefault();
+  };
 
   return (
     <div className="workspace-page workspace-purchases purchases-create min-w-0 space-y-5">
       <header className="purchases-create-heading flex items-start gap-3">
         <Link
           to="/purchases"
+          onClick={guardPendingNavigation}
+          aria-disabled={createMutation.isPending}
           className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:bg-brand-pale"
           aria-label="Volver a compras"
         >
@@ -225,6 +247,8 @@ export const PurchaseCreatePage = () => {
         onSubmit={submit}
         className="purchases-create-form grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]"
       >
+        {!canSave && <p role="status" className="text-sm text-brand-muted">Tus permisos actuales no permiten registrar la compra. Conservamos los datos y el comprobante para que puedas continuar.</p>}
+        <fieldset disabled={!canSave || createMutation.isPending} className="contents">
         <div className="workspace-page workspace-purchases min-w-0 space-y-5">
           <section className="rounded-xl border border-brand-line bg-white p-4 shadow-sm sm:p-5">
             <SectionHeading
@@ -302,6 +326,7 @@ export const PurchaseCreatePage = () => {
               <label className="block text-sm font-semibold text-brand-ink">
                 Monto del comprobante
                 <CurrencyInput
+                  allowDecimals
                   value={document.montoComprobante}
                   onChange={(value) => updateDocument('montoComprobante', value)}
                   className={fieldClassName}
@@ -313,7 +338,7 @@ export const PurchaseCreatePage = () => {
                     type="button"
                     className="font-semibold text-brand-primaryInk hover:underline"
                     onClick={() =>
-                      updateDocument('montoComprobante', String(Math.round(totals.total)))
+                      updateDocument('montoComprobante', String(totals.total))
                     }
                   >
                     Usar total de la compra
@@ -538,7 +563,8 @@ export const PurchaseCreatePage = () => {
               )}
               Registrar compra
             </button>
-            <Link to="/purchases" className="secondary-button mt-2 w-full">
+            <Link to="/purchases" onClick={guardPendingNavigation}
+              aria-disabled={createMutation.isPending} className="secondary-button mt-2 w-full">
               Cancelar
             </Link>
             <p className="mt-3 flex items-start gap-1.5 text-xs text-brand-muted">
@@ -554,6 +580,7 @@ export const PurchaseCreatePage = () => {
             seleccionado.
           </p>
         </aside>
+        </fieldset>
       </form>
     </div>
   );

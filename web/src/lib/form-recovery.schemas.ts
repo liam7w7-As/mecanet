@@ -82,6 +82,10 @@ export const workOrderRecoverySchema = z.object({
   fechaIngreso: z.string(),
   fechaEntrega: z.string(),
   items: z.array(item),
+  discount: z.object({
+    descuentoTipo: z.enum(['porcentaje', 'fijo']).nullable(),
+    descuentoValor: z.string(),
+  }).default({ descuentoTipo: null, descuentoValor: '0' }),
   inspection: z.object({
     nivelCombustible: z.union([z.enum(FUEL_LEVELS), z.literal('')]),
     llantaDelanteraIzquierda: z.union([z.enum(TIRE_CONDITIONS), z.literal('')]),

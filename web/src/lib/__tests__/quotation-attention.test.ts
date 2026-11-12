@@ -1,3 +1,4 @@
+import { getQuotationGrossTotal } from '@unithor/shared';
 import { describe, expect, it } from 'vitest';
 
 import { getQuotationAttention } from '../quotation-attention';
@@ -37,7 +38,12 @@ describe('getQuotationAttention', () => {
     expect(getQuotationAttention({ ...linked, workOrder: { ...linked.workOrder!, updatedAt: daysAgo(8) } }, NOW)).toEqual({ kind: 'linked', days: 8 });
   });
 
-  it('no alerta por cotizaciones pagadas', () => {
-    expect(getQuotationAttention({ ...base, pagado: 10000, estadoPago: 'total' }, NOW)).toBeNull();
+  it('no alerta por cotizaciones pagadas con IVA incluido', () => {
+    expect(
+      getQuotationAttention(
+        { ...base, pagado: getQuotationGrossTotal(base.total), estadoPago: 'total' },
+        NOW,
+      ),
+    ).toBeNull();
   });
 });

@@ -106,7 +106,11 @@ export const quotationQuerySchema = paginationSchema
   );
 
 // Los importes e items se copian desde la COT, nunca desde el navegador.
-export const convertQuotationToWorkOrderSchema = createWorkOrderSchema.omit({ items: true }).extend({
+export const convertQuotationToWorkOrderSchema = createWorkOrderSchema.omit({
+  items: true,
+  descuentoTipo: true,
+  descuentoValor: true,
+}).extend({
   itemAssignments: z.array(z.object({
     quotationItemId: z.number().int().positive(),
     assignedUserId: z.number().int().positive().nullable(),

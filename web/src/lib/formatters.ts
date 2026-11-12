@@ -7,11 +7,11 @@ export const formatCurrencyInput = (value: string): string => {
   return digits === '' ? '' : currencyInputFormatter.format(Number(digits));
 };
 
-export const formatClp = (value: number): string =>
+export const formatClp = (value: number, maximumFractionDigits = 0): string =>
   new Intl.NumberFormat('es-CL', {
     style: 'currency',
     currency: 'CLP',
-    maximumFractionDigits: 0,
+    maximumFractionDigits,
   }).format(value);
 
 const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;

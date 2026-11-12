@@ -1,3 +1,4 @@
+import { getQuotationGrossTotal } from '@unithor/shared';
 import {
   AlertCircle,
   ArrowLeft,
@@ -104,7 +105,7 @@ export const VehicleDetailPage = ({
   const quotations = useMemo(() => quotationsQuery.data?.items ?? [], [quotationsQuery.data]);
   const activeOrders = workOrders.filter((order) => !terminalStatuses.has(order.estado));
   const outstanding = quotations.reduce(
-    (total, quotation) => total + Math.max(0, Number(quotation.total) - Number(quotation.pagado)),
+    (total, quotation) => total + Math.max(0, getQuotationGrossTotal(Number(quotation.total)) - Number(quotation.pagado)),
     0,
   );
   const historicalKilometres = workOrders
@@ -479,7 +480,8 @@ export const VehicleDetailPage = ({
             ) : quotations.length > 0 ? (
               <div className="vehicle-profile-history-list divide-y divide-brand-line">
                 {quotations.map((quotation) => {
-                  const balance = Math.max(0, Number(quotation.total) - Number(quotation.pagado));
+                  const total = getQuotationGrossTotal(Number(quotation.total));
+                  const balance = Math.max(0, total - Number(quotation.pagado));
                   return (
                     <Link
                       key={quotation.id}
@@ -496,7 +498,7 @@ export const VehicleDetailPage = ({
                       </div>
                       <div className="min-w-0">
                         <p className="break-words text-sm font-semibold tabular-nums text-brand-ink">
-                          {formatClp(Number(quotation.total))}
+                          {formatClp(total)}
                         </p>
                         <p className="mt-1 break-words text-xs text-brand-muted">
                           Pagado {formatClp(Number(quotation.pagado))} · Saldo {formatClp(balance)}

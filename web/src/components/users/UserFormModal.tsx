@@ -1,11 +1,12 @@
 import { createUserSchema, updateUserSchema } from '@unithor/shared';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useCreateUserMutation, useUpdateUserMutation } from '../../hooks/useUsers';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
-import { getRoleLabel } from '../../lib/permissions';
+import { getRoleLabel, hasUserPermission } from '../../lib/permissions';
+import { useAuthStore } from '../../stores/auth.store';
 import FormDialog from '../common/FormDialog';
 
 import type { AdminUser, RoleOption } from '../../hooks/useUsers';
@@ -17,6 +18,9 @@ interface UserFormModalProps {
 }
 
 export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
+  const actor = useAuthStore((state) => state.user);
+  const canSave = Boolean(actor && hasUserPermission(actor, 'admin', user ? 'update' : 'create'));
+  const submission = useRef(false);
   const createMutation = useCreateUserMutation();
   const updateMutation = useUpdateUserMutation();
   const mutation = user ? updateMutation : createMutation;
@@ -40,18 +44,20 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
   };
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    if (mutation.isPending) return;
+    if (!canSave || mutation.isPending || submission.current) return;
     mutation.reset();
     if (user) {
       const result = updateUserSchema.safeParse({ ...form, email: form.email.trim() });
       if (!result.success) { setErrors(getFieldErrors(result.error.issues)); return; }
       setErrors({});
-      updateMutation.mutate({ id: user.id, data: result.data }, { onSuccess: onClose });
+      submission.current = true;
+      updateMutation.mutate({ id: user.id, data: result.data }, { onSuccess: onClose, onSettled: () => { submission.current = false; } });
     } else {
       const result = createUserSchema.safeParse({ ...form, email: form.email.trim(), password });
       if (!result.success) { setErrors(getFieldErrors(result.error.issues)); return; }
       setErrors({});
-      createMutation.mutate(result.data, { onSuccess: onClose });
+      submission.current = true;
+      createMutation.mutate(result.data, { onSuccess: onClose, onSettled: () => { submission.current = false; } });
     }
   };
 
@@ -59,13 +65,14 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
     code={user ? `@${user.username}` : 'Cuenta de acceso'} context="Identidad y rol operativo"
     submitLabel={user ? 'Guardar cambios' : 'Crear usuario'} dirty={dirty}
     pending={mutation.isPending} onClose={onClose} onSubmit={submit}
-    submitDisabled={roles.length === 0 || Boolean(user && !dirty)}
+    submitDisabled={!canSave || roles.length === 0 || Boolean(user && !dirty)}
     headerVariant="plain"
     className="administration-form reference-form-dialog users-reference-form">
     {mutation.isError && <div className="administration-alert" role="alert">
       <AlertCircle aria-hidden="true" />{getApiErrorMessage(mutation.error, 'No fue posible guardar el usuario.')}
     </div>}
-    <div className="administration-form-grid">
+    {!canSave && <p role="status" className="administration-notice">Ya no tienes permiso para guardar esta cuenta. Los datos escritos se conservan.</p>}
+    <fieldset disabled={!canSave} className="administration-form-grid">
       <label className="administration-wide" htmlFor="account-name">Nombre completo
         <input id="account-name" value={form.nombre} onChange={(event) => setField('nombre', event.target.value)}
           autoComplete="name" maxLength={120} aria-invalid={Boolean(errors.nombre)} aria-describedby={errors.nombre ? 'account-name-error' : undefined} autoFocus />
@@ -102,7 +109,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
         </span>
         {errors.password && <span id="account-password-error" className="administration-field-error">{errors.password}</span>}
       </div>}
-    </div>
+    </fieldset>
     {selectedRole?.descripcion && <p className="administration-form-note"><strong>{getRoleLabel(selectedRole.nombre)}</strong>{selectedRole.descripcion}</p>}
     {user && form.roleId !== initial.roleId && <p className="administration-notice">El cambio de rol actualizará el acceso de esta cuenta.</p>}
   </FormDialog>;

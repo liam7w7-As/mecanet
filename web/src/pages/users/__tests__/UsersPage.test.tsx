@@ -4,7 +4,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ListExportButtons from '../../../components/common/ListExportButtons';
-import { api } from '../../../lib/api';
+import ProtectedRoute from '../../../components/layout/ProtectedRoute';
+import { api, getCookie } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
 import UsersPage from '../UsersPage';
 
@@ -81,7 +82,7 @@ const renderPage = () => {
 
   const result = render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter><UsersPage /></MemoryRouter>
+      <MemoryRouter><ProtectedRoute><UsersPage /></ProtectedRoute></MemoryRouter>
     </QueryClientProvider>,
   );
   return { ...result, queryClient };
@@ -90,6 +91,7 @@ const renderPage = () => {
 describe('UsersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getCookie).mockReturnValue('csrf-activo');
     useAuthStore.setState({
       user: {
         id: 1,
@@ -102,6 +104,7 @@ describe('UsersPage', () => {
       isLoading: false,
     });
     vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/auth/me') return Promise.resolve({ data: { user: useAuthStore.getState().user } } as AxiosResponse);
       if (url === '/users') return Promise.resolve({ data: usersResponse } as AxiosResponse);
       if (url === '/roles') return Promise.resolve({ data: { roles } } as AxiosResponse);
       if (url === '/permissions') return Promise.resolve({ data: { permissions } } as AxiosResponse);
@@ -401,5 +404,58 @@ describe('UsersPage', () => {
     expect(screen.getByRole('checkbox', { name: 'Edición' })).toBeChecked();
     expect(screen.getByRole('button', { name: 'Guardar permisos' })).toBeEnabled();
     expect(screen.getByRole('tab', { name: 'Vendedor' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it.each(['create', 'update'] as const)('conserva el formulario y bloquea el envío al retirar admin:%s', async (action) => {
+    const actor = { id: 5, nombre: 'Jefe', email: 'jefe@unithor.local', role: 'jefe' as const, permissions };
+    useAuthStore.getState().setUser(actor);
+    renderPage();
+    await screen.findByText('Víctor Ventas');
+    fireEvent.click(screen.getByRole('button', { name: action === 'create' ? 'Nuevo usuario' : 'Editar Víctor Ventas' }));
+    fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Edición conservada' } });
+    const button = screen.getByRole('button', { name: action === 'create' ? 'Crear usuario' : 'Guardar cambios' });
+    await act(async () => useAuthStore.getState().setUser({ ...actor, permissions: permissions.filter((permission) => permission.accion !== action) }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nombre completo')).toHaveValue('Edición conservada');
+    expect(screen.getByLabelText('Nombre completo')).toBeDisabled();
+    expect(button).toBeDisabled();
+    fireEvent.submit(button.closest('form')!);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
+    await act(async () => useAuthStore.getState().setUser(actor));
+    expect(screen.getByLabelText('Nombre completo')).toBeEnabled();
+    expect(screen.getByLabelText('Nombre completo')).toHaveValue('Edición conservada');
+  });
+
+  it.each(['status', 'delete'] as const)('bloquea una confirmación abierta de %s al retirar el permiso', async (action) => {
+    const actor = { id: 5, nombre: 'Jefe', email: 'jefe@unithor.local', role: 'jefe' as const, permissions };
+    useAuthStore.getState().setUser(actor);
+    renderPage();
+    await screen.findByText('Víctor Ventas');
+    fireEvent.click(screen.getByRole('button', { name: action === 'status' ? 'Activar Víctor Ventas' : 'Eliminar Víctor Ventas' }));
+    await act(async () => useAuthStore.getState().setUser({ ...actor, permissions: permissions.filter((permission) => permission.accion === 'read') }));
+    const button = screen.getByRole('button', { name: action === 'status' ? 'Activar cuenta' : 'Eliminar usuario' });
+    expect(button).toBeDisabled();
+    fireEvent.submit(button.closest('form')!);
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
+  it('mantiene una edición abierta durante la comprobación real de sesión', async () => {
+    let resolveSession!: (response: AxiosResponse) => void;
+    const currentActor = useAuthStore.getState().user!;
+    const originalGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(getCookie).mockReturnValue('csrf-activo');
+    vi.mocked(api.get).mockImplementation((url, config) => url === '/auth/me'
+      ? new Promise((resolve) => { resolveSession = resolve; }) : originalGet(url, config));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar Víctor Ventas' }));
+    fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Datos sin guardar' } });
+    let check!: Promise<void>;
+    await act(async () => { check = useAuthStore.getState().checkAuth(); });
+    expect(screen.queryByRole('status', { name: 'Verificando sesión' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Nombre completo')).toHaveValue('Datos sin guardar');
+    await act(async () => { resolveSession({ data: { user: currentActor } } as AxiosResponse); await check; });
+    expect(screen.getByLabelText('Nombre completo')).toHaveValue('Datos sin guardar');
   });
 });

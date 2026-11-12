@@ -24,6 +24,8 @@ import {
   useWarehouseBalances,
 } from '../../hooks/useWarehouses';
 import { getApiErrorMessage } from '../../lib/api-error';
+import { hasUserPermission } from '../../lib/permissions';
+import { useAuthStore } from '../../stores/auth.store';
 import { notifySuccess } from '../../stores/toast.store';
 import FormDialog from '../common/FormDialog';
 
@@ -36,6 +38,10 @@ import type {
 
 type Part = Pick<CatalogItem, 'id' | 'nombre' | 'codigo'>;
 const inputClass = 'inventory-field';
+const useCanWriteInventory = (action: 'create' | 'update') => {
+  const user = useAuthStore((state) => state.user);
+  return Boolean(user && hasUserPermission(user, 'almacen', action));
+};
 
 /** The selected record survives subsequent searches and can be replaced explicitly. */
 function PartPicker({
@@ -203,6 +209,7 @@ export function WarehouseFormModal({
   warehouse: Warehouse | null;
   onClose: () => void;
 }) {
+  const canSave = useCanWriteInventory(warehouse ? 'update' : 'create');
   const initial = {
     codigo: warehouse?.codigo ?? '',
     nombre: warehouse?.nombre ?? '',
@@ -223,12 +230,14 @@ export function WarehouseFormModal({
       submitLabel={warehouse ? 'Guardar cambios' : 'Crear almacén'}
       dirty={JSON.stringify(form) !== JSON.stringify(initial)}
       pending={pending}
+      submitDisabled={!canSave}
       onClose={onClose}
       headerVariant="brand"
       headerIcon={<WarehouseIcon aria-hidden="true" />}
       className="inventory-form reference-form-dialog warehouse-form-dialog warehouse-reference-dialog"
       onSubmit={(event) => {
         event.preventDefault();
+        if (!canSave || pending) return;
         setError(null);
         const callbacks = {
           onSuccess: () => {
@@ -258,7 +267,8 @@ export function WarehouseFormModal({
         }
       }}
     >
-      <div className="inventory-form-fields">
+      <fieldset className="inventory-form-fields min-w-0" disabled={!canSave}>
+        {!canSave && <p role="status">Tu permiso actual no permite guardar cambios en el almacén.</p>}
         <div className="inventory-form-grid">
           <label>
             Código
@@ -311,7 +321,7 @@ export function WarehouseFormModal({
             {error}
           </p>
         )}
-      </div>
+      </fieldset>
     </FormDialog>
   );
 }
@@ -325,6 +335,7 @@ export function StockMovementModal({
   initialPart?: StockBalance | null;
   onClose: () => void;
 }) {
+  const canMove = useCanWriteInventory('create');
   const [tipo, setTipo] = useState<'ingreso' | 'salida' | 'ajuste'>('ingreso');
   const [part, setPart] = useState<Part | null>(
     initialPart
@@ -339,7 +350,7 @@ export function StockMovementModal({
   const stock = balances.data?.find((balance) => balance.catalogItemId === part?.id)?.cantidad ?? 0;
   const amount = Number(cantidad) || 0;
   const next = tipo === 'ajuste' ? amount : stock + (tipo === 'salida' ? -amount : amount);
-  const unavailable = balances.isPending || balances.isError || !warehouse.activo;
+  const unavailable = !canMove || balances.isPending || balances.isError || !warehouse.activo;
   return (
     <FormDialog
       id="movement-modal-title"
@@ -360,6 +371,7 @@ export function StockMovementModal({
       submitDisabled={unavailable}
       onSubmit={(event) => {
         event.preventDefault();
+        if (unavailable || mutation.isPending) return;
         setError(null);
         if (!part) {
           setError('Seleccione un repuesto del catálogo.');
@@ -391,7 +403,8 @@ export function StockMovementModal({
         });
       }}
     >
-      <div className="inventory-form-fields">
+      <fieldset className="inventory-form-fields min-w-0" disabled={!canMove}>
+        {!canMove && <p role="status">Tu permiso actual no permite registrar movimientos de inventario.</p>}
         <div className="inventory-form-grid">
           <label>
             Almacén
@@ -421,8 +434,8 @@ export function StockMovementModal({
           <input
             className={inputClass}
             type="number"
-            min="0.01"
-            step="any"
+            min={tipo === 'ajuste' ? 0 : 1}
+            step="1"
             value={cantidad}
             onChange={(event) => setCantidad(event.target.value)}
           />
@@ -460,7 +473,7 @@ export function StockMovementModal({
             {error}
           </p>
         )}
-      </div>
+      </fieldset>
     </FormDialog>
   );
 }
@@ -474,6 +487,7 @@ export function StockTransferModal({
   defaultOriginId: number | null;
   onClose: () => void;
 }) {
+  const canTransfer = useCanWriteInventory('create');
   const actives = warehouses.filter((warehouse) => warehouse.activo);
   const initialOrigin =
     actives.find((warehouse) => warehouse.id === defaultOriginId)?.id ?? actives[0]?.id ?? null;
@@ -489,6 +503,9 @@ export function StockTransferModal({
   const balances = useWarehouseBalances(originId);
   const stock = balances.data?.find((balance) => balance.catalogItemId === part?.id)?.cantidad ?? 0;
   const next = stock - (Number(cantidad) || 0);
+  const unavailable = !canTransfer || balances.isPending || balances.isError || actives.length < 2
+    || !actives.some((warehouse) => warehouse.id === originId)
+    || !actives.some((warehouse) => warehouse.id === destinationId);
   return (
     <FormDialog
       id="transfer-modal-title"
@@ -507,9 +524,10 @@ export function StockTransferModal({
       onClose={onClose}
       headerVariant="plain"
       className="inventory-form reference-form-dialog stock-form-dialog warehouse-reference-dialog"
-      submitDisabled={balances.isPending || balances.isError || actives.length < 2}
+      submitDisabled={unavailable}
       onSubmit={(event) => {
         event.preventDefault();
+        if (unavailable || mutation.isPending) return;
         setError(null);
         if (!part) {
           setError('Seleccione un repuesto del catálogo.');
@@ -539,7 +557,8 @@ export function StockTransferModal({
         });
       }}
     >
-      <div className="inventory-form-fields">
+      <fieldset className="inventory-form-fields min-w-0" disabled={!canTransfer}>
+        {!canTransfer && <p role="status">Tu permiso actual no permite trasladar stock.</p>}
         <div className="inventory-form-grid">
           <label>
             Origen
@@ -614,7 +633,7 @@ export function StockTransferModal({
             {error}
           </p>
         )}
-      </div>
+      </fieldset>
     </FormDialog>
   );
 }
@@ -630,6 +649,7 @@ export function WarehouseDeliveryModal({
   defaultWarehouseId: number | null;
   onClose: () => void;
 }) {
+  const canDeliver = useCanWriteInventory('create');
   const initialWarehouseId =
     warehouses.find((warehouse) => warehouse.id === defaultWarehouseId && warehouse.activo)?.id ??
     null;
@@ -641,6 +661,9 @@ export function WarehouseDeliveryModal({
     balances.data?.find((balance) => balance.catalogItemId === request.catalogItemId)?.cantidad ??
     0;
   const insufficient = !balances.isPending && stock < request.cantidad;
+  const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === warehouseId && warehouse.activo);
+  const closedOrder = ['finalizada', 'entregada', 'cancelada'].includes(request.workOrder.estado);
+  const unavailable = !canDeliver || !selectedWarehouse || balances.isPending || balances.isError || insufficient || request.estado !== 'aprobada' || closedOrder;
   return (
     <FormDialog
       id="warehouse-delivery-title"
@@ -654,11 +677,11 @@ export function WarehouseDeliveryModal({
       headerVariant="plain"
       className="inventory-form reference-form-dialog stock-form-dialog warehouse-reference-dialog"
       submitDisabled={
-        warehouseId === null || balances.isPending || balances.isError || insufficient
+        unavailable
       }
       onSubmit={(event) => {
         event.preventDefault();
-        if (warehouseId === null || insufficient) return;
+        if (warehouseId === null || unavailable || mutation.isPending) return;
         mutation.mutate(
           { requestId: request.id, warehouseId, comentario: comentario.trim() || undefined },
           {
@@ -672,7 +695,9 @@ export function WarehouseDeliveryModal({
         );
       }}
     >
-      <div className="inventory-form-fields">
+      <fieldset className="inventory-form-fields min-w-0" disabled={!canDeliver}>
+        {!canDeliver && <p role="status">Tu permiso actual no permite entregar repuestos.</p>}
+        {closedOrder && <p role="status">La orden está cerrada; la solicitud queda disponible para consulta.</p>}
         <div className="inventory-profile-hero">
           <PackageCheck aria-hidden="true" />
           <div>
@@ -693,7 +718,7 @@ export function WarehouseDeliveryModal({
             <option value="" disabled>
               Seleccione almacén
             </option>
-            {warehouses.map((warehouse) => (
+            {warehouses.filter((warehouse) => warehouse.activo).map((warehouse) => (
               <option key={warehouse.id} value={warehouse.id}>
                 {warehouse.codigo} · {warehouse.nombre}
               </option>
@@ -722,7 +747,7 @@ export function WarehouseDeliveryModal({
             {getApiErrorMessage(mutation.error)}
           </p>
         )}
-      </div>
+      </fieldset>
     </FormDialog>
   );
 }

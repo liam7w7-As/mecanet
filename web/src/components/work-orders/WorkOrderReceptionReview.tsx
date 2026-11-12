@@ -1,4 +1,4 @@
-import { calculateQuotationPricing, formatRut, UNIT_MEASURE_LABELS } from '@unithor/shared';
+import { calculateQuotationPricing, formatRut, getQuotationTaxBreakdown, UNIT_MEASURE_LABELS } from '@unithor/shared';
 import { Car, LoaderCircle } from 'lucide-react';
 
 import { formatClp, formatDateTime } from '../../lib/formatters';
@@ -9,7 +9,7 @@ import type { VehicleInventoryItem } from '@unithor/shared';
 
 interface Props {
   data: WorkOrderRecovery;
-  total: number;
+  total?: number;
   fuelLabel: string;
   inventoryLabels: Record<VehicleInventoryItem, string>;
   photoLabels: string[];
@@ -25,6 +25,8 @@ interface Props {
 export default function WorkOrderReceptionReview(props: Props) {
   const { data, pending } = props;
   const items = data.items.filter((item) => item.descripcion.trim());
+  const pricing = calculateQuotationPricing(items, data.discount);
+  const tax = getQuotationTaxBreakdown(pricing.total);
   return (
     <>
       <ModalHeader
@@ -167,9 +169,16 @@ export default function WorkOrderReceptionReview(props: Props) {
             })
           )}
         </section>
+        <dl className="mb-3 grid gap-2 text-sm tabular-nums" aria-label="Resumen de importes de la orden">
+          <div className="flex justify-between gap-3"><dt>Importe sin descuentos</dt><dd>{formatClp(pricing.subtotal)}</dd></div>
+          {pricing.descuentoLineas > 0 && <div className="flex justify-between gap-3"><dt>Descuentos por ítem</dt><dd>− {formatClp(pricing.descuentoLineas)}</dd></div>}
+          {pricing.descuentoGeneral > 0 && <div className="flex justify-between gap-3"><dt>Descuento general</dt><dd>− {formatClp(pricing.descuentoGeneral)}</dd></div>}
+          <div className="flex justify-between gap-3"><dt>Subtotal neto</dt><dd>{formatClp(tax.neto)}</dd></div>
+          <div className="flex justify-between gap-3"><dt>IVA (19%)</dt><dd>{formatClp(tax.iva)}</dd></div>
+        </dl>
         <div className="reception-review-total">
-          <span>{props.quotationCode ? 'Total cotizado' : 'Total estimado'}</span>
-          <strong>{formatClp(props.total)}</strong>
+          <span>{props.quotationCode ? 'Total cotizado con IVA' : 'Total estimado con IVA'}</span>
+          <strong>{formatClp(props.total ?? tax.total)}</strong>
         </div>
         {props.error && (
           <p className="reception-review-error" role="alert">

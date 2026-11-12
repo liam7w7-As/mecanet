@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import ExcelJS from 'exceljs';
 import { Op } from 'sequelize';
 import request from 'supertest';
@@ -26,6 +28,7 @@ import type { Response as SuperAgentResponse } from 'superagent';
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const password = 'Revocation2026!';
+const runId = randomUUID().slice(0, 8);
 const binaryParser = (response: SuperAgentResponse, callback: (error: Error | null, body: Buffer) => void) => {
   const chunks: Buffer[] = [];
   const stream = response as unknown as NodeJS.ReadableStream;
@@ -167,7 +170,7 @@ describe('Seller pair revocation and current access revision (unithor_test E2E)'
     for (const name of ['admin', 'seller', 'owner', 'observer']) {
       const role = roles.find((item) => item.nombre === (name === 'admin' ? 'admin' : 'vendedor'));
       if (!role) throw new Error('Missing test role');
-      const user = await User.create({ nombre: `Revocation ${name}`, email: `pair-revocation-${name}@example.com`, passwordHash, roleId: role.id });
+      const user = await User.create({ nombre: `Revocation ${name}`, email: `pair-revocation-${name}-${runId}@example.com`, passwordHash, roleId: role.id });
       users.push(user);
       const login = await request(app).post('/api/auth/login').send({ email: user.email, password });
       expect(login.status).toBe(200);
@@ -180,7 +183,7 @@ describe('Seller pair revocation and current access revision (unithor_test E2E)'
     fullPermissions = (await Permission.findAll({ where: { modulo: ['taller', 'comercial'] } })).map((permission) => permission.id);
     await updateRolePermissions(roleId, fullPermissions);
     client = await Client.create({ nombre: 'Pair revocation client', tipo: 'cliente' });
-    vehicle = await Vehicle.create({ patente: 'REVO12', clientId: client.id });
+    vehicle = await Vehicle.create({ patente: `RV${runId.toUpperCase()}`, clientId: client.id });
     for (const name of ['OWN', 'REMOVED', 'KEPT']) {
       const createdBy = name === 'OWN' ? seller.id : owner.id;
       const order = await WorkOrder.create({ codigo: `OT-REVOKE-${name}`, createdBy, clientId: client.id, vehicleId: vehicle.id, fechaIngreso: new Date() });
@@ -368,6 +371,36 @@ describe('Seller pair revocation and current access revision (unithor_test E2E)'
     expect(await current()).toEqual(allRevision);
     expect((await putAccess({ mode: 'own' })).status).toBe(200);
     expect(await current()).toEqual(ownRevision);
+  });
+
+  it('checks only requested readable records in each mode without exposing or granting other records', async () => {
+    const ids = { workOrderIds: pairs.map((pair) => pair.order.id).join(','), quotationIds: pairs.map((pair) => pair.quotation.id).join(',') };
+    for (const mode of ['own', 'selected', 'all'] as const) {
+      expect((await putAccess({ mode, ...(mode === 'selected' ? { records: [record(kept)] } : {}) })).status).toBe(200);
+      const response = await get('/api/auth/sales-access').query({ ...ids, userId: owner.id });
+      expect(response.status).toBe(200);
+      const expected = mode === 'own' ? [own] : mode === 'selected' ? [own, kept] : pairs;
+      expect(response.body.records.workOrderIds.sort()).toEqual(expected.map((pair) => pair.order.id).sort());
+      expect(response.body.records.quotationIds.sort()).toEqual(expected.map((pair) => pair.quotation.id).sort());
+      expect(Object.keys(response.body.records).sort()).toEqual(['quotationIds', 'workOrderIds']);
+      if (mode !== 'all') await assertPair(removed, false);
+    }
+    await kept.order.destroy();
+    await kept.quotation.destroy();
+    try {
+      const response = await get('/api/auth/sales-access').query(ids);
+      expect(response.body.records.workOrderIds).not.toContain(kept.order.id);
+      expect(response.body.records.quotationIds).not.toContain(kept.quotation.id);
+    } finally { await kept.order.restore(); await kept.quotation.restore(); }
+  });
+
+  it('rejects malformed or oversized open-record checks', async () => {
+    for (const workOrderIds of ['0', '-1', '1,x', '1.5', '9007199254740992', Array.from({ length: 201 }, (_, index) => index + 1).join(',')]) {
+      expect((await get('/api/auth/sales-access').query({ workOrderIds })).status).toBe(400);
+    }
+    const response = await get('/api/auth/sales-access').query({ quotationIds: `${kept.quotation.id},${kept.quotation.id}` });
+    expect(response.body.records).toEqual({ workOrderIds: [], quotationIds: [kept.quotation.id] });
+    expect(await SalesAccessGrant.count({ where: { userId: seller.id } })).toBe(4);
   });
 
   it('changes revision and effective mode as grants expire without any database write', async () => {

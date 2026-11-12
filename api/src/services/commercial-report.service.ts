@@ -1,5 +1,7 @@
+import { getQuotationGrossTotal } from '@unithor/shared';
 import ExcelJS from 'exceljs';
-import { Op } from 'sequelize';
+import { col, Op, where as sequelizeWhere } from 'sequelize';
+
 
 import { Client } from '../models/Client.js';
 import { Payment } from '../models/Payment.js';
@@ -223,7 +225,7 @@ const buildSummarySheet = (
   quotations.forEach((quotation, index) => {
     const rowNumber = FIRST_DATA_ROW_NUMBER + index;
     const subtotal = numberValue(quotation.subtotal);
-    const total = numberValue(quotation.total);
+    const total = getQuotationGrossTotal(numberValue(quotation.total));
     const pagado = numberValue(quotation.pagado);
     const saldo = Math.max(0, total - pagado);
     const row = worksheet.getRow(rowNumber);
@@ -239,7 +241,7 @@ const buildSummarySheet = (
       subtotal,
       total,
       pagado,
-      { formula: `I${rowNumber}-J${rowNumber}`, result: saldo },
+      { formula: `MAX(0,I${rowNumber}-J${rowNumber})`, result: saldo },
     ];
     row.getCell(2).numFmt = DATE_FORMAT;
     for (let column = 8; column <= 11; column += 1) {
@@ -359,11 +361,24 @@ export async function generateCommercialReportExcel(
   if (filters.asesorId !== undefined) {
     quotationFilters.asesorId = filters.asesorId;
   }
-  if (filters.workOrderLinked !== undefined) {
+  if (filters.clientId !== undefined) quotationFilters.clientId = filters.clientId;
+  if (filters.vehicleId !== undefined) quotationFilters.vehicleId = filters.vehicleId;
+  if (filters.workOrderId !== undefined) quotationFilters.workOrderId = filters.workOrderId;
+  if (filters.workOrderLinked !== undefined && filters.workOrderId === undefined) {
     quotationFilters.workOrderId = filters.workOrderLinked
       ? { [Op.not]: null }
       : { [Op.is]: null };
   }
+
+  const searchWhere = (prefix = ''): QuotationWhere => filters.search ? {
+    [Op.or]: [
+      { codigo: { [Op.like]: `%${filters.search}%` } },
+      { notas: { [Op.like]: `%${filters.search}%` } },
+      sequelizeWhere(col(`${prefix}client.nombre`), { [Op.like]: `%${filters.search}%` }),
+      sequelizeWhere(col(`${prefix}client.rut`), { [Op.like]: `%${filters.search}%` }),
+      sequelizeWhere(col(`${prefix}vehicle.patente`), { [Op.like]: `%${filters.search}%` }),
+    ],
+  } : {};
 
   const [quotations, payments] = await Promise.all([
     Quotation.findAll({
@@ -378,6 +393,7 @@ export async function generateCommercialReportExcel(
       ],
       where: {
         ...quotationFilters,
+        ...searchWhere(),
         createdAt: { [Op.between]: [startDate, endDate] },
       },
       include: [
@@ -408,6 +424,10 @@ export async function generateCommercialReportExcel(
       where: {
         estado: 'confirmado',
         fecha: { [Op.between]: [startDate, endDate] },
+        ...(filters.search ? {
+          [Op.or]: ['quotation.codigo', 'quotation.notas', 'quotation->client.nombre', 'quotation->client.rut', 'quotation->vehicle.patente']
+            .map((field) => sequelizeWhere(col(field), { [Op.like]: `%${filters.search}%` })),
+        } : {}),
       },
       include: [
         {
@@ -427,6 +447,7 @@ export async function generateCommercialReportExcel(
               attributes: ['id', 'nombre'],
               required: false,
             },
+            { model: Vehicle, attributes: ['id', 'patente'], required: false },
           ],
         },
       ],

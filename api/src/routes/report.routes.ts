@@ -10,6 +10,10 @@ import {
 import { Router } from 'express';
 
 import {
+  getAdministrationReportPreviewHandler,
+  getCatalogReportPreviewHandler,
+  getFleetReportPreviewHandler,
+  getInventoryReportPreviewHandler,
   getAdministrationReportExcelHandler,
   getAdministrationReportPdfHandler,
   getCatalogReportExcelHandler,
@@ -28,111 +32,151 @@ import {
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorizeAny } from '../middlewares/authorize-any.js';
 import { validate } from '../middlewares/validate.js';
+import { hasPermission } from '../services/permission.service.js';
+import { ApiError } from '../utils/ApiError.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const reportRouter = Router();
+
+// Match canReadReport + an export grant, preserving legacy cross-area finance
+// exports while preventing export-only access after read permission is revoked.
+const authorizeReportDownload = (areas: string[]) => asyncHandler(async (req, _res, next) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const userId = req.user.id;
+  const allowed = await Promise.all(areas.map(async (area) => {
+    return Promise.all([
+      hasPermission(userId, area, 'read'),
+      hasPermission(userId, area, 'export'),
+    ]);
+  }));
+  if (!allowed.some(([read]) => read) || !allowed.some(([, exportAllowed]) => exportAllowed)) {
+    throw ApiError.forbidden('Necesitas permisos de lectura y exportación para este reporte.');
+  }
+  next();
+});
+
+const fleetReportRoles = asyncHandler(async (req, _res, next) => {
+  if (req.user?.role === 'mecanico') throw ApiError.forbidden('No tienes acceso a este reporte.');
+  next();
+});
 
 reportRouter.use(authenticate);
 
 reportRouter.get(
+  '/inventory/preview',
+  authorizeAny([{ modulo: 'almacen', accion: 'read' }, { modulo: 'finanzas', accion: 'read' }]),
+  validate({ query: inventoryReportQuerySchema }),
+  getInventoryReportPreviewHandler,
+);
+reportRouter.get(
+  '/catalog/preview',
+  authorizeAny([
+    { modulo: 'almacen', accion: 'read' },
+    { modulo: 'taller', accion: 'read' },
+    { modulo: 'comercial', accion: 'read' },
+    { modulo: 'finanzas', accion: 'read' },
+  ]),
+  validate({ query: catalogReportQuerySchema }),
+  getCatalogReportPreviewHandler,
+);
+reportRouter.get(
+  '/fleet/preview',
+  fleetReportRoles,
+  authorizeAny([{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }, { modulo: 'finanzas', accion: 'read' }]),
+  validate({ query: fleetReportQuerySchema }),
+  getFleetReportPreviewHandler,
+);
+reportRouter.get(
+  '/administration/preview',
+  authorizeAny([{ modulo: 'admin', accion: 'read' }]),
+  validate({ query: administrationReportQuerySchema }),
+  getAdministrationReportPreviewHandler,
+);
+
+reportRouter.get(
   '/commercial/excel',
-  authorizeAny([{ modulo: 'comercial', accion: 'export' }, { modulo: 'finanzas', accion: 'export' }]),
+  authorizeReportDownload(['comercial', 'finanzas']),
   validate({ query: commercialReportQuerySchema }),
   getCommercialReportExcelHandler,
 );
 reportRouter.get(
   '/commercial/pdf',
-  authorizeAny([{ modulo: 'comercial', accion: 'export' }, { modulo: 'finanzas', accion: 'export' }]),
+  authorizeReportDownload(['comercial', 'finanzas']),
   validate({ query: commercialReportQuerySchema }),
   getCommercialReportPdfHandler,
 );
 reportRouter.get(
   '/workshop/excel',
-  authorizeAny([{ modulo: 'taller', accion: 'export' }, { modulo: 'finanzas', accion: 'export' }]),
+  authorizeReportDownload(['taller', 'finanzas']),
   validate({ query: workshopReportQuerySchema }),
   getWorkshopReportExcelHandler,
 );
 reportRouter.get(
   '/workshop/pdf',
-  authorizeAny([{ modulo: 'taller', accion: 'export' }, { modulo: 'finanzas', accion: 'export' }]),
+  authorizeReportDownload(['taller', 'finanzas']),
   validate({ query: workshopReportQuerySchema }),
   getWorkshopReportPdfHandler,
 );
 reportRouter.get(
   '/inventory/excel',
-  authorizeAny([{ modulo: 'almacen', accion: 'export' }, { modulo: 'finanzas', accion: 'export' }]),
+  authorizeReportDownload(['almacen', 'finanzas']),
   validate({ query: inventoryReportQuerySchema }),
   getInventoryReportExcelHandler,
 );
 reportRouter.get(
   '/inventory/pdf',
-  authorizeAny([{ modulo: 'almacen', accion: 'export' }, { modulo: 'finanzas', accion: 'export' }]),
+  authorizeReportDownload(['almacen', 'finanzas']),
   validate({ query: inventoryReportQuerySchema }),
   getInventoryReportPdfHandler,
 );
 reportRouter.get(
   '/catalog/excel',
-  authorizeAny([
-    { modulo: 'almacen', accion: 'export' },
-    { modulo: 'taller', accion: 'export' },
-    { modulo: 'comercial', accion: 'export' },
-    { modulo: 'finanzas', accion: 'export' },
-  ]),
+  authorizeReportDownload(['almacen', 'taller', 'comercial', 'finanzas']),
   validate({ query: catalogReportQuerySchema }),
   getCatalogReportExcelHandler,
 );
 reportRouter.get(
   '/catalog/pdf',
-  authorizeAny([
-    { modulo: 'almacen', accion: 'export' },
-    { modulo: 'taller', accion: 'export' },
-    { modulo: 'comercial', accion: 'export' },
-    { modulo: 'finanzas', accion: 'export' },
-  ]),
+  authorizeReportDownload(['almacen', 'taller', 'comercial', 'finanzas']),
   validate({ query: catalogReportQuerySchema }),
   getCatalogReportPdfHandler,
 );
 reportRouter.get(
   '/fleet/excel',
-  authorizeAny([
-    { modulo: 'comercial', accion: 'export' },
-    { modulo: 'taller', accion: 'export' },
-    { modulo: 'finanzas', accion: 'export' },
-  ]),
+  fleetReportRoles,
+  authorizeReportDownload(['comercial', 'taller', 'finanzas']),
   validate({ query: fleetReportQuerySchema }),
   getFleetReportExcelHandler,
 );
 reportRouter.get(
   '/fleet/pdf',
-  authorizeAny([
-    { modulo: 'comercial', accion: 'export' },
-    { modulo: 'taller', accion: 'export' },
-    { modulo: 'finanzas', accion: 'export' },
-  ]),
+  fleetReportRoles,
+  authorizeReportDownload(['comercial', 'taller', 'finanzas']),
   validate({ query: fleetReportQuerySchema }),
   getFleetReportPdfHandler,
 );
 reportRouter.get(
   '/administration/excel',
-  authorizeAny([{ modulo: 'admin', accion: 'export' }]),
+  authorizeReportDownload(['admin']),
   validate({ query: administrationReportQuerySchema }),
   getAdministrationReportExcelHandler,
 );
 reportRouter.get(
   '/administration/pdf',
-  authorizeAny([{ modulo: 'admin', accion: 'export' }]),
+  authorizeReportDownload(['admin']),
   validate({ query: administrationReportQuerySchema }),
   getAdministrationReportPdfHandler,
 );
 reportRouter.get(
   '/finance/excel',
-  authorizeAny([{ modulo: 'finanzas', accion: 'export' }]),
+  authorizeReportDownload(['finanzas']),
   validate({ query: financialReportQuerySchema }),
   getFinancialReportExcelHandler,
 );
 
 reportRouter.get(
   '/finance/pdf',
-  authorizeAny([{ modulo: 'finanzas', accion: 'export' }]),
+  authorizeReportDownload(['finanzas']),
   validate({ query: financialReportQuerySchema }),
   getFinancialReportPdfHandler,
 );

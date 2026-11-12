@@ -1,9 +1,10 @@
 import { AlertCircle, Check, ChevronLeft, ChevronRight, FileText, Globe2, ListChecks, LoaderCircle, Search, ShieldCheck, UserRound, Wrench, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useSalesAccessRecords, useUpdateUserSalesAccess, useUserSalesAccessSettings } from '../../hooks/useSalesAccess';
 import { getApiErrorMessage } from '../../lib/api-error';
+import { useAuthStore } from '../../stores/auth.store';
 import { notifySuccess } from '../../stores/toast.store';
 import FormDialog from '../common/FormDialog';
 
@@ -46,7 +47,10 @@ const signature = ({ mode, records }: Draft): string => `${mode}:${mode === 'sel
 const detailText = (record: Selection): string => [record.clientName, record.patente].filter(Boolean).join(' · ');
 
 export default function UserSalesAccessSettingsModal({ user, onClose }: Props) {
-  const settings = useUserSalesAccessSettings(user.id);
+  const actor = useAuthStore((state) => state.user);
+  const canManage = Boolean(actor && ['admin', 'desarrollador'].includes(actor.role) && user.activo && user.role.nombre === 'vendedor');
+  const submission = useRef(false);
+  const settings = useUserSalesAccessSettings(user.id, canManage);
   const update = useUpdateUserSalesAccess(user.id);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [scopeType, setScopeType] = useState<SalesAccessScopeType>('work_order');
@@ -60,7 +64,7 @@ export default function UserSalesAccessSettingsModal({ user, onClose }: Props) {
   const dirty = signature(current) !== signature(saved);
   const searchPending = search.trim() !== debouncedSearch;
   const records = useSalesAccessRecords(user.id, { scopeType, search: debouncedSearch || undefined, page, pageSize: 10 },
-    current.mode === 'selected' && Boolean(settings.data) && !settings.isError && !showSelected && !searchPending);
+    canManage && current.mode === 'selected' && Boolean(settings.data) && !settings.isError && !showSelected && !searchPending);
   const loadingRecords = searchPending || records.isPending || records.isPlaceholderData;
   const selectionQuery = search.trim().toLocaleLowerCase('es');
   const visibleSelections = selections.filter(([, record]) =>
@@ -73,8 +77,9 @@ export default function UserSalesAccessSettingsModal({ user, onClose }: Props) {
 
   useEffect(() => setPage(1), [debouncedSearch, scopeType]);
 
-  const changeMode = (mode: SalesAccessMode) => { update.reset(); setDraft({ ...current, mode }); };
+  const changeMode = (mode: SalesAccessMode) => { if (!canManage) return; update.reset(); setDraft({ ...current, mode }); };
   const toggleRecord = (record: Selection) => {
+    if (!canManage) return;
     const next = { ...current.records };
     const key = recordKey(record);
     if (next[key]) delete next[key];
@@ -84,24 +89,27 @@ export default function UserSalesAccessSettingsModal({ user, onClose }: Props) {
   };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (update.isPending || !settings.data || settings.isError || !dirty || !user.activo || (current.mode === 'selected' && selectedCount === 0)) return;
+    if (!canManage || submission.current || update.isPending || !settings.data || settings.isError || !dirty || (current.mode === 'selected' && selectedCount === 0)) return;
+    submission.current = true;
     update.mutate({ mode: current.mode, records: current.mode === 'selected'
       ? selections.map(([, record]) => ({ scopeType: record.scopeType, targetId: record.targetId })) : [] }, {
       onSuccess: () => { notifySuccess(`Acceso actualizado para ${user.nombre}`); onClose(); },
+      onSettled: () => { submission.current = false; },
     });
   };
 
   return <FormDialog id="user-sales-access-title" title="Acceso a OT y COT" code={user.nombre} context={`@${user.username}`}
     headerVariant="plain" className="administration-form reference-form-dialog users-reference-form sales-access-dialog sales-access-settings"
     submitLabel="Guardar acceso" pending={update.isPending} dirty={dirty} onClose={onClose} onSubmit={submit}
-    submitDisabled={!settings.data || settings.isError || !dirty || !user.activo || (current.mode === 'selected' && selectedCount === 0)}
+    submitDisabled={!canManage || !settings.data || settings.isError || !dirty || (current.mode === 'selected' && selectedCount === 0)}
     statusText={settings.isPending ? 'Cargando acceso…' : current.mode === 'selected' ? `${selectedCount} selecciones · ${effectiveIds.size} registros` : dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}>
-    {settings.isPending && <p className="sales-access-feedback" role="status"><LoaderCircle className="animate-spin" aria-hidden="true" />Cargando la configuración actual…</p>}
+    {!canManage && <p role="status" className="administration-notice">Ya no puedes guardar estos accesos. La selección se conserva para que puedas revisarla o cerrar.</p>}
+    {canManage && settings.isPending && <p className="sales-access-feedback" role="status"><LoaderCircle className="animate-spin" aria-hidden="true" />Cargando la configuración actual…</p>}
     {settings.isError && <div className="administration-alert" role="alert"><AlertCircle aria-hidden="true" />
       <span>{getApiErrorMessage(settings.error, 'No se pudo cargar el acceso actual.')}</span><button type="button" onClick={() => void settings.refetch()}>Reintentar</button></div>}
     {update.isError && <div className="administration-alert" role="alert"><AlertCircle aria-hidden="true" />{getApiErrorMessage(update.error, 'No se pudo guardar el acceso. La selección sigue disponible para reintentar.')}</div>}
 
-    <fieldset className="sales-access-modes" disabled={!settings.data || settings.isError}>
+    <fieldset className="sales-access-modes" disabled={!canManage || !settings.data || settings.isError}>
       <legend>¿Qué OT y cotizaciones puede ver?</legend>
       <div>{MODES.map(({ value, label, description, icon: Icon }) => <label key={value} data-selected={current.mode === value}>
         <input type="radio" name="sales-access-mode" value={value} checked={current.mode === value} onChange={() => changeMode(value)} />
@@ -115,7 +123,7 @@ export default function UserSalesAccessSettingsModal({ user, onClose }: Props) {
     {current.mode === 'all' && <div className="sales-access-explanation is-all"><Globe2 aria-hidden="true" /><div><strong>Todas las OT y cotizaciones</strong>
       <p>Incluye los registros de otros vendedores y los que se creen en adelante. El propietario de cada registro se mantiene.</p></div></div>}
 
-    {current.mode === 'selected' && <section className="sales-access-picker" aria-label="Seleccionar OT y cotizaciones">
+    {current.mode === 'selected' && <fieldset disabled={!canManage} className="sales-access-picker" aria-label="Seleccionar OT y cotizaciones">
       <div className="sales-access-picker-intro"><strong>Agrega los registros que necesita</strong><p>Sus registros siempre están incluidos. Cada OT y su COT vinculada se comparten juntas.</p></div>
       <div className="sales-access-picker-toolbar">
         <div className="sales-access-record-tabs" role="tablist" aria-label="Buscar o revisar selección">
@@ -157,7 +165,7 @@ export default function UserSalesAccessSettingsModal({ user, onClose }: Props) {
       </div>}
       {selectedCount === 0 && <p className="sales-access-selection-hint">Elige al menos un registro para guardar esta opción.</p>}
       {selectedCount >= 500 && <p className="sales-access-selection-hint">Llegaste a 500 selecciones. Usa Todas si necesita acceso completo.</p>}
-    </section>}
+    </fieldset>}
 
     <p className="sales-access-role-note"><ShieldCheck aria-hidden="true" /><span>Editar, registrar pagos y las demás acciones siguen dependiendo de los permisos de su rol.</span></p>
   </FormDialog>;

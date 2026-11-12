@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -429,7 +429,9 @@ describe('FinancePage', () => {
   it('registra un egreso manual desde el libro diario', async () => {
     renderPage();
     fireEvent.click(screen.getByRole('tab', { name: 'Caja' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Nuevo movimiento' }));
+    const open = await screen.findByRole('button', { name: 'Nuevo movimiento' });
+    await waitFor(() => expect(open).toBeEnabled());
+    fireEvent.click(open);
     fireEvent.change(screen.getByLabelText('Monto'), { target: { value: '5000' } });
     fireEvent.change(screen.getByLabelText('Descripción'), {
       target: { value: 'Compra de útiles' },
@@ -622,7 +624,9 @@ describe('FinancePage', () => {
   it('conserva un movimiento fallido y confirma antes de descartar para poder reintentar', async () => {
     vi.mocked(api.post).mockRejectedValueOnce(new Error('Sin conexión'));
     renderPage('/finance?tab=cash');
-    fireEvent.click(await screen.findByRole('button', { name: 'Nuevo movimiento' }));
+    const open = await screen.findByRole('button', { name: 'Nuevo movimiento' });
+    await waitFor(() => expect(open).toBeEnabled());
+    fireEvent.click(open);
     const dialog = within(screen.getByRole('dialog', { name: 'Registrar movimiento de caja' }));
     fireEvent.change(dialog.getByLabelText('Monto'), { target: { value: '5000' } });
     fireEvent.change(dialog.getByLabelText('Descripción'), {
@@ -643,6 +647,45 @@ describe('FinancePage', () => {
     );
   });
 
+  it.each(['review', 'movement', 'closure'] as const)('conserva %s al retirar permisos y bloquea incluso el envío directo del formulario', async (kind) => {
+    renderPage(kind === 'review' ? '/finance' : '/finance?tab=cash');
+    const buttonName = kind === 'review' ? 'Aprobar' : kind === 'movement' ? 'Nuevo movimiento' : 'Cerrar caja del día';
+    const open = await screen.findByRole('button', { name: buttonName });
+    await waitFor(() => expect(open).toBeEnabled());
+    fireEvent.click(open);
+    const dialog = within(await screen.findByRole('dialog'));
+    const input = dialog.getByLabelText(kind === 'review' ? 'Comentario de revisión' : kind === 'movement' ? 'Descripción' : 'Observaciones');
+    fireEvent.change(input, { target: { value: 'Conservar esta observación pendiente' } });
+    if (kind === 'movement') fireEvent.change(dialog.getByLabelText('Monto'), { target: { value: '5000' } });
+    act(() => useAuthStore.setState({ user: { ...useAuthStore.getState().user!, permissions: [{ modulo: 'finanzas', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] } }));
+    expect(input).toHaveValue('Conservar esta observación pendiente');
+    expect(input).toBeDisabled();
+    const submit = dialog.getByRole('button', { name: kind === 'review' ? 'Confirmar pago' : kind === 'movement' ? 'Registrar movimiento' : 'Confirmar cierre' });
+    expect(submit).toBeDisabled();
+    fireEvent.submit(submit.closest('form')!);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('bloquea envíos directos sin monto válido y evita un doble registro en el mismo ciclo', async () => {
+    let resolve: ((response: AxiosResponse) => void) | undefined;
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    renderPage('/finance?tab=cash');
+    const open = await screen.findByRole('button', { name: 'Nuevo movimiento' });
+    await waitFor(() => expect(open).toBeEnabled());
+    fireEvent.click(open);
+    const dialog = within(screen.getByRole('dialog'));
+    const form = dialog.getByRole('button', { name: 'Registrar movimiento' }).closest('form')!;
+    fireEvent.change(dialog.getByLabelText('Descripción'), { target: { value: 'Movimiento manual seguro' } });
+    fireEvent.submit(form);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(dialog.getByRole('button', { name: 'Registrar movimiento' })).toBeDisabled();
+    fireEvent.change(dialog.getByLabelText('Monto'), { target: { value: '5000' } });
+    act(() => { fireEvent.submit(form); fireEvent.submit(form); });
+    await waitFor(() => expect(api.post).toHaveBeenCalledOnce());
+    await act(async () => { resolve?.({ data: { movement: { id: 10 } } } as AxiosResponse); });
+  });
+
   it('bloquea cambios y cierre mientras se guarda un movimiento', async () => {
     let resolveRequest: ((response: AxiosResponse) => void) | undefined;
     vi.mocked(api.post).mockImplementationOnce(
@@ -652,7 +695,9 @@ describe('FinancePage', () => {
         }),
     );
     renderPage('/finance?tab=cash');
-    fireEvent.click(await screen.findByRole('button', { name: 'Nuevo movimiento' }));
+    const open = await screen.findByRole('button', { name: 'Nuevo movimiento' });
+    await waitFor(() => expect(open).toBeEnabled());
+    fireEvent.click(open);
     const dialog = within(screen.getByRole('dialog', { name: 'Registrar movimiento de caja' }));
     fireEvent.change(dialog.getByLabelText('Monto'), { target: { value: '5000' } });
     fireEvent.change(dialog.getByLabelText('Descripción'), {

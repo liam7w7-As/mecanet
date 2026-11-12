@@ -1,3 +1,4 @@
+import { getQuotationGrossTotal } from '@unithor/shared';
 import {
   ArrowUpRight,
   Building2,
@@ -432,12 +433,16 @@ export const ClientDetailModal = ({
                               </div>
                               <div>
                                 <p className="text-sm font-semibold tabular-nums text-brand-ink">
-                                  {formatClp(Number(quotation.total))}
+                                  {formatClp(getQuotationGrossTotal(Number(quotation.total)))}
                                 </p>
                                 <p className="mt-1 text-xs text-brand-muted">
                                   Saldo{' '}
                                   {formatClp(
-                                    Math.max(0, Number(quotation.total) - Number(quotation.pagado)),
+                                    Math.max(
+                                      0,
+                                      getQuotationGrossTotal(Number(quotation.total)) -
+                                        Number(quotation.pagado),
+                                    ),
                                   )}
                                 </p>
                               </div>

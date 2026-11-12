@@ -88,16 +88,50 @@ describe('SettingsPage', () => {
 
   it('bloquea el acceso a roles sin permisos de administración', async () => {
     useAuthStore.setState({
-      user: { id: 9, nombre: 'Jefe', email: 'jefe@unithor.local', role: 'jefe' },
+      user: { id: 9, nombre: 'Jefe', email: 'jefe@unithor.local', role: 'jefe', permissions: [] },
       isAuthenticated: true,
       isLoading: false,
     });
     renderPage();
 
     expect(
-      await screen.findByText(/Solo los administradores pueden ver y modificar/i),
+      await screen.findByText(/No tienes permiso para ver la configuración/i),
     ).toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalledWith('/settings/company', expect.anything());
+  });
+
+  it('permite consultar la configuración con admin:read sin habilitar su edición ni el logo', async () => {
+    useAuthStore.getState().setUser({ id: 9, nombre: 'Jefe', email: 'jefe@unithor.local', role: 'jefe',
+      permissions: [{ modulo: 'admin', accion: 'read' }] });
+    renderPage();
+    expect(await screen.findByLabelText('Razón social *')).toHaveValue(companyResponse.razonSocial);
+    expect(screen.getByLabelText('Razón social *')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Subir logo' })).toBeDisabled();
+    fireEvent.submit(screen.getByRole('button', { name: 'Guardar cambios' }).closest('form')!);
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('retiene la edición y bloquea las mutaciones si se retira admin:update', async () => {
+    const actor = { id: 9, nombre: 'Jefe', email: 'jefe@unithor.local', role: 'jefe' as const,
+      permissions: [{ modulo: 'admin' as const, accion: 'read' as const }, { modulo: 'admin' as const, accion: 'update' as const }] };
+    useAuthStore.getState().setUser(actor);
+    renderPage();
+    const input = await screen.findByLabelText('Razón social *');
+    fireEvent.change(input, { target: { value: 'CONSERVAR IDENTIDAD' } });
+    await act(async () => useAuthStore.getState().setUser({ ...actor, permissions: actor.permissions.slice(0, 1) }));
+    expect(input).toHaveValue('CONSERVAR IDENTIDAD');
+    expect(input).toBeDisabled();
+    const save = screen.getByRole('button', { name: 'Guardar cambios' });
+    expect(save).toBeDisabled();
+    fireEvent.submit(save.closest('form')!);
+    fireEvent.change(screen.getByLabelText('Seleccionar logo'), { target: { files: [new File(['logo'], 'logo.png', { type: 'image/png' })] } });
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+    await act(async () => useAuthStore.getState().setUser(actor));
+    expect(input).toBeEnabled();
+    expect(input).toHaveValue('CONSERVAR IDENTIDAD');
   });
 
   it('guarda la identidad normalizando el RUT y el teléfono tal como se ingresa', async () => {

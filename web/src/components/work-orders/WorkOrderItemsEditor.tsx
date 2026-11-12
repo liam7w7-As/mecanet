@@ -1,5 +1,5 @@
-import { calculateQuotationPricing, ITEM_OPERATIONAL_STATUS, UNIT_MEASURES, UNIT_MEASURE_LABELS } from '@unithor/shared';
-import { Check, ChevronLeft, ChevronRight, LoaderCircle, Minus, Plus, Search, Trash2, Undo2 } from 'lucide-react';
+import { calculateQuotationPricing, getQuotationGrossTotal, ITEM_OPERATIONAL_STATUS, UNIT_MEASURES, UNIT_MEASURE_LABELS } from '@unithor/shared';
+import { Check, ChevronLeft, ChevronRight, LoaderCircle, Minus, Plus, Search, Trash2, Undo2, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
@@ -49,11 +49,13 @@ export const createEmptyWorkOrderItem = (): EditableWorkOrderItem => ({
   assignedUserId: null,
 });
 
+/** Neto después del descuento por línea, antes de IVA. */
 export const getWorkOrderItemSubtotal = (item: EditableWorkOrderItem): number =>
-  Math.max(0, Number(item.cantidad) || 0) * Math.max(0, Number(item.precioUnitario) || 0);
+  calculateQuotationPricing([item]).total;
 
+/** Neto de los ítems; el descuento general y el IVA se aplican fuera de este helper. */
 export const calculateItemsTotal = (items: EditableWorkOrderItem[]): number =>
-  items.reduce((total, item) => total + getWorkOrderItemSubtotal(item), 0);
+  calculateQuotationPricing(items).total;
 
 const STATUS_LABELS: Record<ItemOperationalStatus, string> = {
   pendiente: 'Pendiente', en_proceso: 'En proceso', completado: 'Completado', omitido: 'Omitido',
@@ -105,6 +107,14 @@ export const WorkOrderItemsEditor = ({
   const [freshKeys, setFreshKeys] = useState<Set<string>>(new Set());
   const freshTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
+  useEffect(() => {
+    const timers = freshTimers.current;
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
+
   const markFresh = useCallback((key: string) => {
     setFreshKeys((prev) => new Set([...prev, key]));
     // Limpia cualquier timer previo para esa key
@@ -129,6 +139,7 @@ export const WorkOrderItemsEditor = ({
   };
   const [removed, setRemoved] = useState<{ item: EditableWorkOrderItem; index: number } | null>(null);
   const catalogQuery = useCatalogItems(search, activeType, page);
+  const catalogBusy = catalogQuery.isFetching || catalogQuery.isDebouncing;
 
   const updateItem = (key: string, patch: Partial<EditableWorkOrderItem>): void => {
     onChange(items.map((item) => item.key === key ? { ...item, ...patch } : item));
@@ -165,7 +176,6 @@ export const WorkOrderItemsEditor = ({
       onChange([row, ...items]);
     }
     markFresh(row.key);
-    setRemoved(null);
   };
 
   const addFreeItem = (): void => {
@@ -204,14 +214,15 @@ export const WorkOrderItemsEditor = ({
           <div className="relative my-3">
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted" aria-hidden="true" />
             <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-              className={`${inputClass} pl-9 pr-9`} placeholder="Nombre o código"
+              className={`${inputClass} pl-9 pr-16`} placeholder="Nombre o código"
               aria-label="Buscar en catálogo por nombre o código" autoComplete="off" />
-            {catalogQuery.isFetching && <LoaderCircle className="absolute right-3 top-3 h-4 w-4 animate-spin text-brand-primaryInk" aria-hidden="true" />}
+            {catalogBusy && <LoaderCircle className={`absolute top-3 h-4 w-4 animate-spin text-brand-primaryInk ${search ? 'right-10' : 'right-3'}`} aria-hidden="true" />}
+            {search && <button type="button" aria-label="Limpiar búsqueda del catálogo" className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded text-brand-muted hover:bg-brand-pale" onClick={() => { setSearch(''); setPage(1); }}><X className="h-4 w-4" aria-hidden="true" /></button>}
           </div>
-          <div className="max-h-64 divide-y divide-brand-line overflow-y-auto border-y border-brand-line xl:max-h-[28rem]" aria-label="Resultados del catálogo">
-            {catalogQuery.isPending && <p className="py-4 text-sm text-brand-muted" role="status">Cargando catálogo...</p>}
-            {catalogQuery.isError && <div className="py-4 text-sm text-brand-coralInk" role="alert">No se pudo cargar el catálogo. <button type="button" className="underline" onClick={() => void catalogQuery.refetch()}>Reintentar</button></div>}
-            {catalogQuery.data?.items.length === 0 && <p className="py-4 text-sm text-brand-muted">No se encontraron ítems.</p>}
+          <div className="max-h-64 divide-y divide-brand-line overflow-y-auto border-y border-brand-line xl:max-h-[28rem]" aria-label="Resultados del catálogo" aria-busy={catalogBusy}>
+            {(catalogQuery.isPending || catalogQuery.isDebouncing) && <p className="py-4 text-sm text-brand-muted" role="status">Cargando catálogo...</p>}
+            {!catalogQuery.isDebouncing && catalogQuery.isError && <div className="py-4 text-sm text-brand-coralInk" role="alert">No se pudo cargar el catálogo. <button type="button" className="underline" onClick={() => void catalogQuery.refetch()}>Reintentar</button></div>}
+            {!catalogBusy && !catalogQuery.isError && catalogQuery.data?.items.length === 0 && <p className="py-4 text-sm text-brand-muted">No se encontraron ítems.</p>}
             {catalogQuery.data?.items.map((catalogItem) => {
               const selected = items.find((item) => item.catalogItemId === catalogItem.id);
               return (
@@ -234,9 +245,9 @@ export const WorkOrderItemsEditor = ({
           {(catalogQuery.data?.totalPages ?? 0) > 1 && <div className="mt-2 flex items-center justify-between gap-2 text-xs text-brand-muted">
             <span>{catalogQuery.data?.total} ítems · Página {page} de {catalogQuery.data?.totalPages}</span>
             <div className="flex gap-1">
-              <button type="button" title="Página anterior del catálogo" aria-label="Página anterior del catálogo" disabled={page === 1 || catalogQuery.isFetching}
+              <button type="button" title="Página anterior del catálogo" aria-label="Página anterior del catálogo" disabled={page === 1 || catalogBusy}
                 className="rounded-lg border border-brand-line p-2 text-brand-primaryInk hover:bg-brand-pale disabled:opacity-30" onClick={() => setPage((current) => current - 1)}><ChevronLeft className="h-4 w-4" aria-hidden="true" /></button>
-              <button type="button" title="Página siguiente del catálogo" aria-label="Página siguiente del catálogo" disabled={page >= (catalogQuery.data?.totalPages ?? 1) || catalogQuery.isFetching}
+              <button type="button" title="Página siguiente del catálogo" aria-label="Página siguiente del catálogo" disabled={page >= (catalogQuery.data?.totalPages ?? 1) || catalogBusy}
                 className="rounded-lg border border-brand-line p-2 text-brand-primaryInk hover:bg-brand-pale disabled:opacity-30" onClick={() => setPage((current) => current + 1)}><ChevronRight className="h-4 w-4" aria-hidden="true" /></button>
             </div>
           </div>}
@@ -373,7 +384,7 @@ export const WorkOrderItemsEditor = ({
                         : item.catalogItemId ? 'Del catálogo' : 'Ítem libre'}
                     </span>
                     <span className="text-sm font-bold text-brand-primaryInk" data-testid={`item-subtotal-${index}`}>{(() => {
-                      try { return formatClp(showDiscounts ? calculateQuotationPricing([item]).total : getWorkOrderItemSubtotal(item)); } catch { return 'Descuento inválido'; }
+                      try { return `Subtotal neto: ${formatClp(getWorkOrderItemSubtotal(item))}`; } catch { return 'Importe o descuento inválido'; }
                     })()}</span>
                   </div>
 
@@ -384,8 +395,10 @@ export const WorkOrderItemsEditor = ({
           </AnimatePresence>
 
           {showTotal && <div className="reception-items-total flex flex-wrap items-center justify-between gap-2 border-t-2 border-brand-primaryInk bg-brand-line/40 px-3 py-4">
-            <p className="text-sm font-semibold text-brand-muted">{totalLabel}</p>
-            <p className="text-xl font-bold text-brand-primaryInk" data-testid={totalTestId}>{formatClp(calculateItemsTotal(items))}</p>
+            <p className="text-sm font-semibold text-brand-muted">{totalLabel} (IVA incluido)</p>
+            <p className="text-xl font-bold text-brand-primaryInk" data-testid={totalTestId}>{(() => {
+              try { return formatClp(getQuotationGrossTotal(calculateItemsTotal(items))); } catch { return 'Revisa los importes y descuentos'; }
+            })()}</p>
           </div>}
         </div>
       </div>

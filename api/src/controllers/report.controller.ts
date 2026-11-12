@@ -1,8 +1,14 @@
+import { generateListExportExcel, generateListExportPdf } from '../services/exports/export-renderer.service.js';
+import { buildOperationsExport } from '../services/exports/operations-export.service.js';
 import {
   generateFinancialReportExcel,
   generateFinancialReportPdf,
 } from '../services/financial-report.service.js';
 import {
+  getAdministrationReportPreview,
+  getCatalogReportPreview,
+  getFleetReportPreview,
+  getInventoryReportPreview,
   generateAdministrationReportExcel,
   generateAdministrationReportPdf,
   generateCatalogReportExcel,
@@ -17,6 +23,7 @@ import {
   generateWorkshopReportPdf,
 } from '../services/operational-report.service.js';
 import { getSalesScope } from '../services/sales-access.service.js';
+import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 import type {
@@ -43,6 +50,44 @@ const getSalesReportScope = async (req: Request) => {
     asesorId: undefined,
   };
 };
+
+/** Mechanics keep the same assigned-order scope and hidden financials as their board. */
+const getMechanicWorkshopReport = async (req: Request, filters: WorkshopReportFilters, format: 'excel' | 'pdf'): Promise<Buffer | Uint8Array | null> => {
+  if (req.user?.role !== 'mecanico') return null;
+  const dataset = await buildOperationsExport('work-orders', { ...filters }, { id: req.user.id, role: req.user.role });
+  if (!dataset) throw ApiError.internal('No fue posible preparar el reporte de taller');
+  return format === 'excel' ? generateListExportExcel(dataset) : generateListExportPdf(dataset);
+};
+
+export const getInventoryReportPreviewHandler = asyncHandler(async (_req, res): Promise<void> => {
+  const result = await getInventoryReportPreview(res.locals.validatedQuery as InventoryReportFilters);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.status(200).json(result);
+});
+
+export const getCatalogReportPreviewHandler = asyncHandler(async (req, res): Promise<void> => {
+  const result = await getCatalogReportPreview({
+    ...(res.locals.validatedQuery as CatalogReportFilters),
+    ...await getSalesReportScope(req),
+  });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.status(200).json(result);
+});
+
+export const getFleetReportPreviewHandler = asyncHandler(async (req, res): Promise<void> => {
+  const result = await getFleetReportPreview({
+    ...(res.locals.validatedQuery as FleetReportFilters),
+    ...await getSalesReportScope(req),
+  });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.status(200).json(result);
+});
+
+export const getAdministrationReportPreviewHandler = asyncHandler(async (_req, res): Promise<void> => {
+  const result = await getAdministrationReportPreview(res.locals.validatedQuery as AdministrationReportFilters);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.status(200).json(result);
+});
 
 export const getCommercialReportExcelHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
@@ -89,7 +134,7 @@ export const getWorkshopReportExcelHandler = asyncHandler(
       ...(res.locals.validatedQuery as WorkshopReportFilters),
       ...await getSalesReportScope(req),
     };
-    const reportBuffer = await generateWorkshopReportExcel(filters);
+    const reportBuffer = await getMechanicWorkshopReport(req, filters, 'excel') ?? await generateWorkshopReportExcel(filters);
 
     res.setHeader(
       'Content-Type',
@@ -110,7 +155,7 @@ export const getWorkshopReportPdfHandler = asyncHandler(
       ...(res.locals.validatedQuery as WorkshopReportFilters),
       ...await getSalesReportScope(req),
     };
-    const pdfBytes = await generateWorkshopReportPdf(filters);
+    const pdfBytes = await getMechanicWorkshopReport(req, filters, 'pdf') ?? await generateWorkshopReportPdf(filters);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(

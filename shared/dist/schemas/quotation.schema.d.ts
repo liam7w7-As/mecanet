@@ -147,9 +147,9 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
     }[];
     notas?: string | null | undefined;
     clientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
+    vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
@@ -170,9 +170,9 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descuentoValor?: number | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
+    vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
@@ -193,9 +193,9 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
     }[];
     notas?: string | null | undefined;
     clientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
+    vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
@@ -216,9 +216,9 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descuentoValor?: number | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
+    vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
@@ -239,9 +239,9 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
     }[];
     notas?: string | null | undefined;
     clientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
+    vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
@@ -262,9 +262,9 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         descuentoValor?: number | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
-    vehicleId?: number | null | undefined;
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
+    vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
@@ -508,6 +508,8 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         horasHombreEstimadas: z.ZodOptional<z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>>;
         estadoOperativo: z.ZodDefault<z.ZodEnum<["pendiente", "en_proceso", "completado", "omitido"]>>;
         notasOperativas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+        descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+        descuentoValor: z.ZodOptional<z.ZodNumber>;
     } & {
         assignedUserId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
@@ -521,6 +523,8 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         catalogItemId?: number | null | undefined;
         horasHombreEstimadas?: number | null | undefined;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
     }, {
         descripcion: string;
@@ -533,6 +537,8 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         horasHombreEstimadas?: unknown;
         notasOperativas?: string | null | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
     }>, "many">>;
     inspection: z.ZodOptional<z.ZodObject<{
@@ -563,7 +569,9 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         objetosValor?: string | null | undefined;
         observaciones?: string | null | undefined;
     }>>;
-}, "items"> & {
+    descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+    descuentoValor: z.ZodOptional<z.ZodNumber>;
+}, "items" | "descuentoTipo" | "descuentoValor"> & {
     itemAssignments: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodObject<{
         quotationItemId: z.ZodNumber;
         assignedUserId: z.ZodNullable<z.ZodNumber>;

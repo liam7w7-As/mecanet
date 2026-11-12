@@ -28,7 +28,10 @@ export const getCatalogItemByIdHandler = asyncHandler(
 
 export const createCatalogItemHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const item = await catalogService.createCatalogItem(req.body as CreateCatalogItemInput);
+    const item = await catalogService.createCatalogItem(
+      req.body as CreateCatalogItemInput,
+      req.user?.id,
+    );
     res.status(201).json({ item });
   },
 );
@@ -50,6 +53,7 @@ export const adjustStockHandler = asyncHandler(
       getParamId(req),
       data.delta,
       data.motivo,
+      req.user?.id,
     );
     res.status(200).json(result);
   },

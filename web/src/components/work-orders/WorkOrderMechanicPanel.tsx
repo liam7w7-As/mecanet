@@ -51,6 +51,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
   const canExecute = !isClosed && Boolean(
     user && hasUserPermission(user, 'taller', 'update') && (isSupervisor || (user.role === 'mecanico' && (workOrder.assignedMechanicId === user.id || workOrder.items?.some((item) => item.assignedUserId === user.id)))),
   );
+  const canReviewRequests = canExecute && isSupervisor;
   const executionMutation = useUpdateWorkOrderExecutionMutation();
   const requestMutation = useCreateWorkOrderRequestMutation();
   const reviewMutation = useReviewWorkOrderRequestMutation();
@@ -140,6 +141,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
   };
 
   const review = (requestId: number, decision: 'aprobar' | 'rechazar'): void => {
+    if (!canReviewRequests || isPending) return;
     reviewMutation.mutate(
       { id: workOrder.id, requestId, data: { decision } },
       {
@@ -191,13 +193,12 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
         </div>
       )}
 
-      {canExecute ? (
         <fieldset disabled={isPending} className={`workshop-edit-fields ${section === 'all' ? 'grid divide-y divide-brand-line xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:divide-x xl:divide-y-0' : ''}`}>
           <div className="workshop-execution-columns" hidden={section === 'requests' || section === 'prices'}>
             <WorkOrderLaborBoard workOrder={workOrder} onSuggestPrice={openPrices} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} />
           </div>
 
-          <div className="workshop-execution-side" hidden={section === 'requests' || section === 'prices'}>
+          {canExecute && <><div className="workshop-execution-side" hidden={section === 'requests' || section === 'prices'}>
             {/* Reportar avance */}
             <details className="workshop-progress-form"><summary>Reportar avance</summary><div>
               <h3 className="text-sm font-bold text-brand-ink">Reportar avance</h3>
@@ -327,13 +328,13 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
                 Enviar solicitud
               </button>
             </div>
-          </div>
+          </div></>}
         </fieldset>
-      ) : (
+      {!canExecute && (
         <p className="px-5 py-6 text-sm text-brand-muted">
           {isClosed
             ? 'Orden cerrada. El seguimiento está disponible solo para consulta.'
-            : 'El seguimiento corresponde al mecánico asignado y al jefe de taller.'}
+            : 'El seguimiento está disponible solo para consulta con tus permisos actuales.'}
         </p>
       )}
 
@@ -371,7 +372,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
                       : ''}
                 </p>
               </div>
-              {isSupervisor && !isClosed && request.estado === 'pendiente' && (
+              {canReviewRequests && request.estado === 'pendiente' && (
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -402,7 +403,6 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
       </div>
 
       <div ref={pricePanelRef} className="workshop-price-review-container" hidden={section !== 'all' && section !== 'prices'}><WorkOrderPriceSuggestions workOrder={workOrder} requestedItem={priceRequest ?? localPriceRequest} onDirtyChange={setPriceDirty} onPendingChange={setPricePending} /></div>
-      {!canExecute && section !== 'requests' && section !== 'prices' && <WorkOrderLaborBoard workOrder={workOrder} onSuggestPrice={openPrices} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} />}
       {!canExecute && section !== 'requests' && section !== 'prices' && progressHistory}
 
     </section>

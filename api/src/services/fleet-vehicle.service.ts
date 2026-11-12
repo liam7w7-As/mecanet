@@ -1,6 +1,7 @@
 import {
   FLEET_EXPIRY_WARNING_DAYS,
   getFleetExpiryInfo,
+  getFleetRequiredDocumentSummary,
   normalizeChilePatente,
   toFleetDateOnly,
 } from '@unithor/shared';
@@ -27,6 +28,7 @@ interface SummaryDocument {
   id: number;
   nombre: string;
   fechaVencimiento: string | null;
+  tieneArchivo: boolean;
 }
 
 export interface FleetVehicleNextExpiryPublic {
@@ -42,6 +44,7 @@ export interface FleetVehicleDocumentSummaryPublic {
   expired: number;
   expiringSoon: number;
   nextExpiry: FleetVehicleNextExpiryPublic | null;
+  required: ReturnType<typeof getFleetRequiredDocumentSummary>;
 }
 
 export interface FleetVehiclePublic {
@@ -124,6 +127,7 @@ const buildDocumentSummary = (
     expired,
     expiringSoon,
     nextExpiry,
+    required: getFleetRequiredDocumentSummary(documents),
   };
 };
 
@@ -297,7 +301,7 @@ export const listFleetVehicles = async (
     ids.length > 0
       ? await FleetDocument.findAll({
           where: { fleetVehicleId: { [Op.in]: ids } },
-          attributes: ['id', 'fleetVehicleId', 'nombre', 'fechaVencimiento'],
+          attributes: ['id', 'fleetVehicleId', 'nombre', 'fechaVencimiento', 'storageKey'],
         })
       : [];
 
@@ -308,6 +312,7 @@ export const listFleetVehicles = async (
       id: document.id,
       nombre: document.nombre,
       fechaVencimiento: document.fechaVencimiento,
+      tieneArchivo: Boolean(document.storageKey),
     });
     documentsByVehicle.set(document.fleetVehicleId, current);
   }
@@ -330,10 +335,11 @@ export const getFleetVehicleById = async (id: number, actorRole?: string): Promi
   }
 
   const documents = await FleetDocument.findAll({ where: { fleetVehicleId: id } });
+  const publicDocuments = documents.map(toFleetDocumentPublic);
 
   return {
-    ...toPublic(vehicle, buildDocumentSummary(documents), actorRole),
-    documents: orderDocuments(documents).map(toFleetDocumentPublic),
+    ...toPublic(vehicle, buildDocumentSummary(publicDocuments), actorRole),
+    documents: orderDocuments(publicDocuments),
   };
 };
 

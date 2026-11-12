@@ -114,6 +114,12 @@ const formatFileSize = (bytes: number): string => {
 export default function ImportModal({ target, onClose }: ImportModalProps) {
   const copy = COPY[target];
   const user = useAuthStore((state) => state.user);
+  const canImport = Boolean(user && (target === 'fleet-vehicles'
+    ? hasUserPermission(user, 'flota', 'import')
+    : hasUserPermission(user, 'taller', 'import') || hasUserPermission(user, 'admin', 'import')));
+  const actorKey = JSON.stringify([user?.id, user?.role, user?.permissions
+    ? user.permissions.map((permission) => `${permission.modulo}:${permission.accion}`).sort()
+    : 'role-defaults']);
   const canReadWarehouses = target === 'catalog' && Boolean(user && hasUserPermission(user, 'almacen', 'read'));
   const warehousesQuery = useImportWarehouses(canReadWarehouses);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -125,6 +131,7 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   const previewMutation = usePreviewImportMutation(target);
   const confirmMutation = useConfirmImportMutation(target);
@@ -136,14 +143,21 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
     setError(null);
     setWarehouseId(undefined);
     return () => { requestVersion.current += 1; };
-  }, [target, user]);
+  }, [target, actorKey]);
 
   const busy = previewMutation.isPending || confirmMutation.isPending || downloading;
-  const canConfirm = Boolean(file && preview && preview.validRows > 0 && preview.previewToken && !preview.truncated) && !busy && !result;
+  const canConfirm = canImport && Boolean(file && preview && preview.validRows > 0 && preview.previewToken && !preview.truncated) && !busy && !result;
   const requestClose = (): void => {
     if (busy) return;
-    onClose();
+    if (file && !result) setConfirmClose(true);
+    else onClose();
   };
+  useEffect(() => {
+    if (!file || result) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [file, result]);
   const setOverlayNode = useModalOverlay({
     isOpen: true,
     onClose: requestClose,
@@ -151,6 +165,7 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
   });
 
   const reviewFile = (nextFile: File): void => {
+    if (!canImport || busy) return;
     const version = ++requestVersion.current;
     setError(null);
     setPreview(null);
@@ -169,7 +184,7 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
   };
 
   const acceptFile = (nextFile: File | undefined): void => {
-    if (!nextFile || busy) return;
+    if (!nextFile || busy || !canImport) return;
 
     requestVersion.current += 1;
     setError(null);
@@ -240,6 +255,7 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
   };
 
   const downloadTemplate = async (): Promise<void> => {
+    if (!canImport || busy) return;
     setError(null);
     setDownloading(true);
     try {
@@ -285,6 +301,7 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
           onClose={requestClose}
           closeDisabled={busy}
         />
+        {!canImport && <p className="import-alert import-alert--error" role="status">Tu permiso actual no permite importar en este módulo. El archivo seleccionado se conserva.</p>}
 
         <div className="reception-edit-body import-dialog-body">
           <div className="import-dialog-toolbar">
@@ -292,7 +309,7 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
               type="button"
               className="reception-secondary-button"
               onClick={() => void downloadTemplate()}
-              disabled={busy}
+              disabled={busy || !canImport}
             >
               {downloading ? (
                 <LoaderCircle className="animate-spin" aria-hidden="true" />
@@ -320,7 +337,7 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
                         id="import-warehouse"
                         value={warehouseId ?? ''}
                         onChange={(event) => changeWarehouse(event.target.value)}
-                        disabled={busy || warehousesQuery.isLoading}
+                        disabled={busy || !canImport || warehousesQuery.isLoading}
                         aria-describedby="import-warehouse-help"
                       >
                         <option value="">Sin almacén seleccionado</option>
@@ -349,13 +366,13 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
                 className={`import-dropzone${file ? ' import-dropzone--selected' : ''}${dragging ? ' import-dropzone--active' : ''}`}
                 onDragOver={(event) => {
                   event.preventDefault();
-                  if (!busy) setDragging(true);
+                  if (!busy && canImport) setDragging(true);
                 }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={(event) => {
                   event.preventDefault();
                   setDragging(false);
-                  if (busy) return;
+                  if (busy || !canImport) return;
                   acceptFile(event.dataTransfer.files[0]);
                 }}
               >
@@ -369,7 +386,7 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
                     acceptFile(event.target.files?.[0]);
                     event.target.value = '';
                   }}
-                  disabled={busy}
+                  disabled={busy || !canImport}
                 />
                 <Upload className="import-dropzone-icon" aria-hidden="true" />
                 <div className="import-dropzone-copy">
@@ -395,7 +412,7 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
                     type="button"
                     className="reception-secondary-button"
                     onClick={() => { if (!busy) reviewFile(file); }}
-                    disabled={busy}
+                    disabled={busy || !canImport}
                   >
                     <RotateCcw aria-hidden="true" />
                     {activePreview ? 'Volver a previsualizar' : 'Generar vista previa'}
@@ -433,6 +450,11 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
         </div>
 
         <footer className="reception-edit-footer import-dialog-footer">
+          {confirmClose && <div role="alertdialog" aria-label="Descartar importación" className="reception-discard">
+            <p>El archivo está seleccionado y aún no has confirmado la importación.</p>
+            <button type="button" disabled={busy} onClick={() => setConfirmClose(false)}>Seguir revisando</button>
+            <button type="button" disabled={busy} onClick={onClose}>Descartar archivo</button>
+          </div>}
           <span role="status">
             {confirmMutation.isPending
               ? 'Importando registros…'

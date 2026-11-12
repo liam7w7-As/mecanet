@@ -8,9 +8,11 @@ import { AlertCircle, Package, Settings2, Wrench } from 'lucide-react';
 import { useState } from 'react';
 
 import { useCreateCatalogItemMutation, useUpdateCatalogItemMutation } from '../../hooks/useCatalog';
-import { getApiErrorMessage, isApiConflict } from '../../lib/api-error';
+import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { formatClp } from '../../lib/formatters';
+import { hasUserPermission } from '../../lib/permissions';
+import { useAuthStore } from '../../stores/auth.store';
 import CurrencyInput from '../common/CurrencyInput';
 import FormDialog from '../common/FormDialog';
 
@@ -59,6 +61,10 @@ const getInitialState = (item?: CatalogItem | null): CatalogFormState => ({
 });
 
 export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
+  const user = useAuthStore((state) => state.user);
+  const action = item ? 'update' : 'create';
+  const canSave = Boolean(user && (hasUserPermission(user, 'taller', action) || hasUserPermission(user, 'admin', action)));
+  const canInitializeStock = Boolean(user && hasUserPermission(user, 'almacen', 'read') && hasUserPermission(user, 'almacen', 'create'));
   const [form, setForm] = useState<CatalogFormState>(() => getInitialState(item));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const createMutation = useCreateCatalogItemMutation();
@@ -66,6 +72,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
   const isEditing = Boolean(item);
   const activeMutation = isEditing ? updateMutation : createMutation;
   const pricePreview = Number(form.precio);
+  const stockPermissionMissing = !item && form.tipo === 'parte' && Number(form.stock) > 0 && !canInitializeStock;
 
   const setValue = <K extends keyof CatalogFormState>(key: K, value: CatalogFormState[K]): void => {
     setForm((current) => ({
@@ -82,6 +89,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (!canSave || stockPermissionMissing || activeMutation.isPending) return;
     createMutation.reset();
     updateMutation.reset();
     setFieldErrors({});
@@ -94,7 +102,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
       unidadMedida: form.unidadMedida,
       precio: form.precio,
       horasHombreEstandar: form.tipo === 'parte' ? null : form.horasHombreEstandar,
-      stock: form.tipo === 'parte' ? form.stock : '0',
+      ...(!item ? { stock: form.tipo === 'parte' ? form.stock : '0' } : {}),
       stockMinimo: form.tipo === 'parte' ? form.stockMinimo : '0',
     };
     if (item) {
@@ -125,12 +133,14 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
       submitLabel={isEditing ? 'Guardar cambios' : 'Crear item'}
       dirty={dirty}
       pending={activeMutation.isPending}
+      submitDisabled={!canSave || stockPermissionMissing}
       onClose={onClose}
       onSubmit={handleSubmit}
       headerVariant="plain"
       className="inventory-form reference-form-dialog catalog-form-dialog"
     >
-      <div className="inventory-form-fields catalog-editor-fields">
+      <fieldset disabled={!canSave} className="inventory-form-fields catalog-editor-fields min-w-0">
+        {!canSave && <p role="status">Tus permisos actuales permiten consultar el catálogo, pero no guardar estos cambios.</p>}
         <fieldset className="catalog-type-selector">
           <legend className="mb-2 text-sm font-medium text-brand-ink">Tipo de item</legend>
           <div className="grid gap-2 sm:grid-cols-3">
@@ -244,7 +254,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
             </span>
           </label>
           <label className="text-sm font-medium text-brand-ink">
-            Stock inicial
+            {isEditing ? 'Stock actual' : 'Stock inicial'}
             <input
               className={inputClassName}
               type="number"
@@ -252,8 +262,8 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
               step="1"
               value={form.stock}
               onChange={(event) => setValue('stock', event.target.value)}
-              disabled={form.tipo !== 'parte'}
-              aria-label="Stock inicial"
+              disabled={isEditing || form.tipo !== 'parte' || !canInitializeStock}
+              aria-label={isEditing ? 'Stock actual' : 'Stock inicial'}
               aria-invalid={Boolean(fieldErrors.stock)}
             />
             {fieldErrors.stock && (
@@ -264,6 +274,8 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
                 Los servicios no manejan inventario.
               </span>
             )}
+            {isEditing && form.tipo === 'parte' && <span className="mt-1 block text-xs text-brand-muted">Registra entradas, salidas y ajustes desde Movimiento de inventario para conservar su historial por almacén.</span>}
+            {!isEditing && form.tipo === 'parte' && !canInitializeStock && <span className="mt-1 block text-xs text-brand-muted">Puedes registrar el repuesto sin existencias. El stock inicial requiere permisos de lectura y movimientos de almacén.</span>}
           </label>
           <label className="text-sm font-medium text-brand-ink">
             Stock mínimo
@@ -306,13 +318,11 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
           >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <span>
-              {isApiConflict(activeMutation.error)
-                ? 'Ya existe un item con ese código.'
-                : getApiErrorMessage(activeMutation.error)}
+              {getApiErrorMessage(activeMutation.error)}
             </span>
           </div>
         )}
-      </div>
+      </fieldset>
     </FormDialog>
   );
 };

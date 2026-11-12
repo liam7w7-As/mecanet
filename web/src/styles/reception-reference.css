@@ -200,8 +200,6 @@
 .reception-create-page .reception-items .reception-items-layout { gap: 14px; }
 .reception-create-page .reception-items :is(.reception-catalog, .reception-selected-items) { padding: 14px; border-radius: 15px; }
 .reception-create-page .reception-items [aria-label='Resultados del catálogo'] { border: 0; scrollbar-width: thin; }
-.reception-create-page .reception-catalog:has(input:placeholder-shown) [aria-label='Resultados del catálogo'] { display: none; }
-.reception-create-page .reception-catalog:has(input:placeholder-shown) [aria-label='Resultados del catálogo'] + div { display: none; }
 .reception-create-page .reception-items [aria-label='Resultados del catálogo'] > button { overflow: hidden; }
 .reception-create-page .reception-items .reception-item-row { padding-block: 16px; }
 .reception-create-page .reception-items .reception-item-values { gap: 12px; }

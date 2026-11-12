@@ -1,7 +1,6 @@
-import { Op, Transaction } from 'sequelize';
+import { Op } from 'sequelize';
 
-import { assertAccountingDateOpen, getAccountingDate } from './cash-closure.service.js';
-import { sequelize } from '../config/database.js';
+import { assertAccountingDateOpen, getAccountingDate, withAccountingTransaction } from './cash-closure.service.js';
 import { CashMovement } from '../models/CashMovement.js';
 import { Payment } from '../models/Payment.js';
 import { User } from '../models/User.js';
@@ -132,13 +131,15 @@ export const createCashMovement = async (
   data: CreateCashMovementInput,
   userId: number,
 ): Promise<CashMovementPublic> => {
-  const movementId = await sequelize.transaction(
-    { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+  const movementId = await withAccountingTransaction(
     async (transaction) => {
       const fecha = data.fecha ? new Date(data.fecha) : new Date();
       await assertAccountingDateOpen(fecha, transaction);
 
       const amount = moneyValue(Number(data.monto));
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw ApiError.badRequest('El monto debe ser mayor a 0 después del redondeo monetario');
+      }
       if (data.tipo === 'egreso' && data.metodo === 'efectivo') {
         const availableCash = await getAvailableCash(fecha, transaction);
         if (amount > availableCash) {
@@ -176,8 +177,7 @@ export const voidCashMovement = async (
   motivo: string,
   userId: number,
 ): Promise<CashMovementPublic> => {
-  await sequelize.transaction(
-    { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+  await withAccountingTransaction(
     async (transaction) => {
       const movement = await CashMovement.findByPk(id, {
         transaction,

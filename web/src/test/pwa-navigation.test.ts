@@ -29,3 +29,42 @@ describe('PWA navigation fallback', () => {
     },
   );
 });
+
+describe('PWA update and cache boundaries', () => {
+  const options = vi.mocked(VitePWA).mock.calls[0]?.[0];
+
+  it('waits for confirmation instead of activating an update over an open form', () => {
+    expect(options?.registerType).toBe('prompt');
+    expect(options?.workbox?.skipWaiting).toBe(false);
+    expect(options?.workbox?.clientsClaim).toBe(false);
+  });
+
+  it('precaches only build assets and excludes private files', () => {
+    expect(options?.workbox?.globPatterns).toEqual(['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}']);
+    expect(options?.workbox?.globIgnores).toEqual(expect.arrayContaining(['**/api/**', '**/uploads/**']));
+    expect(options?.workbox?.additionalManifestEntries).toBeUndefined();
+  });
+
+  it('limits runtime caching to public fonts, including for cross-origin APIs', () => {
+    const routes = options?.workbox?.runtimeCaching ?? [];
+    expect(routes).toHaveLength(2);
+    for (const route of routes) {
+      expect(route.urlPattern).toBeInstanceOf(RegExp);
+      const pattern = route.urlPattern as RegExp;
+      expect(pattern.test('https://fonts.googleapis.com/css2?family=Inter')
+        || pattern.test('https://fonts.gstatic.com/font.woff2')).toBe(true);
+      for (const url of [
+        'https://unithor.example/api/auth/me',
+        'https://unithor.example/api/quotations/1',
+        'https://api.unithor.example/api/work-orders/1/pdf',
+        'https://unithor.example/uploads/private.png',
+        'https://fonts.googleapis.com.evil.example/api/auth/me',
+      ]) expect(pattern.test(url), url).toBe(false);
+    }
+  });
+
+  it('keeps dev service workers from intercepting navigation or caching API responses', () => {
+    expect(options?.devOptions?.navigateFallbackAllowlist).toEqual([]);
+    expect(options?.devOptions?.disableRuntimeConfig).toBe(true);
+  });
+});

@@ -87,10 +87,10 @@ const buildWorkbook = async (
   return Buffer.from(buffer);
 };
 
-const previewTokenFor = async (path: string, workbook: Buffer, cookies: LoginCookies): Promise<string> => {
+const previewTokenFor = async (path: string, workbook: Buffer, cookies: LoginCookies, filename: string): Promise<string> => {
   const response = await request(app).post(path).query({ dryRun: 'true' })
     .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
-    .attach('file', workbook, { filename: 'datos.xlsx', contentType: EXCEL_MIME });
+    .attach('file', workbook, { filename, contentType: EXCEL_MIME });
   expect(response.status, JSON.stringify(response.body)).toBe(200);
   expect(response.body.preview.previewToken).toEqual(expect.any(String));
   return response.body.preview.previewToken as string;
@@ -457,7 +457,7 @@ describe('Import Routes (E2E)', () => {
 
     const response = await request(app)
       .post('/api/catalog/import')
-      .set('X-Import-Preview', await previewTokenFor('/api/catalog/import', workbook, cookies))
+      .set('X-Import-Preview', await previewTokenFor('/api/catalog/import', workbook, cookies, 'catalogo.xlsx'))
       .set('Cookie', authCookie(cookies))
       .set('X-CSRF-Token', cookies.csrfToken)
       .attach('file', workbook, {
@@ -504,7 +504,7 @@ describe('Import Routes (E2E)', () => {
 
     const response = await request(app)
       .post('/api/vehicles/import')
-      .set('X-Import-Preview', await previewTokenFor('/api/vehicles/import', workbook, cookies))
+      .set('X-Import-Preview', await previewTokenFor('/api/vehicles/import', workbook, cookies, 'vehiculos-taller.xlsx'))
       .set('Cookie', authCookie(cookies))
       .set('X-CSRF-Token', cookies.csrfToken)
       .attach('file', workbook, {
@@ -591,7 +591,7 @@ describe('Import Routes (E2E)', () => {
       const startedAt = Date.now();
       const response = await request(app)
         .post('/api/fleet-vehicles/import')
-        .set('X-Import-Preview', await previewTokenFor('/api/fleet-vehicles/import', workbook, cookies))
+        .set('X-Import-Preview', await previewTokenFor('/api/fleet-vehicles/import', workbook, cookies, 'flota.xlsx'))
         .set('Cookie', authCookie(cookies))
         .set('X-CSRF-Token', cookies.csrfToken)
         .attach('file', workbook, { filename: 'flota.xlsx', contentType: EXCEL_MIME });
@@ -642,7 +642,7 @@ describe('Import Routes (E2E)', () => {
 
     const response = await request(app)
       .post('/api/fleet-vehicles/import')
-      .set('X-Import-Preview', await previewTokenFor('/api/fleet-vehicles/import', workbook, cookies))
+      .set('X-Import-Preview', await previewTokenFor('/api/fleet-vehicles/import', workbook, cookies, 'vehiculos-flota.xlsx'))
       .set('Cookie', authCookie(cookies))
       .set('X-CSRF-Token', cookies.csrfToken)
       .attach('file', workbook, {

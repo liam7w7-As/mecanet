@@ -1,4 +1,4 @@
-import { loginSchema } from '@unithor/shared';
+import { loginSchema, salesAccessSessionQuerySchema } from '@unithor/shared';
 import { Router } from 'express';
 
 import {
@@ -22,4 +22,4 @@ authRouter.post('/logout', logoutController);
 // Endpoints protegidos (requieren usuario autenticado)
 authRouter.post('/logout-all', authenticate, logoutAllController);
 authRouter.get('/me', authenticate, meController);
-authRouter.get('/sales-access', authenticate, salesAccessController);
+authRouter.get('/sales-access', authenticate, validate({ query: salesAccessSessionQuerySchema }), salesAccessController);

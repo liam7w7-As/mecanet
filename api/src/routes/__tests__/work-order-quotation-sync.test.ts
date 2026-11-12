@@ -2,6 +2,8 @@ import { Op } from 'sequelize';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { getQuotationGrossTotal } from '@unithor/shared';
+
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { CatalogItem } from '../../models/CatalogItem.js';
@@ -492,27 +494,46 @@ describe('Sincronización OT → COT espejo (E2E)', () => {
       .send({ quotationId: mirror!.id, monto: 5000, metodo: 'efectivo' });
     expect(pay.status, JSON.stringify(pay.body)).toBe(201);
     const afterPay = await request(app).get(`/api/work-orders/${id}`).set('Cookie', authCookie(cookies));
-    expect(afterPay.body.workOrder.quotation).toMatchObject({ total: 17000, pagado: 5000, saldoPendiente: 12000, estadoPago: 'parcial' });
+    expect(afterPay.body.workOrder.quotation).toMatchObject({
+      total: getQuotationGrossTotal(17000),
+      pagado: 5000,
+      saldoPendiente: getQuotationGrossTotal(17000) - 5000,
+      estadoPago: 'parcial',
+    });
 
     const editOrder = await request(app).patch(`/api/work-orders/${id}`)
       .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
       .send({ items: [{ id: itemId, descripcion: 'Servicio de revisión integral', tipoLinea: 'especifico',
         unidadMedida: 'servicio', cantidad: 3, precioUnitario: 10000 }] });
     expect(editOrder.status, JSON.stringify(editOrder.body)).toBe(200);
-    expect(editOrder.body.workOrder.quotation).toMatchObject({ total: 26000, pagado: 5000, saldoPendiente: 21000, estadoPago: 'parcial' });
+    expect(editOrder.body.workOrder.quotation).toMatchObject({
+      total: getQuotationGrossTotal(26000),
+      pagado: 5000,
+      saldoPendiente: getQuotationGrossTotal(26000) - 5000,
+      estadoPago: 'parcial',
+    });
     const balance = await request(app).get(`/api/quotations/${mirror!.id}/payments`).set('Cookie', authCookie(cookies));
-    expect(balance.body).toMatchObject({ total: 26000, pagado: 5000, saldoPendiente: 21000 });
+    expect(balance.body).toMatchObject({
+      total: getQuotationGrossTotal(26000),
+      pagado: 5000,
+      saldoPendiente: getQuotationGrossTotal(26000) - 5000,
+    });
     expect(balance.body.payments).toHaveLength(1);
 
     const finalPay = await request(app).post('/api/payments')
       .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
-      .send({ quotationId: mirror!.id, monto: 21000, metodo: 'efectivo' });
+      .send({ quotationId: mirror!.id, monto: getQuotationGrossTotal(26000) - 5000, metodo: 'efectivo' });
     expect(finalPay.status, JSON.stringify(finalPay.body)).toBe(201);
     const advance = await request(app).patch(`/api/work-orders/${id}/execution`)
       .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
       .send({ items: [{ id: itemId, estadoOperativo: 'completado', notasOperativas: 'Trabajo terminado' }] });
     expect(advance.status, JSON.stringify(advance.body)).toBe(200);
-    expect(advance.body.workOrder.quotation).toMatchObject({ total: 26000, pagado: 26000, saldoPendiente: 0, estadoPago: 'total' });
+    expect(advance.body.workOrder.quotation).toMatchObject({
+      total: getQuotationGrossTotal(26000),
+      pagado: getQuotationGrossTotal(26000),
+      saldoPendiente: 0,
+      estadoPago: 'total',
+    });
     await originalLine!.reload();
     expect(originalLine).toMatchObject({ workOrderItemId: itemId, estadoOperativo: 'completado', descuentoTipo: 'porcentaje' });
     expect(Number(originalLine!.descuentoValor)).toBe(10);

@@ -1,5 +1,6 @@
 import {
   financeDayQuerySchema,
+  getQuotationGrossTotal,
   PAYMENT_METHODS,
   paymentQuerySchema,
   PURCHASE_DOCUMENT_TYPE_LABELS,
@@ -122,7 +123,11 @@ const workOrdersTable = (orders: WorkOrderPublic[], showFinancials: boolean): Ex
       avance: progress,
       tipoIngreso: entryTypes[order.tipoIngreso],
       origen: order.quotation?.codigo ?? 'OT directa',
-      total: order.items?.reduce((sum, item) => sum + item.subtotal, 0) ?? null,
+      total: order.quotation?.total ?? (order.items?.length
+        ? getQuotationGrossTotal(
+            order.items.reduce((sum, item) => sum + item.subtotal, 0),
+          )
+        : null),
       pagado: order.quotation?.pagado ?? null,
       saldo: order.quotation?.saldoPendiente ?? null,
       fechaEntrega: order.fechaEntrega,
@@ -142,9 +147,9 @@ const workOrdersTable = (orders: WorkOrderPublic[], showFinancials: boolean): Ex
     { key: 'avance', header: 'Avance (%)', kind: 'number', width: 14 },
     { key: 'vehiculo', header: 'Marca y modelo', width: 28, pdf: false },
     { key: 'tipoIngreso', header: 'Tipo de ingreso', width: 18, pdf: false },
-    { key: 'origen', header: 'Origen', width: 22, pdf: false },
     ...(showFinancials
       ? ([
+          { key: 'origen', header: 'Origen', width: 22, pdf: false },
           { key: 'total', header: 'Total estimado', kind: 'money', width: 18 },
           { key: 'pagado', header: 'Pagado', kind: 'money', width: 18, pdf: false },
           { key: 'saldo', header: 'Saldo pendiente', kind: 'money', width: 18, pdf: false },
@@ -170,9 +175,9 @@ const quotationsTable = (quotations: QuotationPublic[]): ExportTable =>
       estadoOT: workOrderStatusLabel(quotation.workOrder?.estado),
       asesor: quotation.asesor?.nombre ?? 'Sin asesor',
       estadoPago: quotationStatuses[quotation.estadoPago],
-      total: quotation.total,
+      total: getQuotationGrossTotal(quotation.total),
       pagado: quotation.pagado,
-      saldo: Math.max(0, quotation.total - quotation.pagado),
+      saldo: Math.max(0, getQuotationGrossTotal(quotation.total) - quotation.pagado),
       archivadaManualmente: quotation.archivedAt,
       notas: quotation.notas,
     })),

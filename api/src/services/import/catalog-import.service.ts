@@ -365,7 +365,7 @@ const prepareRows = async (
         if (existing && metadataChanges.length > 0)
           await item.update(patch, { transaction: savepoint });
         // registerMovement synchronizes global stock from ALL warehouse balances.
-        // A zero final balance is a full salida because ajuste requires > 0.
+        // A zero final balance is recorded as a full salida.
         if (stockChanged) {
           await registerMovement(
             {

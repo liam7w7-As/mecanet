@@ -7,6 +7,8 @@ import { app } from '../../main.js';
 import { CatalogItem } from '../../models/CatalogItem.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
+import { StockBalance } from '../../models/StockBalance.js';
+import { StockMovement } from '../../models/StockMovement.js';
 import { User } from '../../models/User.js';
 import { hashPassword } from '../../utils/password.js';
 
@@ -61,6 +63,16 @@ const authCookie = (cookies: LoginCookies): string[] => [
 ];
 
 const removeCatalogFixtures = async (): Promise<void> => {
+  const items = await CatalogItem.findAll({
+    where: { [Op.or]: [
+      { codigo: { [Op.like]: `${TEST_CODE_PREFIX}%` } },
+      { nombre: { [Op.like]: `%${TEST_NAME_MARKER}%` } },
+    ] },
+    paranoid: false,
+  });
+  const ids = items.map((item) => item.id);
+  await StockMovement.destroy({ where: { catalogItemId: ids } });
+  await StockBalance.destroy({ where: { catalogItemId: ids } });
   await CatalogItem.destroy({
     where: {
       [Op.or]: [
@@ -248,6 +260,12 @@ describe('Catalog Routes (E2E)', () => {
       delta: -4,
       item: { stock: 11 },
     });
+    expect(await StockBalance.sum('cantidad', { where: { catalogItemId: partItemId } })).toBe(11);
+    expect(await StockMovement.findAll({ where: { catalogItemId: partItemId }, order: [['id', 'ASC']] })).toMatchObject([
+      { tipo: 'ingreso', cantidad: 10, createdBy: devUserId },
+      { tipo: 'ingreso', cantidad: 5, createdBy: bodegueroUserId },
+      { tipo: 'salida', cantidad: 4, createdBy: bodegueroUserId },
+    ]);
   });
 
   it('rechaza una rebaja superior al stock disponible', async () => {

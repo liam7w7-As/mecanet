@@ -310,7 +310,7 @@ describe('ClientsPage', () => {
     });
     fireEvent.click(dialog.getByRole('tab', { name: /Cotizaciones/ }));
     expect(await dialog.findByText('COT-2026-0041')).toBeInTheDocument();
-    expect(dialog.getByText('Saldo $75.000')).toBeInTheDocument();
+    expect(dialog.getByText('Saldo $94.000')).toBeInTheDocument();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Ficha del cliente' })).not.toBeInTheDocument();
   });

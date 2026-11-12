@@ -72,11 +72,11 @@ export const PurchaseDetailPage = () => {
   const [showPayment, setShowPayment] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
 
-  if (purchaseQuery.isPending) {
+  if (validId !== null && purchaseQuery.isPending) {
     return <DetailSkeleton />;
   }
 
-  if (purchaseQuery.isError || !purchase) {
+  if (validId === null || purchaseQuery.isError || !purchase) {
     return (
       <div className="workspace-page workspace-purchases min-w-0 space-y-5">
         <Link
@@ -113,7 +113,9 @@ export const PurchaseDetailPage = () => {
   const vehicle = purchase.vehicle ?? purchase.fleetVehicle;
   const isFleet = purchase.origenVehiculo === 'flota';
   const paymentStatus =
-    purchase.formaPago === 'contado'
+    purchase.estado === 'anulada' || purchase.cashMovement?.voidedAt
+      ? purchase.pagadoAt || purchase.cashMovementId ? 'Pago anulado' : 'Sin pago'
+      : purchase.formaPago === 'contado'
       ? 'Pagada al registrar'
       : purchase.pagadoAt
         ? 'Pagada'
@@ -558,7 +560,9 @@ export const PurchaseDetailPage = () => {
                 {PAYMENT_METHOD_LABELS[purchase.metodoPago]}
               </DetailItem>
               <DetailItem label="Fecha de pago">
-                {purchase.pagadoAt ? formatDateTime(purchase.pagadoAt) : 'Pendiente'}
+                {purchase.pagadoAt
+                  ? formatDateTime(purchase.pagadoAt)
+                  : purchase.estado === 'anulada' ? 'Sin pago' : 'Pendiente'}
               </DetailItem>
               {purchase.cashMovement && (
                 <>
@@ -569,6 +573,9 @@ export const PurchaseDetailPage = () => {
                   <DetailItem label="Fecha del egreso">
                     {formatDateTime(purchase.cashMovement.fecha)}
                   </DetailItem>
+                  {purchase.cashMovement.descripcion && <DetailItem label="Detalle del pago">
+                    {purchase.cashMovement.descripcion}
+                  </DetailItem>}
                   {purchase.cashMovement.voidedAt && (
                     <DetailItem label="Estado del egreso">
                       <span className="font-semibold text-brand-coralInk">
@@ -634,10 +641,10 @@ export const PurchaseDetailPage = () => {
       </div>
 
       {showVoid && (
-        <PurchaseVoidModal purchase={purchase} onClose={() => setShowVoid(false)} />
+        <PurchaseVoidModal key={purchase.id} purchase={purchase} onClose={() => setShowVoid(false)} />
       )}
       {showPayment && (
-        <PurchasePaymentModal purchase={purchase} onClose={() => setShowPayment(false)} />
+        <PurchasePaymentModal key={purchase.id} purchase={purchase} onClose={() => setShowPayment(false)} />
       )}
       {showSupplierForm && supplierQuery.data && (
         <SupplierFormModal

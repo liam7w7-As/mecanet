@@ -1,6 +1,8 @@
 import {
+  calculateQuotationPricing,
   createWorkOrderSchema,
   convertQuotationToWorkOrderSchema,
+  getQuotationGrossTotal,
   formatRut,
   FUEL_LEVELS,
   TIRE_CONDITIONS,
@@ -39,12 +41,11 @@ import DatePicker from '../../components/common/DatePicker';
 import FormRecoveryBanner from '../../components/common/FormRecoveryBanner';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import SavingOverlay from '../../components/common/SavingOverlay';
+import QuotationDiscountSummary from '../../components/quotations/QuotationDiscountSummary';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
 import PendingInspectionPhotos from '../../components/work-orders/PendingInspectionPhotos';
 import { RECEPTION_PHOTO_GUIDES } from '../../components/work-orders/reception-photo-guides';
-import WorkOrderItemsEditor, {
-  calculateItemsTotal,
-} from '../../components/work-orders/WorkOrderItemsEditor';
+import WorkOrderItemsEditor from '../../components/work-orders/WorkOrderItemsEditor';
 import WorkOrderReceptionNavigation, {
   WORK_ORDER_RECEPTION_STEPS as steps,
 } from '../../components/work-orders/WorkOrderReceptionNavigation';
@@ -73,6 +74,7 @@ import { canUploadWorkOrderInspectionPhotos, hasUserPermission } from '../../lib
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
+import type { DiscountDraft } from '../../components/quotations/QuotationDiscountSummary';
 import type { PhotoTransferState } from '../../components/work-orders/PendingInspectionPhotos';
 import type { EditableWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
 import type { ReceptionStep as StepIndex } from '../../components/work-orders/WorkOrderReceptionNavigation';
@@ -482,6 +484,7 @@ const WorkOrderCreateForm = () => {
   const canReadWorkOrders = Boolean(user && hasUserPermission(user, 'taller', 'read'));
   const mechanicsQuery = useMechanics(canAssignMechanic);
   const [assignedMechanicId, setAssignedMechanicId] = useState<number | null>(null);
+  const [discount, setDiscount] = useState<DiscountDraft>({ descuentoTipo: null, descuentoValor: '0' });
   const [activeStep, setActiveStep] = useState<StepIndex>(0);
   const [client, setClient] = useState<ClientOption | null>(null);
   const [contactClient, setContactClient] = useState<ClientOption | null>(null);
@@ -555,6 +558,7 @@ const WorkOrderCreateForm = () => {
       fechaIngreso,
       fechaEntrega,
       items,
+      discount,
       inspection,
       photos: photos.map((photo) => ({
         slot: photo.slot,
@@ -577,6 +581,7 @@ const WorkOrderCreateForm = () => {
       fechaIngreso,
       fechaEntrega,
       items,
+      discount,
       inspection,
       photos,
       createdOrderId,
@@ -598,6 +603,7 @@ const WorkOrderCreateForm = () => {
       photos.length ||
       activeStep ||
       items.length ||
+      discount.descuentoTipo ||
       inspection.nivelCombustible ||
       inspection.inventario.length ||
       inspection.objetosValor ||
@@ -624,7 +630,11 @@ const WorkOrderCreateForm = () => {
       setDescripcion(draft.descripcion);
       setFechaIngreso(draft.fechaIngreso);
       setFechaEntrega(draft.fechaEntrega);
-      setItems(draft.items.map((item) => ({ ...item, key: 'recovered-' + crypto.randomUUID() })));
+      setItems(draft.items.map((item) => {
+        const sourceId = item.id ?? (isConversion ? Number(item.key.replace('quotation-item-', '')) : null);
+        return { ...item, id: sourceId && Number.isSafeInteger(sourceId) ? sourceId : null, key: 'recovered-' + crypto.randomUUID() };
+      }));
+      setDiscount(draft.discount);
       setInspection(draft.inspection);
       setPhotos(
         draft.photos.map((photo) => {
@@ -707,9 +717,11 @@ const WorkOrderCreateForm = () => {
     }
     if (isConversion && quotationQuery.data) {
       setDescripcion(quotationQuery.data.notas ?? '');
+      setDiscount({ descuentoTipo: quotationQuery.data.descuentoTipo ?? null, descuentoValor: String(quotationQuery.data.descuentoValor ?? 0) });
       setItems(
         (quotationQuery.data.items ?? []).map((item) => ({
           key: `quotation-item-${item.id}`,
+          id: item.id,
           catalogItemId: item.catalogItemId,
           catalogTipo: item.tipoLinea,
           catalogStock: null,
@@ -718,6 +730,8 @@ const WorkOrderCreateForm = () => {
           unidadMedida: item.unidadMedida,
           cantidad: String(item.cantidad),
           precioUnitario: String(item.precioUnitario),
+          descuentoTipo: item.descuentoTipo ?? null,
+          descuentoValor: String(item.descuentoValor ?? 0),
           horasHombreEstimadas: '',
           estadoOperativo: item.estadoOperativo,
           notasOperativas: item.notasOperativas ?? '',
@@ -866,6 +880,7 @@ const WorkOrderCreateForm = () => {
     }
 
     return createWorkOrderSchema.safeParse({
+      ...(!isConversion ? discount : {}),
       emailPhotoSlots: photos.map((photo) => photo.slot),
       clientId: client.id,
       contactClientId: contactClient.id,
@@ -897,6 +912,7 @@ const WorkOrderCreateForm = () => {
           unidadMedida: item.unidadMedida,
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
+          ...(!isConversion ? { descuentoTipo: item.descuentoTipo ?? null, descuentoValor: item.descuentoValor ?? 0 } : {}),
           horasHombreEstimadas: item.horasHombreEstimadas,
           estadoOperativo: item.estadoOperativo,
           notasOperativas: item.notasOperativas,
@@ -920,6 +936,14 @@ const WorkOrderCreateForm = () => {
     if (!result.success) {
       setErrors(getFieldErrors(result.error.issues));
       return;
+    }
+    if (!isConversion) {
+      try { calculateQuotationPricing(result.data.items, discount); }
+      catch (error) {
+        setErrors({ descuentoValor: error instanceof Error ? error.message : 'Descuento inválido' });
+        setActiveStep(4);
+        return;
+      }
     }
     setErrors({});
     setShowConfirm(true);
@@ -1014,7 +1038,7 @@ const WorkOrderCreateForm = () => {
               await conversionMutation.mutateAsync({
                 id: quotationId,
                 data: convertQuotationToWorkOrderSchema.strip().parse({ ...result.data,
-                  ...(canAssignMechanic ? { itemAssignments: items.map((item) => ({ quotationItemId: Number(item.key.replace('quotation-item-', '')), assignedUserId: item.assignedUserId ?? null })) } : {}),
+                  ...(canAssignMechanic ? { itemAssignments: items.map((item) => ({ quotationItemId: item.id ?? Number(item.key.replace('quotation-item-', '')), assignedUserId: item.assignedUserId ?? null })) } : {}),
                 }),
               })
             ).workOrder
@@ -1727,7 +1751,7 @@ const WorkOrderCreateForm = () => {
                                     {formatClp(Number(item.precioUnitario))}
                                   </td>
                                   <td className="whitespace-nowrap p-3 text-right" data-column="Subtotal">
-                                    {formatClp(Number(item.cantidad) * Number(item.precioUnitario))}
+                                    {formatClp(calculateQuotationPricing([item]).total)}
                                   </td>
                                 </tr>
                               ))}
@@ -1739,9 +1763,7 @@ const WorkOrderCreateForm = () => {
                             Sin servicios ni repuestos cotizados.
                           </p>
                         )}
-                        <p className="text-right font-bold text-brand-primaryInk">
-                          Total cotizado: {formatClp(quotationQuery.data?.total ?? 0)}
-                        </p>
+                        <QuotationDiscountSummary items={items} value={discount} onChange={setDiscount} readOnly testId="conversion-total" />
                       </section>
                     ) : (
                       <WorkOrderItemsEditor
@@ -1750,9 +1772,15 @@ const WorkOrderCreateForm = () => {
                         errors={errors}
                         presentation="reception"
                         showExecution={false}
+                        showDiscounts
+                        showTotal={false}
                         mechanics={canAssignMechanic ? mechanicsQuery.data ?? [] : undefined}
                       />
                     )}
+                    {!isConversion && <>
+                      <QuotationDiscountSummary items={items.filter((item) => item.descripcion.trim())} value={discount} onChange={setDiscount} testId="work-order-total" />
+                      {errors.descuentoValor && <p role="alert" className="text-sm text-brand-coralInk">{errors.descuentoValor}</p>}
+                    </>}
                         {canAssignMechanic && (
                           <label className="reception-mechanic-field mt-4 block rounded-lg border border-brand-line bg-brand-line/40 p-3 text-sm font-semibold text-brand-ink">
                             Responsable general (opcional)
@@ -1912,7 +1940,7 @@ const WorkOrderCreateForm = () => {
               <WorkOrderReceptionReview
                 data={draftValue}
                 total={
-                  isConversion ? (quotationQuery.data?.total ?? 0) : calculateItemsTotal(items)
+                  isConversion ? getQuotationGrossTotal(quotationQuery.data?.total ?? 0) : undefined
                 }
                 fuelLabel={
                   inspection.nivelCombustible

@@ -1,3 +1,4 @@
+import { WORK_ORDER_OBSERVATION_FILE_MIME_TYPES, WORK_ORDER_OBSERVATION_MAX_FILES, WORK_ORDER_OBSERVATION_MAX_FILE_BYTES } from '@unithor/shared';
 import { AlertCircle, BadgeDollarSign, Check, Clock3, LoaderCircle, Pause, Play, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -19,19 +20,41 @@ import type { ItemOperationalStatus } from '@unithor/shared';
 const labels = { pendiente: 'Pendiente', en_proceso: 'En proceso', completado: 'Completado', omitido: 'Omitido' } as const;
 const minutesLabel = (value: number): string => `${Math.floor(Math.max(0, value) / 60)} h ${Math.floor(Math.max(0, value) % 60).toString().padStart(2, '0')} min`;
 
+const observationError = (text: string, files: readonly File[]): string | null => {
+  if (text.trim().length > 2000) return 'La observación admite hasta 2000 caracteres.';
+  if (files.length > WORK_ORDER_OBSERVATION_MAX_FILES) return `Puedes adjuntar hasta ${WORK_ORDER_OBSERVATION_MAX_FILES} archivos por observación.`;
+  for (const file of files) {
+    if (!(WORK_ORDER_OBSERVATION_FILE_MIME_TYPES as readonly string[]).includes(file.type.toLowerCase())) return `${file.name}: usa JPEG, PNG, WebP o PDF.`;
+    if (file.size === 0) return `${file.name}: el archivo está vacío.`;
+    if (file.size > WORK_ORDER_OBSERVATION_MAX_FILE_BYTES) return `${file.name}: el archivo supera el límite de 10 MB.`;
+  }
+  return null;
+};
+
+const appendFiles = (current: File[], selected: File[]): File[] => {
+  const key = (file: File) => `${file.name}:${file.size}:${file.type}:${file.lastModified}`;
+  const existing = new Set(current.map(key));
+  return [...current, ...selected.filter((file) => {
+    if (existing.has(key(file))) return false;
+    existing.add(key(file));
+    return true;
+  })];
+};
+
 const GeneralObservations = ({ workOrderId, entries, editable, onState }: { workOrderId: number; entries: TaskProps['observations']; editable: boolean; onState: TaskProps['onState'] }) => {
   const mutation = useCreateObservationMutation();
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const error = observationError(text, files);
   useEffect(() => onState(0, Boolean(text.trim() || files.length), mutation.isPending), [onState, text, files.length, mutation.isPending]);
   useEffect(() => () => onState(0, false, false), [onState]);
   return <details className="workshop-labor-details"><summary>Observaciones generales<span>{entries.length} registros · imágenes y documentos</span></summary><div className="workshop-labor-detail-body">
     {entries.map((entry) => <article className="workshop-labor-observation" key={entry.id}><p>{entry.texto}</p><small>{entry.authorName ?? 'Taller'} · {formatDateTime(entry.createdAt)}</small>{entry.files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer">{file.nombreOriginal}</a>)}</article>)}
     {!entries.length && <p>Sin observaciones generales.</p>}
-    {editable && <><label>Observación general<textarea value={text} maxLength={5000} disabled={mutation.isPending} onChange={(event) => setText(event.target.value)} /></label><label>Adjuntos de la orden<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple disabled={mutation.isPending} onChange={(event) => { setFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} /></label>
+    {editable && <><label>Observación general<textarea value={text} maxLength={2000} disabled={mutation.isPending} onChange={(event) => setText(event.target.value)} /></label><label>Adjuntos de la orden<input type="file" accept={WORK_ORDER_OBSERVATION_FILE_MIME_TYPES.join(',')} multiple disabled={mutation.isPending} onChange={(event) => { const selected = Array.from(event.target.files ?? []); setFiles((current) => appendFiles(current, selected)); event.target.value = ''; }} /></label>
       {files.map((file, index) => <button key={`${file.name}-${index}`} type="button" disabled={mutation.isPending} onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}>Quitar {file.name}</button>)}
-      {files.length > 5 && <p role="alert">Puedes adjuntar hasta 5 archivos por observación.</p>}
-      <button type="button" disabled={mutation.isPending || files.length > 5 || (!text.trim() && !files.length)} onClick={() => mutation.mutate({ id: workOrderId, data: { texto: text || null, workOrderItemId: null, progressReportId: null }, files }, { onSuccess: () => { setText(''); setFiles([]); notifySuccess('Observación guardada.'); }, onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo guardar. La observación y sus archivos siguen disponibles para reintentar.')) })}>Guardar observación general</button></>}
+      {error && <p role="alert">{error}</p>}
+      <button type="button" disabled={mutation.isPending || Boolean(error) || (!text.trim() && !files.length)} onClick={() => mutation.mutate({ id: workOrderId, data: { texto: text || null, workOrderItemId: null, progressReportId: null }, files }, { onSuccess: () => { setText(''); setFiles([]); notifySuccess('Observación guardada.'); }, onError: (error) => notifyError(getApiErrorMessage(error, 'No se pudo guardar. La observación y sus archivos siguen disponibles para reintentar.')) })}>Guardar observación general</button></>}
   </div></details>;
 };
 
@@ -63,6 +86,7 @@ const Task = ({ item, workOrderId, canManage, closed, available, observations, o
   const [estimated, setEstimated] = useState<string | null>(null);
   const [adjustMinutes, setAdjustMinutes] = useState('');
   const [reason, setReason] = useState('');
+  const [validationNote, setValidationNote] = useState('');
   const [comment, setComment] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [now, setNow] = useState(Date.now);
@@ -79,7 +103,8 @@ const Task = ({ item, workOrderId, canManage, closed, available, observations, o
   const estimateValue = estimated ?? (item.horasHombreEstimadas === null ? '' : String(item.horasHombreEstimadas));
   const changedNote = note !== null && note !== (item.notasOperativas ?? '');
   const changedEstimate = estimated !== null && estimated !== (item.horasHombreEstimadas === null ? '' : String(item.horasHombreEstimadas));
-  const dirty = changedNote || changedEstimate || Boolean(adjustMinutes || reason || comment || files.length);
+  const dirty = changedNote || changedEstimate || Boolean(adjustMinutes || reason || validationNote.trim() || comment || files.length);
+  const attachmentError = observationError(comment, files);
   useEffect(() => { onState(item.id, dirty, pending); }, [onState, item.id, dirty, pending]);
   useEffect(() => () => onState(item.id, false, false), [onState, item.id]);
   const canWork = available && !closed && (canManage || item.canWork === true);
@@ -92,6 +117,7 @@ const Task = ({ item, workOrderId, canManage, closed, available, observations, o
     : item.totalMinutes;
   const saveNote = () => execution.mutate({ id: workOrderId, data: { items: [{ id: item.id, estadoOperativo: item.estadoOperativo, notasOperativas: noteValue || null }] } }, { onSuccess: () => { setNote(noteValue); notifySuccess('Nota guardada.'); }, onError: fail });
   const completeTask = (): void => {
+    if (item.awaitingWarehouseDelivery) return;
     setFeedback(null);
     complete.mutate({ ...variables, ...(changedNote ? { notasOperativas: noteValue || null } : {}) }, {
       onError: (error) => setFeedback({ error: true, text: getApiErrorMessage(error, 'No se pudo completar. Tus notas y horas guardadas se conservan.'), completed: true }),
@@ -113,13 +139,14 @@ const Task = ({ item, workOrderId, canManage, closed, available, observations, o
         {canControl && !['completado', 'omitido'].includes(item.estadoOperativo) && <>
           {item.tipoLinea !== 'parte' && (item.activeSession ? <button type="button" disabled={disabled} onClick={() => pause.mutate(variables, { onError: fail })}><Pause aria-hidden="true" />Pausar</button>
             : <button type="button" className="workshop-labor-primary" disabled={disabled} onClick={() => start.mutate(variables, { onError: fail, onSuccess: (result) => { if (result.pausedOtherItems) notifySuccess('Se pausó tu trabajo anterior y se conservaron sus horas.'); } })}><Play aria-hidden="true" />{item.estadoOperativo === 'en_proceso' ? 'Continuar' : 'Iniciar'}</button>)}
-          <button type="button" className="workshop-labor-complete" disabled={disabled} onClick={completeTask}><Check aria-hidden="true" />{item.tipoLinea === 'parte' ? 'Marcar usado' : 'Completar'}</button>
+          <button type="button" className="workshop-labor-complete" disabled={disabled || item.awaitingWarehouseDelivery === true} onClick={completeTask}><Check aria-hidden="true" />{item.tipoLinea === 'parte' ? 'Marcar usado' : 'Completar'}</button>
         </>}
         {canManage && !closed && item.tipoLinea !== 'parte' && onSuggestPrice && <button type="button" disabled={disabled} onClick={() => onSuggestPrice(item.id)}><BadgeDollarSign aria-hidden="true" />Sugerir precio</button>}
         {pending && <span role="status"><LoaderCircle className="animate-spin" aria-hidden="true" /><span className="sr-only">Guardando trabajo</span></span>}
       </div>
     </div>
-    {feedback && <div ref={savedRef} tabIndex={-1} role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'workshop-labor-error' : 'workshop-labor-saved'}><span>{feedback.text}</span>{feedback.error && feedback.completed && canControl && <button type="button" disabled={disabled} onClick={completeTask}><RotateCcw aria-hidden="true" />Reintentar</button>}{!feedback.error && feedback.completed && onNext && <button type="button" onClick={onNext}>Ir al siguiente trabajo</button>}</div>}
+    {item.awaitingWarehouseDelivery && <p className="workshop-labor-help">Pendiente de entrega por bodega. Podrás marcar el repuesto como usado cuando se registre su entrega.</p>}
+    {feedback && <div ref={savedRef} tabIndex={-1} role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'workshop-labor-error' : 'workshop-labor-saved'}><span>{feedback.text}</span>{feedback.error && feedback.completed && canControl && !item.awaitingWarehouseDelivery && <button type="button" disabled={disabled} onClick={completeTask}><RotateCcw aria-hidden="true" />Reintentar</button>}{!feedback.error && feedback.completed && onNext && <button type="button" onClick={onNext}>Ir al siguiente trabajo</button>}</div>}
     {item.activeSession && !item.activeSession.mine && <p className="workshop-labor-help">En curso por {item.activeSession.userName ?? 'otro responsable'}.</p>}
     <details className="workshop-labor-details"><summary>Ver detalle<span>Notas e historial de horas</span></summary>
       <div className="workshop-labor-detail-body">
@@ -133,10 +160,12 @@ const Task = ({ item, workOrderId, canManage, closed, available, observations, o
           <label>Ajuste de minutos<input aria-label={`Ajuste de minutos de ${item.descripcion}`} type="number" min="-1440" max="1440" value={adjustMinutes} onChange={(event) => setAdjustMinutes(event.target.value)} /></label>
           <label>Motivo del ajuste<input value={reason} aria-label={`Motivo del ajuste de ${item.descripcion}`} maxLength={500} onChange={(event) => setReason(event.target.value)} /></label>
           <button type="button" disabled={disabled || !adjustMinutes || !Number.isInteger(Number(adjustMinutes)) || Math.abs(Number(adjustMinutes)) > 1440 || reason.trim().length < 2} onClick={() => adjust.mutate({ ...variables, data: { minutos: Number(adjustMinutes), motivo: reason } }, { onSuccess: () => { setAdjustMinutes(''); setReason(''); }, onError: fail })}>Registrar ajuste</button>
-          <button type="button" disabled={disabled || item.horasHombreReales === null} onClick={() => validate.mutate(variables, { onError: fail })}>Validar horas</button>
+          <label>Comentario de validación (opcional)<input aria-label={`Comentario de validación de ${item.descripcion}`} maxLength={500} disabled={disabled} value={validationNote} onChange={(event) => setValidationNote(event.target.value)} /></label>
+          <button type="button" disabled={disabled || item.horasHombreReales === null || validationNote.trim().length > 500} onClick={() => validate.mutate({ ...variables, comentario: validationNote.trim() || null }, { onError: fail, onSuccess: () => { setValidationNote(''); notifySuccess('Horas validadas.'); } })}>Validar horas</button>
         </div></details>}
+        {item.laborValidationNote && <p className="workshop-labor-help">Validación: {item.laborValidationNote}</p>}
         <section><h4>Observaciones y archivos</h4>{observations.map((entry) => <div className="workshop-labor-observation" key={entry.id}><p>{entry.texto}</p><small>{entry.authorName ?? 'Taller'} · {formatDateTime(entry.createdAt)}</small>{entry.files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer">{file.nombreOriginal}</a>)}</div>)}
-          {canWork && <><label>Agregar observación<textarea value={comment} aria-label={`Observación de ${item.descripcion}`} onChange={(event) => setComment(event.target.value)} /></label><label>Adjuntar imágenes o PDF<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple disabled={pending} onChange={(event) => setFiles(Array.from(event.target.files ?? []))} /></label>{files.map((file, index) => <button key={`${file.name}-${index}`} type="button" onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}>Quitar {file.name}</button>)}<button type="button" disabled={disabled || (!comment.trim() && !files.length)} onClick={() => observation.mutate({ id: workOrderId, data: { workOrderItemId: item.id, texto: comment || null, progressReportId: null }, files }, { onError: fail, onSuccess: () => { setComment(''); setFiles([]); notifySuccess('Observación registrada.'); } })}>Guardar observación</button></>}
+          {canWork && <><label>Agregar observación<textarea value={comment} maxLength={2000} aria-label={`Observación de ${item.descripcion}`} onChange={(event) => setComment(event.target.value)} /></label><label>Adjuntar imágenes o PDF<input type="file" accept={WORK_ORDER_OBSERVATION_FILE_MIME_TYPES.join(',')} multiple disabled={pending} onChange={(event) => { const selected = Array.from(event.target.files ?? []); setFiles((current) => appendFiles(current, selected)); event.target.value = ''; }} /></label>{files.map((file, index) => <button key={`${file.name}-${index}`} type="button" disabled={pending} onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}>Quitar {file.name}</button>)}{attachmentError && <p role="alert">{attachmentError}</p>}<button type="button" disabled={disabled || Boolean(attachmentError) || (!comment.trim() && !files.length)} onClick={() => observation.mutate({ id: workOrderId, data: { workOrderItemId: item.id, texto: comment || null, progressReportId: null }, files }, { onError: fail, onSuccess: () => { setComment(''); setFiles([]); notifySuccess('Observación registrada.'); } })}>Guardar observación</button></>}
         </section>
       </div>
     </details>

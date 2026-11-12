@@ -1,3 +1,4 @@
+import { FLEET_REQUIRED_DOCUMENTS, getFleetRequiredDocumentSummary, getFleetRequiredDocumentType } from '@unithor/shared';
 import {
   AlertCircle,
   CalendarDays,
@@ -166,7 +167,7 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
   const vehicleQuery = useFleetVehicle(vehicleId);
   const deleteDocumentMutation = useDeleteFleetDocumentMutation(vehicleId);
   const [isEditingVehicle, setIsEditingVehicle] = useState(false);
-  const [documentForm, setDocumentForm] = useState<FleetDocument | null | undefined>(undefined);
+  const [documentForm, setDocumentForm] = useState<{ document?: FleetDocument; initialName?: string } | null>(null);
   const [versionsDocument, setVersionsDocument] = useState<FleetDocument | null>(null);
   const [deleteDocument, setDeleteDocument] = useState<FleetDocument | null>(null);
 
@@ -214,6 +215,8 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
 
   const vehicle = vehicleQuery.data;
   const summary = vehicle.documentSummary;
+  const requiredSummary = getFleetRequiredDocumentSummary(vehicle.documents);
+  const additionalDocuments = vehicle.documents.filter((document) => getFleetRequiredDocumentType(document.nombre) === null);
   const displayName = [vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' · ');
 
   const confirmDeleteDocument = (): void => {
@@ -222,6 +225,119 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
       onSuccess: () => setDeleteDocument(null),
     });
   };
+
+  const renderDocument = (document: FleetDocument) => (
+                  <li
+                    key={document.id}
+                    className="fleet-document-row rounded-xl border border-brand-line bg-white p-4 shadow-sm"
+                  >
+                    <div className="fleet-document-row-heading flex min-w-0 flex-wrap items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-start gap-2.5">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-pale text-brand-primaryInk">
+                          <FileText className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="break-words text-sm font-semibold text-brand-ink">
+                            {document.nombre}
+                          </p>
+                          <p className="mt-0.5 truncate text-xs text-brand-muted">
+                            {document.referencia ? `Ref. ${document.referencia}` : 'Sin referencia'}
+                            {document.version > 0 ? ` · v${document.version}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      {getFleetRequiredDocumentType(document.nombre) && !document.fechaVencimiento ? <span className="text-xs font-semibold text-amber-700">Fecha de vencimiento pendiente</span> : <FleetExpiryBadge expiry={document.expiry} />}
+                    </div>
+
+                    <div className="fleet-document-row-dates mt-3 grid grid-cols-2 gap-2 rounded-lg bg-brand-pale/40 px-3 py-2 text-xs text-brand-muted">
+                      <p>
+                        <span className="block text-[11px] uppercase">Emisión</span>
+                        <span className="font-medium text-brand-ink">
+                          {document.fechaEmision ? formatDate(document.fechaEmision) : 'Sin fecha'}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="block text-[11px] uppercase">Vencimiento</span>
+                        <span className="font-medium text-brand-ink">
+                          {document.fechaVencimiento
+                            ? formatDate(document.fechaVencimiento)
+                            : getFleetRequiredDocumentType(document.nombre) ? 'Pendiente de informar' : 'Sin vencimiento'}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="fleet-document-row-actions mt-3 flex flex-wrap items-center gap-2 border-t border-brand-line pt-3">
+                      {document.tieneArchivo ? (
+                        <>
+                          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-brand-muted">
+                            <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span className="truncate" title={document.archivoNombre ?? undefined}>
+                              {document.archivoNombre}
+                            </span>
+                            {document.sizeBytes !== null ? (
+                              <span className="shrink-0">{formatBytes(document.sizeBytes)}</span>
+                            ) : null}
+                          </span>
+                          <a
+                            href={fleetDocumentFileUrl(vehicleId, document.id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-line px-2 text-xs font-semibold text-brand-ink hover:bg-brand-pale"
+                          >
+                            <Eye className="h-3.5 w-3.5" aria-hidden="true" /> Ver
+                          </a>
+                          <a
+                            href={fleetDocumentFileUrl(vehicleId, document.id, { download: true })}
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-line px-2 text-xs font-semibold text-brand-ink hover:bg-brand-pale"
+                          >
+                            <Download className="h-3.5 w-3.5" aria-hidden="true" /> Descargar
+                          </a>
+                        </>
+                      ) : (
+                        <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-medium text-brand-muted">
+                          <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Sin archivo
+                        </span>
+                      )}
+
+                      {document.version > 0 && (
+                        <button
+                          type="button"
+                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-line px-2 text-xs font-semibold text-brand-ink hover:bg-brand-pale"
+                          onClick={() => setVersionsDocument(document)}
+                        >
+                          <FileClock className="h-3.5 w-3.5" aria-hidden="true" /> Versiones
+                        </button>
+                      )}
+                      {canUpdateFleet && (
+                        <button
+                          type="button"
+                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-line px-2 text-xs font-semibold text-brand-ink hover:bg-brand-pale"
+                          onClick={() => setDocumentForm({ document })}
+                        >
+                          <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Editar
+                        </button>
+                      )}
+                      {canDeleteFleet && (
+                        <button
+                          type="button"
+                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-line px-2 text-xs font-semibold text-brand-coralInk hover:bg-brand-coralPale"
+                          onClick={() => {
+                            deleteDocumentMutation.reset();
+                            setDeleteDocument(document);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Eliminar
+                        </button>
+                      )}
+                    </div>
+
+                    {document.notas && (
+                      <p className="fleet-document-row-notes mt-2 whitespace-pre-line break-words border-t border-brand-line pt-2 text-xs text-brand-muted">
+                        {document.notas}
+                      </p>
+                    )}
+                  </li>
+  );
 
   return (
     <div className="vehicle-profile vehicle-profile--fleet flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
@@ -323,137 +439,38 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
                 <button
                   type="button"
                   className="secondary-button inline-flex h-9 items-center gap-1.5 px-3 text-xs font-bold"
-                  onClick={() => setDocumentForm(null)}
+                  onClick={() => setDocumentForm({})}
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" /> Agregar documento
                 </button>
               )}
             </div>
 
-            {vehicle.documents.length === 0 ? (
-              <div className="mt-4 flex min-h-44 flex-col items-center justify-center rounded-xl border border-dashed border-brand-line bg-brand-pale/30 px-4 text-center">
-                <FilePlus2 className="h-9 w-9 text-brand-muted" aria-hidden="true" />
-                <p className="mt-2 font-semibold text-brand-ink">Sin documentos registrados</p>
-                <p className="mt-1 text-sm text-brand-muted">
-                  Agrega permisos, revisiones o seguros para controlar sus vencimientos.
-                </p>
+            <section className="mt-4 space-y-3" aria-label="Documentos obligatorios">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-brand-primaryInk">Documentos obligatorios</h3>
+                <p className="text-xs text-brand-muted">{requiredSummary.registered}/3 registrados · {requiredSummary.complete}/3 con archivo y vencimiento</p>
               </div>
-            ) : (
-              <ul className="fleet-document-list mt-4 space-y-3">
-                {vehicle.documents.map((document) => (
-                  <li
-                    key={document.id}
-                    className="fleet-document-row rounded-xl border border-brand-line bg-white p-4 shadow-sm"
-                  >
-                    <div className="fleet-document-row-heading flex min-w-0 flex-wrap items-start justify-between gap-2">
-                      <div className="flex min-w-0 items-start gap-2.5">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-pale text-brand-primaryInk">
-                          <FileText className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="break-words text-sm font-semibold text-brand-ink">
-                            {document.nombre}
-                          </p>
-                          <p className="mt-0.5 truncate text-xs text-brand-muted">
-                            {document.referencia ? `Ref. ${document.referencia}` : 'Sin referencia'}
-                            {document.version > 0 ? ` · v${document.version}` : ''}
-                          </p>
-                        </div>
-                      </div>
-                      <FleetExpiryBadge expiry={document.expiry} />
-                    </div>
-
-                    <div className="fleet-document-row-dates mt-3 grid grid-cols-2 gap-2 rounded-lg bg-brand-pale/40 px-3 py-2 text-xs text-brand-muted">
-                      <p>
-                        <span className="block text-[11px] uppercase">Emisión</span>
-                        <span className="font-medium text-brand-ink">
-                          {document.fechaEmision ? formatDate(document.fechaEmision) : 'Sin fecha'}
-                        </span>
-                      </p>
-                      <p>
-                        <span className="block text-[11px] uppercase">Vencimiento</span>
-                        <span className="font-medium text-brand-ink">
-                          {document.fechaVencimiento
-                            ? formatDate(document.fechaVencimiento)
-                            : 'Sin vencimiento'}
-                        </span>
-                      </p>
-                    </div>
-
-                    <div className="fleet-document-row-actions mt-3 flex flex-wrap items-center gap-2 border-t border-brand-line pt-3">
-                      {document.tieneArchivo ? (
-                        <>
-                          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-brand-muted">
-                            <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                            <span className="truncate" title={document.archivoNombre ?? undefined}>
-                              {document.archivoNombre}
-                            </span>
-                            {document.sizeBytes !== null ? (
-                              <span className="shrink-0">{formatBytes(document.sizeBytes)}</span>
-                            ) : null}
-                          </span>
-                          <a
-                            href={fleetDocumentFileUrl(vehicleId, document.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-line px-2 text-xs font-semibold text-brand-ink hover:bg-brand-pale"
-                          >
-                            <Eye className="h-3.5 w-3.5" aria-hidden="true" /> Ver
-                          </a>
-                          <a
-                            href={fleetDocumentFileUrl(vehicleId, document.id, { download: true })}
-                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-line px-2 text-xs font-semibold text-brand-ink hover:bg-brand-pale"
-                          >
-                            <Download className="h-3.5 w-3.5" aria-hidden="true" /> Descargar
-                          </a>
-                        </>
-                      ) : (
-                        <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-medium text-brand-muted">
-                          <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Sin archivo
-                        </span>
-                      )}
-
-                      {document.version > 0 && (
-                        <button
-                          type="button"
-                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-line px-2 text-xs font-semibold text-brand-ink hover:bg-brand-pale"
-                          onClick={() => setVersionsDocument(document)}
-                        >
-                          <FileClock className="h-3.5 w-3.5" aria-hidden="true" /> Versiones
-                        </button>
-                      )}
-                      {canUpdateFleet && (
-                        <button
-                          type="button"
-                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-line px-2 text-xs font-semibold text-brand-ink hover:bg-brand-pale"
-                          onClick={() => setDocumentForm(document)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Editar
-                        </button>
-                      )}
-                      {canDeleteFleet && (
-                        <button
-                          type="button"
-                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-line px-2 text-xs font-semibold text-brand-coralInk hover:bg-brand-coralPale"
-                          onClick={() => {
-                            deleteDocumentMutation.reset();
-                            setDeleteDocument(document);
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Eliminar
-                        </button>
-                      )}
-                    </div>
-
-                    {document.notas && (
-                      <p className="fleet-document-row-notes mt-2 whitespace-pre-line break-words border-t border-brand-line pt-2 text-xs text-brand-muted">
-                        {document.notas}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+              <div className="grid min-w-0 gap-3 lg:grid-cols-3">
+                {FLEET_REQUIRED_DOCUMENTS.map(({ type, nombre }) => {
+                  const documents = vehicle.documents.filter((document) => getFleetRequiredDocumentType(document.nombre) === type);
+                  return <section key={type} aria-label={nombre} className="min-w-0 rounded-xl border border-brand-line bg-brand-pale/20 p-3">
+                    <h4 className="text-sm font-bold text-brand-primaryInk">{nombre} · Obligatorio</h4>
+                    {documents.length ? <ul className="fleet-document-list mt-3 space-y-3">{documents.map(renderDocument)}</ul> : <div className="py-5 text-center">
+                      <FilePlus2 className="mx-auto h-7 w-7 text-brand-muted" aria-hidden="true" />
+                      <p className="mt-2 text-sm font-semibold text-amber-700">Pendiente de registro</p>
+                      <p className="mt-1 text-xs text-brand-muted">Carga el archivo e informa su vencimiento cuando esté disponible.</p>
+                      {canCreateFleet && <button type="button" onClick={() => setDocumentForm({ initialName: nombre })} className="secondary-button mt-3 inline-flex min-h-9 items-center gap-1.5 px-3 text-xs font-bold" aria-label={`Registrar ${nombre}`}><Plus className="h-4 w-4" aria-hidden="true" />Registrar documento</button>}
+                    </div>}
+                  </section>;
+                })}
+              </div>
+            </section>
+            <section className="mt-6 border-t border-brand-line pt-4" aria-label="Documentos adicionales">
+              <h3 className="text-sm font-bold text-brand-primaryInk">Documentos adicionales <span className="font-normal text-brand-muted">({additionalDocuments.length})</span></h3>
+              <p className="mt-1 text-xs text-brand-muted">Otros certificados, mantenciones o respaldos. Pueden registrarse sin vencimiento.</p>
+              {additionalDocuments.length ? <ul className="fleet-document-list mt-3 space-y-3">{additionalDocuments.map(renderDocument)}</ul> : <p className="mt-3 rounded-lg border border-dashed border-brand-line p-4 text-sm text-brand-muted">Sin documentos adicionales registrados.</p>}
+            </section>
 
             {deleteDocumentMutation.isError && (
               <div
@@ -479,11 +496,12 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
         />
       )}
 
-      {documentForm !== undefined && (
+      {documentForm && (
         <FleetDocumentFormModal
           vehicleId={vehicleId}
-          document={documentForm}
-          onClose={() => setDocumentForm(undefined)}
+          document={documentForm.document}
+          initialName={documentForm.initialName}
+          onClose={() => setDocumentForm(null)}
         />
       )}
 

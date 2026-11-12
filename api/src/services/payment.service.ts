@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
+import { getQuotationGrossTotal } from '@unithor/shared';
 import { Op, Transaction } from 'sequelize';
 
-import { assertAccountingDateOpen } from './cash-closure.service.js';
+import { assertAccountingDateOpen, withAccountingTransaction } from './cash-closure.service.js';
 import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { notifyByType } from './notification.service.js';
 import { assertSalesQuotationAccess, getSalesScope, quotationWhere } from './sales-access.service.js';
-import { sequelize } from '../config/database.js';
 import { Client } from '../models/Client.js';
 import { Payment } from '../models/Payment.js';
 import { Quotation } from '../models/Quotation.js';
@@ -251,7 +251,7 @@ export const toPaymentPublic = (payment: Payment): PaymentPublic => ({
     ? {
         id: payment.quotation.id,
         codigo: payment.quotation.codigo,
-        total: numberValue(payment.quotation.total),
+        total: getQuotationGrossTotal(numberValue(payment.quotation.total)),
         client: payment.quotation.client
           ? { id: payment.quotation.client.id, nombre: payment.quotation.client.nombre }
           : payment.quotation.clientId === null
@@ -262,7 +262,8 @@ export const toPaymentPublic = (payment: Payment): PaymentPublic => ({
 });
 
 const toQuotationSummary = (quotation: Quotation): QuotationPaymentSummary => {
-  const total = numberValue(quotation.total);
+  // El saldo se cobra sobre el total con IVA: es el mismo monto del PDF.
+  const total = getQuotationGrossTotal(numberValue(quotation.total));
   const pagado = numberValue(quotation.pagado);
   return {
     id: quotation.id,
@@ -368,7 +369,7 @@ export const createPayment = async (
   let paymentCommitted = false;
 
   try {
-    const result = await sequelize.transaction(async (transaction) => {
+    const result = await withAccountingTransaction(async (transaction) => {
       const paymentDate = toDateOrNow(data.fecha);
       const quotation = await Quotation.findByPk(data.quotationId, {
         transaction,
@@ -377,11 +378,14 @@ export const createPayment = async (
       if (!quotation) throw ApiError.notFound('Cotización no encontrada');
       await assertAccountingDateOpen(paymentDate, transaction);
 
-      const total = numberValue(quotation.total);
+      const total = getQuotationGrossTotal(numberValue(quotation.total));
       const pagado = numberValue(quotation.pagado);
       const pendingAmount = await getPendingAmount(quotation.id, transaction);
       const saldoDisponible = moneyValue(total - pagado - pendingAmount);
       const monto = moneyValue(Number(data.monto));
+      if (!Number.isFinite(monto) || monto <= 0) {
+        throw ApiError.badRequest('El monto debe ser mayor a 0 después del redondeo monetario');
+      }
 
       if (pagado >= total) {
         throw ApiError.badRequest('La cotización ya se encuentra pagada en su totalidad');
@@ -475,9 +479,10 @@ export const verifyPayment = async (
   data: VerifyPaymentInput,
   userId: number,
 ): Promise<CreatePaymentResult> => {
-  const result = await sequelize.transaction(async (transaction) => {
-    const initialPayment = await Payment.findByPk(paymentId, { transaction });
-    if (!initialPayment) throw ApiError.notFound('Pago no encontrado');
+  // Locate immutable identity outside the transaction; lock quotation before payment.
+  const initialPayment = await Payment.findByPk(paymentId);
+  if (!initialPayment) throw ApiError.notFound('Pago no encontrado');
+  const result = await withAccountingTransaction(async (transaction) => {
     await assertAccountingDateOpen(initialPayment.fecha, transaction);
 
     const quotation = await Quotation.findByPk(initialPayment.quotationId, {
@@ -495,7 +500,7 @@ export const verifyPayment = async (
       throw ApiError.badRequest('Este pago ya fue revisado y no puede verificarse nuevamente');
     }
 
-    const total = numberValue(quotation.total);
+    const total = getQuotationGrossTotal(numberValue(quotation.total));
     const pagado = numberValue(quotation.pagado);
     const otherPending = await getPendingAmount(quotation.id, transaction, payment.id);
     const approved = data.decision === 'aprobar';
@@ -551,9 +556,9 @@ export const verifyPayment = async (
 };
 
 export const deletePayment = async (paymentId: number): Promise<DeletePaymentResult> => {
-  const result = await sequelize.transaction(async (transaction) => {
-    const initialPayment = await Payment.findByPk(paymentId, { transaction });
-    if (!initialPayment) throw ApiError.notFound('Pago no encontrado');
+  const initialPayment = await Payment.findByPk(paymentId);
+  if (!initialPayment) throw ApiError.notFound('Pago no encontrado');
+  const result = await withAccountingTransaction(async (transaction) => {
     await assertAccountingDateOpen(initialPayment.fecha, transaction);
 
     const quotation = await Quotation.findByPk(initialPayment.quotationId, {
@@ -580,7 +585,11 @@ export const deletePayment = async (paymentId: number): Promise<DeletePaymentRes
     await quotation.update(
       {
         pagado: nuevoPagado,
-        estadoPago: getQuotationStatus(nuevoPagado, numberValue(quotation.total), pendingAmount),
+        estadoPago: getQuotationStatus(
+          nuevoPagado,
+          getQuotationGrossTotal(numberValue(quotation.total)),
+          pendingAmount,
+        ),
       },
       { transaction },
     );

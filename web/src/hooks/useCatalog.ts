@@ -64,6 +64,7 @@ export const useCreateCatalogItemMutation = () => {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -83,6 +84,7 @@ export const useUpdateCatalogItemMutation = () => {
         (current) => replaceCatalogItem(current, item),
       );
       void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -102,6 +104,7 @@ export const useAdjustStockMutation = () => {
         (current) => replaceCatalogItem(current, item),
       );
       void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -116,6 +119,7 @@ export const useDeleteCatalogItemMutation = () => {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });

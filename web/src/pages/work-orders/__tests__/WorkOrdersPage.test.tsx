@@ -776,7 +776,7 @@ describe('WorkOrdersPage', () => {
     fireEvent.change(screen.getByLabelText('Precio unitario 1'), { target: { value: '15000' } });
 
     expect(screen.getByTestId('item-subtotal-0')).toHaveTextContent('30.000');
-    expect(screen.getByTestId('work-order-total')).toHaveTextContent('30.000');
+    expect(screen.getByTestId('work-order-total')).toHaveTextContent('35.700');
   });
 
   it('agrega, quita y restaura un servicio conservando cantidad y precio', async () => {
@@ -794,14 +794,14 @@ describe('WorkOrdersPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Agregar Cambio de aceite' }));
     fireEvent.click(screen.getByRole('button', { name: 'Aumentar cantidad 1' }));
     fireEvent.change(screen.getByLabelText('Precio unitario 1'), { target: { value: '18000' } });
-    expect(screen.getByTestId('work-order-total')).toHaveTextContent('36.000');
+    expect(screen.getByTestId('work-order-total')).toHaveTextContent('42.840');
     expect(screen.queryByLabelText('Avance 1')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Quitar Cambio de aceite' }));
     // La fila sale con animación (0.18 s): se espera a que se desmonte.
     await waitFor(() => expect(screen.queryByLabelText('Descripción 1')).not.toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }));
     expect(screen.getByLabelText('Cantidad 1')).toHaveValue(2);
-    expect(screen.getByTestId('work-order-total')).toHaveTextContent('36.000');
+    expect(screen.getByTestId('work-order-total')).toHaveTextContent('42.840');
     expect(screen.getByRole('button', { name: 'Quitar Cambio de aceite' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Repuestos' }));
     expect(screen.getByLabelText('Descripción 1')).toHaveValue('Cambio de aceite');
@@ -1397,7 +1397,8 @@ describe('WorkOrdersPage', () => {
     expect(screen.getByLabelText('Subir foto Frontal')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
     expect(screen.getByText('Cambio de pastillas')).toBeInTheDocument();
-    expect(screen.getByText('Total cotizado: $50.000')).toBeInTheDocument();
+    expect(screen.getByTestId('conversion-total')).toHaveTextContent('$59.500');
+    expect(screen.getByLabelText('Tipo de descuento general')).toBeDisabled();
     expect(screen.queryByLabelText('Precio unitario 1')).not.toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Revisar y crear orden' }));
@@ -1477,7 +1478,7 @@ describe('WorkOrdersPage', () => {
     fireEvent.change(screen.getByLabelText('Cantidad 1'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Precio unitario 1'), { target: { value: '15000' } });
     fireEvent.change(screen.getByLabelText('Horas hombre por unidad del ítem 1'), { target: { value: '1.5' } });
-    expect(screen.getByTestId('work-order-total')).toHaveTextContent('$30.000');
+    expect(screen.getByTestId('work-order-total')).toHaveTextContent('$35.700');
     fireEvent.click(screen.getByRole('button', { name: 'Revisar y crear orden' }));
     const review = within(await screen.findByRole('dialog', { name: 'Confirmar recepción de OT' }));
     expect(review.getByText('1/9 fotos')).toBeInTheDocument();

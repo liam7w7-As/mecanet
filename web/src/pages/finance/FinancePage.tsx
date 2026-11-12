@@ -1,3 +1,4 @@
+import { closeCashDaySchema, createCashMovementSchema, verifyPaymentSchema, voidCashMovementSchema } from '@unithor/shared';
 import {
   AlertCircle,
   ArrowDownCircle,
@@ -17,7 +18,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import CurrencyInput from '../../components/common/CurrencyInput';
@@ -35,6 +36,7 @@ import {
   useVerifyPaymentMutation,
   useVoidCashMovementMutation,
 } from '../../hooks/useFinance';
+import { useSalesAccessRecord } from '../../hooks/useSalesAccessRecord';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
@@ -123,6 +125,7 @@ export const FinancePage = () => {
   const dailyQuery = useDailyCashSummary(selectedDate);
   const movementsQuery = useCashMovements(selectedDate);
   const [review, setReview] = useState<ReviewState | null>(null);
+  useSalesAccessRecord('quotation', review?.payment.quotationId ?? 0, () => setReview(null));
   const [comment, setComment] = useState('');
   const [showClosure, setShowClosure] = useState(false);
   const [declaredCash, setDeclaredCash] = useState('');
@@ -131,6 +134,8 @@ export const FinancePage = () => {
   const [movementForm, setMovementForm] = useState(() => defaultMovementForm(todayIso()));
   const [voidTarget, setVoidTarget] = useState<CashMovement | null>(null);
   const [voidReason, setVoidReason] = useState('');
+  const [formError, setFormError] = useState('');
+  const submissionInFlight = useRef(false);
   const summary = summaryQuery.data;
   const daily = dailyQuery.data;
   const cashType = financeParams.get('cashType') ?? '';
@@ -172,19 +177,26 @@ export const FinancePage = () => {
   };
 
   const openReview = (payment: Payment, decision: ReviewState['decision']): void => {
+    if (!canReview || payment.estado !== 'por_verificar') return;
+    setFormError('');
     verifyMutation.reset();
     setComment('');
     setReview({ payment, decision });
   };
 
   const submitReview = (): void => {
-    if (!review) return;
+    if (!review || !canReview || review.payment.estado !== 'por_verificar' || verifyMutation.isPending || submissionInFlight.current) return;
+    const parsed = verifyPaymentSchema.safeParse({ decision: review.decision, comentario: comment.trim() || undefined });
+    if (!parsed.success) { setFormError(parsed.error.issues[0]?.message ?? 'Revisa los datos de la revisión.'); return; }
+    setFormError('');
+    submissionInFlight.current = true;
     verifyMutation.mutate(
       {
         paymentId: review.payment.id,
-        data: { decision: review.decision, comentario: comment.trim() || undefined },
+        data: parsed.data,
       },
       {
+        onSettled: () => { submissionInFlight.current = false; },
         onSuccess: () => {
           notifySuccess(
             review.decision === 'aprobar'
@@ -199,6 +211,8 @@ export const FinancePage = () => {
   };
 
   const openClosure = (): void => {
+    if (!canCreate || !daily || dailyQuery.isError || daily.isClosed || daily.totals.pendingTransferCount > 0) return;
+    setFormError('');
     closeDayMutation.reset();
     setDeclaredCash(String(daily?.totals.expectedCash ?? 0));
     setClosureNotes('');
@@ -206,23 +220,32 @@ export const FinancePage = () => {
   };
 
   const openMovement = (): void => {
+    if (!canCreate || !daily || dailyQuery.isError || daily.isClosed) return;
+    setFormError('');
     createMovementMutation.reset();
     setMovementForm(defaultMovementForm(selectedDate));
     setShowMovement(true);
   };
 
   const submitMovement = (): void => {
-    createMovementMutation.mutate(
-      {
+    if (!canCreate || !daily || dailyQuery.isError || daily.isClosed || createMovementMutation.isPending || submissionInFlight.current) return;
+    const date = new Date(movementForm.fecha);
+    const parsed = createCashMovementSchema.safeParse({
         tipo: movementForm.tipo,
         categoria: movementForm.categoria,
         monto: Number(movementForm.monto),
         metodo: movementForm.metodo,
         descripcion: movementForm.descripcion.trim(),
         referencia: movementForm.referencia.trim() || undefined,
-        fecha: new Date(movementForm.fecha).toISOString(),
-      },
+        fecha: Number.isFinite(date.getTime()) ? date.toISOString() : movementForm.fecha,
+    });
+    if (!parsed.success) { setFormError(parsed.error.issues[0]?.message ?? 'Revisa los datos del movimiento.'); return; }
+    setFormError('');
+    submissionInFlight.current = true;
+    createMovementMutation.mutate(
+      parsed.data,
       {
+        onSettled: () => { submissionInFlight.current = false; },
         onSuccess: () => {
           notifySuccess('Movimiento registrado correctamente.');
           setShowMovement(false);
@@ -234,10 +257,15 @@ export const FinancePage = () => {
   };
 
   const submitVoidMovement = (): void => {
-    if (!voidTarget) return;
+    if (!voidTarget || !canVoid || voidTarget.voidedAt || dailyQuery.isError || daily?.isClosed || voidMovementMutation.isPending || submissionInFlight.current) return;
+    const parsed = voidCashMovementSchema.safeParse({ motivo: voidReason });
+    if (!parsed.success) { setFormError(parsed.error.issues[0]?.message ?? 'Indica el motivo de anulación.'); return; }
+    setFormError('');
+    submissionInFlight.current = true;
     voidMovementMutation.mutate(
-      { id: voidTarget.id, data: { motivo: voidReason.trim() } },
+      { id: voidTarget.id, data: parsed.data },
       {
+        onSettled: () => { submissionInFlight.current = false; },
         onSuccess: () => {
           notifySuccess('Movimiento anulado y saldo recalculado.');
           setVoidTarget(null);
@@ -250,13 +278,15 @@ export const FinancePage = () => {
   };
 
   const submitClosure = (): void => {
+    if (!canCreate || !daily || dailyQuery.isError || daily.isClosed || daily.totals.pendingTransferCount > 0 || closeDayMutation.isPending || declaredCash === '' || submissionInFlight.current) return;
+    const parsed = closeCashDaySchema.safeParse({ fecha: selectedDate, efectivoDeclarado: declaredCash, observaciones: closureNotes.trim() || undefined });
+    if (!parsed.success) { setFormError(parsed.error.issues[0]?.message ?? 'Revisa el cierre de caja.'); return; }
+    setFormError('');
+    submissionInFlight.current = true;
     closeDayMutation.mutate(
+      parsed.data,
       {
-        fecha: selectedDate,
-        efectivoDeclarado: Number(declaredCash),
-        observaciones: closureNotes.trim() || undefined,
-      },
-      {
+        onSettled: () => { submissionInFlight.current = false; },
         onSuccess: () => {
           notifySuccess(`Caja del ${selectedDate} cerrada correctamente.`);
           setShowClosure(false);
@@ -561,7 +591,7 @@ export const FinancePage = () => {
                     type="button"
                     className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
                     onClick={openMovement}
-                    disabled={!canCreate || daily?.isClosed}
+                    disabled={!canCreate || dailyQuery.isPending || dailyQuery.isError || !daily || daily.isClosed}
                   >
                     <Plus className="h-4 w-4" aria-hidden="true" />
                     Nuevo movimiento
@@ -817,6 +847,7 @@ export const FinancePage = () => {
                           title="Anular movimiento"
                           onClick={() => {
                             voidMovementMutation.reset();
+                            setFormError('');
                             setVoidReason('');
                             setVoidTarget(movement);
                           }}
@@ -857,13 +888,16 @@ export const FinancePage = () => {
           className="finance-form finance-reference-dialog reference-form-dialog"
           submitDisabled={
             !canCreate ||
+            dailyQuery.isError ||
             daily.isClosed ||
             Number(movementForm.monto) <= 0 ||
             movementForm.descripcion.trim().length < 2 ||
             !movementForm.fecha
           }
         >
-          <div className="finance-form-fields finance-movement-fields">
+          {formError && <p role="alert" className="finance-alert">{formError}</p>}
+          {!canCreate && <p role="status">Tu permiso actual no permite guardar el movimiento. Conservamos los datos ingresados.</p>}
+          <fieldset disabled={!canCreate || dailyQuery.isError || daily.isClosed} className="finance-form-fields finance-movement-fields min-w-0">
             <fieldset className="finance-movement-type">
               <legend>Tipo de movimiento</legend>
               <div className="grid grid-cols-2 gap-2" aria-label="Tipo de movimiento">
@@ -979,7 +1013,7 @@ export const FinancePage = () => {
                 {getApiErrorMessage(createMovementMutation.error)}
               </p>
             )}
-          </div>
+          </fieldset>
         </FormDialog>
       )}
       {voidTarget && (
@@ -998,9 +1032,11 @@ export const FinancePage = () => {
           }}
           headerVariant="plain"
           className="finance-form finance-reference-dialog finance-form--destructive reference-form-dialog"
-          submitDisabled={!canVoid || voidReason.trim().length < 2}
+          submitDisabled={!canVoid || voidReason.trim().length < 2 || Boolean(daily?.isClosed) || dailyQuery.isError || Boolean(voidTarget.voidedAt)}
         >
-          <div className="finance-form-fields">
+          {formError && <p role="alert" className="finance-alert">{formError}</p>}
+          {!canVoid && <p role="status">Tu permiso actual no permite anular el movimiento. Conservamos el motivo ingresado.</p>}
+          <fieldset disabled={!canVoid || dailyQuery.isError || Boolean(daily?.isClosed) || Boolean(voidTarget.voidedAt)} className="finance-form-fields min-w-0">
             <p className="mt-2 text-sm leading-6 text-brand-muted">
               Se anulará {voidTarget.descripcion} por {formatClp(voidTarget.monto)}. El registro
               permanecerá visible para auditoría.
@@ -1020,7 +1056,7 @@ export const FinancePage = () => {
                 {getApiErrorMessage(voidMovementMutation.error)}
               </p>
             )}
-          </div>
+          </fieldset>
         </FormDialog>
       )}
       {review && (
@@ -1044,9 +1080,11 @@ export const FinancePage = () => {
             'finance-form finance-reference-dialog reference-form-dialog' +
             (review.decision === 'rechazar' ? ' finance-form--destructive' : '')
           }
-          submitDisabled={!canReview}
+          submitDisabled={!canReview || review.payment.estado !== 'por_verificar'}
         >
-          <div className="finance-form-fields">
+          {formError && <p role="alert" className="finance-alert">{formError}</p>}
+          {!canReview && <p role="status">Tu permiso actual no permite revisar el pago. Conservamos el comentario ingresado.</p>}
+          <fieldset disabled={!canReview || review.payment.estado !== 'por_verificar'} className="finance-form-fields min-w-0">
             <p className="mt-2 text-sm leading-6 text-brand-muted">
               {review.decision === 'aprobar'
                 ? `Se sumarán ${formatClp(review.payment.monto)} al monto pagado de la cotización.`
@@ -1083,7 +1121,7 @@ export const FinancePage = () => {
                 {getApiErrorMessage(verifyMutation.error)}
               </p>
             )}
-          </div>
+          </fieldset>
         </FormDialog>
       )}
       {showClosure && daily && (
@@ -1104,6 +1142,7 @@ export const FinancePage = () => {
           className="finance-form finance-reference-dialog reference-form-dialog"
           submitDisabled={
             !canCreate ||
+            dailyQuery.isError ||
             daily.isClosed ||
             daily.totals.pendingTransferCount > 0 ||
             declaredCash === '' ||
@@ -1111,7 +1150,9 @@ export const FinancePage = () => {
             Number(declaredCash) < 0
           }
         >
-          <div className="finance-form-fields">
+          {formError && <p role="alert" className="finance-alert">{formError}</p>}
+          {!canCreate && <p role="status">Tu permiso actual no permite cerrar la caja. Conservamos el arqueo ingresado.</p>}
+          <fieldset disabled={!canCreate || dailyQuery.isError || daily.isClosed || daily.totals.pendingTransferCount > 0} className="finance-form-fields min-w-0">
             <p className="mt-2 text-sm leading-6 text-brand-muted">
               El sistema espera {formatClp(daily.totals.expectedCash)} en efectivo después de sumar
               ingresos y restar egresos. Una vez cerrado el día no aceptará movimientos con esta
@@ -1154,7 +1195,7 @@ export const FinancePage = () => {
                 {getApiErrorMessage(closeDayMutation.error)}
               </p>
             )}
-          </div>
+          </fieldset>
         </FormDialog>
       )}
     </div>

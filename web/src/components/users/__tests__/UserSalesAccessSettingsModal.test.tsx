@@ -67,6 +67,21 @@ describe('Configuración de acceso comercial', () => {
     vi.mocked(api.put).mockResolvedValue(response<UserSalesAccessSettings>({ mode: 'all', grants: [] }));
   });
 
+  it('retiene las selecciones y bloquea guardado y cambios si deja de ser administrador', async () => {
+    renderUI();
+    fireEvent.click(await selectedMode());
+    await act(async () => useAuthStore.getState().setUser({ id: 5, nombre: 'Jefe', email: 'jefe@example.com', role: 'jefe',
+      permissions: [{ modulo: 'admin', accion: 'read' }] }));
+    const selected = screen.getByRole('checkbox', { name: 'Compartir OT-26-12' });
+    expect(selected).toBeChecked();
+    expect(selected).toBeDisabled();
+    const button = screen.getByRole('button', { name: 'Guardar acceso' });
+    expect(button).toBeDisabled();
+    fireEvent.submit(button.closest('form')!);
+    expect(api.put).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+  });
+
   it('abre directamente desde la fila del vendedor sin pasar por su ficha', async () => {
     renderUI(<UsersPage />);
     fireEvent.click(await screen.findByRole('button', { name: `Acceso OT/COT de ${seller.nombre}` }));

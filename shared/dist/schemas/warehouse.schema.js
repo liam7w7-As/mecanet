@@ -35,8 +35,11 @@ export const createStockMovementSchema = z.object({
     catalogItemId: z.number().int().positive('Ítem de catálogo inválido'),
     warehouseId: z.number().int().positive('Almacén inválido'),
     tipo: z.enum(['ingreso', 'salida', 'ajuste']),
-    cantidad: z.coerce.number().positive('La cantidad debe ser mayor a cero'),
+    cantidad: z.coerce.number().int('La cantidad debe ser un entero').min(0, 'La cantidad no puede ser negativa'),
     motivo: z.string().trim().min(2, 'El motivo debe tener al menos 2 caracteres').max(255),
+}).refine((data) => data.tipo === 'ajuste' || data.cantidad > 0, {
+    message: 'La cantidad debe ser mayor a cero',
+    path: ['cantidad'],
 });
 export const createStockTransferSchema = z.object({
     catalogItemId: z.number().int().positive('Ítem de catálogo inválido'),

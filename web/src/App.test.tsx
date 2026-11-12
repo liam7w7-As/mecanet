@@ -76,6 +76,9 @@ const renderRoute = (path: string) => {
 describe('App routing and authentication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.dispatchEvent(new Event('appinstalled'));
+    vi.stubGlobal('isSecureContext', true);
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: {} });
     vi.mocked(api.get).mockReset();
     vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
     const stored = new Map<string, string>();
@@ -99,6 +102,7 @@ describe('App routing and authentication', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    Reflect.deleteProperty(navigator, 'serviceWorker');
   });
 
   it('renderiza el spinner mientras verifica la sesión', () => {
@@ -378,7 +382,7 @@ describe('App routing and authentication', () => {
     expect(within(rail.getByRole('link', { name: 'Cotizaciones' })).getByText('99+')).toBeInTheDocument();
     const account = within(screen.getByRole('group', { name: 'Cuenta y aplicación' }));
     expect(account.getByRole('button', { name: 'Menú de usuario' })).toBeInTheDocument();
-    expect(account.getByRole('button', { name: 'Instalar aplicación UNITHOR' })).toBeInTheDocument();
+    expect(account.getByRole('button', { name: 'Cómo instalar UNITHOR' })).toBeInTheDocument();
     desktop.unmount();
     mockViewport(false);
     renderRoute('/forbidden');
@@ -427,6 +431,9 @@ describe('App routing and authentication', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Instalar aplicación UNITHOR' }));
     await waitFor(() => expect(install.prompt).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Instalar aplicación UNITHOR' })).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Cómo instalar UNITHOR' })).toBeInTheDocument();
+    act(() => { window.dispatchEvent(new Event('appinstalled')); });
+    expect(screen.queryByRole('button', { name: 'Cómo instalar UNITHOR' })).not.toBeInTheDocument();
     expect(install.defaultPrevented).toBe(true);
   });
 

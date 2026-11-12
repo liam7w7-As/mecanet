@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import WorkOrderCardPopover from './WorkOrderCardPopover';
 import { WORK_ORDER_STATUS_LABELS } from './WorkOrderStatusBadge';
 import { formatClp, formatDate } from '../../lib/formatters';
+import { getWorkOrderTotal } from '../../lib/work-order-pricing';
 import { getCardColourTier, getElapsedInfo, getWorkOrderProgress, PROGRESS_TIER_STYLES } from '../../lib/work-order-progress';
 
 import type { WorkOrder } from '../../types/entities';
@@ -86,7 +87,7 @@ export default function WorkOrderCard({
   const quotation = workOrder.quotation;
   const terminal = workOrder.estado === 'entregada' || workOrder.estado === 'cancelada';
   const transitions = WORK_ORDER_STATUS.filter((status) => isValidWorkOrderTransition(workOrder.estado, status));
-  const total = workOrder.items?.reduce((sum, item) => sum + Number(item.subtotal), 0) ?? null;
+  const total = workOrder.items || quotation ? getWorkOrderTotal(workOrder) : null;
   const elapsedText = elapsed.text.replace('En taller ', '').replace('Duración total: ', '');
   const duration = elapsedText.match(/^(\d+)([dhm])/);
   const durationUnit = duration?.[2] === 'd' ? 'días' : duration?.[2] === 'h' ? 'h' : 'min';

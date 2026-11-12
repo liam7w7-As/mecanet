@@ -8,3 +8,15 @@ export declare const FLEET_EXPIRY_WARNING_DAYS = 30;
 export declare const FLEET_EXPIRY_CRITICAL_DAYS = 7;
 export declare const FLEET_DOCUMENT_FILE_MIME_TYPES: readonly ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 export type FleetDocumentFileMimeType = (typeof FLEET_DOCUMENT_FILE_MIME_TYPES)[number];
+/** Fixed reception slots; records and previous files remain in fleet_documents. */
+export declare const FLEET_REQUIRED_DOCUMENTS: readonly [{
+    readonly type: "permiso_circulacion";
+    readonly nombre: "Permiso de circulación";
+}, {
+    readonly type: "soap";
+    readonly nombre: "Seguro obligatorio SOAP";
+}, {
+    readonly type: "revision_tecnica";
+    readonly nombre: "Revisión técnica";
+}];
+export type FleetRequiredDocumentType = (typeof FLEET_REQUIRED_DOCUMENTS)[number]['type'];

@@ -12,10 +12,12 @@ import { createPortal } from 'react-dom';
 import { useCompanyBranding } from './BrandingContext';
 import BrandLogo from './BrandLogo';
 import InspectionPhotoGallery from './InspectionPhotoGallery';
+import { useSalesAccessRecord } from '../../hooks/useSalesAccessRecord';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { renderOfficialPdf } from '../../lib/official-pdf';
 import { preparePdfImages } from '../../lib/pdf-images';
 import { buildPdfShareText, sharePdfOnWhatsApp } from '../../lib/whatsapp';
+import { getWorkOrderPricing } from '../../lib/work-order-pricing';
 import QuotationDocument, { getQuotationDocumentPages } from '../quotations/QuotationDocument';
 
 import type { PdfShareResult } from '../../lib/whatsapp';
@@ -126,9 +128,6 @@ const useFitToPage = (
 interface WorkOrderSheetPage1Props {
   workOrder: WorkOrder;
   inventorySet: Set<string>;
-  rawSubtotal: number;
-  rawIVA: number;
-  rawTotal: number;
   totalPages: number;
   photos: WorkOrderInspectionPhoto[];
   scale?: number;
@@ -138,15 +137,13 @@ interface WorkOrderSheetPage1Props {
 const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
   workOrder,
   inventorySet,
-  rawSubtotal,
-  rawIVA,
-  rawTotal,
   totalPages,
   photos,
   scale: externalScale = 1,
   onScaleChange,
 }) => {
   const items = workOrder.items ?? [];
+  const pricing = getWorkOrderPricing(workOrder);
   const company = useCompanyBranding();
   const density = items.length > 20 ? 2 : items.length > 10 ? 1 : 0;
   const fit = useFitToPage(
@@ -272,7 +269,7 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
                 <th className={`${cellPadding} text-left font-bold`}>DESCRIPCIÓN</th>
                 <th className={`${cellPadding} text-center font-bold`}>CANT.</th>
                 <th className={`${cellPadding} text-right font-bold`}>PRECIO</th>
-                <th className={`${cellPadding} text-right font-bold`}>SUBT.</th>
+                <th className={`${cellPadding} text-right font-bold`}>SUBT. NETO</th>
               </tr>
             </thead>
             <tbody>
@@ -294,7 +291,7 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
                     </td>
                     <td className={`${cellPadding} text-center`}>{item.cantidad}</td>
                     <td className={`${cellPadding} text-right`}>{formatClp(item.precioUnitario)}</td>
-                    <td className={`${cellPadding} text-right font-bold text-[#0E2B4E]`}>{formatClp(item.subtotal)}</td>
+                    <td className={`${cellPadding} text-right font-bold text-[#0E2B4E]`}>{formatClp(pricing.lines[idx]!.subtotal)}</td>
                   </tr>
                 ))
               ) : (
@@ -311,16 +308,28 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
           <div className="mt-1 flex justify-end">
             <div className={`w-48 ${totalsText}`}>
               <div className="flex justify-between py-0.5">
-                <span className="text-slate-600">Subtotal:</span>
-                <span className="font-bold">{formatClp(rawSubtotal)}</span>
+                <span className="text-slate-600">{pricing.descuentoTotal > 0 ? 'Subtotal bruto:' : 'Neto:'}</span>
+                <span className="font-bold">{formatClp(pricing.subtotal)}</span>
               </div>
+              {pricing.descuentoLineas > 0 && <div className="flex justify-between py-0.5">
+                <span className="text-slate-600">Dto. por ítem:</span>
+                <span className="font-bold">−{formatClp(pricing.descuentoLineas)}</span>
+              </div>}
+              {pricing.descuentoGeneral > 0 && <div className="flex justify-between py-0.5">
+                <span className="text-slate-600">Dto. general{workOrder.descuentoTipo === 'porcentaje' ? ` (${workOrder.descuentoValor}%)` : ''}:</span>
+                <span className="font-bold">−{formatClp(pricing.descuentoGeneral)}</span>
+              </div>}
+              {pricing.descuentoTotal > 0 && <div className="flex justify-between py-0.5">
+                <span className="text-slate-600">Neto:</span>
+                <span className="font-bold">{formatClp(pricing.neto)}</span>
+              </div>}
               <div className="flex justify-between py-0.5">
                 <span className="text-slate-600">IVA (19%):</span>
-                <span className="font-bold">{formatClp(rawIVA)}</span>
+                <span className="font-bold">{formatClp(pricing.iva)}</span>
               </div>
               <div className={`flex justify-between border-t border-slate-300 py-0.5 ${totalText} font-black text-[#0E2B4E]`}>
                 <span>TOTAL:</span>
-                <span>{formatClp(rawTotal)}</span>
+                <span>{formatClp(pricing.total)}</span>
               </div>
             </div>
           </div>
@@ -550,11 +559,9 @@ export const OfficialDocumentSheets = ({
 }: Pick<PdfPreviewModalProps, 'type' | 'workOrder' | 'quotation'> & { measure?: boolean; scale?: number }) => {
   const [measuredScale, setMeasuredScale] = useState(1);
   if (type === 'work-order' && workOrder) {
-    const subtotal = (workOrder.items ?? []).reduce((sum, item) => sum + Number(item.subtotal ?? 0), 0);
-    const iva = Math.round(subtotal * 0.19);
     return <div data-official-template="work-order">
       <WorkOrderSheetPage1 workOrder={workOrder} inventorySet={new Set(workOrder.inspection?.inventario ?? [])}
-        rawSubtotal={subtotal} rawIVA={iva} rawTotal={subtotal + iva} totalPages={2}
+        totalPages={2}
         photos={workOrder.inspection?.photos ?? []} scale={measure ? measuredScale : scale}
         onScaleChange={measure ? setMeasuredScale : undefined} />
       <WorkOrderSheetPage2 workOrder={workOrder} totalPages={2} />
@@ -587,6 +594,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   const company = useCompanyBranding();
 
   const isOT = type === 'work-order';
+  useSalesAccessRecord(isOT ? 'work_order' : 'quotation', (isOT ? workOrder?.id : quotation?.id) ?? 0, onClose);
   const displayCode = isOT
     ? workOrder?.codigo ?? 'OT-S/N'
     : quotation?.codigo ?? 'COT-S/N';
@@ -610,17 +618,6 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
-
-  // Cálculos financieros
-  const items = isOT ? workOrder?.items ?? [] : quotation?.items ?? [];
-  const rawSubtotal = items.reduce(
-    (acc, item) => acc + Number(item.subtotal ?? 0),
-    0,
-  );
-  const rawIVA = Math.round(rawSubtotal * 0.19);
-  const rawTotal = isOT
-    ? rawSubtotal + rawIVA
-    : Number(quotation?.total ?? rawSubtotal + rawIVA);
 
   const inventorySet = new Set(workOrder?.inspection?.inventario ?? []);
 
@@ -958,9 +955,6 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                 <WorkOrderSheetPage1
                   workOrder={workOrder}
                   inventorySet={inventorySet}
-                  rawSubtotal={rawSubtotal}
-                  rawIVA={rawIVA}
-                  rawTotal={rawTotal}
                   totalPages={totalPages}
                   photos={photos}
                   onScaleChange={setPage1Scale}

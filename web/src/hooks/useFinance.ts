@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { paymentKeys } from './usePayments';
 import { quotationKeys } from './useQuotations';
+import { useReportDownload } from './useReports';
 import { api } from '../lib/api';
-import { notifySuccess } from '../stores/toast.store';
 
 import type { PaginatedResponse, Payment, PaymentQuotationSummary } from '../types/entities';
 import type {
@@ -257,6 +257,7 @@ export const useCloseCashDayMutation = () => {
     onSuccess: (result) => {
       queryClient.setQueryData(financeKeys.day(result.fecha), result);
       void queryClient.invalidateQueries({ queryKey: financeKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['reports'] });
     },
   });
 };
@@ -284,6 +285,8 @@ export const useCreateCashMovementMutation = () => {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: financeKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['reports'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -301,6 +304,9 @@ export const useVoidCashMovementMutation = () => {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: financeKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['reports'] });
+      void queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -322,42 +328,16 @@ export const useVerifyPaymentMutation = () => {
       void queryClient.invalidateQueries({ queryKey: paymentKeys.quotation(quotation.id) });
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['reports'] });
     },
   });
 };
 export type FinancialReportFormat = 'pdf' | 'excel';
 
-export const useDownloadFinancialReport = () =>
-  useMutation({
-    mutationFn: async ({
-      format,
-      filters,
-      previewWindow,
-    }: {
-      format: FinancialReportFormat;
-      filters: FinancialReportFilters;
-      previewWindow?: Window | null;
-    }) => {
-      const response = await api.get<Blob>(`/reports/finance/${format}`, {
-        params: filters,
-        responseType: 'blob',
-      });
-      const extension = format === 'excel' ? 'xlsx' : 'pdf';
-      const filename = `Informe_Financiero_UNITHOR_${filters.fechaDesde}_${filters.fechaHasta}.${extension}`;
-      const href = URL.createObjectURL(response.data);
-      if (format === 'pdf') {
-        if (previewWindow && !previewWindow.closed) previewWindow.location.href = href;
-        else window.open(href, '_blank', 'noopener,noreferrer');
-      } else {
-        const anchor = document.createElement('a');
-        anchor.href = href;
-        anchor.download = filename;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-      }
-      window.setTimeout(() => URL.revokeObjectURL(href), format === 'pdf' ? 5 * 60_000 : 30_000);
-      notifySuccess(`Reporte ${extension.toUpperCase()} generado correctamente.`);
-    },
-    onError: (_error, variables) => variables.previewWindow?.close(),
-  });
+export const useDownloadFinancialReport = () => {
+  const report = useReportDownload();
+  return {
+    ...report,
+    mutate: (request: { format: FinancialReportFormat; filters: FinancialReportFilters; previewWindow?: Window | null }) => report.mutate({ ...request, area: 'finance' }),
+  };
+};

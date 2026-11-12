@@ -2,6 +2,8 @@ import { Op } from 'sequelize';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { getQuotationGrossTotal } from '@unithor/shared';
+
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
 import { Client } from '../../models/Client.js';
@@ -740,7 +742,7 @@ describe('Quotation Routes (E2E)', () => {
       estadoPago: 'parcial',
       subtotal: 10000,
       total: 10000,
-      pagado: 5000,
+      pagado: getQuotationGrossTotal(5000),
     });
     const recalculated = await request(app)
       .patch(`/api/quotations/${partiallyPaid.id}`)
@@ -813,7 +815,7 @@ describe('Quotation Routes (E2E)', () => {
 
   it('rechaza descuentos excesivos y no deja un total inferior al monto abonado', async () => {
     const cookies = await loginAs('dev@unithor.local');
-    const quotation = await Quotation.create({ codigo: 'COT-DISCOUNT-LIMIT', clientId, subtotal: 10000, total: 10000, pagado: 8000, estadoPago: 'parcial' });
+    const quotation = await Quotation.create({ codigo: 'COT-DISCOUNT-LIMIT', clientId, subtotal: 10000, total: 10000, pagado: getQuotationGrossTotal(7000) + 1, estadoPago: 'parcial' });
     await QuotationItem.create({ quotationId: quotation.id, descripcion: 'Servicio probado', cantidad: 1, precioUnitario: 10000, subtotal: 10000 });
     for (const data of [
       { descuentoTipo: 'fijo', descuentoValor: 10001 },
@@ -825,7 +827,7 @@ describe('Quotation Routes (E2E)', () => {
       expect(response.status).toBe(400);
       expect(Number((await quotation.reload()).total)).toBe(10000);
     }
-    await quotation.update({ pagado: 10000, estadoPago: 'total' });
+    await quotation.update({ pagado: getQuotationGrossTotal(10000), estadoPago: 'total' });
     const paidResponse = await request(app).patch(`/api/quotations/${quotation.id}`)
       .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
       .send({ descuentoTipo: 'porcentaje', descuentoValor: 10 });

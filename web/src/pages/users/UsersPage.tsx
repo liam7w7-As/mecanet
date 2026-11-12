@@ -1,5 +1,5 @@
 import { AlertCircle, CircleCheck, Eye, Pencil, Plus, Power, Search, Share2, ShieldCheck, Trash2, UserCog, UserRoundX, UsersRound, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import FormDialog from '../../components/common/FormDialog';
 import ListExportButtons from '../../components/common/ListExportButtons';
@@ -40,6 +40,7 @@ export const UsersPage = () => {
   const rolesQuery = useRoles();
   const statusMutation = useToggleUserStatusMutation();
   const deleteMutation = useDeleteUserMutation();
+  const submission = useRef(false);
   const canCreate = Boolean(currentUser && hasUserPermission(currentUser, 'admin', 'create'));
   const canUpdate = Boolean(currentUser && hasUserPermission(currentUser, 'admin', 'update'));
   const canDelete = Boolean(currentUser && hasUserPermission(currentUser, 'admin', 'delete'));
@@ -136,14 +137,30 @@ export const UsersPage = () => {
       code={`@${statusTarget.username}`} context={statusTarget.nombre} dirty={false} pending={statusMutation.isPending}
       submitLabel={statusTarget.activo ? 'Desactivar cuenta' : 'Activar cuenta'} headerVariant="plain" headerIcon={<Power aria-hidden="true" />}
       className="administration-form administration-confirm users-reference-confirm" statusText="Confirmación de acceso" onClose={() => setStatusTarget(null)}
-      onSubmit={(event) => { event.preventDefault(); if (!statusMutation.isPending) statusMutation.mutate({ id: statusTarget.id, activo: !statusTarget.activo }, { onSuccess: () => setStatusTarget(null) }); }}>
+      submitDisabled={!canUpdate || (statusTarget.activo && statusTarget.id === currentUser?.id)}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!canUpdate || (statusTarget.activo && statusTarget.id === currentUser?.id) || statusMutation.isPending || submission.current) return;
+        submission.current = true;
+        statusMutation.mutate({ id: statusTarget.id, activo: !statusTarget.activo }, {
+          onSuccess: () => setStatusTarget(null), onSettled: () => { submission.current = false; },
+        });
+      }}>
+      {!canUpdate && <p role="status" className="administration-notice">Ya no tienes permiso para cambiar el estado de esta cuenta.</p>}
       <p>{statusTarget.activo ? `Se cerrarán las sesiones de ${statusTarget.nombre}. La cuenta no podrá ingresar hasta que se reactive.` : `${statusTarget.nombre} recuperará el acceso con su rol actual.`}</p>
       {statusMutation.error && <p className="administration-alert" role="alert">{getApiErrorMessage(statusMutation.error)}</p>}
     </FormDialog>}
     {deleteTarget && <FormDialog id="delete-user-title" title="Eliminar usuario" code={`@${deleteTarget.username}`} context={deleteTarget.nombre}
       dirty={false} pending={deleteMutation.isPending} submitLabel="Eliminar usuario" headerVariant="plain" headerIcon={<Trash2 aria-hidden="true" />}
       className="administration-form administration-confirm administration-confirm-danger users-reference-confirm" statusText="Eliminación con historial conservado"
-      onClose={() => setDeleteTarget(null)} onSubmit={(event) => { event.preventDefault(); if (!deleteMutation.isPending) deleteMutation.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) }); }}>
+      submitDisabled={!canDelete || deleteTarget.id === currentUser?.id}
+      onClose={() => setDeleteTarget(null)} onSubmit={(event) => {
+        event.preventDefault();
+        if (!canDelete || deleteTarget.id === currentUser?.id || deleteMutation.isPending || submission.current) return;
+        submission.current = true;
+        deleteMutation.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null), onSettled: () => { submission.current = false; } });
+      }}>
+      {!canDelete && <p role="status" className="administration-notice">Ya no tienes permiso para eliminar esta cuenta.</p>}
       <p>La cuenta de <strong>{deleteTarget.nombre}</strong> quedará inactiva y se cerrarán todas sus sesiones. El registro se conservará para auditoría.</p>
       {deleteMutation.error && <p className="administration-alert" role="alert">{getApiErrorMessage(deleteMutation.error)}</p>}
     </FormDialog>}

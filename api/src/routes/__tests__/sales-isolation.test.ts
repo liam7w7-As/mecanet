@@ -2,6 +2,8 @@ import ExcelJS from 'exceljs';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { getQuotationGrossTotal } from '@unithor/shared';
+
 import { app } from '../../main.js';
 import { Client } from '../../models/Client.js';
 import { Notification } from '../../models/Notification.js';
@@ -263,7 +265,7 @@ describe('Sales record isolation', () => {
     expect(response.body.metrics).toMatchObject({
       activeWorkOrders: 1,
       pendingQuotations: 1,
-      pendingBalance: 7000,
+      pendingBalance: getQuotationGrossTotal(10000) - 3000,
       monthlyRevenue: 3000,
     });
     expect(response.body.recentWorkOrders.map((order: { id: number }) => order.id)).toEqual([

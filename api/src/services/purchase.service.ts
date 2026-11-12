@@ -114,6 +114,7 @@ export interface PurchaseWorkOrderPublic {
 
 export interface PurchaseCashMovementPublic {
   id: number;
+  descripcion: string;
   monto: number;
   metodo: PaymentMethod;
   fecha: Date;
@@ -232,7 +233,7 @@ const cashMovementInclude = {
   model: CashMovement,
   as: 'cashMovement',
   required: false,
-  attributes: ['id', 'monto', 'metodo', 'fecha', 'voidedAt'],
+  attributes: ['id', 'descripcion', 'monto', 'metodo', 'fecha', 'voidedAt'],
 };
 
 const itemsInclude: Includeable = {
@@ -372,6 +373,7 @@ const toPurchasePublic = (purchase: Purchase): PurchasePublic => {
     cashMovement: purchase.cashMovement
       ? {
           id: purchase.cashMovement.id,
+          descripcion: purchase.cashMovement.descripcion,
           monto: moneyValue(purchase.cashMovement.monto),
           metodo: purchase.cashMovement.metodo,
           fecha: purchase.cashMovement.fecha,
@@ -844,12 +846,19 @@ export const registerPurchasePayment = async (
     }
     if (!purchase.supplier) throw ApiError.internal('La compra no tiene proveedor disponible');
 
+    // Preserve payment evidence separately from the original purchase receipt metadata.
+    const paymentDetails = [
+      data.banco?.trim() ? `Banco: ${data.banco.trim()}` : '',
+      data.numeroOperacion?.trim() ? `Operación: ${data.numeroOperacion.trim()}` : '',
+    ].filter(Boolean).join(' · ');
+    const suffix = paymentDetails ? ` · ${paymentDetails}` : '';
+    const description = `Pago compra ${purchase.codigo} - ${purchase.supplier.nombre}`;
     const movement = await createCashMovement(
       {
         categoria: 'pago_proveedor',
         monto: numberValue(purchase.total),
         metodo: data.metodo,
-        descripcion: `Pago compra ${purchase.codigo} - ${purchase.supplier.nombre}`,
+        descripcion: `${description.slice(0, 255 - suffix.length)}${suffix}`,
         referencia: data.referencia?.trim() || purchase.codigo,
         userId,
       },
@@ -888,7 +897,12 @@ export const voidPurchase = async (
     if (purchase.estado === 'anulada') throw ApiError.conflict('La compra ya está anulada');
 
     for (const item of purchase.items ?? []) {
-      if (!item.afectaStock || item.catalogItemId == null || item.warehouseId == null) continue;
+      if (!item.afectaStock) continue;
+      if (item.catalogItemId == null || item.warehouseId == null) {
+        throw ApiError.conflict(
+          'No se puede revertir el stock: un ítem de la compra perdió su repuesto o almacén',
+        );
+      }
       await registerMovement(
         {
           catalogItemId: item.catalogItemId,

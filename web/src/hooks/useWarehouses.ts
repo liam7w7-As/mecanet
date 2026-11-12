@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useDebouncedValue } from './useDebouncedValue';
+import { useSalesScopeEpoch } from './useSalesScopeEpoch';
 import { api } from '../lib/api';
 
 import type {
@@ -60,7 +61,7 @@ export interface CatalogWarehouseInventory {
   balance: StockBalance | null;
 }
 
-export const useWarehouses = (params: WarehouseQueryParams) =>
+export const useWarehouses = (params: WarehouseQueryParams, enabled = true) =>
   useQuery({
     queryKey: warehouseKeys.list(params),
     queryFn: async () => {
@@ -68,6 +69,7 @@ export const useWarehouses = (params: WarehouseQueryParams) =>
       return response.data;
     },
     placeholderData: keepPreviousData,
+    enabled,
   });
 
 export const useWarehouseBalances = (warehouseId: number | null) =>
@@ -124,8 +126,9 @@ export const useStockMovements = (params: MovementQueryParams, enabled = true) =
     enabled,
   });
 
-export const useWarehouseRequests = (params: WarehouseRequestQueryParams) =>
-  useQuery({
+export const useWarehouseRequests = (params: WarehouseRequestQueryParams) => {
+  const epoch = useSalesScopeEpoch();
+  return useQuery({
     queryKey: warehouseKeys.requests(params),
     queryFn: async () => {
       const response = await api.get<PaginatedResponse<WarehouseWorkOrderRequest>>(
@@ -134,8 +137,10 @@ export const useWarehouseRequests = (params: WarehouseRequestQueryParams) =>
       );
       return response.data;
     },
-    placeholderData: keepPreviousData,
+    meta: { salesScopeEpoch: epoch },
+    placeholderData: (previous, query) => query?.meta?.salesScopeEpoch === epoch ? previous : undefined,
   });
+};
 
 export const useDeliverWarehouseRequestMutation = () => {
   const queryClient = useQueryClient();
@@ -159,6 +164,7 @@ export const useDeliverWarehouseRequestMutation = () => {
       void queryClient.invalidateQueries({ queryKey: warehouseKeys.all });
       void queryClient.invalidateQueries({ queryKey: ['catalog'] });
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['work-order-labor'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({
@@ -201,7 +207,7 @@ export const useCreateStockMovementMutation = () => {
       const response = await api.post<{ movement: StockMovement }>('/warehouses/movements', data);
       return response.data.movement;
     },
-    onSuccess: (movement) => {
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: warehouseKeys.all });
       void queryClient.invalidateQueries({ queryKey: ['catalog'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });

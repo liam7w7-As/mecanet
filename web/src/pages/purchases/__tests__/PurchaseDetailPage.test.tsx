@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,7 +8,7 @@ import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
 import PurchaseDetailPage from '../PurchaseDetailPage';
 
-import type { Role } from '@unithor/shared';
+import type { PermissionDefinition, Role } from '@unithor/shared';
 import type { AxiosResponse } from 'axios';
 
 vi.mock('../../../lib/api', () => ({
@@ -21,13 +21,14 @@ vi.mock('../../../lib/api', () => ({
   setSessionExpiredHandler: vi.fn(),
 }));
 
-const renderPage = (role: Role) => {
+const renderPage = (role: Role, permissions?: PermissionDefinition[], entry = '/purchases/7') => {
   useAuthStore.setState({
     user: {
       id: 1,
       nombre: 'Usuario de prueba',
       email: 'usuario@unithor.local',
       role,
+      permissions,
     },
     isAuthenticated: true,
     isLoading: false,
@@ -37,9 +38,9 @@ const renderPage = (role: Role) => {
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
 
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/purchases/7']}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route path="/purchases/:id" element={<PurchaseDetailPage />} />
           <Route path="/purchases" element={<h1>Listado de compras</h1>} />
@@ -48,6 +49,7 @@ const renderPage = (role: Role) => {
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  return { ...view, queryClient };
 };
 
 describe('PurchaseDetailPage', () => {
@@ -120,6 +122,63 @@ describe('PurchaseDetailPage', () => {
     expect(screen.getByText('El pago total está pendiente.')).toBeInTheDocument();
   });
 
+  it('usa permisos efectivos y bloquea el pago sin cerrar el formulario al revocarlos', async () => {
+    renderPage('bodeguero', [
+      { modulo: 'compras', accion: 'read' }, { modulo: 'compras', accion: 'update' },
+    ]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Registrar pago' }));
+    expect(screen.getByRole('dialog', { name: 'Pagar compra a crédito' })).toBeInTheDocument();
+    act(() => useAuthStore.setState((state) => ({ user: state.user && {
+      ...state.user, permissions: [{ modulo: 'compras', accion: 'read' }],
+    } })));
+    expect(screen.getByRole('dialog', { name: 'Pagar compra a crédito' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Registrar pago total' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Registrar pago' })).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('oculta pagos al jefe con permisos efectivos de solo lectura', async () => {
+    renderPage('jefe', [{ modulo: 'compras', accion: 'read' }]);
+    await screen.findByRole('heading', { name: 'COMP-000007' });
+    expect(screen.queryByRole('button', { name: 'Registrar pago' })).not.toBeInTheDocument();
+  });
+
+  it('muestra un error para IDs inválidos sin quedar cargando ni consultar la API', async () => {
+    renderPage('jefe', undefined, '/purchases/invalida');
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Cargando compra')).not.toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalled();
+  });
+
+  it('conserva el resultado del pago aunque falle la recarga del detalle', async () => {
+    const paid = { ...purchaseFixture, pagadoAt: '2026-10-20T12:30:00.000Z', cashMovementId: 20 };
+    vi.mocked(api.post).mockResolvedValue({ data: { purchase: paid } } as AxiosResponse);
+    const { queryClient } = renderPage('jefe');
+    fireEvent.click(await screen.findByRole('button', { name: 'Registrar pago' }));
+    vi.mocked(api.get).mockRejectedValue(new Error('Recarga fallida'));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Registrar pago total' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Registrar pago' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pagar compra completa' })).not.toBeInTheDocument();
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3));
+    expect(queryClient.getQueryData(['purchases', 'detail', purchaseFixture.id])).toEqual(paid);
+  });
+
+  it.each([false, true])('distingue anulación sin pago y pago anulado (pagada: %s)', async (wasPaid) => {
+    const originalGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, config) => url === '/purchases/7'
+      ? Promise.resolve({ data: { purchase: {
+        ...purchaseFixture, estado: 'anulada', voidedAt: '2026-10-21T12:00:00.000Z',
+        pagadoAt: wasPaid ? '2026-10-20T12:30:00.000Z' : null, cashMovementId: wasPaid ? 20 : null,
+      } } } as AxiosResponse) : originalGet(url, config));
+    renderPage('admin');
+    await screen.findByRole('heading', { name: 'COMP-000007' });
+    expect(screen.getAllByText(wasPaid ? 'Pago anulado' : 'Sin pago').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Pendiente')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Registrar pago' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Anular compra' })).not.toBeInTheDocument();
+  });
+
   it('conserva los datos de pago al cancelar y bloquea el cierre durante el registro', async () => {
     let finishPayment: ((value: AxiosResponse<{ purchase: typeof purchaseFixture }>) => void) | undefined;
     vi.mocked(api.post).mockImplementation(() => new Promise((resolve) => { finishPayment = resolve; }));
@@ -154,6 +213,23 @@ describe('PurchaseDetailPage', () => {
     fireEvent.click(dialog.getByRole('button', { name: 'Anular compra' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/purchases/7/void', { motivo: 'Documento duplicado' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Anular compra' })).not.toBeInTheDocument());
+  });
+
+  it.each(['pago', 'anulacion'] as const)('conserva el formulario de %s y bloquea enviarlo al perder permisos', async (operation) => {
+    renderPage(operation === 'pago' ? 'jefe' : 'admin');
+    fireEvent.click(await screen.findByRole('button', { name: operation === 'pago' ? 'Registrar pago' : 'Anular compra' }));
+    const dialog = within(screen.getByRole('dialog'));
+    const label = operation === 'pago' ? 'Banco' : 'Motivo de la anulación';
+    const text = operation === 'pago' ? 'Banco Santander' : 'Conservar este motivo';
+    fireEvent.change(dialog.getByLabelText(label), { target: { value: text } });
+    act(() => useAuthStore.setState({ user: { ...useAuthStore.getState().user!, role: 'jefe', permissions: [{ modulo: 'compras', accion: 'read' }] } }));
+    expect(dialog.getByLabelText(label)).toHaveValue(text);
+    expect(dialog.getByLabelText(label)).toBeDisabled();
+    const submit = dialog.getByRole('button', { name: operation === 'pago' ? 'Registrar pago total' : 'Anular compra' });
+    expect(submit).toBeDisabled();
+    fireEvent.submit(submit.closest('form')!);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
   });
 
   it('protege la edición del proveedor sin guardar al cerrar el formulario', async () => {

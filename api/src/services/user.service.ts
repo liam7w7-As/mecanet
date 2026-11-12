@@ -10,7 +10,7 @@ import { getPagination, type PaginationMeta } from '../utils/paginate.js';
 import { hashPassword } from '../utils/password.js';
 
 import type { CreateUserInput, UpdateUserInput, UserQueryInput } from '@unithor/shared';
-import type { InferAttributes, WhereOptions } from 'sequelize';
+import type { InferAttributes, Transaction, WhereOptions } from 'sequelize';
 
 export interface UserPublic {
   id: number;
@@ -59,15 +59,22 @@ const toUserPublic = (user: User): UserPublic => {
   };
 };
 
-const findRoleOrFail = async (roleId: number): Promise<Role> => {
-  const role = await Role.findByPk(roleId);
+const findRoleOrFail = async (roleId: number, transaction?: Transaction): Promise<Role> => {
+  const role = await Role.findByPk(roleId, { transaction });
   if (!role) {
     throw ApiError.badRequest('El rol especificado no existe');
   }
   return role;
 };
 
-const assertEmailAvailable = async (email: string, ignoreUserId?: number): Promise<void> => {
+const assertEmailAvailable = async (
+  email: string,
+  ignoreUserId?: number,
+  transaction?: Transaction,
+): Promise<void> => {
+  if (email.length > 180) {
+    throw ApiError.badRequest('El email no puede exceder 180 caracteres');
+  }
   const where: WhereOptions<User> = { email };
   if (ignoreUserId !== undefined) {
     where.id = { [Op.ne]: ignoreUserId };
@@ -76,6 +83,7 @@ const assertEmailAvailable = async (email: string, ignoreUserId?: number): Promi
   const existing = await User.findOne({
     where,
     paranoid: false,
+    transaction,
   });
 
   if (existing) {
@@ -86,40 +94,66 @@ const assertEmailAvailable = async (email: string, ignoreUserId?: number): Promi
 const assertUsernameAvailable = async (
   username: string,
   ignoreUserId?: number,
+  transaction?: Transaction,
 ): Promise<void> => {
   const where: WhereOptions<User> = { username };
   if (ignoreUserId !== undefined) {
     where.id = { [Op.ne]: ignoreUserId };
   }
 
-  const existing = await User.findOne({ where, paranoid: false });
+  const existing = await User.findOne({ where, paranoid: false, transaction });
   if (existing) {
     throw ApiError.conflict('El nombre de usuario ya está registrado');
   }
 };
 
-const assertNotLastPrivilegedUser = async (user: User): Promise<void> => {
-  if (!user.role || !['desarrollador', 'admin'].includes(user.role.nombre)) {
+const findUserForMutation = async (id: number, transaction: Transaction): Promise<User> => {
+  // Serialize privileged membership changes before locking an individual user.
+  // Locking only the target lets two admins remove each other concurrently.
+  await Role.findAll({
+    where: { nombre: ['desarrollador', 'admin'] },
+    attributes: ['id'],
+    order: [['id', 'ASC']],
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  const user = await User.findByPk(id, {
+    include: userInclude,
+    attributes: { exclude: ['passwordHash'] },
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  if (!user) {
+    throw ApiError.notFound('Usuario no encontrado');
+  }
+  return user;
+};
+
+const assertNotLastPrivilegedUser = async (user: User, transaction: Transaction): Promise<void> => {
+  if (!user.activo || !user.role || !['desarrollador', 'admin'].includes(user.role.nombre)) {
     return;
   }
 
-  const activePrivilegedUsers = await User.count({
+  const activePrivilegedUsers = await User.findAll({
     where: {
       roleId: user.roleId,
       activo: true,
       id: { [Op.ne]: user.id },
     },
+    attributes: ['id'],
+    transaction,
+    lock: transaction.LOCK.UPDATE,
   });
 
-  if (activePrivilegedUsers === 0) {
+  if (activePrivilegedUsers.length === 0) {
     throw ApiError.badRequest(`No se puede eliminar al último usuario con rol '${user.role.nombre}'`);
   }
 };
 
-const revokeUserRefreshTokens = async (userId: number): Promise<void> => {
+const revokeUserRefreshTokens = async (userId: number, transaction: Transaction): Promise<void> => {
   await RefreshToken.update(
     { revokedAt: new Date() },
-    { where: { userId, revokedAt: null } },
+    { where: { userId, revokedAt: null }, transaction },
   );
 };
 
@@ -194,52 +228,62 @@ export const createUser = async (data: CreateUserInput): Promise<UserPublic> => 
   return getUserById(user.id);
 };
 
-export const updateUser = async (id: number, data: UpdateUserInput): Promise<UserPublic> => {
-  const user = await User.findByPk(id, {
-    include: userInclude,
+export const updateUser = async (
+  id: number,
+  data: UpdateUserInput,
+  currentUserId: number,
+): Promise<UserPublic> => {
+  if (id === currentUserId && data.activo === false) {
+    throw ApiError.badRequest('Un usuario no puede desactivarse a sí mismo');
+  }
+
+  const previousRoleId = await sequelize.transaction(async (transaction) => {
+    const user = await findUserForMutation(id, transaction);
+    if (data.activo === false || (data.roleId !== undefined && data.roleId !== user.roleId)) {
+      await assertNotLastPrivilegedUser(user, transaction);
+    }
+
+    const updatePayload: Partial<
+      Pick<User, 'nombre' | 'username' | 'email' | 'roleId' | 'activo'>
+    > = {};
+
+    if (data.nombre !== undefined) {
+      updatePayload.nombre = data.nombre;
+    }
+
+    if (data.username !== undefined) {
+      const normalizedUsername = data.username.toLowerCase().trim();
+      await assertUsernameAvailable(normalizedUsername, id, transaction);
+      updatePayload.username = normalizedUsername;
+    }
+
+    if (data.email !== undefined) {
+      const normalizedEmail = data.email.toLowerCase().trim();
+      await assertEmailAvailable(normalizedEmail, id, transaction);
+      updatePayload.email = normalizedEmail;
+    }
+
+    if (data.roleId !== undefined) {
+      await findRoleOrFail(data.roleId, transaction);
+      updatePayload.roleId = data.roleId;
+    }
+
+    if (data.activo !== undefined) {
+      updatePayload.activo = data.activo;
+    }
+
+    const oldRoleId = user.roleId;
+    await user.update(updatePayload, { transaction });
+
+    if (data.activo === false) {
+      await revokeUserRefreshTokens(id, transaction);
+    }
+    return oldRoleId;
   });
 
-  if (!user) {
-    throw ApiError.notFound('Usuario no encontrado');
-  }
-
-  const updatePayload: Partial<
-    Pick<User, 'nombre' | 'username' | 'email' | 'roleId' | 'activo'>
-  > = {};
-
-  if (data.nombre !== undefined) {
-    updatePayload.nombre = data.nombre;
-  }
-
-  if (data.username !== undefined) {
-    const normalizedUsername = data.username.toLowerCase().trim();
-    await assertUsernameAvailable(normalizedUsername, id);
-    updatePayload.username = normalizedUsername;
-  }
-
-  if (data.email !== undefined) {
-    const normalizedEmail = data.email.toLowerCase().trim();
-    await assertEmailAvailable(normalizedEmail, id);
-    updatePayload.email = normalizedEmail;
-  }
-
-  if (data.roleId !== undefined) {
-    await findRoleOrFail(data.roleId);
-    if (data.roleId !== user.roleId) {
-      invalidatePermissionCache(user.roleId);
-      invalidatePermissionCache(data.roleId);
-    }
-    updatePayload.roleId = data.roleId;
-  }
-
-  if (data.activo !== undefined) {
-    updatePayload.activo = data.activo;
-  }
-
-  await user.update(updatePayload);
-
-  if (data.activo === false) {
-    await revokeUserRefreshTokens(id);
+  if (data.roleId !== undefined && data.roleId !== previousRoleId) {
+    invalidatePermissionCache(previousRoleId);
+    invalidatePermissionCache(data.roleId);
   }
 
   return getUserById(id);
@@ -251,24 +295,12 @@ export const deleteUser = async (id: number, currentUserId: number): Promise<voi
   }
 
   await sequelize.transaction(async (transaction) => {
-    const user = await User.findByPk(id, {
-      include: userInclude,
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
-
-    if (!user) {
-      throw ApiError.notFound('Usuario no encontrado');
-    }
-
-    await assertNotLastPrivilegedUser(user);
+    const user = await findUserForMutation(id, transaction);
+    await assertNotLastPrivilegedUser(user, transaction);
 
     await user.update({ activo: false }, { transaction });
     await user.destroy({ transaction });
-    await RefreshToken.update(
-      { revokedAt: new Date() },
-      { where: { userId: id, revokedAt: null }, transaction },
-    );
+    await revokeUserRefreshTokens(id, transaction);
   });
 };
 
@@ -277,20 +309,5 @@ export const toggleUserStatus = async (
   activo: boolean,
   currentUserId: number,
 ): Promise<UserPublic> => {
-  if (id === currentUserId && activo === false) {
-    throw ApiError.badRequest('Un usuario no puede desactivarse a sí mismo');
-  }
-
-  const user = await User.findByPk(id);
-  if (!user) {
-    throw ApiError.notFound('Usuario no encontrado');
-  }
-
-  await user.update({ activo });
-
-  if (!activo) {
-    await revokeUserRefreshTokens(id);
-  }
-
-  return getUserById(id);
+  return updateUser(id, { activo }, currentUserId);
 };

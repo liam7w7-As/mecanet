@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -345,5 +345,51 @@ describe('CatalogPage', () => {
     fireEvent.click(dialog.getByRole('button', { name: 'Existencias' }));
     expect(dialog.getByText('Existencias protegidas')).toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalledWith('/warehouses/1/balances');
+  });
+
+  it('permite dar de alta un repuesto sin stock al no tener permisos de inventario', async () => {
+    useAuthStore.setState({ user: { id: 5, nombre: 'Taller', email: 'taller@test.local', role: 'jefe', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'taller', accion: 'create' }] } });
+    vi.mocked(api.post).mockResolvedValue({ data: { item: { ...partItem, stock: 0 } } });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Nuevo item' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Nuevo item de catálogo' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Repuesto' }));
+    expect(dialog.getByLabelText('Stock inicial')).toBeDisabled();
+    fireEvent.change(dialog.getByLabelText('Nombre'), { target: { value: 'Repuesto sin existencias' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Crear item' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/catalog', expect.objectContaining({ stock: 0, tipo: 'parte' })));
+  });
+
+  it('edita los datos del repuesto sin reenviar un stock global anterior', async () => {
+    vi.mocked(api.patch).mockImplementation(async () => {
+      const updated = { ...partItem, nombre: 'Filtro actualizado', stock: 8 };
+      catalogResponse = { ...catalogResponse, items: [serviceItem, updated] };
+      return { data: { item: updated } } as AxiosResponse<{ item: CatalogItem }>;
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar Filtro de aceite' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Editar item' }));
+    expect(dialog.getByLabelText('Stock actual')).toBeDisabled();
+    expect(dialog.getByLabelText('Stock actual')).toHaveValue(3);
+    fireEvent.change(dialog.getByLabelText('Nombre'), { target: { value: 'Filtro actualizado' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledOnce());
+    const payload = vi.mocked(api.patch).mock.calls[0]![1] as Record<string, unknown>;
+    expect(payload.nombre).toBe('Filtro actualizado');
+    expect(payload).not.toHaveProperty('stock');
+    await waitFor(() => expect(screen.getByTestId('stock-2')).toHaveTextContent('8 unidades'));
+  });
+
+  it('conserva la edición del repuesto al retirar el permiso y bloquea guardar', async () => {
+    useAuthStore.setState({ user: { id: 8, nombre: 'Bodega', email: 'bodega@test.local', role: 'bodeguero' } });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar Filtro de aceite' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Editar item' }));
+    fireEvent.change(dialog.getByLabelText('Nombre'), { target: { value: 'Cambios pendientes del repuesto' } });
+    act(() => useAuthStore.setState({ user: { ...useAuthStore.getState().user!, permissions: [{ modulo: 'taller', accion: 'read' }] } }));
+    expect(dialog.getByLabelText('Nombre')).toHaveValue('Cambios pendientes del repuesto');
+    expect(dialog.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
+    fireEvent.submit(dialog.getByRole('button', { name: 'Guardar cambios' }).closest('form')!);
+    expect(api.patch).not.toHaveBeenCalled();
   });
 });

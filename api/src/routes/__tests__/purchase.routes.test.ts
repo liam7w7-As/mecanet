@@ -15,6 +15,7 @@ import { StockMovement } from '../../models/StockMovement.js';
 import { Supplier } from '../../models/Supplier.js';
 import { User } from '../../models/User.js';
 import { Warehouse } from '../../models/Warehouse.js';
+import { registerMovement } from '../../services/warehouse.service.js';
 import { hashPassword } from '../../utils/password.js';
 
 import type { CreatePurchaseInput } from '@unithor/shared';
@@ -87,6 +88,7 @@ describe('Purchase Routes (E2E)', () => {
   let bodegueroUserId: number;
   let catalogItemId: number;
   let warehouseId: number;
+  let secondWarehouseId: number;
 
   const purchasePayload = (
     overrides: PurchaseFixtureOverrides = {},
@@ -187,8 +189,9 @@ describe('Purchase Routes (E2E)', () => {
     finanzasUserId = finanzas.id;
     bodegueroUserId = bodeguero.id;
 
-    const [warehouse, catalogItem] = await Promise.all([
-      Warehouse.findOne({ order: [['id', 'ASC']] }),
+    const [warehouse, secondWarehouse, catalogItem] = await Promise.all([
+      Warehouse.create({ codigo: 'PURC-ALM-1', nombre: 'Almacén compras 1', activo: true }),
+      Warehouse.create({ codigo: 'PURC-ALM-2', nombre: 'Almacén compras 2', activo: true }),
       CatalogItem.create({
         tipo: 'parte',
         codigo: `${TEST_CATALOG_PREFIX}FILTRO`,
@@ -199,11 +202,8 @@ describe('Purchase Routes (E2E)', () => {
       }),
     ]);
 
-    if (!warehouse) {
-      throw new Error('No hay almacenes base para purchase.routes.test');
-    }
-
     warehouseId = warehouse.id;
+    secondWarehouseId = secondWarehouse.id;
     catalogItemId = catalogItem.id;
   });
 
@@ -214,12 +214,7 @@ describe('Purchase Routes (E2E)', () => {
     const testSupplierIds = testSuppliers.map((supplier) => supplier.id);
 
     const purchases = await Purchase.findAll({
-      where: {
-        [Op.or]: [
-          { createdBy: [devUserId, jefeUserId] },
-          { supplierId: testSupplierIds },
-        ],
-      },
+      where: { supplierId: testSupplierIds },
     });
     const purchaseIds = purchases.map((purchase) => purchase.id);
     const cashMovementIds = purchases
@@ -239,6 +234,7 @@ describe('Purchase Routes (E2E)', () => {
     await StockMovement.destroy({ where: { catalogItemId }, force: true });
     await StockBalance.destroy({ where: { catalogItemId }, force: true });
     await CatalogItem.destroy({ where: { id: catalogItemId }, force: true });
+    await Warehouse.destroy({ where: { id: [warehouseId, secondWarehouseId] }, force: true });
 
     await RefreshToken.destroy({
       where: { userId: [jefeUserId, finanzasUserId, bodegueroUserId] },
@@ -397,6 +393,9 @@ describe('Purchase Routes (E2E)', () => {
       metodo: 'transferencia',
     });
     expect(Number(cashMovement?.monto)).toBe(purchase.total);
+    expect(cashMovement?.descripcion).toContain('Banco: Banco Santander');
+    expect(cashMovement?.descripcion).toContain('Operación: TRX-COMP-1');
+    expect(paymentResponse.body.purchase.cashMovement.descripcion).toBe(cashMovement?.descripcion);
 
     const duplicatePayment = await request(app)
       .post(`/api/purchases/${purchase.id}/payment`)
@@ -482,6 +481,129 @@ describe('Purchase Routes (E2E)', () => {
 
     const stillRegistered = await Purchase.findByPk(secondId);
     expect(stillRegistered?.estado).toBe('registrada');
+  });
+
+  it('recibe líneas repetidas una sola vez por almacén y revierte sin perder el pago histórico', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const payload = purchasePayload({ withStock: true, folio: 'F-MULTI' });
+    payload.items = [
+      { ...payload.items[0], cantidad: 2, precioUnitario: 12.5 },
+      { ...payload.items[0], cantidad: 3, precioUnitario: 3.25 },
+      { ...payload.items[0], warehouseId: secondWarehouseId, cantidad: 4, precioUnitario: 1.1 },
+      { ...payload.items[0], afectaStock: false, cantidad: 7, precioUnitario: 2 },
+    ];
+    const before = Number(await StockBalance.sum('cantidad', { where: { catalogItemId } }) ?? 0);
+    const balanceBefore = async (target: number) => Number(
+      (await StockBalance.findOne({ where: { catalogItemId, warehouseId: target } }))?.cantidad ?? 0,
+    );
+    const firstBefore = await balanceBefore(warehouseId);
+    const secondBefore = await balanceBefore(secondWarehouseId);
+    const created = await createPurchaseRequest(cookies, payload);
+    expect(created.status).toBe(201);
+    const purchase = created.body.purchase;
+    expect(purchase).toMatchObject({ neto: 53.15, iva: 10.1, total: 63.25 });
+    expect(new Set(purchase.items.map((item: { id: number }) => item.id)).size).toBe(4);
+    expect(purchase.items[3].warehouseId).toBeNull();
+    expect(await balanceBefore(warehouseId)).toBe(firstBefore + 5);
+    expect(await balanceBefore(secondWarehouseId)).toBe(secondBefore + 4);
+    expect(Number((await CatalogItem.findByPk(catalogItemId))?.stock)).toBe(before + 9);
+    const movements = () => StockMovement.count({ where: { referencia: purchase.codigo } });
+    expect(await movements()).toBe(3);
+    await request(app).get(`/api/purchases/${purchase.id}`).set('Cookie', authCookie(cookies));
+    await request(app).get(`/api/purchases/${purchase.id}/receipt`).set('Cookie', authCookie(cookies));
+    expect(await movements()).toBe(3);
+    expect(await balanceBefore(warehouseId)).toBe(firstBefore + 5);
+
+    const voidRequest = () => request(app)
+      .patch(`/api/purchases/${purchase.id}/void`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ motivo: 'Devolución de todas las líneas' });
+    const voided = await voidRequest();
+    expect(voided.status).toBe(200);
+    expect(voided.body.purchase).toMatchObject({
+      estado: 'anulada', total: 63.25, pagadoAt: purchase.pagadoAt,
+      cashMovementId: purchase.cashMovementId,
+      cashMovement: { monto: 63.25 },
+    });
+    expect(voided.body.purchase.cashMovement.voidedAt).not.toBeNull();
+    expect(await balanceBefore(warehouseId)).toBe(firstBefore);
+    expect(await balanceBefore(secondWarehouseId)).toBe(secondBefore);
+    expect(Number((await CatalogItem.findByPk(catalogItemId))?.stock)).toBe(before);
+    expect((await voidRequest()).status).toBe(409);
+    expect(await StockMovement.count({ where: { referencia: `ANUL-${purchase.codigo}` } })).toBe(3);
+    const payment = await request(app).post(`/api/purchases/${purchase.id}/payment`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ metodo: 'efectivo' });
+    expect(payment.status).toBe(409);
+  });
+
+  it('revierte toda la transacción si un almacén no conserva stock suficiente', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const payload = purchasePayload({ withStock: true, cantidad: 2, folio: 'F-ROLLBACK' });
+    payload.items.push({ ...payload.items[0], cantidad: 3, warehouseId: secondWarehouseId });
+    const created = await createPurchaseRequest(cookies, payload);
+    expect(created.status).toBe(201);
+    const purchase = created.body.purchase;
+    await registerMovement({
+      catalogItemId, warehouseId: secondWarehouseId, tipo: 'salida', cantidad: 3,
+      motivo: 'Consumo antes de anular compra',
+    }, devUserId);
+    const balancesBefore = await StockBalance.findAll({
+      where: { catalogItemId }, order: [['warehouseId', 'ASC']], raw: true,
+    });
+    const globalBefore = Number((await CatalogItem.findByPk(catalogItemId))?.stock);
+    const response = await request(app).patch(`/api/purchases/${purchase.id}/void`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ motivo: 'Debe fallar sin revertir parcialmente' });
+    expect(response.status).toBe(400);
+    expect(await StockBalance.findAll({
+      where: { catalogItemId }, order: [['warehouseId', 'ASC']], raw: true,
+    })).toEqual(balancesBefore);
+    expect(Number((await CatalogItem.findByPk(catalogItemId))?.stock)).toBe(globalBefore);
+    expect(await StockMovement.count({ where: { referencia: `ANUL-${purchase.codigo}` } })).toBe(0);
+    expect(await Purchase.findByPk(purchase.id)).toMatchObject({
+      estado: 'registrada', cashMovementId: purchase.cashMovementId,
+    });
+    expect((await CashMovement.findByPk(purchase.cashMovementId))?.voidedAt).toBeNull();
+  });
+
+  it.each(['catalogItemId', 'warehouseId'] as const)(
+    'impide anular silenciosamente un ítem de stock que perdió %s', async (field) => {
+      const cookies = await loginAs('dev@unithor.local');
+      const created = await createPurchaseRequest(cookies,
+        purchasePayload({ withStock: true, folio: `F-LOST-${field}` }));
+      expect(created.status).toBe(201);
+      const purchase = created.body.purchase;
+      await PurchaseItem.update({ [field]: null }, { where: { id: purchase.items[0].id } });
+      const response = await request(app).patch(`/api/purchases/${purchase.id}/void`)
+        .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+        .send({ motivo: 'Referencia de stock eliminada' });
+      expect(response.status).toBe(409);
+      expect(await Purchase.findByPk(purchase.id)).toMatchObject({ estado: 'registrada' });
+      expect((await CashMovement.findByPk(purchase.cashMovementId))?.voidedAt).toBeNull();
+      expect(await StockMovement.count({ where: { referencia: `ANUL-${purchase.codigo}` } })).toBe(0);
+    },
+  );
+
+  it('serializa pagos concurrentes y conserva monto y fecha de pago asignados por el servidor', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const created = await createPurchaseRequest(cookies,
+      purchasePayload({ formaPago: 'credito', folio: 'F-CONCURRENT' }));
+    expect(created.status).toBe(201);
+    const purchase = created.body.purchase;
+    // MySQL DATE columns retain whole seconds in this schema.
+    const startedAt = Math.floor(Date.now() / 1000) * 1000;
+    const pay = () => request(app).post(`/api/purchases/${purchase.id}/payment`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ metodo: 'transferencia', monto: 1, fecha: '2000-01-01' });
+    const results = await Promise.all([pay(), pay()]);
+    expect(results.map((result) => result.status).sort()).toEqual([200, 409]);
+    const updated = results.find((result) => result.status === 200)!.body.purchase;
+    expect(Number((await CashMovement.findByPk(updated.cashMovementId))?.monto)).toBe(purchase.total);
+    expect(new Date(updated.cashMovement.fecha).getTime()).toBeGreaterThanOrEqual(startedAt);
+    expect(new Date(updated.cashMovement.fecha).getTime()).toBeLessThanOrEqual(Date.now());
+    expect(await CashMovement.count({ where: { referencia: purchase.codigo } })).toBe(1);
+    expect(await StockMovement.count({ where: { referencia: purchase.codigo } })).toBe(0);
   });
 
   it('valida los metadatos del comprobante y el stock', async () => {

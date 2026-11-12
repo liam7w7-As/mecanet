@@ -42,6 +42,14 @@ export const salesAccessRecordsQuerySchema = z.object({
 
 export type SalesAccessRecordsQuery = z.infer<typeof salesAccessRecordsQuerySchema>;
 
+const recordIdsQuery = z.string().regex(/^\d+(,\d+)*$/, 'IDs de registro inválidos')
+  .transform((value) => [...new Set(value.split(',').map(Number))])
+  .pipe(z.array(z.number().int().positive().safe()).max(200)).optional();
+
+/** Checks only the authenticated seller's access to records open in the UI. */
+export const salesAccessSessionQuerySchema = z.object({ workOrderIds: recordIdsQuery, quotationIds: recordIdsQuery });
+export type SalesAccessSessionQuery = z.infer<typeof salesAccessSessionQuerySchema>;
+
 export const SALES_ACCESS_SCOPE_LABELS: Record<SalesAccessScopeType, string> = {
   work_order: 'Orden de trabajo',
   quotation: 'Cotización',

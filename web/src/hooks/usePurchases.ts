@@ -47,6 +47,11 @@ const invalidatePurchaseSideEffects = (queryClient: ReturnType<typeof useQueryCl
   void queryClient.invalidateQueries({ queryKey: ['catalog'] });
 };
 
+const cachePurchase = (queryClient: ReturnType<typeof useQueryClient>, purchase: Purchase): void => {
+  queryClient.setQueryData(purchaseKeys.detail(purchase.id), purchase);
+  invalidatePurchaseSideEffects(queryClient);
+};
+
 export const usePurchases = (queryParams: PurchaseQueryParams) =>
   useQuery({
     queryKey: purchaseKeys.list(queryParams),
@@ -108,6 +113,7 @@ export const useSupplierSearch = (term: string, enabled = true) => {
 export const useCreatePurchaseMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
+    retry: false,
     mutationFn: async ({
       data,
       comprobante,
@@ -122,26 +128,31 @@ export const useCreatePurchaseMutation = () => {
       const response = await api.post<PurchaseResponse>('/purchases', formData);
       return response.data.purchase;
     },
-    onSuccess: () => invalidatePurchaseSideEffects(queryClient),
+    onSuccess: (purchase) => {
+      cachePurchase(queryClient, purchase);
+      void queryClient.invalidateQueries({ queryKey: purchaseKeys.suppliers() });
+    },
   });
 };
 
 export const useVoidPurchaseMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
+    retry: false,
     mutationFn: async ({ purchaseId, motivo }: { purchaseId: number; motivo: string }) => {
       const response = await api.patch<PurchaseResponse>(`/purchases/${purchaseId}/void`, {
         motivo,
       });
       return response.data.purchase;
     },
-    onSuccess: () => invalidatePurchaseSideEffects(queryClient),
+    onSuccess: (purchase) => cachePurchase(queryClient, purchase),
   });
 };
 
 export const useRegisterPurchasePaymentMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
+    retry: false,
     mutationFn: async ({
       purchaseId,
       data,
@@ -152,7 +163,7 @@ export const useRegisterPurchasePaymentMutation = () => {
       const response = await api.post<PurchaseResponse>(`/purchases/${purchaseId}/payment`, data);
       return response.data.purchase;
     },
-    onSuccess: () => invalidatePurchaseSideEffects(queryClient),
+    onSuccess: (purchase) => cachePurchase(queryClient, purchase),
   });
 };
 

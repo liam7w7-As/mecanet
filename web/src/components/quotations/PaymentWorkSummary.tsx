@@ -24,7 +24,7 @@ const WorkLine = ({ item, completed }: { item: QuotationItem; completed: boolean
     <div className="min-w-0 flex-1">
       <p className="break-words text-sm font-semibold text-brand-ink">{item.descripcion}</p>
       <p className="mt-1 text-xs text-brand-muted">
-        {item.cantidad} × {formatClp(item.precioUnitario)}
+        {item.cantidad} × {formatClp(item.precioUnitario, 2)}
         <span className={completed ? 'text-brand-mintInk' : ''}>
           {' '}
           ·{' '}
@@ -38,7 +38,10 @@ const WorkLine = ({ item, completed }: { item: QuotationItem; completed: boolean
         </span>
       </p>
     </div>
-    <span className="shrink-0 text-sm font-bold text-brand-ink">{formatClp(item.subtotal)}</span>
+    <span className="shrink-0 text-sm font-bold text-brand-ink">
+      {formatClp(item.subtotal, 2)}{' '}
+      <span className="text-xs font-normal text-brand-muted">neto</span>
+    </span>
   </li>
 );
 
@@ -77,19 +80,20 @@ export const PaymentWorkSummary = ({ quotation, summary, pendingAmount }: Props)
             className="mt-1 text-lg font-bold text-brand-ink"
             data-testid="payment-quotation-total"
           >
-            {formatClp(summary.total)}
+            {formatClp(summary.total, 2)}
+            <span className="mt-1 block text-xs font-normal text-brand-muted">IVA (19%) incluido</span>
           </dd>
         </div>
         <div>
           <dt className="text-xs text-brand-muted">Pagos confirmados</dt>
           <dd className="mt-1 text-lg font-bold text-brand-mintInk" data-testid="payment-confirmed">
-            {formatClp(summary.pagado)}
+            {formatClp(summary.pagado, 2)}
           </dd>
         </div>
         {pendingAmount > 0 && (
           <div className="col-span-2 flex flex-wrap justify-between gap-2 text-sm text-brand-goldInk">
             <dt>Abonos en verificación</dt>
-            <dd className="font-semibold">{formatClp(pendingAmount)}</dd>
+            <dd className="font-semibold">{formatClp(pendingAmount, 2)}</dd>
           </div>
         )}
       </dl>
@@ -110,9 +114,12 @@ export const PaymentWorkSummary = ({ quotation, summary, pendingAmount }: Props)
               ))}
             </ul>
             <dl className="flex flex-wrap justify-between gap-2 border-t border-brand-line py-3 text-sm text-brand-mintInk">
-              <dt>Valor de trabajos completados</dt>
+              <dt>
+                Valor neto de trabajos completados
+                <span className="block text-xs text-brand-muted">Antes del descuento general y del IVA</span>
+              </dt>
               <dd className="font-bold" data-testid="payment-completed-total">
-                {formatClp(completedValue)}
+                {formatClp(completedValue, 2)}
               </dd>
             </dl>
           </>

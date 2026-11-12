@@ -1,5 +1,7 @@
 import {
   CATALOG_TYPES,
+  commercialReportQuerySchema,
+  financialReportQuerySchema,
   PAYMENT_METHODS,
   QUOTATION_STATUS,
   STOCK_MOVEMENT_TYPES,
@@ -9,18 +11,16 @@ import {
 import { Download, FileText, LoaderCircle, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { useCatalogItems } from '../../hooks/useCatalog';
-import { useClients } from '../../hooks/useClients';
 import { useFinancialAnalytics } from '../../hooks/useFinance';
 import { useQuotations } from '../../hooks/useQuotations';
-import { useReportDownload } from '../../hooks/useReports';
-import { useRoles, useUsers } from '../../hooks/useUsers';
-import { useVehicles } from '../../hooks/useVehicles';
-import { useStockMovements, useWarehouses } from '../../hooks/useWarehouses';
+import { useReportDownload, useReportPreview } from '../../hooks/useReports';
+import { useRoles } from '../../hooks/useUsers';
 import { useMechanics, useWorkOrders } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
 
+import type { AdminUser } from '../../hooks/useUsers';
+import type { CatalogItem, Client, StockBalance, StockMovement, Vehicle, Warehouse } from '../../types/entities';
 import type {
   CatalogType,
   FinancialReportFilters,
@@ -39,6 +39,14 @@ export interface ReportPanelProps {
   params: URLSearchParams;
   setFilter: (key: string, value: string) => void;
 }
+
+interface ReportSample<T> { items: T[]; total: number }
+interface InventoryPreview extends ReportSample<StockMovement> {
+  warehouses: Array<Pick<Warehouse, 'id' | 'codigo' | 'nombre' | 'activo'>>;
+  balances: ReportSample<Pick<StockBalance, 'warehouseId' | 'catalogItemId' | 'codigo' | 'nombre' | 'cantidad'> & { warehouseCodigo: string; warehouseNombre: string }>;
+}
+
+const isValidRange = (from: string, to: string): boolean => commercialReportQuerySchema.safeParse({ fechaDesde: from, fechaHasta: to }).success;
 
 const label = (value: string): string =>
   value === 'en_progreso'
@@ -149,7 +157,6 @@ export const FinanceReportPanel = ({
   const asesorId = Number(params.get('financeAdvisor')) || undefined;
   const clientId = Number(params.get('financeClient')) || undefined;
   const comparar = params.get('financeCompare') !== 'false';
-  const validRange = from <= to;
   const filters: FinancialReportFilters = {
     fechaDesde: from,
     fechaHasta: to,
@@ -160,6 +167,8 @@ export const FinanceReportPanel = ({
     metodo,
     comparar,
   };
+  const rangeValidation = financialReportQuerySchema.safeParse(filters);
+  const validRange = rangeValidation.success;
   const analytics = useFinancialAnalytics(filters, validRange);
   const report = useReportDownload();
   const data = analytics.data;
@@ -293,7 +302,7 @@ export const FinanceReportPanel = ({
       </div>
       {!validRange && (
         <p role="alert" className="text-sm text-brand-coralInk">
-          La fecha desde debe ser anterior o igual a la fecha hasta.
+          {from > to ? 'La fecha desde debe ser anterior o igual a la fecha hasta.' : !rangeValidation.success && rangeValidation.error.issues[0]?.message}
         </p>
       )}
       {(analytics.isError || report.isError) && (
@@ -489,7 +498,7 @@ export const CommercialReportPanel = ({
     QuotationStatus | undefined;
   const rawLinked = params.get('quotationLinked');
   const workOrderLinked = rawLinked === 'true' ? true : rawLinked === 'false' ? false : undefined;
-  const validRange = from <= to;
+  const validRange = isValidRange(from, to);
   const filters = { fechaDesde: from, fechaHasta: to, estadoPago, workOrderLinked, search };
   const query = useQuotations({ page: 1, pageSize: 8, ...filters }, validRange);
   const report = useReportDownload();
@@ -665,7 +674,7 @@ export const WorkshopReportPanel = ({
   const estado = WORK_ORDER_STATUS.find((status) => status === rawStatus) as
     WorkOrderStatus | undefined;
   const mechanicId = Number(params.get('mechanicId')) || undefined;
-  const validRange = from <= to;
+  const validRange = isValidRange(from, to);
   const filters = {
     fechaDesde: from,
     fechaHasta: to,
@@ -858,14 +867,10 @@ export const InventoryReportPanel = ({
     rawStock === 'con_stock' || rawStock === 'sin_stock' || rawStock === 'critico'
       ? rawStock
       : undefined;
-  const validRange = from <= to;
-  const warehouses = useWarehouses({ page: 1, pageSize: 100 });
-  const movements = useStockMovements(
-    { page: 1, pageSize: 10, fechaDesde: from, fechaHasta: to, tipo, warehouseId },
-    validRange,
-  );
-  const report = useReportDownload();
+  const validRange = isValidRange(from, to);
   const filters = { fechaDesde: from, fechaHasta: to, tipo, warehouseId, stock, search };
+  const movements = useReportPreview<InventoryPreview>('inventory', filters, validRange);
+  const report = useReportDownload();
 
   return (
     <section className="min-w-0 space-y-4" aria-label="Reporte de almacenes">
@@ -934,7 +939,7 @@ export const InventoryReportPanel = ({
             className="mt-1 h-10 w-full rounded-md border border-brand-line bg-white px-3 text-sm text-brand-ink"
           >
             <option value="">Todos</option>
-            {warehouses.data?.items.map((item) => (
+            {movements.data?.warehouses?.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.codigo} · {item.nombre}
               </option>
@@ -961,8 +966,8 @@ export const InventoryReportPanel = ({
           La fecha desde debe ser anterior o igual a la fecha hasta.
         </p>
       )}
-      {(movements.isError || warehouses.isError || report.isError) && (
-        <QueryError error={movements.error ?? warehouses.error ?? report.error} />
+      {(movements.isError || report.isError) && (
+        <QueryError error={movements.error ?? report.error} />
       )}
       {validRange &&
         (movements.isPending ? (
@@ -973,6 +978,14 @@ export const InventoryReportPanel = ({
           />
         ) : (
           <>
+            <section className="report-table-panel overflow-x-auto" aria-label="Vista previa de existencias">
+              <h3 className="border-b border-brand-line px-4 py-3 font-bold text-brand-primaryInk">Existencias actuales · {movements.data?.balances?.total ?? 0}</h3>
+              <table className="workspace-table w-full text-left text-sm">
+                <thead className="border-b border-brand-line text-xs uppercase text-brand-muted"><tr><th className="px-4 py-3">Almacén</th><th className="px-4 py-3">Repuesto</th><th className="px-4 py-3">Código</th><th className="px-4 py-3 text-right">Unidades</th></tr></thead>
+                <tbody>{movements.data?.balances?.items.map((item) => <tr key={`${item.warehouseId}:${item.catalogItemId}`} className="border-b border-brand-line last:border-0"><td className="px-4 py-3" data-label="Almacén">{item.warehouseNombre}</td><td className="px-4 py-3" data-label="Repuesto">{item.nombre}</td><td className="px-4 py-3 font-mono" data-label="Código">{item.codigo ?? '—'}</td><td className="px-4 py-3 text-right font-semibold" data-label="Unidades">{item.cantidad.toLocaleString('es-CL')}</td></tr>)}</tbody>
+              </table>
+              {!movements.data?.balances?.items.length && <Empty />}
+            </section>
             <p className="text-sm text-brand-muted">
               <strong className="text-brand-primaryInk">{movements.data?.total ?? 0}</strong>{' '}
               movimientos en el período
@@ -1059,16 +1072,10 @@ export const CatalogReportPanel = ({
     rawStock === 'con_stock' || rawStock === 'sin_stock' || rawStock === 'critico'
       ? rawStock
       : undefined;
-  const validRange = from <= to;
-  const items = useCatalogItems({
-    page: 1,
-    pageSize: 10,
-    search,
-    tipo,
-    soloConStock: stock === 'con_stock' ? true : undefined,
-  });
-  const report = useReportDownload();
+  const validRange = isValidRange(from, to);
   const filters = { fechaDesde: from, fechaHasta: to, tipo, stock, search };
+  const items = useReportPreview<ReportSample<CatalogItem>>('catalog', filters, validRange);
+  const report = useReportDownload();
 
   return (
     <section className="min-w-0 space-y-4" aria-label="Reporte de catálogo">
@@ -1246,15 +1253,7 @@ export const FleetReportPanel = ({
   const rawScope = params.get('fleetScope');
   const scope = rawScope === 'clients' || rawScope === 'vehicles' ? rawScope : 'all';
   const onlyWithHistory = params.get('onlyWithHistory') === 'true' ? true : undefined;
-  const validRange = from <= to;
-  const clients = useClients({
-    page: 1,
-    pageSize: 8,
-    search: search || undefined,
-    tipo: clientType,
-  });
-  const vehicles = useVehicles({ page: 1, pageSize: 8, search: search || undefined });
-  const report = useReportDownload();
+  const validRange = isValidRange(from, to);
   const filters = {
     fechaDesde: from,
     fechaHasta: to,
@@ -1263,6 +1262,10 @@ export const FleetReportPanel = ({
     onlyWithHistory,
     search: search || undefined,
   };
+  const preview = useReportPreview<{ clients: ReportSample<Client>; vehicles: ReportSample<Vehicle> }>('fleet', filters, validRange);
+  const clients = { ...preview, data: preview.data?.clients };
+  const vehicles = { ...preview, data: preview.data?.vehicles };
+  const report = useReportDownload();
 
   return (
     <section className="min-w-0 space-y-4" aria-label="Reporte de clientes y vehículos">
@@ -1355,7 +1358,7 @@ export const FleetReportPanel = ({
       {(clients.isError || vehicles.isError || report.isError) && (
         <QueryError error={clients.error ?? vehicles.error ?? report.error} />
       )}
-      <div className={`grid gap-4 ${scope === 'all' ? 'xl:grid-cols-2' : ''}`}>
+      {validRange && <div className={`grid gap-4 ${scope === 'all' ? 'xl:grid-cols-2' : ''}`}>
         {scope !== 'vehicles' && (
           <div className="report-table-panel min-w-0 overflow-x-auto rounded-lg border border-brand-line bg-white">
             <div className="flex items-center justify-between border-b border-brand-line px-4 py-3">
@@ -1496,7 +1499,7 @@ export const FleetReportPanel = ({
             )}
           </div>
         )}
-      </div>
+      </div>}
     </section>
   );
 };
@@ -1516,9 +1519,7 @@ export const AdministrationReportPanel = ({
   const status = params.get('active');
   const activo = status === 'true' ? true : status === 'false' ? false : undefined;
   const includeDeleted = params.get('includeDeleted') === 'true';
-  const users = useUsers({ page: 1, pageSize: 8, search: search || undefined, roleId, activo });
-  const validRange = from <= to;
-  const report = useReportDownload();
+  const validRange = isValidRange(from, to);
   const filters = {
     fechaDesde: from,
     fechaHasta: to,
@@ -1527,6 +1528,8 @@ export const AdministrationReportPanel = ({
     activo,
     includeDeleted,
   };
+  const users = useReportPreview<{ data: Array<AdminUser & { deletedAt?: string | null }>; meta: { total: number } }>('administration', filters, validRange);
+  const report = useReportDownload();
 
   return (
     <section className="min-w-0 space-y-4" aria-label="Reporte de cuentas">
@@ -1620,7 +1623,7 @@ export const AdministrationReportPanel = ({
       {(users.isError || roles.isError || report.isError) && (
         <QueryError error={users.error ?? roles.error ?? report.error} />
       )}
-      {users.isPending ? (
+      {validRange && (users.isPending ? (
         <div
           role="status"
           className="h-44 animate-pulse bg-brand-line/40"
@@ -1665,7 +1668,7 @@ export const AdministrationReportPanel = ({
                       {label(item.role.nombre)}
                     </td>
                     <td role="cell" data-label="Estado" className="py-3">
-                      {item.activo ? 'Activo' : 'Inactivo'}
+                      {item.deletedAt ? 'Eliminado' : item.activo ? 'Activo' : 'Inactivo'}
                     </td>
                   </tr>
                 ))}
@@ -1674,7 +1677,7 @@ export const AdministrationReportPanel = ({
           </div>
           {users.data?.data.length === 0 && <Empty />}
         </>
-      )}
+      ))}
     </section>
   );
 };

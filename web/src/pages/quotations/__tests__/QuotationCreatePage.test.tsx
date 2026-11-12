@@ -192,13 +192,15 @@ describe('QuotationCreatePage', () => {
     // a que quede una sola antes de leer subtotales.
     await waitFor(() => expect(screen.getAllByTestId('item-subtotal-0')).toHaveLength(1));
     expect(screen.getByTestId('item-subtotal-0')).toHaveTextContent('$4.500');
-    expect(screen.getByTestId('quotation-total')).toHaveTextContent('$4.000');
+    expect(screen.getByTestId('quotation-total')).toHaveTextContent('$4.760');
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }));
     const review = await screen.findByRole('dialog', { name: 'Confirmar emisión' });
     expect(within(review).getByText('Filtro de aceite')).toBeInTheDocument();
     expect(within(review).getByText('En 48 horas')).toBeInTheDocument();
     expect(within(review).getByText('10 días')).toBeInTheDocument();
     expect(within(review).getByText('$4.000')).toBeInTheDocument();
+    expect(within(review).getByTestId('quotation-confirm-total')).toHaveTextContent('$4.760');
+    expect(within(review).getByText('$760')).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar y crear' }));
     await screen.findByText('Cotización guardada');
@@ -259,7 +261,7 @@ describe('QuotationCreatePage', () => {
     expect(screen.getByLabelText('Descuento por línea')).toBeChecked();
     expect(screen.getByLabelText('Descuento 1')).toHaveValue(10);
     expect(screen.getByLabelText('Descuento general')).toHaveValue('500');
-    expect(screen.getByTestId('quotation-total')).toHaveTextContent('$4.000');
+    expect(screen.getByTestId('quotation-total')).toHaveTextContent('$4.760');
     expect(api.post).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Confirmar y crear' }));

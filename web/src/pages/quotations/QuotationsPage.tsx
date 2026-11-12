@@ -1,4 +1,4 @@
-import { QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
+import { getQuotationGrossTotal, QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
 import { Archive, ArchiveRestore, CalendarDays, CheckCheck, ChevronRight, CircleDollarSign, Clock3, DollarSign, Download, FileText, LayoutGrid, Link2Off, LoaderCircle, Pencil, Plus, Search, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -141,7 +141,7 @@ export const QuotationsPage = () => {
   const canPay = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
   const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
   const canConvert = Boolean(user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'create')));
-  const pageTotal = quotationsQuery.data?.items.reduce((sum, quotation) => sum + Number(quotation.total), 0);
+  const pageTotal = quotationsQuery.data?.items.reduce((sum, quotation) => sum + getQuotationGrossTotal(Number(quotation.total)), 0);
 
   useEffect(() => setPage(1), [debouncedSearch, fechaDesde, fechaHasta, status]);
 
@@ -220,7 +220,8 @@ export const QuotationsPage = () => {
             </thead>
             <tbody>
               {quotationsQuery.isPending ? <QuotationSkeleton /> : quotationsQuery.data?.items.map((quotation, index) => {
-                const balance = Math.max(0, Number(quotation.total) - Number(quotation.pagado));
+                const total = getQuotationGrossTotal(Number(quotation.total));
+                const balance = Math.max(0, total - Number(quotation.pagado));
                 const rowNumber = (page - 1) * (quotationsQuery.data?.pageSize ?? 20) + index + 1;
                 const attention = status === 'archived' ? null : getQuotationAttention(quotation);
                 const rowStyle = status === 'archived'
@@ -290,7 +291,7 @@ export const QuotationsPage = () => {
                       <span className="mt-0.5 block text-[11px]">{formatTime(quotation.createdAt)}</span>
                     </td>
                     <td data-label="Total" className="px-3.5 py-3 text-right text-sm font-semibold text-brand-ink whitespace-nowrap">
-                      {formatClp(quotation.total)}
+                      {formatClp(total)}
                     </td>
                     <td data-label="Pagado" className="hidden md:table-cell px-3.5 py-3 text-right text-sm text-brand-muted whitespace-nowrap">
                       {formatClp(quotation.pagado)}

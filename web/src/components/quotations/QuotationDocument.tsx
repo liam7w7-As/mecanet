@@ -1,4 +1,4 @@
-import { QUOTATION_BANK_ACCOUNTS, QUOTATION_BANK_RECIPIENT, QUOTATION_PAYMENT_LABELS } from '@unithor/shared';
+import { QUOTATION_BANK_ACCOUNTS, QUOTATION_BANK_RECIPIENT, QUOTATION_PAYMENT_LABELS, getQuotationTaxBreakdown } from '@unithor/shared';
 
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { useCompanyBranding } from '../common/BrandingContext';
@@ -74,8 +74,7 @@ export default function QuotationDocument({ quotation, totalPages }: { quotation
   const lineDiscount = Math.max(0, gross - lineNet);
   const generalDiscount = Math.max(0, lineNet - Number(quotation.total));
   const neto = Math.max(0, Number(quotation.total));
-  const iva = Math.round(neto * 0.19);
-  const finalTotal = neto + iva;
+  const { iva, total: finalTotal } = getQuotationTaxBreakdown(neto);
   const billing: WorkOrderBilling | null | undefined = quotation.billing ?? quotation.workOrder?.billing;
   const billingRut = billing?.rut ?? quotation.client?.rut ?? '-';
   const billingNombre = billing?.nombre ?? quotation.client?.nombre ?? '-';

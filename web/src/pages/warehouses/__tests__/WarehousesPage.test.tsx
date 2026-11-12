@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -186,6 +186,19 @@ describe('WarehousesPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Saldo inicial')).toBeInTheDocument();
     expect(screen.getByText('Ingreso')).toBeInTheDocument();
+  });
+
+  it('conserva el movimiento pendiente y bloquea guardar si se retira almacen:create', async () => {
+    useAuthStore.setState({ user: { id: 8, nombre: 'Bodega', email: 'bodega@test.local', role: 'bodeguero' } });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Registrar movimiento de Kit Hilux GR' }, { timeout: 5000 }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Movimiento de inventario' }));
+    fireEvent.change(dialog.getByLabelText('Motivo'), { target: { value: 'Ingreso pendiente de proveedor' } });
+    act(() => useAuthStore.setState({ user: { ...useAuthStore.getState().user!, permissions: [{ modulo: 'almacen', accion: 'read' }] } }));
+    expect(dialog.getByLabelText('Motivo')).toHaveValue('Ingreso pendiente de proveedor');
+    expect(dialog.getByRole('button', { name: 'Guardar movimiento' })).toBeDisabled();
+    fireEvent.submit(dialog.getByRole('button', { name: 'Guardar movimiento' }).closest('form')!);
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('ubica cada exportación junto a su listado sin depender de la creación', async () => {
@@ -619,9 +632,9 @@ describe('WarehousesPage', () => {
     );
   });
 
-  it('previsualiza y registra un ajuste como saldo final, sin sumarlo al stock', async () => {
+  it.each([0, 4])('previsualiza y registra un ajuste a %i como saldo final, sin sumarlo al stock', async (finalStock) => {
     vi.mocked(api.post).mockResolvedValue({
-      data: { movement: { ...movement, tipo: 'ajuste', saldoResultante: 4 } },
+      data: { movement: { ...movement, tipo: 'ajuste', saldoResultante: finalStock } },
     });
     renderPage();
     fireEvent.click(
@@ -632,16 +645,18 @@ describe('WarehousesPage', () => {
     fireEvent.change(dialog.getByRole('combobox', { name: 'Movimiento' }), {
       target: { value: 'ajuste' },
     });
-    fireEvent.change(dialog.getByLabelText('Nuevo saldo'), { target: { value: '4' } });
+    expect(dialog.getByLabelText('Nuevo saldo')).toHaveAttribute('min', '0');
+    expect(dialog.getByLabelText('Nuevo saldo')).toHaveAttribute('step', '1');
+    fireEvent.change(dialog.getByLabelText('Nuevo saldo'), { target: { value: String(finalStock) } });
     fireEvent.change(dialog.getByLabelText('Motivo'), { target: { value: 'Conteo físico' } });
-    expect(dialog.getByText('4')).toBeInTheDocument();
+    expect(dialog.getByText(String(finalStock))).toBeInTheDocument();
     fireEvent.click(dialog.getByRole('button', { name: 'Guardar movimiento' }));
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith('/warehouses/movements', {
         catalogItemId: 7,
         warehouseId: 1,
         tipo: 'ajuste',
-        cantidad: 4,
+        cantidad: finalStock,
         motivo: 'Conteo físico',
       }),
     );

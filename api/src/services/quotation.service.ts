@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
+import { getQuotationGrossTotal } from '@unithor/shared';
 import { col, literal, Op, Transaction, where as sequelizeWhere } from 'sequelize';
+
 
 import { enqueueCustomerEmail, enqueueWorkOrderProgress } from './customer-email-queue.service.js';
 import { notifyByType } from './notification.service.js';
@@ -198,9 +200,10 @@ const FINANCIAL_QUOTATION_STATUSES = new Set<QuotationStatus>([
   'total',
 ]);
 
-const getFinancialQuotationStatus = (pagado: number, total: number): QuotationStatus => {
+const getFinancialQuotationStatus = (pagado: number, netoTotal: number): QuotationStatus => {
   if (pagado <= 0) return 'por_pagar';
-  if (pagado >= total) return 'total';
+  // El estado se cierra cuando se cubre el total con IVA, no solo el neto.
+  if (pagado >= getQuotationGrossTotal(netoTotal)) return 'total';
   return 'parcial';
 };
 
@@ -823,7 +826,7 @@ export const createQuotation = async (
     'cotizacion_creada',
     {
       titulo: `Nueva cotización ${result.codigo}`,
-      mensaje: `${advisor?.nombre ?? 'El comercial'} creó una cotización por ${formatClpAmount(result.total)}.`,
+      mensaje: `${advisor?.nombre ?? 'El comercial'} creó una cotización por ${formatClpAmount(getQuotationGrossTotal(result.total))}.`,
       href: `/quotations/${result.quotationId}`,
       quotationId: result.quotationId,
       workOrderId: result.workOrderId,
@@ -867,7 +870,7 @@ export const updateQuotation = async (
       };
       const pricing = priceQuotation(items, discount);
       const { total } = pricing;
-      if (total < numberValue(quotation.pagado)) {
+      if (getQuotationGrossTotal(total) < numberValue(quotation.pagado)) {
         throw ApiError.badRequest('El nuevo total no puede ser inferior al monto ya pagado');
       }
       nextTotal = total;
@@ -914,10 +917,13 @@ export const updateQuotation = async (
     if (data.formaPago !== undefined) updatePayload.formaPago = data.formaPago;
     if (data.disponibilidadTrabajo !== undefined) updatePayload.disponibilidadTrabajo = data.disponibilidadTrabajo;
     if (data.validezDias !== undefined) updatePayload.validezDias = data.validezDias;
-    const expectedFinancialStatus = getFinancialQuotationStatus(
-      numberValue(quotation.pagado),
-      nextTotal,
-    );
+    const pendingPayments = await Payment.count({
+      where: { quotationId: id, estado: 'por_verificar' },
+      transaction,
+    });
+    const expectedFinancialStatus = pendingPayments > 0
+      ? 'por_verificar'
+      : getFinancialQuotationStatus(numberValue(quotation.pagado), nextTotal);
 
     if (data.estadoPago !== undefined) {
       if (

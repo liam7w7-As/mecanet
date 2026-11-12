@@ -1,6 +1,7 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useDebouncedValue } from './useDebouncedValue';
+import { useSalesScopeEpoch } from './useSalesScopeEpoch';
 import { api } from '../lib/api';
 import { sharePdfOnWhatsApp } from '../lib/whatsapp';
 
@@ -51,8 +52,9 @@ export const workOrderKeys = {
   detail: (id: number) => [...workOrderKeys.details(), id] as const,
 };
 
-export const useWorkOrders = (queryParams: WorkOrderQueryParams, enabled = true) =>
-  useQuery({
+export const useWorkOrders = (queryParams: WorkOrderQueryParams, enabled = true) => {
+  const epoch = useSalesScopeEpoch();
+  return useQuery({
     queryKey: workOrderKeys.list(queryParams),
     queryFn: async () => {
       const response = await api.get<PaginatedResponse<WorkOrder>>('/work-orders', {
@@ -61,8 +63,10 @@ export const useWorkOrders = (queryParams: WorkOrderQueryParams, enabled = true)
       return response.data;
     },
     enabled,
-    placeholderData: keepPreviousData,
+    meta: { salesScopeEpoch: epoch },
+    placeholderData: (previous, query) => query?.meta?.salesScopeEpoch === epoch ? previous : undefined,
   });
+};
 
 export const useWorkOrder = (id: number) =>
   useQuery({
@@ -346,23 +350,31 @@ export const useDeleteWorkOrderInspectionPhotoMutation = () => {
 export type CatalogPickerType = 'parte' | 'estandar' | 'especifico' | 'all';
 
 export const useCatalogItems = (term: string, tipo: CatalogPickerType = 'all', page = 1) => {
-  const debouncedTerm = useDebouncedValue(term.trim(), 250);
+  const normalizedTerm = term.trim();
+  const debouncedTerm = useDebouncedValue(normalizedTerm, 250);
+  // Limpiar o cambiar de pestaña vuelve al catálogo completo de inmediato.
+  const search = normalizedTerm === '' ? '' : debouncedTerm;
+  const isDebouncing = normalizedTerm !== search;
 
-  return useQuery({
-    queryKey: ['catalog', 'picker', debouncedTerm, tipo, page],
-    queryFn: async () => {
+  const query = useQuery({
+    queryKey: ['catalog', 'picker', search, tipo, page],
+    queryFn: async ({ signal }) => {
       const response = await api.get<PaginatedResponse<CatalogItem>>('/catalog', {
+        signal,
         params: {
           page,
           pageSize: 12,
-          search: debouncedTerm || undefined,
+          search: search || undefined,
           tipo: tipo === 'all' ? undefined : tipo,
         },
       });
       return response.data;
     },
+    // No pedir la página reiniciada con el término de la búsqueda anterior.
+    enabled: !isDebouncing,
     staleTime: 60_000,
   });
+  return { ...query, isDebouncing };
 };
 
 type PdfMode = 'open' | 'download';

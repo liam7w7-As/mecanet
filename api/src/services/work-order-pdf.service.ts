@@ -1,7 +1,10 @@
 import { getWorkOrderStatusLabel } from '@unithor/shared';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 
+import { getWorkOrderDocumentPricing } from './reports/work-order-document-pricing.js';
 import { Client } from '../models/Client.js';
+import { Quotation } from '../models/Quotation.js';
+import { QuotationItem } from '../models/QuotationItem.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
@@ -28,6 +31,7 @@ interface PdfContext {
   page: PDFPage;
   fonts: PdfFonts;
   pageNumber: number;
+  hasVehicle: boolean;
 }
 
 const formatDate = (date?: Date | string | null): string => {
@@ -134,7 +138,7 @@ const drawFooter = (ctx: PdfContext): void => {
     thickness: 0.8,
     color: MUTED,
   });
-  page.drawText('Conforme recepción de vehículo', {
+  page.drawText(ctx.hasVehicle ? 'Conforme recepción de vehículo' : 'Conforme recepción de la orden', {
     x: MARGIN,
     y: 48,
     size: 9,
@@ -203,8 +207,9 @@ const drawInfoBox = (
   x: number,
   y: number,
   width: number,
-): void => {
-  const height = 138;
+): number => {
+  const height = Math.max(138, 42 + entries.reduce((sum, entry) =>
+    sum + 17 + wrapText(entry.value, ctx.fonts.regular, 10, width - 24).length * 13, 0));
   const { page, fonts } = ctx;
 
   page.drawRectangle({
@@ -234,6 +239,7 @@ const drawInfoBox = (
   for (const entry of entries) {
     cursorY = drawLabelValue(page, entry.label, entry.value, x + 12, cursorY, width - 24, fonts) - 4;
   }
+  return height;
 };
 
 const getWorkOrderForPdf = async (workOrderId: number): Promise<WorkOrder> => {
@@ -252,7 +258,18 @@ const getWorkOrderForPdf = async (workOrderId: number): Promise<WorkOrder> => {
       {
         model: WorkOrderItem,
         as: 'items',
-        attributes: ['descripcion', 'cantidad', 'precioUnitario', 'subtotal'],
+        attributes: ['id', 'catalogItemId', 'tipoLinea', 'unidadMedida', 'descripcion', 'cantidad', 'precioUnitario', 'subtotal'],
+      },
+      {
+        model: Quotation,
+        as: 'quotation',
+        attributes: ['id', 'descuentoTipo', 'descuentoValor'],
+        include: [{
+          model: QuotationItem,
+          as: 'items',
+          separate: true,
+          attributes: ['id', 'quotationId', 'workOrderItemId', 'catalogItemId', 'tipoLinea', 'unidadMedida', 'descripcion', 'descuentoTipo', 'descuentoValor'],
+        }],
       },
       {
         model: User,
@@ -281,6 +298,7 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
     page: pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]),
     fonts,
     pageNumber: 1,
+    hasVehicle: Boolean(workOrder.vehicle),
   };
 
   let { page } = ctx;
@@ -326,7 +344,7 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
 
   cursorY -= 24;
   const boxWidth = (A4_WIDTH - MARGIN * 2 - 16) / 2;
-  drawInfoBox(
+  const clientBoxHeight = drawInfoBox(
     ctx,
     'Datos del Cliente',
     [
@@ -338,9 +356,9 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
     ],
     MARGIN,
     cursorY,
-    boxWidth,
+    workOrder.vehicle ? boxWidth : A4_WIDTH - MARGIN * 2,
   );
-  drawInfoBox(
+  const vehicleBoxHeight = workOrder.vehicle ? drawInfoBox(
     ctx,
     'Datos del Vehículo',
     [
@@ -356,9 +374,9 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
     MARGIN + boxWidth + 16,
     cursorY,
     boxWidth,
-  );
+  ) : 0;
 
-  cursorY -= 164;
+  cursorY -= Math.max(clientBoxHeight, vehicleBoxHeight) + 26;
   page.drawText('Trabajos y Repuestos', {
     x: MARGIN,
     y: cursorY,
@@ -393,7 +411,7 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
       font: fonts.bold,
       color: PRIMARY,
     });
-    page.drawText('Subtotal', {
+    page.drawText('Subt. neto', {
       x: tableX + colDescription + colQuantity + colPrice + 8,
       y: cursorY - 12,
       size: 9,
@@ -404,8 +422,8 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
   };
 
   drawTableHeader();
-  const items = workOrder.items && workOrder.items.length > 0 ? workOrder.items : [];
-  let total = 0;
+  const items = [...(workOrder.items ?? [])].sort((left, right) => left.id - right.id);
+  const { pricing, tax: { neto, iva, total } } = getWorkOrderDocumentPricing(items, workOrder.quotation);
 
   if (items.length === 0) {
     cursorY = ensureSpace(ctx, cursorY, 34);
@@ -427,9 +445,8 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
     });
     cursorY -= 34;
   } else {
-    for (const item of items.slice().sort((left, right) => left.id - right.id)) {
-      const subtotal = numberValue(item.subtotal);
-      total += subtotal;
+    for (const [index, item] of items.entries()) {
+      const subtotal = pricing.lines[index]!.subtotal;
       const descriptionLines = wrapText(item.descripcion, fonts.regular, 9, colDescription - 16);
       const rowHeight = Math.max(28, descriptionLines.length * 12 + 12);
       cursorY = ensureSpace(ctx, cursorY, rowHeight + 8);
@@ -478,9 +495,29 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
     }
   }
 
-  cursorY = ensureSpace(ctx, cursorY, 112);
+  const summary: Array<[string, number]> = [];
+  if (pricing.descuentoTotal > 0) summary.push(['Subtotal bruto', pricing.subtotal]);
+  if (pricing.descuentoLineas > 0) summary.push(['Dto. por ítem', -pricing.descuentoLineas]);
+  if (pricing.descuentoGeneral > 0) summary.push([
+    `Dto. general${workOrder.quotation?.descuentoTipo === 'porcentaje' ? ` (${workOrder.quotation.descuentoValor}%)` : ''}`,
+    -pricing.descuentoGeneral,
+  ]);
+  summary.push(['Neto', neto], ['IVA (19%)', iva]);
+  cursorY = ensureSpace(ctx, cursorY, 112 + summary.length * 14);
   page = ctx.page;
   cursorY -= 10;
+  for (const [label, amount] of summary) {
+    page.drawText(label, {
+      x: A4_WIDTH - MARGIN - 178, y: cursorY - 10,
+      size: 9, font: fonts.regular, color: MUTED,
+    });
+    const formatted = amount < 0 ? `-${formatMoney(-amount)}` : formatMoney(amount);
+    page.drawText(formatted, {
+      x: A4_WIDTH - MARGIN - 12 - fonts.regular.widthOfTextAtSize(formatted, 9), y: cursorY - 10,
+      size: 9, font: fonts.regular, color: TEXT,
+    });
+    cursorY -= 14;
+  }
   page.drawRectangle({
     x: A4_WIDTH - MARGIN - 190,
     y: cursorY - 34,
@@ -520,11 +557,11 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
     10,
     A4_WIDTH - MARGIN * 2,
   );
-  drawTextLines(page, observationLines.slice(0, 8), MARGIN, cursorY, {
-    font: fonts.regular,
-    size: 10,
-    lineHeight: 13,
-  });
+  for (const line of observationLines) {
+    cursorY = ensureSpace(ctx, cursorY, 13);
+    ctx.page.drawText(line, { x: MARGIN, y: cursorY, font: fonts.regular, size: 10, color: TEXT });
+    cursorY -= 13;
+  }
 
   drawFooter(ctx);
   return pdfDoc.save();

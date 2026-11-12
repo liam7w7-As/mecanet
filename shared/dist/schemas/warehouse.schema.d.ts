@@ -53,13 +53,25 @@ export declare const warehouseQuerySchema: z.ZodObject<{
     search?: string | undefined;
     soloActivos?: "true" | "false" | undefined;
 }>;
-export declare const createStockMovementSchema: z.ZodObject<{
+export declare const createStockMovementSchema: z.ZodEffects<z.ZodObject<{
     catalogItemId: z.ZodNumber;
     warehouseId: z.ZodNumber;
     tipo: z.ZodEnum<["ingreso", "salida", "ajuste"]>;
     cantidad: z.ZodNumber;
     motivo: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    cantidad: number;
+    tipo: "ajuste" | "ingreso" | "salida";
+    motivo: string;
+    catalogItemId: number;
+    warehouseId: number;
+}, {
+    cantidad: number;
+    tipo: "ajuste" | "ingreso" | "salida";
+    motivo: string;
+    catalogItemId: number;
+    warehouseId: number;
+}>, {
     cantidad: number;
     tipo: "ajuste" | "ingreso" | "salida";
     motivo: string;

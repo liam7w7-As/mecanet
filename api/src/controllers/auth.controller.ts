@@ -4,7 +4,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { clearAuthCookies, setAuthCookies } from '../utils/cookies.js';
 
-import type { LoginInput } from '@unithor/shared';
+import type { LoginInput, SalesAccessSessionQuery } from '@unithor/shared';
 import type { Request, Response } from 'express';
 
 const extractDeviceInfo = (req: Request): string | undefined => {
@@ -107,6 +107,6 @@ export const salesAccessController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw ApiError.unauthorized('No autenticado');
     res.setHeader('Cache-Control', 'private, no-store');
-    res.status(200).json(await getCurrentSalesAccess(req.user.id));
+    res.status(200).json(await getCurrentSalesAccess(req.user.id, res.locals.validatedQuery as SalesAccessSessionQuery));
   },
 );

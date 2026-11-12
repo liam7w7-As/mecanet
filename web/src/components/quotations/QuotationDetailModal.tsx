@@ -1,8 +1,14 @@
+import {
+  getQuotationGrossTotal,
+  type CatalogType,
+  type ItemOperationalStatus,
+  type QuotationItemInput,
+} from '@unithor/shared';
 import { AlertTriangle, Boxes, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, DollarSign, Download, LoaderCircle, Lock, Pencil, Plus, ThumbsDown, ThumbsUp, Wrench, X, Zap } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import PaymentFormModal from './PaymentFormModal';
 import PaymentStatusBadge from './PaymentStatusBadge';
@@ -11,6 +17,7 @@ import { useCatalogItems } from '../../hooks/useCatalog';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useQuotationPayments } from '../../hooks/usePayments';
 import { useQuotation, useUpdateQuotationMutation } from '../../hooks/useQuotations';
+import { useSalesAccessRecord } from '../../hooks/useSalesAccessRecord';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
@@ -21,8 +28,7 @@ import CustomerEmailPanel from '../common/CustomerEmailPanel';
 import ModalHeader from '../common/ModalHeader';
 import PdfPreviewModal from '../common/PdfPreviewModal';
 
-import type { CatalogItem } from '../../types/entities';
-import type { CatalogType, ItemOperationalStatus, QuotationItemInput } from '@unithor/shared';
+import type { CatalogItem, QuotationItem } from '../../types/entities';
 
 
 
@@ -66,6 +72,21 @@ const getInitials = (name?: string | null): string => {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 };
 
+// Keep commercial line identity so OT synchronization preserves labor and timers.
+const toItemInput = (item: QuotationItem): QuotationItemInput => ({
+  id: item.id,
+  catalogItemId: item.catalogItemId,
+  descripcion: item.descripcion,
+  tipoLinea: item.tipoLinea,
+  unidadMedida: item.unidadMedida,
+  cantidad: Number(item.cantidad),
+  precioUnitario: Number(item.precioUnitario),
+  descuentoTipo: item.descuentoTipo ?? null,
+  descuentoValor: Number(item.descuentoValor ?? 0),
+  estadoOperativo: item.estadoOperativo,
+  notasOperativas: item.notasOperativas,
+});
+
 interface QuotationDetailModalProps {
   quotationId: number;
   onClose: () => void;
@@ -75,10 +96,13 @@ export const QuotationDetailModal = ({
   quotationId,
   onClose,
 }: QuotationDetailModalProps) => {
+  useSalesAccessRecord('quotation', quotationId, onClose);
   const user = useAuthStore((state) => state.user);
   const quotationQuery = useQuotation(quotationId);
   const paymentsQuery = useQuotationPayments(quotationId);
   const updateMutation = useUpdateQuotationMutation();
+  const navigate = useNavigate();
+  const [leaveAction, setLeaveAction] = useState<string | null>(null);
 
   // Filter tabs: 'todos', 'estandar', 'especifico', 'parte'
   const [activeCategory, setActiveCategory] = useState<'todos' | CatalogType>('todos');
@@ -113,15 +137,17 @@ export const QuotationDetailModal = ({
   const summary = paymentsQuery.data;
 
   // Permissions
-  const isWorkshopLead =
-    user?.role === 'jefe' || user?.role === 'admin' || user?.role === 'desarrollador';
-  const isSales = user?.role === 'vendedor';
   const canUpdate = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
   const canPay = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
-  const canCheckDelivery = isWorkshopLead || isSales || canUpdate;
-  const canEditPrice = isWorkshopLead;
-  const canSuggest = isWorkshopLead || isSales || canUpdate;
-  const canApprove = isSales || isWorkshopLead || canUpdate;
+  const canViewWorkOrder = Boolean(user && hasUserPermission(user, 'taller', 'read'));
+  const canManageWork = canViewWorkOrder && Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role));
+  // All four actions replace items through PATCH /quotations/:id.
+  const canEditItems = canUpdate && Boolean(quotation) && quotation?.estadoPago !== 'total'
+    && quotation?.workOrder?.estado !== 'entregada' && quotation?.workOrder?.estado !== 'cancelada';
+  const canCheckDelivery = canEditItems;
+  const canEditPrice = canEditItems;
+  const canSuggest = canEditItems;
+  const canApprove = canEditItems;
   const canConvert = Boolean(
     user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'create')),
   );
@@ -131,18 +157,7 @@ export const QuotationDetailModal = ({
   // Categorize items
   const categorizedItems = useMemo(() => {
     return rawItems.map((item, index) => {
-      let tipo: CatalogType = 'parte';
-      if (item.catalogItem?.tipo) {
-        tipo = item.catalogItem.tipo;
-      } else if (
-        /servicio|mantenimiento|alineacion|balanceo|revision|diagnostico|scanner|mano\s*de\s*obra|instalacion/i.test(
-          item.descripcion,
-        )
-      ) {
-        tipo = /especifico|scanner|electronico|rectificado/i.test(item.descripcion)
-          ? 'especifico'
-          : 'estandar';
-      }
+      const tipo = item.tipoLinea ?? item.catalogItem?.tipo ?? 'parte';
       const approval = parseItemApproval(item.notasOperativas);
       const cleanNote = cleanItemNote(item.notasOperativas);
       return {
@@ -172,42 +187,21 @@ export const QuotationDetailModal = ({
   }, [categorizedItems]);
 
   // Financial calculations
-  const total = Number(quotation?.total ?? summary?.total ?? 0);
+  const total = summary?.total ?? getQuotationGrossTotal(Number(quotation?.total ?? 0));
   const paid = Number(summary?.pagado ?? quotation?.pagado ?? 0);
   const balance = summary?.saldoPendiente ?? Math.max(0, total - paid);
   const paidPercent = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
 
   // Toggle delivery / application on vehicle
   const handleToggleDelivered = (itemIndex: number) => {
-    if (!quotation) return;
+    if (!quotation || !canCheckDelivery || updateMutation.isPending) return;
     const currentStatus = rawItems[itemIndex]?.estadoOperativo;
     const nextStatus: ItemOperationalStatus = currentStatus === 'completado' ? 'pendiente' : 'completado';
 
-    const updatedItems: QuotationItemInput[] = rawItems.map((item, idx) =>
-      idx === itemIndex
-        ? {
-            id: item.id,
-            catalogItemId: item.catalogItemId,
-            descripcion: item.descripcion,
-            tipoLinea: item.tipoLinea,
-            unidadMedida: item.unidadMedida,
-            cantidad: Number(item.cantidad),
-            precioUnitario: Number(item.precioUnitario),
-            estadoOperativo: nextStatus,
-            notasOperativas: item.notasOperativas,
-          }
-        : {
-            id: item.id,
-            catalogItemId: item.catalogItemId,
-            descripcion: item.descripcion,
-            tipoLinea: item.tipoLinea,
-            unidadMedida: item.unidadMedida,
-            cantidad: Number(item.cantidad),
-            precioUnitario: Number(item.precioUnitario),
-            estadoOperativo: item.estadoOperativo,
-            notasOperativas: item.notasOperativas,
-          },
-    );
+    const updatedItems = rawItems.map((item, idx) => ({
+      ...toItemInput(item),
+      ...(idx === itemIndex ? { estadoOperativo: nextStatus } : {}),
+    }));
 
     updateMutation.mutate(
       { id: quotation.id, data: { items: updatedItems } },
@@ -224,40 +218,19 @@ export const QuotationDetailModal = ({
     );
   };
 
-  // Adjust service price (Jefe de Taller only)
+  // Adjust prices with the same commercial permission required by the endpoint.
   const handleSavePrice = (itemIndex: number) => {
-    if (!quotation) return;
+    if (!quotation || !canEditPrice || updateMutation.isPending) return;
     const numericPrice = Number(newPriceValue);
     if (isNaN(numericPrice) || numericPrice < 0) {
       notifyError('El precio ingresado debe ser válido y mayor o igual a 0.');
       return;
     }
 
-    const updatedItems: QuotationItemInput[] = rawItems.map((item, idx) =>
-      idx === itemIndex
-        ? {
-            id: item.id,
-            catalogItemId: item.catalogItemId,
-            descripcion: item.descripcion,
-            tipoLinea: item.tipoLinea,
-            unidadMedida: item.unidadMedida,
-            cantidad: Number(item.cantidad),
-            precioUnitario: numericPrice,
-            estadoOperativo: item.estadoOperativo,
-            notasOperativas: item.notasOperativas,
-          }
-        : {
-            id: item.id,
-            catalogItemId: item.catalogItemId,
-            descripcion: item.descripcion,
-            tipoLinea: item.tipoLinea,
-            unidadMedida: item.unidadMedida,
-            cantidad: Number(item.cantidad),
-            precioUnitario: Number(item.precioUnitario),
-            estadoOperativo: item.estadoOperativo,
-            notasOperativas: item.notasOperativas,
-          },
-    );
+    const updatedItems = rawItems.map((item, idx) => ({
+      ...toItemInput(item),
+      ...(idx === itemIndex ? { precioUnitario: numericPrice } : {}),
+    }));
 
     updateMutation.mutate(
       { id: quotation.id, data: { items: updatedItems } },
@@ -273,71 +246,25 @@ export const QuotationDetailModal = ({
 
   // Customer approval decision for suggested items
   const handleCustomerApproval = (itemIndex: number, decision: 'aprobado' | 'rechazado') => {
-    if (!quotation) return;
+    if (!quotation || !canApprove || updateMutation.isPending) return;
     const target = rawItems[itemIndex];
     if (!target) return;
 
     const newNote = formatItemNoteWithApproval(decision, target.notasOperativas ?? '');
 
-    let updatedItems: QuotationItemInput[] = [];
-    if (decision === 'rechazado') {
-      // If customer rejected: keep record with 0 price so it doesn't inflate total or remove if needed
-      // Keeping with note allows legal/liability transparency
-      updatedItems = rawItems.map((item, idx) =>
-        idx === itemIndex
-          ? {
-              id: item.id,
-              catalogItemId: item.catalogItemId,
-              descripcion: item.descripcion,
-              tipoLinea: item.tipoLinea,
-              unidadMedida: item.unidadMedida,
-              cantidad: Number(item.cantidad),
-              precioUnitario: 0, // No cost applied
-              descuentoTipo: null,
-              descuentoValor: 0,
-              estadoOperativo: 'omitido' as const,
-              notasOperativas: newNote,
-            }
-          : {
-              id: item.id,
-              catalogItemId: item.catalogItemId,
-              descripcion: item.descripcion,
-              tipoLinea: item.tipoLinea,
-              unidadMedida: item.unidadMedida,
-              cantidad: Number(item.cantidad),
-              precioUnitario: Number(item.precioUnitario),
-              estadoOperativo: item.estadoOperativo,
-              notasOperativas: item.notasOperativas,
-            },
-      );
-    } else {
-      // Approved by client: activate normally
-      updatedItems = rawItems.map((item, idx) =>
-        idx === itemIndex
-          ? {
-              id: item.id,
-              catalogItemId: item.catalogItemId,
-              descripcion: item.descripcion,
-              tipoLinea: item.tipoLinea,
-              unidadMedida: item.unidadMedida,
-              cantidad: Number(item.cantidad),
-              precioUnitario: Number(item.precioUnitario),
-              estadoOperativo: item.estadoOperativo,
-              notasOperativas: newNote,
-            }
-          : {
-              id: item.id,
-              catalogItemId: item.catalogItemId,
-              descripcion: item.descripcion,
-              tipoLinea: item.tipoLinea,
-              unidadMedida: item.unidadMedida,
-              cantidad: Number(item.cantidad),
-              precioUnitario: Number(item.precioUnitario),
-              estadoOperativo: item.estadoOperativo,
-              notasOperativas: item.notasOperativas,
-            },
-      );
-    }
+    const updatedItems: QuotationItemInput[] = rawItems.map((item, idx) => ({
+      ...toItemInput(item),
+      ...(idx === itemIndex ? {
+        notasOperativas: newNote,
+        // Keep a rejected suggestion for traceability, without a charge.
+        ...(decision === 'rechazado' ? {
+          precioUnitario: 0,
+          descuentoTipo: null,
+          descuentoValor: 0,
+          estadoOperativo: 'omitido' as const,
+        } : {}),
+      } : {}),
+    }));
 
     updateMutation.mutate(
       { id: quotation.id, data: { items: updatedItems } },
@@ -357,7 +284,7 @@ export const QuotationDetailModal = ({
   // Add suggested item from workshop
   const handleAddSuggestedItem = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!quotation) return;
+    if (!quotation || !canSuggest || updateMutation.isPending) return;
 
     if (!suggestedDescripcion.trim()) {
       notifyError('Ingrese una descripción para el concepto.');
@@ -382,7 +309,7 @@ export const QuotationDetailModal = ({
     const newItem: QuotationItemInput = {
       catalogItemId: suggestedCatalogItemId,
       descripcion: suggestedDescripcion.trim(),
-      tipoLinea: 'especifico',
+      tipoLinea: suggestedType,
       unidadMedida: 'unidad',
       cantidad: qty,
       precioUnitario: price,
@@ -391,17 +318,7 @@ export const QuotationDetailModal = ({
     };
 
     const updatedItems: QuotationItemInput[] = [
-      ...rawItems.map((item) => ({
-        id: item.id,
-        catalogItemId: item.catalogItemId,
-        descripcion: item.descripcion,
-        tipoLinea: item.tipoLinea,
-        unidadMedida: item.unidadMedida,
-        cantidad: Number(item.cantidad),
-        precioUnitario: Number(item.precioUnitario),
-        estadoOperativo: item.estadoOperativo,
-        notasOperativas: item.notasOperativas,
-      })),
+      ...rawItems.map(toItemInput),
       newItem,
     ];
 
@@ -417,6 +334,7 @@ export const QuotationDetailModal = ({
           setSuggestedPrecio('');
           setSuggestedMotivo('');
           setCatalogSearch('');
+          setSuggestedType('parte');
         },
         onError: (err) => notifyError(getApiErrorMessage(err, 'No fue posible agregar el concepto.')),
       },
@@ -430,7 +348,24 @@ export const QuotationDetailModal = ({
     setSuggestedType(item.tipo);
   };
 
-  const close = (): void => { if (!updateMutation.isPending && !showPaymentModal && !showPdfModal) onClose(); };
+  const dirty = (editingPriceIndex !== null && newPriceValue !== String(rawItems[editingPriceIndex]?.precioUnitario ?? ''))
+    || Boolean(suggestedCatalogItemId || suggestedDescripcion || suggestedPrecio || suggestedMotivo || catalogSearch || suggestedCantidad !== '1' || suggestedType !== 'parte');
+  const leave = (action: string): void => {
+    onClose();
+    if (action !== 'close') navigate(action);
+  };
+  const requestLeave = (action: string): void => {
+    if (updateMutation.isPending || showPaymentModal || showPdfModal) return;
+    if (dirty) setLeaveAction(action);
+    else leave(action);
+  };
+  const close = (): void => requestLeave('close');
+  useEffect(() => {
+    if (!dirty && !updateMutation.isPending) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, updateMutation.isPending]);
   const setPanelNode = useModalOverlay({ isOpen: true, onClose: close, isPending: updateMutation.isPending });
   return createPortal(
     <div className="reference-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6">
@@ -478,7 +413,7 @@ export const QuotationDetailModal = ({
               <div className="commercial-detail-hero" data-payment-status={quotation.estadoPago}>
                 <div><span>Cotización</span><h3 id="quotation-detail-code">{quotation.codigo}</h3><small>Emitida el {formatDate(quotation.createdAt)}</small></div>
                 <QuotationStatusBadge status={quotation.estadoPago} />
-                {quotation.workOrder && <Link to={`/work-orders/${quotation.workOrder.id}`}><Wrench aria-hidden="true" /><span>OT · {quotation.workOrder.codigo}</span></Link>}
+                {quotation.workOrder && (canViewWorkOrder ? <Link to={`/work-orders/${quotation.workOrder.id}`} onClick={(event) => { event.preventDefault(); requestLeave(`/work-orders/${quotation.workOrder!.id}`); }}><Wrench aria-hidden="true" /><span>OT · {quotation.workOrder.codigo}</span></Link> : <span>OT · {quotation.workOrder.codigo}</span>)}
               </div>
               <div className="commercial-detail-identity">
                 <div><span className="commercial-client-avatar">{getInitials(quotation.client?.nombre)}</span><div><small>Cliente</small><strong>{quotation.client?.nombre ?? 'Sin cliente registrado'}</strong><span>{quotation.client?.rut || quotation.client?.telefono || 'Sin identificación'}</span></div></div>
@@ -569,6 +504,7 @@ export const QuotationDetailModal = ({
                     <button
                       type="button"
                       onClick={() => setShowAddSuggestedForm(!showAddSuggestedForm)}
+                          disabled={updateMutation.isPending}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-brand-pale text-brand-primary px-3 py-1.5 text-xs font-bold shadow-xs hover:bg-brand-primary hover:text-white transition-colors"
                     >
                       <Plus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -591,7 +527,7 @@ export const QuotationDetailModal = ({
 
                 {/* Add Suggested Item Drawer Form */}
                 <AnimatePresence>
-                  {showAddSuggestedForm && (
+                  {showAddSuggestedForm && canSuggest && (
                     <motion.form
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
@@ -749,7 +685,7 @@ export const QuotationDetailModal = ({
                           const isApproved = item.approval === 'aprobado' || item.approval === 'normal';
                           const isRejected = item.approval === 'rechazado';
                           const isService = item.computedType === 'estandar' || item.computedType === 'especifico';
-                          const isEditingPrice = editingPriceIndex === item.originalIndex;
+                          const isEditingPrice = canEditPrice && editingPriceIndex === item.originalIndex;
 
                           return (
                             <tr
@@ -916,8 +852,7 @@ export const QuotationDetailModal = ({
                                     <span className="font-semibold text-brand-ink">
                                       {formatClp(item.precioUnitario)}
                                     </span>
-                                    {/* Edit price action (Only Jefe de Taller, Admin, Dev on services) */}
-                                    {isService && canEditPrice && !isRejected && (
+                                    {canEditPrice && !isRejected && (
                                       <button
                                         type="button"
                                         onClick={() => {
@@ -925,16 +860,16 @@ export const QuotationDetailModal = ({
                                           setNewPriceValue(String(item.precioUnitario));
                                         }}
                                         className="flex h-6 w-6 items-center justify-center rounded text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk transition-colors"
-                                        title="Ajustar precio de servicio (Jefe de Taller)"
+                                        disabled={updateMutation.isPending}
+                                        title={isService ? 'Ajustar precio de servicio' : 'Ajustar precio de repuesto'}
                                       >
                                         <Pencil className="h-3 w-3" />
                                       </button>
                                     )}
-                                    {/* Lock indicator for sales on service price */}
-                                    {isService && !canEditPrice && (
+                                    {!canEditPrice && (
                                       <span
                                         className="text-brand-muted/50"
-                                        title="Solo el Jefe de Taller puede ajustar precios de servicio"
+                                        title="Precio no editable"
                                       >
                                         <Lock className="h-3 w-3" />
                                       </span>
@@ -1012,6 +947,11 @@ export const QuotationDetailModal = ({
         </div>
 
         {/* Modal Sticky Footer Actions */}
+        {leaveAction && <div role="alertdialog" aria-label="Descartar edición de cotización" className="reception-discard m-4">
+          <p>Hay cambios sin guardar en esta cotización.</p>
+          <button type="button" disabled={updateMutation.isPending} onClick={() => setLeaveAction(null)}>Seguir editando</button>
+          <button type="button" disabled={updateMutation.isPending} onClick={() => leave(leaveAction)}>Descartar cambios</button>
+        </div>}
         <div className="commercial-detail-footer">
           {/* Left Actions: Abono & Convertir */}
           <div className="flex items-center gap-2">
@@ -1030,13 +970,18 @@ export const QuotationDetailModal = ({
             {quotation && canConvert && quotation.workOrderId === null && !quotation.archivedAt && (
               <Link
                 to={`/quotations/${quotation.id}/convert-to-ot`}
-                onClick={(event) => { if (updateMutation.isPending) event.preventDefault(); else close(); }}
+                onClick={(event) => { event.preventDefault(); requestLeave(`/quotations/${quotation.id}/convert-to-ot`); }}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-primaryHover transition-colors"
               >
                 <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Convertir a OT</span>
               </Link>
             )}
+            {quotation?.workOrder && canManageWork && <Link
+              to={`/work-orders?manage=${quotation.workOrder.id}`}
+              onClick={(event) => { event.preventDefault(); requestLeave(`/work-orders?manage=${quotation.workOrder!.id}`); }}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-2 text-xs font-bold text-white"
+            ><Wrench className="h-3.5 w-3.5" aria-hidden="true" />Gestionar trabajo</Link>}
           </div>
 
           {/* Right Actions: PDF & Close */}

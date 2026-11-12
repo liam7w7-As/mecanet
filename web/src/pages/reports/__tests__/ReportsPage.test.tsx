@@ -37,8 +37,13 @@ describe('ReportsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.get).mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.endsWith('/preview')) {
+        if (url === '/reports/fleet/preview') return { data: { clients: { items: [], total: 0 }, vehicles: { items: [], total: 0 } } };
+        if (url === '/reports/administration/preview') return { data: { data: [], meta: { total: 0 } } };
+        return { data: { items: [], total: 0, warehouses: [], balances: { items: [], total: 0 } } };
+      }
       if (typeof url === 'string' && url.startsWith('/reports/'))
-        return { data: new Blob(['report']) };
+        return { data: new Blob(['report'], { type: url.endsWith('/pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) };
       if (url === '/roles') return { data: { roles: [] } };
       if (url === '/users') {
         return { data: { data: [], meta: { total: 0, page: 1, pageSize: 8, totalPages: 0 } } };
@@ -287,6 +292,67 @@ describe('ReportsPage', () => {
     expect(
       screen.queryByRole('status', { name: 'Cargando reporte financiero' }),
     ).not.toBeInTheDocument();
+  });
+
+  it.each(['sin_stock', 'critico'] as const)('aplica %s también a la muestra de catálogo', async (stock) => {
+    loginAs('admin');
+    const base = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (url, config) => url === '/reports/catalog/preview'
+      ? { data: { total: 1, items: [{ id: 1, codigo: 'FIL-01', nombre: 'Filtro muestra correcta', tipo: 'parte', precio: 1500, stock: stock === 'sin_stock' ? 0 : 2 }] } }
+      : base(url, config));
+    renderPage(`/reports?section=catalog&catalogStock=${stock}&from=2026-11-01&to=2026-11-12`);
+    expect(await screen.findByText('Filtro muestra correcta')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/reports/catalog/preview', { params: expect.objectContaining({ stock, fechaDesde: '2026-11-01', fechaHasta: '2026-11-12' }) });
+    expect(api.get).not.toHaveBeenCalledWith('/catalog', expect.anything());
+  });
+
+  it('previsualiza existencias por almacén con los mismos filtros que sus movimientos', async () => {
+    loginAs('admin');
+    const base = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (url, config) => url === '/reports/inventory/preview'
+      ? { data: { total: 0, items: [], warehouses: [{ id: 2, codigo: 'NORTE', nombre: 'Almacén Norte', activo: true }], balances: { total: 1, items: [{ warehouseId: 2, catalogItemId: 5, codigo: 'REP-05', nombre: 'Repuesto sin existencias', cantidad: 0, warehouseCodigo: 'NORTE', warehouseNombre: 'Almacén Norte' }] } } }
+      : base(url, config));
+    renderPage('/reports?section=inventory&warehouseId=2&stock=sin_stock&movementType=ingreso&q=repuesto&from=2026-11-01&to=2026-11-12');
+    expect(await screen.findByRole('region', { name: 'Vista previa de existencias' })).toHaveTextContent('Repuesto sin existencias');
+    expect(screen.getByLabelText('Almacén')).toHaveValue('2');
+    expect(api.get).toHaveBeenCalledWith('/reports/inventory/preview', { params: expect.objectContaining({ stock: 'sin_stock', tipo: 'ingreso', warehouseId: 2, search: 'repuesto' }) });
+    expect(api.get).not.toHaveBeenCalledWith('/warehouses', expect.anything());
+  });
+
+  it('envía tipo de cliente e historial al previsualizar solo vehículos', async () => {
+    loginAs('admin');
+    renderPage('/reports?section=fleet&fleetScope=vehicles&clientType=empresa&onlyWithHistory=true&from=2026-11-01&to=2026-11-12');
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/reports/fleet/preview', { params: expect.objectContaining({ scope: 'vehicles', clientType: 'empresa', onlyWithHistory: true }) }));
+    expect(api.get).not.toHaveBeenCalledWith('/clients', expect.anything());
+    expect(api.get).not.toHaveBeenCalledWith('/vehicles', expect.anything());
+  });
+
+  it('distingue cuentas eliminadas al incluirlas en el reporte', async () => {
+    loginAs('admin');
+    const base = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (url, config) => url === '/reports/administration/preview'
+      ? { data: { meta: { total: 1 }, data: [{ id: 7, nombre: 'Cuenta histórica', username: 'historica', activo: false, deletedAt: '2026-11-01T10:00:00Z', role: { nombre: 'vendedor' } }] } }
+      : base(url, config));
+    renderPage('/reports?section=administration&includeDeleted=true');
+    expect(await screen.findByText('Cuenta histórica')).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'Eliminado' })).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/reports/administration/preview', { params: expect.objectContaining({ includeDeleted: true }) });
+  });
+
+  it.each(['catalog', 'inventory', 'fleet', 'administration'] as const)('no consulta %s ni deja cargando su muestra con fechas invertidas', (section) => {
+    loginAs('admin');
+    renderPage(`/reports?section=${section}&from=2026-11-12&to=2026-11-01`);
+    expect(screen.getByRole('button', { name: 'Abrir PDF' })).toBeDisabled();
+    expect(api.get).not.toHaveBeenCalledWith(`/reports/${section}/preview`, expect.anything());
+    expect(screen.queryByText('Cargando...')).not.toBeInTheDocument();
+  });
+
+  it('limita el reporte financiero a 366 días antes de consultar y exportar', () => {
+    loginAs('admin');
+    renderPage('/reports?section=finance&from=2024-01-01&to=2026-11-12');
+    expect(screen.getByRole('alert')).toHaveTextContent('366 días');
+    expect(screen.getByRole('button', { name: 'Abrir PDF' })).toBeDisabled();
+    expect(api.get).not.toHaveBeenCalledWith('/finance/analytics', expect.anything());
   });
 
   it('abre el PDF en otra pestaña con los mismos filtros de la vista previa', async () => {

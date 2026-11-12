@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  getQuotationGrossTotal,
+  getQuotationTaxBreakdown,
   isValidWorkOrderTransition,
   VEHICLE_INVENTORY_ITEMS,
   WORK_ORDER_DELIVERY_CHECKLIST,
@@ -13,12 +15,13 @@ import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { getSalesScope, scopeSalesAssociations, workOrderWhere, type SalesScope } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getLastWorkActivity } from './work-order-activity.service.js';
-import { assertWorkItemsRemovable, ensureQuotationItemLinks } from './work-order-item-links.js';
+import { assertWorkItemsRemovable, ensureQuotationItemLinks, itemIdentity } from './work-order-item-links.js';
 import { recordChecklistStatusChange, recordItemProgressEvent } from './work-order-labor-events.js';
 import { closeWorkOrderTimers } from './work-order-labor-sessions.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
+import { Payment } from '../models/Payment.js';
 import { Quotation } from '../models/Quotation.js';
 import { QuotationItem } from '../models/QuotationItem.js';
 import { Role } from '../models/Role.js';
@@ -40,6 +43,8 @@ import { getPagination } from '../utils/paginate.js';
 
 import type {
   CreateWorkOrderInput,
+  DiscountInput,
+  DiscountType,
   ItemOperationalStatus,
   QuotationStatus,
   UpdateWorkOrderInput,
@@ -103,6 +108,8 @@ interface WorkOrderItemPublic {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  descuentoTipo?: DiscountType | null;
+  descuentoValor?: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
   horasHombreEstimadas: number | null;
@@ -132,6 +139,14 @@ interface WorkOrderQuotationPublic {
   id: number;
   codigo: string;
   estadoPago: QuotationStatus;
+  subtotal: number;
+  descuentoTipo: DiscountType | null;
+  descuentoValor: number;
+  descuentoLineas: number;
+  descuentoGeneral: number;
+  descuentoTotal: number;
+  neto: number;
+  iva: number;
   total: number;
   pagado: number;
   saldoPendiente: number;
@@ -254,6 +269,8 @@ export interface WorkOrderMechanicPublic {
 export interface WorkOrderPublic {
   id: number;
   codigo: string;
+  descuentoTipo?: DiscountType | null;
+  descuentoValor?: number;
   tipoIngreso: WorkOrderEntryType;
   sourceWorkOrderId: number | null;
   coberturaGarantia: boolean;
@@ -376,7 +393,13 @@ const itemsInclude = {
 const quotationInclude = {
   model: Quotation,
   as: 'quotation',
-  attributes: ['id', 'codigo', 'estadoPago', 'total', 'pagado'],
+  attributes: ['id', 'codigo', 'estadoPago', 'subtotal', 'total', 'pagado', 'descuentoTipo', 'descuentoValor'],
+  include: [{
+    model: QuotationItem,
+    as: 'items',
+    separate: true,
+    attributes: ['id', 'quotationId', 'workOrderItemId', 'catalogItemId', 'descripcion', 'tipoLinea', 'unidadMedida', 'subtotal', 'descuentoTipo', 'descuentoValor'],
+  }],
 };
 
 const inspectionInclude = {
@@ -579,9 +602,48 @@ const toDateOrNull = (value: string | null | undefined): Date | null => {
   return new Date(value);
 };
 
+const getMirrorQuotationSummary = (quotation: Quotation) => {
+  const subtotal = toNumber(quotation.subtotal);
+  const neto = toNumber(quotation.total);
+  const lineNet = (quotation.items ?? []).reduce((sum, item) => sum + toNumber(item.subtotal), 0);
+  const amount = (value: number) => Math.round(Math.max(0, value) * 100) / 100;
+  return {
+    subtotal,
+    descuentoTipo: quotation.descuentoTipo,
+    descuentoValor: toNumber(quotation.descuentoValor),
+    descuentoLineas: amount(subtotal - lineNet),
+    descuentoGeneral: amount(lineNet - neto),
+    descuentoTotal: amount(subtotal - neto),
+    neto,
+    iva: getQuotationTaxBreakdown(neto).iva,
+  };
+};
+
+const getMirrorItemDiscount = (workOrder: WorkOrder, item: WorkOrderItem) => {
+  if (!workOrder.quotation) return {};
+  const lines = workOrder.quotation.items ?? [];
+  let line = lines.find((candidate) => candidate.workOrderItemId === item.id);
+  // Read legacy lines without writing links or guessing between duplicate services.
+  if (!line) {
+    const key = itemIdentity(item);
+    const matches = lines.filter((candidate) => candidate.workOrderItemId == null && itemIdentity(candidate) === key);
+    if (matches.length === 1 && workOrder.items?.filter((candidate) => itemIdentity(candidate) === key).length === 1) {
+      line = matches[0];
+    }
+  }
+  return {
+    descuentoTipo: line?.descuentoTipo ?? null,
+    descuentoValor: Number(line?.descuentoValor ?? 0),
+  };
+};
+
 const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null = null): WorkOrderPublic => ({
   id: workOrder.id,
   codigo: workOrder.codigo,
+  ...(workOrder.quotation ? {
+    descuentoTipo: workOrder.quotation.descuentoTipo,
+    descuentoValor: toNumber(workOrder.quotation.descuentoValor),
+  } : {}),
   tipoIngreso: workOrder.tipoIngreso,
   sourceWorkOrderId: workOrder.sourceWorkOrderId,
   coberturaGarantia: workOrder.coberturaGarantia,
@@ -687,6 +749,7 @@ const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null
       cantidad: toNumber(item.cantidad),
       precioUnitario: toNumber(item.precioUnitario),
       subtotal: toNumber(item.subtotal),
+      ...getMirrorItemDiscount(workOrder, item),
       estadoOperativo: item.estadoOperativo,
       notasOperativas: item.notasOperativas,
       horasHombreEstimadas:
@@ -728,11 +791,12 @@ const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null
         id: workOrder.quotation.id,
         codigo: workOrder.quotation.codigo,
         estadoPago: workOrder.quotation.estadoPago,
-        total: toNumber(workOrder.quotation.total),
+        ...getMirrorQuotationSummary(workOrder.quotation),
+        total: getQuotationGrossTotal(toNumber(workOrder.quotation.total)),
         pagado: toNumber(workOrder.quotation.pagado),
         saldoPendiente: Math.max(
           0,
-          toNumber(workOrder.quotation.total) - toNumber(workOrder.quotation.pagado),
+          getQuotationGrossTotal(toNumber(workOrder.quotation.total)) - toNumber(workOrder.quotation.pagado),
         ),
       }
     : workOrder.quotation === null
@@ -1081,11 +1145,9 @@ const createMirrorQuotation = async (
   items: WorkOrderItemInput[],
   userId: number,
   transaction: Transaction,
+  discount: DiscountInput = {},
 ): Promise<void> => {
-  const total = items.reduce(
-    (sum, item) => sum + Number(item.cantidad) * Number(item.precioUnitario),
-    0,
-  );
+  const pricing = priceQuotation(items, discount);
   const codigo = await generateQuotationCode(transaction);
   const quotation = await Quotation.create(
     {
@@ -1095,8 +1157,10 @@ const createMirrorQuotation = async (
       vehicleId: workOrder.vehicleId,
       asesorId: userId,
       estadoPago: 'por_pagar',
-      subtotal: total,
-      total,
+      subtotal: pricing.subtotal,
+      total: pricing.total,
+      descuentoTipo: discount.descuentoTipo ?? null,
+      descuentoValor: Number(discount.descuentoValor ?? 0),
       pagado: 0,
       notas: workOrder.descripcion
         ? `Generada automáticamente desde ${workOrder.codigo}\n${workOrder.descripcion}`
@@ -1119,7 +1183,9 @@ const createMirrorQuotation = async (
         unidadMedida: item.unidadMedida,
         cantidad: item.cantidad,
         precioUnitario: item.precioUnitario,
-        subtotal: item.subtotal,
+        descuentoTipo: items[index].descuentoTipo ?? null,
+        descuentoValor: Number(items[index].descuentoValor ?? 0),
+        subtotal: pricing.lines[index].subtotal,
         estadoOperativo: item.estadoOperativo,
         notasOperativas: item.notasOperativas,
       })),
@@ -1128,13 +1194,33 @@ const createMirrorQuotation = async (
   }
 };
 
+const getMirrorQuotationPaymentStatus = async (
+  quotation: Quotation,
+  netTotal: number,
+  transaction: Transaction,
+): Promise<QuotationStatus> => {
+  const pendingPayments = await Payment.count({
+    where: { quotationId: quotation.id, estado: 'por_verificar' },
+    transaction,
+  });
+  if (pendingPayments > 0) return 'por_verificar';
+  const paid = toNumber(quotation.pagado);
+  return paid <= 0 ? 'por_pagar' : paid >= getQuotationGrossTotal(netTotal) ? 'total' : 'parcial';
+};
+
 export const syncMirrorQuotationFromWorkOrder = async (
   workOrderId: number,
   transaction: Transaction,
   operationalOnly = false,
+  discounts: DiscountInput & { items?: ReadonlyMap<number, DiscountInput> } = {},
 ): Promise<void> => {
   const quotation = await Quotation.findOne({ where: { workOrderId }, transaction, lock: transaction.LOCK.UPDATE });
   if (!quotation) {
+    // New editors submit neutral discounts even for legacy operational-only OTs.
+    if (Number(discounts.descuentoValor ?? 0) !== 0 ||
+      [...(discounts.items?.values() ?? [])].some((item) => Number(item.descuentoValor ?? 0) !== 0)) {
+      throw ApiError.badRequest('La orden debe tener una cotización vinculada para registrar descuentos');
+    }
     return;
   }
   const { quotationItems: previous, workOrderItems } = await ensureQuotationItemLinks(
@@ -1166,11 +1252,16 @@ export const syncMirrorQuotationFromWorkOrder = async (
     precioUnitario: toNumber(item.precioUnitario),
     estadoOperativo: item.estadoOperativo,
     notasOperativas: item.notasOperativas,
+    ...discounts.items?.get(item.id),
   })), previous);
-  const pricing = priceQuotation(nextItems, quotation);
+  const discount = {
+    descuentoTipo: discounts.descuentoTipo === undefined ? quotation.descuentoTipo : discounts.descuentoTipo,
+    descuentoValor: discounts.descuentoValor === undefined ? quotation.descuentoValor : discounts.descuentoValor,
+  };
+  const pricing = priceQuotation(nextItems, discount);
   const { total } = pricing;
   const paid = toNumber(quotation.pagado);
-  if (total < paid) {
+  if (getQuotationGrossTotal(total) < paid) {
     throw ApiError.badRequest(
       'El nuevo total de la orden no puede ser inferior al monto ya pagado en la cotización',
     );
@@ -1196,7 +1287,9 @@ export const syncMirrorQuotationFromWorkOrder = async (
     {
       subtotal: pricing.subtotal,
       total,
-      estadoPago: paid <= 0 ? 'por_pagar' : paid >= total ? 'total' : 'parcial',
+      descuentoTipo: discount.descuentoTipo,
+      descuentoValor: Number(discount.descuentoValor),
+      estadoPago: await getMirrorQuotationPaymentStatus(quotation, total, transaction),
     },
     { transaction },
   );
@@ -1660,6 +1753,9 @@ export const createWorkOrderInTransaction = async (
   transaction: Transaction,
   createQuotation = true,
 ): Promise<WorkOrder> => {
+  if (!createQuotation && (data.descuentoTipo !== undefined || data.descuentoValor !== undefined)) {
+    throw ApiError.badRequest('Los descuentos de la conversión deben provenir de la cotización');
+  }
   if (!data.vehicleId) {
     throw ApiError.badRequest('Seleccione el vehículo que ingresa al taller');
   }
@@ -1762,7 +1858,7 @@ export const createWorkOrderInTransaction = async (
   }
 
   if (createQuotation) {
-    await createMirrorQuotation(workOrder, data.items, userId, transaction);
+    await createMirrorQuotation(workOrder, data.items, userId, transaction, data);
   }
 
   if (data.inspection !== undefined) {
@@ -1812,6 +1908,7 @@ export const updateWorkOrder = async (
   userId: number,
 ): Promise<WorkOrderPublic> => {
   const workOrderId = await sequelize.transaction(async (transaction) => {
+    const itemDiscounts = new Map<number, DiscountInput>();
     await assertManagementActionAllowed(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, { transaction });
     if (!workOrder) {
@@ -1933,6 +2030,10 @@ export const updateWorkOrder = async (
         );
         await recordChecklistStatusChange(existing, previousStatus, userId, transaction);
         persistedItems.push(existing);
+        itemDiscounts.set(existing.id, {
+          descuentoTipo: item.descuentoTipo,
+          descuentoValor: item.descuentoValor,
+        });
       }
 
       if (itemsToCreate.length > 0) {
@@ -1941,6 +2042,10 @@ export const updateWorkOrder = async (
           { transaction },
         );
         persistedItems.push(...createdItems);
+        createdItems.forEach((item, index) => itemDiscounts.set(item.id, {
+          descuentoTipo: itemsToCreate[index].descuentoTipo,
+          descuentoValor: itemsToCreate[index].descuentoValor,
+        }));
       }
 
       await consumeCompletedPartStock(persistedItems, transaction, {
@@ -2034,8 +2139,12 @@ export const updateWorkOrder = async (
         { where: { workOrderId: id }, transaction },
       );
     }
-    if (data.items !== undefined) {
-      await syncMirrorQuotationFromWorkOrder(id, transaction);
+    if (data.items !== undefined || data.descuentoTipo !== undefined || data.descuentoValor !== undefined) {
+      await syncMirrorQuotationFromWorkOrder(id, transaction, false, {
+        descuentoTipo: data.descuentoTipo,
+        descuentoValor: data.descuentoValor,
+        items: itemDiscounts,
+      });
     }
 
     await recordWorkOrderEvent(
@@ -2598,8 +2707,7 @@ export const updateWorkOrderExecution = async (
       }
       if (
         actorRole === 'mecanico' &&
-        item.assignedUserId !== null &&
-        item.assignedUserId !== userId
+        (item.assignedUserId ?? workOrder.assignedMechanicId) !== userId
       ) {
         throw ApiError.forbidden('Este trabajo está asignado a otro mecánico');
       }
@@ -2848,9 +2956,8 @@ const recalculateMirrorQuotation = async (
     await items[index].update({ subtotal: pricing.lines[index].subtotal }, { transaction });
   }
   const paid = toNumber(quotation.pagado);
-  if (total < paid) throw ApiError.badRequest('El nuevo total no puede ser inferior al monto ya pagado');
-  const estadoPago: QuotationStatus =
-    paid <= 0 ? 'por_pagar' : paid >= total ? 'total' : 'parcial';
+  if (getQuotationGrossTotal(total) < paid) throw ApiError.badRequest('El nuevo total no puede ser inferior al monto ya pagado');
+  const estadoPago = await getMirrorQuotationPaymentStatus(quotation, total, transaction);
   await quotation.update({ subtotal: pricing.subtotal, total, estadoPago }, { transaction });
 };
 
@@ -2862,6 +2969,13 @@ export const reviewWorkOrderRequest = async (
 ): Promise<WorkOrderPublic> => {
   await sequelize.transaction(async (transaction) => {
     await assertSupervisor(userId, transaction);
+    const reviewedOrder = await WorkOrder.findByPk(id, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    if (!reviewedOrder) {
+      throw ApiError.notFound('Orden de trabajo no encontrada');
+    }
     const request = await WorkOrderRequest.findOne({
       where: { id: requestId, workOrderId: id },
       transaction,
@@ -2874,12 +2988,14 @@ export const reviewWorkOrderRequest = async (
       throw ApiError.badRequest('Esta solicitud ya fue revisada');
     }
 
-    const reviewedOrder = await WorkOrder.findByPk(id, { transaction });
-    const codigo = reviewedOrder?.codigo ?? `OT ${id}`;
+    const codigo = reviewedOrder.codigo;
 
     let approvedPrice: number | null = null;
     let approvedWorkOrderItemId = request.workOrderItemId;
     if (data.decision === 'aprobar') {
+      if (reviewedOrder.estado === 'entregada' || reviewedOrder.estado === 'cancelada') {
+        throw ApiError.badRequest('No se pueden aprobar solicitudes en una orden cerrada');
+      }
       const quotation = await Quotation.findOne({
         where: { workOrderId: id },
         transaction,
@@ -2955,25 +3071,25 @@ export const reviewWorkOrderRequest = async (
           { transaction },
         );
         if (quotation) {
+          await ensureQuotationItemLinks(quotation.id, id, transaction);
           const quotationItem = await QuotationItem.findOne({
             where: {
               quotationId: quotation.id,
-              descripcion: item.descripcion,
-              ...(item.catalogItemId === null ? {} : { catalogItemId: item.catalogItemId }),
+              workOrderItemId: item.id,
             },
-            order: [['id', 'ASC']],
             transaction,
             lock: Transaction.LOCK.UPDATE,
           });
-          if (quotationItem) {
-            await quotationItem.update(
-              {
-                precioUnitario: approvedPrice,
-                subtotal: toNumber(quotationItem.cantidad) * approvedPrice,
-              },
-              { transaction },
-            );
+          if (!quotationItem) {
+            throw ApiError.badRequest('El servicio solicitado no está vinculado a la cotización');
           }
+          await quotationItem.update(
+            {
+              precioUnitario: approvedPrice,
+              subtotal: toNumber(quotationItem.cantidad) * approvedPrice,
+            },
+            { transaction },
+          );
           await recalculateMirrorQuotation(quotation, transaction);
         }
       }

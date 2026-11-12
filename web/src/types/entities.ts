@@ -36,6 +36,7 @@ export interface FleetVehicleNextExpiry {
 }
 
 export interface FleetVehicleDocumentSummary {
+  required?: import('@unithor/shared').FleetRequiredDocumentSummary;
   total: number;
   expired: number;
   expiringSoon: number;
@@ -230,6 +231,8 @@ export interface WorkOrderItem {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  descuentoTipo?: import('@unithor/shared').DiscountType | null;
+  descuentoValor?: number;
   estadoOperativo: import('@unithor/shared').ItemOperationalStatus;
   notasOperativas: string | null;
   horasHombreEstimadas: number | null;
@@ -354,6 +357,8 @@ export interface WorkOrderRequest {
 export interface WorkOrder {
   id: number;
   codigo: string;
+  descuentoTipo?: import('@unithor/shared').DiscountType | null;
+  descuentoValor?: number;
   tipoIngreso?: import('@unithor/shared').WorkOrderEntryType;
   sourceWorkOrderId?: number | null;
   coberturaGarantia?: boolean;
@@ -670,6 +675,7 @@ export interface PurchaseWorkOrderSummary {
 
 export interface PurchaseCashMovementSummary {
   id: number;
+  descripcion?: string;
   monto: number;
   metodo: import('@unithor/shared').PaymentMethod;
   fecha: string;
@@ -754,6 +760,7 @@ export interface WorkOrderWorksheetItem {
   totalMinutes: number;
   observationsCount: number;
   canWork?: boolean;
+  awaitingWarehouseDelivery?: boolean;
   sessions?: Array<{ id: number; userName: string | null; startedAt: string; endedAt: string | null; minutes: number; kind: string; note: string | null }>;
 }
 

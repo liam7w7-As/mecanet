@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -56,6 +56,22 @@ const renderPage = () => {
       </MemoryRouter>
     </QueryClientProvider>,
   );
+};
+
+const fillPurchase = (container: HTMLElement): void => {
+  fireEvent.change(screen.getByRole('combobox', { name: 'Proveedor' }), {
+    target: { value: 'Proveedor Nuevo' },
+  });
+  for (const [label, value] of [
+    [/Folio/, 'F-1001'], [/Monto del comprobante/, '11900'],
+    [/N.º de depósito u operación/, 'OP-1001'], [/^Banco$/, 'Banco de Chile'],
+    [/Descripción/, 'Filtro de aceite'], [/Cantidad/, '2'], [/Precio unitario neto/, '5000'],
+  ] as const) {
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  }
+  fireEvent.change(container.querySelector('input[type="file"]')!, {
+    target: { files: [new File(['%PDF-1.4 comprobante'], 'comprobante.pdf', { type: 'application/pdf' })] },
+  });
 };
 
 describe('PurchaseCreatePage', () => {
@@ -176,5 +192,74 @@ describe('PurchaseCreatePage', () => {
     expect(
       await screen.findByRole('heading', { name: 'Detalle de compra' }),
     ).toBeInTheDocument();
+  });
+
+  it('bloquea envíos repetidos y navegación pendiente, y permite corregir y reintentar tras un error', async () => {
+    let fail: (error: Error) => void = () => undefined;
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = reject; }));
+    const { container } = renderPage();
+    fillPurchase(container);
+    const form = container.querySelector('form')!;
+    act(() => {
+      fireEvent.submit(form);
+      fireEvent.submit(form);
+    });
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(screen.getByLabelText(/Folio/)).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Registrar compra/ })).toBeDisabled();
+    fireEvent.submit(form);
+    fireEvent.click(screen.getByRole('link', { name: 'Cancelar' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Volver a compras' }));
+    expect(screen.getByRole('heading', { name: 'Nueva compra' })).toBeInTheDocument();
+    const leave = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(leave);
+    expect(leave.defaultPrevented).toBe(true);
+    expect(api.post).toHaveBeenCalledTimes(1);
+
+    await act(async () => { fail(new Error('Sin conexión')); });
+    await waitFor(() => expect(screen.getByRole('button', { name: /Registrar compra/ })).toBeEnabled());
+    expect(screen.getByLabelText(/Folio/)).toHaveValue('F-1001');
+    expect(screen.getByText('comprobante.pdf')).toBeInTheDocument();
+    const leaveAfterFailure = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(leaveAfterFailure);
+    expect(leaveAfterFailure.defaultPrevented).toBe(false);
+    fireEvent.change(screen.getByLabelText(/Folio/), { target: { value: 'F-1002' } });
+    fireEvent.submit(form);
+    await screen.findByRole('heading', { name: 'Detalle de compra' });
+    expect(api.post).toHaveBeenCalledTimes(2);
+    const retried = vi.mocked(api.post).mock.calls[1][1] as FormData;
+    expect(JSON.parse(String(retried.get('payload'))).folio).toBe('F-1002');
+    expect((retried.get('comprobante') as File).name).toBe('comprobante.pdf');
+  });
+
+  it('conserva datos y comprobante al perder el permiso de creación sin enviar la compra', async () => {
+    const { container } = renderPage();
+    fillPurchase(container);
+    act(() => useAuthStore.setState({ user: { ...useAuthStore.getState().user!, permissions: [{ modulo: 'compras', accion: 'read' }] } }));
+    expect(screen.getByLabelText(/Folio/)).toHaveValue('F-1001');
+    expect(screen.getByText('comprobante.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Registrar compra/ })).toBeDisabled();
+    fireEvent.submit(container.querySelector('form')!);
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('conserva centavos del catálogo y del total copiado al comprobante', async () => {
+    const originalGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, config) => url === '/catalog'
+      ? Promise.resolve({ data: { ...emptyPage(), items: [{
+        id: 5, codigo: 'REP-005', nombre: 'Filtro decimal', precio: 12.5, stock: 0, tipo: 'parte',
+      }] } } as AxiosResponse)
+      : originalGet(url, config));
+    const { container } = renderPage();
+    fillPurchase(container);
+    fireEvent.click(screen.getByRole('button', { name: 'Vincular repuesto de catálogo' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Filtro decimal/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Usar total de la compra' }));
+    fireEvent.submit(container.querySelector('form')!);
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    const payload = JSON.parse(String((vi.mocked(api.post).mock.calls[0][1] as FormData).get('payload')));
+    expect(payload.items[0]).toMatchObject({ catalogItemId: 5, cantidad: 2, precioUnitario: 12.5 });
+    expect(payload.montoComprobante).toBe(29.75);
+    await screen.findByRole('heading', { name: 'Detalle de compra' });
   });
 });

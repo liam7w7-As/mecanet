@@ -9,6 +9,7 @@ import { WORK_ORDER_ENTRY_TYPES } from '../constants/work-order-entry-type.js';
 import { FUEL_LEVELS, WORK_ORDER_INSPECTION_PHOTO_SLOTS, TIRE_CONDITIONS, VEHICLE_INVENTORY_ITEMS, } from '../constants/work-order-inspection.js';
 import { WORK_ORDER_PRICE_SUGGESTION_SCOPES, } from '../constants/work-order-labor.js';
 import { WORK_ORDER_STATUS } from '../constants/work-order-status.js';
+import { DISCOUNT_TYPES } from '../utils/quotation-pricing.js';
 const optionalText = (maxLength) => {
     const schema = z.string().trim();
     return (maxLength ? schema.max(maxLength) : schema)
@@ -17,6 +18,12 @@ const optionalText = (maxLength) => {
         .optional();
 };
 const nullablePositiveId = z.coerce.number().int().positive().nullable().optional();
+// Cross-field pricing is validated transactionally against the mirrored COT,
+// including discounts omitted by operational editors. Keep these schemas extendable.
+const discountFields = {
+    descuentoTipo: z.enum(DISCOUNT_TYPES).nullable().optional(),
+    descuentoValor: z.coerce.number().finite().min(0).max(9999999999.99).multipleOf(0.01).optional(),
+};
 const optionalHoursSchema = z.preprocess((value) => (value === '' || value === null || value === undefined ? null : value), z.coerce
     .number()
     .min(0, 'Las horas hombre no pueden ser negativas')
@@ -50,6 +57,7 @@ export const updateWorkOrderInspectionSchema = z
     message: 'Debe enviar al menos un campo de inspección',
 });
 export const workOrderItemInputSchema = z.object({
+    ...discountFields,
     id: z.coerce.number().int().positive().optional(),
     catalogItemId: z.coerce.number().int().positive().nullable().optional(),
     tipoLinea: z.enum(CATALOG_TYPES).default('estandar'),
@@ -62,6 +70,7 @@ export const workOrderItemInputSchema = z.object({
     notasOperativas: optionalText(1000),
 });
 export const createWorkOrderSchema = z.object({
+    ...discountFields,
     emailPhotoSlots: z.array(z.enum(WORK_ORDER_INSPECTION_PHOTO_SLOTS)).max(9).refine((slots) => new Set(slots).size === slots.length, 'No se pueden repetir fotos').optional(),
     clientId: nullablePositiveId,
     contactClientId: nullablePositiveId,
@@ -85,6 +94,7 @@ export const createWorkOrderSchema = z.object({
 });
 export const updateWorkOrderSchema = z
     .object({
+    ...discountFields,
     clientId: nullablePositiveId,
     contactClientId: nullablePositiveId,
     billingClientId: nullablePositiveId,

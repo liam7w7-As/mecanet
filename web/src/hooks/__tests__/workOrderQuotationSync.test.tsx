@@ -23,6 +23,8 @@ import type { AxiosResponse } from 'axios';
 import type { ReactNode } from 'react';
 
 vi.mock('../../lib/api', () => ({
+  getCookie: vi.fn(),
+  setSessionExpiredHandler: vi.fn(),
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
 }));
 

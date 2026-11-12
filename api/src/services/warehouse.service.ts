@@ -177,22 +177,27 @@ export const syncGlobalStock = async (
   catalogItemId: number,
   transaction: Transaction,
 ): Promise<number> => {
-  const total = await StockBalance.sum('cantidad', {
+  const balances = await StockBalance.findAll({
     where: { catalogItemId },
     transaction,
-  }).catch(() => 0);
-  const cantidad = Number(total ?? 0);
+    lock: Transaction.LOCK.UPDATE,
+  });
+  const cantidad = balances.reduce((total, balance) => total + Number(balance.cantidad), 0);
   await CatalogItem.update({ stock: cantidad }, { where: { id: catalogItemId }, transaction });
   return cantidad;
 };
 
-const getDefaultWarehouse = async (transaction: Transaction): Promise<Warehouse> => {
+export const getDefaultWarehouse = async (transaction: Transaction): Promise<Warehouse> => {
   const central = await Warehouse.findOne({
     where: { codigo: 'CENTRAL', activo: true },
     transaction,
   });
   if (central) return central;
-  const first = await Warehouse.findOne({ where: { activo: true }, order: [['id', 'ASC']], transaction });
+  const first = await Warehouse.findOne({
+    where: { activo: true },
+    order: [['id', 'ASC']],
+    transaction,
+  });
   if (!first) {
     throw ApiError.badRequest('No hay almacenes activos para descontar stock');
   }
@@ -220,7 +225,13 @@ export const consumeForWorkOrder = async (
   },
   transaction: Transaction,
 ): Promise<WorkOrderConsumption> => {
-  const catalogItem = await CatalogItem.findByPk(args.catalogItemId, { transaction });
+  if (!Number.isSafeInteger(args.cantidad) || args.cantidad <= 0) {
+    throw ApiError.badRequest('La cantidad a consumir debe ser un entero positivo');
+  }
+  const catalogItem = await CatalogItem.findByPk(args.catalogItemId, {
+    transaction,
+    lock: Transaction.LOCK.UPDATE,
+  });
   if (!catalogItem || catalogItem.tipo !== 'parte') {
     throw ApiError.badRequest('Solo los repuestos (tipo parte) manejan stock por almacén');
   }
@@ -277,11 +288,16 @@ export const restoreForWorkOrder = async (
   },
   transaction: Transaction,
 ): Promise<void> => {
+  if (!Number.isSafeInteger(args.cantidad) || args.cantidad < 0) {
+    throw ApiError.badRequest('La cantidad a devolver debe ser un entero no negativo');
+  }
   if (args.cantidad <= 0) return;
+  await CatalogItem.findByPk(args.catalogItemId, {
+    transaction,
+    lock: Transaction.LOCK.UPDATE,
+  });
   const warehouse =
-    args.warehouseId !== null
-      ? await Warehouse.findByPk(args.warehouseId, { transaction })
-      : null;
+    args.warehouseId !== null ? await Warehouse.findByPk(args.warehouseId, { transaction }) : null;
   const target = warehouse ?? (await getDefaultWarehouse(transaction));
 
   const balance = await getOrCreateBalance(target.id, args.catalogItemId, transaction);
@@ -404,6 +420,10 @@ export const registerMovement = async (
   options: RegisterMovementOptions = {},
 ): Promise<StockMovementPublic> => {
   const run = async (transaction: Transaction): Promise<StockMovementPublic> => {
+    const catalogItem = await CatalogItem.findByPk(data.catalogItemId, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
     const warehouse = await Warehouse.findByPk(data.warehouseId, { transaction });
     if (!warehouse) {
       throw ApiError.notFound('Almacén no encontrado');
@@ -411,7 +431,6 @@ export const registerMovement = async (
     if (!warehouse.activo) {
       throw ApiError.badRequest('El almacén está inactivo');
     }
-    const catalogItem = await CatalogItem.findByPk(data.catalogItemId, { transaction });
     if (!catalogItem) {
       throw ApiError.notFound('Ítem de catálogo no encontrado');
     }
@@ -419,9 +438,15 @@ export const registerMovement = async (
       throw ApiError.badRequest('Solo los repuestos (tipo parte) manejan stock por almacén');
     }
 
-    const cantidad = Math.trunc(Number(data.cantidad));
-    if (!Number.isFinite(cantidad) || cantidad <= 0) {
-      throw ApiError.badRequest('La cantidad del movimiento debe ser un entero positivo');
+    const cantidad = Number(data.cantidad);
+    if (
+      !Number.isSafeInteger(cantidad) ||
+      cantidad < 0 ||
+      (cantidad === 0 && data.tipo !== 'ajuste')
+    ) {
+      throw ApiError.badRequest(
+        'La cantidad del movimiento debe ser un entero positivo (o cero para ajuste)',
+      );
     }
 
     const balance = await getOrCreateBalance(data.warehouseId, data.catalogItemId, transaction);
@@ -490,32 +515,47 @@ export const registerTransfer = async (
   data: CreateStockTransferInput,
   userId: number,
 ): Promise<StockTransferResult> => {
-  const [origin, destination, catalogItem] = await Promise.all([
-    Warehouse.findByPk(data.originWarehouseId),
-    Warehouse.findByPk(data.destinationWarehouseId),
-    CatalogItem.findByPk(data.catalogItemId),
-  ]);
-
-  if (!origin) {
-    throw ApiError.notFound('Almacén origen no encontrado');
+  const cantidad = Number(data.cantidad);
+  if (!Number.isSafeInteger(cantidad) || cantidad <= 0) {
+    throw ApiError.badRequest('La cantidad del traslado debe ser un entero positivo');
   }
-  if (!destination) {
-    throw ApiError.notFound('Almacén destino no encontrado');
+  if (data.originWarehouseId === data.destinationWarehouseId) {
+    throw ApiError.badRequest('El origen y el destino deben ser almacenes distintos');
   }
-  if (!origin.activo || !destination.activo) {
-    throw ApiError.badRequest('Origen y destino deben estar activos');
-  }
-  if (!catalogItem) {
-    throw ApiError.notFound('Ítem de catálogo no encontrado');
-  }
-  if (catalogItem.tipo !== 'parte') {
-    throw ApiError.badRequest('Solo los repuestos (tipo parte) manejan stock por almacén');
-  }
-
-  const cantidad = Math.trunc(data.cantidad);
   const referencia = `TRAS-${Date.now().toString(36).toUpperCase()}`;
 
   const [salida, ingreso] = await sequelize.transaction(async (transaction) => {
+    const catalogItem = await CatalogItem.findByPk(data.catalogItemId, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    const warehouses = await Warehouse.findAll({
+      where: { id: [data.originWarehouseId, data.destinationWarehouseId] },
+      order: [['id', 'ASC']],
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    const origin = warehouses.find((warehouse) => warehouse.id === data.originWarehouseId);
+    const destination = warehouses.find(
+      (warehouse) => warehouse.id === data.destinationWarehouseId,
+    );
+
+    if (!origin) {
+      throw ApiError.notFound('Almacén origen no encontrado');
+    }
+    if (!destination) {
+      throw ApiError.notFound('Almacén destino no encontrado');
+    }
+    if (!origin.activo || !destination.activo) {
+      throw ApiError.badRequest('Origen y destino deben estar activos');
+    }
+    if (!catalogItem) {
+      throw ApiError.notFound('Ítem de catálogo no encontrado');
+    }
+    if (catalogItem.tipo !== 'parte') {
+      throw ApiError.badRequest('Solo los repuestos (tipo parte) manejan stock por almacén');
+    }
+
     const originBalance = await getOrCreateBalance(origin.id, catalogItem.id, transaction);
     if (originBalance.cantidad < cantidad) {
       throw ApiError.badRequest(
@@ -539,7 +579,11 @@ export const registerTransfer = async (
       { transaction },
     );
 
-    const destinationBalance = await getOrCreateBalance(destination.id, catalogItem.id, transaction);
+    const destinationBalance = await getOrCreateBalance(
+      destination.id,
+      catalogItem.id,
+      transaction,
+    );
     const nuevoSaldoDestino = destinationBalance.cantidad + cantidad;
     await destinationBalance.update({ cantidad: nuevoSaldoDestino }, { transaction });
     await syncGlobalStock(catalogItem.id, transaction);
@@ -578,7 +622,11 @@ export const registerTransfer = async (
     throw ApiError.internal('No fue posible registrar el traslado');
   }
 
-  return { salida: toMovementPublic(fullSalida), ingreso: toMovementPublic(fullIngreso), referencia };
+  return {
+    salida: toMovementPublic(fullSalida),
+    ingreso: toMovementPublic(fullIngreso),
+    referencia,
+  };
 };
 
 export const listMovements = async (
@@ -798,7 +846,7 @@ export const deliverWorkOrderRequest = async (
     if (!workOrder || !item) {
       throw ApiError.badRequest('La Orden de Trabajo o su repuesto asociado ya no existe');
     }
-    if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') {
+    if (['finalizada', 'entregada', 'cancelada'].includes(workOrder.estado)) {
       throw ApiError.badRequest('No se pueden entregar repuestos a una orden cerrada');
     }
     if (item.stockConsumido) {
@@ -808,6 +856,20 @@ export const deliverWorkOrderRequest = async (
     const quantity = Number(request.cantidad);
     if (!Number.isInteger(quantity) || quantity <= 0) {
       throw ApiError.badRequest('La cantidad solicitada debe ser un número entero positivo');
+    }
+    if (
+      item.tipoLinea !== 'parte' ||
+      item.catalogItemId !== request.catalogItemId ||
+      Number(item.cantidad) !== quantity
+    ) {
+      throw ApiError.badRequest(
+        'El repuesto o la cantidad de la OT ya no coincide con la solicitud aprobada',
+      );
+    }
+    if (item.estadoOperativo === 'omitido' || item.estadoOperativo === 'completado') {
+      throw ApiError.badRequest(
+        'No se pueden entregar repuestos de una línea completada u omitida',
+      );
     }
 
     const consumption = await consumeForWorkOrder(

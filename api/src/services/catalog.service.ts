@@ -1,7 +1,10 @@
 import { Op, Transaction } from 'sequelize';
 
+import { hasPermission } from './permission.service.js';
+import { getDefaultWarehouse, registerMovement } from './warehouse.service.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
+import { StockBalance } from '../models/StockBalance.js';
 import { ApiError } from '../utils/ApiError.js';
 import { getPagination } from '../utils/paginate.js';
 
@@ -79,6 +82,7 @@ const normalizeCode = (code: string | null | undefined): string | null | undefin
 const assertCodeAvailable = async (
   code: string | null,
   excludeId?: number,
+  transaction?: Transaction,
 ): Promise<void> => {
   if (code === null) {
     return;
@@ -89,9 +93,36 @@ const assertCodeAvailable = async (
     where.id = { [Op.ne]: excludeId };
   }
 
-  const existing = await CatalogItem.findOne({ where });
+  const existing = await CatalogItem.findOne({ where, paranoid: false, transaction });
   if (existing) {
     throw ApiError.conflict('Ya existe un item con ese código');
+  }
+};
+
+const assertStockPermission = async (userId?: number): Promise<number> => {
+  if (!userId) throw ApiError.forbidden('Se requiere un usuario para modificar stock');
+  const [canRead, canCreate] = await Promise.all([
+    hasPermission(userId, 'almacen', 'read'),
+    hasPermission(userId, 'almacen', 'create'),
+  ]);
+  if (!canRead || !canCreate) {
+    throw ApiError.forbidden(
+      'Necesitas permisos almacen.read y almacen.create para modificar stock',
+    );
+  }
+  return userId;
+};
+
+const assertNoStock = async (item: CatalogItem, transaction: Transaction): Promise<void> => {
+  const balance = await StockBalance.findOne({
+    where: { catalogItemId: item.id, cantidad: { [Op.gt]: 0 } },
+    transaction,
+    lock: Transaction.LOCK.UPDATE,
+  });
+  if (Number(item.stock) > 0 || balance) {
+    throw ApiError.conflict(
+      'No se puede eliminar ni convertir en servicio un repuesto con existencias',
+    );
   }
 };
 
@@ -147,91 +178,131 @@ export const getCatalogItemById = async (id: number): Promise<CatalogItemPublic>
 
 export const createCatalogItem = async (
   data: CreateCatalogItemInput,
+  userId?: number,
 ): Promise<CatalogItemPublic> => {
   const codigo = normalizeCode(data.codigo) ?? null;
-  await assertCodeAvailable(codigo);
+  return sequelize.transaction(async (transaction) => {
+    await assertCodeAvailable(codigo, undefined, transaction);
+    const initialStock = data.tipo === 'parte' ? data.stock : 0;
+    const actorId = initialStock > 0 ? await assertStockPermission(userId) : undefined;
 
-  const item = await CatalogItem.create({
-    tipo: data.tipo,
-    codigo,
-    nombre: data.nombre,
-    descripcion: data.descripcion ?? null,
-    unidadMedida: data.unidadMedida,
-    precio: data.precio,
-    stock: data.tipo === 'parte' ? data.stock : 0,
-    stockMinimo: data.tipo === 'parte' ? data.stockMinimo : 0,
-    horasHombreEstandar: data.horasHombreEstandar ?? null,
+    const item = await CatalogItem.create(
+      {
+        tipo: data.tipo,
+        codigo,
+        nombre: data.nombre,
+        descripcion: data.descripcion ?? null,
+        unidadMedida: data.unidadMedida,
+        precio: data.precio,
+        stock: 0,
+        stockMinimo: data.tipo === 'parte' ? data.stockMinimo : 0,
+        horasHombreEstandar: data.horasHombreEstandar ?? null,
+      },
+      { transaction },
+    );
+    if (initialStock > 0) {
+      const warehouse = await getDefaultWarehouse(transaction);
+      await registerMovement(
+        {
+          catalogItemId: item.id,
+          warehouseId: warehouse.id,
+          tipo: 'ingreso',
+          cantidad: initialStock,
+          motivo: 'Stock inicial de catálogo',
+        },
+        actorId!,
+        { transaction },
+      );
+      await item.reload({ transaction });
+    }
+
+    return toCatalogItemPublic(item);
   });
-
-  return toCatalogItemPublic(item);
 };
 
 export const updateCatalogItem = async (
   id: number,
   data: UpdateCatalogItemInput,
 ): Promise<CatalogItemPublic> => {
-  const item = await CatalogItem.findByPk(id);
-  if (!item) {
-    throw ApiError.notFound('Item de catálogo no encontrado');
-  }
-
-  const nextType = data.tipo ?? item.tipo;
-  const updatePayload: Partial<
-    Pick<CatalogItem, 'tipo' | 'codigo' | 'nombre' | 'descripcion' | 'unidadMedida' | 'precio' | 'stock' | 'stockMinimo' | 'horasHombreEstandar'>
-  > = {};
-
-  if (data.tipo !== undefined) {
-    updatePayload.tipo = data.tipo;
-  }
-
-  if (data.codigo !== undefined) {
-    const codigo = normalizeCode(data.codigo) ?? null;
-    if (codigo !== item.codigo) {
-      await assertCodeAvailable(codigo, item.id);
+  return sequelize.transaction(async (transaction) => {
+    const item = await CatalogItem.findByPk(id, { transaction, lock: Transaction.LOCK.UPDATE });
+    if (!item) {
+      throw ApiError.notFound('Item de catálogo no encontrado');
     }
-    updatePayload.codigo = codigo;
-  }
 
-  if (data.nombre !== undefined) {
-    updatePayload.nombre = data.nombre;
-  }
-
-  if (data.descripcion !== undefined) {
-    updatePayload.descripcion = data.descripcion;
-  }
-
-  if (data.unidadMedida !== undefined) {
-    updatePayload.unidadMedida = data.unidadMedida;
-  }
-
-  if (data.precio !== undefined) {
-    updatePayload.precio = data.precio;
-  }
-
-  if (data.horasHombreEstandar !== undefined) {
-    updatePayload.horasHombreEstandar = data.horasHombreEstandar;
-  }
-
-  if (nextType !== 'parte') {
-    updatePayload.stock = 0;
-    updatePayload.stockMinimo = 0;
-  } else {
-    if (data.stock !== undefined) {
-      updatePayload.stock = data.stock;
+    const nextType = data.tipo ?? item.tipo;
+    if (item.tipo === 'parte' && nextType !== 'parte') await assertNoStock(item, transaction);
+    if (nextType === 'parte' && data.stock !== undefined && data.stock !== Number(item.stock)) {
+      throw ApiError.badRequest(
+        'Modifica el stock mediante movimientos de almacén, no desde el catálogo',
+      );
     }
-    if (data.stockMinimo !== undefined) {
-      updatePayload.stockMinimo = data.stockMinimo;
-    }
-  }
+    const updatePayload: Partial<
+      Pick<
+        CatalogItem,
+        | 'tipo'
+        | 'codigo'
+        | 'nombre'
+        | 'descripcion'
+        | 'unidadMedida'
+        | 'precio'
+        | 'stock'
+        | 'stockMinimo'
+        | 'horasHombreEstandar'
+      >
+    > = {};
 
-  await item.update(updatePayload);
-  return toCatalogItemPublic(item);
+    if (data.tipo !== undefined) {
+      updatePayload.tipo = data.tipo;
+    }
+
+    if (data.codigo !== undefined) {
+      const codigo = normalizeCode(data.codigo) ?? null;
+      if (codigo !== item.codigo) {
+        await assertCodeAvailable(codigo, item.id, transaction);
+      }
+      updatePayload.codigo = codigo;
+    }
+
+    if (data.nombre !== undefined) {
+      updatePayload.nombre = data.nombre;
+    }
+
+    if (data.descripcion !== undefined) {
+      updatePayload.descripcion = data.descripcion;
+    }
+
+    if (data.unidadMedida !== undefined) {
+      updatePayload.unidadMedida = data.unidadMedida;
+    }
+
+    if (data.precio !== undefined) {
+      updatePayload.precio = data.precio;
+    }
+
+    if (data.horasHombreEstandar !== undefined) {
+      updatePayload.horasHombreEstandar = data.horasHombreEstandar;
+    }
+
+    if (nextType !== 'parte') {
+      updatePayload.stock = 0;
+      updatePayload.stockMinimo = 0;
+    } else {
+      if (data.stockMinimo !== undefined) {
+        updatePayload.stockMinimo = data.stockMinimo;
+      }
+    }
+
+    await item.update(updatePayload, { transaction });
+    return toCatalogItemPublic(item);
+  });
 };
 
 export const adjustStock = async (
   id: number,
   delta: number,
   motivo?: string,
+  userId?: number,
 ): Promise<StockAdjustmentResult> => {
   return sequelize.transaction(async (transaction) => {
     const item = await CatalogItem.findByPk(id, {
@@ -248,6 +319,8 @@ export const adjustStock = async (
     }
 
     const stockAnterior = Number(item.stock);
+    if (!Number.isSafeInteger(delta))
+      throw ApiError.badRequest('El ajuste debe ser un número entero');
     const nuevoStock = stockAnterior + delta;
     if (nuevoStock < 0) {
       throw ApiError.badRequest(
@@ -255,7 +328,34 @@ export const adjustStock = async (
       );
     }
 
-    await item.update({ stock: nuevoStock }, { transaction });
+    const actorId = await assertStockPermission(userId);
+    const balances = await StockBalance.findAll({
+      where: { catalogItemId: id },
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
+    if (
+      balances.reduce((total, balance) => total + Number(balance.cantidad), 0) !== stockAnterior
+    ) {
+      throw ApiError.conflict(
+        'El stock global no coincide con los saldos por almacén. Requiere conciliación previa',
+      );
+    }
+    if (delta !== 0) {
+      const warehouse = await getDefaultWarehouse(transaction);
+      await registerMovement(
+        {
+          catalogItemId: id,
+          warehouseId: warehouse.id,
+          tipo: delta > 0 ? 'ingreso' : 'salida',
+          cantidad: Math.abs(delta),
+          motivo: motivo ?? 'Ajuste de stock desde catálogo',
+        },
+        actorId,
+        { transaction },
+      );
+      await item.reload({ transaction });
+    }
 
     return {
       item: toCatalogItemPublic(item),
@@ -268,10 +368,13 @@ export const adjustStock = async (
 };
 
 export const deleteCatalogItem = async (id: number): Promise<void> => {
-  const item = await CatalogItem.findByPk(id);
-  if (!item) {
-    throw ApiError.notFound('Item de catálogo no encontrado');
-  }
+  await sequelize.transaction(async (transaction) => {
+    const item = await CatalogItem.findByPk(id, { transaction, lock: Transaction.LOCK.UPDATE });
+    if (!item) {
+      throw ApiError.notFound('Item de catálogo no encontrado');
+    }
 
-  await item.destroy();
+    await assertNoStock(item, transaction);
+    await item.destroy({ transaction });
+  });
 };

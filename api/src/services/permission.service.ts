@@ -25,6 +25,7 @@ interface CachedRolePermissions {
 }
 
 const permissionCache = new Map<number, CachedRolePermissions>();
+let permissionCacheGeneration = 0;
 const CACHE_TTL_MS = 60 * 1000; // 60 segundos
 
 const toRolePublic = (role: Role): RolePublic => ({
@@ -185,7 +186,13 @@ export const hasPermission = async (
   }
 
   // Cargar de DB y almacenar en caché
+  const generation = permissionCacheGeneration;
   const permissions = await getPermissionsForRole(user.role.nombre);
+  if (generation !== permissionCacheGeneration) {
+    // A matrix update committed while this lookup was in flight. Re-read the
+    // user and permissions instead of publishing the superseded grant set.
+    return hasPermission(userId, modulo, accion);
+  }
   const permissionSet = new Set(
     permissions.map((p) => `${p.modulo}:${p.accion}`),
   );
@@ -202,6 +209,7 @@ export const hasPermission = async (
  * Invalida la memoria caché de permisos para un rol específico o para todos los roles.
  */
 export const invalidatePermissionCache = (roleId?: number): void => {
+  permissionCacheGeneration += 1;
   if (roleId !== undefined) {
     permissionCache.delete(roleId);
   } else {

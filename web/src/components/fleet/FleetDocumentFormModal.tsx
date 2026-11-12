@@ -1,9 +1,11 @@
 import {
   createFleetDocumentSchema,
+  FLEET_DOCUMENT_FILE_MIME_TYPES,
+  getFleetRequiredDocumentType,
 } from '@unithor/shared';
 import { AlertCircle, FileText, LoaderCircle, Paperclip, X } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import {
@@ -22,6 +24,7 @@ import type { FleetDocument } from '../../types/entities';
 interface FleetDocumentFormModalProps {
   vehicleId: number;
   document?: FleetDocument | null;
+  initialName?: string;
   onClose: () => void;
 }
 
@@ -36,7 +39,7 @@ interface FleetDocumentFormState {
 const SUGGESTIONS = [
   'Permiso de circulación',
   'Revisión técnica',
-  'Seguro obligatorio',
+  'SOAP',
   'Padrón del vehículo',
   'Mantención preventiva',
   'Mantención correctiva',
@@ -61,6 +64,20 @@ const formatBytes = (bytes: number | null): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const getFileError = (file: File | null): string | undefined => {
+  if (!file) return undefined;
+  if (file.size > 10 * 1024 * 1024) {
+    return 'El archivo supera el límite de 10 MB. Selecciona uno más pequeño.';
+  }
+  if (
+    !/\.(pdf|jpe?g|png|webp)$/i.test(file.name) ||
+    !FLEET_DOCUMENT_FILE_MIME_TYPES.some((mimeType) => mimeType === file.type.toLowerCase())
+  ) {
+    return 'Formato de archivo no permitido. Selecciona un PDF, JPG, PNG o WebP.';
+  }
+  return undefined;
+};
+
 /**
  * Documento de flota: metadata libre y archivo opcional. Al reemplazar el
  * archivo se crea una versión y la anterior queda en el historial.
@@ -68,18 +85,49 @@ const formatBytes = (bytes: number | null): string => {
 export const FleetDocumentFormModal = ({
   vehicleId,
   document,
+  initialName,
   onClose,
 }: FleetDocumentFormModalProps) => {
-  const [form, setForm] = useState<FleetDocumentFormState>(() => getInitialState(document));
+  const [initialForm] = useState<FleetDocumentFormState>(() => ({
+    ...getInitialState(document),
+    ...(!document && initialName !== undefined ? { nombre: initialName } : {}),
+  }));
+  const [form, setForm] = useState(initialForm);
+  const initialNoExpiry = !initialForm.fechaVencimiento && !getFleetRequiredDocumentType(initialForm.nombre);
+  const [noExpiry, setNoExpiry] = useState(initialNoExpiry);
+  const isRequiredDocument = getFleetRequiredDocumentType(form.nombre) !== null;
   const [file, setFile] = useState<File | null>(null);
+  const [confirmLeave, setConfirmLeave] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const continueEditingRef = useRef<HTMLButtonElement>(null);
+  const submittingRef = useRef(false);
   const isEditing = Boolean(document);
   const createMutation = useCreateFleetDocumentMutation(vehicleId);
   const updateMutation = useUpdateFleetDocumentMutation(vehicleId, document?.id ?? 0);
   const activeMutation = isEditing ? updateMutation : createMutation;
-  const close = (): void => { if (!activeMutation.isPending) onClose(); };
+  const dirty = JSON.stringify(form) !== JSON.stringify(initialForm) || file !== null ||
+    noExpiry !== initialNoExpiry;
+  const close = (): void => {
+    if (submittingRef.current || activeMutation.isPending) return;
+    if (dirty) setConfirmLeave(true);
+    else onClose();
+  };
+
+  useEffect(() => {
+    if (!dirty && !activeMutation.isPending) return;
+    const warn = (event: BeforeUnloadEvent): void => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, activeMutation.isPending]);
+
+  useEffect(() => {
+    if (confirmLeave) continueEditingRef.current?.focus();
+  }, [confirmLeave]);
 
   const setValue = <K extends keyof FleetDocumentFormState>(
     key: K,
@@ -95,6 +143,11 @@ export const FleetDocumentFormModal = ({
 
   const clearFile = (): void => {
     setFile(null);
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.file;
+      return next;
+    });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -102,25 +155,34 @@ export const FleetDocumentFormModal = ({
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    if (activeMutation.isPending) return;
+    if (submittingRef.current || activeMutation.isPending) return;
     setFieldErrors({});
     createMutation.reset();
     updateMutation.reset();
 
-    const result = createFleetDocumentSchema.safeParse(form);
-    if (!result.success) {
-      setFieldErrors(getFieldErrors(result.error.issues));
+    const result = createFleetDocumentSchema.safeParse({
+      ...form,
+      fechaVencimiento: noExpiry ? '' : form.fechaVencimiento,
+    });
+    const fileError = getFileError(file);
+    if (!result.success || fileError) {
+      setFieldErrors({
+        ...(!result.success ? getFieldErrors(result.error.issues) : {}),
+        ...(fileError ? { file: fileError } : {}),
+      });
       return;
     }
 
+    submittingRef.current = true;
     const onSuccess = (): void => onClose();
+    const onSettled = (): void => { submittingRef.current = false; };
 
     if (document) {
-      updateMutation.mutate({ data: result.data, file }, { onSuccess });
+      updateMutation.mutate({ data: result.data, file }, { onSuccess, onSettled });
       return;
     }
 
-    createMutation.mutate({ data: result.data, file }, { onSuccess });
+    createMutation.mutate({ data: result.data, file }, { onSuccess, onSettled });
   };
 
   const mutationError = activeMutation.error;
@@ -143,6 +205,7 @@ export const FleetDocumentFormModal = ({
         className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
         aria-label="Cerrar formulario de documento"
         onClick={close}
+        disabled={activeMutation.isPending}
       />
       <motion.section
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -154,10 +217,12 @@ export const FleetDocumentFormModal = ({
         ref={setPanelNode}
         aria-modal="true"
         aria-labelledby="fleet-document-form-title"
+        aria-busy={activeMutation.isPending}
       >
         <ModalHeader
           id="fleet-document-form-title"
           title={isEditing ? 'Editar documento' : 'Agregar documento'}
+          eyebrow={document?.nombre ?? initialName}
           description="Nombre libre, referencia y fechas. El archivo es opcional."
           badge={<FileText aria-hidden="true" />}
           onClose={close}
@@ -221,24 +286,38 @@ export const FleetDocumentFormModal = ({
               )}
             </label>
 
-            <label className="text-sm font-medium text-brand-ink">
-              Fecha de vencimiento
+            <div className="text-sm font-medium text-brand-ink">
+              <label htmlFor="fleet-document-expiry">Fecha de vencimiento</label>
               <input
+                id="fleet-document-expiry"
                 className={inputClassName}
                 type="date"
                 value={form.fechaVencimiento}
+                disabled={noExpiry}
                 onChange={(event) => setValue('fechaVencimiento', event.target.value)}
                 aria-invalid={Boolean(fieldErrors.fechaVencimiento)}
+                aria-describedby="fleet-document-expiry-help"
               />
+              <label className="mt-2 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={noExpiry}
+                  onChange={(event) => {
+                    setNoExpiry(event.target.checked);
+                    setValue('fechaVencimiento', form.fechaVencimiento);
+                  }}
+                />
+                {isRequiredDocument ? 'Fecha de vencimiento pendiente' : 'Sin vencimiento'}
+              </label>
               {fieldErrors.fechaVencimiento && (
                 <span className="mt-1 block text-xs text-brand-coralInk">
                   {fieldErrors.fechaVencimiento}
                 </span>
               )}
-              <span className="mt-1 block text-xs text-brand-muted">
-                Opcional. Si la dejas vacía, el documento no generará alertas.
+              <span id="fleet-document-expiry-help" className="mt-1 block text-xs text-brand-muted">
+                {isRequiredDocument ? 'Si aún no conoces el vencimiento, el documento quedará pendiente de completar.' : 'Opcional. Sin vencimiento, el documento no generará alertas.'}
               </span>
-            </label>
+            </div>
 
             <label className="text-sm font-medium text-brand-ink sm:col-span-2">
               Notas
@@ -305,9 +384,28 @@ export const FleetDocumentFormModal = ({
                   type="file"
                   className="sr-only"
                   accept="application/pdf,image/jpeg,image/png,image/webp"
-                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                  aria-invalid={Boolean(fieldErrors.file)}
+                  aria-describedby={fieldErrors.file ? 'fleet-document-file-error' : undefined}
+                  onChange={(event) => {
+                    const selectedFile = event.target.files?.[0];
+                    if (!selectedFile) return;
+                    setFile(selectedFile);
+                    const error = getFileError(selectedFile);
+                    setFieldErrors((current) => {
+                      const next = { ...current };
+                      if (error) next.file = error;
+                      else delete next.file;
+                      return next;
+                    });
+                  }}
                 />
               </label>
+            )}
+
+            {fieldErrors.file && (
+              <p id="fleet-document-file-error" className="mt-2 text-xs text-brand-coralInk" role="alert">
+                {fieldErrors.file}
+              </p>
             )}
 
             {isEditing && (
@@ -337,6 +435,17 @@ export const FleetDocumentFormModal = ({
           </fieldset>
           </div>
           <footer className="workspace-form-footer reference-dialog-footer dialog-buttons border-t border-brand-line pt-5">
+            {confirmLeave && (
+              <div role="alertdialog" aria-label="Descartar edición" className="reception-discard">
+                <p>Hay cambios sin guardar.</p>
+                <button type="button" ref={continueEditingRef} disabled={activeMutation.isPending}
+                  onClick={() => setConfirmLeave(false)}>Seguir editando</button>
+                <button type="button" disabled={activeMutation.isPending}
+                  onClick={() => {
+                    if (!submittingRef.current && !activeMutation.isPending) onClose();
+                  }}>Descartar cambios</button>
+              </div>
+            )}
             <button
               type="button"
               className="secondary-button"

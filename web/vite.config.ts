@@ -8,13 +8,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // autoUpdate, no 'prompt': el SW precachea index.html y lo sirve
-      // cache-first en cada navegacion, asi que una version en espera solo se
-      // activa cuando el usuario acepta el aviso o cierra todas las pestanas.
-      // Con 'prompt' los dispositivos quedaban pegados al build anterior y el
-      // unico modo de refrescarlos era Ctrl+Shift+R (que anula el SW). Con
-      // autoUpdate el SW nuevo se instala, toma el control y recarga solo.
-      registerType: 'autoUpdate',
+      // Una actualización espera la confirmación de esta pestaña: una recarga
+      // automática puede descartar una OT/COT que todavía se está editando.
+      registerType: 'prompt',
       devOptions: {
         enabled: true,
         // En desarrollo se prueba la instalación sin interceptar las rutas
@@ -151,7 +147,11 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: false,
+        clientsClaim: false,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+        // Solo recursos públicos del build; nunca documentos o datos privados.
+        globIgnores: ['**/api/**', '**/uploads/**'],
         // Los comprobantes y reportes deben llegar a la API, no a index.html.
         navigateFallbackDenylist: [/^\/api(?:\/|\?|$)/i],
         runtimeCaching: [

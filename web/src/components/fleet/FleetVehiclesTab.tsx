@@ -68,6 +68,7 @@ export const FleetVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => 
   const [deleteVehicle, setDeleteVehicle] = useState<FleetVehicle | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [ownerVisibility, setOwnerVisibility] = useState<string | null>(null);
+  const [expandedVehicleId, setExpandedVehicleId] = useState<number | null>(null);
   const selectedVehicleId = Number(searchParams.get('fleetVehicleId'));
   const hasSelectedVehicle = Number.isInteger(selectedVehicleId) && selectedVehicleId > 0;
   const debouncedSearch = useDebouncedValue(search, 350);
@@ -115,6 +116,7 @@ export const FleetVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => 
 
   useEffect(() => {
     setPage(1);
+    setExpandedVehicleId(null);
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current);
@@ -128,6 +130,7 @@ export const FleetVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => 
 
   useEffect(() => {
     setPage(1);
+    setExpandedVehicleId(null);
   }, [estado, vencimiento]);
 
   useEffect(() => {
@@ -275,6 +278,9 @@ export const FleetVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => 
                   ]}
                   status={<FleetVehicleStatusBadge status={vehicle.estadoOperativo} />}
                   alerts={<><span className={summary.expired > 0 ? 'text-brand-coralInk' : summary.expiringSoon > 0 ? 'text-amber-700' : summary.total > 0 ? 'text-brand-mintInk' : ''}>{summary.expired > 0 ? summary.expired + ' documento(s) vencido(s)' : summary.expiringSoon > 0 ? summary.expiringSoon + ' por vencer en 30 días' : summary.total === 0 ? 'Sin documentos registrados' : 'Documentación al día'}</span>{summary.nextExpiry && <span> · <span>{formatDate(summary.nextExpiry.fechaVencimiento)}</span></span>}</>}
+                  tone={vehicle.estadoOperativo === 'fuera_de_servicio' ? 'danger' : vehicle.estadoOperativo === 'dado_de_baja' ? 'muted' : undefined}
+                  open={expandedVehicleId === vehicle.id}
+                  onOpenChange={(next) => setExpandedVehicleId(next ? vehicle.id : null)}
                   onOpen={() => openVehicle(vehicle.id)}
                   onEdit={canEdit ? () => setFormVehicle(vehicle) : undefined}
                   onDelete={canDelete ? () => { deleteMutation.reset(); setDeleteVehicle(vehicle); } : undefined}
@@ -298,7 +304,10 @@ export const FleetVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => 
           page={page}
           totalPages={fleetQuery.data?.totalPages ?? 0}
           total={fleetQuery.data?.total ?? 0}
-          onPageChange={setPage}
+          onPageChange={(next) => {
+            setExpandedVehicleId(null);
+            setPage(next);
+          }}
         />
       </section>
 

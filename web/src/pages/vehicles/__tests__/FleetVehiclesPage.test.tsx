@@ -356,6 +356,46 @@ describe('FleetVehiclesPage', () => {
     }));
   });
 
+  it('mantiene un solo resumen desplegado y lo cierra al volver a pulsarlo', async () => {
+    const second: FleetVehicle = { ...fleetVehicle, id: 9, patente: 'FLCD34' };
+    vi.mocked(api.get).mockResolvedValue({ data: paginated([fleetVehicle, second]) });
+    renderFlota();
+    await screen.findByText('FLCD34');
+
+    const firstDetails = screen.getByText('FLAB12').closest('details');
+    const secondDetails = screen.getByText('FLCD34').closest('details');
+    if (!firstDetails || !secondDetails) throw new Error('No se encontraron las filas');
+
+    fireEvent.click(within(firstDetails).getByLabelText('Desplegar resumen de FLAB12'));
+    expect(firstDetails).toHaveAttribute('open');
+    expect(secondDetails).not.toHaveAttribute('open');
+
+    fireEvent.click(within(secondDetails).getByLabelText('Desplegar resumen de FLCD34'));
+    await waitFor(() => expect(firstDetails).not.toHaveAttribute('open'));
+    expect(secondDetails).toHaveAttribute('open');
+
+    fireEvent.click(within(secondDetails).getByLabelText('Desplegar resumen de FLCD34'));
+    await waitFor(() => expect(secondDetails).not.toHaveAttribute('open'));
+  });
+
+  it('marca la fila completa según el estado operativo', async () => {
+    const outOfService: FleetVehicle = {
+      ...fleetVehicle, id: 10, patente: 'OOOO11', estadoOperativo: 'fuera_de_servicio',
+    };
+    const retired: FleetVehicle = {
+      ...fleetVehicle, id: 11, patente: 'RRRR22', estadoOperativo: 'dado_de_baja',
+    };
+    vi.mocked(api.get).mockResolvedValue({
+      data: paginated([fleetVehicle, outOfService, retired]),
+    });
+    renderFlota();
+    await screen.findByText('OOOO11');
+
+    expect(screen.getByText('OOOO11').closest('article')).toHaveAttribute('data-tone', 'danger');
+    expect(screen.getByText('RRRR22').closest('article')).toHaveAttribute('data-tone', 'muted');
+    expect(screen.getByText('FLAB12').closest('article')).not.toHaveAttribute('data-tone');
+  });
+
   it('crea con propietario privado separado del responsable externo y límites del contrato', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { fleetVehicle: fleetVehicleDetail } });
     renderFlota();

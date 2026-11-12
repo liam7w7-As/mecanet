@@ -14,17 +14,30 @@ interface Props {
   status: ReactNode;
   alerts?: ReactNode;
   detailFacts?: ReadonlyArray<{ label: string; value: string }>;
+  /** Tinta la fila completa según el estado operativo (solo flota). */
+  tone?: 'danger' | 'muted';
+  /**
+   * Cuando se entrega junto con `onOpenChange`, el desplegable pasa a modo
+   * controlado para que el listado pueda mantener una sola fila abierta.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onOpen: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
 }
 
 /** The summary expands locally; the explicit record action opens the existing modal. */
-export default function VehicleDirectoryRow({ number, plate, privateSubline, name, reference, owner, ownerLabel, facts, status, alerts, detailFacts, onOpen, onEdit, onDelete }: Props) {
+export default function VehicleDirectoryRow({ number, plate, privateSubline, name, reference, owner, ownerLabel, facts, status, alerts, detailFacts, tone, open, onOpenChange, onOpen, onEdit, onDelete }: Props) {
+  const controlled = open !== undefined && onOpenChange !== undefined;
   return (
-    <article className="vehicle-directory-row vehicle-reference-row">
-      <details className="vehicle-directory-accordion">
-        <summary className="vehicle-directory-summary" aria-label={`Desplegar resumen de ${plate}`}>
+    <article className="vehicle-directory-row vehicle-reference-row" data-tone={tone}>
+      <details className="vehicle-directory-accordion" open={controlled ? open : undefined}>
+        <summary
+          className="vehicle-directory-summary"
+          aria-label={`Desplegar resumen de ${plate}`}
+          onClick={controlled ? (event) => { event.preventDefault(); onOpenChange(!open); } : undefined}
+        >
           <span className="vehicle-directory-number">#{number}</span>
           <span className="vehicle-directory-symbol" aria-hidden="true"><Car /></span>
           <span className="vehicle-directory-identity">

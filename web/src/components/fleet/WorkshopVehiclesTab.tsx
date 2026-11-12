@@ -58,6 +58,7 @@ export const WorkshopVehiclesTab = ({ navigation }: { navigation?: ReactNode }) 
   const [formVehicle, setFormVehicle] = useState<Vehicle | null | undefined>(undefined);
   const [deleteVehicle, setDeleteVehicle] = useState<Vehicle | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [expandedVehicleId, setExpandedVehicleId] = useState<number | null>(null);
   const selectedVehicleId = Number(searchParams.get('vehicleId'));
   const hasSelectedVehicle = Number.isInteger(selectedVehicleId) && selectedVehicleId > 0;
   const debouncedSearch = useDebouncedValue(search, 350);
@@ -101,6 +102,7 @@ export const WorkshopVehiclesTab = ({ navigation }: { navigation?: ReactNode }) 
 
   useEffect(() => {
     setPage(1);
+    setExpandedVehicleId(null);
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current);
@@ -219,6 +221,8 @@ export const WorkshopVehiclesTab = ({ navigation }: { navigation?: ReactNode }) 
                     { label: 'RUT del propietario', value: vehicle.client?.rut ?? 'Sin identificación' },
                   ]}
                   status={<span className={missingCount > 0 ? 'text-amber-700' : 'text-brand-mintInk'}>{missingCount > 0 ? missingCount + ' datos pendientes' : 'Ficha completa'}</span>}
+                  open={expandedVehicleId === vehicle.id}
+                  onOpenChange={(next) => setExpandedVehicleId(next ? vehicle.id : null)}
                   onOpen={() => openVehicle(vehicle.id)}
                   onEdit={canEdit ? () => setFormVehicle(vehicle) : undefined}
                   onDelete={canDelete ? () => { deleteMutation.reset(); setDeleteVehicle(vehicle); } : undefined}
@@ -238,7 +242,10 @@ export const WorkshopVehiclesTab = ({ navigation }: { navigation?: ReactNode }) 
           page={page}
           totalPages={vehiclesQuery.data?.totalPages ?? 0}
           total={vehiclesQuery.data?.total ?? 0}
-          onPageChange={setPage}
+          onPageChange={(next) => {
+            setExpandedVehicleId(null);
+            setPage(next);
+          }}
         />
       </section>
 

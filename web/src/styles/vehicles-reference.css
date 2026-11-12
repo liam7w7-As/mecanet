@@ -34,6 +34,18 @@
 .vehicles-reference-page .vehicle-reference-row:focus-within { background: #fff; }
 .vehicles-reference-page .vehicle-reference-row:has(> details[open]),
 .vehicles-reference-page .vehicle-reference-row:has(> details[open]) > details > :is(summary, div) { background: #eaf1fc; }
+
+/* El estado operativo tiñe la fila completa: rojo suave si está fuera de
+   servicio y gris claro (no oscuro) si está dado de baja. */
+.vehicles-reference-page .vehicle-reference-row[data-tone] > details > :is(.vehicle-directory-summary, .vehicle-directory-expanded) { background: transparent; }
+.vehicles-reference-page .vehicle-reference-row[data-tone='danger'] { background: #fdeeea; }
+.vehicles-reference-page .vehicle-reference-row[data-tone='danger']:has(> details[open]) { background: #fbded5; }
+.vehicles-reference-page .vehicle-reference-row[data-tone='danger'] > details > .vehicle-directory-summary:hover { background: #fbded5; }
+.vehicles-reference-page .vehicle-reference-row[data-tone='danger'] .vehicle-directory-identity > strong { color: #b93b22; }
+.vehicles-reference-page .vehicle-reference-row[data-tone='muted'] { background: #f3f5f8; }
+.vehicles-reference-page .vehicle-reference-row[data-tone='muted']:has(> details[open]) { background: #eceff4; }
+.vehicles-reference-page .vehicle-reference-row[data-tone='muted'] > details > .vehicle-directory-summary:hover { background: #eceff4; }
+.vehicles-reference-page .vehicle-reference-row[data-tone='muted'] .vehicle-directory-identity > strong { color: #7086a1; }
 .vehicles-reference-page .vehicle-reference-row > details { min-width: 0; }
 .vehicles-reference-page .vehicle-directory-summary { display: grid; grid-template-columns: 24px 28px minmax(150px, 1.3fr) minmax(130px, 1fr) minmax(140px, 1fr) 20px; align-items: center; gap: 12px; min-height: 84px; padding: 14px 18px; list-style: none; cursor: pointer; }
 .vehicles-reference-page .vehicle-directory-summary::-webkit-details-marker { display: none; }

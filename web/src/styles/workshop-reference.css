@@ -159,3 +159,30 @@
 @media (max-width: 380px) {
   :is(.workshop-manage-dialog, .workshop-record-page) .workshop-labor-task-top { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Role-only reference omissions. The personal overview is outside workspace-dashboard,
+   and expanded labor controls must retain the same action and disclosure treatment. */
+.workshop-overview[data-workshop-role=mecanico] .dashboard-kpi { border: 0; border-radius: 22px; }
+.workshop-overview[data-workshop-role=mecanico] .dashboard-kpi-icon { background: #edf2ff; color: #1d396a; }
+.workshop-overview[data-workshop-role=mecanico] .dashboard-kpi-value { color: #1d396a; }
+
+.workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) .workshop-labor-actions > .workshop-labor-primary:hover:not(:disabled) { border-color: #294d7b; background: #294d7b; color: #fff; }
+.workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) .workshop-labor-assignee select { background: #eaf0f8; color: #315582; }
+.workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) :is(.workshop-labor-detail-body, .workshop-execution-side) details > summary { display: flex; align-items: center; gap: 8px; min-height: 40px; list-style: none; cursor: pointer; color: #45607f; font-size: 12px; font-weight: 500; }
+.workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) :is(.workshop-labor-detail-body, .workshop-execution-side) details > summary::-webkit-details-marker { display: none; }
+.workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) :is(.workshop-labor-detail-body, .workshop-execution-side) details > summary::after { content: ''; flex: none; width: 7px; height: 7px; margin-left: auto; border-right: 1.5px solid #8097af; border-bottom: 1.5px solid #8097af; transform: rotate(45deg); }
+.workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) :is(.workshop-labor-detail-body, .workshop-execution-side) details[open] > summary::after { transform: rotate(225deg); }
+.workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) :is(.workshop-labor-admin, .workshop-labor-detail-body > section) { min-width: 0; padding: 14px; border-radius: 12px; background: #edf2f8; }
+.workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) .workshop-labor-detail-body > section { display: grid; gap: 10px; }
+.workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) :is(.workshop-labor-assigned-name, .workshop-labor-detail-body, .workshop-progress-history) { overflow-wrap: anywhere; }
+.workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) :is(button, input, select, textarea, summary, a):focus-visible { outline: 2px solid #89a6d0; outline-offset: 3px; }
+
+@media (max-width: 767px) {
+  .workshop-overview[data-workshop-role=mecanico] .dashboard-kpi { border-radius: 12px; }
+  .workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) .workshop-labor-board :is(input, select, textarea) { font-size: 16px; }
+}
+@media (max-width: 640px) {
+  .workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) .workshop-labor-task-top { grid-template-columns: minmax(0, 1fr); }
+  .workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) .workshop-labor-assigned-name { max-width: none; }
+  .workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) .workshop-labor-board :is(button, input:not([type=file]), select, summary) { min-height: 44px; }
+}

@@ -18,7 +18,7 @@ const getCurrentUserId = (req: Request): number => {
 export const getPaymentsHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const query = res.locals.validatedQuery as PaymentQueryInput;
-    const result = await paymentService.listPayments(query, getCurrentUserId(req));
+    const result = await paymentService.listPayments(query, getCurrentUserId(req), req.user?.role);
     res.status(200).json(result);
   },
 );

@@ -1,4 +1,5 @@
 import * as authService from '../services/auth.service.js';
+import { getCurrentSalesAccess } from '../services/sales-access.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { clearAuthCookies, setAuthCookies } from '../utils/cookies.js';
@@ -99,5 +100,13 @@ export const meController = asyncHandler(
     const user = await authService.getMe(req.user.id);
 
     res.status(200).json({ user });
+  },
+);
+
+export const salesAccessController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) throw ApiError.unauthorized('No autenticado');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.status(200).json(await getCurrentSalesAccess(req.user.id));
   },
 );

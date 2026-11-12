@@ -255,6 +255,19 @@ describe('App routing and authentication', () => {
   });
 
   it.each([
+    ['vendedor', '/users'], ['vendedor', '/finance'], ['vendedor', '/work-orders/daily-report'],
+    ['finanzas', '/work-orders/new'], ['finanzas', '/quotations/new'], ['bodeguero', '/work-orders/mine'],
+  ] as const)('al cambiar de cuenta a %s descarta el destino previo no autorizado %s', async (role, path) => {
+    vi.mocked(api.post).mockResolvedValue({ data: { user: { ...authenticatedUser, role } } } as AxiosResponse<AuthResponse>);
+    renderRoute(path);
+    fireEvent.change(await screen.findByLabelText('Usuario o correo'), { target: { value: 'prueba' } });
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'Prueba123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
+    await waitFor(() => expect(screen.getByLabelText('Ubicación de prueba')).toHaveTextContent('/dashboard'));
+    expect(screen.queryByRole('heading', { name: 'Acceso restringido' })).not.toBeInTheDocument();
+  });
+
+  it.each([
     ['vendedor', '/finance'], ['vendedor', '/users'], ['vendedor', '/settings'],
     ['bodeguero', '/finance'], ['bodeguero', '/users'],
     ['finanzas', '/work-orders/new'], ['finanzas', '/users'],

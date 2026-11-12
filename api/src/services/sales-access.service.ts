@@ -1,5 +1,8 @@
+import { createHash } from 'node:crypto';
+
 import { Op } from 'sequelize';
 
+import { sequelize } from '../config/database.js';
 import { Quotation } from '../models/Quotation.js';
 import { Role } from '../models/Role.js';
 import { SalesAccessGrant } from '../models/SalesAccessGrant.js';
@@ -7,6 +10,7 @@ import { User } from '../models/User.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { ApiError } from '../utils/ApiError.js';
 
+import type { SalesAccessMode } from '@unithor/shared';
 import type { Includeable, Transaction, WhereOptions } from 'sequelize';
 
 /**
@@ -63,6 +67,35 @@ export const getSalesScope = async (userId?: number): Promise<SalesScope | undef
     quotationIds: grants.filter((grant) => grant.scopeType === 'quotation').map((grant) => grant.targetId),
   };
 };
+
+/** Opaque cache revision for the current seller; grant details never leave the server. */
+export const getCurrentSalesAccess = async (
+  userId: number,
+): Promise<{ mode: SalesAccessMode; revision: string }> => sequelize.transaction(async (transaction) => {
+  // Grant writers lock this same User row, keeping the flag and grants consistent.
+  const user = await User.findByPk(userId, {
+    attributes: ['id', 'activo', 'salesAccessAll'],
+    include: [{ model: Role, as: 'role', attributes: ['nombre'] }],
+    transaction, lock: transaction.LOCK.SHARE,
+  });
+  if (!user?.activo) throw ApiError.unauthorized();
+  if (user.role?.nombre !== 'vendedor') throw ApiError.forbidden('Solo disponible para vendedores');
+  const grants = await SalesAccessGrant.findAll({
+    attributes: ['id', 'scopeType', 'targetId', 'expiresAt'],
+    where: {
+      userId,
+      [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }],
+    },
+    order: [['id', 'ASC']],
+    transaction,
+  });
+  const mode: SalesAccessMode = user.salesAccessAll ? 'all' : grants.length ? 'selected' : 'own';
+  const revision = createHash('sha256').update(JSON.stringify({
+    all: user.salesAccessAll,
+    grants: grants.map((grant) => [grant.id, grant.scopeType, grant.targetId, grant.expiresAt?.toISOString() ?? null]),
+  })).digest('hex');
+  return { mode, revision };
+});
 
 export const workOrderWhere = (scope?: SalesScope): WhereOptions<WorkOrder> => {
   if (!scope) return {};

@@ -548,4 +548,61 @@ describe('Seller sharing modes (unithor_test E2E)', () => {
       expect((await get(`/api/work-orders/${linked.id}`, seller)).status).toBe(404);
     } finally { release(); spy.mockRestore(); lockSpy.mockRestore(); }
   });
+
+  it.each(['work_order', 'quotation'] as const)('does not resurrect a legacy-revoked %s grant while its counterpart is being linked', async (scopeType) => {
+    const source = scopeType === 'work_order'
+      ? await addOrder('OT-MODES-LEGACY-REVOKE-LINK')
+      : await addQuotation('COT-MODES-LEGACY-REVOKE-LINK');
+    expect((await put({ mode: 'selected', records: [record(scopeType, source.id), record('work_order', foreignOrder.id)] })).status).toBe(200);
+    const sourceGrant = await SalesAccessGrant.findOne({ where: { userId: seller.id, scopeType, targetId: source.id } });
+    if (!sourceGrant) throw new Error('Missing source grant');
+    let entered!: () => void;
+    let release!: () => void;
+    const atPropagation = new Promise<void>((resolve) => { entered = resolve; });
+    const resume = new Promise<void>((resolve) => { release = resolve; });
+    const findUsers = User.findAll.bind(User);
+    let paused = false;
+    const spy = vi.spyOn(User, 'findAll').mockImplementation(async (options) => {
+      if (!paused && options?.lock && Array.isArray(options.attributes) && options.attributes.includes('salesAccessAll')) {
+        paused = true;
+        entered();
+        await resume;
+      }
+      return findUsers(options);
+    });
+    const creation = (scopeType === 'work_order'
+      ? post('/api/quotations', { workOrderId: source.id })
+      : post(`/api/quotations/${source.id}/convert-to-ot`, { clientId: client.id, vehicleId: vehicle.id }))
+      .then((response) => response);
+    try {
+      await atPropagation;
+      const revoked = await request(app).delete(`${url()}/${sourceGrant.id}`)
+        .set('Cookie', cookie(admin)).set('X-CSRF-Token', csrf(admin));
+      expect(revoked.status).toBe(204);
+      release();
+      const created = await creation;
+      expect(created.status).toBe(201);
+      let orderId: number;
+      let quotationId: number;
+      if (scopeType === 'work_order') {
+        const linked = await Quotation.findByPk(created.body.quotation.id);
+        if (!linked) throw new Error('Missing linked quotation');
+        quotations.push(linked);
+        orderId = source.id;
+        quotationId = linked.id;
+      } else {
+        const linked = await WorkOrder.findByPk(created.body.workOrder.id);
+        if (!linked) throw new Error('Missing linked work order');
+        orders.push(linked);
+        orderId = linked.id;
+        quotationId = source.id;
+      }
+      expect((await get(`/api/work-orders/${orderId}`, seller)).status).toBe(404);
+      expect((await get(`/api/quotations/${quotationId}`, seller)).status).toBe(404);
+      expect((await get(`/api/work-orders/${foreignOrder.id}`, seller)).status).toBe(200);
+      expect((await get(`/api/quotations/${foreignQuotation.id}`, seller)).status).toBe(200);
+      expect((await get(`/api/work-orders/${ownOrder.id}`, seller)).status).toBe(200);
+      expect((await get(url())).body.grants).toHaveLength(2);
+    } finally { release(); spy.mockRestore(); }
+  });
 });

@@ -44,6 +44,7 @@ export const ClientsPage = () => {
   const detailClientId =
     Number.isInteger(requestedClientId) && requestedClientId > 0 ? requestedClientId : null;
   const debouncedSearch = useDebouncedValue(search, 350);
+  const urlSearch = searchParams.get('search') ?? '';
   const user = useAuthStore((state) => state.user);
   const filters = {
     page,
@@ -82,6 +83,9 @@ export const ClientsPage = () => {
   }, [setSearchParams]);
 
   useEffect(() => {
+    // Publishing the search changes the router callback too. Do not reset a
+    // page selected after that search has already been applied.
+    if (debouncedSearch === urlSearch) return;
     setPage(1);
     setSearchParams(
       (current) => {
@@ -92,7 +96,7 @@ export const ClientsPage = () => {
       },
       { replace: true },
     );
-  }, [debouncedSearch, setSearchParams]);
+  }, [debouncedSearch, urlSearch, setSearchParams]);
 
   const changeTab = (nextTab: ClientTab): void => {
     setTab(nextTab);

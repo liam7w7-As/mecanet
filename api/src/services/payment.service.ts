@@ -280,7 +280,7 @@ const getPaymentById = async (id: number, transaction?: Transaction): Promise<Pa
   return toPaymentPublic(payment);
 };
 
-export const listPayments = async (query: PaymentQueryInput, userId?: number): Promise<ListPaymentsResult> => {
+export const listPayments = async (query: PaymentQueryInput, userId?: number, actorRole?: string): Promise<ListPaymentsResult> => {
   const pagination = getPagination(query);
   const where: PaymentWhere = {};
 
@@ -309,7 +309,9 @@ export const listPayments = async (query: PaymentQueryInput, userId?: number): P
     where: searchWhere ? { [Op.and]: [where, searchWhere] } : where,
     include: [creatorInclude, reviewerInclude, {
       ...quotationInclude,
-      ...(scope ? { required: true, where: quotationWhere(scope) } : {}),
+      // All-mode sellers still require an active quotation; accounting roles retain history.
+      required: Boolean(scope) || actorRole === 'vendedor',
+      ...(scope ? { where: quotationWhere(scope) } : {}),
     }],
     distinct: true,
     subQuery: false,

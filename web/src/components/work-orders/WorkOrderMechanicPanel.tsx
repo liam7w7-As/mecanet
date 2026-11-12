@@ -181,7 +181,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
   );
 
   return (
-    <section className="workshop-mechanic-panel min-w-0 overflow-hidden rounded-2xl border border-brand-line bg-white shadow-xs" data-section={section} aria-labelledby="mechanic-panel-title">
+    <section className="workshop-mechanic-panel min-w-0 overflow-hidden rounded-2xl border border-brand-line bg-white shadow-xs" data-workshop-role={user?.role} data-section={section} aria-labelledby="mechanic-panel-title">
       <div className="workshop-mechanic-heading" hidden={section === 'execution' || section === 'prices'}><div><h2 id="mechanic-panel-title">Solicitudes del taller</h2><p>Repuestos y revisiones con sus aprobaciones.</p></div></div>
 
       {mutationError && (

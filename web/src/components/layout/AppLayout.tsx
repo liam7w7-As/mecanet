@@ -10,6 +10,7 @@ import NotificationBell from './NotificationBell';
 import UserMenu from './UserMenu';
 import { useLogoutMutation } from '../../hooks/useAuth';
 import { useDashboardSummary } from '../../hooks/useDashboard';
+import { useSalesAccessSession } from '../../hooks/useSalesAccessSession';
 import { useShellNavigation } from '../../hooks/useShellNavigation';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth.store';
@@ -158,8 +159,10 @@ const SidebarContent = ({ onToggle, isCollapsed }: SidebarContentProps) => {
 
 export const AppLayout = () => {
   const user = useAuthStore((state) => state.user);
+  const salesAccessVersion = useSalesAccessSession();
   const { pathname } = useLocation();
   const navigation = useShellNavigation(pathname);
+  const isSalesView = /^\/(dashboard|work-orders|quotations|finance|reports|clients|vehicles)(\/|$)/.test(pathname);
   const [profileOpen, setProfileOpen] = useState(false);
   const backgroundAttributes = navigation.isDrawerOpen
     ? { inert: '', 'aria-hidden': true as const }
@@ -194,7 +197,7 @@ export const AppLayout = () => {
 
       <main id="shell-content" className="shell-main" tabIndex={-1} {...backgroundAttributes}>
         <div className="container">
-          <PageTransition routeKey={pathname}>
+          <PageTransition key={isSalesView ? salesAccessVersion : user.id} routeKey={pathname}>
             <Outlet />
           </PageTransition>
         </div>

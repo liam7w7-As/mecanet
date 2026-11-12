@@ -903,6 +903,7 @@ describe('Operational list exports (real authentication and role scope)', () => 
         expect(spy).toHaveBeenCalledWith(
           expect.objectContaining({ page: 1, pageSize: 100 }),
           actor('seller').id,
+          'vendedor',
         );
         expect(spy).toHaveBeenCalledTimes(1);
       } finally {

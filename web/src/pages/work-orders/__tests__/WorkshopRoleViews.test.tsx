@@ -154,11 +154,12 @@ describe('Updated workshop role workspaces', () => {
     expect(screen.getByTestId('low-stock-count')).toBeInTheDocument();
   });
 
-  it('identifies seller indicators as their own without giving access to finance', async () => {
+  it('identifies seller indicators by the available scope without giving access to finance', async () => {
     useAuthStore.setState({ user: { id: 11, nombre: 'Ventas', email: 'qa@example.test', role: 'vendedor' } });
     renderPage(<DashboardPage />);
-    expect(await screen.findByText('Mi recaudación del mes')).toBeInTheDocument();
-    expect(screen.getByText('Mis OTs en taller')).toBeInTheDocument();
+    expect(await screen.findByText('Recaudación del mes')).toBeInTheDocument();
+    expect(screen.getByText('OTs en taller')).toBeInTheDocument();
+    expect(screen.getByText(/OT, cotizaciones y cobros según tu acceso/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Nueva cotización' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Revisar abonos/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ajustar' })).not.toBeInTheDocument();

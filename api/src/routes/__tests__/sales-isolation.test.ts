@@ -391,7 +391,7 @@ describe('Sales record isolation', () => {
     ).toBe(2);
   });
 
-  it('revokes a shared grant without touching the linked record', async () => {
+  it('revokes a shared grant together with its linked record', async () => {
     const grant = await SalesAccessGrant.findOne({
       where: { userId: sellers[1].id, scopeType: 'work_order', targetId: orders[0].id },
     });
@@ -401,8 +401,7 @@ describe('Sales record isolation', () => {
       (await adminDelete(`/api/work-orders/${orders[0].id}/access/${grant.id}`)).status,
     ).toBe(204);
     expect((await get(`/api/work-orders/${orders[0].id}`, 1)).status).toBe(404);
-    // La cotización vinculada conserva su propia concesión.
-    expect((await get(`/api/quotations/${quotations[0].id}`, 1)).status).toBe(200);
+    expect((await get(`/api/quotations/${quotations[0].id}`, 1)).status).toBe(404);
   });
 
   it('ignores expired grants even when they remain listed for administration', async () => {

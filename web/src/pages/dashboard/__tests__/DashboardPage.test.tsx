@@ -180,6 +180,50 @@ describe('DashboardPage', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
+  it('el vendedor ve el resumen de los registros disponibles sin prometer que sean solo propios', async () => {
+    useAuthStore.setState({ user: { id: 2, nombre: 'Vendedora', email: 'ventas@example.com', role: 'vendedor' } });
+    renderPage();
+    expect(await screen.findByTestId('active-work-orders')).toHaveTextContent('8');
+    expect(screen.getByText(/OT, cotizaciones y cobros según tu acceso/)).toBeInTheDocument();
+    expect(screen.queryByText('Mis OTs en taller')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Nueva cotización/ })).toHaveAttribute('href', '/quotations/new');
+    expect(screen.queryByRole('link', { name: 'Caja del día' })).not.toBeInTheDocument();
+  });
+
+  it('finanzas conserva su panel de cobros y accesos, sin ofrecer creación ni gestión de taller', async () => {
+    useAuthStore.setState({ user: { id: 3, nombre: 'Contabilidad', email: 'finanzas@example.com', role: 'finanzas' } });
+    renderPage();
+    expect(await screen.findByTestId('finance-verifications')).toHaveTextContent('1');
+    expect(screen.getAllByRole('link', { name: /Caja del día/ }).every((link) => link.getAttribute('href') === '/finance?tab=cash')).toBe(true);
+    expect(screen.queryByRole('link', { name: /Ingresar vehículo/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Nueva cotización/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Últimos trabajos en taller' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Dar de alta cliente/ })).not.toBeInTheDocument();
+  });
+
+  it('bodega ofrece despachos e inventario con sus permisos, sin formularios comerciales', async () => {
+    useAuthStore.setState({ user: { id: 4, nombre: 'Bodega', email: 'bodega@example.com', role: 'bodeguero' } });
+    renderPage();
+    expect(await screen.findByTestId('warehouse-deliveries')).toHaveTextContent('1');
+    expect(screen.getByRole('link', { name: 'Despachos pendientes' })).toHaveAttribute('href', '/warehouses?tab=requests');
+    expect(screen.getByRole('link', { name: 'Almacenes' })).toHaveAttribute('href', '/warehouses');
+    expect(screen.queryByRole('link', { name: /Nueva cotización/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Ingresar vehículo/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ajustar' })).toBeEnabled();
+  });
+
+  it('jefatura mantiene actividad y horas del equipo en lugar de indicadores financieros', async () => {
+    useAuthStore.setState({ user: { id: 5, nombre: 'Jefe Taller', email: 'jefe@example.com', role: 'jefe' } });
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/work-orders/reports/daily'
+      ? { report: { fecha: '2026-11-12', totalHoras: 3.5, usuarios: [] } }
+      : summary } as AxiosResponse));
+    renderPage();
+    expect(await screen.findByTestId('workshop-approvals')).toHaveTextContent('1');
+    expect(screen.getByTestId('workshop-today-hours')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Reporte diario' })).toHaveAttribute('href', '/work-orders/daily-report');
+    expect(screen.queryByTestId('monthly-revenue')).not.toBeInTheDocument();
+  });
+
   it('muestra resultados reales en el buscador compacto y permite recuperarlos con la flecha', async () => {
     vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/search/quick'
       ? { clients: [{ id: 7, nombre: 'Cliente de búsqueda', rut: '123456785', vehiclesCount: 1 }], vehicles: [] }

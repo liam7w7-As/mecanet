@@ -469,7 +469,7 @@ export const buildOperationsExport: ExportBuilder = async (target, rawQuery, act
     }
     case 'payments': {
       const query = paymentQuerySchema.parse(exportQuery(rawQuery));
-      const rows = await collectExportPages((page) => listPayments({ ...query, page }, actor.id));
+      const rows = await collectExportPages((page) => listPayments({ ...query, page }, actor.id, actor.role));
       return {
         title: 'Listado de abonos',
         filters: exportFilters(query),

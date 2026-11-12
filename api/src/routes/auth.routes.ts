@@ -7,6 +7,7 @@ import {
   logoutController,
   meController,
   refreshController,
+  salesAccessController,
 } from '../controllers/auth.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { validate } from '../middlewares/validate.js';
@@ -21,3 +22,4 @@ authRouter.post('/logout', logoutController);
 // Endpoints protegidos (requieren usuario autenticado)
 authRouter.post('/logout-all', authenticate, logoutAllController);
 authRouter.get('/me', authenticate, meController);
+authRouter.get('/sales-access', authenticate, salesAccessController);

@@ -1,4 +1,5 @@
 import { Payment } from '../models/Payment.js';
+import { Quotation } from '../models/Quotation.js';
 import {
   assertSalesQuotationAccess,
   assertSalesWorkOrderAccess,
@@ -22,6 +23,7 @@ export const salesRecordAccess =
         const payment = await Payment.findOne({
           where: { id },
           attributes: ['id', 'quotationId'],
+          include: [{ model: Quotation, attributes: ['id'], required: true }],
         });
         if (!payment) throw ApiError.notFound('Pago no encontrado');
         await assertSalesQuotationAccess(payment.quotationId, req.user.id);

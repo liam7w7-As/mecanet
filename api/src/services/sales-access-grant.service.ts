@@ -408,7 +408,24 @@ export const revokeUserSalesAccessGrant = async (
     await User.findByPk(granteeId, { attributes: ['id'], transaction, lock: transaction.LOCK.UPDATE });
     const grant = await SalesAccessGrant.findOne({ where: { id: grantId, userId: granteeId }, transaction });
     if (!grant) throw ApiError.notFound('Acceso no encontrado');
-    await grant.destroy({ transaction });
+    const records: Array<Pick<SalesAccessRecord, 'scopeType' | 'targetId'>> = [grant];
+    // Revoke the pair even if a target was soft deleted, so restoring it cannot restore access.
+    // Keep the User lock first: linking also locks this user before propagating grants.
+    if (grant.scopeType === 'work_order') {
+      const quotations = await Quotation.findAll({
+        where: { workOrderId: grant.targetId }, attributes: ['id'], paranoid: false, transaction,
+      });
+      records.push(...quotations.map((quotation) => ({ scopeType: 'quotation' as const, targetId: quotation.id })));
+    } else {
+      const quotation = await Quotation.findByPk(grant.targetId, {
+        attributes: ['workOrderId'], paranoid: false, transaction,
+      });
+      if (quotation?.workOrderId) records.push({ scopeType: 'work_order', targetId: quotation.workOrderId });
+    }
+    await SalesAccessGrant.destroy({
+      where: { userId: granteeId, [Op.or]: records.map(({ scopeType, targetId }) => ({ scopeType, targetId })) },
+      transaction,
+    });
   });
 };
 

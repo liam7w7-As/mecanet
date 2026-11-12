@@ -86,7 +86,7 @@ export const DashboardPage = () => {
         </div>
         <p className="dashboard-date">{formatCurrentDate()}</p>
       </header>
-      {(isSeller || isWarehouse || isFinance) && <p className="workshop-role-caption">{isSeller ? 'Tu gestión comercial · OT, cotizaciones y cobros propios. Clientes y vehículos compartidos.' : isWarehouse ? 'Tu bodega · despachos aprobados, existencias y movimientos.' : 'Tu gestión financiera · cobros, comprobantes y cierre de caja.'}</p>}
+      {(isSeller || isWarehouse || isFinance) && <p className="workshop-role-caption">{isSeller ? 'Tu gestión comercial · OT, cotizaciones y cobros según tu acceso. Clientes y vehículos compartidos.' : isWarehouse ? 'Tu bodega · despachos aprobados, existencias y movimientos.' : 'Tu gestión financiera · cobros, comprobantes y cierre de caja.'}</p>}
 
       <section className="dashboard-shortcuts view-panel" aria-labelledby="quick-actions-title">
         <div className="view-panel-title">
@@ -128,7 +128,7 @@ export const DashboardPage = () => {
 
       {dashboardQuery.isPending ? <DashboardSkeleton /> : summary && (
         <>
-          <Stagger className="dashboard-metrics" aria-label="Indicadores principales">
+          <Stagger className="dashboard-metrics" data-metric-count={isFinance || isWarehouse ? 3 : 6} aria-label="Indicadores principales">
             {isFinance ? <>
               <StaggerItem className="dashboard-kpi dashboard-kpi-green"><KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} testId="monthly-revenue" /></StaggerItem>
               <StaggerItem className="dashboard-kpi"><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} testId="pending-balance" /></StaggerItem>
@@ -138,14 +138,14 @@ export const DashboardPage = () => {
               <StaggerItem className="dashboard-kpi dashboard-kpi-amber"><KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} testId="waiting-for-parts" /></StaggerItem>
               <StaggerItem className={cn('dashboard-kpi', summary.lowStockCount > 0 ? 'dashboard-kpi-coral' : 'dashboard-kpi-green')}><KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} testId="low-stock-count" /></StaggerItem>
             </> : <>
-            <StaggerItem className="dashboard-kpi"><KpiCard title={isSeller ? 'Mis OTs en taller' : 'OTs en taller'} value={String(summary.metrics.activeWorkOrders)} detail={isSeller ? 'Tus órdenes iniciadas o esperando repuesto' : 'Iniciadas o esperando repuesto'} icon={Wrench} testId="active-work-orders" /></StaggerItem>
+            <StaggerItem className="dashboard-kpi"><KpiCard title="OTs en taller" value={String(summary.metrics.activeWorkOrders)} detail={isSeller ? 'Órdenes disponibles según tu acceso' : 'Iniciadas o esperando repuesto'} icon={Wrench} testId="active-work-orders" /></StaggerItem>
             <StaggerItem className="dashboard-kpi dashboard-kpi-amber"><KpiCard title="Esperando repuestos" value={String(summary.metrics.waitingForParts)} detail="Vehículos detenidos por piezas" icon={PackageX} testId="waiting-for-parts" /></StaggerItem>
             {isWorkshopChief ? <>
               <StaggerItem className="dashboard-kpi"><KpiCard title="Solicitudes por aprobar" value={String(summary.operationalInbox.counts.approvals)} detail="Repuestos y revisiones del taller" icon={ClipboardCheck} testId="workshop-approvals" /></StaggerItem>
               <StaggerItem className="dashboard-kpi"><KpiCard title="Horas de hoy" value={todayQuery.data ? `${new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(todayQuery.data.totalHoras)} h` : '—'} detail={todayQuery.isError ? 'Actividad no disponible · reintenta abajo' : 'Tiempo registrado por el equipo'} icon={Clock3} testId="workshop-today-hours" /></StaggerItem>
             </> : <>
-              <StaggerItem className="dashboard-kpi dashboard-kpi-green"><KpiCard title={isSeller ? 'Mi recaudación del mes' : 'Recaudación del mes'} value={formatClp(summary.metrics.monthlyRevenue)} detail="Pagos registrados desde el día 1" icon={Coins} testId="monthly-revenue" /></StaggerItem>
-              <StaggerItem className="dashboard-kpi"><KpiCard title={isSeller ? 'Mis saldos por cobrar' : 'Saldos por cobrar'} value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} testId="pending-balance" /></StaggerItem>
+              <StaggerItem className="dashboard-kpi dashboard-kpi-green"><KpiCard title="Recaudación del mes" value={formatClp(summary.metrics.monthlyRevenue)} detail={isSeller ? 'Cobros de las cotizaciones disponibles' : 'Pagos registrados desde el día 1'} icon={Coins} testId="monthly-revenue" /></StaggerItem>
+              <StaggerItem className="dashboard-kpi"><KpiCard title="Saldos por cobrar" value={formatClp(summary.metrics.pendingBalance)} detail={`${summary.metrics.pendingQuotations} cotización(es) pendientes`} icon={ReceiptText} testId="pending-balance" /></StaggerItem>
             </>}
             <StaggerItem className={cn('dashboard-kpi', summary.lowStockCount > 0 ? 'dashboard-kpi-coral' : 'dashboard-kpi-green')}><KpiCard title="Alerta de stock" value={String(summary.lowStockCount)} detail="Repuestos entre 0 y 5 unidades" icon={PackageX} testId="low-stock-count" /></StaggerItem>
             {isWorkshopChief ? <StaggerItem className="dashboard-kpi"><KpiCard title="Equipo en curso" value={todayQuery.data ? String(todayQuery.data.usuarios.filter((person) => person.enCurso).length) : '—'} detail="Personas con cronómetro activo" icon={Users} testId="workshop-running-team" /></StaggerItem> : <StaggerItem className="dashboard-kpi"><KpiCard title="COT sin OT" value={String(summary.metrics.quotationsWithoutWorkOrder)} detail="Pendientes de convertir a orden" icon={FileText} testId="quotations-without-work-order" /></StaggerItem>}
@@ -158,7 +158,7 @@ export const DashboardPage = () => {
             {canReadWorkshop ? <div className="view-panel dashboard-recent-work">
               <div className="view-panel-title flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-base font-semibold text-brand-ink">{isSeller ? 'Mis últimos trabajos en taller' : 'Últimos trabajos en taller'}</h2>
+                  <h2 className="text-base font-semibold text-brand-ink">Últimos trabajos en taller</h2>
                   <p className="mt-0.5 text-sm text-brand-muted">Órdenes creadas o actualizadas recientemente</p>
                 </div>
                 <Link to="/work-orders" className="group inline-flex items-center gap-1.5 text-sm font-semibold text-brand-primaryInk hover:underline">

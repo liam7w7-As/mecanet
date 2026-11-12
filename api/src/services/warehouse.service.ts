@@ -15,6 +15,7 @@ import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
 import { getPagination } from '../utils/paginate.js';
+import { plateSearch } from '../utils/plate-search.js';
 
 import type {
   CreateStockMovementInput,
@@ -764,7 +765,7 @@ export const listWorkOrderRequests = async (
   const pagination = getPagination(query);
   type RequestWhere = WhereOptions<InferAttributes<WorkOrderRequest>> & {
     [Op.and]?: Array<Record<string, unknown>>;
-    [Op.or]?: Array<Record<string, unknown>>;
+    [Op.or]?: WhereOptions<InferAttributes<WorkOrderRequest>>[];
   };
   const where: RequestWhere = { tipo: 'repuesto', estado: query.estado };
   const scope = await getSalesScope(userId);
@@ -783,7 +784,7 @@ export const listWorkOrderRequests = async (
     where[Op.or] = [
       { '$workOrder.codigo$': { [Op.like]: pattern } },
       { '$workOrder.client.nombre$': { [Op.like]: pattern } },
-      { '$workOrder.vehicle.patente$': { [Op.like]: pattern } },
+      plateSearch('workOrder->vehicle.patente', query.search),
       { '$catalogItem.nombre$': { [Op.like]: pattern } },
       { '$catalogItem.codigo$': { [Op.like]: pattern } },
     ];

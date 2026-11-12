@@ -271,3 +271,45 @@ export const fleetDocumentFileUrl = (
   const query = params.toString();
   return `/api/fleet-vehicles/${vehicleId}/documents/${documentId}/file${query ? `?${query}` : ''}`;
 };
+
+export const useUploadFleetVehiclePhotoMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    onMutate: mutationViewer,
+    mutationFn: async ({ id, file }: { id: number; file: File }) => {
+      const formData = new FormData();
+      formData.append('foto', file);
+      const response = await api.post<{ fleetVehicle: FleetVehicleDetail }>(
+        `/fleet-vehicles/${id}/foto`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        },
+      );
+      return response.data.fleetVehicle;
+    },
+    onSuccess: (vehicle, _data, viewer) => {
+      queryClient.setQueryData(fleetVehicleKeys.detail(vehicle.id, viewer ?? null), vehicle);
+      invalidateFleetData(queryClient);
+    },
+  });
+};
+
+export const useDeleteFleetVehiclePhotoMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    onMutate: mutationViewer,
+    mutationFn: async (id: number) => {
+      const response = await api.delete<{ fleetVehicle: FleetVehicleDetail }>(
+        `/fleet-vehicles/${id}/foto`,
+      );
+      return response.data.fleetVehicle;
+    },
+    onSuccess: (vehicle, _data, viewer) => {
+      queryClient.setQueryData(fleetVehicleKeys.detail(vehicle.id, viewer ?? null), vehicle);
+      invalidateFleetData(queryClient);
+    },
+  });
+};

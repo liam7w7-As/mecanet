@@ -1,3 +1,4 @@
+import { formatChilePatente } from '@unithor/shared';
 import { Car, ChevronDown, Eye, Pencil, Trash2 } from 'lucide-react';
 
 import type { ReactNode } from 'react';
@@ -5,6 +6,7 @@ import type { ReactNode } from 'react';
 interface Props {
   number: number;
   plate: string;
+  fotoUrl?: string | null;
   privateSubline?: ReactNode;
   name: string;
   reference?: string;
@@ -28,20 +30,33 @@ interface Props {
 }
 
 /** The summary expands locally; the explicit record action opens the existing modal. */
-export default function VehicleDirectoryRow({ number, plate, privateSubline, name, reference, owner, ownerLabel, facts, status, alerts, detailFacts, tone, open, onOpenChange, onOpen, onEdit, onDelete }: Props) {
+export default function VehicleDirectoryRow({ number, plate, fotoUrl, privateSubline, name, reference, owner, ownerLabel, facts, status, alerts, detailFacts, tone, open, onOpenChange, onOpen, onEdit, onDelete }: Props) {
   const controlled = open !== undefined && onOpenChange !== undefined;
+  const displayPlate = formatChilePatente(plate);
+
   return (
     <article className="vehicle-directory-row vehicle-reference-row" data-tone={tone}>
       <details className="vehicle-directory-accordion" open={controlled ? open : undefined}>
         <summary
           className="vehicle-directory-summary"
-          aria-label={`Desplegar resumen de ${plate}`}
+          aria-label={`Desplegar resumen de ${displayPlate}`}
           onClick={controlled ? (event) => { event.preventDefault(); onOpenChange(!open); } : undefined}
         >
           <span className="vehicle-directory-number">#{number}</span>
-          <span className="vehicle-directory-symbol" aria-hidden="true"><Car /></span>
+          <span className="vehicle-directory-symbol" aria-hidden="true">
+            {fotoUrl ? (
+              <img
+                src={fotoUrl}
+                alt={displayPlate}
+                className="h-7 w-7 rounded object-cover border border-slate-200"
+                loading="lazy"
+              />
+            ) : (
+              <Car />
+            )}
+          </span>
           <span className="vehicle-directory-identity">
-            <strong>{plate}</strong>
+            <strong>{displayPlate}</strong>
             {privateSubline && <small className="vehicle-directory-private">{privateSubline}</small>}
             <span>{name}</span>
           </span>
@@ -60,9 +75,9 @@ export default function VehicleDirectoryRow({ number, plate, privateSubline, nam
           <div className="vehicle-directory-expanded-footer">
             <p className="vehicle-directory-hint">Consulta el detalle y su historial en la ficha completa.</p>
             <footer className="vehicle-directory-actions">
-              <button type="button" className="vehicle-directory-profile-action" aria-label={`Abrir ficha de ${plate}`} title="Ver ficha completa" onClick={onOpen}><Eye aria-hidden="true" /><span>Ver ficha</span></button>
-              {onEdit && <button type="button" aria-label={`Editar ${plate}`} title="Editar vehículo" onClick={onEdit}><Pencil aria-hidden="true" /></button>}
-              {onDelete && <button type="button" className="vehicle-directory-delete" aria-label={`Eliminar ${plate}`} title="Eliminar vehículo" onClick={onDelete}><Trash2 aria-hidden="true" /></button>}
+              <button type="button" className="vehicle-directory-profile-action" aria-label={`Abrir ficha de ${displayPlate}`} title="Ver ficha completa" onClick={onOpen}><Eye aria-hidden="true" /><span>Ver ficha</span></button>
+              {onEdit && <button type="button" aria-label={`Editar ${displayPlate}`} title="Editar vehículo" onClick={onEdit}><Pencil aria-hidden="true" /></button>}
+              {onDelete && <button type="button" className="vehicle-directory-delete" aria-label={`Eliminar ${displayPlate}`} title="Eliminar vehículo" onClick={onDelete}><Trash2 aria-hidden="true" /></button>}
             </footer>
           </div>
         </div>

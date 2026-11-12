@@ -1,4 +1,4 @@
-import { QUOTATION_BANK_ACCOUNTS, QUOTATION_BANK_RECIPIENT, QUOTATION_PAYMENT_LABELS, getQuotationTaxBreakdown } from '@unithor/shared';
+import { QUOTATION_BANK_ACCOUNTS, QUOTATION_BANK_RECIPIENT, QUOTATION_PAYMENT_LABELS, formatChilePatente, getQuotationTaxBreakdown } from '@unithor/shared';
 
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { useCompanyBranding } from '../common/BrandingContext';
@@ -118,7 +118,7 @@ export default function QuotationDocument({ quotation, totalPages }: { quotation
         </div>
         {quotation.vehicle && <div className="min-w-0 break-words">
           <h2 className="mb-1 text-[9px] font-bold text-slate-500">DATOS DEL VEHÍCULO</h2>
-          <p className="text-[14px] font-bold text-[#0E2B4E]">{quotation.vehicle.patente}</p>
+          <p className="text-[14px] font-bold text-[#0E2B4E]">{formatChilePatente(quotation.vehicle.patente)}</p>
           <p>{[quotation.vehicle.marca, quotation.vehicle.modelo].filter(Boolean).join(' ')}</p>
         </div>}
       </section>

@@ -1,7 +1,8 @@
-import { FLEET_REQUIRED_DOCUMENTS, getFleetRequiredDocumentSummary, getFleetRequiredDocumentType } from '@unithor/shared';
+import { FLEET_REQUIRED_DOCUMENTS, formatChilePatente, getFleetRequiredDocumentSummary, getFleetRequiredDocumentType } from '@unithor/shared';
 import {
   AlertCircle,
   CalendarDays,
+  Camera,
   Car,
   Download,
   Eye,
@@ -16,12 +17,13 @@ import {
   Plus,
   Settings2,
   Trash2,
+  Upload,
   UserRound,
   Wrench,
   X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import FleetDocumentFormModal from './FleetDocumentFormModal';
 import FleetDocumentVersionsModal from './FleetDocumentVersionsModal';
@@ -31,7 +33,9 @@ import FleetVehicleStatusBadge from './FleetVehicleStatusBadge';
 import {
   fleetDocumentFileUrl,
   useDeleteFleetDocumentMutation,
+  useDeleteFleetVehiclePhotoMutation,
   useFleetVehicle,
+  useUploadFleetVehiclePhotoMutation,
 } from '../../hooks/useFleetVehicles';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -166,6 +170,12 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
   const user = useAuthStore((state) => state.user);
   const vehicleQuery = useFleetVehicle(vehicleId);
   const deleteDocumentMutation = useDeleteFleetDocumentMutation(vehicleId);
+  const uploadPhotoMutation = useUploadFleetVehiclePhotoMutation();
+  const deletePhotoMutation = useDeleteFleetVehiclePhotoMutation();
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [isPhotoSaving, setIsPhotoSaving] = useState(false);
+  const photoSavingRef = useRef(false);
   const [isEditingVehicle, setIsEditingVehicle] = useState(false);
   const [documentForm, setDocumentForm] = useState<{ document?: FleetDocument; initialName?: string } | null>(null);
   const [versionsDocument, setVersionsDocument] = useState<FleetDocument | null>(null);
@@ -187,6 +197,31 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
       <X className="h-5 w-5" aria-hidden="true" />
     </button>
   );
+
+  const savePhoto = async (file?: File): Promise<void> => {
+    if (!canUpdateFleet || photoSavingRef.current || !vehicleQuery.data) return;
+    if (file && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024)) {
+      setPhotoError('Seleccione una foto JPG, PNG o WebP de hasta 8 MB.');
+      return;
+    }
+    photoSavingRef.current = true;
+    setIsPhotoSaving(true);
+    setPhotoError(null);
+    setSelectedPhotoFile(file ?? null);
+    try {
+      if (file) {
+        await uploadPhotoMutation.mutateAsync({ id: vehicleQuery.data.id, file });
+      } else {
+        await deletePhotoMutation.mutateAsync(vehicleQuery.data.id);
+      }
+      setSelectedPhotoFile(null);
+    } catch (error) {
+      setPhotoError(getApiErrorMessage(error, 'No fue posible guardar la foto. Intente nuevamente.'));
+    } finally {
+      photoSavingRef.current = false;
+      setIsPhotoSaving(false);
+    }
+  };
 
   if (vehicleQuery.isPending || vehicleQuery.isError || !vehicleQuery.data) {
     return (
@@ -342,11 +377,31 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
   return (
     <div className="vehicle-profile vehicle-profile--fleet flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
       <header className="vehicle-profile-header">
-        <ModalHeader id={`${profileId}-title`} title={vehicle.patente} variant="brand" eyebrow="Flota interna" description={<>
-          {showOwner && canViewOwner && <span className="mb-1 block break-words">Propietario: {vehicle.propietario ?? 'Sin registrar'}</span>}
-          <span>{`${displayName || 'Vehículo de flota sin descripción técnica'}${vehicle.codigoInterno ? ` · Código ${vehicle.codigoInterno}` : ''}`}</span>
-        </>} badge={<Car aria-hidden="true" />} actions={<FleetVehicleStatusBadge status={vehicle.estadoOperativo} />} onClose={onClose} closeLabel="Cerrar ficha" />
-        {canUpdateFleet && <div className="vehicle-profile-actions"><button type="button" onClick={() => setIsEditingVehicle(true)} aria-label="Editar ficha"><Pencil aria-hidden="true" />Editar vehículo</button></div>}
+        <ModalHeader
+          id={`${profileId}-title`}
+          title={formatChilePatente(vehicle.patente)}
+          variant="brand"
+          eyebrow="Flota interna"
+          description={<>
+            {showOwner && canViewOwner && <span className="mb-1 block break-words">Propietario: {vehicle.propietario ?? 'Sin registrar'}</span>}
+            <span>{`${displayName || 'Vehículo de flota sin descripción técnica'}${vehicle.codigoInterno ? ` · Código ${vehicle.codigoInterno}` : ''}`}</span>
+          </>}
+          badge={
+            vehicle.fotoUrl ? (
+              <img
+                src={vehicle.fotoUrl}
+                alt={formatChilePatente(vehicle.patente)}
+                className="h-10 w-10 rounded-lg object-cover border border-slate-200"
+              />
+            ) : (
+              <Car aria-hidden="true" />
+            )
+          }
+          actions={<FleetVehicleStatusBadge status={vehicle.estadoOperativo} />}
+          onClose={onClose}
+          closeLabel="Cerrar ficha"
+        />
+        {canUpdateFleet && <div className="vehicle-profile-actions"><button type="button" disabled={isPhotoSaving} onClick={() => setIsEditingVehicle(true)} aria-label="Editar ficha"><Pencil aria-hidden="true" />Editar vehículo</button></div>}
       </header>
       <div className="reference-dialog-tabs vehicle-profile-tabs" role="tablist" aria-label="Información de flota" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
         {([{ id: 'data', label: 'Ficha', icon: Car }, { id: 'documents', label: 'Documentos', icon: FileText }] as const).map(({ id, label, icon: Icon }) => <button key={id} id={`${profileId}-${id}-tab`} type="button" role="tab" aria-selected={activeTab === id} aria-controls={`${profileId}-${id}-panel`} tabIndex={activeTab === id ? 0 : -1} onClick={() => setActiveTab(id)} onKeyDown={(event) => {
@@ -397,6 +452,59 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
             <h2 id="fleet-vehicle-data-title" className="flex items-center gap-2 text-base font-semibold text-brand-ink">
               <Settings2 className="h-4 w-4 text-brand-muted" aria-hidden="true" /> Datos del vehículo
             </h2>
+            <div className="mt-3 mb-5 rounded-xl border border-brand-line bg-brand-pale/20 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-brand-muted">Foto del vehículo</span>
+                {vehicle.fotoUrl && canUpdateFleet && (
+                  <button
+                    type="button"
+                    onClick={() => { void savePhoto(); }}
+                    disabled={isPhotoSaving}
+                    className="inline-flex items-center gap-1 text-[11px] text-brand-coralInk hover:underline"
+                  >
+                    <Trash2 className="h-3 w-3" /> {deletePhotoMutation.isPending ? 'Quitando...' : 'Quitar'}
+                  </button>
+                )}
+              </div>
+              <div className="relative h-44 w-full max-w-sm overflow-hidden rounded-lg border border-brand-line bg-white flex items-center justify-center">
+                {vehicle.fotoUrl ? (
+                  <img
+                    src={vehicle.fotoUrl}
+                    alt={`Foto de ${formatChilePatente(vehicle.patente)}`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center p-3">
+                    <Camera className="mx-auto h-8 w-8 text-slate-300" />
+                    <p className="mt-1 text-xs text-brand-muted">Sin foto registrada</p>
+                  </div>
+                )}
+                {canUpdateFleet && (
+                  <label className="absolute bottom-2 right-2 cursor-pointer rounded-md bg-brand-primaryInk/80 px-2.5 py-1 text-xs font-medium text-white backdrop-blur hover:bg-brand-primaryInk transition flex items-center gap-1 shadow">
+                    <Upload className="h-3 w-3" />
+                    <span>{uploadPhotoMutation.isPending ? 'Subiendo...' : vehicle.fotoUrl ? 'Cambiar' : 'Subir'}</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      aria-label="Seleccionar foto del vehículo"
+                      disabled={isPhotoSaving}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (file) void savePhoto(file);
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+                {photoError && <p role="alert" className="mt-2 text-sm text-brand-coralInk">{photoError}</p>}
+                {photoError && selectedPhotoFile && canUpdateFleet && (
+                  <button type="button" className="secondary-button mt-2" disabled={isPhotoSaving} onClick={() => { void savePhoto(selectedPhotoFile); }}>
+                    Reintentar foto
+                  </button>
+                )}
+            </div>
             <dl className="mt-2 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
               <Fact icon={Hash} label="Código interno" value={vehicle.codigoInterno ?? 'Sin código'} />
               <Fact icon={MapPin} label="Sucursal" value={vehicle.sucursal ?? 'Sin sucursal'} />

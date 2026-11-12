@@ -206,6 +206,9 @@ describe('Work Order Routes (E2E)', () => {
       patente: 'PH4101',
       marca: 'Toyota',
       modelo: 'Hilux',
+      ano: 2023,
+      color: 'Blanco',
+      combustible: 'Diésel',
       kilometraje: 1000,
       clientId,
     });
@@ -295,6 +298,9 @@ describe('Work Order Routes (E2E)', () => {
       });
 
     expect(firstResponse.status).toBe(201);
+    expect(firstResponse.body.workOrder.vehicle).toMatchObject({
+      id: vehicleId, ano: 2023, color: 'Blanco', combustible: 'Diésel',
+    });
     expect(firstResponse.body.workOrder.codigo).toBe(`OT-${String(TEST_YEAR).slice(-2)}-1`);
     expect(firstResponse.body.workOrder.contact).toMatchObject({
       clientId,
@@ -514,6 +520,23 @@ describe('Work Order Routes (E2E)', () => {
     expect(byClient.status).toBe(200);
     expect(byClient.body.total).toBeGreaterThan(0);
     expect(byClient.body.items.every((item: { clientId: number | null }) => item.clientId === clientId)).toBe(true);
+  });
+
+  it('encuentra las OT con patentes formateadas al buscar con y sin guion o con texto parcial', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const vehicle = await Vehicle.findByPk(vehicleId, { rejectOnEmpty: true });
+    const previousPlate = vehicle.patente;
+    await vehicle.update({ patente: 'PH-4101' });
+    try {
+      for (const search of ['PH4101', 'PH-4101', 'ph410']) {
+        const response = await request(app).get('/api/work-orders').query({ search }).set('Cookie', authCookie(cookies));
+        expect(response.status).toBe(200);
+        expect(response.body.total).toBeGreaterThan(0);
+        expect(response.body.items.every((item: { vehicleId: number | null }) => item.vehicleId === vehicleId)).toBe(true);
+      }
+    } finally {
+      await vehicle.update({ patente: previousPlate });
+    }
   });
 
   it('permite combinar un vehículo con un responsable distinto a su propietario', async () => {

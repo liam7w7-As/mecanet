@@ -21,7 +21,7 @@ const renderDetail = () => render(<QueryClientProvider client={new QueryClient({
   <MemoryRouter><FleetVehicleDetail vehicleId={3} onClose={vi.fn()} /></MemoryRouter>
 </QueryClientProvider>);
 const openDocuments = async () => {
-  await screen.findByRole('heading', { name: 'ABCD12' });
+  await screen.findByRole('heading', { name: /ABCD-?12/ });
   fireEvent.click(screen.getByRole('tab', { name: /^Documentos/ }));
 };
 

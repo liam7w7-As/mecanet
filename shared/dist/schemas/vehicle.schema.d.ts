@@ -1,5 +1,6 @@
 import { z } from 'zod';
 export declare const normalizeChilePatente: (value: string) => string;
+export declare const formatChilePatente: (value: string | null | undefined) => string;
 export declare const isValidChilePatente: (value: string) => boolean;
 export declare const chilePatenteSchema: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
 export declare const createVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{

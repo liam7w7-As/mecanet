@@ -31,6 +31,7 @@ import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useSalesAccessRecord } from '../../hooks/useSalesAccessRecord';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
+import { getWorkOrderAssigneeLabel } from '../../lib/work-order-assignees';
 import { getWorkOrderPricing, getWorkOrderTotal } from '../../lib/work-order-pricing';
 import {
   PROGRESS_TIER_STYLES,
@@ -139,7 +140,7 @@ export const WorkOrderQuickDetailModal = ({
   const savePending = panelPending || activeLaborMutations > 0;
   const [leaveAction, setLeaveAction] = useState<LeaveAction | null>(null);
   const showFinancials = user?.role !== 'mecanico';
-  const canSuggestPrices = Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role));
+  const canSuggestPrices = Boolean(user && ['desarrollador', 'admin', 'jefe', 'mecanico'].includes(user.role));
   useEffect(() => { if (view === 'prices' && !canSuggestPrices) setView('execution'); }, [view, canSuggestPrices]);
   const workOrderQuery = useManagedWorkOrder(workOrderId);
   const workOrder = workOrderQuery.data;
@@ -261,8 +262,8 @@ export const WorkOrderQuickDetailModal = ({
               {showFinancials && <SummaryRow
                 icon={<UserCog className="h-4 w-4" aria-hidden="true" />}
                 label="Mecánico responsable"
-                value={workOrder.assignedMechanic?.nombre ?? 'Sin asignar'}
-                hint={workOrder.assignedMechanic ? 'Ejecución técnica a su cargo' : null}
+                value={getWorkOrderAssigneeLabel(workOrder)}
+                hint={workOrder.items?.some((item) => item.assignedUserId) ? 'Asignaciones por servicio' : workOrder.assignedMechanic ? 'Ejecución técnica a su cargo' : null}
               />}
               {showFinancials && <SummaryRow
                 icon={<Building2 className="h-4 w-4" aria-hidden="true" />}

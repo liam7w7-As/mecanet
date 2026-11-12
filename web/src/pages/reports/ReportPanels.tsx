@@ -2,6 +2,7 @@ import {
   CATALOG_TYPES,
   commercialReportQuerySchema,
   financialReportQuerySchema,
+  getQuotationGrossTotal,
   PAYMENT_METHODS,
   QUOTATION_STATUS,
   STOCK_MOVEMENT_TYPES,
@@ -646,7 +647,7 @@ export const CommercialReportPanel = ({
                         {formatDate(item.createdAt)}
                       </td>
                       <td role="cell" data-label="Total" className="py-3 text-right font-semibold">
-                        {formatClp(item.total)}
+                        {formatClp(getQuotationGrossTotal(Number(item.total)))}
                       </td>
                     </tr>
                   ))}

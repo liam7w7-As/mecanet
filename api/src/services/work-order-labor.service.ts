@@ -240,7 +240,8 @@ export interface WorkOrderWorksheet {
   };
   pausedOtherItems: number;
   requests: Array<{
-    id: number; tipo: 'repuesto'; estado: WorkOrderRequest['estado']; catalogItemId: number | null;
+    id: number; tipo: WorkOrderRequest['tipo']; estado: WorkOrderRequest['estado']; catalogItemId: number | null;
+    workOrderItemId: number | null; workOrderItem: { id: number; descripcion: string } | null;
     cantidad: number | null; motivo: string; createdAt: Date;
     catalogItem: { id: number; nombre: string; codigo: string | null } | null;
     requester: { id: number; nombre: string } | null;
@@ -307,8 +308,12 @@ export const getWorkOrderWorksheet = async (
       order: [['createdAt', 'DESC']],
     }),
     WorkOrderRequest.findAll({
-      where: { workOrderId, tipo: 'repuesto' },
-      include: [{ model: CatalogItem, as: 'catalogItem', attributes: ['id', 'nombre', 'codigo'] }, { model: User, as: 'requester', attributes: ['id', 'nombre'] }],
+      where: {
+        workOrderId,
+        ...(role === 'mecanico' ? { [Op.or]: [{ tipo: 'repuesto' }, { tipo: 'aumento_precio', requestedBy: userId }] } : {}),
+      },
+      attributes: ['id', 'tipo', 'estado', 'catalogItemId', 'workOrderItemId', 'cantidad', 'motivo', 'createdAt', 'requestedBy'],
+      include: [{ model: CatalogItem, as: 'catalogItem', attributes: ['id', 'nombre', 'codigo'] }, { model: User, as: 'requester', attributes: ['id', 'nombre'] }, { model: WorkOrderItem, as: 'workOrderItem', attributes: ['id', 'descripcion'] }],
       order: [['createdAt', 'DESC']],
     }),
   ]);
@@ -431,7 +436,7 @@ export const getWorkOrderWorksheet = async (
         ? { id: report.mechanic.id, nombre: report.mechanic.nombre }
         : null,
     })),
-    requests: requests.map((request) => ({ id: request.id, tipo: 'repuesto', estado: request.estado, catalogItemId: request.catalogItemId, cantidad: request.cantidad === null ? null : Number(request.cantidad), motivo: request.motivo, createdAt: request.createdAt, catalogItem: request.catalogItem ? { id: request.catalogItem.id, nombre: request.catalogItem.nombre, codigo: request.catalogItem.codigo } : null, requester: request.requester ? { id: request.requester.id, nombre: request.requester.nombre } : null })),
+    requests: requests.map((request) => ({ id: request.id, tipo: request.tipo, estado: request.estado, catalogItemId: request.catalogItemId, workOrderItemId: request.workOrderItemId, workOrderItem: request.workOrderItem ? { id: request.workOrderItem.id, descripcion: request.workOrderItem.descripcion } : null, cantidad: request.cantidad === null ? null : Number(request.cantidad), motivo: request.motivo, createdAt: request.createdAt, catalogItem: request.catalogItem ? { id: request.catalogItem.id, nombre: request.catalogItem.nombre, codigo: request.catalogItem.codigo } : null, requester: request.requester ? { id: request.requester.id, nombre: request.requester.nombre } : null })),
     activeItemId,
     totals: {
       items: itemDtos.length,

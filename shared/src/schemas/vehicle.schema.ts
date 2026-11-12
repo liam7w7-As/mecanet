@@ -16,6 +16,18 @@ const optionalString = (maxLength: number) =>
 export const normalizeChilePatente = (value: string): string =>
   value.replace(/[\s-]/g, '').toUpperCase();
 
+export const formatChilePatente = (value: string | null | undefined): string => {
+  if (!value) return '';
+  const clean = value.replace(/[\s-]/g, '').toUpperCase();
+  if (/^[A-Z]{4}\d{2}$/.test(clean)) {
+    return `${clean.slice(0, 4)}-${clean.slice(4)}`;
+  }
+  if (/^[A-Z]{2}\d{4}$/.test(clean)) {
+    return `${clean.slice(0, 2)}-${clean.slice(2)}`;
+  }
+  return value.trim().toUpperCase();
+};
+
 export const isValidChilePatente = (value: string): boolean =>
   /^[A-Z]{2}(?:\d{4}|[A-Z]{2}\d{2})$/.test(normalizeChilePatente(value));
 

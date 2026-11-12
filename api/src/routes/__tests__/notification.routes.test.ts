@@ -251,8 +251,7 @@ describe('Notificaciones por rol (E2E)', () => {
 
   it('entrega al jefe la notificación de la solicitud creada por el mecánico', async () => {
     // La solicitud se crea por la API para que el servicio dispare el evento.
-    // El mecánico solo puede pedir repuestos; el aumento de precio es exclusivo
-    // del jefe de taller y de administración.
+    // Repuestos y sugerencias de precio requieren aprobación del jefe.
     const mecanicoCookies = await loginAs(`${TEST_EMAIL_PREFIX}mecanico@unithor.local`);
     const created = await request(app)
       .post(`/api/work-orders/${workOrderId}/requests`)
@@ -276,7 +275,7 @@ describe('Notificaciones por rol (E2E)', () => {
     if (!partRequest) throw new Error('No se creó la solicitud de repuesto');
     requestId = partRequest.id;
 
-    // El mecánico no puede proponer aumentos de precio: es exclusivo del jefe.
+    // El mecánico puede proponer un aumento para su servicio, sin aplicarlo.
     const priceRequest = await request(app)
       .post(`/api/work-orders/${workOrderId}/requests`)
       .set('Cookie', authCookie(mecanicoCookies))
@@ -285,9 +284,14 @@ describe('Notificaciones por rol (E2E)', () => {
         tipo: 'aumento_precio',
         workOrderItemId: serviceItemId,
         precioSugerido: 35000,
-        motivo: 'Intento no autorizado',
+        motivo: 'Mayor complejidad del trabajo asignado',
       });
-    expect(priceRequest.status).toBe(403);
+    expect(priceRequest.status).toBe(201);
+    expect(priceRequest.body.workOrder).toBeUndefined();
+    expect(priceRequest.body.worksheet).toBeDefined();
+    const pendingPrice = await WorkOrderRequest.findOne({ where: { workOrderId, tipo: 'aumento_precio', workOrderItemId: serviceItemId } });
+    expect(pendingPrice?.estado).toBe('pendiente');
+    expect(Number(pendingPrice?.precioSugerido)).toBe(35000);
 
     const jefeCookies = await loginAs(`${TEST_EMAIL_PREFIX}jefe@unithor.local`);
     const response = await request(app)

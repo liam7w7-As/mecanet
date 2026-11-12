@@ -551,6 +551,7 @@ describe('QuotationsPage', () => {
     const file = new File(['pdf'], 'comprobante-pendiente.pdf', { type: 'application/pdf' });
     fireEvent.change(dialog.getByLabelText('Comprobante de pago'), { target: { files: [file] } });
     act(() => useAuthStore.setState({ user: { ...useAuthStore.getState().user!, permissions: [{ modulo: 'comercial', accion: 'read' }] } }));
+    expect(screen.getByRole('dialog', { name: 'Registrar abono' })).toBeInTheDocument();
     expect(dialog.getByLabelText('Monto del abono')).toHaveValue('5.000');
     expect(dialog.getAllByText('comprobante-pendiente.pdf').length).toBeGreaterThan(0);
     expect(dialog.getByRole('button', { name: 'Registrar abono' })).toBeDisabled();

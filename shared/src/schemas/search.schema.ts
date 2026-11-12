@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-const normalizePatente = (value: string): string => value.replace(/[\s-]/g, '').toUpperCase();
+import { isValidChilePatente, normalizeChilePatente } from './vehicle.schema.js';
+
+const normalizePatente = (value: string): string =>
+  isValidChilePatente(value) ? normalizeChilePatente(value) : value.trim().toUpperCase();
 
 export const quickSearchQuerySchema = z.object({
   q: z.string().trim().min(2, 'El término de búsqueda debe tener al menos 2 caracteres').max(50),

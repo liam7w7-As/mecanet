@@ -9,6 +9,8 @@ import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
 import { User } from '../../models/User.js';
 import { Vehicle } from '../../models/Vehicle.js';
+import { WorkOrder } from '../../models/WorkOrder.js';
+import { readStoredFile, removeStoredFile } from '../../services/file-storage.service.js';
 import { hashPassword } from '../../utils/password.js';
 
 const TEST_PASSWORD = 'Desarrollador2026!';
@@ -73,7 +75,12 @@ describe('Vehicle Routes (E2E)', () => {
     await sequelize.authenticate();
 
     const existingVehicles = await Vehicle.findAll({
-      where: { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
+      where: {
+        [Op.or]: [
+          { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
+          { patente: { [Op.like]: 'PH-32%' } },
+        ],
+      },
       paranoid: false,
     });
     await Vehicle.destroy({
@@ -148,7 +155,12 @@ describe('Vehicle Routes (E2E)', () => {
 
   afterAll(async () => {
     const testVehicles = await Vehicle.findAll({
-      where: { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
+      where: {
+        [Op.or]: [
+          { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
+          { patente: { [Op.like]: 'PH-32%' } },
+        ],
+      },
       paranoid: false,
     });
     await Vehicle.destroy({
@@ -197,15 +209,15 @@ describe('Vehicle Routes (E2E)', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.vehicle).toMatchObject({
-      patente: 'PH3201',
+      patente: 'PH-3201',
       marca: 'Toyota',
       modelo: 'Yaris',
       vinChasis: 'VIN FASE 32',
       clientId: null,
     });
 
-    const stored = await Vehicle.findOne({ where: { patente: 'PH3201' } });
-    expect(stored?.patente).toBe('PH3201');
+    const stored = await Vehicle.findOne({ where: { patente: 'PH-3201' } });
+    expect(stored?.patente).toBe('PH-3201');
   });
 
   it('responde 409 al registrar una patente existente', async () => {
@@ -286,7 +298,7 @@ describe('Vehicle Routes (E2E)', () => {
     expect(response.status).toBe(200);
     expect(response.body.vehicle).toMatchObject({
       id: associatedVehicleId,
-      patente: 'PH3202',
+      patente: 'PH-3202',
     });
   });
 
@@ -337,5 +349,94 @@ describe('Vehicle Routes (E2E)', () => {
       .set('Cookie', [`access_token=${vendedorCookies.accessToken}`]);
     expect(listResponse.status).toBe(200);
     expect(listResponse.body.items).toHaveLength(0);
+  });
+
+  it('permite subir, consultar y eliminar la foto de un vehículo', async () => {
+    const devCookies = await loginAs('dev@unithor.local');
+    const vehicle = await Vehicle.create({
+      patente: 'PH-3288',
+      marca: 'Subaru',
+      modelo: 'Forester',
+    });
+
+    const samplePng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    );
+
+    const uploadResponse = await request(app)
+      .post(`/api/vehicles/${vehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .attach('foto', samplePng, 'test-photo.png');
+
+    expect(uploadResponse.status).toBe(200);
+    expect(uploadResponse.body.vehicle.fotoUrl).toMatch(new RegExp(`^/api/vehicles/${vehicle.id}/foto\\?v=`));
+    expect(uploadResponse.body.vehicle.fotoStorageKey).toBeUndefined();
+    expect((await request(app).get(`/api/vehicles/${vehicle.id}/foto`)).status).toBe(401);
+    const csrfMissing = await request(app).post(`/api/vehicles/${vehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies)).attach('foto', samplePng, 'csrf.png');
+    expect(csrfMissing.status).toBe(403);
+
+    const getResponse = await request(app)
+      .get(`/api/vehicles/${vehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies));
+
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.headers['content-type']).toContain('image/webp');
+    expect(getResponse.body.length).toBeGreaterThan(0);
+    expect(getResponse.headers['cache-control']).toBe('private, no-cache');
+    const replaced = await request(app).post(`/api/vehicles/${vehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken)
+      .attach('foto', samplePng, 'replacement.png');
+    expect(replaced.status).toBe(200);
+    expect(replaced.body.vehicle.fotoUrl).not.toBe(uploadResponse.body.vehicle.fotoUrl);
+    expect((await request(app).get(replaced.body.vehicle.fotoUrl).set('Cookie', authCookie(devCookies))).status).toBe(200);
+    const keyBeforeInvalid = (await vehicle.reload()).fotoStorageKey;
+    const invalid = await request(app).post(`/api/vehicles/${vehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken)
+      .attach('foto', Buffer.from('Not an image'), { filename: 'corrupt.png', contentType: 'image/png' });
+    expect(invalid.status).toBe(400);
+    expect((await vehicle.reload()).fotoStorageKey).toBe(keyBeforeInvalid);
+
+    const deleteResponse = await request(app)
+      .delete(`/api/vehicles/${vehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken);
+
+    expect(deleteResponse.status).toBe(200);
+    expect(deleteResponse.body.vehicle.fotoUrl).toBeNull();
+
+    const getAfterDelete = await request(app)
+      .get(`/api/vehicles/${vehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies));
+
+    expect(getAfterDelete.status).toBe(404);
+    await request(app).post(`/api/vehicles/${vehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken)
+      .attach('foto', samplePng, 'retained.png').expect(200);
+    const retainedKey = (await vehicle.reload()).fotoStorageKey;
+    if (!retainedKey) throw new Error('Falta la foto del vehículo');
+    await request(app).delete(`/api/vehicles/${vehicle.id}`)
+      .set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken).expect(204);
+    expect((await Vehicle.findByPk(vehicle.id, { paranoid: false }))?.fotoStorageKey).toBe(retainedKey);
+    expect((await readStoredFile(retainedKey, 'Missing retained vehicle photo')).length).toBeGreaterThan(0);
+    await removeStoredFile(retainedKey, false);
+  });
+
+  it('mantiene la regla de eliminación: bloquea OT activas y permite historial finalizado', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const vehicle = await Vehicle.create({ patente: 'PH-3289' });
+    const workOrder = await WorkOrder.create({ codigo: 'OT-VEHICLE-3289', vehicleId: vehicle.id, estado: 'en_progreso' });
+    try {
+      const blocked = await request(app).delete(`/api/vehicles/${vehicle.id}`)
+        .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken);
+      expect(blocked.status).toBe(400);
+      await workOrder.update({ estado: 'finalizada' });
+      await request(app).delete(`/api/vehicles/${vehicle.id}`)
+        .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken).expect(204);
+    } finally {
+      await workOrder.destroy({ force: true });
+    }
   });
 });

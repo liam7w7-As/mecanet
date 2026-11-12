@@ -1,12 +1,18 @@
-import { isValidChilePatente, normalizeChilePatente } from '@unithor/shared';
-import { Op } from 'sequelize';
+import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
+import { formatChilePatente, isValidChilePatente, normalizeChilePatente } from '@unithor/shared';
+import { Op, col, fn, where as sqlWhere } from 'sequelize';
+import sharp from 'sharp';
+
+import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { Client } from '../models/Client.js';
 import { FleetVehicle } from '../models/FleetVehicle.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { ApiError } from '../utils/ApiError.js';
 import { getPagination } from '../utils/paginate.js';
+import { vehiclePhotoUrl } from '../utils/vehicle-photo.js';
 
 import type { CreateVehicleInput, UpdateVehicleInput, VehicleQueryInput } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
@@ -31,6 +37,7 @@ export interface VehiclePublic {
   kilometraje: number | null;
   combustible: string | null;
   transmision: string | null;
+  fotoUrl: string | null;
   clientId: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -57,7 +64,7 @@ const clientInclude = {
 const normalizePatente = (patente: string): string => {
   const trimmed = patente.trim().toUpperCase();
   if (isValidChilePatente(trimmed)) {
-    return normalizeChilePatente(trimmed);
+    return formatChilePatente(trimmed);
   }
   return trimmed;
 };
@@ -87,6 +94,7 @@ const toVehiclePublic = (vehicle: Vehicle): VehiclePublic => ({
   kilometraje: vehicle.kilometraje,
   combustible: vehicle.combustible,
   transmision: vehicle.transmision,
+  fotoUrl: vehiclePhotoUrl('vehicles', vehicle.id, vehicle.fotoStorageKey),
   clientId: vehicle.clientId,
   createdAt: vehicle.createdAt,
   updatedAt: vehicle.updatedAt,
@@ -107,7 +115,11 @@ const assertPatenteAvailable = async (
   patente: string,
   ignoreVehicleId?: number,
 ): Promise<void> => {
-  const where: WhereOptions<InferAttributes<Vehicle>> = { patente };
+  const clean = normalizeChilePatente(patente);
+  const formatted = formatChilePatente(patente);
+  const variants = isValidChilePatente(patente) ? [clean, formatted] : [patente.trim().toUpperCase()];
+
+  const where: WhereOptions<InferAttributes<Vehicle>> = { patente: { [Op.in]: variants } };
   if (ignoreVehicleId !== undefined) {
     where.id = { [Op.ne]: ignoreVehicleId };
   }
@@ -117,7 +129,10 @@ const assertPatenteAvailable = async (
     throw ApiError.conflict('Ya existe un vehículo con esa patente');
   }
 
-  const fleetVehicle = await FleetVehicle.findOne({ where: { patente }, paranoid: false });
+  const fleetVehicle = await FleetVehicle.findOne({
+    where: { patente: { [Op.in]: variants } },
+    paranoid: false,
+  });
   if (fleetVehicle) {
     throw ApiError.conflict('Ya existe un vehículo de flota con esa patente');
   }
@@ -147,9 +162,15 @@ export const listVehicles = async (query: VehicleQueryInput): Promise<ListVehicl
   const where: VehicleWhere = {};
 
   if (query.search) {
-    const search = `%${query.search}%`;
+    const trimmedSearch = query.search.trim();
+    const search = `%${trimmedSearch}%`;
+    const clean = `%${trimmedSearch.replace(/[\s-]/g, '')}%`;
+    const formatted = `%${formatChilePatente(trimmedSearch)}%`;
     where[Op.or] = [
       { patente: { [Op.like]: search } },
+      { patente: { [Op.like]: clean } },
+      { patente: { [Op.like]: formatted } },
+      sqlWhere(fn('REPLACE', col('Vehicle.patente'), '-', ''), { [Op.like]: clean }),
       { marca: { [Op.like]: search } },
       { modelo: { [Op.like]: search } },
       { vinChasis: { [Op.like]: search } },
@@ -183,21 +204,14 @@ export const getVehicleById = async (id: number): Promise<VehiclePublic> => {
 };
 
 export const getVehicleByPatente = async (patente: string): Promise<VehiclePublic> => {
-  const normalized = normalizePatente(patente);
-  let vehicle = await Vehicle.findOne({
-    where: { patente: normalized },
+  const clean = normalizeChilePatente(patente);
+  const formatted = formatChilePatente(patente);
+  const variants = isValidChilePatente(patente) ? [clean, formatted] : [patente.trim().toUpperCase()];
+
+  const vehicle = await Vehicle.findOne({
+    where: { patente: { [Op.in]: variants } },
     include: [clientInclude],
   });
-
-  if (!vehicle) {
-    const stripped = patente.replace(/[\s-]/g, '').trim().toUpperCase();
-    if (stripped !== normalized) {
-      vehicle = await Vehicle.findOne({
-        where: { patente: stripped },
-        include: [clientInclude],
-      });
-    }
-  }
 
   if (!vehicle) {
     throw ApiError.notFound('Vehículo no encontrado');
@@ -220,7 +234,7 @@ export const createVehicle = async (data: CreateVehicleInput): Promise<VehiclePu
     modelo: data.modelo ?? null,
     ano: data.ano ?? null,
     color: data.color ?? null,
-    vinChasis: normalizeVinChasis(data.vinChasis) ?? null,
+    vinChasis: normalizeVinChasis(data.vinChasis),
     motor: data.motor ?? null,
     kilometraje: data.kilometraje ?? null,
     combustible: data.combustible ?? null,
@@ -228,16 +242,18 @@ export const createVehicle = async (data: CreateVehicleInput): Promise<VehiclePu
     clientId: data.clientId ?? null,
   });
 
-  return getVehicleById(vehicle.id);
+  const created = await findVehicleWithClient(vehicle.id);
+  return toVehiclePublic(created);
 };
 
 export const updateVehicle = async (
   id: number,
   data: UpdateVehicleInput,
 ): Promise<VehiclePublic> => {
-  const vehicle = await Vehicle.findByPk(id);
-  if (!vehicle) {
-    throw ApiError.notFound('Vehículo no encontrado');
+  const vehicle = await findVehicleWithClient(id);
+
+  if (data.clientId !== undefined && data.clientId !== null) {
+    await assertClientExists(data.clientId);
   }
 
   const updatePayload: Partial<
@@ -265,52 +281,20 @@ export const updateVehicle = async (
     updatePayload.patente = patente;
   }
 
-  if (data.marca !== undefined) {
-    updatePayload.marca = data.marca;
-  }
-
-  if (data.modelo !== undefined) {
-    updatePayload.modelo = data.modelo;
-  }
-
-  if (data.ano !== undefined) {
-    updatePayload.ano = data.ano;
-  }
-
-  if (data.color !== undefined) {
-    updatePayload.color = data.color;
-  }
-
-  if (data.vinChasis !== undefined) {
-    updatePayload.vinChasis = normalizeVinChasis(data.vinChasis) ?? null;
-  }
-
-  if (data.motor !== undefined) {
-    updatePayload.motor = data.motor;
-  }
-
-  if (data.kilometraje !== undefined) {
-    updatePayload.kilometraje = data.kilometraje;
-  }
-
-  if (data.combustible !== undefined) {
-    updatePayload.combustible = data.combustible;
-  }
-
-  if (data.transmision !== undefined) {
-    updatePayload.transmision = data.transmision;
-  }
-
-  if (data.clientId !== undefined) {
-    if (data.clientId !== null) {
-      await assertClientExists(data.clientId);
-    }
-    updatePayload.clientId = data.clientId;
-  }
+  if (data.marca !== undefined) updatePayload.marca = data.marca;
+  if (data.modelo !== undefined) updatePayload.modelo = data.modelo;
+  if (data.ano !== undefined) updatePayload.ano = data.ano;
+  if (data.color !== undefined) updatePayload.color = data.color;
+  if (data.vinChasis !== undefined) updatePayload.vinChasis = normalizeVinChasis(data.vinChasis);
+  if (data.motor !== undefined) updatePayload.motor = data.motor;
+  if (data.kilometraje !== undefined) updatePayload.kilometraje = data.kilometraje;
+  if (data.combustible !== undefined) updatePayload.combustible = data.combustible;
+  if (data.transmision !== undefined) updatePayload.transmision = data.transmision;
+  if (data.clientId !== undefined) updatePayload.clientId = data.clientId;
 
   await vehicle.update(updatePayload);
-
-  return getVehicleById(vehicle.id);
+  const updated = await findVehicleWithClient(id);
+  return toVehiclePublic(updated);
 };
 
 export const deleteVehicle = async (id: number): Promise<void> => {
@@ -320,15 +304,81 @@ export const deleteVehicle = async (id: number): Promise<void> => {
   }
 
   const openWorkOrders = await WorkOrder.count({
-    where: {
-      vehicleId: id,
-      estado: { [Op.notIn]: ['finalizada', 'entregada', 'cancelada'] },
-    },
+    where: { vehicleId: id, estado: { [Op.notIn]: ['finalizada', 'entregada', 'cancelada'] } },
   });
-
   if (openWorkOrders > 0) {
     throw ApiError.badRequest('No se puede eliminar un vehículo con órdenes de trabajo activas');
   }
 
+  // Soft delete preserves the photo so the vehicle can be recovered intact.
   await vehicle.destroy();
+};
+
+const VEHICLE_PHOTO_FOLDER = 'vehicles';
+
+export const saveVehiclePhoto = async (
+  vehicleId: number,
+  file: Express.Multer.File,
+): Promise<VehiclePublic> => {
+  const vehicle = await Vehicle.findByPk(vehicleId, { include: [clientInclude] });
+  if (!vehicle) {
+    throw ApiError.notFound('Vehículo no encontrado');
+  }
+
+  let webpBuffer: Buffer;
+  try {
+    webpBuffer = await sharp(file.buffer)
+      .rotate()
+      .resize({ width: 1600, height: 1200, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toBuffer();
+  } catch {
+    throw ApiError.badRequest('El archivo de imagen no es válido o está dañado');
+  }
+
+  const storageKey = path.posix.join(
+    VEHICLE_PHOTO_FOLDER,
+    `vehicle-${vehicle.id}-${randomUUID()}.webp`,
+  );
+  await storeFile(storageKey, webpBuffer, 'image/webp');
+
+  const previousStorageKey = vehicle.fotoStorageKey;
+  try {
+    await vehicle.update({ fotoStorageKey: storageKey });
+    if (previousStorageKey) {
+      await removeStoredFile(previousStorageKey, true);
+    }
+  } catch (error) {
+    await removeStoredFile(storageKey, false);
+    throw error;
+  }
+
+  return toVehiclePublic(vehicle);
+};
+
+export const getVehiclePhoto = async (
+  vehicleId: number,
+): Promise<{ bytes: Buffer; mimeType: string }> => {
+  const vehicle = await Vehicle.findByPk(vehicleId);
+  if (!vehicle || !vehicle.fotoStorageKey) {
+    throw ApiError.notFound('Foto de vehículo no encontrada');
+  }
+
+  const bytes = await readStoredFile(vehicle.fotoStorageKey, 'Foto de vehículo no encontrada');
+  return { bytes, mimeType: 'image/webp' };
+};
+
+export const deleteVehiclePhoto = async (vehicleId: number): Promise<VehiclePublic> => {
+  const vehicle = await Vehicle.findByPk(vehicleId, { include: [clientInclude] });
+  if (!vehicle) {
+    throw ApiError.notFound('Vehículo no encontrado');
+  }
+
+  if (vehicle.fotoStorageKey) {
+    const previous = vehicle.fotoStorageKey;
+    await vehicle.update({ fotoStorageKey: null });
+    await removeStoredFile(previous, true);
+  }
+
+  return toVehiclePublic(vehicle);
 };

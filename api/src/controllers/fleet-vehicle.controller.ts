@@ -52,3 +52,30 @@ export const deleteFleetVehicleHandler = asyncHandler(
     res.status(200).json({ message: 'Vehículo de flota eliminado' });
   },
 );
+
+export const uploadFleetVehiclePhotoHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const fleetVehicle = await fleetVehicleService.saveFleetVehiclePhoto(id, req.file!, req.user?.role);
+    res.status(200).json({ fleetVehicle });
+  },
+);
+
+export const getFleetVehiclePhotoHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const { bytes, mimeType } = await fleetVehicleService.getFleetVehiclePhoto(id);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', String(bytes.length));
+    res.setHeader('Cache-Control', 'private, no-cache');
+    res.end(bytes);
+  },
+);
+
+export const deleteFleetVehiclePhotoHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const fleetVehicle = await fleetVehicleService.deleteFleetVehiclePhoto(id, req.user?.role);
+    res.status(200).json({ fleetVehicle });
+  },
+);

@@ -1906,7 +1906,7 @@ const WorkOrderCreateForm = () => {
           suggestedClient={client}
           onClose={() => setVehicleModalOpen(false)}
           onSaved={(savedVehicle) => {
-            setVehicle(toQuickVehicle(savedVehicle, client));
+            selectVehicle(toQuickVehicle(savedVehicle, client));
             setChoosingVehicle(false);
             setKilometrajeIngreso(
               savedVehicle.kilometraje === null ? '' : String(savedVehicle.kilometraje),

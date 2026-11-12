@@ -17,6 +17,7 @@ import { up as ensureFleetRetirement } from '../database/migrations/045-fleet-re
 import { up as ensureSalesAccessGrants } from '../database/migrations/046-create-sales-access-grants.js';
 import { up as ensureNotificationAccessShared } from '../database/migrations/047-add-notification-access-shared.js';
 import { up as ensureUserSalesAccessAll } from '../database/migrations/048-add-user-sales-access-all.js';
+import { up as ensureVehiclePhotos } from '../database/migrations/049-add-vehicle-photo.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -70,6 +71,7 @@ beforeAll(async () => {
   await ensureQuotationCommercial(sequelize.getQueryInterface());
   await ensureStartedWorkOrders(sequelize.getQueryInterface());
   await ensureFleetVehicles(sequelize.getQueryInterface());
+  await ensureVehiclePhotos(sequelize.getQueryInterface());
   await ensureFleetRetirement(sequelize.getQueryInterface());
   await ensurePurchases(sequelize.getQueryInterface());
   await ensureWorkOrderLabor(sequelize.getQueryInterface());

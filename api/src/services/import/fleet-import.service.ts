@@ -141,6 +141,10 @@ const fleetPayload = (
   const parsed = createFleetVehicleSchema.safeParse(payload);
   if (!parsed.success)
     throw ApiError.badRequest(parsed.error.issues.map((issue) => issue.message).join(' '));
+  // A display separator must not turn an unchanged import into an update.
+  if (existing && normalizeChilePatente(existing.patente) === normalizeChilePatente(parsed.data.patente)) {
+    return { ...parsed.data, patente: existing.patente };
+  }
   return parsed.data;
 };
 

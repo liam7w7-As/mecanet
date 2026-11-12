@@ -51,3 +51,30 @@ export const deleteVehicleHandler = asyncHandler(
     res.status(204).send();
   },
 );
+
+export const uploadVehiclePhotoHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const vehicle = await vehicleService.saveVehiclePhoto(id, req.file!);
+    res.status(200).json({ vehicle });
+  },
+);
+
+export const getVehiclePhotoHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const { bytes, mimeType } = await vehicleService.getVehiclePhoto(id);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', String(bytes.length));
+    res.setHeader('Cache-Control', 'private, no-cache');
+    res.end(bytes);
+  },
+);
+
+export const deleteVehiclePhotoHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const vehicle = await vehicleService.deleteVehiclePhoto(id);
+    res.status(200).json({ vehicle });
+  },
+);

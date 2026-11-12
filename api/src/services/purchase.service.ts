@@ -32,6 +32,7 @@ import { WorkOrder } from '../models/WorkOrder.js';
 import { ApiError } from '../utils/ApiError.js';
 import { generatePurchaseCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
+import { plateSearch } from '../utils/plate-search.js';
 import { detectReceiptFile, getReceiptMimeType } from '../utils/receipt-file.js';
 
 import type { SupplierQueryInput, UpdateSupplierInput } from '@unithor/shared';
@@ -410,8 +411,8 @@ const buildPurchaseWhere = (
       { numeroOperacion: { [Op.like]: pattern } },
       { '$supplier.nombre$': { [Op.like]: pattern } },
       { '$supplier.rut$': { [Op.like]: pattern } },
-      { '$vehicle.patente$': { [Op.like]: pattern } },
-      { '$fleetVehicle.patente$': { [Op.like]: pattern } },
+      plateSearch('vehicle.patente', query.search),
+      plateSearch('fleetVehicle.patente', query.search),
       { '$workOrder.codigo$': { [Op.like]: pattern } },
     ] as WhereOptions<InferAttributes<Purchase>>[];
   }

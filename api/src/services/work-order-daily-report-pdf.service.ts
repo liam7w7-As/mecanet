@@ -1,4 +1,6 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib';
+
+import { getReportBranding } from './reports/report-branding.js';
 
 import type { WorkshopDailyReport } from './work-order-labor.service.js';
 
@@ -16,20 +18,29 @@ interface RenderContext {
   page: PDFPage;
   font: PDFFont;
   bold: PDFFont;
+  companyName: string;
+  logo: PDFImage | null;
   y: number;
 }
 
 const createContext = async (): Promise<RenderContext> => {
+  const branding = await getReportBranding();
   const doc = await PDFDocument.create();
+  doc.setAuthor(branding.companyName);
+  doc.setTitle('Reporte diario de taller');
   const page = doc.addPage([A4_WIDTH, A4_HEIGHT]);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  return { doc, page, font, bold, y: A4_HEIGHT - MARGIN };
+  const logo = branding.logoPng ? await doc.embedPng(branding.logoPng) : null;
+  const context = { doc, page, font, bold, companyName: branding.companyName, logo, y: A4_HEIGHT - MARGIN };
+  drawReportHeader(context);
+  return context;
 };
 
 const newPage = async (context: RenderContext): Promise<void> => {
   context.page = context.doc.addPage([A4_WIDTH, A4_HEIGHT]);
   context.y = A4_HEIGHT - MARGIN;
+  drawReportHeader(context);
 };
 
 const ensureSpace = async (context: RenderContext, needed: number): Promise<void> => {
@@ -59,6 +70,24 @@ const truncate = (text: string, maxWidth: number, font: PDFFont, size: number): 
     result = result.slice(0, -1);
   }
   return `${result}…`;
+};
+
+const drawReportHeader = (context: RenderContext): void => {
+  let textX = MARGIN;
+  if (context.logo) {
+    const size = context.logo.scaleToFit(92, 34);
+    context.page.drawImage(context.logo, {
+      x: MARGIN + (92 - size.width) / 2,
+      y: context.y - 19 + (34 - size.height) / 2,
+      ...size,
+    });
+    textX += 108;
+  }
+  const availableWidth = A4_WIDTH - MARGIN - textX;
+  drawText(context, truncate(context.companyName, availableWidth, context.bold, 8), { x: textX, size: 8, bold: true, color: MUTED });
+  context.y -= 18;
+  drawText(context, 'Reporte diario de taller', { x: textX, size: 16, bold: true, color: PRIMARY });
+  context.y -= 18;
 };
 
 const drawSectionTitle = async (
@@ -118,8 +147,6 @@ export const generateWorkshopDailyReportPdf = async (
   report: WorkshopDailyReport,
 ): Promise<Uint8Array> => {
   const context = await createContext();
-  drawText(context, 'UNITHOR - Reporte diario de taller', { size: 16, bold: true, color: PRIMARY });
-  context.y -= 16;
   drawText(context, `Fecha: ${report.fecha}`, { size: 10, color: MUTED });
   context.y -= 12;
   drawText(
@@ -179,6 +206,7 @@ export const generateWorkshopDailyReportPdf = async (
     ]);
   }
 
+  await ensureSpace(context, 32);
   context.y -= 16;
   drawText(context, 'Documento interno de control de horas. No incluye precios.', {
     size: 8,

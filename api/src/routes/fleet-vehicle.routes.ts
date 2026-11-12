@@ -23,9 +23,12 @@ import {
 import {
   createFleetVehicleHandler,
   deleteFleetVehicleHandler,
+  deleteFleetVehiclePhotoHandler,
   getFleetVehicleByIdHandler,
+  getFleetVehiclePhotoHandler,
   getFleetVehiclesHandler,
   updateFleetVehicleHandler,
+  uploadFleetVehiclePhotoHandler,
 } from '../controllers/fleet-vehicle.controller.js';
 import {
   downloadImportTemplateHandler,
@@ -36,6 +39,7 @@ import { authorize } from '../middlewares/authorize.js';
 import { fleetDocumentUpload } from '../middlewares/fleet-document-upload.js';
 import { spreadsheetUpload } from '../middlewares/spreadsheet-upload.js';
 import { validate } from '../middlewares/validate.js';
+import { vehiclePhotoUpload } from '../middlewares/vehicle-photo-upload.js';
 
 export const fleetVehicleRouter = Router();
 
@@ -149,4 +153,26 @@ fleetVehicleRouter.get(
   authorize('flota', 'read'),
   validate({ params: documentParamsSchema, query: fleetDocumentFileQuerySchema }),
   getFleetDocumentFileHandler,
+);
+
+fleetVehicleRouter.post(
+  '/:id/foto',
+  authorize('flota', 'update'),
+  validate({ params: vehicleParamsSchema }),
+  vehiclePhotoUpload,
+  uploadFleetVehiclePhotoHandler,
+);
+
+fleetVehicleRouter.get(
+  '/:id/foto',
+  authorize('flota', 'read'),
+  validate({ params: vehicleParamsSchema }),
+  getFleetVehiclePhotoHandler,
+);
+
+fleetVehicleRouter.delete(
+  '/:id/foto',
+  authorize('flota', 'update'),
+  validate({ params: vehicleParamsSchema }),
+  deleteFleetVehiclePhotoHandler,
 );

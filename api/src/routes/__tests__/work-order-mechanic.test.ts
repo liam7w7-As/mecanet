@@ -118,6 +118,7 @@ describe('Work order mechanic workflow (E2E)', () => {
       workOrderId: assigned.id,
       catalogItemId: null,
       descripcion: 'Diagnóstico avanzado',
+      tipoLinea: 'especifico',
       cantidad: 1,
       precioUnitario: 25000,
       subtotal: 25000,
@@ -227,7 +228,7 @@ describe('Work order mechanic workflow (E2E)', () => {
     expect(partRequest.estado).toBe('pendiente');
     expect(await WorkOrderItem.count({ where: { workOrderId: assignedWorkOrderId } })).toBe(1);
 
-    // El mecánico no puede sugerir aumentos de precio.
+    // El mecánico propone el aumento; la solicitud no cambia el precio.
     const mechanicPriceRequest = await request(app)
       .post(`/api/work-orders/${assignedWorkOrderId}/requests`)
       .set('Cookie', authCookie(mechanicCookies))
@@ -238,7 +239,21 @@ describe('Work order mechanic workflow (E2E)', () => {
         precioSugerido: 35000,
         motivo: 'Mayor complejidad de la prevista',
       });
-    expect(mechanicPriceRequest.status).toBe(403);
+    expect(mechanicPriceRequest.status).toBe(201);
+    expect(Number((await WorkOrderItem.findByPk(serviceItemId))?.precioUnitario)).toBe(25000);
+    expect(mechanicPriceRequest.body.workOrder).toBeUndefined();
+    const ownSuggestion = mechanicPriceRequest.body.worksheet.requests.find(
+      (entry: { tipo: string }) => entry.tipo === 'aumento_precio',
+    );
+    expect(ownSuggestion).toMatchObject({ workOrderItemId: serviceItemId, estado: 'pendiente' });
+    expect(ownSuggestion.precioSugerido).toBeUndefined();
+    expect(ownSuggestion.workOrderItem.precioUnitario).toBeUndefined();
+    const selfApproval = await request(app)
+      .patch(`/api/work-orders/${assignedWorkOrderId}/requests/${ownSuggestion.id}`)
+      .set('Cookie', authCookie(mechanicCookies))
+      .set('X-CSRF-Token', mechanicCookies.csrfToken)
+      .send({ decision: 'aprobar' });
+    expect(selfApproval.status).toBe(403);
 
     const priceRequestResponse = await request(app)
       .post(`/api/work-orders/${assignedWorkOrderId}/requests`)
@@ -251,10 +266,7 @@ describe('Work order mechanic workflow (E2E)', () => {
         motivo: 'Mayor complejidad de la prevista',
       });
     expect(priceRequestResponse.status).toBe(201);
-    const priceRequest = await WorkOrderRequest.findOne({
-      where: { workOrderId: assignedWorkOrderId, tipo: 'aumento_precio' },
-      order: [['id', 'DESC']],
-    });
+    const priceRequest = await WorkOrderRequest.findByPk(ownSuggestion.id);
     if (!priceRequest) throw new Error('No se creó la solicitud de aumento');
 
     const approvePartResponse = await request(app)
@@ -358,6 +370,33 @@ describe('Work order mechanic workflow (E2E)', () => {
       .send({ decision: 'aprobar', precioAprobado: 32000 });
     expect(approvePriceResponse.status).toBe(200);
     expect(Number((await WorkOrderItem.findByPk(serviceItemId))?.precioUnitario)).toBe(32000);
+  });
+
+  it('impide sugerir precios para servicios ajenos incluso en una OT compartida', async () => {
+    const cookies = await loginAs(TEST_EMAIL);
+    const mechanic = await User.findByPk(mechanicId);
+    if (!mechanic) throw new Error('Falta el mecánico de prueba');
+    const other = await User.create({ nombre: 'Otro mecánico sugerencias', email: 'price-other@unithor.local', passwordHash: mechanic.passwordHash, roleId: mechanic.roleId, activo: true });
+    const item = await WorkOrderItem.create({ workOrderId: assignedWorkOrderId, descripcion: 'Servicio de otro responsable', tipoLinea: 'especifico', cantidad: 1, precioUnitario: 10000, subtotal: 10000, assignedUserId: other.id });
+    const otherRequest = await WorkOrderRequest.create({ workOrderId: assignedWorkOrderId, workOrderItemId: item.id, catalogItemId: null, requestedBy: other.id, tipo: 'aumento_precio', estado: 'pendiente', motivo: 'Propuesta privada de otro mecánico', cantidad: null, precioSugerido: 15000, precioAprobado: null, reviewedBy: null, reviewNote: null, reviewedAt: null });
+    try {
+      const worksheet = await request(app).get(`/api/work-orders/${assignedWorkOrderId}/worksheet`).set('Cookie', authCookie(cookies));
+      expect(worksheet.status).toBe(200);
+      expect(worksheet.body.worksheet.requests.some((entry: { id: number }) => entry.id === otherRequest.id)).toBe(false);
+      const response = await request(app).post(`/api/work-orders/${assignedWorkOrderId}/requests`)
+        .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+        .send({ tipo: 'aumento_precio', workOrderItemId: item.id, precioSugerido: 15000, motivo: 'No corresponde a mi asignación' });
+      expect(response.status).toBe(403);
+      expect(await WorkOrderRequest.count({ where: { workOrderItemId: item.id } })).toBe(1);
+      const foreignResponse = await request(app).post(`/api/work-orders/${foreignWorkOrderId}/requests`)
+        .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+        .send({ tipo: 'aumento_precio', workOrderItemId: item.id, precioSugerido: 15000, motivo: 'Orden no asignada' });
+      expect(foreignResponse.status).toBe(404);
+    } finally {
+      await otherRequest.destroy();
+      await item.destroy();
+      await other.destroy({ force: true });
+    }
   });
 
   it('registra horas con cronómetro, ajusta, valida y restringe la ficha al mecánico', async () => {

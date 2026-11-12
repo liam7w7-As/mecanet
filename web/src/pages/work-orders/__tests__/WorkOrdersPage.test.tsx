@@ -260,7 +260,7 @@ describe('WorkOrdersPage', () => {
     createWrapper(<WorkOrdersPage />);
 
     expect(await screen.findByText('OT-2026-0012')).toBeInTheDocument();
-    expect(screen.getByText('ABCD12')).toBeInTheDocument();
+    expect(screen.getByText('ABCD-12')).toBeInTheDocument();
     expect(screen.getByText('Cliente Demo')).toBeInTheDocument();
     expect(screen.getByText('Iniciada')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Iniciadas' })).toBeInTheDocument();
@@ -1392,7 +1392,7 @@ describe('WorkOrdersPage', () => {
     const search = screen.getByRole('combobox', { name: 'Búsqueda rápida de vehículos y clientes' });
     fireEvent.focus(search);
     fireEvent.change(search, { target: { value: 'AB' } });
-    fireEvent.click(await screen.findByText('ABCD12'));
+    fireEvent.click(await screen.findByText('ABCD-12'));
     fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
     expect(screen.getByLabelText('Subir foto Frontal')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
@@ -1458,7 +1458,7 @@ describe('WorkOrdersPage', () => {
     const search = screen.getByRole('combobox', { name: 'Búsqueda rápida de vehículos y clientes' });
     fireEvent.focus(search);
     fireEvent.change(search, { target: { value: 'AB' } });
-    fireEvent.click(await screen.findByText('ABCD12'));
+    fireEvent.click(await screen.findByText('ABCD-12'));
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     fireEvent.click(screen.getByText('Observaciones adicionales', { exact: true }));
     fireEvent.change(screen.getByLabelText('Observaciones de inspección'), { target: { value: 'Rayón registrado en recepción' } });
@@ -1552,7 +1552,7 @@ describe('WorkOrdersPage', () => {
       target: { value: 'AB' },
     });
 
-    fireEvent.click(await screen.findByText('ABCD12'));
+    fireEvent.click(await screen.findByText('ABCD-12'));
     fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
 
     const photo = new File(['photo'], 'frontal.png', { type: 'image/png' });
@@ -1594,7 +1594,7 @@ describe('WorkOrdersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
     const search = screen.getByRole('combobox', { name: 'Búsqueda rápida de vehículos y clientes' });
     fireEvent.focus(search); fireEvent.change(search, { target: { value: 'AB' } });
-    fireEvent.click(await screen.findByText('ABCD12'));
+    fireEvent.click(await screen.findByText('ABCD-12'));
     fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
     fireEvent.change(screen.getByLabelText('Kilometraje de entrada'), { target: { value: '12345' } });
     fireEvent.change(screen.getByLabelText('Observaciones de inspección'), { target: { value: 'Rayón lateral' } });
@@ -1632,7 +1632,7 @@ describe('WorkOrdersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
     const search = screen.getByRole('combobox', { name: 'Búsqueda rápida de vehículos y clientes' });
     fireEvent.focus(search); fireEvent.change(search, { target: { value: 'AB' } });
-    fireEvent.click(await screen.findByText('ABCD12'));
+    fireEvent.click(await screen.findByText('ABCD-12'));
     fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
     for (const name of ['Frontal', 'Trasera', 'Lateral izquierdo']) {
       fireEvent.change(screen.getByLabelText('Subir foto ' + name), { target: { files: [new File([name], name + '.png', { type: 'image/png' })] } });

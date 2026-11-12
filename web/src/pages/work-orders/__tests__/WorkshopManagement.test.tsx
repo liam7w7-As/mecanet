@@ -93,8 +93,8 @@ describe('Work management without losing context', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     fireEvent.click(within(task).getByRole('button', { name: 'Ir al siguiente trabajo' }));
     await waitFor(() => expect(screen.getByRole('article', { name: 'Trabajo: Alineación delantera' }).parentElement).toHaveFocus());
-    expect(screen.queryByRole('button', { name: 'Precios' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Sugerir precio' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Precios' })).toBeEnabled();
+    expect(within(task).getByRole('button', { name: 'Sugerir precio' })).toBeEnabled();
     expect(vi.mocked(api.get).mock.calls.some(([url]) => url.endsWith('/price-suggestions') || url === `/work-orders/${order.id}`)).toBe(false);
     expect(api.post).toHaveBeenLastCalledWith(`/work-orders/${order.id}/items/10/complete`, { notasOperativas: 'Revisión terminada sin fugas' });
   });

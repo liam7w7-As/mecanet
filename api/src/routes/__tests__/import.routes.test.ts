@@ -1,3 +1,4 @@
+import { formatChilePatente } from '@unithor/shared';
 import ExcelJS from 'exceljs';
 import express from 'express';
 import { Op } from 'sequelize';
@@ -140,7 +141,20 @@ const removeFixtures = async (): Promise<void> => {
     force: true,
   });
   await FleetVehicle.destroy({
-    where: { patente: { [Op.in]: [FLEET_DUPLICATE, FLEET_NEW, ...FLEET_FIRST_PHASE] } },
+    where: {
+      [Op.or]: [
+        { patente: { [Op.in]: [FLEET_DUPLICATE, FLEET_NEW, ...FLEET_FIRST_PHASE] } },
+        {
+          patente: {
+            [Op.in]: [
+              formatChilePatente(FLEET_DUPLICATE),
+              formatChilePatente(FLEET_NEW),
+              ...FLEET_FIRST_PHASE.map(formatChilePatente),
+            ],
+          },
+        },
+      ],
+    },
     force: true,
   });
   await CatalogItem.destroy({
@@ -599,7 +613,7 @@ describe('Import Routes (E2E)', () => {
 
       expect(response.status).toBe(201);
       expect(response.body.result).toMatchObject({ created: 3, updated: actorRole === 'admin' ? 1 : 0, skipped: actorRole === 'admin' ? 0 : 1, failed: 0 });
-      const retired = await FleetVehicle.findOne({ where: { patente: plates[0] } });
+      const retired = await FleetVehicle.findOne({ where: { patente: formatChilePatente(plates[0]) } });
       expect(retired).toMatchObject({
         estadoOperativo: 'dado_de_baja',
         responsable: 'Ana Soto',
@@ -610,7 +624,7 @@ describe('Import Routes (E2E)', () => {
       expect(retired!.fechaBaja!.getTime()).toBeGreaterThanOrEqual(Math.floor(startedAt / 1_000) * 1_000);
       expect(retired!.fechaBaja!.getTime()).toBeLessThanOrEqual(endedAt);
       for (const patente of plates.slice(1)) {
-        const vehicle = await FleetVehicle.findOne({ where: { patente } });
+        const vehicle = await FleetVehicle.findOne({ where: { patente: formatChilePatente(patente) } });
         expect(vehicle?.fechaBaja).toBeNull();
         expect(vehicle?.motivoBaja).toBeNull();
       }
@@ -619,7 +633,9 @@ describe('Import Routes (E2E)', () => {
         propietario,
         motivoBaja,
       });
-      const duplicate = await FleetVehicle.findOne({ where: { patente: FLEET_DUPLICATE } });
+      const duplicate = await FleetVehicle.findOne({
+        where: { patente: { [Op.in]: [FLEET_DUPLICATE, formatChilePatente(FLEET_DUPLICATE)] } },
+      });
       expect(duplicate).toMatchObject({
         codigoInterno: 'IMP-F-001',
         estadoOperativo: 'dado_de_baja',
@@ -658,12 +674,14 @@ describe('Import Routes (E2E)', () => {
       failed: 0,
     });
 
-    expect(await FleetVehicle.findOne({ where: { patente: FLEET_NEW } })).toMatchObject({
+    expect(await FleetVehicle.findOne({ where: { patente: formatChilePatente(FLEET_NEW) } })).toMatchObject({
       codigoInterno: 'IMP-F-003',
       estadoOperativo: 'en_mantencion',
       sucursal: 'Sucursal Norte',
     });
-    const duplicate = await FleetVehicle.findOne({ where: { patente: FLEET_DUPLICATE } });
+    const duplicate = await FleetVehicle.findOne({
+      where: { patente: { [Op.in]: [FLEET_DUPLICATE, formatChilePatente(FLEET_DUPLICATE)] } },
+    });
     expect(duplicate?.codigoInterno).toBe('IMP-F-001');
   });
 

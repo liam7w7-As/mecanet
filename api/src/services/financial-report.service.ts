@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 import { getFinancialReportData } from './financial-analytics.service.js';
-import { getReportBranding } from './reports/report-branding.js';
+import { applyReportWorkbookBranding, getReportBranding } from './reports/report-branding.js';
 
 import type { FinancialAnalytics, FinancialReportData } from './financial-analytics.service.js';
 import type { FinancialReportFilters } from '@unithor/shared';
@@ -328,19 +328,7 @@ export async function generateFinancialReportExcel(
     data.items.map((item) => ({ ...item, catalogType: humanize(item.catalogType) })),
   );
 
-  const branding = await getReportBranding();
-  workbook.creator = branding.companyName;
-  workbook.company = branding.legalName;
-  if (branding.logoPng) {
-    const imageId = workbook.addImage({ base64: branding.logoPng.toString('base64'), extension: 'png' });
-    workbook.eachSheet((sheet) => {
-      sheet.addImage(imageId, {
-        tl: { col: Math.max(0, sheet.columnCount - 2.15), row: 0.12 },
-        ext: { width: 104, height: 28 },
-        editAs: 'oneCell',
-      });
-    });
-  }
+  await applyReportWorkbookBranding(workbook, await getReportBranding());
   const bytes = await workbook.xlsx.writeBuffer();
   return Buffer.from(bytes);
 }
@@ -411,11 +399,15 @@ const drawPdfHeader = (ctx: PdfContext): void => {
   ctx.page.drawText(ctx.title, {
     x: textX,
     y: PDF_HEIGHT - 31,
-    size: 17,
+    size: Math.min(17, (PDF_WIDTH - PDF_MARGIN - textX) / ctx.bold.widthOfTextAtSize(ctx.title, 1)),
     font: ctx.bold,
     color: rgb(1, 1, 1),
   });
-  ctx.page.drawText(shorten(ctx.subtitle, 125), {
+  let subtitle = shorten(ctx.subtitle, 125);
+  while (subtitle.length > 3 && ctx.regular.widthOfTextAtSize(subtitle, 8) > PDF_WIDTH - PDF_MARGIN - textX) {
+    subtitle = `${subtitle.slice(0, -4)}...`;
+  }
+  ctx.page.drawText(subtitle, {
     x: textX,
     y: PDF_HEIGHT - 50,
     size: 8,

@@ -265,7 +265,7 @@ export const FleetVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => 
               const requiredPending = summary.required?.pending.length ?? 0;
               return (
                 <VehicleDirectoryRow
-                  key={vehicle.id} number={number} plate={vehicle.patente}
+                  key={vehicle.id} number={number} plate={vehicle.patente} fotoUrl={vehicle.fotoUrl}
                   privateSubline={showOwner && canViewOwner ? `Propietario: ${vehicle.propietario ?? 'Sin registrar'}` : undefined}
                   name={[vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' ') || 'Vehículo de flota'}
                   reference={[vehicle.codigoInterno ? `Código ${vehicle.codigoInterno}` : null, vehicle.sucursal].filter(Boolean).join(' · ') || undefined}

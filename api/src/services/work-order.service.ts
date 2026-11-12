@@ -40,6 +40,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { formatClpAmount } from '../utils/formatters.js';
 import { generateQuotationCode, generateWorkOrderCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
+import { plateSearch } from '../utils/plate-search.js';
 
 import type {
   CreateWorkOrderInput,
@@ -85,6 +86,9 @@ interface WorkOrderVehiclePublic {
   patente: string;
   marca: string | null;
   modelo: string | null;
+  ano: number | null;
+  color: string | null;
+  combustible: string | null;
 }
 
 interface WorkOrderVehicleOwnerPublic {
@@ -331,7 +335,7 @@ const clientInclude = {
 const vehicleInclude = {
   model: Vehicle,
   as: 'vehicle',
-  attributes: ['id', 'patente', 'marca', 'modelo'],
+  attributes: ['id', 'patente', 'marca', 'modelo', 'ano', 'color', 'combustible'],
 };
 
 const creatorInclude = {
@@ -702,6 +706,9 @@ const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null
         patente: workOrder.vehicle.patente,
         marca: workOrder.vehicle.marca,
         modelo: workOrder.vehicle.modelo,
+        ano: workOrder.vehicle.ano,
+        color: workOrder.vehicle.color,
+        combustible: workOrder.vehicle.combustible,
       }
     : workOrder.vehicleId === null
       ? null
@@ -1681,7 +1688,7 @@ export const listWorkOrders = async (
       { descripcion: { [Op.like]: searchPattern } },
       sequelizeWhere(col('client.nombre'), { [Op.like]: searchPattern }),
       sequelizeWhere(col('client.rut'), { [Op.like]: searchPattern }),
-      sequelizeWhere(col('vehicle.patente'), { [Op.like]: searchPattern }),
+      plateSearch('vehicle.patente', query.search),
     ];
   }
 
@@ -2852,12 +2859,9 @@ export const createWorkOrderRequest = async (
     if (!workOrder) {
       throw ApiError.notFound('Orden de trabajo no encontrada');
     }
-    await assertExecutionAccess(workOrder, userId, transaction);
+    const actorRole = await assertExecutionAccess(workOrder, userId, transaction);
     if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') {
       throw ApiError.badRequest('No se pueden crear solicitudes en una orden cerrada');
-    }
-    if (data.tipo === 'aumento_precio') {
-      await assertSupervisor(userId, transaction);
     }
 
     let catalogItemId: number | null = null;
@@ -2881,6 +2885,12 @@ export const createWorkOrderRequest = async (
       });
       if (!item) {
         throw ApiError.badRequest('El servicio indicado no pertenece a esta orden');
+      }
+      if (item.tipoLinea === 'parte') {
+        throw ApiError.badRequest('Solo se pueden sugerir aumentos para servicios');
+      }
+      if (actorRole === 'mecanico' && (item.assignedUserId ?? workOrder.assignedMechanicId) !== userId) {
+        throw ApiError.forbidden('Solo puedes sugerir precios para tus servicios asignados');
       }
       if (data.precioSugerido <= toNumber(item.precioUnitario)) {
         throw ApiError.badRequest('El precio sugerido debe ser mayor al precio actual');

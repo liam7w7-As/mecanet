@@ -10,10 +10,13 @@ import { z } from 'zod';
 import {
   createVehicleHandler,
   deleteVehicleHandler,
+  deleteVehiclePhotoHandler,
   getVehicleByIdHandler,
   getVehicleByPatenteHandler,
+  getVehiclePhotoHandler,
   getVehiclesHandler,
   updateVehicleHandler,
+  uploadVehiclePhotoHandler,
 } from '../controllers/vehicle.controller.js';
 import {
   downloadImportTemplateHandler,
@@ -23,6 +26,7 @@ import { authenticate } from '../middlewares/authenticate.js';
 import { authorize } from '../middlewares/authorize.js';
 import { spreadsheetUpload } from '../middlewares/spreadsheet-upload.js';
 import { validate } from '../middlewares/validate.js';
+import { vehiclePhotoUpload } from '../middlewares/vehicle-photo-upload.js';
 import { hasPermission } from '../services/permission.service.js';
 import { ApiError } from '../utils/ApiError.js';
 
@@ -142,4 +146,36 @@ vehicleRouter.delete(
   authorize('taller', 'delete'),
   validate({ params: idParamSchema }),
   deleteVehicleHandler,
+);
+
+vehicleRouter.post(
+  '/:id/foto',
+  authorizeAny([
+    { modulo: 'taller', accion: 'update' },
+    { modulo: 'comercial', accion: 'update' },
+  ]),
+  validate({ params: idParamSchema }),
+  vehiclePhotoUpload,
+  uploadVehiclePhotoHandler,
+);
+
+vehicleRouter.get(
+  '/:id/foto',
+  authorizeAny([
+    { modulo: 'taller', accion: 'read' },
+    { modulo: 'comercial', accion: 'read' },
+    { modulo: 'flota', accion: 'read' },
+  ]),
+  validate({ params: idParamSchema }),
+  getVehiclePhotoHandler,
+);
+
+vehicleRouter.delete(
+  '/:id/foto',
+  authorizeAny([
+    { modulo: 'taller', accion: 'update' },
+    { modulo: 'comercial', accion: 'update' },
+  ]),
+  validate({ params: idParamSchema }),
+  deleteVehiclePhotoHandler,
 );

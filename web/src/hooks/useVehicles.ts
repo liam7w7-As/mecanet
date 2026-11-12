@@ -104,3 +104,37 @@ export const useQuickSearch = (term: string) => {
   });
   return { ...query, isDebouncing: term.trim() !== debouncedTerm };
 };
+
+export const useUploadVehiclePhotoMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, file }: { id: number; file: File }) => {
+      const formData = new FormData();
+      formData.append('foto', file);
+      const response = await api.post<VehicleResponse>(`/vehicles/${id}/foto`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data.vehicle;
+    },
+    onSuccess: (vehicle) => {
+      queryClient.setQueryData(vehicleKeys.detail(vehicle.id), vehicle);
+      void queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
+    },
+  });
+};
+
+export const useDeleteVehiclePhotoMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await api.delete<VehicleResponse>(`/vehicles/${id}/foto`);
+      return response.data.vehicle;
+    },
+    onSuccess: (vehicle) => {
+      queryClient.setQueryData(vehicleKeys.detail(vehicle.id), vehicle);
+      void queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
+    },
+  });
+};

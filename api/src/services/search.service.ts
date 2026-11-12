@@ -1,4 +1,5 @@
-import { Op } from 'sequelize';
+import { formatChilePatente, isValidChilePatente } from '@unithor/shared';
+import { Op, col, fn, where as sqlWhere } from 'sequelize';
 
 import { Client } from '../models/Client.js';
 import { Vehicle } from '../models/Vehicle.js';
@@ -159,6 +160,7 @@ export const quickSearch = async (term: string, limit = 10): Promise<QuickSearch
     [Op.or]: [
       { patente: { [Op.like]: termLike } },
       { patente: { [Op.like]: normalizedPlateLike } },
+      sqlWhere(fn('REPLACE', col('Vehicle.patente'), '-', ''), { [Op.like]: normalizedPlateLike }),
       { marca: { [Op.like]: termLike } },
       { modelo: { [Op.like]: termLike } },
       { vinChasis: { [Op.like]: termLike } },
@@ -190,7 +192,9 @@ export const quickSearch = async (term: string, limit = 10): Promise<QuickSearch
 
 export const lookupByPlateWithClient = async (patente: string): Promise<PlateLookupResult> => {
   const vehicle = await Vehicle.findOne({
-    where: { patente: { [Op.eq]: normalizePatente(patente) } },
+    where: { patente: { [Op.in]: isValidChilePatente(patente)
+      ? [normalizePatente(patente), formatChilePatente(patente)]
+      : [patente.trim().toUpperCase()] } },
     attributes: [
       'id',
       'patente',

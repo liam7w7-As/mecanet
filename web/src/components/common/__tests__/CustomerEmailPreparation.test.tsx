@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, waitFor } from '@testing-library/react';
+import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { api } from '../../../lib/api';
@@ -69,6 +69,7 @@ describe('automatic official email preparation', () => {
     );
   });
   afterEach(() => {
+    cleanup();
     clients.splice(0).forEach((client) => client.clear());
     vi.clearAllMocks();
   });

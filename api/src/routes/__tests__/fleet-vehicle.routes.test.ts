@@ -12,6 +12,7 @@ import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
 import { User } from '../../models/User.js';
 import { Vehicle } from '../../models/Vehicle.js';
+import { readStoredFile, removeStoredFile } from '../../services/file-storage.service.js';
 import { hashPassword } from '../../utils/password.js';
 
 import type { Response as SuperAgentResponse } from 'superagent';
@@ -88,7 +89,12 @@ const PDF_TWO = Buffer.from('%PDF-1.7\n2 0 obj\n<< /Type /Catalog >>\nendobj\n%%
 
 const removeFleetFixtures = async (): Promise<void> => {
   const fleetVehicles = await FleetVehicle.findAll({
-    where: { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
+    where: {
+      [Op.or]: [
+        { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
+        { patente: { [Op.like]: 'FL-40%' } },
+      ],
+    },
     paranoid: false,
   });
   const vehicleIds = fleetVehicles.map((vehicle) => vehicle.id);
@@ -115,7 +121,12 @@ const removeFleetFixtures = async (): Promise<void> => {
   }
 
   const workshopVehicles = await Vehicle.findAll({
-    where: { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
+    where: {
+      [Op.or]: [
+        { patente: { [Op.like]: `${TEST_PLATE_PREFIX}%` } },
+        { patente: { [Op.like]: 'FL-40%' } },
+      ],
+    },
     paranoid: false,
   });
   if (workshopVehicles.length > 0) {
@@ -210,7 +221,7 @@ describe('Fleet Vehicle Routes (E2E)', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.fleetVehicle).toMatchObject({
-      patente: 'FL4001',
+      patente: 'FL-4001',
       codigoInterno: 'FLT-001',
       marca: 'Toyota',
       modelo: 'Hilux',
@@ -237,7 +248,7 @@ describe('Fleet Vehicle Routes (E2E)', () => {
     expect(response.body.items).toHaveLength(1);
     expect(response.body.items[0]).toMatchObject({
       id: fleetVehicleId,
-      patente: 'FL4001',
+      patente: 'FL-4001',
       estadoOperativo: 'en_mantencion',
     });
   });
@@ -492,5 +503,79 @@ describe('Fleet Vehicle Routes (E2E)', () => {
       .get(`/api/fleet-vehicles/${fleetVehicleId}`)
       .set('Cookie', [`access_token=${jefeCookies.accessToken}`]);
     expect(detail.status).toBe(404);
+  });
+
+  it('permite subir, consultar y eliminar la foto de un vehículo de flota', async () => {
+    const fleetVehicle = await FleetVehicle.create({
+      patente: 'FL-4088',
+      marca: 'Toyota',
+      modelo: 'Hilux',
+      estadoOperativo: 'disponible',
+    });
+
+    const samplePng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    );
+
+    const uploadResponse = await request(app)
+      .post(`/api/fleet-vehicles/${fleetVehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken)
+      .attach('foto', samplePng, 'test-photo.png');
+
+    expect(uploadResponse.status).toBe(200);
+    expect(uploadResponse.body.fleetVehicle.fotoUrl).toMatch(new RegExp(`^/api/fleet-vehicles/${fleetVehicle.id}/foto\\?v=`));
+    expect(uploadResponse.body.fleetVehicle.fotoStorageKey).toBeUndefined();
+    expect((await request(app).get(`/api/fleet-vehicles/${fleetVehicle.id}/foto`)).status).toBe(401);
+    await request(app).post(`/api/fleet-vehicles/${fleetVehicle.id}/foto`)
+      .set('Cookie', authCookie(jefeCookies)).set('X-CSRF-Token', jefeCookies.csrfToken)
+      .attach('foto', samplePng, 'read-only.png').expect(403);
+    await request(app).post(`/api/fleet-vehicles/${fleetVehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies)).attach('foto', samplePng, 'csrf.png').expect(403);
+
+    const getResponse = await request(app)
+      .get(`/api/fleet-vehicles/${fleetVehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies));
+
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.headers['content-type']).toContain('image/webp');
+    expect(getResponse.body.length).toBeGreaterThan(0);
+    expect(getResponse.headers['cache-control']).toBe('private, no-cache');
+    const replaced = await request(app).post(`/api/fleet-vehicles/${fleetVehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken)
+      .attach('foto', samplePng, 'replacement.png');
+    expect(replaced.status).toBe(200);
+    expect(replaced.body.fleetVehicle.fotoUrl).not.toBe(uploadResponse.body.fleetVehicle.fotoUrl);
+    expect((await request(app).get(replaced.body.fleetVehicle.fotoUrl).set('Cookie', authCookie(devCookies))).status).toBe(200);
+    const keyBeforeInvalid = (await fleetVehicle.reload()).fotoStorageKey;
+    await request(app).post(`/api/fleet-vehicles/${fleetVehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken)
+      .attach('foto', Buffer.from('Not an image'), { filename: 'corrupt.png', contentType: 'image/png' }).expect(400);
+    expect((await fleetVehicle.reload()).fotoStorageKey).toBe(keyBeforeInvalid);
+
+    const deleteResponse = await request(app)
+      .delete(`/api/fleet-vehicles/${fleetVehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies))
+      .set('X-CSRF-Token', devCookies.csrfToken);
+
+    expect(deleteResponse.status).toBe(200);
+    expect(deleteResponse.body.fleetVehicle.fotoUrl).toBeNull();
+
+    const getAfterDelete = await request(app)
+      .get(`/api/fleet-vehicles/${fleetVehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies));
+
+    expect(getAfterDelete.status).toBe(404);
+    await request(app).post(`/api/fleet-vehicles/${fleetVehicle.id}/foto`)
+      .set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken)
+      .attach('foto', samplePng, 'retained.png').expect(200);
+    const retainedKey = (await fleetVehicle.reload()).fotoStorageKey;
+    if (!retainedKey) throw new Error('Falta la foto de flota');
+    await request(app).delete(`/api/fleet-vehicles/${fleetVehicle.id}`)
+      .set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken).expect(200);
+    expect((await FleetVehicle.findByPk(fleetVehicle.id, { paranoid: false }))?.fotoStorageKey).toBe(retainedKey);
+    expect((await readStoredFile(retainedKey, 'Missing retained fleet photo')).length).toBeGreaterThan(0);
+    await removeStoredFile(retainedKey, false);
   });
 });

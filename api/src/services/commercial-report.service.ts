@@ -8,6 +8,8 @@ import { Payment } from '../models/Payment.js';
 import { Quotation } from '../models/Quotation.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
+import { applyReportWorkbookBranding, getReportBranding } from './reports/report-branding.js';
+import { plateSearch } from '../utils/plate-search.js';
 
 import type { CommercialReportFilters } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
@@ -376,7 +378,7 @@ export async function generateCommercialReportExcel(
       { notas: { [Op.like]: `%${filters.search}%` } },
       sequelizeWhere(col(`${prefix}client.nombre`), { [Op.like]: `%${filters.search}%` }),
       sequelizeWhere(col(`${prefix}client.rut`), { [Op.like]: `%${filters.search}%` }),
-      sequelizeWhere(col(`${prefix}vehicle.patente`), { [Op.like]: `%${filters.search}%` }),
+      plateSearch(`${prefix}vehicle.patente`, filters.search),
     ],
   } : {};
 
@@ -426,7 +428,7 @@ export async function generateCommercialReportExcel(
         fecha: { [Op.between]: [startDate, endDate] },
         ...(filters.search ? {
           [Op.or]: ['quotation.codigo', 'quotation.notas', 'quotation->client.nombre', 'quotation->client.rut', 'quotation->vehicle.patente']
-            .map((field) => sequelizeWhere(col(field), { [Op.like]: `%${filters.search}%` })),
+            .map((field) => field.endsWith('.patente') ? plateSearch(field, filters.search!) : sequelizeWhere(col(field), { [Op.like]: `%${filters.search}%` })),
         } : {}),
       },
       include: [
@@ -469,6 +471,7 @@ export async function generateCommercialReportExcel(
   buildSummarySheet(workbook, quotations, filters, emittedAt);
   buildPaymentsSheet(workbook, payments, filters, emittedAt);
 
+  await applyReportWorkbookBranding(workbook, await getReportBranding());
   const bytes = await workbook.xlsx.writeBuffer();
   return Buffer.from(bytes);
 }

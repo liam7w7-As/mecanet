@@ -145,22 +145,23 @@ export class ReportDocument {
         const logoWidth = bounds.width * scale;
         const logoHeight = bounds.height * scale;
         this.page.drawImage(this.logo, {
-          x: marginX,
-          y: height - marginTop - 7,
+          x: marginX + (maxWidth - logoWidth) / 2,
+          y: height - marginTop - 30 + (42 - logoHeight) / 2,
           width: logoWidth,
           height: logoHeight,
         });
         textX += Math.max(logoWidth + 16, 108);
       }
+      const textWidth = this.opts.width - marginX - textX;
       if (this.opts.company) {
-        this.text(this.opts.company, textX, height - marginTop + 8, { size: 8, font: this.bold, color: this.theme.muted });
+        this.text(this.fitHeader(this.opts.company, this.bold, 8, textWidth), textX, height - marginTop + 8, { size: 8, font: this.bold, color: this.theme.muted });
       }
-      this.text(this.opts.title, textX, height - marginTop - 4, { size: 15, font: this.bold });
+      this.text(this.fitHeader(this.opts.title, this.bold, 15, textWidth), textX, height - marginTop - 4, { size: 15, font: this.bold });
       if (this.opts.subtitle) {
-        this.text(this.opts.subtitle, textX, height - marginTop - 20, { size: 8, color: this.theme.muted });
+        this.text(this.fitHeader(this.opts.subtitle, this.regular, 8, textWidth), textX, height - marginTop - 20, { size: 8, color: this.theme.muted });
       }
       if (this.opts.companyDetail) {
-        this.text(this.opts.companyDetail, textX, height - marginTop - 32, { size: 7, color: this.theme.muted });
+        this.text(this.fitHeader(this.opts.companyDetail, this.regular, 7, textWidth), textX, height - marginTop - 32, { size: 7, color: this.theme.muted });
       }
       this.rule(height - marginTop - 40, this.theme.accent);
       this.y = height - marginTop - 54;
@@ -173,16 +174,25 @@ export class ReportDocument {
       const maxHeight = 18;
       const scale = Math.min(maxWidth / bounds.width, maxHeight / bounds.height);
       this.page.drawImage(this.logo, {
-        x: marginX,
-        y: height - marginTop + 6,
+        x: marginX + (maxWidth - bounds.width * scale) / 2,
+        y: height - marginTop + 8 + (maxHeight - bounds.height * scale) / 2,
         width: bounds.width * scale,
         height: bounds.height * scale,
       });
       textX += 58;
     }
-    this.text(this.opts.title, textX, height - marginTop + 12, { size: 8, color: this.theme.muted });
+    this.text(this.fitHeader(this.opts.title, this.regular, 8, this.opts.width - marginX - textX), textX, height - marginTop + 12, { size: 8, color: this.theme.muted });
     this.rule(height - marginTop + 4);
     this.y = height - marginTop - 12;
+  }
+
+  private fitHeader(value: string, font: PDFFont, size: number, width: number): string {
+    if (font.widthOfTextAtSize(value, size) <= width) return value;
+    let result = value;
+    while (result.length > 0 && font.widthOfTextAtSize(`${result}...`, size) > width) {
+      result = result.slice(0, -1);
+    }
+    return `${result}...`;
   }
 
   private drawFooter(page: PDFPage, pageNumber: number, totalPages: number): void {

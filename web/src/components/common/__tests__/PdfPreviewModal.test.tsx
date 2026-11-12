@@ -60,6 +60,8 @@ const mockWorkOrder: WorkOrder = {
     marca: 'Toyota',
     modelo: 'Hilux',
     ano: 2022,
+    color: 'Blanco',
+    combustible: 'Diésel',
   },
   creator: {
     id: 1,
@@ -256,10 +258,14 @@ describe('PdfPreviewModal', () => {
 
     // Contenido de la Página 1
     expect(screen.getAllByText('Transportes del Norte SpA').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('HG-TR-34').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/HG-?TR-?34/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Cambio de Aceite 5W30 Sintético').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/INSPECCIÓN DE INGRESO/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Página 1 de 2').length).toBeGreaterThanOrEqual(1);
+    const official = document.getElementById('unithor-print-portal')!;
+    expect(official).toHaveTextContent('2022');
+    expect(official).toHaveTextContent('Blanco');
+    expect(official).toHaveTextContent('Diésel');
   });
 
   it('permite alternar a la Página 2 (Reverso Legal) con las cláusulas y firmas', () => {
@@ -387,7 +393,7 @@ describe('PdfPreviewModal', () => {
   it('conserva los datos de vehículo cuando la COT tiene uno asociado', () => {
     render(<PdfPreviewModal type="quotation" quotation={mockQuotation} onClose={onClose} />);
     expect(screen.getAllByText('DATOS DEL VEHÍCULO').length).toBeGreaterThan(0);
-    expect(document.getElementById('unithor-print-portal')).toHaveTextContent('HG-TR-34');
+    expect(document.getElementById('unithor-print-portal')).toHaveTextContent(/HG-?TR-?34/);
   });
 
   it('cierra el modal al presionar el botón X o la tecla Escape', () => {

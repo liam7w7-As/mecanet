@@ -10,6 +10,8 @@ import {
   useFleetVehicle,
   useFleetVehicles,
   useUpdateFleetVehicleMutation,
+  useUploadFleetVehiclePhotoMutation,
+  useDeleteFleetVehiclePhotoMutation,
 } from '../useFleetVehicles';
 
 import type { UserPublic } from '../../stores/auth.store';
@@ -18,7 +20,7 @@ import type { AxiosResponse } from 'axios';
 import type { ReactNode } from 'react';
 
 vi.mock('../../lib/api', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
   getCookie: vi.fn(),
   setSessionExpiredHandler: vi.fn(),
 }));
@@ -152,4 +154,35 @@ describe('Privacidad e invalidación de caché de flota', () => {
     expect(client.getQueryState(fleetVehicleKeys.list({}, otherUser))?.isInvalidated).toBe(true);
     expect(client.getQueryState(['dashboard'])?.isInvalidated).toBe(true);
   });
+
+  it.each(['upload', 'delete'] as const)('la foto %s actualiza la ficha de la identidad original e invalida listas', async (action) => {
+    const otherUser: UserPublic = { ...admin, id: 9, role: 'jefe' };
+    const { propietario: _owner, ...publicVehicle } = vehicle;
+    client.setQueryData(fleetVehicleKeys.detail(3, otherUser), publicVehicle);
+    client.setQueryData(fleetVehicleKeys.list({}, admin), list(vehicle));
+    client.setQueryData(['dashboard'], { total: 1 });
+    let finish!: (response: AxiosResponse) => void;
+    const pending = new Promise<AxiosResponse>((resolve) => { finish = resolve; });
+    vi.mocked(api.post).mockReturnValue(pending);
+    vi.mocked(api.delete).mockReturnValue(pending);
+    const updated = { ...vehicle, fotoUrl: action === 'upload' ? '/api/fleet-vehicles/3/foto?v=new' : null };
+    const { result } = renderHook(() => ({ upload: useUploadFleetVehiclePhotoMutation(), remove: useDeleteFleetVehiclePhotoMutation() }), { wrapper });
+    let saving!: Promise<FleetVehicleDetail>;
+    act(() => {
+      saving = action === 'upload'
+        ? result.current.upload.mutateAsync({ id: 3, file: new File(['photo'], 'vehicle.png', { type: 'image/png' }) })
+        : result.current.remove.mutateAsync(3);
+    });
+    await waitFor(() => expect(action === 'upload' ? api.post : api.delete).toHaveBeenCalledTimes(1));
+    act(() => useAuthStore.setState({ user: otherUser }));
+    await act(async () => {
+      finish({ data: { fleetVehicle: updated } } as AxiosResponse);
+      await saving;
+    });
+    expect(client.getQueryData(fleetVehicleKeys.detail(3, admin))).toEqual(updated);
+    expect(client.getQueryData(fleetVehicleKeys.detail(3, otherUser))).toEqual(publicVehicle);
+    expect(client.getQueryState(fleetVehicleKeys.list({}, admin))?.isInvalidated).toBe(true);
+    expect(client.getQueryState(['dashboard'])?.isInvalidated).toBe(true);
+  });
+
 });

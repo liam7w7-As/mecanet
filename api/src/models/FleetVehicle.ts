@@ -67,6 +67,9 @@ export class FleetVehicle extends Model<
   @Column({ type: DataType.STRING(30), allowNull: true })
   declare transmision: string | null;
 
+  @Column({ type: DataType.STRING(255), allowNull: true })
+  declare fotoStorageKey: string | null;
+
   @Column({
     type: DataType.ENUM(...FLEET_VEHICLE_STATUSES),
     allowNull: false,

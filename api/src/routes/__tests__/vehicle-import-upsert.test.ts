@@ -379,7 +379,7 @@ describe('Vehicle/fleet smart import (API + real permissions)', () => {
     expect(plan.rows[0]).toMatchObject({ existingId: existing.id, status: 'update' });
     expect(result).toMatchObject({ updated: 1, created: 0 });
     expect(await existing.reload()).toMatchObject({
-      patente: 'VPFB03',
+      patente: 'VPFB-03',
       propietario: 'Private owner',
       responsable: 'New',
       kilometraje: 0,

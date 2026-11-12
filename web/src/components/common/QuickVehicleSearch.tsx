@@ -1,4 +1,4 @@
-import { isValidChilePatente, normalizeChilePatente, rutSchema } from '@unithor/shared';
+import { formatChilePatente, isValidChilePatente, normalizeChilePatente, rutSchema } from '@unithor/shared';
 import { ArrowRight, Car, LoaderCircle, Plus, Search, UserRound } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -58,7 +58,7 @@ export const QuickVehicleSearch = ({
   const dashboard = presentation === 'dashboard';
   const recentQuery = useVehicles({ page: 1, pageSize: 12 }, reception && trimmedTerm.length < 2);
   const hasExactPlate = searchQuery.data?.vehicles.some(
-    (vehicle) => vehicle.patente === normalizedTerm,
+    (vehicle) => normalizePlate(vehicle.patente) === normalizedTerm,
   );
   const hasExactClientName = searchQuery.data?.clients.some(
     (client) => client.nombre.trim().toLowerCase() === trimmedTerm.toLowerCase(),
@@ -172,7 +172,7 @@ export const QuickVehicleSearch = ({
             >
               <Car aria-hidden="true" />
               <span>
-                <strong>{vehicle.patente}</strong>
+                <strong>{formatChilePatente(vehicle.patente)}</strong>
                 <small>
                   {[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ') || 'Sin modelo'} ·{' '}
                   {vehicle.client?.nombre ?? 'Sin propietario registrado'}
@@ -219,7 +219,7 @@ export const QuickVehicleSearch = ({
                   <Car className="h-4 w-4 shrink-0 text-brand-primaryInk" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
                     <span className="block font-mono text-sm font-bold text-brand-primaryInk">
-                      {vehicle.patente}
+                      {formatChilePatente(vehicle.patente)}
                     </span>
                     <span className="block truncate text-xs text-brand-muted">
                       {[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ') || 'Sin modelo'}
@@ -295,12 +295,12 @@ export const QuickVehicleSearch = ({
               className="mt-1 flex w-full items-center gap-2 border-t border-brand-line px-3 py-3 text-left text-sm font-semibold text-brand-primaryInk hover:bg-brand-line/40"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
-                setNewVehiclePlate(isValidChilePatente(normalizedTerm) ? normalizedTerm : trimmedTerm.toUpperCase());
+                setNewVehiclePlate(isValidChilePatente(normalizedTerm) ? formatChilePatente(normalizedTerm) : trimmedTerm.toUpperCase());
                 setFocused(false);
               }}
             >
               <Plus className="h-4 w-4" aria-hidden="true" /> Registrar nuevo vehículo con patente{' '}
-              {isValidChilePatente(normalizedTerm) ? normalizedTerm : trimmedTerm.toUpperCase()}
+              {isValidChilePatente(normalizedTerm) ? formatChilePatente(normalizedTerm) : trimmedTerm.toUpperCase()}
             </button>
           )}
         </div>

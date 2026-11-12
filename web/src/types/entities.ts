@@ -18,6 +18,7 @@ export interface Vehicle {
   kilometraje: number | null;
   combustible: string | null;
   transmision: string | null;
+  fotoUrl?: string | null;
   clientId: number | null;
   createdAt: string;
   updatedAt: string;
@@ -90,6 +91,7 @@ export interface FleetVehicle {
   kilometraje: number | null;
   combustible: string | null;
   transmision: string | null;
+  fotoUrl?: string | null;
   estadoOperativo: FleetVehicleStatus;
   sucursal: string | null;
   responsable: string | null;
@@ -193,6 +195,8 @@ export interface WorkOrderVehicle {
   marca: string | null;
   modelo: string | null;
   ano?: number | null;
+  color?: string | null;
+  combustible?: string | null;
 }
 
 export interface WorkOrderVehicleOwner {
@@ -825,7 +829,7 @@ export interface WorkOrderWorksheet {
     minutosReales: number;
   };
   pausedOtherItems: number;
-  requests?: Array<Pick<WorkOrderRequest, 'id' | 'estado' | 'catalogItemId' | 'cantidad' | 'motivo' | 'createdAt'> & { tipo: 'repuesto'; catalogItem: { id: number; nombre: string; codigo: string | null } | null; requester: { id: number; nombre: string } | null }>;
+  requests?: Array<Pick<WorkOrderRequest, 'id' | 'tipo' | 'estado' | 'catalogItemId' | 'cantidad' | 'motivo' | 'createdAt'> & { workOrderItemId?: number | null; workOrderItem?: { id: number; descripcion: string } | null; catalogItem: { id: number; nombre: string; codigo: string | null } | null; requester: { id: number; nombre: string } | null }>;
 }
 
 export interface MyLaborOrder {

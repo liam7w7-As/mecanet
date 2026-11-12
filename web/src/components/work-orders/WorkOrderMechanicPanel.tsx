@@ -8,6 +8,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import WorkOrderLaborBoard from './WorkOrderLaborBoard';
+import WorkOrderMechanicPriceRequest from './WorkOrderMechanicPriceRequest';
 import WorkOrderPriceSuggestions from './WorkOrderPriceSuggestions';
 import {
   useCatalogItems,
@@ -85,16 +86,16 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
       (workOrder.requests ?? []).filter(
         (request) =>
           request.estado === 'pendiente' &&
-          (isSupervisor || request.tipo !== 'aumento_precio'),
+          (isSupervisor || request.tipo !== 'aumento_precio' || request.requester?.id === user?.id),
       ),
-    [workOrder.requests, isSupervisor],
+    [workOrder.requests, isSupervisor, user?.id],
   );
   const visibleRequests = useMemo(
     () =>
       (workOrder.requests ?? []).filter(
-        (request) => isSupervisor || request.tipo !== 'aumento_precio',
+        (request) => isSupervisor || request.tipo !== 'aumento_precio' || request.requester?.id === user?.id,
       ),
-    [workOrder.requests, isSupervisor],
+    [workOrder.requests, isSupervisor, user?.id],
   );
 
   const submitProgress = (): void => {
@@ -402,7 +403,9 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
         </div>
       </div>
 
-      <div ref={pricePanelRef} className="workshop-price-review-container" hidden={section !== 'all' && section !== 'prices'}><WorkOrderPriceSuggestions workOrder={workOrder} requestedItem={priceRequest ?? localPriceRequest} onDirtyChange={setPriceDirty} onPendingChange={setPricePending} /></div>
+      <div ref={pricePanelRef} className="workshop-price-review-container" hidden={section !== 'all' && section !== 'prices'}>{user?.role === 'mecanico'
+        ? <WorkOrderMechanicPriceRequest workOrder={workOrder} requestedItem={priceRequest ?? localPriceRequest} onDirtyChange={setPriceDirty} onPendingChange={setPricePending} />
+        : <WorkOrderPriceSuggestions workOrder={workOrder} requestedItem={priceRequest ?? localPriceRequest} onDirtyChange={setPriceDirty} onPendingChange={setPricePending} />}</div>
       {!canExecute && section !== 'requests' && section !== 'prices' && progressHistory}
 
     </section>

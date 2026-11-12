@@ -273,13 +273,13 @@ describe('ClientsPage', () => {
     });
   });
 
-  it('normaliza la patente del formulario de vehículo a mayúsculas y sin separadores', () => {
+  it('presenta la patente en mayúsculas con el guion automático', () => {
     createWrapper(<VehicleFormModal onClose={vi.fn()} />);
     const plateInput = screen.getByLabelText('Patente');
 
     fireEvent.change(plateInput, { target: { value: 'ab-cd 12' } });
 
-    expect(plateInput).toHaveValue('ABCD12');
+    expect(plateInput).toHaveValue('ABCD-12');
   });
 
   it('abre la ficha con historiales y distingue responsable, contacto y facturación', async () => {
@@ -387,9 +387,19 @@ describe('ClientsPage', () => {
     fireEvent.focus(quickSearchInput);
     fireEvent.change(quickSearchInput, { target: { value: 'AB' } });
 
-    expect(await screen.findByText('ABCD12', {}, { timeout: 1500 })).toBeInTheDocument();
+    expect(await screen.findByText('ABCD-12', {}, { timeout: 1500 })).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/search/quick', {
       params: { q: 'AB', limit: 10 },
     });
+  });
+
+  it('reconoce una patente existente con guion y no propone volver a registrarla', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { clients: [], vehicles: [{ id: 4, patente: 'ABCD-12', marca: 'Toyota', modelo: 'Corolla', ano: 2022, client: null }] } });
+    createWrapper(<QuickVehicleSearch onSelectVehicle={vi.fn()} />);
+    const input = screen.getByRole('combobox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'ABCD12' } });
+    await screen.findByText('ABCD-12');
+    expect(screen.queryByRole('button', { name: /Registrar nuevo vehículo con patente/ })).not.toBeInTheDocument();
   });
 });

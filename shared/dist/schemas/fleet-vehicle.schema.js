@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination.schema.js';
-import { chilePatenteSchema } from './vehicle.schema.js';
+import { formatChilePatente, isValidChilePatente } from './vehicle.schema.js';
 import { FLEET_DOCUMENT_EXPIRY_FILTERS, FLEET_VEHICLE_STATUSES } from '../constants/fleet.js';
 const currentYear = new Date().getFullYear();
 const optionalString = (maxLength) => z
@@ -27,8 +27,13 @@ const vinChasisSchema = z
 })
     .nullable()
     .optional();
-export const createFleetVehicleSchema = z.object({
-    patente: chilePatenteSchema,
+const baseFleetVehicleSchema = z.object({
+    patente: z
+        .string()
+        .trim()
+        .min(1, 'La patente es requerida')
+        .max(15, 'La patente no puede tener más de 15 caracteres'),
+    esExtranjera: z.boolean().optional(),
     codigoInterno: codigoInternoSchema,
     marca: optionalString(80),
     modelo: optionalString(80),
@@ -51,7 +56,70 @@ export const createFleetVehicleSchema = z.object({
     propietario: optionalString(180),
     motivoBaja: optionalString(500),
 });
-export const updateFleetVehicleSchema = createFleetVehicleSchema.partial().refine((data) => Object.keys(data).length > 0, {
+export const createFleetVehicleSchema = baseFleetVehicleSchema
+    .superRefine((data, ctx) => {
+    const trimmed = data.patente.trim().toUpperCase();
+    if (data.esExtranjera) {
+        if (trimmed.length === 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['patente'],
+                message: 'La patente es requerida',
+            });
+        }
+    }
+    else {
+        if (!isValidChilePatente(trimmed)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['patente'],
+                message: 'Patente chilena inválida (ej: AB1234 o ABCD12). Si es de otro país, marque patente extranjera.',
+            });
+        }
+    }
+})
+    .transform((data) => ({
+    ...data,
+    patente: data.esExtranjera
+        ? data.patente.trim().toUpperCase()
+        : formatChilePatente(data.patente),
+}));
+export const updateFleetVehicleSchema = baseFleetVehicleSchema
+    .partial()
+    .superRefine((data, ctx) => {
+    if (data.patente !== undefined) {
+        const trimmed = data.patente.trim().toUpperCase();
+        if (data.esExtranjera) {
+            if (trimmed.length === 0) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['patente'],
+                    message: 'La patente es requerida',
+                });
+            }
+        }
+        else {
+            if (!isValidChilePatente(trimmed)) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['patente'],
+                    message: 'Patente chilena inválida (ej: AB1234 o ABCD12). Si es de otro país, marque patente extranjera.',
+                });
+            }
+        }
+    }
+})
+    .transform((data) => ({
+    ...data,
+    ...(data.patente !== undefined
+        ? {
+            patente: data.esExtranjera
+                ? data.patente.trim().toUpperCase()
+                : formatChilePatente(data.patente),
+        }
+        : {}),
+}))
+    .refine((data) => Object.keys(data).length > 0, {
     message: 'Debe enviar al menos un campo para actualizar',
 });
 export const fleetVehicleQuerySchema = paginationSchema.extend({

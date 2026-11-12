@@ -8,7 +8,7 @@ import {
 import ExcelJS from 'exceljs';
 
 import { getPurchasesForReport } from './purchase.service.js';
-import { getReportBranding } from './reports/report-branding.js';
+import { applyReportWorkbookBranding, getReportBranding } from './reports/report-branding.js';
 import { ReportDocument } from './reports/report-layout.js';
 
 import type { PurchasePublic } from './purchase.service.js';
@@ -189,24 +189,7 @@ const setupWorkbook = (): ExcelJS.Workbook => {
 };
 
 const serializeWorkbook = async (workbook: ExcelJS.Workbook): Promise<Buffer> => {
-  const branding = await getReportBranding();
-  workbook.creator = branding.companyName;
-  workbook.company = branding.legalName;
-
-  if (branding.logoPng) {
-    const imageId = workbook.addImage({
-      base64: branding.logoPng.toString('base64'),
-      extension: 'png',
-    });
-    workbook.eachSheet((sheet) => {
-      const startColumn = Math.max(0, sheet.columnCount - 2.15);
-      sheet.addImage(imageId, {
-        tl: { col: startColumn, row: 0.12 },
-        ext: { width: 104, height: 28 },
-        editAs: 'oneCell',
-      });
-    });
-  }
+  await applyReportWorkbookBranding(workbook, await getReportBranding());
 
   const bytes = await workbook.xlsx.writeBuffer();
   return Buffer.from(bytes);

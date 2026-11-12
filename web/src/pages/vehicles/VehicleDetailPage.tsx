@@ -1,9 +1,10 @@
-import { getQuotationGrossTotal } from '@unithor/shared';
+import { formatChilePatente, getQuotationGrossTotal } from '@unithor/shared';
 import {
   AlertCircle,
   ArrowLeft,
   ArrowUpRight,
   CalendarDays,
+  Camera,
   Car,
   Check,
   ClipboardList,
@@ -15,11 +16,13 @@ import {
   Phone,
   Plus,
   Settings2,
+  Trash2,
+  Upload,
   UserRound,
   Wrench,
   X,
 } from 'lucide-react';
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import ModalHeader from '../../components/common/ModalHeader';
@@ -27,7 +30,7 @@ import QuotationStatusBadge from '../../components/quotations/QuotationStatusBad
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
 import WorkOrderStatusBadge from '../../components/work-orders/WorkOrderStatusBadge';
 import { useQuotations } from '../../hooks/useQuotations';
-import { useVehicle } from '../../hooks/useVehicles';
+import { useDeleteVehiclePhotoMutation, useUploadVehiclePhotoMutation, useVehicle } from '../../hooks/useVehicles';
 import { useWorkOrders } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate } from '../../lib/formatters';
@@ -92,6 +95,12 @@ export const VehicleDetailPage = ({
     (hasUserPermission(user, 'taller', 'update') || hasUserPermission(user, 'comercial', 'update')),
   );
   const vehicleQuery = useVehicle(Number.isInteger(vehicleId) && vehicleId > 0 ? vehicleId : null);
+  const uploadPhotoMutation = useUploadVehiclePhotoMutation();
+  const deletePhotoMutation = useDeleteVehiclePhotoMutation();
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [isPhotoSaving, setIsPhotoSaving] = useState(false);
+  const photoSavingRef = useRef(false);
   const workOrdersQuery = useWorkOrders(
     { page: 1, pageSize: 100, vehicleId },
     canReadWorkshop && Number.isInteger(vehicleId) && vehicleId > 0,
@@ -138,6 +147,31 @@ export const VehicleDetailPage = ({
       <ArrowLeft className="h-5 w-5" aria-hidden="true" />
     </Link>
   );
+
+  const savePhoto = async (file?: File): Promise<void> => {
+    if (!canEdit || photoSavingRef.current || !vehicleQuery.data) return;
+    if (file && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024)) {
+      setPhotoError('Seleccione una foto JPG, PNG o WebP de hasta 8 MB.');
+      return;
+    }
+    photoSavingRef.current = true;
+    setIsPhotoSaving(true);
+    setPhotoError(null);
+    setSelectedPhotoFile(file ?? null);
+    try {
+      if (file) {
+        await uploadPhotoMutation.mutateAsync({ id: vehicleQuery.data.id, file });
+      } else {
+        await deletePhotoMutation.mutateAsync(vehicleQuery.data.id);
+      }
+      setSelectedPhotoFile(null);
+    } catch (error) {
+      setPhotoError(getApiErrorMessage(error, 'No fue posible guardar la foto. Intente nuevamente.'));
+    } finally {
+      photoSavingRef.current = false;
+      setIsPhotoSaving(false);
+    }
+  };
 
   if (vehicleQuery.isPending || vehicleQuery.isError || !vehicleQuery.data) {
     return (
@@ -202,18 +236,28 @@ export const VehicleDetailPage = ({
       <header className="vehicle-profile-header">
         <ModalHeader
           id={`${tabId}-title`}
-          title={vehicle.patente}
+          title={formatChilePatente(vehicle.patente)}
           headingAs={onClose ? 'h2' : 'h1'}
           variant="brand"
           eyebrow="Ficha del vehículo"
           description={displayName || 'Vehículo sin descripción técnica'}
-          badge={<Car aria-hidden="true" />}
+          badge={
+            vehicle.fotoUrl ? (
+              <img
+                src={vehicle.fotoUrl}
+                alt={formatChilePatente(vehicle.patente)}
+                className="h-9 w-9 rounded-lg object-cover border border-slate-200"
+              />
+            ) : (
+              <Car aria-hidden="true" />
+            )
+          }
           actions={<span className="reference-header-kind">Taller</span>}
           onClose={() => onClose ? onClose() : navigate('/vehicles')}
           closeLabel={onClose ? 'Cerrar ficha' : 'Volver a vehículos'}
         />
         <div className="vehicle-profile-actions">
-          {canEdit && <button type="button" onClick={() => onEdit ? onEdit(vehicle) : setIsEditing(true)} aria-label="Editar ficha"><Pencil aria-hidden="true" />Editar vehículo</button>}
+          {canEdit && <button type="button" disabled={isPhotoSaving} onClick={() => onEdit ? onEdit(vehicle) : setIsEditing(true)} aria-label="Editar ficha"><Pencil aria-hidden="true" />Editar vehículo</button>}
           {canCreateWorkOrder && <Link to={`/work-orders/new?vehicleId=${vehicle.id}`}><Plus aria-hidden="true" />Nueva OT</Link>}
         </div>
       </header>
@@ -350,6 +394,60 @@ export const VehicleDetailPage = ({
                   <p className="mt-2 text-xs leading-5 text-brand-muted">
                     Faltan {missingFields.join(', ')}.
                   </p>
+                )}
+              </div>
+
+              <div className="mt-5 border-t border-brand-line pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-brand-muted">Foto del vehículo</span>
+                  {vehicle.fotoUrl && canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => { void savePhoto(); }}
+                      disabled={isPhotoSaving}
+                      className="inline-flex items-center gap-1 text-[11px] text-brand-coralInk hover:underline"
+                    >
+                      <Trash2 className="h-3 w-3" /> {deletePhotoMutation.isPending ? 'Quitando...' : 'Quitar'}
+                    </button>
+                  )}
+                </div>
+                <div className="relative h-40 w-full overflow-hidden rounded-lg border border-brand-line bg-slate-50 flex items-center justify-center">
+                  {vehicle.fotoUrl ? (
+                    <img
+                      src={vehicle.fotoUrl}
+                      alt={`Foto de ${formatChilePatente(vehicle.patente)}`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center p-3">
+                      <Camera className="mx-auto h-8 w-8 text-slate-300" />
+                      <p className="mt-1 text-xs text-brand-muted">Sin foto registrada</p>
+                    </div>
+                  )}
+                  {canEdit && (
+                    <label className="absolute bottom-2 right-2 cursor-pointer rounded-md bg-brand-primaryInk/80 px-2 py-1 text-xs font-medium text-white backdrop-blur hover:bg-brand-primaryInk transition flex items-center gap-1 shadow">
+                      <Upload className="h-3 w-3" />
+                      <span>{uploadPhotoMutation.isPending ? 'Subiendo...' : vehicle.fotoUrl ? 'Cambiar' : 'Subir'}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                      aria-label="Seleccionar foto del vehículo"
+                        disabled={isPhotoSaving}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                        if (file) void savePhoto(file);
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+                {photoError && <p role="alert" className="mt-2 text-sm text-brand-coralInk">{photoError}</p>}
+                {photoError && selectedPhotoFile && canEdit && (
+                  <button type="button" className="secondary-button mt-2" disabled={isPhotoSaving} onClick={() => { void savePhoto(selectedPhotoFile); }}>
+                    Reintentar foto
+                  </button>
                 )}
               </div>
             </section>

@@ -1,10 +1,11 @@
-import { WORK_ORDER_STATUS, isValidWorkOrderTransition } from '@unithor/shared';
+import { WORK_ORDER_STATUS, formatChilePatente, isValidWorkOrderTransition } from '@unithor/shared';
 import { ChevronDown, Download, Eye, ListChecks, PackageCheck, PackageSearch } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import WorkOrderCardPopover from './WorkOrderCardPopover';
 import { WORK_ORDER_STATUS_LABELS } from './WorkOrderStatusBadge';
 import { formatClp, formatDate } from '../../lib/formatters';
+import { getWorkOrderAssigneeLabel } from '../../lib/work-order-assignees';
 import { getWorkOrderTotal } from '../../lib/work-order-pricing';
 import { getCardColourTier, getElapsedInfo, getWorkOrderProgress, PROGRESS_TIER_STYLES } from '../../lib/work-order-progress';
 
@@ -127,7 +128,7 @@ export default function WorkOrderCard({
           }
         }}>
         <span className="workshop-card-vehicle">
-          <span className="workshop-card-plate">{workOrder.vehicle?.patente ?? 'SIN PATENTE'}</span>
+          <span className="workshop-card-plate">{formatChilePatente(workOrder.vehicle?.patente) || 'SIN PATENTE'}</span>
           <span>{[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || 'Vehículo sin datos'}</span>
         </span>
         <span className="workshop-card-age" title={elapsed.text}>
@@ -152,7 +153,7 @@ export default function WorkOrderCard({
       {activePanel && (
         <WorkOrderCardPopover anchorRef={anchorRef} id={informationId} label={`Información de ${workOrder.codigo}`} connected onPlacementChange={setPlacement} className={`workshop-card-information ${theme}`} colourTier={colourTier} onPointerEnter={keepHoverOpen} onPointerLeave={leaveHover} onBlurCapture={leaveHover} onClose={close}>
           <dl className="workshop-card-facts">
-            <div><dt>Mecánico</dt><dd>{workOrder.assignedMechanic?.nombre ?? 'Sin mecánico'}</dd></div>
+            <div><dt>Mecánicos</dt><dd title={getWorkOrderAssigneeLabel(workOrder)}>{getWorkOrderAssigneeLabel(workOrder)}</dd></div>
             <div><dt>Origen</dt><dd>{quotation?.codigo ?? 'OT directa'}</dd></div>
           </dl>
           {showFinancials && <div className="workshop-card-financials">

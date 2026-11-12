@@ -125,6 +125,20 @@ describe('ReportsPage', () => {
     expect(screen.queryByRole('button', { name: 'Cuentas' })).not.toBeInTheDocument();
   });
 
+  it('muestra el total comercial con IVA igual que la cotización y los reportes', async () => {
+    const defaultGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (url, config) => url === '/quotations'
+      ? { data: { items: [{ id: 1, codigo: 'COT-IVA', total: 35200, estadoPago: 'por_pagar',
+          createdAt: '2026-11-12T12:00:00Z', client: { nombre: 'Cliente de prueba' } }],
+          total: 1, page: 1, pageSize: 8, totalPages: 1 } }
+      : defaultGet(url, config));
+    loginAs('vendedor');
+    renderPage();
+
+    expect(await screen.findByRole('cell', { name: '$41.888' })).toBeInTheDocument();
+    expect(screen.queryByRole('cell', { name: '$35.200' })).not.toBeInTheDocument();
+  });
+
   it('limita al mecánico al reporte de sus órdenes de taller', async () => {
     loginAs('mecanico');
     renderPage('/reports?section=finance');

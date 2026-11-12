@@ -20,9 +20,11 @@ import { WorkOrder } from '../models/WorkOrder.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
-import { getReportBranding } from './reports/report-branding.js';
+import { applyReportWorkbookBranding, getReportBranding } from './reports/report-branding.js';
 import { ReportDocument } from './reports/report-layout.js';
 import { ApiError } from '../utils/ApiError.js';
+import { plateSearch } from '../utils/plate-search.js';
+import { vehiclePhotoUrl } from '../utils/vehicle-photo.js';
 
 import type { CatalogItemPublic } from './catalog.service.js';
 import type { ClientPublic } from './client.service.js';
@@ -150,7 +152,7 @@ const buildCommercialWhere = (
       { notas: { [Op.like]: like } },
       sequelizeWhere(col('client.nombre'), { [Op.like]: like }),
       sequelizeWhere(col('client.rut'), { [Op.like]: like }),
-      sequelizeWhere(col('vehicle.patente'), { [Op.like]: like }),
+      plateSearch('vehicle.patente', filters.search),
     ];
   }
   applyQuotationVisibility(where, filters);
@@ -181,7 +183,7 @@ const buildWorkshopWhere = (filters: WorkshopReportFilters & SalesReportScope, i
       { billingName: { [Op.like]: like } },
       sequelizeWhere(col('client.nombre'), { [Op.like]: like }),
       sequelizeWhere(col('client.rut'), { [Op.like]: like }),
-      sequelizeWhere(col('vehicle.patente'), { [Op.like]: like }),
+      plateSearch('vehicle.patente', filters.search),
     ];
   }
   applyWorkOrderVisibility(where, filters);
@@ -307,7 +309,7 @@ const getCommercialPayments = (filters: CommercialReportFilters & SalesReportSco
       fecha: { [Op.between]: [startOfDayUtc(filters.fechaDesde), endOfDayUtc(filters.fechaHasta)] },
       ...(filters.search ? {
         [Op.or]: ['quotation.codigo', 'quotation.notas', 'quotation->client.nombre', 'quotation->client.rut', 'quotation->vehicle.patente']
-          .map((field) => sequelizeWhere(col(field), { [Op.like]: `%${filters.search}%` })),
+          .map((field) => field.endsWith('.patente') ? plateSearch(field, filters.search!) : sequelizeWhere(col(field), { [Op.like]: `%${filters.search}%` })),
       } : {}),
     },
     include: [
@@ -360,21 +362,7 @@ const setupWorkbook = (): ExcelJS.Workbook => {
 };
 
 const serializeWorkbook = async (workbook: ExcelJS.Workbook): Promise<Buffer> => {
-  const branding = await getReportBranding();
-  workbook.creator = branding.companyName;
-  workbook.company = branding.legalName;
-
-  if (branding.logoPng) {
-    const imageId = workbook.addImage({ base64: branding.logoPng.toString('base64'), extension: 'png' });
-    workbook.eachSheet((sheet) => {
-      const startColumn = Math.max(0, sheet.columnCount - 2.15);
-      sheet.addImage(imageId, {
-        tl: { col: startColumn, row: 0.12 },
-        ext: { width: 104, height: 28 },
-        editAs: 'oneCell',
-      });
-    });
-  }
+  await applyReportWorkbookBranding(workbook, await getReportBranding());
 
   const bytes = await workbook.xlsx.writeBuffer();
   return Buffer.from(bytes);
@@ -2018,6 +2006,7 @@ export async function getFleetReportPreview(filters: FleetReportFilters & SalesR
         kilometraje: vehicle.kilometraje,
         combustible: vehicle.combustible,
         transmision: vehicle.transmision,
+        fotoUrl: vehiclePhotoUrl('vehicles', vehicle.id, vehicle.fotoStorageKey),
         clientId: vehicle.clientId,
         createdAt: vehicle.createdAt,
         updatedAt: vehicle.updatedAt,

@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
-import { getReportBranding } from '../reports/report-branding.js';
+import { applyReportWorkbookBranding, getReportBranding } from '../reports/report-branding.js';
 
 import type { ExportColumn, ExportDataset, ExportTable, ExportValue } from './export-types.js';
 import type { PDFFont, PDFPage } from 'pdf-lib';
@@ -166,12 +166,13 @@ export const generateListExportExcel = async (dataset: ExportDataset): Promise<B
     if (index > 1) row.height = index === 5 ? 48 : 32;
   });
   if (branding.logoPng) {
-    const logo = workbook.addImage({
-      buffer: branding.logoPng as unknown as ExcelJS.Buffer,
-      extension: 'png',
-    });
-    summary.addImage(logo, { tl: { col: 3, row: 1 }, ext: { width: 180, height: 58 } });
+    summary.getColumn(3).width = 26;
+    summary.pageSetup = { fitToPage: true, fitToWidth: 1, fitToHeight: 0, printArea: `A1:C${summary.rowCount}` };
   }
+  await applyReportWorkbookBranding(workbook, branding, {
+    sheets: [summary],
+    logoArea: { column: 2, row: 0, width: 187, height: 50 },
+  });
   const usedNames = new Set(['Resumen']);
   dataset.tables.forEach((table, index) => {
     const base = index === 0 ? 'Datos' : cleanSheetName(table.name);
@@ -312,7 +313,7 @@ export const generateListExportPdf = async (dataset: ExportDataset): Promise<Uin
       const scale = Math.min(92 / logo.width, 31 / logo.height);
       page.drawImage(logo, {
         x,
-        y: height - 57,
+        y: height - 53 + (31 - logo.height * scale) / 2,
         width: logo.width * scale,
         height: logo.height * scale,
       });
@@ -427,7 +428,7 @@ export const generateListExportPdf = async (dataset: ExportDataset): Promise<Uin
       color: rgb(0.85, 0.89, 0.94),
       thickness: 0.5,
     });
-    current.drawText('UNITHOR - Listado filtrado | Uso interno', {
+    current.drawText(printable(`${branding.companyName} - Listado filtrado | Uso interno`, regular), {
       x: margin,
       y: 16,
       size: 7,

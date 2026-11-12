@@ -1,6 +1,6 @@
-import { getQuotationGrossTotal, type PaymentMethod } from '@unithor/shared';
-import { AlertCircle, ArrowLeft, Banknote, DollarSign, Eye, LoaderCircle, Pencil, ReceiptText, Trash2, UserRound } from 'lucide-react';
-import { useState } from 'react';
+import { getQuotationGrossTotal, QUOTATION_PAYMENT_LABELS, type PaymentMethod } from '@unithor/shared';
+import { AlertCircle, ArrowLeft, Banknote, DollarSign, Eye, LoaderCircle, Pencil, ReceiptText, Trash2, UserRound, Wrench } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { AnimateIcon } from '../../components/animate-ui';
@@ -32,11 +32,14 @@ export const QuotationDetailPage = () => {
   const user = useAuthStore((state) => state.user);
   const canEdit = Boolean(user && hasUserPermission(user, 'comercial', 'update'));
   const canViewWorkOrder = Boolean(user && hasUserPermission(user, 'taller', 'read'));
+  const canManageWork = canViewWorkOrder && Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role));
+  const canConvert = Boolean(user && (hasUserPermission(user, 'comercial', 'update') || hasUserPermission(user, 'taller', 'create')));
   const quotationId = Number(id);
   const quotationQuery = useQuotation(quotationId);
   const paymentsQuery = useQuotationPayments(quotationId);
   const deletePaymentMutation = useDeletePaymentMutation();
-  const [showPaymentModal, setShowPaymentModal] = useState(() => searchParams.get('payment') === 'true' && Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create'))));
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const paymentLinkHandled = useRef(false);
   const [showEditModal, setShowEditModal] = useState(searchParams.get('edit') === 'true' && canEdit);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
@@ -51,6 +54,13 @@ export const QuotationDetailPage = () => {
   const availableBalance = Math.max(0, balance - pendingTransferAmount);
   const canCreatePayment = Boolean(user && (hasUserPermission(user, 'comercial', 'create') || hasUserPermission(user, 'finanzas', 'create')));
   const canDeletePayment = Boolean(user && (hasUserPermission(user, 'comercial', 'delete') || hasUserPermission(user, 'finanzas', 'delete')));
+  const canRegisterPayment = canCreatePayment && Boolean(summary) && !paymentsQuery.isError && !quotation?.archivedAt && availableBalance > 0;
+
+  useEffect(() => {
+    if (paymentLinkHandled.current || quotationQuery.isPending || paymentsQuery.isPending) return;
+    paymentLinkHandled.current = true;
+    if (searchParams.get('payment') === 'true' && quotation && canRegisterPayment) setShowPaymentModal(true);
+  }, [searchParams, quotationQuery.isPending, paymentsQuery.isPending, quotation, canRegisterPayment]);
 
   if (quotationQuery.isPending) {
     return <div className="flex min-h-72 items-center justify-center"><LoaderCircle className="h-8 w-8 animate-spin text-brand-primaryInk" aria-label="Cargando cotización" /></div>;
@@ -78,6 +88,22 @@ export const QuotationDetailPage = () => {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canConvert && quotation.workOrderId === null && !quotation.archivedAt && (
+            <Link to={`/quotations/${quotation.id}/convert-to-ot`} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow">
+              <AnimateIcon variant="wiggle" animateOnHover>
+                <Wrench className="h-4 w-4" aria-hidden="true" />
+              </AnimateIcon>
+              Convertir a OT
+            </Link>
+          )}
+          {quotation.workOrder && canManageWork && (
+            <Link to={`/work-orders?manage=${quotation.workOrder.id}`} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow">
+              <AnimateIcon variant="wiggle" animateOnHover>
+                <Wrench className="h-4 w-4" aria-hidden="true" />
+              </AnimateIcon>
+              Gestionar trabajo
+            </Link>
+          )}
           <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand-primaryInk bg-white px-4 text-sm font-semibold text-brand-primaryInk shadow-sm transition-all hover:bg-brand-line/40 hover:shadow" onClick={() => setShowPdfModal(true)}>
             <AnimateIcon variant="bounce" animateOnHover>
               <Eye className="h-4 w-4" aria-hidden="true" />
@@ -102,10 +128,19 @@ export const QuotationDetailPage = () => {
 
       <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="quotation-info-title"><div className="border-b border-brand-line px-5 py-4"><h2 id="quotation-info-title" className="font-bold text-brand-primaryInk">Información comercial</h2></div><div className={`grid divide-y divide-brand-line ${quotation.vehicle ? 'md:grid-cols-3' : 'md:grid-cols-2'} md:divide-x md:divide-y-0`}><div className="p-5"><p className="flex items-center gap-2 text-sm font-semibold text-brand-muted"><UserRound className="h-4 w-4" aria-hidden="true" />Cliente</p><p className="mt-3 font-semibold text-brand-ink">{quotation.client?.nombre ?? 'Sin cliente'}</p><p className="mt-1 text-sm text-brand-muted">{quotation.client?.rut ?? 'Sin identificación'}</p></div>{quotation.vehicle && <div className="p-5"><p className="text-sm font-semibold text-brand-muted">Vehículo</p><p className="mt-3 font-mono text-lg font-bold text-brand-primaryInk">{quotation.vehicle?.patente ?? 'Sin vehículo'}</p><p className="mt-1 text-sm text-brand-muted">{[quotation.vehicle?.marca, quotation.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos técnicos'}</p></div>}<div className="p-5"><p className="text-sm font-semibold text-brand-muted">Referencia</p><p className="mt-3 text-sm text-brand-ink">Asesor: <strong>{quotation.asesor?.nombre ?? 'Sin registro'}</strong></p><p className="mt-2 text-sm text-brand-ink">OT: {quotation.workOrder ? canViewWorkOrder ? <Link to={`/work-orders/${quotation.workOrder.id}`} className="font-mono font-bold text-brand-primaryInk hover:underline">{quotation.workOrder.codigo}</Link> : quotation.workOrder.codigo : 'No vinculada'}</p></div></div><div className="border-t border-brand-line px-5 py-4"><p className="text-xs font-semibold uppercase text-brand-muted">Notas comerciales</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-ink">{quotation.notas ?? 'Sin notas registradas.'}</p></div></section>
 
+      <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="quotation-conditions-title">
+        <div className="border-b border-brand-line px-5 py-4"><h2 id="quotation-conditions-title" className="font-bold text-brand-primaryInk">Condiciones de la cotización</h2></div>
+        <dl className="grid divide-y divide-brand-line md:grid-cols-3 md:divide-x md:divide-y-0">
+          <div className="p-5"><dt className="text-sm font-semibold text-brand-muted">Forma de pago</dt><dd className="mt-3 text-sm text-brand-ink">{QUOTATION_PAYMENT_LABELS[quotation.formaPago ?? 'transferencia']}</dd></div>
+          <div className="p-5"><dt className="text-sm font-semibold text-brand-muted">Disponibilidad del trabajo</dt><dd className="mt-3 whitespace-pre-wrap text-sm text-brand-ink">{quotation.disponibilidadTrabajo?.trim() || 'Sin disponibilidad registrada.'}</dd></div>
+          <div className="p-5"><dt className="text-sm font-semibold text-brand-muted">Validez</dt><dd className="mt-3 text-sm text-brand-ink">{quotation.validezDias ?? 5} días</dd></div>
+        </dl>
+      </section>
+
       <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="quotation-items-title"><div className="border-b border-brand-line px-5 py-4"><h2 id="quotation-items-title" className="font-bold text-brand-primaryInk">Conceptos cotizados</h2></div><div className="max-w-full overflow-x-auto overscroll-x-contain"><table className="commercial-data-table w-full min-w-[920px] text-left text-sm"><thead className="bg-brand-line/40 text-xs uppercase text-brand-muted"><tr><th className="px-4 py-3 font-semibold">Descripción</th><th className="px-4 py-3 font-semibold">Nota operativa</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th><th className="px-4 py-3 text-right font-semibold">Precio unitario</th><th className="px-4 py-3 text-right font-semibold">Subtotal</th></tr></thead><tbody>{quotation.items?.map((item) => <tr key={item.id} className="border-t border-brand-line"><td data-label="Descripción" className="px-4 py-3 font-medium text-brand-ink">{item.descripcion}</td><td data-label="Nota operativa" className="max-w-64 px-4 py-3 text-brand-muted">{item.notasOperativas ?? '-'}</td><td data-label="Cantidad" className="px-4 py-3 text-right text-brand-muted">{item.cantidad}</td><td data-label="Precio unitario" className="px-4 py-3 text-right text-brand-muted">{formatClp(item.precioUnitario)}</td><td data-label="Subtotal" className="px-4 py-3 text-right font-semibold text-brand-primaryInk">{formatClp(item.subtotal)}</td></tr>)}</tbody></table></div>{quotation.items?.length === 0 && <p className="px-5 py-8 text-center text-sm text-brand-muted">Sin conceptos cotizados.</p>}</section>
 
       <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="payments-title">
-        <div className="flex flex-col gap-3 border-b border-brand-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 id="payments-title" className="font-bold text-brand-primaryInk">Historial de pagos y abonos</h2><p className="mt-1 text-sm text-brand-muted">Todos los movimientos registrados para esta cotización.</p></div>{canCreatePayment && availableBalance > 0 && <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover" onClick={() => setShowPaymentModal(true)}><DollarSign className="h-4 w-4" aria-hidden="true" /> Registrar Abono</button>}</div>
+        <div className="flex flex-col gap-3 border-b border-brand-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 id="payments-title" className="font-bold text-brand-primaryInk">Historial de pagos y abonos</h2><p className="mt-1 text-sm text-brand-muted">Todos los movimientos registrados para esta cotización.</p></div>{canRegisterPayment && <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover" onClick={() => setShowPaymentModal(true)}><DollarSign className="h-4 w-4" aria-hidden="true" /> Registrar Abono</button>}</div>
         <div className="max-w-full overflow-x-auto overscroll-x-contain"><table className="commercial-data-table w-full min-w-[780px] text-left text-sm"><thead className="bg-brand-line/40 text-xs uppercase text-brand-muted"><tr><th className="px-4 py-3 font-semibold">Fecha</th><th className="px-4 py-3 font-semibold">Método</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold">Usuario receptor</th><th className="px-4 py-3 text-right font-semibold">Monto</th><th className="px-4 py-3 text-right font-semibold">Acción</th></tr></thead><tbody>{summary?.payments.map((payment) => {
           const paymentStatus = payment.estado ?? 'confirmado';
           return <tr key={payment.id} className="border-t border-brand-line"><td data-label="Fecha" className="whitespace-nowrap px-4 py-3 text-brand-muted">{formatDateTime(payment.fecha)}</td><td data-label="Método" className="px-4 py-3 font-medium text-brand-ink">{getPaymentMethodLabel(payment.metodo)}</td><td data-label="Estado" className="px-4 py-3"><PaymentStatusBadge status={paymentStatus} /></td><td data-label="Usuario receptor" className="px-4 py-3 text-brand-muted">{payment.creator?.nombre ?? 'Sin registro'}</td><td data-label="Monto" className={`px-4 py-3 text-right font-semibold ${paymentStatus === 'confirmado' ? 'text-brand-mintInk' : 'text-brand-muted'}`}>{formatClp(payment.monto)}</td><td data-label="Acción" className="px-4 py-3"><div className="flex justify-end">{canDeletePayment && <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-coralPale hover:text-brand-coralInk" onClick={() => { deletePaymentMutation.reset(); setPaymentToDelete(payment); }} aria-label={`Anular pago de ${formatClp(payment.monto)}`} title="Anular pago"><Trash2 className="h-4 w-4" aria-hidden="true" /></button>}</div></td></tr>;
@@ -114,9 +149,9 @@ export const QuotationDetailPage = () => {
         {!paymentsQuery.isPending && summary?.payments.length === 0 && <div className="flex min-h-36 flex-col items-center justify-center px-4 text-center"><Banknote className="h-8 w-8 text-brand-muted/40" aria-hidden="true" /><p className="mt-2 text-sm font-semibold text-brand-muted">Aún no hay abonos registrados</p></div>}
       </section>
 
-      {showPaymentModal && summary && <PaymentFormModal quotationId={quotation.id} codigo={quotation.codigo} saldoPendiente={availableBalance} onClose={() => setShowPaymentModal(false)} />}
+      {showPaymentModal && <PaymentFormModal quotationId={quotation.id} codigo={quotation.codigo} saldoPendiente={availableBalance} onClose={() => setShowPaymentModal(false)} />}
       {showEditModal && <QuotationEditModal quotation={quotation} onClose={() => setShowEditModal(false)} onSaved={() => navigate('/quotations')} />}
-      {paymentToDelete && <FormDialog id="void-payment-title" title="Anular pago" code={quotation.codigo}
+      {paymentToDelete && canDeletePayment && <FormDialog id="void-payment-title" title="Anular pago" code={quotation.codigo}
         context={formatClp(paymentToDelete.monto)} submitLabel="Anular pago" dirty={false}
         pending={deletePaymentMutation.isPending} onClose={() => setPaymentToDelete(null)}
         className="commercial-form-dialog commercial-danger-dialog" headerVariant="plain" headerIcon={<ReceiptText aria-hidden="true" />}

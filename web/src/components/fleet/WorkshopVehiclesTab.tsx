@@ -209,7 +209,7 @@ export const WorkshopVehiclesTab = ({ navigation }: { navigation?: ReactNode }) 
               ].filter((value) => value === null).length;
               return (
                 <VehicleDirectoryRow
-                  key={vehicle.id} number={number} plate={vehicle.patente}
+                  key={vehicle.id} number={number} plate={vehicle.patente} fotoUrl={vehicle.fotoUrl}
                   name={[vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' ') || 'Vehículo sin descripción'}
                   reference={vehicle.vinChasis ? 'VIN: ' + vehicle.vinChasis : undefined}
                   owner={vehicle.client?.nombre ?? 'Sin propietario asignado'} ownerLabel="Propietario"

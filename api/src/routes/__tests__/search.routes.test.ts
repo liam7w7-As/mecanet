@@ -263,6 +263,37 @@ describe('Search Routes (E2E)', () => {
     });
   });
 
+  it('encuentra registros nuevos con guion al buscar con o sin formato y con texto parcial', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const vehicle = await Vehicle.findByPk(vehicleId);
+    if (!vehicle) throw new Error('Falta el vehículo de búsqueda');
+    await vehicle.update({ patente: 'PH-3301' });
+    try {
+      for (const plate of ['PH3301', 'PH-3301']) {
+        const response = await request(app).get(`/api/search/plate/${plate}`).set('Cookie', [`access_token=${cookies.accessToken}`]);
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({ exists: true, vehicle: { id: vehicleId, patente: 'PH-3301' } });
+      }
+      const partial = await request(app).get('/api/search/quick').query({ q: 'ph330' }).set('Cookie', [`access_token=${cookies.accessToken}`]);
+      expect(partial.status).toBe(200);
+      expect(partial.body.vehicles).toEqual(expect.arrayContaining([expect.objectContaining({ id: vehicleId })]));
+    } finally {
+      await vehicle.update({ patente: 'PH3301' });
+    }
+  });
+
+  it('conserva el guion propio de una patente extranjera en la consulta exacta', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const foreign = await Vehicle.create({ patente: 'AR-123AB', clientId });
+    try {
+      const response = await request(app).get('/api/search/plate/ar-123ab').set('Cookie', [`access_token=${cookies.accessToken}`]);
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ exists: true, vehicle: { id: foreign.id, patente: 'AR-123AB' } });
+    } finally {
+      await foreign.destroy({ force: true });
+    }
+  });
+
   it('lookupPlate devuelve exists false para patente inexistente', async () => {
     const vendedorCookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
 

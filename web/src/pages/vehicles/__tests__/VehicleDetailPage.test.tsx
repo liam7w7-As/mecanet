@@ -143,7 +143,7 @@ describe('VehicleDetailPage', () => {
 
     const detailDialog = await screen.findByRole('dialog', { name: 'Ficha del vehículo' });
     const detail = within(detailDialog);
-    expect(await detail.findByRole('heading', { name: 'ABCD12' })).toBeInTheDocument();
+    expect(await detail.findByRole('heading', { name: 'ABCD-12' })).toBeInTheDocument();
     expect(screen.getAllByText('Cliente Demo')).toHaveLength(2);
     expect(within(detailDialog).getByRole('tab', { name: 'Ficha' })).toHaveAttribute(
       'aria-selected',
@@ -172,17 +172,17 @@ describe('VehicleDetailPage', () => {
     renderRoutes('/vehicles');
 
     expect(await screen.findByText('#1')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir ficha de ABCD12' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir ficha de ABCD-12' }));
 
     const detail = within(await screen.findByRole('dialog', { name: 'Ficha del vehículo' }));
-    expect(await detail.findByRole('heading', { name: 'ABCD12' })).toBeInTheDocument();
+    expect(await detail.findByRole('heading', { name: 'ABCD-12' })).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/vehicles/12');
   });
 
   it('cierra la edición superior con Escape y conserva la ficha y su historial seleccionado', async () => {
     renderRoutes();
     const detail = within(await screen.findByRole('dialog', { name: 'Ficha del vehículo' }));
-    await detail.findByRole('heading', { name: 'ABCD12' });
+    await detail.findByRole('heading', { name: 'ABCD-12' });
     fireEvent.click(detail.getByRole('tab', { name: /Taller/ }));
     fireEvent.click(detail.getByRole('button', { name: 'Editar ficha' }));
     expect(await screen.findByRole('dialog', { name: 'Editar vehículo' })).toBeInTheDocument();

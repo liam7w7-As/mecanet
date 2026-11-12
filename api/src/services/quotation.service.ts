@@ -31,6 +31,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { formatClpAmount } from '../utils/formatters.js';
 import { generateQuotationCode } from '../utils/generateCode.js';
 import { getPagination } from '../utils/paginate.js';
+import { plateSearch } from '../utils/plate-search.js';
 
 import type { InspectionPhotoFile, InspectionPhotoPublic } from './work-order-inspection-photo.service.js';
 import type {
@@ -628,7 +629,7 @@ export const listQuotations = async (
       { notas: { [Op.like]: searchPattern } },
       sequelizeWhere(col('client.nombre'), { [Op.like]: searchPattern }),
       sequelizeWhere(col('client.rut'), { [Op.like]: searchPattern }),
-      sequelizeWhere(col('vehicle.patente'), { [Op.like]: searchPattern }),
+      plateSearch('vehicle.patente', query.search),
     ];
   }
 

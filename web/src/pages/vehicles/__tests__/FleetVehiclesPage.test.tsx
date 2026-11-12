@@ -149,7 +149,7 @@ describe('FleetVehiclesPage', () => {
 
   it('comparte búsqueda, estado y vencimiento con exportación y envía propietario solo al activarlo', async () => {
     renderFlota();
-    await screen.findByText('FLAB12');
+    await screen.findByText('FLAB-12');
     expect(listExportSpy.mock.lastCall?.[0].includeOwner).toBe(false);
     fireEvent.change(screen.getByRole('combobox', { name: 'Estado operativo' }), { target: { value: 'dado_de_baja' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Documentación' }), { target: { value: 'vencido' } });
@@ -173,7 +173,7 @@ describe('FleetVehiclesPage', () => {
       { modulo: 'flota', accion: 'read' }, { modulo: 'flota', accion: 'export' },
     ] } }));
     renderFlota();
-    await screen.findByText('FLAB12');
+    await screen.findByText('FLAB-12');
     expect(screen.getByTestId('list-export-fleet-vehicles')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Importar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Nuevo vehículo de flota' })).not.toBeInTheDocument();
@@ -205,7 +205,7 @@ describe('FleetVehiclesPage', () => {
   it('lista solo la flota interna con su estado y alerta documental', async () => {
     renderFlota();
 
-    expect(await screen.findByText('FLAB12')).toBeInTheDocument();
+    expect(await screen.findByText('FLAB-12')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Flota/ })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -234,12 +234,12 @@ describe('FleetVehiclesPage', () => {
   it('abre la ficha de flota desde la URL y muestra documentos sin archivo', async () => {
     renderFlota();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Abrir ficha de FLAB12' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir ficha de FLAB-12' }));
 
     const dialog = within(
       await screen.findByRole('dialog', { name: 'Ficha del vehículo de flota' }),
     );
-    expect(await dialog.findByRole('heading', { name: 'FLAB12' })).toBeInTheDocument();
+    expect(await dialog.findByRole('heading', { name: 'FLAB-12' })).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/fleet-vehicles/3');
     expect(dialog.getByText('María Soto')).toBeInTheDocument();
     expect(dialog.getByText('Diésel')).toBeInTheDocument();
@@ -266,22 +266,22 @@ describe('FleetVehiclesPage', () => {
     async (role) => {
       useAuthStore.setState((state) => ({ user: { ...state.user!, role } }));
       renderFlota();
-      await screen.findByText('FLAB12');
+      await screen.findByText('FLAB-12');
       const checkbox = screen.getByRole('checkbox', { name: 'Mostrar propietario' });
       expect(checkbox).not.toBeChecked();
       expect(screen.queryByText(/Sociedad Propietaria Privada/)).not.toBeInTheDocument();
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Abrir ficha de FLAB12' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Abrir ficha de FLAB-12' }));
       let dialog = within(await screen.findByRole('dialog', { name: 'Ficha del vehículo de flota' }));
-      await dialog.findByRole('heading', { name: 'FLAB12' });
+      await dialog.findByRole('heading', { name: 'FLAB-12' });
       expect(dialog.queryByText(/Sociedad Propietaria Privada/)).not.toBeInTheDocument();
       fireEvent.click(dialog.getByRole('button', { name: 'Cerrar ficha' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
       fireEvent.click(checkbox);
-      const plate = within(screen.getByRole('region', { name: 'Listado de vehículos de flota' })).getByText('FLAB12');
+      const plate = within(screen.getByRole('region', { name: 'Listado de vehículos de flota' })).getByText('FLAB-12');
       expect(plate.nextElementSibling).toHaveTextContent('Propietario: Sociedad Propietaria Privada');
-      fireEvent.click(screen.getByRole('button', { name: 'Abrir ficha de FLAB12' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir ficha de FLAB-12' }));
       dialog = within(await screen.findByRole('dialog', { name: 'Ficha del vehículo de flota' }));
       expect(await dialog.findByText('Propietario: Sociedad Propietaria Privada')).toBeInTheDocument();
       fireEvent.click(dialog.getByRole('button', { name: 'Cerrar ficha' }));
@@ -298,16 +298,16 @@ describe('FleetVehiclesPage', () => {
         ...state.user!, role, permissions: [{ modulo: 'flota', accion: 'read' }],
       } }));
       renderFlota();
-      await screen.findByText('FLAB12');
+      await screen.findByText('FLAB-12');
       expect(screen.queryByRole('checkbox', { name: 'Mostrar propietario' })).not.toBeInTheDocument();
       expect(screen.queryByText(/Sociedad Propietaria Privada/)).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Nuevo vehículo de flota' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Importar' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Editar FLAB12' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Eliminar FLAB12' })).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'Abrir ficha de FLAB12' }));
+      expect(screen.queryByRole('button', { name: 'Editar FLAB-12' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Eliminar FLAB-12' })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir ficha de FLAB-12' }));
       const dialog = within(await screen.findByRole('dialog', { name: 'Ficha del vehículo de flota' }));
-      await dialog.findByRole('heading', { name: 'FLAB12' });
+      await dialog.findByRole('heading', { name: 'FLAB-12' });
       expect(dialog.queryByText(/Sociedad Propietaria Privada/)).not.toBeInTheDocument();
       expect(dialog.queryByRole('button', { name: 'Editar ficha' })).not.toBeInTheDocument();
       fireEvent.click(dialog.getByRole('tab', { name: /Documentos/ }));
@@ -323,7 +323,7 @@ describe('FleetVehiclesPage', () => {
 
   it('no expone el propietario al cambiar de usuario con el checkbox activado y la respuesta pendiente', async () => {
     renderFlota();
-    await screen.findByText('FLAB12');
+    await screen.findByText('FLAB-12');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Mostrar propietario' }));
     expect(screen.getByText(/Sociedad Propietaria Privada/)).toBeInTheDocument();
     vi.mocked(api.get).mockImplementation(() => new Promise(() => {}));
@@ -332,7 +332,7 @@ describe('FleetVehiclesPage', () => {
       ...state.user!, id: 9, role: 'jefe', permissions: [{ modulo: 'flota', accion: 'read' }],
     } })));
     expect(screen.queryByText(/Sociedad Propietaria Privada/)).not.toBeInTheDocument();
-    expect(screen.queryByText('FLAB12')).not.toBeInTheDocument();
+    expect(screen.queryByText('FLAB-12')).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Mostrar propietario' })).not.toBeInTheDocument();
 
     act(() => useAuthStore.setState((state) => ({ user: { ...state.user!, id: 10, role: 'admin' } })));
@@ -345,11 +345,11 @@ describe('FleetVehiclesPage', () => {
     const retired: FleetVehicle = { ...fleetVehicle, id: 8, patente: 'ZZZZ12', estadoOperativo: 'dado_de_baja' };
     vi.mocked(api.get).mockResolvedValue({ data: paginated([fleetVehicle, retired]) });
     renderFlota();
-    await screen.findByText('ZZZZ12');
+    await screen.findByText('ZZZZ-12');
     const list = within(screen.getByRole('region', { name: 'Listado de vehículos de flota' }));
     expect(list.getByText('Dado de baja')).toBeInTheDocument();
     expect(list.getAllByRole('button', { name: /Abrir ficha/ }).map((button) => button.getAttribute('aria-label')))
-      .toEqual(['Abrir ficha de FLAB12', 'Abrir ficha de ZZZZ12']);
+      .toEqual(['Abrir ficha de FLAB-12', 'Abrir ficha de ZZZZ-12']);
     fireEvent.change(screen.getByRole('combobox', { name: 'Estado operativo' }), { target: { value: 'dado_de_baja' } });
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('/fleet-vehicles', {
       params: expect.objectContaining({ estado: 'dado_de_baja', page: 1, pageSize: 20 }),
@@ -360,21 +360,21 @@ describe('FleetVehiclesPage', () => {
     const second: FleetVehicle = { ...fleetVehicle, id: 9, patente: 'FLCD34' };
     vi.mocked(api.get).mockResolvedValue({ data: paginated([fleetVehicle, second]) });
     renderFlota();
-    await screen.findByText('FLCD34');
+    await screen.findByText('FLCD-34');
 
-    const firstDetails = screen.getByText('FLAB12').closest('details');
-    const secondDetails = screen.getByText('FLCD34').closest('details');
+    const firstDetails = screen.getByText('FLAB-12').closest('details');
+    const secondDetails = screen.getByText('FLCD-34').closest('details');
     if (!firstDetails || !secondDetails) throw new Error('No se encontraron las filas');
 
-    fireEvent.click(within(firstDetails).getByLabelText('Desplegar resumen de FLAB12'));
+    fireEvent.click(within(firstDetails).getByLabelText('Desplegar resumen de FLAB-12'));
     expect(firstDetails).toHaveAttribute('open');
     expect(secondDetails).not.toHaveAttribute('open');
 
-    fireEvent.click(within(secondDetails).getByLabelText('Desplegar resumen de FLCD34'));
+    fireEvent.click(within(secondDetails).getByLabelText('Desplegar resumen de FLCD-34'));
     await waitFor(() => expect(firstDetails).not.toHaveAttribute('open'));
     expect(secondDetails).toHaveAttribute('open');
 
-    fireEvent.click(within(secondDetails).getByLabelText('Desplegar resumen de FLCD34'));
+    fireEvent.click(within(secondDetails).getByLabelText('Desplegar resumen de FLCD-34'));
     await waitFor(() => expect(secondDetails).not.toHaveAttribute('open'));
   });
 
@@ -389,11 +389,11 @@ describe('FleetVehiclesPage', () => {
       data: paginated([fleetVehicle, outOfService, retired]),
     });
     renderFlota();
-    await screen.findByText('OOOO11');
+    await screen.findByText('OOOO-11');
 
-    expect(screen.getByText('OOOO11').closest('article')).toHaveAttribute('data-tone', 'danger');
-    expect(screen.getByText('RRRR22').closest('article')).toHaveAttribute('data-tone', 'muted');
-    expect(screen.getByText('FLAB12').closest('article')).not.toHaveAttribute('data-tone');
+    expect(screen.getByText('OOOO-11').closest('article')).toHaveAttribute('data-tone', 'danger');
+    expect(screen.getByText('RRRR-22').closest('article')).toHaveAttribute('data-tone', 'muted');
+    expect(screen.getByText('FLAB-12').closest('article')).not.toHaveAttribute('data-tone');
   });
 
   it('crea con propietario privado separado del responsable externo y límites del contrato', async () => {
@@ -411,7 +411,7 @@ describe('FleetVehiclesPage', () => {
     fireEvent.change(responsible, { target: { value: 'Taller externo Juan' } });
     fireEvent.click(form.getByRole('button', { name: 'Crear vehículo de flota' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/fleet-vehicles', expect.objectContaining({
-      patente: 'XYAB12', propietario: 'Empresa Arrendadora', responsable: 'Taller externo Juan',
+      patente: 'XYAB-12', propietario: 'Empresa Arrendadora', responsable: 'Taller externo Juan',
     })));
   });
 
@@ -419,7 +419,7 @@ describe('FleetVehiclesPage', () => {
     useAuthStore.setState((state) => ({ user: { ...state.user!, role } }));
     vi.mocked(api.patch).mockResolvedValue({ data: { fleetVehicle: { ...fleetVehicleDetail, propietario: null } } });
     renderFlota();
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar FLAB12' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar FLAB-12' }));
     const form = within(await screen.findByRole('dialog', { name: 'Editar vehículo de flota' }));
     fireEvent.change(form.getByRole('textbox', { name: /^Propietario \(privado\)/ }), { target: { value: '   ' } });
     fireEvent.click(form.getByRole('button', { name: 'Guardar cambios' }));
@@ -433,7 +433,7 @@ describe('FleetVehiclesPage', () => {
     vi.mocked(api.post).mockResolvedValue({ data: { fleetVehicle: fleetVehicleDetail } });
     vi.mocked(api.patch).mockResolvedValue({ data: { fleetVehicle: fleetVehicleDetail } });
     renderFlota();
-    fireEvent.click(await screen.findByRole('button', { name: action === 'create' ? 'Nuevo vehículo de flota' : 'Editar FLAB12' }));
+    fireEvent.click(await screen.findByRole('button', { name: action === 'create' ? 'Nuevo vehículo de flota' : 'Editar FLAB-12' }));
     const form = within(await screen.findByRole('dialog', { name: action === 'create' ? 'Nuevo vehículo de flota' : 'Editar vehículo de flota' }));
     expect(form.queryByRole('textbox', { name: /Propietario/ })).not.toBeInTheDocument();
     if (action === 'create') fireEvent.change(form.getByRole('textbox', { name: 'Patente' }), { target: { value: 'XYAB12' } });
@@ -462,7 +462,7 @@ describe('FleetVehiclesPage', () => {
       return { data: { fleetVehicle: detail } } as AxiosResponse;
     });
     renderFlota();
-    fireEvent.click(await screen.findByRole('button', { name: 'Abrir ficha de FLAB12' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir ficha de FLAB-12' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Ficha del vehículo de flota' }));
     fireEvent.click(await dialog.findByRole('button', { name: 'Editar ficha' }));
     const form = within(await screen.findByRole('dialog', { name: 'Editar vehículo de flota' }));
@@ -501,7 +501,7 @@ describe('FleetVehiclesPage', () => {
     fireEvent.click(form.getByRole('button', { name: 'Crear vehículo de flota' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
     const payload = vi.mocked(api.post).mock.calls[0][1] as CreateFleetVehicleInput;
-    expect(payload).toMatchObject({ patente: 'XYAB12', estadoOperativo: 'dado_de_baja', motivoBaja: null, propietario: null });
+    expect(payload).toMatchObject({ patente: 'XYAB-12', estadoOperativo: 'dado_de_baja', motivoBaja: null, propietario: null });
     expect(payload).not.toHaveProperty('fechaBaja');
   });
 
@@ -516,7 +516,7 @@ describe('FleetVehiclesPage', () => {
       return { data: { fleetVehicle: detail } } as AxiosResponse;
     });
     renderFlota();
-    fireEvent.click(await screen.findByRole('button', { name: 'Abrir ficha de FLAB12' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir ficha de FLAB-12' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Ficha del vehículo de flota' }));
     fireEvent.click(await dialog.findByRole('button', { name: 'Editar ficha' }));
     const form = within(await screen.findByRole('dialog', { name: 'Editar vehículo de flota' }));

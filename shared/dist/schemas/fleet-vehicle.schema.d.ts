@@ -1,6 +1,7 @@
 import { z } from 'zod';
-export declare const createFleetVehicleSchema: z.ZodObject<{
-    patente: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
+export declare const createFleetVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
+    patente: z.ZodString;
+    esExtranjera: z.ZodOptional<z.ZodBoolean>;
     codigoInterno: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     marca: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     modelo: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
@@ -18,6 +19,7 @@ export declare const createFleetVehicleSchema: z.ZodObject<{
     motivoBaja: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
 }, "strip", z.ZodTypeAny, {
     patente: string;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;
@@ -35,6 +37,79 @@ export declare const createFleetVehicleSchema: z.ZodObject<{
     motivoBaja?: string | null | undefined;
 }, {
     patente: string;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    codigoInterno?: string | null | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
+    sucursal?: string | null | undefined;
+    responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
+}>, {
+    patente: string;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    codigoInterno?: string | null | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
+    sucursal?: string | null | undefined;
+    responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
+}, {
+    patente: string;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    codigoInterno?: string | null | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
+    sucursal?: string | null | undefined;
+    responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
+}>, {
+    patente: string;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    codigoInterno?: string | null | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
+    sucursal?: string | null | undefined;
+    responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
+}, {
+    patente: string;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;
@@ -51,8 +126,9 @@ export declare const createFleetVehicleSchema: z.ZodObject<{
     propietario?: string | null | undefined;
     motivoBaja?: string | null | undefined;
 }>;
-export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
-    patente: z.ZodOptional<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>>;
+export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects<z.ZodObject<{
+    patente: z.ZodOptional<z.ZodString>;
+    esExtranjera: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     codigoInterno: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     marca: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     modelo: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
@@ -70,6 +146,7 @@ export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
     motivoBaja: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
 }, "strip", z.ZodTypeAny, {
     patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;
@@ -87,6 +164,7 @@ export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
     motivoBaja?: string | null | undefined;
 }, {
     patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;
@@ -104,6 +182,7 @@ export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
     motivoBaja?: string | null | undefined;
 }>, {
     patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;
@@ -121,6 +200,79 @@ export declare const updateFleetVehicleSchema: z.ZodEffects<z.ZodObject<{
     motivoBaja?: string | null | undefined;
 }, {
     patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    codigoInterno?: string | null | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
+    sucursal?: string | null | undefined;
+    responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
+}>, {
+    patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    codigoInterno?: string | null | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
+    sucursal?: string | null | undefined;
+    responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
+}, {
+    patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    codigoInterno?: string | null | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
+    sucursal?: string | null | undefined;
+    responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
+}>, {
+    patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
+    marca?: string | null | undefined;
+    modelo?: string | null | undefined;
+    ano?: number | null | undefined;
+    color?: string | null | undefined;
+    vinChasis?: string | null | undefined;
+    motor?: string | null | undefined;
+    kilometraje?: number | null | undefined;
+    combustible?: string | null | undefined;
+    transmision?: string | null | undefined;
+    codigoInterno?: string | null | undefined;
+    estadoOperativo?: "disponible" | "en_mantencion" | "fuera_de_servicio" | "dado_de_baja" | undefined;
+    sucursal?: string | null | undefined;
+    responsable?: string | null | undefined;
+    propietario?: string | null | undefined;
+    motivoBaja?: string | null | undefined;
+}, {
+    patente?: string | undefined;
+    esExtranjera?: boolean | undefined;
     marca?: string | null | undefined;
     modelo?: string | null | undefined;
     ano?: number | null | undefined;

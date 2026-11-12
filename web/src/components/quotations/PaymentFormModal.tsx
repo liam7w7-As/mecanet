@@ -232,6 +232,7 @@ export const PaymentFormModal = ({
             <label className="block text-sm font-semibold text-brand-ink">
               Monto del abono
               <CurrencyInput
+                aria-label="Monto del abono"
                 allowDecimals
                 value={monto}
                 onChange={setMonto}

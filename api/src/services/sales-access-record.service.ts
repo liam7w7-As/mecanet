@@ -5,6 +5,7 @@ import { Quotation } from '../models/Quotation.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
+import { plateSearch } from '../utils/plate-search.js';
 
 import type { SalesAccessRecordsQuery, SalesAccessScopeType } from '@unithor/shared';
 import type { Transaction } from 'sequelize';
@@ -134,7 +135,7 @@ export const searchSalesAccessRecords = async (granteeId: number, query: SalesAc
     [Op.or]: [
       { codigo: { [Op.like]: `%${search}%` } },
       { '$client.nombre$': { [Op.like]: `%${search}%` } },
-      { '$vehicle.patente$': { [Op.like]: `%${search}%` } },
+      plateSearch('vehicle.patente', search),
     ],
   } : {};
   const options = {

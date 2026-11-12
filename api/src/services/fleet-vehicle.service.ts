@@ -1,18 +1,26 @@
+import { randomUUID } from 'node:crypto';
+import path from 'node:path';
+
 import {
   FLEET_EXPIRY_WARNING_DAYS,
+  formatChilePatente,
   getFleetExpiryInfo,
   getFleetRequiredDocumentSummary,
+  isValidChilePatente,
   normalizeChilePatente,
   toFleetDateOnly,
 } from '@unithor/shared';
-import { Op, UniqueConstraintError, literal } from 'sequelize';
+import { Op, UniqueConstraintError, col, fn, literal, where as sqlWhere } from 'sequelize';
+import sharp from 'sharp';
 
+import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { toFleetDocumentPublic } from './fleet-document.service.js';
 import { FleetDocument } from '../models/FleetDocument.js';
 import { FleetVehicle } from '../models/FleetVehicle.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { ApiError } from '../utils/ApiError.js';
 import { getPagination } from '../utils/paginate.js';
+import { vehiclePhotoUrl } from '../utils/vehicle-photo.js';
 
 
 import type { FleetDocumentPublic } from './fleet-document.service.js';
@@ -60,6 +68,7 @@ export interface FleetVehiclePublic {
   kilometraje: number | null;
   combustible: string | null;
   transmision: string | null;
+  fotoUrl: string | null;
   estadoOperativo: FleetVehicleStatus;
   sucursal: string | null;
   responsable: string | null;
@@ -148,6 +157,7 @@ const toPublic = (
   kilometraje: vehicle.kilometraje,
   combustible: vehicle.combustible,
   transmision: vehicle.transmision,
+  fotoUrl: vehiclePhotoUrl('fleet-vehicles', vehicle.id, vehicle.fotoStorageKey),
   estadoOperativo: vehicle.estadoOperativo,
   sucursal: vehicle.sucursal,
   responsable: vehicle.responsable,
@@ -176,16 +186,28 @@ const normalizeCodigo = (value: string | null | undefined): string | null => {
   return normalized === '' ? null : normalized;
 };
 
+const normalizePatente = (patente: string): string => {
+  const trimmed = patente.trim().toUpperCase();
+  if (isValidChilePatente(trimmed)) {
+    return formatChilePatente(trimmed);
+  }
+  return trimmed;
+};
+
 const assertPatenteAvailable = async (
   patente: string,
   ignoreVehicleId?: number,
 ): Promise<void> => {
-  const workshopVehicle = await Vehicle.findOne({ where: { patente }, paranoid: false });
+  const clean = normalizeChilePatente(patente);
+  const formatted = formatChilePatente(patente);
+  const variants = isValidChilePatente(patente) ? [clean, formatted] : [patente.trim().toUpperCase()];
+
+  const workshopVehicle = await Vehicle.findOne({ where: { patente: { [Op.in]: variants } }, paranoid: false });
   if (workshopVehicle) {
     throw ApiError.conflict('Ya existe un vehículo con esa patente');
   }
 
-  const fleetWhere: WhereOptions<InferAttributes<FleetVehicle>> = { patente };
+  const fleetWhere: WhereOptions<InferAttributes<FleetVehicle>> = { patente: { [Op.in]: variants } };
   if (ignoreVehicleId !== undefined) {
     fleetWhere.id = { [Op.ne]: ignoreVehicleId };
   }
@@ -245,9 +267,15 @@ export const listFleetVehicles = async (
   const where: FleetVehicleWhere = {};
 
   if (query.search) {
-    const search = `%${query.search}%`;
+    const trimmedSearch = query.search.trim();
+    const search = `%${trimmedSearch}%`;
+    const cleanSearch = `%${trimmedSearch.replace(/[\s-]/g, '')}%`;
+    const formattedSearch = `%${formatChilePatente(trimmedSearch)}%`;
     where[Op.or] = [
       { patente: { [Op.like]: search } },
+      { patente: { [Op.like]: cleanSearch } },
+      { patente: { [Op.like]: formattedSearch } },
+      sqlWhere(fn('REPLACE', col('FleetVehicle.patente'), '-', ''), { [Op.like]: cleanSearch }),
       { codigoInterno: { [Op.like]: search } },
       { marca: { [Op.like]: search } },
       { modelo: { [Op.like]: search } },
@@ -348,7 +376,7 @@ export const createFleetVehicle = async (
   actorRole?: string,
 ): Promise<FleetVehicleDetailPublic> => {
   assertOwnerWriteAccess(data, actorRole);
-  const patente = normalizeChilePatente(data.patente);
+  const patente = normalizePatente(data.patente);
   const codigoInterno = normalizeCodigo(data.codigoInterno);
 
   await assertPatenteAvailable(patente);
@@ -419,7 +447,7 @@ export const updateFleetVehicle = async (
   > = {};
 
   if (data.patente !== undefined) {
-    const patente = normalizeChilePatente(data.patente);
+    const patente = normalizePatente(data.patente);
     if (patente !== vehicle.patente) {
       await assertPatenteAvailable(patente, id);
     }
@@ -472,5 +500,79 @@ export const deleteFleetVehicle = async (id: number): Promise<void> => {
     throw ApiError.notFound('Vehículo de flota no encontrado');
   }
 
+  // Keep its stored photo with the soft-deleted record, just like its documents.
   await vehicle.destroy();
+};
+
+const FLEET_VEHICLE_PHOTO_FOLDER = 'fleet-vehicles';
+
+export const saveFleetVehiclePhoto = async (
+  vehicleId: number,
+  file: Express.Multer.File,
+  actorRole?: string,
+): Promise<FleetVehicleDetailPublic> => {
+  const vehicle = await FleetVehicle.findByPk(vehicleId);
+  if (!vehicle) {
+    throw ApiError.notFound('Vehículo de flota no encontrado');
+  }
+
+  let webpBuffer: Buffer;
+  try {
+    webpBuffer = await sharp(file.buffer)
+      .rotate()
+      .resize({ width: 1600, height: 1200, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toBuffer();
+  } catch {
+    throw ApiError.badRequest('El archivo de imagen no es válido o está dañado');
+  }
+
+  const storageKey = path.posix.join(
+    FLEET_VEHICLE_PHOTO_FOLDER,
+    `fleet-${vehicle.id}-${randomUUID()}.webp`,
+  );
+  await storeFile(storageKey, webpBuffer, 'image/webp');
+
+  const previousStorageKey = vehicle.fotoStorageKey;
+  try {
+    await vehicle.update({ fotoStorageKey: storageKey });
+    if (previousStorageKey) {
+      await removeStoredFile(previousStorageKey, true);
+    }
+  } catch (error) {
+    await removeStoredFile(storageKey, false);
+    throw error;
+  }
+
+  return getFleetVehicleById(vehicle.id, actorRole);
+};
+
+export const getFleetVehiclePhoto = async (
+  vehicleId: number,
+): Promise<{ bytes: Buffer; mimeType: string }> => {
+  const vehicle = await FleetVehicle.findByPk(vehicleId);
+  if (!vehicle || !vehicle.fotoStorageKey) {
+    throw ApiError.notFound('Foto de vehículo de flota no encontrada');
+  }
+
+  const bytes = await readStoredFile(vehicle.fotoStorageKey, 'Foto de vehículo de flota no encontrada');
+  return { bytes, mimeType: 'image/webp' };
+};
+
+export const deleteFleetVehiclePhoto = async (
+  vehicleId: number,
+  actorRole?: string,
+): Promise<FleetVehicleDetailPublic> => {
+  const vehicle = await FleetVehicle.findByPk(vehicleId);
+  if (!vehicle) {
+    throw ApiError.notFound('Vehículo de flota no encontrado');
+  }
+
+  if (vehicle.fotoStorageKey) {
+    const previous = vehicle.fotoStorageKey;
+    await vehicle.update({ fotoStorageKey: null });
+    await removeStoredFile(previous, true);
+  }
+
+  return getFleetVehicleById(vehicle.id, actorRole);
 };

@@ -9,6 +9,7 @@ import { up as ensurePurchases } from './migrations/041-create-purchases.js';
 import { up as ensureWorkOrderLabor } from './migrations/042-create-work-order-labor.js';
 import { up as ensureQuotationWorkItemLinks } from './migrations/043-link-quotation-work-items.js';
 import { up as ensureCustomerEmails } from './migrations/044-create-customer-emails.js';
+import { up as ensureVehiclePhotos } from './migrations/049-add-vehicle-photo.js';
 import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -228,6 +229,7 @@ async function ensureSchemaUpToDate(): Promise<void> {
   await ensureQuotationCommercial(qi);
   await ensureStartedWorkOrders(qi);
   await ensureFleetVehicles(qi);
+  await ensureVehiclePhotos(qi);
   await ensurePurchases(qi);
   await ensureWorkOrderLabor(qi);
   await ensureQuotationWorkItemLinks(qi);

@@ -1,3 +1,4 @@
+import { formatChilePatente } from '@unithor/shared';
 import {
   Download,
   LoaderCircle,
@@ -224,11 +225,11 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
               INFORMACIÓN VEHÍCULO
             </div>
             <div>
-              <strong>Patente:</strong> <strong className="text-[#0E2B4E]">{workOrder.vehicle?.patente ?? '-'}</strong>
+              <strong>Patente:</strong> <strong className="text-[#0E2B4E]">{formatChilePatente(workOrder.vehicle?.patente) || '-'}</strong>
             </div>
             <div><strong>Marca/Mod:</strong> {[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || '-'}</div>
-            <div><strong>Año:</strong> {(workOrder.vehicle as { ano?: number | null })?.ano ?? '-'} | <strong>Color:</strong> {(workOrder.vehicle as { color?: string | null })?.color ?? '-'}</div>
-            <div><strong>Combustible:</strong> {(workOrder.vehicle as { combustible?: string | null })?.combustible ?? '-'}</div>
+            <div><strong>Año:</strong> {workOrder.vehicle?.ano ?? '-'} | <strong>Color:</strong> {workOrder.vehicle?.color ?? '-'}</div>
+            <div><strong>Combustible:</strong> {workOrder.vehicle?.combustible ?? '-'}</div>
           </div>
 
           {/* Recepción */}
@@ -606,7 +607,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   const photosSheet = !isOT && hasPhotos ? <InspectionPhotosSheet photos={photos} code={displayCode}
     workOrderCode={quotation?.workOrder?.codigo ?? displayCode}
     clientName={quotation?.client?.nombre ?? 'Sin cliente'}
-    vehicle={[quotation?.vehicle?.patente, quotation?.vehicle?.marca, quotation?.vehicle?.modelo]
+    vehicle={[formatChilePatente(quotation?.vehicle?.patente), quotation?.vehicle?.marca, quotation?.vehicle?.modelo]
       .filter(Boolean).join(' ') || 'Sin vehículo'}
     totalPages={totalPages} /> : null;
 
@@ -693,7 +694,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
           documentLabel: isOT ? 'la orden de trabajo' : 'la cotización',
           code: displayCode,
           clientName: isOT ? workOrder?.client?.nombre : quotation?.client?.nombre,
-          patente: isOT ? workOrder?.vehicle?.patente : quotation?.vehicle?.patente,
+          patente: isOT ? formatChilePatente(workOrder?.vehicle?.patente) : formatChilePatente(quotation?.vehicle?.patente),
         }),
         phone: isOT
           ? workOrder?.client?.telefono ?? workOrder?.contact?.telefono

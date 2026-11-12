@@ -62,6 +62,7 @@ import { formatClp, formatDateTime } from '../../lib/formatters';
 import { validateInspectionFile } from '../../lib/inspection-photos';
 import { canUploadWorkOrderInspectionPhotos, hasUserPermission } from '../../lib/permissions';
 import { buildPdfShareText } from '../../lib/whatsapp';
+import { getWorkOrderAssigneeLabel } from '../../lib/work-order-assignees';
 import { getWorkOrderPricing, getWorkOrderTotal } from '../../lib/work-order-pricing';
 import { getElapsedInfo, getWorkOrderProgress, useNow } from '../../lib/work-order-progress';
 import { useAuthStore } from '../../stores/auth.store';
@@ -366,7 +367,7 @@ export const WorkOrderDetailPage = () => {
           <div className="workshop-record-vehicle"><Car aria-hidden="true" /><div><span>Vehículo</span><strong>{workOrder.vehicle?.patente ?? 'Sin vehículo'}</strong><small>{[workOrder.vehicle?.marca, workOrder.vehicle?.modelo].filter(Boolean).join(' ') || 'Sin datos técnicos'}</small><small>Propietario registrado: {workOrder.vehicleOwner?.nombre ?? 'Sin propietario'}</small></div></div>
           <div className="workshop-record-promised"><CalendarDays aria-hidden="true" /><div><span>Fecha de entrega</span><strong>{workOrder.fechaEntrega ? formatDateTime(workOrder.fechaEntrega) : 'Sin fecha de entrega'}</strong></div></div>
           <div><UserRound aria-hidden="true" /><div><span>Cliente</span><strong>{workOrder.client?.nombre ?? 'Sin cliente asignado'}</strong><small>{workOrder.client?.rut ?? 'Sin identificación'}</small><small>{workOrder.client?.telefono ?? 'Sin teléfono'}</small></div></div>
-          <div><Wrench aria-hidden="true" /><div><span>Mecánico responsable</span><strong>{workOrder.assignedMechanic?.nombre ?? 'Sin asignar'}</strong><small>Creada por {workOrder.creator?.nombre ?? 'Sin registro'}</small></div></div>
+          <div><Wrench aria-hidden="true" /><div><span>Mecánicos responsables</span><strong>{getWorkOrderAssigneeLabel(workOrder)}</strong><small>Creada por {workOrder.creator?.nombre ?? 'Sin registro'}</small></div></div>
           <div><Building2 aria-hidden="true" /><div><span>Facturación</span><strong>{getContactLine(workOrder.billing?.nombre, workOrder.client?.nombre ?? 'Sin facturación')}</strong><small>{getContactLine(workOrder.billing?.rut, workOrder.client?.rut ?? 'Sin identificación')}</small></div></div>
         </div>
         <dl className="workshop-record-metrics" aria-label="Indicadores de la orden">

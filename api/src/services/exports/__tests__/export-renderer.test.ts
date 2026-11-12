@@ -1,13 +1,20 @@
 import ExcelJS from 'exceljs';
 import { PDFDocument } from 'pdf-lib';
-import { describe, expect, it, vi } from 'vitest';
+import sharp from 'sharp';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generateListExportExcel, generateListExportPdf } from '../export-renderer.service.js';
 import { collectExportPages, EXPORT_MAX_ROWS } from '../export-utils.js';
 
 import type { ExportDataset } from '../export-types.js';
 
-vi.mock('../../reports/report-branding.js', () => ({ getReportBranding: async () => ({ companyName: 'UNITHOR', legalName: 'Empresa de prueba', rut: '77.374.788-1', address: '', contact: '', logoPng: null }) }));
+const branding = vi.hoisted(() => ({ companyName: 'UNITHOR', legalName: 'Empresa de prueba', rut: '77.374.788-1', address: '', contact: '', logoPng: null as Buffer | null }));
+vi.mock('../../settings.service.js', () => ({}));
+vi.mock('../../reports/report-branding.js', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../reports/report-branding.js')>(),
+  getReportBranding: async () => branding,
+}));
+beforeEach(() => { branding.companyName = 'UNITHOR'; branding.logoPng = null; });
 
 const dataset = (): ExportDataset => ({
   title: 'Clientes de prueba', filters: { tipo: 'empresa', activo: false },
@@ -19,6 +26,23 @@ const dataset = (): ExportDataset => ({
 });
 
 describe('Archivos de exportación del listado', () => {
+  it('coloca el logo proporcionado dentro del membrete de Resumen sin alterar Datos', async () => {
+    branding.companyName = 'Empresa configurada';
+    branding.logoPng = await sharp({ create: { width: 80, height: 160, channels: 3, background: '#123456' } }).png().toBuffer();
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await generateListExportExcel(dataset()) as unknown as ExcelJS.Buffer);
+    const summary = book.getWorksheet('Resumen')!;
+    const image = summary.getImages()[0];
+    expect(book.creator).toBe(branding.companyName);
+    expect(summary.getColumn(3).width).toBe(26);
+    expect(summary.pageSetup.printArea).toMatch(/^A1:C\d+$/);
+    expect(image.range.tl.nativeCol).toBe(2);
+    expect(image.range.tl.nativeRow).toBe(0);
+    const size = (image.range as ExcelJS.ImageRange & { ext: { width: number; height: number } }).ext;
+    expect(size.width / size.height).toBeCloseTo(0.5);
+    expect(book.getWorksheet('Datos')!.getCell('B2').value).toBe('=NOMBRE LITERAL');
+    expect((await PDFDocument.load(await generateListExportPdf(dataset()))).getAuthor()).toBe(branding.companyName);
+  });
   it('Excel contiene Datos reimportable desde fila 1, números reales y texto literal', async () => {
     const bytes = await generateListExportExcel(dataset());
     const book = new ExcelJS.Workbook();

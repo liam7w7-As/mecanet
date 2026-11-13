@@ -1231,7 +1231,8 @@ describe('WorkOrdersPage', () => {
     expect(steps.getByRole('button', { name: '3. Vehículo' })).toHaveAttribute('aria-current', 'step');
     expect(screen.getByText('Seleccione o cree el vehículo que ingresa al taller.')).toBeInTheDocument();
     fireEvent.click(steps.getByRole('button', { name: '2. Facturación' }));
-    expect(screen.getAllByText('Cliente Demo')).toHaveLength(3);
+    expect(screen.getAllByText('Cliente Demo')).toHaveLength(2);
+    expect(screen.getByLabelText('Nombre o razón social')).toHaveValue('Cliente Demo');
     expect(api.post).not.toHaveBeenCalled();
   });
 
@@ -1434,7 +1435,8 @@ describe('WorkOrdersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar datos de contacto' }));
     fireEvent.click(screen.getByRole('button', { name: 'Conservar selección' }));
     expect(screen.getByText('Contacto diferente')).toBeInTheDocument();
-    expect(screen.getAllByText('Cliente Demo')).toHaveLength(2);
+    expect(screen.getAllByText('Cliente Demo')).toHaveLength(1);
+    expect(screen.getByLabelText('Nombre o razón social')).toHaveValue('Cliente Demo');
     await act(async () => { await flushFormDrafts(); });
     const saved = await loadFormDraft(1, 'work-order:new', workOrderRecoverySchema);
     expect(saved?.payload.client?.id).toBe(7);

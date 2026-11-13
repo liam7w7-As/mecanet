@@ -430,12 +430,14 @@ describe('Quotation to Work Order Conversion (E2E)', () => {
     const response = await request(app).post(`/api/quotations/${quotation.id}/convert-to-ot`)
       .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
       .send({ vehicleId, clientId, contactClientId: clientId, billingClientId: clientId,
+        billing: { nombre: 'Factura de recepción', tipo: 'empresa', email: 'factura@example.com', direccion: 'Dirección de recepción' },
         kilometrajeIngreso: 125000, descripcion: 'Recepción cotización fase 52',
         inspection: { nivelCombustible: 'medio', inventario: ['botiquin'], observaciones: 'Golpe lateral' } });
     expect(response.status).toBe(201);
     expect(response.body.quotation).toMatchObject({ id: quotation.id, codigo: quotation.codigo, vehicleId, pagado: 10000, total: 61000, estadoPago: 'parcial' });
     expect(response.body.workOrder.contact).toMatchObject({ clientId });
-    expect(response.body.workOrder.billing).toMatchObject({ clientId });
+    expect(response.body.workOrder.billing).toMatchObject({ clientId, nombre: 'Factura de recepción', email: 'factura@example.com', direccion: 'Dirección de recepción' });
+    expect(response.body.quotation.billing).toEqual(response.body.workOrder.billing);
     expect(response.body.workOrder.inspection).toMatchObject({ inventario: ['botiquin'], observaciones: 'Golpe lateral' });
     expect(response.body.workOrder.events).toEqual(expect.arrayContaining([expect.objectContaining({ tipo: 'creacion' })]));
     expect(response.body.workOrder.items).toHaveLength(2);

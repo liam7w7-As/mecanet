@@ -18,7 +18,7 @@
 .reception-create-page .reception-form { container: reception-form / inline-size; }
 .reception-create-page .reception-form,
 .reception-create-page .reception-form > fieldset { flex: 0 1 auto; }
-.reception-create-page .reception-workspace { flex: 0 1 auto; max-height: max(200px, calc(100dvh - 240px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
+.reception-create-page .reception-workspace { flex: 0 1 auto; max-height: none; overflow: visible; }
 .reception-create-page .reception-page-heading h1 { line-height: 1.4; overflow-wrap: anywhere; }
 .reception-create-page .reception-step-content { padding: 16px 18px; }
 .reception-create-page .reception-step-heading { margin-bottom: 12px; }
@@ -75,6 +75,54 @@
 .reception-create-page [data-reception-step='0'] .reception-client-card[data-selected='true'] button:focus-visible { outline-color: #c5d9f7; }
 .reception-create-page .reception-billing-grid { gap: 14px; }
 .reception-create-page .reception-client-card p { overflow-wrap: anywhere; }
+
+/* Nueva OT uses the page scroll, including its paginated search results. */
+.reception-create-page .reception-form { overflow: visible; }
+.reception-create-page .reception-client-results,
+.reception-create-page .reception-selection-layout .reception-client-results,
+.reception-create-page .reception-billing-grid .reception-client-results,
+.reception-create-page .reception-vehicle-results,
+.reception-create-page .reception-items [aria-label='Resultados del catálogo'],
+.reception-create-page .reception-items .reception-selected-items {
+  max-height: none;
+  overflow: visible;
+}
+.reception-create-page .reception-footer { position: sticky; bottom: 0; z-index: 10; background: #fff; }
+
+.reception-create-page .reception-billing-editor { min-width: 0; padding: 20px; border-radius: 16px; background: var(--reception-primary); color: #fff; }
+.reception-create-page .reception-billing-editor > header { display: flex; align-items: start; gap: 10px; margin-bottom: 20px; }
+.reception-create-page .reception-billing-editor > header > svg { flex: none; width: 22px; height: 22px; margin-top: 2px; color: #d5e5ff; }
+.reception-create-page .reception-billing-editor > header > div { flex: 1; min-width: 0; }
+.reception-create-page .reception-billing-editor h3 { color: #fff; font-size: 16px; font-weight: 600; }
+.reception-create-page .reception-billing-editor > header p,
+.reception-create-page .reception-billing-editor > footer p { margin-top: 5px; color: #dce7f8; font-size: 12px; line-height: 1.5; }
+.reception-create-page .reception-billing-editor button { min-height: 36px; padding: 7px 10px; border: 1px solid #ffffff50; border-radius: 9px; background: #ffffff10; color: #fff; font-size: 12px; }
+.reception-create-page .reception-billing-editor button:hover { background: #ffffff25; }
+.reception-create-page .reception-billing-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
+.reception-create-page .reception-billing-field { min-width: 0; }
+.reception-create-page .reception-billing-wide { grid-column: 1 / -1; }
+.reception-create-page .reception-billing-field > label { display: block; margin-bottom: 6px; color: #edf4ff; font-size: 12px; font-weight: 500; }
+.reception-create-page .reception-billing-field :is(input, select) { width: 100%; min-height: 44px; margin: 0; padding: 9px 11px; border: 1px solid #d7e2f3; border-radius: 9px; background: #fff; color: #203e69; font-size: 14px; }
+.reception-create-page .reception-billing-field :is(input, select):focus { border-color: #ffd600; outline: 2px solid #ffd600; outline-offset: 2px; }
+.reception-create-page .reception-billing-field > [role='alert'] { margin-top: 6px; padding: 5px 8px; border-radius: 6px; background: #fff0ef; color: #a23436; font-size: 12px; }
+.reception-create-page .reception-billing-editor > footer { margin-top: 18px; padding-top: 12px; border-top: 1px solid #ffffff30; }
+.reception-create-page .reception-billing-editor > footer button { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; }
+.reception-create-page .reception-billing-editor > footer svg { width: 14px; height: 14px; }
+
+.reception-create-page .reception-photo-upload-note { margin-top: 10px; padding: 12px 14px; border: 1px solid #d9e6f7; border-radius: 10px; background: #edf3fc; color: #3e608c; font-size: 12px; line-height: 1.6; }
+.reception-create-page .reception-photo-preview { position: relative; width: 100%; }
+.reception-create-page .reception-photo-preview > img { width: 100%; height: 166px; border-radius: 10px; background: #eef3fa; object-fit: contain; }
+.reception-create-page .reception-photo-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 12px; border-radius: 10px; background: #f1f5fbee; color: #294d7b; font-size: 12px; }
+.reception-create-page .reception-photo-loading svg { width: 18px; height: 18px; animation: spin 1s linear infinite; }
+.reception-create-page .reception-photo-file { display: flex; align-items: center; gap: 8px; width: 100%; color: #57749b; font-size: 11px; }
+.reception-create-page .reception-photo-file > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reception-create-page .reception-photo-file > strong { flex: none; font-weight: 500; }
+.reception-create-page .reception-photo-limits { color: #617b9a; font-size: 11px; line-height: 1.5; text-align: center; }
+.reception-create-page .reception-photo-error { width: 100%; padding: 8px 10px; border-radius: 8px; background: #fff0ef; color: #a23436; font-size: 12px; }
+.reception-create-page .reception-photo-remove { display: inline-flex; align-items: center; justify-content: center; flex: none; gap: 4px; min-height: 34px; padding: 6px; border-radius: 8px; color: #a44851; font-size: 11px; }
+.reception-create-page .reception-photo-remove svg { width: 14px; height: 14px; }
+.reception-create-page .reception-photo-remove:hover { background: #ffe7e8; }
+.reception-create-page .reception-photo-actions > label { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 8px 10px; border-radius: 9px; cursor: pointer; }
 
 /* Vehicle remains distinct from the person delivering it. Assignment stays in Services. */
 .reception-create-page .reception-vehicle-layout,
@@ -293,9 +341,20 @@
   .reception-create-page .reception-footer :is(button, a) { min-height: 44px; }
 }
 @media (max-width: 767px) {
-  .reception-create-page .reception-workspace { max-height: max(200px, calc(100dvh - 280px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
+  .reception-create-page .reception-workspace { max-height: none; }
   .reception-create-page :is(input:not([type='checkbox']):not([type='file']), select, textarea),
   .reception-create-page .reception-items .reception-item-row :is(input, select) { font-size: 16px; }
+}
+@media (max-width: 1024px) {
+  .reception-create-page .reception-footer { bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+}
+@container reception-form (max-width: 600px) {
+  .reception-create-page .reception-billing-editor { padding: 16px; }
+  .reception-create-page .reception-billing-editor > header { flex-wrap: wrap; }
+  .reception-create-page .reception-billing-fields { grid-template-columns: minmax(0, 1fr); }
+  .reception-create-page .reception-photos > .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reception-create-page .reception-photo-card > div:first-child button { width: auto; height: auto; }
+  .reception-create-page .reception-photo-preview > img { height: 140px; }
 }
 @media (max-width: 600px) {
   .reception-create-review > .ui-modal-header { min-height: 82px; padding: 16px; }

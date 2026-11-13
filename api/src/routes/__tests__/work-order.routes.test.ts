@@ -1,8 +1,7 @@
+import { getQuotationGrossTotal } from '@unithor/shared';
 import { Op } from 'sequelize';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-
-import { getQuotationGrossTotal } from '@unithor/shared';
 
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
@@ -480,6 +479,34 @@ describe('Work Order Routes (E2E)', () => {
     expect(inspectionUpdate.body.workOrder.inspection.observaciones).toBe(
       'Observación corregida',
     );
+  });
+
+  it('guarda la facturación editada solo en la OT y su COT, sin modificar al cliente compartido', async () => {
+    const cookies = await loginAs(`${TEST_EMAIL_PREFIX}vendedor@unithor.local`);
+    const before = (await Client.findByPk(clientId))!.toJSON();
+    const response = await request(app).post('/api/work-orders')
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ clientId, vehicleId, billingClientId: clientId, billing: {
+        nombre: 'Facturación particular de esta orden', tipo: 'empresa', rut: '77.374.788-1',
+        direccion: 'Dirección exclusiva 123', email: 'FACTURAS@EXAMPLE.COM', telefono: '', region: 'Tarapacá', comuna: 'Iquique',
+      } });
+    expect(response.status).toBe(201);
+    expect(response.body.workOrder.billing).toMatchObject({ clientId, nombre: 'Facturación particular de esta orden',
+      rut: '773747881', email: 'facturas@example.com', telefono: null, direccion: 'Dirección exclusiva 123' });
+    expect((await Client.findByPk(clientId))!.toJSON()).toEqual(before);
+    const quotation = await Quotation.findOne({ where: { workOrderId: response.body.workOrder.id } });
+    const detail = await request(app).get(`/api/quotations/${quotation!.id}`).set('Cookie', authCookie(cookies));
+    expect(detail.status).toBe(200);
+    expect(detail.body.quotation.billing).toEqual(response.body.workOrder.billing);
+    const receptionUpdate = await request(app).patch(`/api/work-orders/${response.body.workOrder.id}`)
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ billingClientId: clientId, inspection: { observaciones: 'Nueva observación sin cambiar facturación' } });
+    expect(receptionUpdate.status).toBe(200);
+    expect(receptionUpdate.body.workOrder.billing).toEqual(response.body.workOrder.billing);
+    const rejected = await request(app).post('/api/work-orders')
+      .set('Cookie', authCookie(cookies)).set('X-CSRF-Token', cookies.csrfToken)
+      .send({ clientId, vehicleId, billingClientId: clientId, billing: { nombre: '', tipo: 'empresa' } });
+    expect(rejected.status).toBe(400);
   });
 
   it('revierte la creación si el contacto o la facturación no existen', async () => {

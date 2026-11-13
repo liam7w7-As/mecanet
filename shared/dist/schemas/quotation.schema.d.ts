@@ -491,6 +491,35 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
     clientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     contactClientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     billingClientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    billing: z.ZodOptional<z.ZodObject<Omit<{
+        rut: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string | null, string>>>;
+        nombre: z.ZodString;
+        tipo: z.ZodEnum<["cliente", "empresa"]>;
+        email: z.ZodOptional<z.ZodNullable<z.ZodPipeline<z.ZodEffects<z.ZodString, string | null, string>, z.ZodNullable<z.ZodString>>>>;
+        telefono: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+        direccion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+        region: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+        comuna: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+        notas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    }, "notas">, "strip", z.ZodTypeAny, {
+        nombre: string;
+        tipo: "cliente" | "empresa";
+        email?: string | null | undefined;
+        rut?: string | null | undefined;
+        telefono?: string | null | undefined;
+        direccion?: string | null | undefined;
+        region?: string | null | undefined;
+        comuna?: string | null | undefined;
+    }, {
+        nombre: string;
+        tipo: "cliente" | "empresa";
+        email?: string | null | undefined;
+        rut?: string | null | undefined;
+        telefono?: string | null | undefined;
+        direccion?: string | null | undefined;
+        region?: string | null | undefined;
+        comuna?: string | null | undefined;
+    }>>;
     vehicleId: z.ZodNumber;
     assignedMechanicId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     kilometrajeIngreso: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -596,6 +625,16 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
     emailPhotoSlots?: ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[] | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
+    billing?: {
+        nombre: string;
+        tipo: "cliente" | "empresa";
+        email?: string | null | undefined;
+        rut?: string | null | undefined;
+        telefono?: string | null | undefined;
+        direccion?: string | null | undefined;
+        region?: string | null | undefined;
+        comuna?: string | null | undefined;
+    } | undefined;
     assignedMechanicId?: number | null | undefined;
     kilometrajeIngreso?: number | null | undefined;
     fechaEntrega?: string | null | undefined;
@@ -621,6 +660,16 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
     emailPhotoSlots?: ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[] | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
+    billing?: {
+        nombre: string;
+        tipo: "cliente" | "empresa";
+        email?: string | null | undefined;
+        rut?: string | null | undefined;
+        telefono?: string | null | undefined;
+        direccion?: string | null | undefined;
+        region?: string | null | undefined;
+        comuna?: string | null | undefined;
+    } | undefined;
     assignedMechanicId?: number | null | undefined;
     kilometrajeIngreso?: number | null | undefined;
     fechaEntrega?: string | null | undefined;

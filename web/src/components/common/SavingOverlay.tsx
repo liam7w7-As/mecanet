@@ -1,6 +1,8 @@
 import { LoaderCircle } from 'lucide-react';
 
-export default function SavingOverlay({ message, detail }: { message: string; detail?: string }) {
+import { ProgressBar } from './LoadingIndicator';
+
+export default function SavingOverlay({ message, detail, progress }: { message: string; detail?: string; progress?: number }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/35 p-5 backdrop-blur-sm">
       <div
@@ -12,6 +14,7 @@ export default function SavingOverlay({ message, detail }: { message: string; de
         <LoaderCircle className="h-9 w-9 animate-spin text-brand-primaryInk" aria-hidden="true" />
         <p className="text-base font-bold text-brand-primaryInk">{message}</p>
         {detail && <p className="text-sm leading-5 text-brand-muted">{detail}</p>}
+        {progress !== undefined && <div className="w-full"><ProgressBar value={progress} label="Carga de fotografías" /></div>}
       </div>
     </div>
   );

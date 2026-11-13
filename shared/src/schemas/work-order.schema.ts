@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { chilePhoneSchema, rutSchema } from './client.schema.js';
+import { chilePhoneSchema, createClientSchema, rutSchema } from './client.schema.js';
 import { paginationSchema } from './pagination.schema.js';
 import { CATALOG_TYPES } from '../constants/catalog-types.js';
 import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
@@ -96,6 +96,7 @@ export const createWorkOrderSchema = z.object({
   clientId: nullablePositiveId,
   contactClientId: nullablePositiveId,
   billingClientId: nullablePositiveId,
+  billing: createClientSchema.omit({ notas: true }).optional(),
   vehicleId: z.coerce.number().int().positive('Seleccione el vehículo que ingresa al taller'),
   assignedMechanicId: nullablePositiveId,
   kilometrajeIngreso: z.coerce.number().int().min(0).nullable().optional(),

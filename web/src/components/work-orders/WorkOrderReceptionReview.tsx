@@ -63,7 +63,7 @@ export default function WorkOrderReceptionReview(props: Props) {
             [
               ['Responsable', data.client],
               ['Contacto en taller', data.contactClient],
-              ['Facturación', data.billingClient],
+              ['Facturación', data.billingDetails?.id === data.billingClient?.id ? data.billingDetails : data.billingClient],
             ] as const
           ).map(([label, person]) => (
             <div key={label}>

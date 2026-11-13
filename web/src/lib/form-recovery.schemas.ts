@@ -22,6 +22,8 @@ const client = z.object({
   telefono: optionalText,
   email: optionalText,
   direccion: optionalText,
+  region: optionalText.optional(),
+  comuna: optionalText.optional(),
 });
 const item = z.object({
   key: z.string(),
@@ -63,6 +65,7 @@ export const workOrderRecoverySchema = z.object({
   client: client.nullable(),
   contactClient: client.nullable(),
   billingClient: client.nullable(),
+  billingDetails: client.nullable().optional(),
   vehicle: z
     .object({
       id: z.number().int().positive(),

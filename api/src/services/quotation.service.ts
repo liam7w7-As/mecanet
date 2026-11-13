@@ -124,6 +124,7 @@ export interface QuotationPublic {
   createdAt: Date;
   updatedAt: Date;
   client?: QuotationClientPublic | null;
+  billing?: WorkOrderPublic['billing'];
   vehicle?: QuotationVehiclePublic | null;
   asesor?: QuotationUserPublic | null;
   workOrder?: QuotationWorkOrderPublic | null;
@@ -166,7 +167,8 @@ const asesorInclude = {
 
 const workOrderInclude = {
   model: WorkOrder,
-  attributes: ['id', 'codigo', 'estado', 'updatedAt'],
+  attributes: ['id', 'codigo', 'estado', 'updatedAt', 'billingClientId', 'billingName', 'billingRut',
+    'billingType', 'billingPhone', 'billingEmail', 'billingAddress', 'billingRegion', 'billingComuna'],
 };
 
 const itemsInclude = {
@@ -259,6 +261,17 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
     : quotation.asesorId === null
       ? null
       : undefined,
+  billing: quotation.workOrder?.billingName ? {
+    clientId: quotation.workOrder.billingClientId,
+    nombre: quotation.workOrder.billingName,
+    rut: quotation.workOrder.billingRut,
+    tipo: quotation.workOrder.billingType,
+    telefono: quotation.workOrder.billingPhone,
+    email: quotation.workOrder.billingEmail,
+    direccion: quotation.workOrder.billingAddress,
+    region: quotation.workOrder.billingRegion,
+    comuna: quotation.workOrder.billingComuna,
+  } : null,
   workOrder: quotation.workOrder
     ? {
         id: quotation.workOrder.id,

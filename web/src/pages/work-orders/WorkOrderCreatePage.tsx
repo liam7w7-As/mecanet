@@ -25,8 +25,6 @@ import {
   Plus,
   Save,
   Search,
-  Trash2,
-  Upload,
   UserRound,
   X,
 } from 'lucide-react';
@@ -45,6 +43,8 @@ import QuotationDiscountSummary from '../../components/quotations/QuotationDisco
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
 import PendingInspectionPhotos from '../../components/work-orders/PendingInspectionPhotos';
 import { RECEPTION_PHOTO_GUIDES } from '../../components/work-orders/reception-photo-guides';
+import ReceptionBillingFields from '../../components/work-orders/ReceptionBillingFields';
+import ReceptionPhotoCard from '../../components/work-orders/ReceptionPhotoCard';
 import WorkOrderItemsEditor from '../../components/work-orders/WorkOrderItemsEditor';
 import WorkOrderReceptionNavigation, {
   WORK_ORDER_RECEPTION_STEPS as steps,
@@ -66,7 +66,6 @@ import { getFieldErrors } from '../../lib/form-errors';
 import { workOrderRecoverySchema } from '../../lib/form-recovery.schemas';
 import { formatClp } from '../../lib/formatters';
 import {
-  INSPECTION_PHOTO_ACCEPT,
   MAX_INSPECTION_PHOTO_MB,
   validateInspectionFile,
 } from '../../lib/inspection-photos';
@@ -91,7 +90,7 @@ import type { ReactNode } from 'react';
 type ClientOption = Pick<
   Client,
   'id' | 'rut' | 'nombre' | 'tipo' | 'telefono' | 'email' | 'direccion'
->;
+> & Partial<Pick<Client, 'region' | 'comuna'>>;
 type ClientModalTarget = 'primary' | 'contact' | 'billing';
 
 interface InspectionDraft {
@@ -179,6 +178,8 @@ const toClientOption = (client: Client | QuickSearchClient): ClientOption => ({
   telefono: client.telefono,
   email: client.email,
   direccion: 'direccion' in client ? client.direccion : null,
+  region: 'region' in client ? client.region : null,
+  comuna: 'comuna' in client ? client.comuna : null,
 });
 
 const toQuickVehicle = (
@@ -367,6 +368,7 @@ const ClientChoicePanel = ({
   onCreate,
   responsible,
   copyLabel,
+  renderSelected,
 }: {
   title: string;
   label: string;
@@ -375,13 +377,14 @@ const ClientChoicePanel = ({
   onCreate: () => void;
   responsible?: ClientOption | null;
   copyLabel?: string;
+  renderSelected?: (onChange: () => void) => ReactNode;
 }) => {
   const [choosing, setChoosing] = useState(false);
   useEffect(() => setChoosing(false), [selectedClient?.id]);
   return (
     <div className="reception-person-panel">
       {selectedClient && !choosing ? (
-        <SelectedClientCard
+        renderSelected ? renderSelected(() => setChoosing(true)) : <SelectedClientCard
           title={title}
           client={selectedClient}
           onChange={() => setChoosing(true)}
@@ -489,6 +492,8 @@ const WorkOrderCreateForm = () => {
   const [client, setClient] = useState<ClientOption | null>(null);
   const [contactClient, setContactClient] = useState<ClientOption | null>(null);
   const [billingClient, setBillingClient] = useState<ClientOption | null>(null);
+  const [billingDetails, setBillingDetails] = useState<ClientOption | null>(null);
+  const effectiveBillingClient = billingDetails?.id === billingClient?.id ? billingDetails : billingClient;
   const [vehicle, setVehicle] = useState<QuickSearchVehicle | null>(null);
   const [clientModalTarget, setClientModalTarget] = useState<ClientModalTarget | null>(null);
   const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
@@ -551,6 +556,7 @@ const WorkOrderCreateForm = () => {
       client,
       contactClient,
       billingClient,
+      billingDetails,
       vehicle,
       assignedMechanicId,
       kilometrajeIngreso,
@@ -574,6 +580,7 @@ const WorkOrderCreateForm = () => {
       client,
       contactClient,
       billingClient,
+      billingDetails,
       vehicle,
       assignedMechanicId,
       kilometrajeIngreso,
@@ -624,6 +631,7 @@ const WorkOrderCreateForm = () => {
       setClient(draft.client);
       setContactClient(draft.contactClient);
       setBillingClient(draft.billingClient);
+      setBillingDetails(draft.billingDetails ?? null);
       setVehicle(draft.vehicle);
       setAssignedMechanicId(canAssignMechanic ? draft.assignedMechanicId : null);
       setKilometrajeIngreso(draft.kilometrajeIngreso);
@@ -764,6 +772,7 @@ const WorkOrderCreateForm = () => {
     }
     if (clientModalTarget === 'billing') {
       setBillingClient(selectedClient);
+      setBillingDetails(null);
     }
   };
 
@@ -844,6 +853,13 @@ const WorkOrderCreateForm = () => {
       setErrors({ billing: 'Seleccione datos de contacto y facturación.' });
       return false;
     }
+    if (step === 1 && billingDetails && billingDetails.id === billingClient?.id) {
+      const validation = createWorkOrderSchema.shape.billing.safeParse(billingDetails);
+      if (!validation.success) {
+        setErrors(getFieldErrors(validation.error.issues.map((issue) => ({ ...issue, path: ['billing', ...issue.path] }))));
+        return false;
+      }
+    }
     if (step === 2 && !vehicle) {
       setErrors({ vehicleId: 'Seleccione o cree el vehículo que ingresa al taller.' });
       return false;
@@ -885,6 +901,7 @@ const WorkOrderCreateForm = () => {
       clientId: client.id,
       contactClientId: contactClient.id,
       billingClientId: billingClient.id,
+      ...(billingDetails?.id === billingClient.id ? { billing: billingDetails } : {}),
       vehicleId: vehicle.id,
       assignedMechanicId,
 
@@ -926,11 +943,11 @@ const WorkOrderCreateForm = () => {
       return;
     }
     // Validar pasos base antes de mostrar el resumen
-    if (!validateStep(0) || !validateStep(1) || !validateStep(2)) {
-      if (!client) setActiveStep(0);
-      else if (!contactClient || !billingClient) setActiveStep(1);
-      else if (!vehicle) setActiveStep(2);
-      return;
+    for (const step of [0, 1, 2] as const) {
+      if (!validateStep(step)) {
+        setActiveStep(step);
+        return;
+      }
     }
     const result = buildPayload();
     if (!result.success) {
@@ -1122,6 +1139,9 @@ const WorkOrderCreateForm = () => {
     >
       {isSubmitting && (
         <SavingOverlay
+          progress={uploadPhotosMutation.isPending && photos.length
+            ? photos.reduce((sum, photo) => sum + (uploadedSlots.includes(photo.slot) ? 100 : photoTransfers[photo.slot]?.percent ?? 0), 0) / photos.length
+            : undefined}
           message={
             uploadPhotosMutation.isPending
               ? 'Guardando fotos de la OT…'
@@ -1255,10 +1275,18 @@ const WorkOrderCreateForm = () => {
                         title="Datos de facturación"
                         label="Datos de facturación"
                         selectedClient={billingClient}
-                        onSelect={setBillingClient}
+                        onSelect={(next) => { setBillingClient(next); setBillingDetails(null); }}
                         onCreate={() => setClientModalTarget('billing')}
                         responsible={client}
                         copyLabel="Facturar al cliente de recepción"
+                        renderSelected={(onChangeClient) => effectiveBillingClient && <ReceptionBillingFields
+                          value={effectiveBillingClient}
+                          errors={errors}
+                          edited={billingDetails?.id === billingClient?.id}
+                          onChange={setBillingDetails}
+                          onChangeClient={onChangeClient}
+                          onReset={() => setBillingDetails(null)}
+                        />}
                       />
                     </div>
                     {errors.billing && (
@@ -1526,98 +1554,16 @@ const WorkOrderCreateForm = () => {
                         </div>
                         <p className="reception-photo-guide-intro">
                           Toma una foto por ángulo. Izquierda y derecha se consideran desde el
-                          asiento del conductor. JPG, PNG o WebP · máx. {MAX_INSPECTION_PHOTO_MB} MB
-                          por foto.
+                          asiento del conductor. Se admiten fotos verticales y horizontales.
                         </p>
+                        <p className="reception-photo-upload-note">JPG, PNG o WebP · máximo {MAX_INSPECTION_PHOTO_MB} MB por foto.
+                          Las fotos se subirán al confirmar la OT. Antes puedes quitarlas o reemplazarlas.</p>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          {RECEPTION_PHOTO_GUIDES.map(({ slot, image, hint }) => {
-                            const photo = photoMap.get(slot);
-                            return (
-                              <div
-                                key={slot}
-                                className="reception-photo-card overflow-hidden rounded-lg border border-brand-line bg-white"
-                                data-photo-slot={slot}
-                              >
-                                <div className="flex items-center justify-between gap-2 border-b border-brand-line px-3 py-2">
-                                  <p className="text-sm font-semibold text-brand-ink">
-                                    {photoSlotLabels[slot]}
-                                  </p>
-                                  {photo && <span className="reception-photo-ready"><Check aria-hidden="true" /> Lista</span>}
-                                  {photo && (
-                                    <button
-                                      type="button"
-                                      className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-coralPale hover:text-brand-coralInk"
-                                      onClick={() => setInspectionPhoto(slot, null)}
-                                      aria-label={`Eliminar foto ${photoSlotLabels[slot]}`}
-                                      title="Eliminar foto"
-                                    >
-                                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                                    </button>
-                                  )}
-                                </div>
-                                <div
-                                  className="reception-photo-body"
-                                  data-has-photo={Boolean(photo)}
-                                >
-                                  {photo ? (
-                                    <img
-                                      src={photo.previewUrl}
-                                      alt={photoSlotLabels[slot]}
-                                      className="h-36 w-full object-contain"
-                                    />
-                                  ) : (
-                                    <div className="reception-photo-guide">
-                                      <img
-                                        src={image}
-                                        alt={`Ejemplo de foto: ${photoSlotLabels[slot]}`}
-                                        width={1080}
-                                        height={480}
-                                        loading="lazy"
-                                      />
-                                      <p>{hint}</p>
-                                    </div>
-                                  )}
-                                  {canUploadPhotos ? (
-                                    <span className="reception-photo-actions flex gap-2">
-                                      <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-brand-primaryInk bg-white px-3 text-xs font-bold text-brand-primaryInk hover:bg-brand-line/40">
-                                        <Upload aria-hidden="true" /><span data-short-label={photo ? 'Cambiar' : 'Subir'}>{photo ? 'Cambiar foto' : 'Elegir archivo'}</span>
-                                        <input
-                                          type="file"
-                                          accept={INSPECTION_PHOTO_ACCEPT}
-                                          className="sr-only"
-                                          onChange={(event) => {
-                                            const file = event.target.files?.[0];
-                                            if (file) setInspectionPhoto(slot, file);
-                                            event.target.value = '';
-                                          }}
-                                          aria-label={`Subir foto ${photoSlotLabels[slot]}`}
-                                        />
-                                      </label>
-                                      <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-brand-primaryInk px-3 text-xs font-bold text-white hover:bg-brand-primaryInkHover">
-                                        <Camera aria-hidden="true" /><span data-short-label="Cámara">Cámara</span>
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          capture="environment"
-                                          className="sr-only"
-                                          onChange={(event) => {
-                                            const file = event.target.files?.[0];
-                                            if (file) setInspectionPhoto(slot, file);
-                                            event.target.value = '';
-                                          }}
-                                          aria-label={`Usar cámara ${photoSlotLabels[slot]}`}
-                                        />
-                                      </label>
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs text-brand-muted">
-                                      Sin permiso para adjuntar fotografías
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
+                          {RECEPTION_PHOTO_GUIDES.map(({ slot, image, hint }) => (
+                            <ReceptionPhotoCard key={slot} label={photoSlotLabels[slot]} guideImage={image} hint={hint}
+                              photo={photoMap.get(slot)} canUpload={canUploadPhotos}
+                              onSelect={(file) => setInspectionPhoto(slot, file)} />
+                          ))}
                         </div>
                       </section>
                     </InspectionDisclosure>

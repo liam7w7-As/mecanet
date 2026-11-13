@@ -1341,16 +1341,19 @@ const buildContactSnapshot = (client: Client | null): ContactSnapshotPayload => 
   contactEmail: client?.email ?? null,
 });
 
-const buildBillingSnapshot = (client: Client | null): BillingSnapshotPayload => ({
+const buildBillingSnapshot = (
+  client: Client | null,
+  details: CreateWorkOrderInput['billing'] | Client | null = client,
+): BillingSnapshotPayload => ({
   billingClientId: client?.id ?? null,
-  billingName: client?.nombre ?? null,
-  billingRut: client?.rut ?? null,
-  billingType: client?.tipo ?? null,
-  billingPhone: client?.telefono ?? null,
-  billingEmail: client?.email ?? null,
-  billingAddress: client?.direccion ?? null,
-  billingRegion: client?.region ?? null,
-  billingComuna: client?.comuna ?? null,
+  billingName: details?.nombre ?? null,
+  billingRut: details?.rut ?? null,
+  billingType: details?.tipo ?? null,
+  billingPhone: details?.telefono ?? null,
+  billingEmail: details?.email ?? null,
+  billingAddress: details?.direccion ?? null,
+  billingRegion: details?.region ?? null,
+  billingComuna: details?.comuna ?? null,
 });
 
 const resolveSnapshotClient = async (
@@ -1802,6 +1805,10 @@ export const createWorkOrderInTransaction = async (
              transaction,
            );
 
+  if (data.billing && !billingClient) {
+    throw ApiError.badRequest('Seleccione el cliente de facturación antes de editar sus datos');
+  }
+
   if (assignedMechanicId !== null) {
     const mechanic = await User.findOne({
       where: { id: assignedMechanicId, activo: true },
@@ -1837,7 +1844,7 @@ export const createWorkOrderInTransaction = async (
       codigo,
       clientId,
       ...buildContactSnapshot(contactClient),
-      ...buildBillingSnapshot(billingClient),
+      ...buildBillingSnapshot(billingClient, data.billing ?? billingClient),
        vehicleId,
        assignedMechanicId,
        vehicleOwnerClientId: vehicleOwner.clientId,
@@ -2110,7 +2117,9 @@ export const updateWorkOrder = async (
       );
       Object.assign(updatePayload, buildContactSnapshot(contactClient));
     }
-    if (data.billingClientId !== undefined) {
+    // Reception forms resubmit this ID; retain the order's edited invoice details unless it changes.
+    if (data.billingClientId !== undefined
+      && (data.billingClientId !== workOrder.billingClientId || !workOrder.billingName)) {
       const billingClient = await resolveSnapshotClient(
         data.billingClientId,
         'El cliente de facturación especificado no existe',

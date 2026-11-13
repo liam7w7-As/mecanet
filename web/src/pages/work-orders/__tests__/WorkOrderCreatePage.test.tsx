@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -72,6 +72,41 @@ describe('WorkOrderCreatePage vehicle validation', () => {
             : url === '/vehicles' ? { items: [savedVehicle], total: 1, totalPages: 1 }
               : { mechanics: [] },
     }));
+  });
+
+  it('recovers editable billing, validates it in step 2 and submits the snapshot without changing the shared client', async () => {
+    const baseGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, config) => url === '/catalog'
+      ? Promise.resolve({ data: { items: [], total: 0, totalPages: 0 } }) : baseGet(url, config));
+    vi.mocked(api.post).mockResolvedValue({ data: { workOrder: { id: 20, codigo: 'OT-26-20' } } });
+    await saveFormDraft(1, 'work-order:new', workOrderRecoverySchema.parse({
+      activeStep: 1, client: person, contactClient: person, billingClient: person,
+      billingDetails: { ...person, nombre: 'Factura recuperada', direccion: 'Calle de facturación 123' },
+      vehicle: savedVehicle, assignedMechanicId: null, kilometrajeIngreso: '', descripcion: '',
+      fechaIngreso: '2026-11-12T10:00', fechaEntrega: '', items: [],
+      inspection: { nivelCombustible: '', llantaDelanteraIzquierda: '', llantaDelanteraDerecha: '',
+        llantaTraseraIzquierda: '', llantaTraseraDerecha: '', inventario: [], objetosValor: '', observaciones: '' },
+      photos: [], createdOrder: null, uploadedSlots: [],
+    }), 'billing-recovery');
+    renderCreate();
+    fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
+    expect(await screen.findByLabelText('Nombre o razón social')).toHaveValue('Factura recuperada');
+    expect(screen.getByLabelText('Dirección de facturación')).toHaveValue('Calle de facturación 123');
+    fireEvent.change(screen.getByLabelText('Correo de facturación'), { target: { value: 'correo inválido' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Email inválido');
+    expect(screen.getByLabelText('Nombre o razón social')).toHaveValue('Factura recuperada');
+    fireEvent.change(screen.getByLabelText('Correo de facturación'), { target: { value: 'FACTURA@EXAMPLE.COM' } });
+    fireEvent.click(screen.getByRole('button', { name: '5. Servicios' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Revisar y crear orden' }));
+    const review = await screen.findByRole('dialog', { name: 'Confirmar recepción de OT' });
+    expect(within(review).getByText('Factura recuperada')).toBeInTheDocument();
+    fireEvent.click(within(review).getByRole('button', { name: 'Confirmar y crear orden' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/work-orders', expect.objectContaining({
+      billingClientId: person.id, billing: expect.objectContaining({ nombre: 'Factura recuperada', email: 'factura@example.com' }),
+    })));
+    expect(person.nombre).toBe('Cliente recepción');
+    expect(api.patch).not.toHaveBeenCalled();
   });
 
   it('quita la validación al crear el vehículo desde el wizard y conserva su kilometraje', async () => {

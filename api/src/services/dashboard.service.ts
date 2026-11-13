@@ -314,7 +314,7 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
       id: `quotation-${quotation.id}`,
       type: 'quotation_follow_up',
       title: `${quotation.codigo} sin Orden de Trabajo`,
-      description: `${quotation.client?.nombre ?? quotation.vehicle?.patente ?? 'Sin cliente'} · $${Number(quotation.total).toLocaleString('es-CL')}`,
+      description: `${quotation.client?.nombre ?? quotation.vehicle?.patente ?? 'Sin cliente'} · $${getQuotationGrossTotal(Number(quotation.total)).toLocaleString('es-CL')}`,
       href: `/quotations/${quotation.id}`,
       createdAt: quotation.createdAt.toISOString(),
       priority: 'medium',

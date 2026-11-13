@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
+import { Quotation } from '../../models/Quotation.js';
 import { RefreshToken } from '../../models/RefreshToken.js';
 import { Role } from '../../models/Role.js';
 import { User } from '../../models/User.js';
@@ -103,6 +104,21 @@ describe('Dashboard Routes (E2E)', () => {
       }),
     );
     expect(dashboardSummarySchema.safeParse(response.body).success).toBe(true);
+  });
+
+  it('muestra el mismo total con IVA en la bandeja y en el resumen de COT sin OT', async () => {
+    const quotation = await Quotation.create({ codigo: 'DASH-IVA', asesorId: developerId,
+      estadoPago: 'por_pagar', subtotal: 1000000, total: 1000000, pagado: 0 });
+    try {
+      const login = await request(app).post('/api/auth/login').send({ email: 'dev@unithor.local', password: TEST_PASSWORD });
+      const response = await request(app).get('/api/dashboard/summary')
+        .set('Cookie', [`access_token=${extractAccessToken(login)}`]);
+      expect(response.status).toBe(200);
+      expect(response.body.unlinkedQuotations.find((item: { id: number }) => item.id === quotation.id)?.total).toBe(1190000);
+      expect(response.body.operationalInbox.items.find((item: { id: string }) => item.id === `quotation-${quotation.id}`)?.description).toContain('$1.190.000');
+    } finally {
+      await quotation.destroy({ force: true });
+    }
   });
 
   it('el resumen del mecánico incluye asignaciones por servicio y excluye las OT de otros', async () => {

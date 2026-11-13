@@ -431,7 +431,7 @@ describe('PdfPreviewModal', () => {
     expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
   });
 
-  it('permite ver fotos en la previsualización pero no las incluye en el PDF impreso/descargado', () => {
+  it('incluye el anexo con las nueve fotos de la COT al imprimir o descargar desde cualquier pestaña', () => {
     const photos = WORK_ORDER_INSPECTION_PHOTO_SLOTS.map((slot, index) => ({
       id: index + 1, slot, mimeType: 'image/png', sizeBytes: 1024, uploadedBy: 1,
       createdAt: mockWorkOrder.createdAt, updatedAt: mockWorkOrder.updatedAt,
@@ -441,12 +441,16 @@ describe('PdfPreviewModal', () => {
       quotation={{ ...mockQuotation, workOrder: { ...mockQuotation.workOrder!, inspectionPhotos: photos } }} />);
 
     expect(within(screen.getByRole('dialog')).queryAllByRole('img', { name: /^Foto / })).toHaveLength(0);
+    const printPortal = document.getElementById('unithor-print-portal')!;
+    expect(printPortal.querySelectorAll('img[alt^="Foto "]')).toHaveLength(9);
+    expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
+    expect(printPortal).toHaveTextContent('Página 1 de 2');
+    expect(printPortal).toHaveTextContent('Página 2 de 2');
+
     fireEvent.click(screen.getByRole('button', { name: 'Fotos de recepción (9)' }));
     expect(within(screen.getByRole('dialog')).getAllByRole('img', { name: /^Foto / })).toHaveLength(9);
-
-    const printPortal = document.getElementById('unithor-print-portal')!;
-    expect(printPortal.querySelectorAll('img[alt^="Foto "]')).toHaveLength(0);
-    expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(1);
+    expect(printPortal.querySelectorAll('img[alt^="Foto "]')).toHaveLength(9);
+    expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
   });
 
   it('mantiene todos los servicios y solo dos hojas en una OT extensa', () => {
@@ -481,6 +485,23 @@ describe('Shared approved document templates', () => {
     manual.unmount();
     const automatic = render(<OfficialDocumentSheets type="quotation" quotation={mockQuotation} measure={false} />);
     expect(automatic.container.querySelector('[data-official-template]')?.innerHTML).toBe(expected);
+  });
+
+  it('keeps the quotation photo annex and numbering in the automatic email template', () => {
+    const photos = WORK_ORDER_INSPECTION_PHOTO_SLOTS.map((slot, index) => ({
+      id: index + 1, slot, mimeType: 'image/png', sizeBytes: 1024, uploadedBy: 1,
+      createdAt: mockWorkOrder.createdAt, updatedAt: mockWorkOrder.updatedAt,
+      url: `/api/quotations/202/inspection/photos/${slot}`,
+    }));
+    const quotation: Quotation = { ...mockQuotation, workOrder: { ...mockQuotation.workOrder!, inspectionPhotos: photos } };
+    const manual = render(<PdfPreviewModal type="quotation" quotation={quotation} onClose={() => undefined} />);
+    const expected = document.querySelector('#unithor-print-portal [data-official-template]')?.innerHTML;
+    manual.unmount();
+    const automatic = render(<OfficialDocumentSheets type="quotation" quotation={quotation} measure={false} />);
+    expect(automatic.container.querySelector('[data-official-template]')?.innerHTML).toBe(expected);
+    expect(automatic.container.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
+    expect(automatic.container.querySelectorAll('[data-inspection-photo]')).toHaveLength(9);
+    expect(automatic.container).toHaveTextContent('Página 2 de 2');
   });
 
 });

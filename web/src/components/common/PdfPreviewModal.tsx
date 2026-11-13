@@ -544,10 +544,24 @@ const InspectionPhotosSheet = ({ photos, code, workOrderCode, clientName, vehicl
     </div>
     <div className="mt-3 flex justify-between border-t border-slate-200 pt-1 text-[9px] text-slate-500">
       <div>{company.nombreComercial} | Anexo fotográfico de recepción | {code}</div>
-      <div>Fotos de recepción ({photos.length})</div>
+      <div>Fotos de recepción ({photos.length}) · Página {totalPages} de {totalPages}</div>
     </div>
   </div>
   );
+};
+
+const getQuotationTotalPages = (quotation: Quotation): number =>
+  getQuotationDocumentPages(quotation).length + (quotation.workOrder?.inspectionPhotos?.length ? 1 : 0);
+
+const QuotationInspectionPhotosSheet = ({ quotation, totalPages }: { quotation: Quotation; totalPages: number }) => {
+  const photos = quotation.workOrder?.inspectionPhotos ?? [];
+  if (!photos.length) return null;
+  return <InspectionPhotosSheet photos={photos} code={quotation.codigo}
+    workOrderCode={quotation.workOrder?.codigo ?? quotation.codigo}
+    clientName={quotation.client?.nombre ?? 'Sin cliente'}
+    vehicle={[formatChilePatente(quotation.vehicle?.patente), quotation.vehicle?.marca, quotation.vehicle?.modelo]
+      .filter(Boolean).join(' ') || 'Sin vehículo'}
+    totalPages={totalPages} />;
 };
 
 // ==========================================
@@ -569,9 +583,10 @@ export const OfficialDocumentSheets = ({
     </div>;
   }
   if (!quotation) return null;
-  const totalPages = getQuotationDocumentPages(quotation).length;
+  const totalPages = getQuotationTotalPages(quotation);
   return <div data-official-template="quotation">
     <QuotationDocument quotation={quotation} totalPages={totalPages} />
+    <QuotationInspectionPhotosSheet quotation={quotation} totalPages={totalPages} />
   </div>;
 };
 
@@ -603,13 +618,9 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   const hasPhotos = photos.length > 0;
   const totalPages = isOT
     ? 2
-    : (quotation ? getQuotationDocumentPages(quotation).length : 1);
-  const photosSheet = !isOT && hasPhotos ? <InspectionPhotosSheet photos={photos} code={displayCode}
-    workOrderCode={quotation?.workOrder?.codigo ?? displayCode}
-    clientName={quotation?.client?.nombre ?? 'Sin cliente'}
-    vehicle={[formatChilePatente(quotation?.vehicle?.patente), quotation?.vehicle?.marca, quotation?.vehicle?.modelo]
-      .filter(Boolean).join(' ') || 'Sin vehículo'}
-    totalPages={totalPages} /> : null;
+    : (quotation ? getQuotationTotalPages(quotation) : 1);
+  const photosSheet = !isOT && quotation && hasPhotos
+    ? <QuotationInspectionPhotosSheet quotation={quotation} totalPages={totalPages} /> : null;
 
   // Cerrar con Escape
   useEffect(() => {

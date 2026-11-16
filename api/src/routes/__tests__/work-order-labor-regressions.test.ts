@@ -228,7 +228,7 @@ describe('Labor integrity and mechanic privacy regressions', () => {
     const session = await WorkOrderItemSession.findOne({ where: { workOrderItemId: item.id } });
     expect(session?.status).toBe('cerrada');
     expect(session?.userId).toBe(mechanics[0].id);
-    expect((await mutate('post', `/api/work-orders/${order.id}/items/${item.id}/start`, {}, 1)).status).toBe(403);
+    expect((await mutate('post', `/api/work-orders/${order.id}/items/${item.id}/start`, {}, 1)).status).toBe(404);
     expect((await mutate('post', `/api/work-orders/${order.id}/items/${item.id}/start`, {}, 2)).status).toBe(200);
     expect((await mutate('post', `/api/work-orders/${order.id}/items/${item.id}/complete`, {}, 2)).status).toBe(200);
     expect((await item.reload()).notasOperativas).toBe('Conservar diagnóstico');

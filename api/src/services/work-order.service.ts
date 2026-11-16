@@ -15,9 +15,15 @@ import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { getSalesScope, scopeSalesAssociations, workOrderWhere, type SalesScope } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getLastWorkActivity } from './work-order-activity.service.js';
+import { createPriceSuggestionInTransaction } from './work-order-commercial.service.js';
 import { assertWorkItemsRemovable, ensureQuotationItemLinks, itemIdentity } from './work-order-item-links.js';
-import { recordChecklistStatusChange, recordItemProgressEvent } from './work-order-labor-events.js';
+import { recordChecklistStatusChange, recordItemProgressEvent, synchronizeTeamCompletion } from './work-order-labor-events.js';
 import { closeWorkOrderTimers } from './work-order-labor-sessions.js';
+import { assertChiefPriceEditsAllowed, getPriceActor } from './work-order-price-policy.js';
+import { approveFinalQuality, assertQualityDeliveryReady, getUnpricedServices, invalidateAllQuality, invalidateItemQuality, revokeFinalQuality } from './work-order-quality-state.js';
+import { getAssignedOrderIds, isAssignedToItem } from './work-order-team-access.js';
+import { replaceItemTeam } from './work-order-team.service.js';
+import { withWorkshopTransaction } from './workshop-transaction.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -34,6 +40,7 @@ import { WorkOrderEvent } from '../models/WorkOrderEvent.js';
 import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
+import { WorkOrderItemAssignment } from '../models/WorkOrderItemAssignment.js';
 import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -104,6 +111,13 @@ interface WorkOrderCreatorPublic {
 }
 
 interface WorkOrderItemPublic {
+  assignments?: Array<{ id: number; userId: number; userName: string; specialtyId: number | null; specialtyName: string | null; estimatedHours: number | null; originalEstimatedHours: number | null; completedAt: Date | null; active: boolean }>;
+
+  qualityStatus: 'pendiente' | 'aprobado' | 'rechazado';
+  qualityReviewedAt: Date | null;
+  qualityReviewedBy: number | null;
+  qualityNote: string | null;
+
   id: number;
   catalogItemId: number | null;
   descripcion: string;
@@ -240,6 +254,7 @@ interface WorkOrderProgressReportPublic {
 }
 
 interface WorkOrderRequestPublic {
+  pendingPriceApproval: boolean;
   id: number;
   workOrderItemId: number | null;
   catalogItemId: number | null;
@@ -271,6 +286,8 @@ export interface WorkOrderMechanicPublic {
 }
 
 export interface WorkOrderPublic {
+  priceApprovalRequired: boolean;
+  unpricedServices: string[];
   id: number;
   codigo: string;
   descuentoTipo?: DiscountType | null;
@@ -292,6 +309,9 @@ export interface WorkOrderPublic {
   fechaEntrega: Date | null;
   createdBy: number | null;
   assignedMechanicId: number | null;
+  qualityApprovedAt: Date | null;
+  qualityApprovedBy: number | null;
+  qualityApprovalNote: string | null;
   createdAt: Date;
   updatedAt: Date;
   lastWorkActivityAt: Date | null;
@@ -367,6 +387,7 @@ const itemsInclude = {
     'horasHombreEstimadas',
     'horasHombreReales',
     'assignedUserId',
+    'qualityStatus', 'qualityReviewedAt', 'qualityReviewedBy', 'qualityNote',
     'laborValidatedBy',
     'laborValidatedAt',
     'laborValidationNote',
@@ -376,6 +397,7 @@ const itemsInclude = {
     'stockConsumidoWarehouseId',
   ],
   include: [
+    { model: WorkOrderItemAssignment, as: 'assignments', separate: true, where: { active: true }, attributes: ['id', 'userId', 'userName', 'specialtyId', 'specialtyName', 'estimatedHours', 'originalEstimatedHours', 'completedAt', 'active'] },
     {
       model: CatalogItem,
       as: 'catalogItem',
@@ -402,7 +424,7 @@ const quotationInclude = {
     model: QuotationItem,
     as: 'items',
     separate: true,
-    attributes: ['id', 'quotationId', 'workOrderItemId', 'catalogItemId', 'descripcion', 'tipoLinea', 'unidadMedida', 'subtotal', 'descuentoTipo', 'descuentoValor'],
+    attributes: ['id', 'quotationId', 'workOrderItemId', 'catalogItemId', 'descripcion', 'tipoLinea', 'unidadMedida', 'precioUnitario', 'subtotal', 'descuentoTipo', 'descuentoValor'],
   }],
 };
 
@@ -642,6 +664,7 @@ const getMirrorItemDiscount = (workOrder: WorkOrder, item: WorkOrderItem) => {
 };
 
 const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null = null): WorkOrderPublic => ({
+  priceApprovalRequired: workOrder.priceApprovalRequired,
   id: workOrder.id,
   codigo: workOrder.codigo,
   ...(workOrder.quotation ? {
@@ -664,7 +687,11 @@ const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null
   fechaIngreso: workOrder.fechaIngreso,
   fechaEntrega: workOrder.fechaEntrega,
   createdBy: workOrder.createdBy,
+  unpricedServices: getUnpricedServices(workOrder.items ?? [], workOrder.quotation?.items ?? []),
   assignedMechanicId: workOrder.assignedMechanicId,
+  qualityApprovedAt: workOrder.qualityApprovedAt ?? null,
+  qualityApprovedBy: workOrder.qualityApprovedBy ?? null,
+  qualityApprovalNote: workOrder.qualityApprovalNote ?? null,
   createdAt: workOrder.createdAt,
   updatedAt: workOrder.updatedAt,
   lastWorkActivityAt,
@@ -763,7 +790,12 @@ const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null
         item.horasHombreEstimadas === null ? null : toNumber(item.horasHombreEstimadas),
       horasHombreReales:
         item.horasHombreReales === null ? null : toNumber(item.horasHombreReales),
+      assignments: (item.assignments ?? []).map((member) => ({ id: member.id, userId: member.userId, userName: member.userName, specialtyId: member.specialtyId, specialtyName: member.specialtyName, estimatedHours: member.estimatedHours === null ? null : Number(member.estimatedHours), originalEstimatedHours: member.originalEstimatedHours === null ? null : Number(member.originalEstimatedHours), completedAt: member.completedAt, active: member.active })),
       assignedUserId: item.assignedUserId,
+      qualityStatus: item.qualityStatus ?? 'pendiente',
+      qualityReviewedAt: item.qualityReviewedAt ?? null,
+      qualityReviewedBy: item.qualityReviewedBy ?? null,
+      qualityNote: item.qualityNote ?? null,
       laborValidatedBy: item.laborValidatedBy,
       laborValidatedAt: item.laborValidatedAt,
       laborValidationNote: item.laborValidationNote,
@@ -935,6 +967,7 @@ const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null
       cantidad: request.cantidad === null ? null : toNumber(request.cantidad),
       precioSugerido:
         request.precioSugerido === null ? null : toNumber(request.precioSugerido),
+      pendingPriceApproval: request.tipo === 'aumento_precio' && request.estado === 'aprobada' && request.precioAprobado === null,
       precioAprobado:
         request.precioAprobado === null ? null : toNumber(request.precioAprobado),
       reviewNote: request.reviewNote,
@@ -1603,17 +1636,7 @@ export const assertWorkOrderAccess = async (
   }
   if (role !== 'mecanico') return;
 
-  const directAssignment = await WorkOrder.count({
-    where: { id, assignedMechanicId: userId },
-    transaction,
-  });
-  if (directAssignment > 0) return;
-
-  const itemAssignment = await WorkOrderItem.count({
-    where: { workOrderId: id, assignedUserId: userId },
-    transaction,
-  });
-  if (itemAssignment === 0) {
+  if (!(await getAssignedOrderIds(userId, transaction)).includes(id)) {
     throw ApiError.notFound('Orden de trabajo no encontrada');
   }
 };
@@ -1669,19 +1692,7 @@ export const listWorkOrders = async (
   const scope = actorRole === 'vendedor' ? await getSalesScope(userId) : undefined;
   if (scope) where[Op.and] = [workOrderWhere(scope)];
   if (actorRole === 'mecanico') {
-    const assignedItemOrders = await WorkOrderItem.findAll({
-      attributes: ['workOrderId'],
-      where: { assignedUserId: userId },
-      group: ['workOrderId'],
-    });
-    where[Op.and] = [{
-      [Op.or]: [
-        { assignedMechanicId: userId },
-        ...(assignedItemOrders.length > 0
-          ? [{ id: { [Op.in]: assignedItemOrders.map((item) => item.workOrderId) } }]
-          : []),
-      ],
-    }];
+    where[Op.and] = [{ id: { [Op.in]: await getAssignedOrderIds(userId) } }];
   }
 
   if (query.search) {
@@ -1774,8 +1785,8 @@ export const createWorkOrderInTransaction = async (
   const billingClientId = data.billingClientId === undefined ? clientId : data.billingClientId;
   const vehicleId = data.vehicleId ?? null;
   const assignedMechanicId = data.assignedMechanicId ?? null;
-  const itemMechanics = [...new Set(data.items.flatMap((item) => item.assignedUserId ? [item.assignedUserId] : []))];
-  if (assignedMechanicId !== null || itemMechanics.length > 0) await assertSupervisor(userId, transaction);
+  const itemMechanics = [...new Set(data.items.flatMap((item) => item.teamMembers !== undefined ? item.teamMembers.map((m) => m.userId) : (item.assignedUserId ? [item.assignedUserId] : [])))];
+  if (assignedMechanicId !== null || itemMechanics.length > 0 || data.items.some((item) => item.teamMembers !== undefined)) await assertSupervisor(userId, transaction);
   if (itemMechanics.length > 0) {
     const mechanics = await User.findAll({
       attributes: ['id'], where: { id: itemMechanics, activo: true },
@@ -1865,6 +1876,10 @@ export const createWorkOrderInTransaction = async (
       buildItemsPayload(workOrder.id, itemsWithLaborDefaults),
       { transaction },
     );
+    for (let index = 0; index < createdItems.length; index += 1) {
+      const team = data.items[index]?.teamMembers;
+      if (team !== undefined) await replaceItemTeam(workOrder, createdItems[index], { members: team, motivo: 'Equipo inicial de recepción' }, userId, transaction, false);
+    }
     await consumeCompletedPartStock(createdItems, transaction, {
       userId,
       referencia: workOrder.codigo,
@@ -1897,7 +1912,7 @@ export const createWorkOrderInTransaction = async (
   );
 
   await enqueueCustomerEmail({ kind: 'work_order', entityId: workOrder.id, userId, dedupeKey: `created:work_order:${workOrder.id}`, target: { recipient: (contactClient ?? client)?.email ?? null, name: (contactClient ?? client)?.nombre ?? 'Cliente', code: workOrder.codigo }, payload: { expectedPhotoSlots: data.emailPhotoSlots ?? [], includeQuotation: createQuotation } }, transaction);
-  const assignees = [...new Set([...itemMechanics, ...(assignedMechanicId === null ? [] : [assignedMechanicId])])];
+  const assignees = [...new Set([...itemMechanics, ...(assignedMechanicId === null || (data.items.length > 0 && data.items.every((item) => item.teamMembers !== undefined)) ? [] : [assignedMechanicId])])];
   if (assignees.length > 0) await notifyUsers(assignees, {
     tipo: 'mecanico_asignado', titulo: `Tienes trabajos asignados en ${workOrder.codigo}`,
     mensaje: 'Revisa tus servicios y registra sus avances y horas en Gestionar trabajo.',
@@ -1921,7 +1936,7 @@ export const updateWorkOrder = async (
   data: UpdateWorkOrderInput,
   userId: number,
 ): Promise<WorkOrderPublic> => {
-  const workOrderId = await sequelize.transaction(async (transaction) => {
+  const workOrderId = await withWorkshopTransaction(async (transaction) => {
     const itemDiscounts = new Map<number, DiscountInput>();
     await assertManagementActionAllowed(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, { transaction });
@@ -1955,6 +1970,7 @@ export const updateWorkOrder = async (
       }
     }
 
+    if (nextVehicleId !== workOrder.vehicleId) await invalidateAllQuality(id, userId, 'Vehículo de la orden actualizado', transaction);
     const shouldRefreshVehicleOwner =
       data.vehicleId !== undefined || workOrder.vehicleOwnerName === null;
     const nextVehicleOwner = shouldRefreshVehicleOwner
@@ -1974,6 +1990,10 @@ export const updateWorkOrder = async (
         transaction,
         lock: Transaction.LOCK.UPDATE,
       });
+      await assertChiefPriceEditsAllowed(userId, data.items.some((input) => {
+        const existing = existingItems.find((line) => line.id === input.id);
+        return existing && existing.tipoLinea !== 'parte' && Number(existing.precioUnitario) !== Number(input.precioUnitario);
+      }), transaction);
       await restoreConsumedStock(existingItems, transaction, {
         userId,
         referencia: workOrder.codigo,
@@ -1990,6 +2010,7 @@ export const updateWorkOrder = async (
       await assertWorkItemsRemovable(removedItems, transaction);
 
       if (removedItems.length > 0) {
+        await revokeFinalQuality(id, userId, 'Servicios eliminados de la orden', transaction);
         await WorkOrderItem.destroy({
           where: { id: removedItems.map((item) => item.id) },
           transaction,
@@ -2024,6 +2045,8 @@ export const updateWorkOrder = async (
         const cantidad = Number(item.cantidad);
         const precioUnitario = Number(item.precioUnitario);
         const previousStatus = existing.estadoOperativo;
+        const technicalChanged = existing.descripcion !== item.descripcion || Number(existing.cantidad) !== cantidad || existing.catalogItemId !== (item.catalogItemId ?? null) || existing.tipoLinea !== item.tipoLinea || existing.unidadMedida !== item.unidadMedida || existing.notasOperativas !== (item.notasOperativas ?? null);
+        if (technicalChanged) await invalidateItemQuality(existing, userId, 'Contenido del servicio actualizado desde la OT', transaction);
         await existing.update(
           {
             catalogItemId: item.catalogItemId ?? null,
@@ -2051,6 +2074,7 @@ export const updateWorkOrder = async (
       }
 
       if (itemsToCreate.length > 0) {
+        await revokeFinalQuality(id, userId, 'Se agregaron trabajos a la orden', transaction);
         const createdItems = await WorkOrderItem.bulkCreate(
           buildItemsPayload(id, await applyCatalogLaborDefaults(itemsToCreate, transaction)),
           { transaction },
@@ -2184,7 +2208,7 @@ export const changeStatus = async (
   userId: number,
   motivo?: string | null,
 ): Promise<WorkOrderPublic> => {
-  const workOrderId = await sequelize.transaction(async (transaction) => {
+  const workOrderId = await withWorkshopTransaction(async (transaction) => {
     await assertSupervisor(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
@@ -2196,6 +2220,7 @@ export const changeStatus = async (
     }
 
     if (workOrder.estado === nuevoEstado) {
+      if (nuevoEstado === 'finalizada') await approveFinalQuality(workOrder, userId, motivo, transaction);
       if (nuevoEstado === 'cancelada' || nuevoEstado === 'finalizada' || nuevoEstado === 'entregada') {
         await closeWorkOrderTimers(id, transaction);
       }
@@ -2219,6 +2244,7 @@ export const changeStatus = async (
     // verificarlo, pero el filtro de Finalizadas (la cola del asesor para
     // llamar a pagar y retirar) no debe incluir OTs sin terminar.
     if (nuevoEstado === 'finalizada') {
+      await approveFinalQuality(workOrder, userId, motivo, transaction);
       const unresolvedItems = await WorkOrderItem.count({
         where: {
           workOrderId: id,
@@ -2235,6 +2261,7 @@ export const changeStatus = async (
     }
 
     const estadoAnterior = workOrder.estado;
+    if (estadoAnterior === 'finalizada' && nuevoEstado === 'en_progreso') await invalidateAllQuality(id, userId, 'Orden reabierta para ejecución', transaction);
     const updatePayload: Partial<Pick<WorkOrder, 'estado' | 'fechaEntrega' | 'descripcion'>> = {
       estado: nuevoEstado,
     };
@@ -2286,7 +2313,7 @@ export const deliverWorkOrder = async (
   data: DeliverWorkOrderInput,
   userId: number,
 ): Promise<WorkOrderPublic> => {
-  const workOrderId = await sequelize.transaction(async (transaction) => {
+  const workOrderId = await withWorkshopTransaction(async (transaction) => {
     await assertSupervisor(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
@@ -2335,6 +2362,7 @@ export const deliverWorkOrder = async (
       );
     }
 
+    await assertQualityDeliveryReady(workOrder, transaction);
     const deliveredAt = new Date();
     await closeWorkOrderTimers(id, transaction);
     await WorkOrderDelivery.create(
@@ -2403,7 +2431,7 @@ export const createWorkOrderReentry = async (
   data: CreateWorkOrderReentryInput,
   userId: number,
 ): Promise<WorkOrderPublic> => {
-  const newWorkOrderId = await sequelize.transaction(async (transaction) => {
+  const newWorkOrderId = await withWorkshopTransaction(async (transaction) => {
     await assertManagementActionAllowed(userId, transaction);
     const source = await WorkOrder.findByPk(sourceId, {
       transaction,
@@ -2578,7 +2606,7 @@ export const assignMechanic = async (
   mechanicId: number | null,
   userId: number,
 ): Promise<WorkOrderPublic> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     await assertSupervisor(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
@@ -2610,8 +2638,11 @@ export const assignMechanic = async (
     const previousMechanicId = workOrder.assignedMechanicId;
     if (previousMechanicId === mechanicId) return;
     if (workOrder.estado === 'entregada' || workOrder.estado === 'cancelada') throw ApiError.badRequest('No se puede reasignar una orden cerrada');
-    const inheritedItems = await WorkOrderItem.findAll({ where: { workOrderId: id, assignedUserId: null }, attributes: ['id'], transaction });
-    for (const item of inheritedItems) await closeWorkOrderTimers(id, transaction, item.id);
+    const inheritedItems = await WorkOrderItem.findAll({ where: { workOrderId: id, assignedUserId: null, teamManaged: false }, transaction });
+    for (const item of inheritedItems) {
+      await closeWorkOrderTimers(id, transaction, item.id);
+      await invalidateItemQuality(item, userId, 'Mecánico responsable del servicio reasignado', transaction);
+    }
     await workOrder.update({ assignedMechanicId: mechanicId }, { transaction });
     await recordWorkOrderEvent(
       id,
@@ -2670,12 +2701,7 @@ const assertExecutionAccess = async (
 ): Promise<RoleName> => {
   const role = await getActorRole(userId, transaction);
   if (role === 'mecanico') {
-    if (workOrder.assignedMechanicId === userId) return role;
-    const assignedItems = await WorkOrderItem.count({
-      where: { workOrderId: workOrder.id, assignedUserId: userId },
-      transaction,
-    });
-    if (assignedItems === 0) {
+    if (!(await getAssignedOrderIds(userId, transaction)).includes(workOrder.id)) {
       throw ApiError.notFound('Orden de trabajo no encontrada');
     }
     return role;
@@ -2691,7 +2717,7 @@ export const updateWorkOrderExecution = async (
   data: UpdateWorkOrderExecutionInput,
   userId: number,
 ): Promise<WorkOrderPublic> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
       lock: Transaction.LOCK.UPDATE,
@@ -2723,7 +2749,7 @@ export const updateWorkOrderExecution = async (
       }
       if (
         actorRole === 'mecanico' &&
-        (item.assignedUserId ?? workOrder.assignedMechanicId) !== userId
+        !(await isAssignedToItem(item, workOrder, userId, transaction))
       ) {
         throw ApiError.forbidden('Este trabajo está asignado a otro mecánico');
       }
@@ -2735,6 +2761,11 @@ export const updateWorkOrderExecution = async (
         throw ApiError.badRequest(
           `El repuesto "${item.descripcion}" ya fue consumido y no puede volver a un estado anterior`,
         );
+      }
+
+      if (actorRole === 'mecanico' && itemUpdate.estadoOperativo === 'completado') {
+        const team = await WorkOrderItemAssignment.findAll({ where: { workOrderItemId: item.id, active: true }, transaction });
+        if (team.length > 0) throw ApiError.badRequest('Termina tu parte desde Gestionar trabajo para conservar el avance de cada integrante');
       }
 
       if (itemUpdate.estadoOperativo === 'completado' && !item.stockConsumido) {
@@ -2754,6 +2785,8 @@ export const updateWorkOrderExecution = async (
         }
       }
 
+      if (actorRole === 'mecanico' && item.qualityStatus === 'aprobado' && (itemUpdate.estadoOperativo !== item.estadoOperativo || (itemUpdate.notasOperativas !== undefined && itemUpdate.notasOperativas !== item.notasOperativas))) throw ApiError.forbidden('El servicio ya fue aprobado en calidad. El jefe debe reabrirlo para corregirlo');
+      if (itemUpdate.notasOperativas !== undefined && itemUpdate.notasOperativas !== item.notasOperativas) await invalidateItemQuality(item, userId, 'Notas de ejecución modificadas', transaction);
       const previousStatus = item.estadoOperativo;
       if (previousStatus !== 'completado' && itemUpdate.estadoOperativo === 'completado') completedChanged = true;
       if (itemUpdate.estadoOperativo === 'completado' || itemUpdate.estadoOperativo === 'omitido') {
@@ -2775,6 +2808,8 @@ export const updateWorkOrderExecution = async (
         referencia: workOrder.codigo,
       });
 
+      if (previousStatus !== item.estadoOperativo) await invalidateItemQuality(item, userId, 'Ejecución del servicio modificada', transaction);
+      await synchronizeTeamCompletion(item, previousStatus, transaction);
       if (previousStatus !== itemUpdate.estadoOperativo) {
         await recordItemProgressEvent(
           {
@@ -2860,7 +2895,7 @@ export const createWorkOrderRequest = async (
   data: CreateWorkOrderRequestInput,
   userId: number,
 ): Promise<WorkOrderPublic> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,
       lock: Transaction.LOCK.UPDATE,
@@ -2898,7 +2933,7 @@ export const createWorkOrderRequest = async (
       if (item.tipoLinea === 'parte') {
         throw ApiError.badRequest('Solo se pueden sugerir aumentos para servicios');
       }
-      if (actorRole === 'mecanico' && (item.assignedUserId ?? workOrder.assignedMechanicId) !== userId) {
+      if (actorRole === 'mecanico' && !(await isAssignedToItem(item, workOrder, userId, transaction))) {
         throw ApiError.forbidden('Solo puedes sugerir precios para tus servicios asignados');
       }
       if (data.precioSugerido <= toNumber(item.precioUnitario)) {
@@ -2986,7 +3021,7 @@ export const reviewWorkOrderRequest = async (
   data: ReviewWorkOrderRequestInput,
   userId: number,
 ): Promise<WorkOrderPublic> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     await assertSupervisor(userId, transaction);
     const reviewedOrder = await WorkOrder.findByPk(id, {
       transaction,
@@ -3010,6 +3045,7 @@ export const reviewWorkOrderRequest = async (
     const codigo = reviewedOrder.codigo;
 
     let approvedPrice: number | null = null;
+    let forwardedPrice = false;
     let approvedWorkOrderItemId = request.workOrderItemId;
     if (data.decision === 'aprobar') {
       if (reviewedOrder.estado === 'entregada' || reviewedOrder.estado === 'cancelada') {
@@ -3031,6 +3067,7 @@ export const reviewWorkOrderRequest = async (
         }
         approvedPrice = data.precioAprobado ?? toNumber(catalogItem.precio);
         const quantity = toNumber(request.cantidad);
+        await revokeFinalQuality(id, userId, 'Repuesto adicional aprobado por el jefe de taller', transaction);
         const createdItem = await WorkOrderItem.create(
           {
             workOrderId: id,
@@ -3054,8 +3091,11 @@ export const reviewWorkOrderRequest = async (
           await QuotationItem.create(
             {
               quotationId: quotation.id,
+              workOrderItemId: createdItem.id,
               catalogItemId: catalogItem.id,
               descripcion: catalogItem.nombre,
+              tipoLinea: catalogItem.tipo,
+              unidadMedida: catalogItem.unidadMedida,
               cantidad: quantity,
               precioUnitario: approvedPrice,
               subtotal: quantity * approvedPrice,
@@ -3067,60 +3107,24 @@ export const reviewWorkOrderRequest = async (
           await recalculateMirrorQuotation(quotation, transaction);
         }
       } else {
-        if (request.workOrderItemId === null || request.precioSugerido === null) {
-          throw ApiError.badRequest('La solicitud de aumento está incompleta');
-        }
-        const item = await WorkOrderItem.findOne({
-          where: { id: request.workOrderItemId, workOrderId: id },
-          transaction,
-          lock: Transaction.LOCK.UPDATE,
-        });
-        if (!item) {
-          throw ApiError.badRequest('El servicio solicitado ya no existe');
-        }
-        approvedPrice = data.precioAprobado ?? toNumber(request.precioSugerido);
-        if (approvedPrice <= toNumber(item.precioUnitario)) {
-          throw ApiError.badRequest('El precio aprobado debe ser mayor al precio actual');
-        }
-        await item.update(
-          {
-            precioUnitario: approvedPrice,
-            subtotal: toNumber(item.cantidad) * approvedPrice,
-          },
-          { transaction },
-        );
-        if (quotation) {
-          await ensureQuotationItemLinks(quotation.id, id, transaction);
-          const quotationItem = await QuotationItem.findOne({
-            where: {
-              quotationId: quotation.id,
-              workOrderItemId: item.id,
-            },
-            transaction,
-            lock: Transaction.LOCK.UPDATE,
-          });
-          if (!quotationItem) {
-            throw ApiError.badRequest('El servicio solicitado no está vinculado a la cotización');
-          }
-          await quotationItem.update(
-            {
-              precioUnitario: approvedPrice,
-              subtotal: toNumber(quotationItem.cantidad) * approvedPrice,
-            },
-            { transaction },
-          );
-          await recalculateMirrorQuotation(quotation, transaction);
-        }
+        if (request.workOrderItemId === null || request.precioSugerido === null) throw ApiError.badRequest('La solicitud de aumento está incompleta');
+        const actor = await getPriceActor(userId, transaction);
+        const suggestion = await createPriceSuggestionInTransaction(reviewedOrder, {
+          workOrderItemId: request.workOrderItemId,
+          precioSugerido: data.precioAprobado ?? toNumber(request.precioSugerido),
+          alcance: 'ot', motivo: request.motivo,
+        }, actor, transaction, request.id, ['admin', 'desarrollador'].includes(actor.role!.nombre));
+        forwardedPrice = suggestion.estado === 'pendiente';
+        approvedPrice = forwardedPrice ? null : Number(suggestion.precioSugerido);
       }
     }
-
     await request.update(
       {
         estado: data.decision === 'aprobar' ? 'aprobada' : 'rechazada',
         workOrderItemId: approvedWorkOrderItemId,
         precioAprobado: approvedPrice,
         reviewedBy: userId,
-        reviewNote: data.comentario ?? null,
+        reviewNote: forwardedPrice ? `Validada por el jefe; pendiente de aprobación administrativa.${data.comentario ? ` ${data.comentario}` : ''}` : data.comentario ?? null,
         reviewedAt: new Date(),
       },
       { transaction },
@@ -3146,8 +3150,8 @@ export const reviewWorkOrderRequest = async (
         [requesterId],
         {
           tipo: 'solicitud_aprobada',
-          titulo: `Solicitud aprobada en ${codigo}`,
-          mensaje: `${reviewer?.nombre ?? 'El jefe de taller'} aprobó tu solicitud.${approvedPrice !== null ? ` Precio aprobado: ${formatClpAmount(approvedPrice)}.` : ''}`,
+          titulo: `${forwardedPrice ? 'Precio pendiente de administración' : 'Solicitud aprobada'} en ${codigo}`,
+          mensaje: forwardedPrice ? 'El jefe validó la variación y la envió a administración. El precio no cambia hasta su aprobación.' : `${reviewer?.nombre ?? 'El jefe de taller'} aprobó tu solicitud.${approvedPrice !== null ? ` Precio aprobado: ${formatClpAmount(approvedPrice)}.` : ''}`,
           href: `/work-orders/${id}`,
           workOrderId: id,
           actorId: userId,
@@ -3191,7 +3195,7 @@ export const reviewWorkOrderRequest = async (
 };
 
 export const deleteWorkOrder = async (id: number, userId: number): Promise<void> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     await assertSupervisor(userId, transaction);
     const workOrder = await WorkOrder.findByPk(id, {
       transaction,

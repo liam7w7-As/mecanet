@@ -1,6 +1,13 @@
 import {
+  updateWorkOrderPricePolicySchema,
+  workshopHistoryQuerySchema,
+  workshopAlertQuerySchema,
+  updateWorkshopAlertSettingsSchema,
   adjustWorkOrderItemHoursSchema,
   assignWorkOrderItemSchema,
+  assignWorkOrderTeamSchema,
+  reviewWorkOrderQualitySchema,
+  confirmWorkOrderQualitySchema,
   completeWorkOrderItemSchema,
   createWorkOrderObservationSchema,
   createWorkOrderPriceSuggestionSchema,
@@ -25,14 +32,17 @@ import {
 import { Router } from 'express';
 import { z } from 'zod';
 
+
 import {
   createWorkOrderSalesAccessHandler,
   listWorkOrderSalesAccessHandler,
   revokeWorkOrderSalesAccessHandler,
 } from '../controllers/sales-access.controller.js';
+import { getWorkOrderPricePolicyHandler, updateWorkOrderPricePolicyHandler } from '../controllers/work-order-commercial.controller.js';
 import {
   adjustItemHoursHandler,
   assignWorkOrderItemHandler,
+  assignWorkOrderTeamHandler,
   completeItemTimerHandler,
   createObservationHandler,
   createPriceSuggestionHandler,
@@ -49,6 +59,7 @@ import {
   updateItemEstimateHandler,
   validateItemHoursHandler,
 } from '../controllers/work-order-labor.controller.js';
+import { getWorkOrderQualityHandler, reviewWorkOrderQualityHandler, confirmWorkOrderQualityHandler } from '../controllers/work-order-quality.controller.js';
 import {
   createWorkOrderHandler,
   createWorkOrderReentryHandler,
@@ -69,6 +80,7 @@ import {
   reviewWorkOrderRequestHandler,
   updateWorkOrderExecutionHandler,
 } from '../controllers/work-order.controller.js';
+import { getWorkshopServiceHistoryHandler, getWorkOrderAlertsHandler, getWorkshopAlertsHandler, getWorkshopAlertSettingsHandler, updateWorkshopAlertSettingsHandler } from '../controllers/workshop-insights.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorizeAny } from '../middlewares/authorize-any.js';
 import { authorizeRoles } from '../middlewares/authorize-roles.js';
@@ -163,6 +175,14 @@ workOrderRouter.get(
 );
 
 workOrderRouter.get('/mechanics', authorize('taller', 'update'), getMechanicsHandler);
+const workshopInsightRoles = authorizeRoles('desarrollador', 'admin', 'jefe', 'mecanico');
+workOrderRouter.get('/operations/alerts', authorize('taller', 'read'), workshopInsightRoles, validate({ query: workshopAlertQuerySchema }), getWorkshopAlertsHandler);
+workOrderRouter.get('/operations/alert-settings', authorize('taller', 'read'), workshopInsightRoles, getWorkshopAlertSettingsHandler);
+workOrderRouter.patch('/operations/alert-settings', authorize('taller', 'update'), priceApproverRoles, validate({ body: updateWorkshopAlertSettingsSchema }), updateWorkshopAlertSettingsHandler);
+workOrderRouter.get('/:id/alerts', authorize('taller', 'read'), workshopInsightRoles, validate({ params: idParamSchema }), getWorkOrderAlertsHandler);
+workOrderRouter.get('/:id/items/:itemId/history', authorize('taller', 'read'), workshopSupervisorRoles, validate({ params: itemParamSchema, query: workshopHistoryQuerySchema }), getWorkshopServiceHistoryHandler);
+workOrderRouter.get('/:id/price-policy', authorize('taller', 'read'), workshopSupervisorRoles, validate({ params: idParamSchema }), getWorkOrderPricePolicyHandler);
+workOrderRouter.patch('/:id/price-policy', authorize('taller', 'update'), priceApproverRoles, validate({ params: idParamSchema, body: updateWorkOrderPricePolicySchema }), updateWorkOrderPricePolicyHandler);
 
 workOrderRouter.get(
   '/mine',
@@ -185,6 +205,10 @@ workOrderRouter.get(
   validate({ query: workshopDailyReportQuerySchema }),
   getWorkshopDailyReportPdfHandler,
 );
+
+workOrderRouter.get('/:id/quality', authorize('taller', 'read'), authorizeRoles('desarrollador', 'admin', 'jefe', 'mecanico'), validate({ params: idParamSchema }), getWorkOrderQualityHandler);
+workOrderRouter.post('/:id/items/:itemId/quality', authorize('taller', 'update'), workshopSupervisorRoles, validate({ params: itemParamSchema, body: reviewWorkOrderQualitySchema }), reviewWorkOrderQualityHandler);
+workOrderRouter.post('/:id/quality/confirm', authorize('taller', 'update'), workshopSupervisorRoles, validate({ params: idParamSchema, body: confirmWorkOrderQualitySchema }), confirmWorkOrderQualityHandler);
 
 workOrderRouter.get(
   '/:id/worksheet',
@@ -222,7 +246,10 @@ workOrderRouter.post(
   workshopSupervisorRoles,
   validate({ params: itemParamSchema, body: assignWorkOrderItemSchema }),
   assignWorkOrderItemHandler,
+  assignWorkOrderTeamHandler,
 );
+
+workOrderRouter.post('/:id/items/:itemId/team', authorize('taller', 'update'), workshopSupervisorRoles, validate({ params: itemParamSchema, body: assignWorkOrderTeamSchema }), assignWorkOrderTeamHandler);
 
 workOrderRouter.patch(
   '/:id/items/:itemId/estimate',

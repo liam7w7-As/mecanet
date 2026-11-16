@@ -32,6 +32,7 @@ import type { CreationOptional, InferAttributes, InferCreationAttributes } from 
   charset: 'utf8mb4',
   collate: 'utf8mb4_unicode_ci',
   indexes: [
+    { name: 'work_order_item_sessions_shift_idx', fields: ['status', 'scheduled_end_at'] },
     { name: 'work_order_item_sessions_item_status_idx', fields: ['work_order_item_id', 'status'] },
     { name: 'work_order_item_sessions_user_status_idx', fields: ['user_id', 'status'] },
     { name: 'work_order_item_sessions_order_started_idx', fields: ['work_order_id', 'started_at'] },
@@ -75,6 +76,15 @@ export class WorkOrderItemSession extends Model<
 
   @Column({ type: DataType.INTEGER, allowNull: true })
   declare durationMinutes: number | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare scheduledEndAt: CreationOptional<Date | null>;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare supersededAt: CreationOptional<Date | null>;
+
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare assignmentId: CreationOptional<number | null>;
 
   @Column({ type: DataType.ENUM(...WORK_ORDER_LABOR_CLOSE_REASONS), allowNull: true })
   declare closeReason: WorkOrderLaborCloseReason | null;

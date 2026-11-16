@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { paginationSchema } from './pagination.schema.js';
-import { createWorkOrderSchema } from './work-order.schema.js';
+import { createWorkOrderSchema, workOrderTeamMembersSchema } from './work-order.schema.js';
 import { CATALOG_TYPES } from '../constants/catalog-types.js';
 import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
 import { QUOTATION_PAYMENT_METHODS } from '../constants/quotation-commercial.js';
@@ -113,6 +113,7 @@ export const convertQuotationToWorkOrderSchema = createWorkOrderSchema.omit({
 }).extend({
   itemAssignments: z.array(z.object({
     quotationItemId: z.number().int().positive(),
+    teamMembers: workOrderTeamMembersSchema.optional(),
     assignedUserId: z.number().int().positive().nullable(),
   }).strict()).refine((items) => new Set(items.map((item) => item.quotationItemId)).size === items.length, 'No repita servicios en la asignación').optional(),
 }).strict();

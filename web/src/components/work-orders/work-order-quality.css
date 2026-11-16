@@ -1,0 +1,51 @@
+.workshop-quality-panel .workshop-quality-item-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.workshop-quality-panel :is(.workshop-quality-item-heading h4, .workshop-quality-final h3, .workshop-quality-list-heading) {
+  margin: 0;
+  color: #425b7b;
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.workshop-quality-panel .workshop-quality-detail > summary {
+  min-height: 32px;
+  color: #72839b;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.workshop-quality-panel .workshop-quality-draft {
+  color: #59649c;
+  font-size: 10px;
+}
+
+.workshop-quality-panel .workshop-quality-requirements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #59649c;
+  font-size: 11px;
+}
+
+.workshop-quality-panel .workshop-quality-requirements > span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef2fc;
+}
+
+.workshop-quality-panel button.workshop-quality-primary {
+  border-color: #d9e5f5;
+  background: #eaf2ff;
+  color: #436b9d;
+}
+
+.workshop-quality-panel button.workshop-quality-primary:hover:not(:disabled) {
+  background: #ddeaff;
+}

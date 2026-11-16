@@ -70,6 +70,7 @@ export const enqueueCustomerEmail = async (
     category?: 'document' | 'progress';
     dedupeKey?: string;
     payload?: CustomerEmailPayload;
+    subject?: string;
     target?: { recipient: string | null; name: string; code: string };
   },
   transaction: Transaction,
@@ -88,7 +89,7 @@ export const enqueueCustomerEmail = async (
     category,
     recipient: recipient.success ? recipient.data : null,
     recipientName: target.name,
-    subject:
+    subject: input.subject ??
       (category === 'progress'
         ? 'Avance de trabajo'
         : input.kind === 'quotation'

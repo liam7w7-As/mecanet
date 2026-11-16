@@ -50,7 +50,13 @@ export class WorkOrderEvent extends Model<
   @Column({ type: DataType.STRING(255), allowNull: false })
   declare descripcion: string;
 
-  @Column({ type: DataType.JSON, allowNull: true })
+  @Column({ type: DataType.JSON, allowNull: true, get(this: WorkOrderEvent): Record<string, unknown> | null {
+    let value: unknown = this.getDataValue('metadata');
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch { return null; }
+    }
+    return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  } })
   declare metadata: Record<string, unknown> | null;
 
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })

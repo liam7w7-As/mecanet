@@ -18,6 +18,12 @@ import { up as ensureSalesAccessGrants } from '../database/migrations/046-create
 import { up as ensureNotificationAccessShared } from '../database/migrations/047-add-notification-access-shared.js';
 import { up as ensureUserSalesAccessAll } from '../database/migrations/048-add-user-sales-access-all.js';
 import { up as ensureVehiclePhotos } from '../database/migrations/049-add-vehicle-photo.js';
+import { up as ensureWorkshopPersonnel } from '../database/migrations/050-workshop-personnel.js';
+import { up as ensureWorkshopTime } from '../database/migrations/051-workshop-time-requests.js';
+import { up as ensureWorkOrderTeams } from '../database/migrations/052-work-order-teams.js';
+import { up as ensureWorkOrderQuality } from '../database/migrations/053-work-order-quality.js';
+import { up as ensureWorkOrderCommercialControl } from '../database/migrations/054-work-order-commercial-control.js';
+import { up as ensureWorkshopAlertSettings } from '../database/migrations/055-workshop-alert-settings.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -35,6 +41,15 @@ import { up as ensureVehiclePhotos } from '../database/migrations/049-add-vehicl
  * suite en rojo sin cambiar una linea de codigo.
  */
 const TRANSIENT = [
+  'workshop_alert_settings',
+  'work_order_quality_reviews',
+  'work_order_item_assignments',
+  'workshop_time_requests',
+  'workshop_schedule_exceptions',
+  'workshop_schedules',
+  'worker_specialties',
+  'specialty_rates',
+  'specialties',
   'customer_emails',
   'work_order_observation_files',
   'work_order_observations',
@@ -80,6 +95,12 @@ beforeAll(async () => {
   await ensureSalesAccessGrants(sequelize.getQueryInterface());
   await ensureNotificationAccessShared(sequelize.getQueryInterface());
   await ensureUserSalesAccessAll(sequelize.getQueryInterface());
+  await ensureWorkshopPersonnel(sequelize.getQueryInterface());
+  await ensureWorkshopTime(sequelize.getQueryInterface());
+  await ensureWorkOrderTeams(sequelize.getQueryInterface());
+  await ensureWorkOrderQuality(sequelize.getQueryInterface());
+  await ensureWorkOrderCommercialControl(sequelize.getQueryInterface());
+  await ensureWorkshopAlertSettings(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
   await ensureImportPermissions();

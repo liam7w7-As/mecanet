@@ -41,6 +41,7 @@ import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import SavingOverlay from '../../components/common/SavingOverlay';
 import QuotationDiscountSummary from '../../components/quotations/QuotationDiscountSummary';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
+import DraftItemTeamEditor from '../../components/work-orders/DraftItemTeamEditor';
 import PendingInspectionPhotos from '../../components/work-orders/PendingInspectionPhotos';
 import { RECEPTION_PHOTO_GUIDES } from '../../components/work-orders/reception-photo-guides';
 import ReceptionBillingFields from '../../components/work-orders/ReceptionBillingFields';
@@ -923,7 +924,7 @@ const WorkOrderCreateForm = () => {
         .filter((item) => item.descripcion.trim().length > 0)
         .map((item) => ({
           catalogItemId: item.catalogItemId,
-          ...(canAssignMechanic ? { assignedUserId: item.assignedUserId ?? null } : {}),
+          ...(canAssignMechanic ? { assignedUserId: item.assignedUserId ?? null, teamMembers: item.teamMembers } : {}),
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,
           unidadMedida: item.unidadMedida,
@@ -1055,7 +1056,7 @@ const WorkOrderCreateForm = () => {
               await conversionMutation.mutateAsync({
                 id: quotationId,
                 data: convertQuotationToWorkOrderSchema.strip().parse({ ...result.data,
-                  ...(canAssignMechanic ? { itemAssignments: items.map((item) => ({ quotationItemId: item.id ?? Number(item.key.replace('quotation-item-', '')), assignedUserId: item.assignedUserId ?? null })) } : {}),
+                  ...(canAssignMechanic ? { itemAssignments: items.map((item) => ({ quotationItemId: item.id ?? Number(item.key.replace('quotation-item-', '')), assignedUserId: item.assignedUserId ?? null, teamMembers: item.teamMembers })) } : {}),
                 }),
               })
             ).workOrder
@@ -1673,7 +1674,7 @@ const WorkOrderCreateForm = () => {
                                   </td>
                                   {canAssignMechanic && (
                                     <td className="p-3" data-column="Mecánico del servicio">
-                                      {item.tipoLinea !== 'parte' && (
+                                      {item.tipoLinea !== 'parte' && !item.teamMembers && (
                                         <select
                                           aria-label={`Mecánico de ${item.descripcion}`}
                                           className={inputClassName}
@@ -1690,6 +1691,7 @@ const WorkOrderCreateForm = () => {
                                           ))}
                                         </select>
                                       )}
+                                      {item.tipoLinea !== 'parte' && <DraftItemTeamEditor item={item} mechanics={mechanicsQuery.data ?? []} onChange={(teamMembers) => setItems((current) => current.map((line) => line.key === item.key ? { ...line, teamMembers } : line))} />}
                                     </td>
                                   )}
                                   <td className="p-3 text-right" data-column="Cantidad">{item.cantidad}</td>

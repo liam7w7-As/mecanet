@@ -1,0 +1,34 @@
+/* Operational shortcuts use the same blue, pills and surfaces as the workshop. */
+.workshop-operational-overview { min-width: 0; margin-bottom: 18px; }
+.workshop-operational-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.workshop-operational-heading h2 { color: #1d396a; font-size: 16px; font-weight: 600; }
+.workshop-operational-heading p { margin-top: 3px; color: #72839b; font-size: 12px; line-height: 1.6; }
+.workshop-operational-heading > button, .workshop-operational-overview > button { display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 8px 12px; border-radius: 999px; border: 1px solid #dfe7f0; color: #1d396a; font-size: 11px; background: white; }
+.workshop-operational-heading > button svg { width: 13px; height: 13px; }
+.workshop-operational-priorities { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.workshop-operational-priorities button { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 13px 10px; border: 1px solid #e3e9f1; border-radius: 14px; background: #f5f7fa; color: #1d396a; text-align: left; transition: background .15s, border-color .15s; }
+.workshop-operational-priorities button:hover:not(:disabled), .workshop-operational-priorities button[aria-pressed=true] { background: #eaf0f8; border-color: #b6c9df; }
+.workshop-operational-priorities button > svg { flex: none; width: 17px; height: 17px; }
+.workshop-operational-priorities button > span { min-width: 0; flex: 1; font-size: 11px; font-weight: 600; line-height: 1.5; }
+.workshop-operational-priorities small { display: block; margin-top: 2px; color: #7a8aa2; font-size: 10px; font-weight: 400; }
+.workshop-operational-priorities strong { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.workshop-operational-overview button:disabled { opacity: .55; cursor: not-allowed; }
+.workshop-operational-overview button:focus-visible { outline: 2px solid #91afd7; outline-offset: 3px; }
+.workshop-follow-up { margin-top: 16px; border-top: 1px solid #edf1f6; }
+.workshop-follow-up > summary { padding: 14px 0; color: #526782; cursor: pointer; font-size: 12px; font-weight: 500; }
+.workshop-follow-up-body { display: grid; gap: 12px; }
+.workshop-mechanic-panel .workshop-execution-columns > [hidden] { display: none; }
+.workshop-manage-dialog .workshop-mechanic-panel[data-workshop-role=mecanico] .workshop-labor-toolbar > div { display: none; }
+.workshop-manage-dialog .workshop-mechanic-panel[data-workshop-role=mecanico] .workshop-labor-toolbar { justify-content: flex-end; }
+.workshop-request-form > details > summary { cursor: pointer; padding: 12px 0; color: #1d396a; font-size: 13px; font-weight: 600; }
+.workshop-manage-dialog .workshop-request-history[data-priority-first=true] { order: 1; width: 100%; }
+.workshop-manage-dialog .workshop-mechanic-panel[data-section=requests] { display: flex; flex-direction: column; gap: 14px; }
+.workshop-manage-dialog .workshop-mechanic-panel[data-section=requests] > fieldset { order: 2; display: block; }
+@media (max-width: 900px) { .workshop-operational-priorities { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) {
+  .workshop-operational-heading { align-items: flex-start; }
+  .workshop-operational-heading h2 { font-size: 14px; }
+  .workshop-operational-priorities button { padding: 12px 9px; gap: 7px; min-height: 68px; }
+  .workshop-operational-priorities button > svg { display: none; }
+  .workshop-operational-priorities small { font-size: 10px; }
+}

@@ -1,4 +1,4 @@
-export const WORK_ORDER_LABOR_SESSION_KINDS = ['cronometro', 'ajuste'];
+export const WORK_ORDER_LABOR_SESSION_KINDS = ['cronometro', 'ajuste', 'manual'];
 export const WORK_ORDER_LABOR_SESSION_STATUS = ['abierta', 'cerrada'];
 export const WORK_ORDER_LABOR_CLOSE_REASONS = [
     'pausa',

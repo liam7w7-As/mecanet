@@ -19,15 +19,17 @@ import {
   InventoryReportPanel,
   WorkshopReportPanel,
 } from './ReportPanels';
+import WorkshopCostReportPanel from './WorkshopCostReportPanel';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { canExportReport, canReadReport } from '../../lib/report-access';
+import { canReadWorkshopCosts } from '../../lib/workshop-cost-report-access';
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { UserPublic } from '../../stores/auth.store';
 import type { LucideIcon } from 'lucide-react';
 
 type ReportSection =
-  'finance' | 'commercial' | 'workshop' | 'inventory' | 'catalog' | 'fleet' | 'administration';
+  'finance' | 'commercial' | 'workshop' | 'workshop-cost' | 'inventory' | 'catalog' | 'fleet' | 'administration';
 
 interface ReportTab {
   id: ReportSection;
@@ -54,6 +56,12 @@ const TABS: ReportTab[] = [
     label: 'Taller',
     icon: ClipboardList,
     allowed: (user) => canReadReport(user, 'workshop'),
+  },
+  {
+    id: 'workshop-cost',
+    label: 'Costos de mano de obra',
+    icon: ClipboardList,
+    allowed: canReadWorkshopCosts,
   },
   {
     id: 'inventory',
@@ -171,6 +179,7 @@ export const ReportsPage = () => {
         Los filtros seleccionados se aplican a la vista previa, al PDF y al archivo Excel.
       </p>
       <div className="report-workspace">
+        {selected === 'workshop-cost' && <WorkshopCostReportPanel {...filters} />}
         {selected === 'finance' && (
           <FinanceReportPanel
             {...filters}

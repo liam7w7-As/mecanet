@@ -50,9 +50,11 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
   const [observaciones, setObservaciones] = useState('');
   const [confirmaSaldo, setConfirmaSaldo] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  // La entrega no se bloquea por deuda (hay clientes con crédito), pero el
-  // flujo del taller es cobrar al retirar: si la cotización espejo tiene
-  // saldo pendiente se exige confirmación explícita antes de soltar el auto.
+  // La entrega admite crédito. Si hay saldo, se deja constancia explícita
+  // de que la cobranza continúa por separado.
+  const unpricedServices = workOrder.unpricedServices ?? (workOrder.items ?? []).filter((item) => item.tipoLinea !== 'parte' && Number(item.precioUnitario) <= 0).map((item) => item.descripcion);
+  const qualityMissing = !workOrder.qualityApprovedAt;
+  const blocked = qualityMissing || unpricedServices.length > 0;
   const saldoPendiente = Math.max(0, workOrder.quotation?.saldoPendiente ?? 0);
 
   const toggleChecklist = (item: WorkOrderDeliveryChecklistItem): void => {
@@ -65,6 +67,7 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (blocked || deliveryMutation.isPending) return;
     deliveryMutation.reset();
     const result = deliverWorkOrderSchema.safeParse({
       kilometrajeSalida,
@@ -98,14 +101,16 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
     ? getApiErrorMessage(deliveryMutation.error, 'No se pudo registrar la entrega.')
     : null;
 
-  const setPanelNode = useModalOverlay({ isOpen: true, onClose });
+  const requestClose = (): void => { if (!deliveryMutation.isPending) onClose(); };
+  const setPanelNode = useModalOverlay({ isOpen: true, onClose: requestClose, isPending: deliveryMutation.isPending });
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-4 sm:items-center sm:py-6">
       <button
         type="button"
         className="fixed inset-0 bg-[#18273c55] backdrop-blur-sm transition-opacity"
         aria-label="Cerrar entrega"
-        onClick={onClose}
+        onClick={requestClose}
+        disabled={deliveryMutation.isPending}
       />
       <section className="workshop-action-dialog workshop-delivery-dialog relative max-h-[92vh] w-full overflow-y-auto rounded-2xl border border-brand-line bg-white shadow-2xl" role="dialog" ref={setPanelNode} aria-modal="true" aria-labelledby="delivery-title">
         <ModalHeader
@@ -115,7 +120,8 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
   eyebrow={<span className="font-mono text-sm normal-case">{workOrder.codigo}</span>}
   title="Cierre y entrega del vehículo"
   description="Este registro deja la orden en estado entregada y no podrá editarse."
-  onClose={onClose}
+  onClose={requestClose}
+  closeDisabled={deliveryMutation.isPending}
   closeLabel="Cerrar"
 />
 
@@ -182,16 +188,17 @@ export const WorkOrderDeliveryModal = ({ workOrder, onClose }: WorkOrderDelivery
                     onChange={(event) => setConfirmaSaldo(event.target.checked)}
                     className="mt-0.5 h-4 w-4 accent-brand-primary"
                   />
-                  <span>Confirmo que el saldo fue cancelado antes de entregar el vehículo.</span>
+                  <span>Autorizo la entrega con saldo pendiente y dejo constancia de que su cobro continúa por separado.</span>
                 </label>
               </div>
             )}
 
+            {blocked && <div role="alert" className="rounded-xl border border-brand-line bg-brand-pale p-4 text-sm text-brand-ink"><p className="font-semibold">Antes de entregar</p>{qualityMissing && <p>El jefe de taller o administración debe confirmar el control de calidad final en Gestionar trabajo.</p>}{unpricedServices.length > 0 && <p>Falta definir el precio de: {unpricedServices.join(', ')}.</p>}</div>}
             {apiError && <p className="rounded-lg bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert">{apiError}</p>}
           </div>
           <footer className="flex justify-end gap-2 border-t border-brand-line bg-brand-line/40 p-5">
-            <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-white" onClick={onClose} disabled={deliveryMutation.isPending}>Volver</button>
-            <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-60" disabled={deliveryMutation.isPending || (saldoPendiente > 0 && !confirmaSaldo)}>
+            <button type="button" className="h-10 rounded-lg border border-brand-line px-4 text-sm font-semibold text-brand-ink hover:bg-white" onClick={requestClose} disabled={deliveryMutation.isPending}>Volver</button>
+            <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white hover:bg-brand-primaryInkHover disabled:opacity-60" disabled={blocked || deliveryMutation.isPending || (saldoPendiente > 0 && !confirmaSaldo)}>
               {deliveryMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
               Confirmar entrega
             </button>

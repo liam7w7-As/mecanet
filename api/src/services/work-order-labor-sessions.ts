@@ -3,15 +3,12 @@ import { Transaction } from 'sequelize';
 import { minutesToHours } from './work-order-labor-events.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { WorkOrderItemSession } from '../models/WorkOrderItemSession.js';
+import { canonicalSessionMinutes, sessionMinutesInRange } from '../utils/workshop-session-time.js';
 
 import type { WorkOrderLaborCloseReason } from '@unithor/shared';
 
 export const getSessionMinutes = (session: WorkOrderItemSession, now = new Date()): number => {
-  if (session.durationMinutes !== null && session.durationMinutes !== undefined) {
-    return Number(session.durationMinutes);
-  }
-  const end = session.endedAt ? new Date(session.endedAt).getTime() : now.getTime();
-  return Math.max(0, Math.floor((end - new Date(session.startedAt).getTime()) / 60000));
+  return canonicalSessionMinutes(session, now);
 };
 
 export const getSessionMinutesInRange = (
@@ -20,19 +17,7 @@ export const getSessionMinutesInRange = (
   endExclusive: Date,
   now: Date,
 ): number => {
-  const started = new Date(session.startedAt).getTime();
-  if (session.kind === 'ajuste') {
-    return started >= start.getTime() && started < endExclusive.getTime()
-      ? getSessionMinutes(session, now)
-      : 0;
-  }
-  const ended = session.endedAt ? new Date(session.endedAt).getTime() : now.getTime();
-  return Math.max(
-    0,
-    Math.floor(
-      (Math.min(ended, endExclusive.getTime()) - Math.max(started, start.getTime())) / 60000,
-    ),
-  );
+  return sessionMinutesInRange(session, start, endExclusive, now);
 };
 
 export const recalculateItemHours = async (
@@ -56,13 +41,15 @@ export const closeSession = async (
   transaction: Transaction,
   note?: string | null,
 ): Promise<number> => {
-  const endedAt = new Date();
+  const endedAt = new Date(Math.min(Date.now(), session.scheduledEndAt ? new Date(session.scheduledEndAt).getTime() : Infinity));
   const minutes = getSessionMinutes(session, endedAt);
   await session.update(
     {
       status: 'cerrada',
       endedAt,
-      durationMinutes: minutes,
+      // Keep the existing INT column's floor marker. Reads recover exact clock
+      // seconds from timestamps; storing a float here would let MySQL round it.
+      durationMinutes: session.kind === 'cronometro' ? Math.floor(minutes) : minutes,
       closeReason: reason,
       ...(note !== undefined ? { note } : {}),
     },

@@ -541,6 +541,27 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         descuentoValor: z.ZodOptional<z.ZodNumber>;
     } & {
         assignedUserId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        teamMembers: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodObject<{
+            userId: z.ZodNumber;
+            specialtyId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            estimatedHours: z.ZodNullable<z.ZodNumber>;
+        }, "strict", z.ZodTypeAny, {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }, {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }>, "many">, {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[], {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[]>>;
     }, "strip", z.ZodTypeAny, {
         cantidad: number;
         precioUnitario: number;
@@ -555,6 +576,11 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }, {
         descripcion: string;
         cantidad?: number | undefined;
@@ -569,6 +595,11 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }>, "many">>;
     inspection: z.ZodOptional<z.ZodObject<{
         inventario: z.ZodDefault<z.ZodEffects<z.ZodArray<z.ZodEnum<["botiquin", "chaleco_reflectante", "extintor", "triangulo", "control_remoto", "manual", "radio", "usb", "rueda_repuesto", "llave_ruedas", "gata", "herramientas", "perno_seguridad", "enganche", "antena", "tapa_combustible", "tapas_ruedas", "limpiaparabrisas"]>, "many">, ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[], ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[]>>;
@@ -603,19 +634,60 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
 }, "items" | "descuentoTipo" | "descuentoValor"> & {
     itemAssignments: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodObject<{
         quotationItemId: z.ZodNumber;
+        teamMembers: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodObject<{
+            userId: z.ZodNumber;
+            specialtyId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            estimatedHours: z.ZodNullable<z.ZodNumber>;
+        }, "strict", z.ZodTypeAny, {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }, {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }>, "many">, {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[], {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[]>>;
         assignedUserId: z.ZodNullable<z.ZodNumber>;
     }, "strict", z.ZodTypeAny, {
         assignedUserId: number | null;
         quotationItemId: number;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }, {
         assignedUserId: number | null;
         quotationItemId: number;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }>, "many">, {
         assignedUserId: number | null;
         quotationItemId: number;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }[], {
         assignedUserId: number | null;
         quotationItemId: number;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }[]>>;
 }, "strict", z.ZodTypeAny, {
     vehicleId: number;
@@ -651,6 +723,11 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
     itemAssignments?: {
         assignedUserId: number | null;
         quotationItemId: number;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }[] | undefined;
 }, {
     vehicleId: number;
@@ -686,6 +763,11 @@ export declare const convertQuotationToWorkOrderSchema: z.ZodObject<Omit<{
     itemAssignments?: {
         assignedUserId: number | null;
         quotationItemId: number;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }[] | undefined;
 }>;
 export type QuotationItemInput = z.infer<typeof quotationItemInputSchema>;

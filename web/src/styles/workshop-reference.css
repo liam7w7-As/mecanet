@@ -186,3 +186,48 @@
   .workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) .workshop-labor-assigned-name { max-width: none; }
   .workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) .workshop-labor-board :is(button, input:not([type=file]), select, summary) { min-height: 44px; }
 }
+
+/* Quality review stays within the existing compact workshop disclosures. */
+.workshop-card[data-colour=review], .workshop-card-popover[data-colour=review] {
+  --card-accent: #a6b2e8;
+  --card-soft: #f3f4fc;
+  --card-band: #dce2fa;
+  --card-band-text: #464e87;
+  --card-accent-text: #59649c;
+  --card-control: #e9edfc;
+  --card-control-text: #464e87;
+}
+.workshop-quality-panel { min-width: 0; margin-top: 14px; padding: 12px 14px; border: 1px solid #e0e6f4; border-radius: 14px; background: #f5f6fc; color: #425b7b; font-size: 12px; }
+.workshop-quality-panel summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 36px; cursor: pointer; font-weight: 600; list-style: none; }
+.workshop-quality-panel summary::-webkit-details-marker { display: none; }
+.workshop-quality-panel > summary > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
+.workshop-quality-panel svg { width: 15px; height: 15px; }
+.workshop-quality-panel summary > span:last-child { margin-left: auto; }
+.workshop-quality-body { display: grid; min-width: 0; gap: 10px; padding-top: 10px; }
+.workshop-quality-panel :is(.workshop-quality-item, .workshop-quality-final, .workshop-quality-history) { min-width: 0; padding: 8px 12px; border: 1px solid #e4e9f3; border-radius: 10px; background: #fff; }
+.workshop-quality-panel label { display: grid; min-width: 0; gap: 5px; color: #72839b; font-size: 11px; }
+.workshop-quality-panel :is(input:not([type=checkbox]), select, textarea) { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid #e1e7ef; border-radius: 10px; background: #fff; color: #344d6c; font-size: 12px; }
+.workshop-quality-panel textarea { min-height: 64px; resize: vertical; }
+.workshop-quality-panel .workshop-quality-check { display: flex; align-items: center; gap: 7px; }
+.workshop-quality-panel .workshop-quality-check input { width: 15px; height: 15px; }
+.workshop-quality-panel button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: fit-content; min-height: 36px; padding: 7px 12px; border: 1px solid #dfe7f0; border-radius: 999px; background: #fff; color: #526782; font-size: 11px; font-weight: 500; }
+.workshop-quality-panel button:hover:not(:disabled) { background: #eaf0f8; }
+.workshop-quality-panel button:disabled { cursor: not-allowed; opacity: .55; }
+.workshop-quality-panel :is(button, input, select, textarea, summary):focus-visible { outline: 2px solid #89a6d0; outline-offset: 3px; }
+.workshop-quality-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.workshop-quality-badge { padding: 4px 8px; border-radius: 999px; background: #e9eafb; color: #565b98; font-size: 10px; font-weight: 500; }
+.workshop-quality-badge[data-quality=aprobado] { background: #dcf2e7; color: #1a7a52; }
+.workshop-quality-badge[data-quality=rechazado] { background: #fff0eb; color: #9c524a; }
+.workshop-quality-help { color: #7a8aa2; font-size: 11px; line-height: 1.6; }
+.workshop-quality-note { padding: 9px 11px; border-radius: 9px; background: #f1f6fc; overflow-wrap: anywhere; }
+.workshop-quality-correction, .workshop-quality-crew { display: grid; gap: 10px; padding: 12px; border-radius: 10px; background: #f5f7fb; }
+.workshop-quality-crew-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, .6fr) auto; align-items: end; gap: 8px; }
+.workshop-quality-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-radius: 10px; background: #fff0eb; color: #9c524a; }
+.workshop-quality-history ul { display: grid; gap: 8px; }
+.workshop-quality-history li { display: grid; gap: 4px; padding: 10px; border-radius: 9px; background: #f5f7fb; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .workshop-quality-panel { padding: 10px; }
+  .workshop-quality-panel :is(input:not([type=checkbox]), select, textarea) { font-size: 16px; }
+  .workshop-quality-panel :is(button, summary, select, input:not([type=checkbox])) { min-height: 44px; }
+  .workshop-quality-crew-row { grid-template-columns: minmax(0, 1fr); }
+}

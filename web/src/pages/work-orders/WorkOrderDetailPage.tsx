@@ -191,6 +191,7 @@ export const WorkOrderDetailPage = () => {
   const canManage = Boolean(canUpdate && user?.role !== 'mecanico');
   const isAdmin = Boolean(user && ['desarrollador', 'admin'].includes(user.role));
   const canManageWorksheet = Boolean(user && ['desarrollador', 'admin', 'jefe'].includes(user.role));
+  const canChangeState = canManage && canManageWorksheet;
   const canCreate = Boolean(user && hasUserPermission(user, 'taller', 'create'));
   const workOrder = workOrderQuery.data;
   const validTransitions = useMemo(
@@ -227,7 +228,12 @@ export const WorkOrderDetailPage = () => {
   const [pendingRevert, setPendingRevert] = useState<{ fromStatus: WorkOrderStatus; toStatus: WorkOrderStatus } | null>(null);
 
   const changeStatus = (nextStatus: WorkOrderStatus): void => {
+    if (!canChangeState) return;
     statusMutation.reset();
+    if (nextStatus === 'finalizada') {
+      setShowManageModal(true);
+      return;
+    }
     if (nextStatus === 'cancelada') {
       setShowCancelModal(true);
       return;
@@ -599,10 +605,10 @@ export const WorkOrderDetailPage = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div><p className="text-xs font-semibold uppercase text-brand-muted">Control operativo</p><h2 id="status-control-title" className="mt-1 text-lg font-bold text-brand-primaryInk">Cambiar estado</h2><p className="mt-1 text-sm text-brand-muted">Estado actual: {WORK_ORDER_STATUS_LABELS[workOrder.estado]}</p></div>
           <div className="flex flex-wrap gap-2">
-            {canManage && validTransitions.map((nextStatus) => (
-              <button key={nextStatus} type="button" className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition disabled:opacity-60 ${nextStatus === 'cancelada' ? 'border border-brand-coral/40 bg-white text-brand-coralInk hover:bg-brand-coralPale' : 'bg-brand-primaryInk text-white hover:bg-brand-primaryInkHover'}`} onClick={() => changeStatus(nextStatus)} disabled={statusMutation.isPending}>{statusMutation.isPending && statusMutation.variables?.data.nuevoEstado === nextStatus ? 'Actualizando...' : WORK_ORDER_STATUS_LABELS[nextStatus]}</button>
+            {canChangeState && validTransitions.map((nextStatus) => (
+              <button key={nextStatus} type="button" className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition disabled:opacity-60 ${nextStatus === 'cancelada' ? 'border border-brand-coral/40 bg-white text-brand-coralInk hover:bg-brand-coralPale' : 'bg-brand-primaryInk text-white hover:bg-brand-primaryInkHover'}`} onClick={() => changeStatus(nextStatus)} disabled={statusMutation.isPending}>{statusMutation.isPending && statusMutation.variables?.data.nuevoEstado === nextStatus ? 'Actualizando...' : nextStatus === 'finalizada' ? 'Revisar calidad y finalizar' : WORK_ORDER_STATUS_LABELS[nextStatus]}</button>
             ))}
-            {(!canManage || validTransitions.length === 0) && <p className="rounded-lg bg-brand-pale px-4 py-2.5 text-sm font-medium text-brand-muted">{canManage ? 'Esta orden está en un estado terminal.' : 'El jefe de taller administra los cambios de estado.'}</p>}
+            {(!canChangeState || validTransitions.length === 0) && <p className="rounded-lg bg-brand-pale px-4 py-2.5 text-sm font-medium text-brand-muted">{canChangeState ? 'Esta orden está en un estado terminal.' : 'El jefe de taller administra los cambios de estado.'}</p>}
           </div>
         </div>
       </section>

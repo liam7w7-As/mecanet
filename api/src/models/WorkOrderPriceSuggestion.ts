@@ -19,6 +19,7 @@ import { CatalogItem } from './CatalogItem.js';
 import { User } from './User.js';
 import { WorkOrder } from './WorkOrder.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
+import { WorkOrderRequest } from './WorkOrderRequest.js';
 
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 
@@ -30,6 +31,7 @@ import type { CreationOptional, InferAttributes, InferCreationAttributes } from 
   collate: 'utf8mb4_unicode_ci',
   indexes: [
     { name: 'work_order_price_suggestions_order_status_idx', fields: ['work_order_id', 'estado'] },
+    { name: 'work_order_price_suggestions_source_unique', fields: ['source_request_id'], unique: true },
   ],
 })
 export class WorkOrderPriceSuggestion extends Model<
@@ -91,6 +93,13 @@ export class WorkOrderPriceSuggestion extends Model<
     defaultValue: 'pendiente',
   })
   declare estado: CreationOptional<WorkOrderPriceSuggestionStatus>;
+
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare appliedDirectly: CreationOptional<boolean>;
+
+  @ForeignKey(() => WorkOrderRequest)
+  @Column({ type: DataType.INTEGER, allowNull: true, onDelete: 'SET NULL', onUpdate: 'CASCADE' })
+  declare sourceRequestId: CreationOptional<number | null>;
 
   @ForeignKey(() => User)
   @Column({ type: DataType.INTEGER, allowNull: true, onDelete: 'SET NULL', onUpdate: 'CASCADE' })

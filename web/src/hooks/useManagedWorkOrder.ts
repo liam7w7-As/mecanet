@@ -19,6 +19,7 @@ export const useManagedWorkOrder = (id: number) => {
       const order = worksheet.workOrder;
       // Shared presentation requires the full shape. Financial placeholders stay hidden for mechanics.
       return {
+        qualityApprovedAt: order.qualityApprovedAt, qualityApprovedBy: order.qualityApprovedBy, qualityApprovalNote: order.qualityApprovalNote,
         id: order.id, codigo: order.codigo, estado: order.estado, clientId: null, vehicleId: order.vehiculo.id,
         descripcion: order.descripcion, kilometrajeIngreso: null, fechaIngreso: order.fechaIngreso,
         fechaEntrega: order.fechaEntrega ?? null, createdBy: null, assignedMechanicId: order.assignedMechanicId ?? null,
@@ -26,7 +27,8 @@ export const useManagedWorkOrder = (id: number) => {
         vehicle: order.vehiculo.id ? { ...order.vehiculo, id: order.vehiculo.id, patente: order.vehiculo.patente ?? '' } : null,
         items: worksheet.items.map((item) => ({ id: item.id, descripcion: item.descripcion, tipoLinea: item.tipoLinea,
           unidadMedida: item.unidadMedida, cantidad: item.cantidad, estadoOperativo: item.estadoOperativo, notasOperativas: item.notasOperativas,
-          horasHombreEstimadas: item.horasHombreEstimadas, horasHombreReales: item.horasHombreReales, assignedUser: item.assignedUser,
+          qualityStatus: item.qualityStatus, qualityReviewedAt: item.qualityReviewedAt, qualityReviewedBy: item.qualityReviewedBy, qualityNote: item.qualityNote,
+          assignments: item.assignments, horasHombreEstimadas: item.horasHombreEstimadas, horasHombreReales: item.horasHombreReales, assignedUser: item.assignedUser,
           assignedUserId: item.assignedUser?.id ?? null, laborValidatedBy: null, laborValidatedAt: item.laborValidatedAt, laborValidationNote: item.laborValidationNote,
           catalogItemId: null, precioUnitario: 0, subtotal: 0, stockConsumido: false, stockConsumidoCantidad: 0, stockConsumidoAt: null })),
         progressReports: worksheet.progressReports,

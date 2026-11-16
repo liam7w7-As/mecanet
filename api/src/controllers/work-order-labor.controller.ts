@@ -102,6 +102,7 @@ export const updateItemEstimateHandler = asyncHandler(
       getItemId(req),
       data.horasHombreEstimadas ?? null,
       getCurrentUserId(req),
+      data.motivo,
     );
     res.status(200).json({ worksheet });
   },
@@ -228,3 +229,8 @@ export const getWorkshopDailyReportPdfHandler = asyncHandler(
     res.end(Buffer.from(pdf));
   },
 );
+
+export const assignWorkOrderTeamHandler = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const worksheet = await laborService.assignWorkOrderTeam(getWorkOrderId(req), getItemId(req), req.body as import('@unithor/shared').AssignWorkOrderTeamInput, getCurrentUserId(req));
+  res.json({ worksheet });
+});

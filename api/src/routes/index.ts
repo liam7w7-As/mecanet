@@ -21,6 +21,9 @@ import { userRouter } from './user.routes.js';
 import { vehicleRouter } from './vehicle.routes.js';
 import { warehouseRouter } from './warehouse.routes.js';
 import { workOrderRouter } from './work-order.routes.js';
+import { workshopCostReportRouter } from './workshop-cost-report.routes.js';
+import { workshopPersonnelRouter } from './workshop-personnel.routes.js';
+import { workshopTimeRouter } from './workshop-time.routes.js';
 
 export const apiRouter = Router();
 apiRouter.use('/customer-emails', customerEmailRouter);
@@ -72,6 +75,7 @@ apiRouter.use('/payments', paymentRouter);
 
 // Reportes comerciales (/api/reports)
 apiRouter.use('/reports', reportRouter);
+apiRouter.use('/reports/workshop-costs', workshopCostReportRouter);
 apiRouter.use('/exports', listExportRouter);
 
 // Catálogo unificado de taller (/api/catalog)
@@ -83,3 +87,6 @@ apiRouter.use('/warehouses', warehouseRouter);
 // Compras con comprobante y proveedores (/api/purchases, /api/suppliers)
 apiRouter.use('/purchases', purchaseRouter);
 apiRouter.use('/suppliers', supplierRouter);
+
+apiRouter.use('/workshop-personnel', workshopPersonnelRouter);
+apiRouter.use('/workshop-time', workshopTimeRouter);

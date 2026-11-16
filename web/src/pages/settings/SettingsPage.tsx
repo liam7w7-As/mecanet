@@ -3,6 +3,7 @@ import { AlertCircle, Building2, Image as ImageIcon, LoaderCircle, RefreshCcw, R
 import { useEffect, useRef, useState } from 'react';
 
 import FormDialog from '../../components/common/FormDialog';
+import WorkshopPersonnelPanel from '../../components/settings/WorkshopPersonnelPanel';
 import { buildLogoUrl, useCompanySettings, useDeleteCompanyLogo, useUpdateCompanySettings, useUploadCompanyLogo } from '../../hooks/useSettings';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
@@ -172,6 +173,7 @@ export const SettingsPage = () => {
         {dirty && <p className="administration-logo-note">Los cambios de identidad pendientes se conservarán al actualizar el logo.</p>}
       </div></div>
     </section>
+    <WorkshopPersonnelPanel />
     {confirmRestore && <FormDialog id="restore-logo-title" title="Restaurar logo original" code="Identidad visual" context="Logo de la empresa"
       submitLabel="Restaurar logo" dirty={false} pending={deleteMutation.isPending} headerVariant="plain"
       className="administration-form administration-confirm settings-reference-dialog" statusText="Confirmación de identidad visual"

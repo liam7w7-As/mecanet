@@ -119,7 +119,8 @@ export const QuotationEditModal = ({ quotation, onClose, onSaved }: QuotationEdi
               <span>Servicios y condiciones</span>
               <span>{items.length} {items.length === 1 ? 'concepto' : 'conceptos'}</span>
             </div>
-            <fieldset className="commercial-editor-items" disabled={!canEditItems}><WorkOrderItemsEditor presentation="reception" items={items} onChange={setItems} errors={errors} title="Ítems cotizados" emptyMessage="La cotización quedará sin ítems y con total cero." showDiscounts showTotal={false} /></fieldset>
+            <fieldset className="commercial-editor-items" disabled={!canEditItems}><WorkOrderItemsEditor presentation="reception" items={items} onChange={setItems} errors={errors} title="Ítems cotizados" emptyMessage="La cotización quedará sin ítems y con total cero." showDiscounts showTotal={false} isPriceReadOnly={(item) => user?.role === 'jefe' && quotation.workOrderId !== null && item.id !== undefined && item.tipoLinea !== 'parte'} /></fieldset>
+            {user?.role === 'jefe' && quotation.workOrderId !== null && <p className="text-sm text-brand-muted">Los precios de servicios vinculados a una OT se gestionan en Taller → Gestionar trabajo → Precios.</p>}
             <aside className="commercial-create-terms">
               <QuotationCommercialFields value={commercial} onChange={setCommercial} errors={errors} />
               <QuotationDiscountSummary items={canEditItems ? items : toEditableItems(quotation)} value={commercial} onChange={setCommercial} testId="quotation-edit-total" readOnly={!canEditPricing} />

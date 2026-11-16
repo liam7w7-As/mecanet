@@ -227,6 +227,12 @@ export interface WorkOrderBilling extends WorkOrderContact {
 }
 
 export interface WorkOrderItem {
+  qualityStatus?: 'pendiente' | 'aprobado' | 'rechazado';
+  qualityReviewedAt?: string | null;
+  qualityReviewedBy?: number | null;
+  qualityNote?: string | null;
+
+  assignments?: WorkOrderWorksheetItem['assignments'];
   id: number;
   catalogItemId: number | null;
   descripcion: string;
@@ -334,6 +340,7 @@ export interface WorkOrderProgressReport {
 }
 
 export interface WorkOrderRequest {
+  pendingPriceApproval?: boolean;
   id: number;
   workOrderItemId: number | null;
   catalogItemId: number | null;
@@ -359,6 +366,12 @@ export interface WorkOrderRequest {
 }
 
 export interface WorkOrder {
+  priceApprovalRequired?: boolean;
+  unpricedServices?: string[];
+  qualityApprovedAt?: string | null;
+  qualityApprovedBy?: number | null;
+  qualityApprovalNote?: string | null;
+
   id: number;
   codigo: string;
   descuentoTipo?: import('@unithor/shared').DiscountType | null;
@@ -739,6 +752,13 @@ export interface PurchaseListResponse extends PaginatedResponse<Purchase> {
 }
 
 export interface WorkOrderWorksheetItem {
+  qualityStatus?: 'pendiente' | 'aprobado' | 'rechazado';
+  qualityReviewedAt?: string | null;
+  qualityReviewedBy?: number | null;
+  qualityNote?: string | null;
+
+  assignments?: Array<{ id: number; userId: number; userName: string; specialtyId: number | null; specialtyName: string | null; estimatedHours: number | null; originalEstimatedHours: number | null; completedAt: string | null; active: boolean }>;
+  activeSessions?: NonNullable<WorkOrderWorksheetItem['activeSession']>[];
   id: number;
   descripcion: string;
   tipoLinea: import('@unithor/shared').CatalogType;
@@ -789,6 +809,10 @@ export interface WorkOrderWorksheetObservation {
 
 export interface WorkOrderWorksheet {
   workOrder: {
+  qualityApprovedAt?: string | null;
+  qualityApprovedBy?: number | null;
+  qualityApprovalNote?: string | null;
+
     id: number;
     codigo: string;
     estado: import('@unithor/shared').WorkOrderStatus;
@@ -829,7 +853,7 @@ export interface WorkOrderWorksheet {
     minutosReales: number;
   };
   pausedOtherItems: number;
-  requests?: Array<Pick<WorkOrderRequest, 'id' | 'tipo' | 'estado' | 'catalogItemId' | 'cantidad' | 'motivo' | 'createdAt'> & { workOrderItemId?: number | null; workOrderItem?: { id: number; descripcion: string } | null; catalogItem: { id: number; nombre: string; codigo: string | null } | null; requester: { id: number; nombre: string } | null }>;
+  requests?: Array<Pick<WorkOrderRequest, 'id' | 'tipo' | 'estado' | 'catalogItemId' | 'cantidad' | 'motivo' | 'createdAt' | 'pendingPriceApproval'> & { workOrderItemId?: number | null; workOrderItem?: { id: number; descripcion: string } | null; catalogItem: { id: number; nombre: string; codigo: string | null } | null; requester: { id: number; nombre: string } | null }>;
 }
 
 export interface MyLaborOrder {
@@ -851,6 +875,7 @@ export interface MyLaborOrder {
 }
 
 export interface WorkOrderPriceSuggestion {
+  appliedDirectly?: boolean;
   id: number;
   workOrderId: number;
   workOrderItemId: number | null;

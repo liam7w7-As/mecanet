@@ -9,6 +9,7 @@ import { Op, col, fn, literal } from 'sequelize';
 
 import { hasPermission } from './permission.service.js';
 import { getSalesScope, quotationWhere, workOrderWhere } from './sales-access.service.js';
+import { getAssignedOrderIds } from './work-order-team-access.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
 import { FleetDocument } from '../models/FleetDocument.js';
@@ -76,11 +77,8 @@ export const getDashboardSummary = async (userId: number): Promise<DashboardSumm
   const canFollowQuotations = isAdministrator || role === 'vendedor';
   const shouldWatchStock = isAdministrator || role === 'jefe' || role === 'bodeguero';
   const canReadFleet = await hasPermission(userId, 'flota', 'read');
-  const assignedItems = isMechanic ? await WorkOrderItem.findAll({
-    attributes: ['workOrderId'], where: { assignedUserId: userId }, group: ['workOrderId'], raw: true,
-  }) : [];
   const workOrderScope = isMechanic
-    ? { [Op.or]: [{ assignedMechanicId: userId }, { id: { [Op.in]: assignedItems.map((item) => item.workOrderId) } }] }
+    ? { id: { [Op.in]: await getAssignedOrderIds(userId) } }
     : workOrderWhere(salesScope);
 
   const fleetWarningLimit = toFleetDateOnly(

@@ -3,6 +3,7 @@ import { Check, ChevronLeft, ChevronRight, LoaderCircle, Minus, Plus, Search, Tr
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
+import DraftItemTeamEditor from './DraftItemTeamEditor';
 import { useCatalogItems } from '../../hooks/useWorkOrders';
 import { formatClp } from '../../lib/formatters';
 import CurrencyInput from '../common/CurrencyInput';
@@ -28,6 +29,7 @@ export interface EditableWorkOrderItem {
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string;
   assignedUserId?: number | null;
+  teamMembers?: Array<{ userId: number; specialtyId?: number | null; estimatedHours: number | null }>;
   descuentoTipo?: DiscountType | null;
   descuentoValor?: string;
 }
@@ -77,6 +79,7 @@ interface WorkOrderItemsEditorProps {
   showDiscounts?: boolean;
   showTotal?: boolean;
   mechanics?: ReadonlyArray<{ id: number; nombre: string }>;
+  isPriceReadOnly?: (item: EditableWorkOrderItem) => boolean;
   /**
    * Si es true, los descuentos por línea quedan detrás de un check
    * ("Descuento por línea", apagado por defecto) y solo se ve el descuento
@@ -91,7 +94,7 @@ export const WorkOrderItemsEditor = ({
   items, onChange, errors = {}, title = 'Trabajos y repuestos',
   emptyMessage = 'Sin servicios ni repuestos seleccionados.',
   totalLabel = 'Total estimado', totalTestId = 'work-order-total', showExecution = true,
-  showDiscounts = false, showTotal = true, discountToggle = false, mechanics,
+  showDiscounts = false, showTotal = true, discountToggle = false, mechanics, isPriceReadOnly,
 }: WorkOrderItemsEditorProps) => {
   const headingId = useId();
   const [activeType, setActiveType] = useState<CatalogItem['tipo']>('estandar');
@@ -339,7 +342,7 @@ export const WorkOrderItemsEditor = ({
                       </label>
                     )}
                     <label className="grid gap-1 text-xs font-semibold text-brand-muted max-sm:col-span-2">Precio unitario
-                      <CurrencyInput value={item.precioUnitario} onChange={(value) => updateItem(item.key, { precioUnitario: value })} className={`${inputClass} font-semibold tabular-nums`} aria-label={`Precio unitario ${index + 1}`} />
+                      <CurrencyInput value={item.precioUnitario} disabled={isPriceReadOnly?.(item)} onChange={(value) => updateItem(item.key, { precioUnitario: value })} className={`${inputClass} font-semibold tabular-nums`} aria-label={`Precio unitario ${index + 1}`} />
                     </label>
                   </div>
 
@@ -368,7 +371,7 @@ export const WorkOrderItemsEditor = ({
                     </label>
                   </div>}
 
-                  {mechanics && item.tipoLinea !== 'parte' && <label className="grid gap-1 text-xs font-semibold text-brand-muted">
+                  {mechanics && item.tipoLinea !== 'parte' && !item.teamMembers && <label className="grid gap-1 text-xs font-semibold text-brand-muted">
                     Mecánico del servicio
                     <select className={inputClass} aria-label={`Mecánico del servicio ${index + 1}`} value={item.assignedUserId ?? ''}
                       onChange={(event) => updateItem(item.key, { assignedUserId: event.target.value ? Number(event.target.value) : null })}>
@@ -376,6 +379,7 @@ export const WorkOrderItemsEditor = ({
                       {mechanics.map((mechanic) => <option key={mechanic.id} value={mechanic.id}>{mechanic.nombre}</option>)}
                     </select>
                   </label>}
+                  {mechanics && item.tipoLinea !== 'parte' && <DraftItemTeamEditor item={item} mechanics={mechanics} onChange={(teamMembers) => updateItem(item.key, { teamMembers })} />}
                   {/* Subtotal destacado */}
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-brand-line/30 px-3 py-2">
                     <span className="text-xs text-brand-muted">

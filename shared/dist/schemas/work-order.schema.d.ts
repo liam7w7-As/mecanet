@@ -113,6 +113,40 @@ export declare const workOrderItemInputSchema: z.ZodObject<{
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
 }>;
+export declare const workOrderTeamMemberSchema: z.ZodObject<{
+    userId: z.ZodNumber;
+    specialtyId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    estimatedHours: z.ZodNullable<z.ZodNumber>;
+}, "strict", z.ZodTypeAny, {
+    userId: number;
+    estimatedHours: number | null;
+    specialtyId?: number | null | undefined;
+}, {
+    userId: number;
+    estimatedHours: number | null;
+    specialtyId?: number | null | undefined;
+}>;
+export declare const workOrderTeamMembersSchema: z.ZodEffects<z.ZodArray<z.ZodObject<{
+    userId: z.ZodNumber;
+    specialtyId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    estimatedHours: z.ZodNullable<z.ZodNumber>;
+}, "strict", z.ZodTypeAny, {
+    userId: number;
+    estimatedHours: number | null;
+    specialtyId?: number | null | undefined;
+}, {
+    userId: number;
+    estimatedHours: number | null;
+    specialtyId?: number | null | undefined;
+}>, "many">, {
+    userId: number;
+    estimatedHours: number | null;
+    specialtyId?: number | null | undefined;
+}[], {
+    userId: number;
+    estimatedHours: number | null;
+    specialtyId?: number | null | undefined;
+}[]>;
 export declare const createWorkOrderSchema: z.ZodObject<{
     emailPhotoSlots: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodEnum<["frontal", "trasera", "lateral_izquierdo", "lateral_derecho", "frontal_izquierdo", "frontal_derecho", "trasero_izquierdo", "trasero_derecho", "interior"]>, "many">, ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[], ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[]>>;
     clientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -168,6 +202,27 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         descuentoValor: z.ZodOptional<z.ZodNumber>;
     } & {
         assignedUserId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        teamMembers: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodObject<{
+            userId: z.ZodNumber;
+            specialtyId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            estimatedHours: z.ZodNullable<z.ZodNumber>;
+        }, "strict", z.ZodTypeAny, {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }, {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }>, "many">, {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[], {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[]>>;
     }, "strip", z.ZodTypeAny, {
         cantidad: number;
         precioUnitario: number;
@@ -182,6 +237,11 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }, {
         descripcion: string;
         cantidad?: number | undefined;
@@ -196,6 +256,11 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }>, "many">>;
     inspection: z.ZodOptional<z.ZodObject<{
         inventario: z.ZodDefault<z.ZodEffects<z.ZodArray<z.ZodEnum<["botiquin", "chaleco_reflectante", "extintor", "triangulo", "control_remoto", "manual", "radio", "usb", "rueda_repuesto", "llave_ruedas", "gata", "herramientas", "perno_seguridad", "enganche", "antena", "tapa_combustible", "tapas_ruedas", "limpiaparabrisas"]>, "many">, ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[], ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[]>>;
@@ -242,6 +307,11 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }[];
     vehicleId: number;
     fechaIngreso?: string | null | undefined;
@@ -292,6 +362,11 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
         assignedUserId?: number | null | undefined;
+        teamMembers?: {
+            userId: number;
+            estimatedHours: number | null;
+            specialtyId?: number | null | undefined;
+        }[] | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
@@ -794,11 +869,53 @@ export declare const assignWorkOrderItemSchema: z.ZodObject<{
 }, {
     assignedUserId: number | null;
 }>;
+export declare const assignWorkOrderTeamSchema: z.ZodObject<{
+    members: z.ZodEffects<z.ZodArray<z.ZodObject<{
+        userId: z.ZodNumber;
+        specialtyId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        estimatedHours: z.ZodNullable<z.ZodNumber>;
+    }, "strict", z.ZodTypeAny, {
+        userId: number;
+        estimatedHours: number | null;
+        specialtyId?: number | null | undefined;
+    }, {
+        userId: number;
+        estimatedHours: number | null;
+        specialtyId?: number | null | undefined;
+    }>, "many">, {
+        userId: number;
+        estimatedHours: number | null;
+        specialtyId?: number | null | undefined;
+    }[], {
+        userId: number;
+        estimatedHours: number | null;
+        specialtyId?: number | null | undefined;
+    }[]>;
+    motivo: z.ZodString;
+}, "strict", z.ZodTypeAny, {
+    motivo: string;
+    members: {
+        userId: number;
+        estimatedHours: number | null;
+        specialtyId?: number | null | undefined;
+    }[];
+}, {
+    motivo: string;
+    members: {
+        userId: number;
+        estimatedHours: number | null;
+        specialtyId?: number | null | undefined;
+    }[];
+}>;
+export type AssignWorkOrderTeamInput = z.infer<typeof assignWorkOrderTeamSchema>;
 export declare const updateWorkOrderItemEstimateSchema: z.ZodObject<{
     horasHombreEstimadas: z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>;
+    motivo: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     horasHombreEstimadas: number | null;
+    motivo?: string | undefined;
 }, {
+    motivo?: string | undefined;
     horasHombreEstimadas?: unknown;
 }>;
 export declare const completeWorkOrderItemSchema: z.ZodObject<{

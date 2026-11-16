@@ -1,0 +1,43 @@
+.workshop-insight-panel { min-width: 0; margin-top: 12px; padding: 11px 14px; border: 1px solid #e2e8f2; border-radius: 14px; background: #f7f8fc; color: #425b7b; font-size: 12px; }
+.workshop-insight-panel summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 36px; cursor: pointer; list-style: none; font-weight: 600; }
+.workshop-insight-panel summary::-webkit-details-marker { display: none; }
+.workshop-insight-panel summary > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
+.workshop-insight-panel summary > span:last-child { margin-left: auto; color: #8192aa; font-size: 10px; font-weight: 400; }
+.workshop-insight-panel svg { width: 15px; height: 15px; }
+.workshop-insight-body { display: grid; min-width: 0; gap: 11px; padding-top: 10px; }
+.workshop-insight-panel label { display: grid; gap: 5px; min-width: 0; color: #72839b; font-size: 11px; }
+.workshop-insight-panel :is(input:not([type=checkbox]), select) { min-width: 0; width: 100%; padding: 8px 10px; border: 1px solid #e1e7ef; border-radius: 10px; background: #fff; color: #344d6c; font-size: 12px; }
+.workshop-insight-panel button { width: fit-content; min-height: 36px; padding: 7px 11px; border: 1px solid #dfe7f0; border-radius: 999px; background: #fff; color: #526782; font-size: 11px; }
+.workshop-insight-panel button:disabled { cursor: not-allowed; opacity: .55; }
+.workshop-insight-panel button:hover:not(:disabled) { background: #eaf0f8; }
+.workshop-insight-panel :is(button, input, select, summary, a):focus-visible { outline: 2px solid #89a6d0; outline-offset: 3px; }
+.workshop-insight-panel a { color: #315582; text-decoration: underline; }
+.workshop-insight-panel .workshop-insight-check { display: flex; align-items: center; gap: 7px; }
+.workshop-insight-alerts { display: grid; gap: 8px; }
+.workshop-insight-alerts li { display: grid; gap: 6px; padding: 12px; border: 1px solid #e6ebf4; border-radius: 10px; background: #fff; overflow-wrap: anywhere; }
+.workshop-insight-alerts li[data-priority=high] { border-left: 3px solid #d79970; }
+.workshop-insight-alerts li > div { display: flex; align-items: center; justify-content: space-between; gap: 9px; }
+.workshop-insight-chip { padding: 3px 7px; border-radius: 999px; background: #edf1fa; color: #65779a; font-size: 10px; white-space: nowrap; }
+.workshop-insight-empty { padding: 12px; border-radius: 10px; background: #fff; color: #8192aa; }
+.workshop-insight-filters, .workshop-insight-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; }
+.workshop-insight-reference { display: grid; gap: 8px; padding: 12px; border-radius: 10px; background: #edf2fa; }
+.workshop-insight-metrics > div { display: grid; gap: 4px; }
+.workshop-insight-metrics span { color: #8192aa; font-size: 11px; }
+.workshop-insight-table-wrap { min-width: 0; overflow-x: auto; }
+.workshop-insight-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; font-size: 11px; }
+.workshop-insight-table :is(th, td) { padding: 9px 8px; border-bottom: 1px solid #e3e9f3; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
+.workshop-insight-table th { color: #71849e; font-weight: 500; }
+.workshop-insight-table small { display: block; margin-top: 4px; color: #8192aa; }
+.workshop-insight-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 640px) {
+  .workshop-insight-panel { padding: 10px; }
+  .workshop-insight-panel :is(input:not([type=checkbox]), select) { font-size: 16px; }
+  .workshop-insight-panel :is(button, summary, select, input:not([type=checkbox])) { min-height: 44px; }
+  .workshop-insight-filters { grid-template-columns: minmax(0, 1fr); }
+  .workshop-insight-table thead { display: none; }
+  .workshop-insight-table :is(tbody, tr) { display: grid; gap: 8px; }
+  .workshop-insight-table tr { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 8px; padding: 10px; border-radius: 10px; background: #fff; }
+  .workshop-insight-table td { padding: 3px; border: 0; overflow-wrap: anywhere; }
+  .workshop-insight-table td:first-child { grid-column: 1 / -1; }
+  .workshop-insight-table td::before { display: block; margin-bottom: 3px; color: #8192aa; content: attr(data-label); }
+}

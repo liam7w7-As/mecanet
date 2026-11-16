@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { api } from '../../lib/api';
+import { useAuthStore } from '../../stores/auth.store';
 import { useVerifyPaymentMutation } from '../useFinance';
 import { paymentKeys, useQuotationPayments } from '../usePayments';
 import { quotationKeys, useQuotation, useQuotations, useUpdateQuotationMutation } from '../useQuotations';
@@ -158,6 +159,8 @@ describe('Sincronización visible de OT, COT y abonos con consultas en caché', 
   });
 
   it('actualiza los importes para cobrar tras aprobar una sugerencia de precio', async () => {
+    const previousUser = useAuthStore.getState().user;
+    useAuthStore.setState({ user: { id: 1, nombre: 'Admin', email: 'qa@example.test', role: 'admin' } });
     vi.mocked(api.patch).mockImplementation(async () => {
       changeTotal();
       return { data: { suggestion: { id: 3, estado: 'aprobada' } } } as AxiosResponse;
@@ -168,6 +171,7 @@ describe('Sincronización visible de OT, COT y abonos con consultas en caché', 
       expect(result.current.ot.data?.quotation?.total).toBe(90000);
       expect(result.current.payments.data?.saldoPendiente).toBe(80000);
     });
+    useAuthStore.setState({ user: previousUser });
   });
 
   it('conserva la ficha restringida del mecánico al sincronizar un avance', async () => {

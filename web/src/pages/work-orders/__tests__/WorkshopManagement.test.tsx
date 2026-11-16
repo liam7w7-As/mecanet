@@ -20,15 +20,51 @@ const proposal: WorkOrderPriceSuggestion = { id: 5, workOrderId: order.id, workO
 const open = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}><MemoryRouter><WorkOrderQuickDetailModal workOrderId={order.id} initialView="execution" onClose={vi.fn()} onPreviewPdf={vi.fn()} /></MemoryRouter></QueryClientProvider>);
 let worksheet: WorkOrderWorksheet;
 let suggestions: WorkOrderPriceSuggestion[];
+const makeQuality = () => ({
+  workOrderId: order.id, estado: worksheet.workOrder.estado, approvedAt: null, approvedBy: null, approvalNote: null, canConfirm: false,
+  items: worksheet.items.map((item) => ({ id: item.id, descripcion: item.descripcion, tipoLinea: item.tipoLinea, estadoOperativo: item.estadoOperativo, qualityStatus: item.qualityStatus ?? 'pendiente', qualityReviewedAt: item.qualityReviewedAt ?? null, qualityReviewedBy: item.qualityReviewedBy ?? null, qualityNote: item.qualityNote ?? null })), history: [],
+});
 
 beforeEach(() => {
   vi.resetAllMocks();
   worksheet = makeWorksheet(); suggestions = [];
   useAuthStore.setState({ user: { id: 7, nombre: 'Ana Jefa', email: 'qa@example.test', role: 'jefe' }, isAuthenticated: true, isLoading: false });
-  vi.mocked(api.get).mockImplementation(async (url) => ({ data: url.endsWith('/worksheet') ? { worksheet } : url.endsWith('/price-suggestions') ? { suggestions } : url === `/work-orders/${order.id}` ? { workOrder: order } : { items: [], mechanics: [] } }));
+  vi.mocked(api.get).mockImplementation(async (url) => ({ data: url.endsWith('/worksheet') ? { worksheet } : url.endsWith('/price-suggestions') ? { suggestions } : url.endsWith('/price-policy') ? { policy: { approvalRequired: true, canConfigure: false } } : url.endsWith('/quality') ? { quality: makeQuality() } : url === `/work-orders/${order.id}` ? { workOrder: order } : { items: [], mechanics: [] } }));
 });
 
 describe('Work management without losing context', () => {
+  it('keeps service notes across chief assignment, quality and request shortcuts without writing changes', async () => {
+    open();
+    const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    fireEvent.change(within(task).getByLabelText('Nota técnica de Revisión de suspensión'), { target: { value: 'Diagnóstico pendiente del jefe' } });
+    fireEvent.click(screen.getByRole('button', { name: /Asignar equipo/ }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Filtrar trabajos' })).getByRole('button', { name: /^Todos/ }));
+    expect(screen.getByRole('button', { name: /Asignar equipo/ })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: /Revisar calidad/ }));
+    expect(screen.queryByRole('article', { name: 'Trabajo: Revisión de suspensión' })).not.toBeInTheDocument();
+    expect(await screen.findByText('Control de calidad')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Resolver solicitudes/ }));
+    expect(screen.getByRole('heading', { name: 'Historial de Solicitudes' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Trabajos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver trabajos' }));
+    expect(screen.getByLabelText('Nota técnica de Revisión de suspensión')).toHaveValue('Diagnóstico pendiente del jefe');
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled(); expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('keeps secondary follow-up collapsed and offers no chief shortcuts to mechanics', async () => {
+    useAuthStore.setState({ user: { id: 9, nombre: 'Carlos Mecánico', email: 'qa@example.test', role: 'mecanico' } });
+    open();
+    await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    expect(screen.getByRole('region', { name: 'Resumen de mi trabajo' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Resolver solicitudes/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Por valorar/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Horas, alertas e historial').closest('details')).not.toHaveAttribute('open');
+    expect(vi.mocked(api.get).mock.calls.some(([url]) => url.endsWith('/alerts'))).toBe(false);
+  });
+
   it('opens a service price proposal directly and preserves drafts across services and tabs', async () => {
     open();
     const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });

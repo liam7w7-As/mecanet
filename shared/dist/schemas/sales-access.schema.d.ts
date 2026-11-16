@@ -115,9 +115,9 @@ export declare const createRecordSalesAccessGrantSchema: z.ZodObject<{
     includeLinkedRecord: z.ZodDefault<z.ZodBoolean>;
     expiresAt: z.ZodEffects<z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNull]>>, Date | null, string | null | undefined>;
 }, "strip", z.ZodTypeAny, {
+    userId: number;
     includeLinkedRecord: boolean;
     expiresAt: Date | null;
-    userId: number;
 }, {
     userId: number;
     includeLinkedRecord?: boolean | undefined;

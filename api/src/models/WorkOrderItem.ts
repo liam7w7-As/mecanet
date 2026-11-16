@@ -15,6 +15,7 @@ import { CatalogItem } from './CatalogItem.js';
 import { User } from './User.js';
 import { Warehouse } from './Warehouse.js';
 import { WorkOrder } from './WorkOrder.js';
+import { WorkOrderItemAssignment } from './WorkOrderItemAssignment.js';
 import { WorkOrderItemProgressEvent } from './WorkOrderItemProgressEvent.js';
 import { WorkOrderItemSession } from './WorkOrderItemSession.js';
 import { WorkOrderObservation } from './WorkOrderObservation.js';
@@ -154,6 +155,22 @@ export class WorkOrderItem extends Model<
   @Column({ type: DataType.INTEGER, allowNull: true, onDelete: 'SET NULL', onUpdate: 'CASCADE' })
   declare assignedUserId: number | null;
 
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare teamManaged: CreationOptional<boolean>;
+
+  @Column({ type: DataType.ENUM('pendiente', 'aprobado', 'rechazado'), allowNull: false, defaultValue: 'pendiente' })
+  declare qualityStatus: CreationOptional<'pendiente' | 'aprobado' | 'rechazado'>;
+
+  @ForeignKey(() => User)
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare qualityReviewedBy: CreationOptional<number | null>;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare qualityReviewedAt: CreationOptional<Date | null>;
+
+  @Column({ type: DataType.TEXT, allowNull: true })
+  declare qualityNote: CreationOptional<string | null>;
+
   @ForeignKey(() => User)
   @Column({ type: DataType.INTEGER, allowNull: true, onDelete: 'SET NULL', onUpdate: 'CASCADE' })
   declare laborValidatedBy: number | null;
@@ -178,6 +195,9 @@ export class WorkOrderItem extends Model<
 
   @BelongsTo(() => User, 'laborValidatedBy')
   declare validator?: User;
+
+  @HasMany(() => WorkOrderItemAssignment)
+  declare assignments?: WorkOrderItemAssignment[];
 
   @HasMany(() => WorkOrderItemSession)
   declare sessions?: WorkOrderItemSession[];

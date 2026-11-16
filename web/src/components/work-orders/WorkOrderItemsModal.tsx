@@ -7,6 +7,7 @@ import WorkOrderItemsEditor, { createEmptyWorkOrderItem } from './WorkOrderItems
 import { useUpdateWorkOrderMutation } from '../../hooks/useWorkOrders';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
+import { useAuthStore } from '../../stores/auth.store';
 import QuotationDiscountSummary from '../quotations/QuotationDiscountSummary';
 
 import type { EditableWorkOrderItem } from './WorkOrderItemsEditor';
@@ -41,6 +42,7 @@ const toEditableItems = (workOrder: WorkOrder): EditableWorkOrderItem[] =>
   })) ?? [];
 
 export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalProps) => {
+  const chief = useAuthStore((state) => state.user?.role === 'jefe');
   const updateMutation = useUpdateWorkOrderMutation();
   const [items, setItems] = useState<EditableWorkOrderItem[]>(() => toEditableItems(workOrder));
   const [discount, setDiscount] = useState<DiscountDraft>({ descuentoTipo: workOrder.descuentoTipo ?? null, descuentoValor: String(workOrder.descuentoValor ?? 0) });
@@ -100,7 +102,9 @@ export const WorkOrderItemsModal = ({ workOrder, onClose }: WorkOrderItemsModalP
               description="Actualice avances, notas, cantidades o trabajos adicionales."
               showDiscounts
               showTotal={false}
+              isPriceReadOnly={(item) => chief && item.id !== undefined && item.tipoLinea !== 'parte'}
             />
+            {chief && <p className="px-5 py-3 text-sm text-brand-muted">Para cambiar el precio de un servicio guardado, usa Gestionar trabajo → Precios. Allí quedarán el motivo y la aprobación que corresponda.</p>}
             <QuotationDiscountSummary items={items.filter((item) => item.descripcion.trim())} value={discount} onChange={setDiscount} testId="work-order-edit-total" />
           </div>
           {(errors._form || updateMutation.isError) && (

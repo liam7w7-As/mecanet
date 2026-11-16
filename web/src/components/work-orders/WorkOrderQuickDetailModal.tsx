@@ -215,18 +215,18 @@ export const WorkOrderQuickDetailModal = ({
         {workOrder && canOperate && (
           <div className="workshop-dialog-tabs" role="group" aria-label="Vista de la orden">
             {([{ value: 'summary', label: 'Resumen', icon: ClipboardCheck }, { value: 'execution', label: 'Trabajos', icon: ListChecks }, { value: 'requests', label: 'Solicitudes', icon: PackageSearch }] as const).map((option) => (
-              <button key={option.value} type="button" aria-pressed={view === option.value} onClick={() => { setView(option.value); if (option.value !== 'summary') setOpenedExecution(true); }}>
+              <button key={option.value} type="button" disabled={savePending} aria-pressed={view === option.value} onClick={() => { setView(option.value); if (option.value !== 'summary') setOpenedExecution(true); }}>
                 <option.icon aria-hidden="true" />{option.label}
                 {option.value === 'requests' && workOrder.requests?.some((request) => request.estado === 'pendiente') && <span>{workOrder.requests.filter((request) => request.estado === 'pendiente').length}</span>}
               </button>
             ))}
-            {canSuggestPrices && <button type="button" aria-pressed={view === 'prices'} onClick={() => { setView('prices'); setOpenedExecution(true); }}><BadgeDollarSign aria-hidden="true" />Precios</button>}
+            {canSuggestPrices && <button type="button" disabled={savePending} aria-pressed={view === 'prices'} onClick={() => { setView('prices'); setOpenedExecution(true); }}><BadgeDollarSign aria-hidden="true" />Precios</button>}
           </div>
         )}
         <div ref={bodyRef} className="workshop-dialog-body">
 
         {workOrder && canOperate && hasOpenedExecution && (
-          <div className="workshop-execution-view p-4 sm:p-6" hidden={view === 'summary'}><WorkOrderMechanicPanel workOrder={workOrder} section={view === 'prices' ? 'prices' : view === 'requests' ? 'requests' : 'execution'} priceRequest={priceRequest} onSuggestPrice={(itemId) => { setPriceRequest({ itemId }); setView('prices'); }} onDirtyChange={setDirtyChanges} onPendingChange={setSavePending} /></div>
+          <div className="workshop-execution-view p-4 sm:p-6" hidden={view === 'summary'}><WorkOrderMechanicPanel workOrder={workOrder} active={view !== 'summary'} section={view === 'prices' ? 'prices' : view === 'requests' ? 'requests' : 'execution'} priceRequest={priceRequest} onSuggestPrice={(itemId) => { setPriceRequest({ itemId }); setView('prices'); }} onNavigateSection={(section) => { if (!savePending) setView(section); }} onDirtyChange={setDirtyChanges} onPendingChange={setSavePending} /></div>
         )}
 
         {workOrderQuery.isPending && (

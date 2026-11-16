@@ -16,6 +16,7 @@ import WorkOrderCard from '../../components/work-orders/WorkOrderCard';
 import WorkOrderDeliveryModal from '../../components/work-orders/WorkOrderDeliveryModal';
 import WorkOrderFilters from '../../components/work-orders/WorkOrderFilters';
 import WorkOrderQuickDetailModal from '../../components/work-orders/WorkOrderQuickDetailModal';
+import WorkshopOperationsModal from '../../components/work-orders/WorkshopOperationsModal';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   useChangeWorkOrderStatusMutation,
@@ -106,6 +107,7 @@ const isStatusRegression = (from: WorkOrderStatus, to: WorkOrderStatus): boolean
 };
 
 export const WorkOrdersPage = ({ personalOverview = false }: { personalOverview?: boolean }) => {
+  const [showLaborTime, setShowLaborTime] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [cardExpansion, setCardExpansion] = useState<WorkOrderCardExpansion>(null);
@@ -158,6 +160,7 @@ export const WorkOrdersPage = ({ personalOverview = false }: { personalOverview?
 
   const changeStatus = (workOrder: WorkOrder, nuevoEstado: WorkOrderStatus): void => {
     statusMutation.reset();
+    if (nuevoEstado === 'finalizada') { setDetailWorkOrderId(workOrder.id); setDetailView('execution'); return; }
     if (nuevoEstado === 'cancelada') {
       setPendingCancellation({ id: workOrder.id, codigo: workOrder.codigo });
       return;
@@ -191,12 +194,15 @@ export const WorkOrdersPage = ({ personalOverview = false }: { personalOverview?
             <span className="workshop-heading-mobile">{user?.role === 'mecanico' ? 'Mis órdenes' : 'Taller'}</span>
           </h1>
         </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+        {user && ['admin', 'desarrollador', 'jefe', 'mecanico'].includes(user.role) && hasUserPermission(user, 'taller', 'read') && <button type="button" className="secondary-button" onClick={() => setShowLaborTime(true)}>Jornada y alertas</button>}
         <ListExportButtons
           target="work-orders"
           filters={filters}
           disabled={workOrdersQuery.isPending || workOrdersQuery.isError}
           className="self-end"
         />
+        </div>
       </header>
 
       {personalOverview && <MechanicOverview />}
@@ -291,6 +297,7 @@ export const WorkOrdersPage = ({ personalOverview = false }: { personalOverview?
         />
       )}
 
+      {showLaborTime && <WorkshopOperationsModal onClose={() => setShowLaborTime(false)} />}
       {detailWorkOrderId !== null && (
         <WorkOrderQuickDetailModal
           initialView={detailView}

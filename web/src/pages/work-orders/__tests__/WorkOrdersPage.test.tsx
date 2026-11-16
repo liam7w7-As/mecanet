@@ -242,6 +242,13 @@ describe('WorkOrdersPage', () => {
       isLoading: false,
     });
     vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/work-orders/12/quality') return Promise.resolve({ data: { quality: {
+        workOrderId: workOrder.id, estado: workOrder.estado, approvedAt: null, approvedBy: null, approvalNote: null,
+        canConfirm: false, history: [], items: (workOrder.items ?? []).map((item) => ({
+          id: item.id, descripcion: item.descripcion, tipoLinea: item.tipoLinea, estadoOperativo: item.estadoOperativo,
+          qualityStatus: 'pendiente', qualityReviewedAt: null, qualityReviewedBy: null, qualityNote: null,
+        })),
+      } } });
       if (url === '/work-orders/12/worksheet') return Promise.resolve({ data: { worksheet: worksheetFor(workOrder) } });
       if (url === '/catalog') {
         return Promise.resolve({ data: emptyCatalog } as AxiosResponse<PaginatedResponse<CatalogItem>>);
@@ -613,7 +620,7 @@ describe('WorkOrdersPage', () => {
     }
   });
 
-  it('pinta la card en verde cuando las tareas están completadas', async () => {
+  it('muestra 100% pendiente de calidad sin verde oscuro antes de la confirmación', async () => {
     const doneOrder: WorkOrder = {
       ...workOrder,
       items: workOrder.items?.map((item) => ({ ...item, estadoOperativo: 'completado' as const })),
@@ -627,8 +634,8 @@ describe('WorkOrdersPage', () => {
     createWrapper(<WorkOrdersPage />);
 
     await screen.findByText('OT-2026-0012');
-    expect(screen.getByLabelText('Avance: Finalizado')).toHaveTextContent('100%');
-    expect(screen.getByRole('article', { name: `Orden ${workOrder.codigo}` })).toHaveAttribute('data-colour', 'done');
+    expect(screen.getByLabelText('Avance: Pendiente de calidad')).toHaveTextContent('100%');
+    expect(screen.getByRole('article', { name: `Orden ${workOrder.codigo}` })).toHaveAttribute('data-colour', 'review');
   });
 
   it('muestra la bitácora de actividad con actor y fecha', async () => {
@@ -931,10 +938,37 @@ describe('WorkOrdersPage', () => {
     expect(screen.queryByRole('button', { name: 'Iniciada' })).not.toBeInTheDocument();
   });
 
+  it('abre la revisión de calidad desde el detalle completo sin finalizar por otro camino', async () => {
+    createWrapper(
+      <Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>,
+      `/work-orders/${workOrder.id}`,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Revisar calidad y finalizar' }));
+    expect(await screen.findByRole('button', { name: 'Trabajos' })).toBeInTheDocument();
+    expect(screen.getByText('Control de calidad')).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('reserva los cambios de estado al supervisor aunque un vendedor tenga edición de taller', async () => {
+    useAuthStore.setState({ user: {
+      id: 2, nombre: 'Vendedor', email: 'vendedor@unithor.local', role: 'vendedor',
+      permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'taller', accion: 'update' }],
+    } });
+    createWrapper(
+      <Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>,
+      `/work-orders/${workOrder.id}`,
+    );
+    expect(await screen.findByText('El jefe de taller administra los cambios de estado.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Revisar calidad y finalizar' })).not.toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
   it('usa el formulario de cierre para entregar una orden finalizada', async () => {
     const finalOrder: WorkOrder = {
       ...workOrder,
       estado: 'finalizada',
+      qualityApprovedAt: '2026-04-05T12:00:00Z',
+      unpricedServices: [],
       items: workOrder.items?.map((item) => ({ ...item, estadoOperativo: 'completado' })),
     };
     vi.mocked(api.get).mockResolvedValue({ data: { workOrder: finalOrder } } as AxiosResponse<{ workOrder: WorkOrder }>);

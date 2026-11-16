@@ -71,7 +71,10 @@ describe('QuotationDetailPage action access', () => {
     if (allowed) {
       expect(edit).toBeInTheDocument();
       expect(dialog).toBeInTheDocument();
-      expect(screen.getByLabelText('Precio unitario 1')).toBeEnabled();
+      if (role === 'jefe') {
+        expect(screen.getByLabelText('Precio unitario 1')).toBeDisabled();
+        expect(screen.getByText(/Los precios de servicios vinculados a una OT/)).toBeInTheDocument();
+      } else expect(screen.getByLabelText('Precio unitario 1')).toBeEnabled();
     } else {
       expect(edit).not.toBeInTheDocument();
       expect(dialog).not.toBeInTheDocument();

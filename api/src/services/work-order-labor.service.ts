@@ -4,20 +4,14 @@ import path from 'node:path';
 import {
   WORK_ORDER_OBSERVATION_FILE_MIME_TYPES,
   WORK_ORDER_OBSERVATION_MAX_FILES,
-  WORK_ORDER_PRICE_SUGGESTION_SCOPES,
   type CreateWorkOrderObservationInput,
-  type CreateWorkOrderPriceSuggestionInput,
   type ItemOperationalStatus,
-  type ReviewWorkOrderPriceSuggestionInput,
   type Role as RoleName,
-  type WorkOrderPriceSuggestionScope,
-  type WorkOrderPriceSuggestionStatus,
 } from '@unithor/shared';
 import { Op, Transaction } from 'sequelize';
 
 import { enqueueWorkOrderProgress } from './customer-email-queue.service.js';
 import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
-import { notifyUsers } from './notification.service.js';
 import {
   minutesToHours,
   recordItemProgressEvent,
@@ -25,23 +19,29 @@ import {
   toDateOnly,
 } from './work-order-labor-events.js';
 import { closeSession, getSessionMinutes, getSessionMinutesInRange, recalculateItemHours } from './work-order-labor-sessions.js';
+import { invalidateItemQuality } from './work-order-quality-state.js';
+import { isAssignedToItem, getAssignedOrderIds } from './work-order-team-access.js';
+import { replaceItemTeam } from './work-order-team.service.js';
 import {
   assertWorkOrderAccess,
   consumeCompletedPartStock,
   syncMirrorQuotationFromWorkOrder,
 } from './work-order.service.js';
-import { sequelize } from '../config/database.js';
+import { getWorkerShift } from './workshop-personnel.service.js';
+import { settleExpiredLaborSessions } from './workshop-shift-worker.service.js';
+import { withWorkshopTransaction } from './workshop-transaction.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
+import { WorkOrderEvent } from '../models/WorkOrderEvent.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
+import { WorkOrderItemAssignment } from '../models/WorkOrderItemAssignment.js';
 import { WorkOrderItemProgressEvent } from '../models/WorkOrderItemProgressEvent.js';
 import { WorkOrderItemSession } from '../models/WorkOrderItemSession.js';
 import { WorkOrderObservation } from '../models/WorkOrderObservation.js';
 import { WorkOrderObservationFile } from '../models/WorkOrderObservationFile.js';
-import { WorkOrderPriceSuggestion } from '../models/WorkOrderPriceSuggestion.js';
 import { WorkOrderProgressReport } from '../models/WorkOrderProgressReport.js';
 import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -86,17 +86,15 @@ const assertEditable = (workOrder: WorkOrder): void => {
   }
 };
 
-const assertItemAccess = (
+const assertItemAccess = async (
   item: WorkOrderItem,
   workOrder: WorkOrder,
   role: RoleName,
   userId: number,
-): void => {
+  transaction?: Transaction,
+): Promise<void> => {
   if (role !== 'mecanico') return;
-  if (item.assignedUserId !== null && item.assignedUserId !== userId) {
-    throw ApiError.forbidden('Este trabajo está asignado a otro mecánico');
-  }
-  if (item.assignedUserId === null && workOrder.assignedMechanicId !== userId) {
+  if (!(await isAssignedToItem(item, workOrder, userId, transaction))) {
     throw ApiError.forbidden('Este trabajo no está asignado a ti');
   }
 };
@@ -149,6 +147,13 @@ const findItem = async (
 };
 
 export interface WorksheetItem {
+  qualityStatus: 'pendiente' | 'aprobado' | 'rechazado';
+  qualityReviewedAt: Date | null;
+  qualityReviewedBy: number | null;
+  qualityNote: string | null;
+
+  assignments: Array<{ id: number; userId: number; userName: string; specialtyId: number | null; specialtyName: string | null; estimatedHours: number | null; originalEstimatedHours: number | null; completedAt: Date | null; active: boolean }>;
+  activeSessions: NonNullable<WorksheetItem['activeSession']>[];
   id: number;
   descripcion: string;
   tipoLinea: string;
@@ -205,6 +210,10 @@ export interface WorkOrderWorksheet {
     fechaIngreso: Date | null;
     descripcion: string | null;
     assignedMechanicId: number | null;
+  qualityApprovedAt: Date | null;
+  qualityApprovedBy: number | null;
+  qualityApprovalNote: string | null;
+
     fechaEntrega: Date | null;
     createdAt: Date;
     updatedAt: Date;
@@ -240,6 +249,7 @@ export interface WorkOrderWorksheet {
   };
   pausedOtherItems: number;
   requests: Array<{
+    pendingPriceApproval: boolean;
     id: number; tipo: WorkOrderRequest['tipo']; estado: WorkOrderRequest['estado']; catalogItemId: number | null;
     workOrderItemId: number | null; workOrderItem: { id: number; descripcion: string } | null;
     cantidad: number | null; motivo: string; createdAt: Date;
@@ -277,7 +287,9 @@ export const getWorkOrderWorksheet = async (
   userId: number,
   pausedOtherItems = 0,
 ): Promise<WorkOrderWorksheet> => {
+  await settleExpiredLaborSessions();
   const { workOrder, role } = await getLaborContext(workOrderId, userId);
+  const assignments = await WorkOrderItemAssignment.findAll({ where: { workOrderId }, order: [['id', 'ASC']] });
   const [vehicle, items, sessions, observations, progressReports, requests] = await Promise.all([
     workOrder.vehicleId === null
       ? Promise.resolve(null)
@@ -312,7 +324,7 @@ export const getWorkOrderWorksheet = async (
         workOrderId,
         ...(role === 'mecanico' ? { [Op.or]: [{ tipo: 'repuesto' }, { tipo: 'aumento_precio', requestedBy: userId }] } : {}),
       },
-      attributes: ['id', 'tipo', 'estado', 'catalogItemId', 'workOrderItemId', 'cantidad', 'motivo', 'createdAt', 'requestedBy'],
+      attributes: ['id', 'tipo', 'estado', 'catalogItemId', 'workOrderItemId', 'cantidad', 'motivo', 'createdAt', 'requestedBy', 'precioAprobado'],
       include: [{ model: CatalogItem, as: 'catalogItem', attributes: ['id', 'nombre', 'codigo'] }, { model: User, as: 'requester', attributes: ['id', 'nombre'] }, { model: WorkOrderItem, as: 'workOrderItem', attributes: ['id', 'descripcion'] }],
       order: [['createdAt', 'DESC']],
     }),
@@ -335,11 +347,15 @@ export const getWorkOrderWorksheet = async (
     );
   }
 
+  const permitted = (item: WorkOrderItem): boolean => item.teamManaged
+    ? assignments.some((a) => a.workOrderItemId === item.id && a.active && a.userId === userId)
+    : (item.assignedUserId ?? workOrder.assignedMechanicId) === userId;
   const visibleItems = items;
 
   const itemDtos: WorksheetItem[] = visibleItems.map((item) => {
     const itemSessions = sessionsByItem.get(item.id) ?? [];
-    const activeSession = itemSessions.find((session) => session.status === 'abierta') ?? null;
+    const openSessions = itemSessions.filter((session) => session.status === 'abierta');
+    const activeSession = openSessions.find((session) => session.userId === userId) ?? openSessions[0] ?? null;
     const totalMinutes = itemSessions.reduce(
       (sum, session) => sum + getSessionMinutes(session, now),
       0,
@@ -350,11 +366,15 @@ export const getWorkOrderWorksheet = async (
     const horasEstimadasTotales =
       horasHombreEstimadas === null ? null : roundHours(horasHombreEstimadas * cantidad);
     const horasHombreReales =
-      item.horasHombreReales === null ? null : toNumber(item.horasHombreReales);
+      itemSessions.length ? minutesToHours(totalMinutes)
+        : item.horasHombreReales === null ? null : toNumber(item.horasHombreReales);
 
     return {
+      assignments: assignments.filter((a) => a.workOrderItemId === item.id && a.active).map((a) => ({ id: a.id, userId: a.userId, userName: a.userName, specialtyId: a.specialtyId, specialtyName: a.specialtyName, estimatedHours: a.estimatedHours === null ? null : Number(a.estimatedHours), originalEstimatedHours: a.originalEstimatedHours === null ? null : Number(a.originalEstimatedHours), completedAt: a.completedAt, active: a.active })),
+      activeSessions: openSessions.map((s) => ({ id: s.id, userId: s.userId, userName: s.userName, startedAt: s.startedAt, elapsedMinutes: getSessionMinutes(s, now), mine: s.userId === userId })),
       id: item.id,
       descripcion: item.descripcion,
+      qualityStatus: item.qualityStatus ?? 'pendiente', qualityReviewedAt: item.qualityReviewedAt ?? null, qualityReviewedBy: item.qualityReviewedBy ?? null, qualityNote: item.qualityNote ?? null,
       tipoLinea: item.tipoLinea,
       unidadMedida: item.unidadMedida,
       cantidad,
@@ -385,9 +405,9 @@ export const getWorkOrderWorksheet = async (
         : null,
       totalMinutes,
       observationsCount: observationsByItem.get(item.id) ?? 0,
-      canWork: workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada' && (role !== 'mecanico' || (item.assignedUserId !== null ? item.assignedUserId === userId : workOrder.assignedMechanicId === userId)),
-      awaitingWarehouseDelivery: !item.stockConsumido && requests.some(
-        (request) => request.estado === 'aprobada' && request.workOrderItemId === item.id,
+      canWork: workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada' && (role !== 'mecanico' || permitted(item)),
+      awaitingWarehouseDelivery: item.tipoLinea === 'parte' && !item.stockConsumido && requests.some(
+        (request) => request.tipo === 'repuesto' && request.estado === 'aprobada' && request.workOrderItemId === item.id,
       ),
       sessions: itemSessions.map((session) => ({ id: session.id, userName: session.userName, startedAt: session.startedAt, endedAt: session.endedAt, minutes: getSessionMinutes(session, now), kind: session.kind, note: session.note })),
     };
@@ -408,6 +428,9 @@ export const getWorkOrderWorksheet = async (
       fechaIngreso: workOrder.fechaIngreso,
       descripcion: workOrder.descripcion,
       assignedMechanicId: workOrder.assignedMechanicId,
+      qualityApprovedAt: workOrder.qualityApprovedAt ?? null,
+      qualityApprovedBy: workOrder.qualityApprovedBy ?? null,
+      qualityApprovalNote: workOrder.qualityApprovalNote ?? null,
       fechaEntrega: workOrder.fechaEntrega,
       createdAt: workOrder.createdAt,
       updatedAt: workOrder.updatedAt,
@@ -436,7 +459,7 @@ export const getWorkOrderWorksheet = async (
         ? { id: report.mechanic.id, nombre: report.mechanic.nombre }
         : null,
     })),
-    requests: requests.map((request) => ({ id: request.id, tipo: request.tipo, estado: request.estado, catalogItemId: request.catalogItemId, workOrderItemId: request.workOrderItemId, workOrderItem: request.workOrderItem ? { id: request.workOrderItem.id, descripcion: request.workOrderItem.descripcion } : null, cantidad: request.cantidad === null ? null : Number(request.cantidad), motivo: request.motivo, createdAt: request.createdAt, catalogItem: request.catalogItem ? { id: request.catalogItem.id, nombre: request.catalogItem.nombre, codigo: request.catalogItem.codigo } : null, requester: request.requester ? { id: request.requester.id, nombre: request.requester.nombre } : null })),
+    requests: requests.map((request) => ({ pendingPriceApproval: request.tipo === 'aumento_precio' && request.estado === 'aprobada' && request.precioAprobado === null, id: request.id, tipo: request.tipo, estado: request.estado, catalogItemId: request.catalogItemId, workOrderItemId: request.workOrderItemId, workOrderItem: request.workOrderItem ? { id: request.workOrderItem.id, descripcion: request.workOrderItem.descripcion } : null, cantidad: request.cantidad === null ? null : Number(request.cantidad), motivo: request.motivo, createdAt: request.createdAt, catalogItem: request.catalogItem ? { id: request.catalogItem.id, nombre: request.catalogItem.nombre, codigo: request.catalogItem.codigo } : null, requester: request.requester ? { id: request.requester.id, nombre: request.requester.nombre } : null })),
     activeItemId,
     totals: {
       items: itemDtos.length,
@@ -479,17 +502,12 @@ export const listMyLaborWorkOrders = async (userId: number): Promise<MyLaborOrde
     throw ApiError.forbidden('No tienes acceso a la ficha de taller');
   }
 
-  const assignedItemOrders = await WorkOrderItem.findAll({
-    attributes: ['workOrderId'],
-    where: { assignedUserId: userId },
-    group: ['workOrderId'],
-    raw: true,
-  });
-  const orderIds = assignedItemOrders.map((item) => item.workOrderId);
+  await settleExpiredLaborSessions();
+  const orderIds = await getAssignedOrderIds(userId);
 
   const orders = await WorkOrder.findAll({
     where: {
-      [Op.or]: [{ assignedMechanicId: userId }, { id: { [Op.in]: orderIds } }],
+      id: { [Op.in]: orderIds },
       estado: { [Op.notIn]: ['entregada', 'cancelada'] },
     },
     include: [
@@ -563,22 +581,30 @@ export const startItemTimer = async (
   itemId: number,
   userId: number,
 ): Promise<WorkOrderWorksheet> => {
-  const pausedOtherItems = await sequelize.transaction(async (transaction) => {
+  await settleExpiredLaborSessions();
+  const pausedOtherItems = await withWorkshopTransaction(async (transaction) => {
+    await User.findByPk(userId, { transaction, lock: Transaction.LOCK.UPDATE });
     const { workOrder, role } = await getLaborContext(workOrderId, userId, transaction);
     assertEditable(workOrder);
     const item = await findItem(workOrderId, itemId, transaction, true);
-    assertItemAccess(item, workOrder, role, userId);
+    await assertItemAccess(item, workOrder, role, userId, transaction);
+    if (item.qualityStatus === 'aprobado') throw ApiError.badRequest('El servicio ya fue aprobado en calidad. El jefe debe reabrirlo para corregirlo');
 
     const openItemSession = await WorkOrderItemSession.findOne({
-      where: { workOrderItemId: item.id, status: 'abierta' },
+      where: { workOrderItemId: item.id, userId, status: 'abierta' },
       transaction,
       lock: Transaction.LOCK.UPDATE,
     });
     if (openItemSession) {
-      if (openItemSession.userId === userId) return 0;
-      throw ApiError.badRequest('Otro mecánico tiene este trabajo en curso');
+      return 0;
     }
 
+    const shift = await getWorkerShift(userId, new Date(), transaction);
+    if (shift.configured && (!shift.start || !shift.end || Date.now() < shift.start.getTime() || Date.now() >= shift.end.getTime())) {
+      throw ApiError.badRequest('Estás fuera de la jornada configurada. El jefe debe registrar el tiempo adicional con su motivo');
+    }
+    const assignment = await WorkOrderItemAssignment.findOne({ where: { workOrderItemId: item.id, userId, active: true }, transaction });
+    if (assignment?.completedAt) throw ApiError.badRequest('Tu parte de este servicio ya está terminada');
     let paused = 0;
     const otherSessions = await WorkOrderItemSession.findAll({
       where: { userId, status: 'abierta' },
@@ -599,6 +625,8 @@ export const startItemTimer = async (
         userId,
         userName: (await User.findByPk(userId, { attributes: ['nombre'], transaction }))?.nombre ?? null,
         kind: 'cronometro',
+        assignmentId: assignment?.id ?? null,
+        scheduledEndAt: shift.end,
         status: 'abierta',
         startedAt: new Date(),
         endedAt: null,
@@ -653,14 +681,14 @@ export const pauseItemTimer = async (
   itemId: number,
   userId: number,
 ): Promise<WorkOrderWorksheet> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     const { workOrder, role } = await getLaborContext(workOrderId, userId, transaction);
     assertEditable(workOrder);
     const item = await findItem(workOrderId, itemId, transaction, true);
-    assertItemAccess(item, workOrder, role, userId);
+    await assertItemAccess(item, workOrder, role, userId, transaction);
 
     const session = await WorkOrderItemSession.findOne({
-      where: { workOrderItemId: item.id, status: 'abierta' },
+      where: { workOrderItemId: item.id, status: 'abierta', ...(role === 'mecanico' ? { userId } : {}) },
       transaction,
       lock: Transaction.LOCK.UPDATE,
     });
@@ -682,11 +710,15 @@ export const completeItemTimer = async (
   userId: number,
   notasOperativas?: string | null,
 ): Promise<WorkOrderWorksheet> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     const { workOrder, role } = await getLaborContext(workOrderId, userId, transaction);
     assertEditable(workOrder);
     const item = await findItem(workOrderId, itemId, transaction, true);
-    assertItemAccess(item, workOrder, role, userId);
+    await assertItemAccess(item, workOrder, role, userId, transaction);
+    if (item.qualityStatus === 'aprobado') {
+      if (notasOperativas !== undefined && notasOperativas !== item.notasOperativas) throw ApiError.badRequest('El jefe debe reabrir el servicio aprobado antes de modificarlo');
+      return;
+    }
 
     if (!item.stockConsumido) {
       const pendingWarehouseDelivery = await WorkOrderRequest.findOne({
@@ -705,16 +737,18 @@ export const completeItemTimer = async (
       }
     }
 
-    const session = await WorkOrderItemSession.findOne({
-      where: { workOrderItemId: item.id, status: 'abierta' },
-      transaction,
-      lock: Transaction.LOCK.UPDATE,
+    const sessions = await WorkOrderItemSession.findAll({
+      where: { workOrderItemId: item.id, status: 'abierta', ...(role === 'mecanico' ? { userId } : {}) },
+      transaction, lock: Transaction.LOCK.UPDATE,
     });
-    if (session) {
-      if (session.userId !== null && session.userId !== userId && role === 'mecanico') {
-        throw ApiError.forbidden('Solo quien inició el cronómetro puede completarlo');
-      }
-      await closeSession(session, 'completado', transaction);
+    for (const open of sessions) await closeSession(open, 'completado', transaction);
+    const session = sessions[0] ?? null;
+    const team = await WorkOrderItemAssignment.findAll({ where: { workOrderItemId: item.id, active: true }, transaction, lock: Transaction.LOCK.UPDATE });
+    for (const member of team) if ((role !== 'mecanico' || member.userId === userId) && !member.completedAt) await member.update({ completedAt: new Date() }, { transaction });
+    const complete = team.length === 0 || team.every((member) => member.completedAt !== null);
+    if (!complete) {
+      await recalculateItemHours(item, transaction);
+      return;
     }
 
     const previousStatus = item.estadoOperativo;
@@ -729,6 +763,7 @@ export const completeItemTimer = async (
       },
       { transaction },
     );
+    await invalidateItemQuality(item, userId, 'Servicio terminado, pendiente de control de calidad', transaction);
     const horasReales = await recalculateItemHours(item, transaction);
     await consumeCompletedPartStock([item], transaction, {
       userId,
@@ -767,43 +802,14 @@ export const assignWorkOrderItem = async (
   assignedUserId: number | null,
   actorUserId: number,
 ): Promise<WorkOrderWorksheet> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     await assertSupervisor(actorUserId, transaction);
     const workOrder = await findWorkOrderForLabor(workOrderId, transaction);
     assertEditable(workOrder);
     const item = await findItem(workOrderId, itemId, transaction, true);
 
-    if (assignedUserId !== null) {
-      const assignee = await User.findOne({
-        where: { id: assignedUserId, activo: true },
-        include: [{ model: Role, as: 'role', attributes: ['nombre'], where: { nombre: 'mecanico' } }],
-        transaction,
-      });
-      if (!assignee) {
-        throw ApiError.badRequest('El responsable seleccionado no existe o no está activo');
-      }
-      if (assignee.id !== actorUserId) {
-        await notifyUsers(
-          [assignee.id],
-          {
-            tipo: 'mecanico_asignado',
-            titulo: `Te asignaron un trabajo en ${workOrder.codigo}`,
-            mensaje: `${item.descripcion} quedó a tu cargo en el taller.`,
-            href: `/work-orders/${workOrderId}/ficha`,
-            workOrderId,
-            actorId: actorUserId,
-          },
-          transaction,
-        );
-      }
-    }
-
-    if (item.assignedUserId !== assignedUserId) {
-      const sessions = await WorkOrderItemSession.findAll({ where: { workOrderItemId: item.id, status: 'abierta' }, transaction, lock: Transaction.LOCK.UPDATE });
-      for (const session of sessions) await closeSession(session, 'sistema', transaction);
-      if (sessions.length > 0) await recalculateItemHours(item, transaction);
-    }
-    await item.update({ assignedUserId }, { transaction });
+    await replaceItemTeam(workOrder, item, { members: assignedUserId === null ? [] : [{ userId: assignedUserId, estimatedHours: item.horasHombreEstimadas === null ? null : Number(item.horasHombreEstimadas) * Number(item.cantidad) }], motivo: 'Asignación del responsable del trabajo' }, actorUserId, transaction);
+    if (assignedUserId === null) await item.update({ teamManaged: false }, { transaction });
   });
 
   return getWorkOrderWorksheet(workOrderId, actorUserId);
@@ -814,13 +820,17 @@ export const updateItemEstimate = async (
   itemId: number,
   horasHombreEstimadas: number | null,
   actorUserId: number,
+  motivo?: string,
 ): Promise<WorkOrderWorksheet> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     await assertSupervisor(actorUserId, transaction);
     const workOrder = await findWorkOrderForLabor(workOrderId, transaction);
     assertEditable(workOrder);
     const item = await findItem(workOrderId, itemId, transaction, true);
+    if (item.teamManaged && await WorkOrderItemAssignment.count({ where: { workOrderItemId: item.id, active: true }, transaction })) throw ApiError.badRequest('Edita las horas estimadas de cada integrante en el equipo del servicio');
     const previous = item.horasHombreEstimadas;
+    if (previous !== null && Number(previous) !== horasHombreEstimadas && !motivo?.trim()) throw ApiError.badRequest("Indica el motivo del cambio del tiempo estimado");
+    await WorkOrderEvent.create({ workOrderId, actorUserId, tipo: "actualizacion", descripcion: "Tiempo estimado actualizado", metadata: { itemId, before: previous, after: horasHombreEstimadas, motivo: motivo ?? "Estimación inicial" } }, { transaction });
     await item.update({ horasHombreEstimadas }, { transaction });
 
     await recordItemProgressEvent(
@@ -858,7 +868,7 @@ export const adjustItemHours = async (
   motivo: string,
   actorUserId: number,
 ): Promise<WorkOrderWorksheet> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     await assertSupervisor(actorUserId, transaction);
     const workOrder = await findWorkOrderForLabor(workOrderId, transaction);
     assertEditable(workOrder);
@@ -869,13 +879,18 @@ export const adjustItemHours = async (
       );
     }
 
+    const team = await WorkOrderItemAssignment.findAll({ where: { workOrderItemId: item.id, active: true }, transaction });
+    if (team.length > 1) throw ApiError.badRequest('Selecciona al trabajador en Jornada y horas para registrar o corregir sus horas');
+    const workerId = team[0]?.userId ?? item.assignedUserId ?? workOrder.assignedMechanicId ?? actorUserId;
+    const sessions = await WorkOrderItemSession.findAll({ where: { workOrderItemId: item.id }, transaction });
+    if (sessions.reduce((sum, session) => sum + getSessionMinutes(session), 0) + minutos < 0) throw ApiError.badRequest('El ajuste no puede dejar horas negativas');
     const now = new Date();
     await WorkOrderItemSession.create(
       {
         workOrderId,
         workOrderItemId: item.id,
-        userId: actorUserId,
-        userName: (await User.findByPk(actorUserId, { attributes: ['nombre'], transaction }))?.nombre ?? null,
+        userId: workerId,
+        userName: (await User.findByPk(workerId, { attributes: ['nombre'], transaction }))?.nombre ?? null,
         kind: 'ajuste',
         status: 'cerrada',
         startedAt: now,
@@ -920,7 +935,7 @@ export const validateItemHours = async (
   comentario: string | null | undefined,
   actorUserId: number,
 ): Promise<WorkOrderWorksheet> => {
-  await sequelize.transaction(async (transaction) => {
+  await withWorkshopTransaction(async (transaction) => {
     await assertSupervisor(actorUserId, transaction);
     const item = await findItem(workOrderId, itemId, transaction, true);
     if (item.horasHombreReales === null) {
@@ -970,13 +985,13 @@ export const createObservation = async (
 
   const storedKeys: string[] = [];
   try {
-    await sequelize.transaction(async (transaction) => {
+    await withWorkshopTransaction(async (transaction) => {
       const { workOrder, role } = await getLaborContext(workOrderId, userId, transaction);
       assertEditable(workOrder);
 
       if (data.workOrderItemId !== undefined && data.workOrderItemId !== null) {
         const item = await findItem(workOrderId, data.workOrderItemId, transaction);
-        assertItemAccess(item, workOrder, role, userId);
+        await assertItemAccess(item, workOrder, role, userId, transaction);
       }
       if (data.progressReportId !== undefined && data.progressReportId !== null) {
         const report = await WorkOrderProgressReport.count({
@@ -1067,194 +1082,8 @@ export const getObservationFile = async (
   };
 };
 
-export interface PriceSuggestionPublic {
-  id: number;
-  workOrderId: number;
-  workOrderItemId: number | null;
-  itemDescripcion: string | null;
-  horasEstimadas: number | null;
-  horasReales: number | null;
-  precioActualOt: number | null;
-  precioActualCatalogo: number | null;
-  precioSugerido: number;
-  alcance: WorkOrderPriceSuggestionScope;
-  motivo: string;
-  estado: WorkOrderPriceSuggestionStatus;
-  createdByName: string | null;
-  reviewNote: string | null;
-  reviewedAt: Date | null;
-  createdAt: Date;
-}
-
-const toPriceSuggestionPublic = (
-  suggestion: WorkOrderPriceSuggestion,
-): PriceSuggestionPublic => ({
-  id: suggestion.id,
-  workOrderId: suggestion.workOrderId,
-  workOrderItemId: suggestion.workOrderItemId,
-  itemDescripcion: suggestion.item?.descripcion ?? null,
-  horasEstimadas:
-    suggestion.horasEstimadas === null ? null : toNumber(suggestion.horasEstimadas),
-  horasReales: suggestion.horasReales === null ? null : toNumber(suggestion.horasReales),
-  precioActualOt:
-    suggestion.precioActualOt === null ? null : toNumber(suggestion.precioActualOt),
-  precioActualCatalogo:
-    suggestion.precioActualCatalogo === null
-      ? null
-      : toNumber(suggestion.precioActualCatalogo),
-  precioSugerido: toNumber(suggestion.precioSugerido),
-  alcance: suggestion.alcance,
-  motivo: suggestion.motivo,
-  estado: suggestion.estado,
-  createdByName: suggestion.createdByName ?? suggestion.creator?.nombre ?? null,
-  reviewNote: suggestion.reviewNote,
-  reviewedAt: suggestion.reviewedAt,
-  createdAt: suggestion.createdAt,
-});
-
-export const listPriceSuggestions = async (
-  workOrderId: number,
-  userId: number,
-): Promise<PriceSuggestionPublic[]> => {
-  await assertSupervisor(userId);
-  const suggestions = await WorkOrderPriceSuggestion.findAll({
-    where: { workOrderId },
-    include: [
-      { model: WorkOrderItem, as: 'item', attributes: ['id', 'descripcion'] },
-      { model: User, as: 'creator', attributes: ['id', 'nombre'] },
-      { model: User, as: 'reviewer', attributes: ['id', 'nombre'] },
-    ],
-    order: [['createdAt', 'DESC']],
-  });
-  return suggestions.map(toPriceSuggestionPublic);
-};
-
-export const createPriceSuggestion = async (
-  workOrderId: number,
-  data: CreateWorkOrderPriceSuggestionInput,
-  userId: number,
-): Promise<PriceSuggestionPublic> => {
-  const created = await sequelize.transaction(async (transaction) => {
-    await assertSupervisor(userId, transaction);
-    const workOrder = await findWorkOrderForLabor(workOrderId, transaction);
-    assertEditable(workOrder);
-    const item = await findItem(workOrderId, data.workOrderItemId, transaction, true);
-    const catalogItem =
-      item.catalogItemId === null
-        ? null
-        : await CatalogItem.findByPk(item.catalogItemId, { transaction });
-    const creator = await User.findByPk(userId, { attributes: ['nombre'], transaction });
-
-    if (!WORK_ORDER_PRICE_SUGGESTION_SCOPES.includes(data.alcance)) {
-      throw ApiError.badRequest('Alcance de la sugerencia inválido');
-    }
-    if (data.alcance !== 'ot' && !catalogItem) {
-      throw ApiError.badRequest('El servicio no está vinculado a un item activo del catálogo');
-    }
-
-    return WorkOrderPriceSuggestion.create(
-      {
-        workOrderId,
-        workOrderItemId: item.id,
-        catalogItemId: item.catalogItemId,
-        createdBy: userId,
-        createdByName: creator?.nombre ?? null,
-        horasEstimadas:
-          item.horasHombreEstimadas === null
-            ? null
-            : roundHours(toNumber(item.horasHombreEstimadas) * toNumber(item.cantidad)),
-        horasReales:
-          item.horasHombreReales === null ? null : toNumber(item.horasHombreReales),
-        precioActualOt: toNumber(item.precioUnitario),
-        precioActualCatalogo: catalogItem ? toNumber(catalogItem.precio) : null,
-        precioSugerido: data.precioSugerido,
-        alcance: data.alcance,
-        motivo: data.motivo,
-        estado: 'pendiente',
-        reviewedBy: null,
-        reviewNote: null,
-        reviewedAt: null,
-      },
-      { transaction },
-    );
-  });
-
-  return toPriceSuggestionPublic(created);
-};
-
-export const reviewPriceSuggestion = async (
-  workOrderId: number,
-  suggestionId: number,
-  data: ReviewWorkOrderPriceSuggestionInput,
-  userId: number,
-): Promise<PriceSuggestionPublic> => {
-  const updated = await sequelize.transaction(async (transaction) => {
-    const role = await getActorRole(userId, transaction);
-    if (role !== 'admin' && role !== 'desarrollador') {
-      throw ApiError.forbidden('Solo administración puede aprobar sugerencias de precio');
-    }
-    const suggestion = await WorkOrderPriceSuggestion.findOne({
-      where: { id: suggestionId, workOrderId },
-      transaction,
-      lock: Transaction.LOCK.UPDATE,
-    });
-    if (!suggestion) {
-      throw ApiError.notFound('Sugerencia de precio no encontrada');
-    }
-    if (suggestion.estado !== 'pendiente') {
-      throw ApiError.badRequest('La sugerencia ya fue revisada');
-    }
-
-    if (data.decision === 'aprobar') {
-      const workOrder = await findWorkOrderForLabor(workOrderId, transaction);
-      assertEditable(workOrder);
-      const applyToOrder = suggestion.alcance === 'ot' || suggestion.alcance === 'ambos';
-      const applyToCatalog =
-        (suggestion.alcance === 'catalogo' || suggestion.alcance === 'ambos') &&
-        suggestion.catalogItemId !== null;
-
-      if (applyToOrder && suggestion.workOrderItemId !== null) {
-        const item = await WorkOrderItem.findOne({
-          where: { id: suggestion.workOrderItemId, workOrderId },
-          transaction,
-          lock: Transaction.LOCK.UPDATE,
-        });
-        if (item) {
-          const precio = toNumber(suggestion.precioSugerido);
-          await item.update(
-            { precioUnitario: precio, subtotal: roundHours(precio * toNumber(item.cantidad)) },
-            { transaction },
-          );
-        }
-      }
-      if (applyToCatalog && suggestion.catalogItemId !== null) {
-        const catalogItem = await CatalogItem.findByPk(suggestion.catalogItemId, { transaction });
-        if (catalogItem) {
-          await catalogItem.update(
-            { precio: toNumber(suggestion.precioSugerido) },
-            { transaction },
-          );
-        }
-      }
-
-      await syncMirrorQuotationFromWorkOrder(workOrderId, transaction);
-    }
-
-    await suggestion.update(
-      {
-        estado: data.decision === 'aprobar' ? 'aprobada' : 'rechazada',
-        reviewedBy: userId,
-        reviewNote: data.comentario ?? null,
-        reviewedAt: new Date(),
-      },
-      { transaction },
-    );
-
-    return suggestion;
-  });
-
-  return toPriceSuggestionPublic(updated);
-};
+export { listPriceSuggestions, createPriceSuggestion, reviewPriceSuggestion } from './work-order-commercial.service.js';
+export type { PriceSuggestionPublic } from './work-order-commercial.service.js';
 
 export interface DailyReportUser {
   id: number;
@@ -1446,4 +1275,15 @@ export const getWorkshopDailyReport = async (
     usuarios: [...reportUsers.values()],
     ordenes: orderReports,
   };
+};
+
+export const assignWorkOrderTeam = async (workOrderId: number, itemId: number, data: import('@unithor/shared').AssignWorkOrderTeamInput, actorUserId: number): Promise<WorkOrderWorksheet> => {
+  await withWorkshopTransaction(async (transaction) => {
+    await assertSupervisor(actorUserId, transaction);
+    const workOrder = await findWorkOrderForLabor(workOrderId, transaction);
+    const item = await findItem(workOrderId, itemId, transaction, true);
+    await replaceItemTeam(workOrder, item, data, actorUserId, transaction);
+    await syncMirrorQuotationFromWorkOrder(workOrderId, transaction, true);
+  });
+  return getWorkOrderWorksheet(workOrderId, actorUserId);
 };

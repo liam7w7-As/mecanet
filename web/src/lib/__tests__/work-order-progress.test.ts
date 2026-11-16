@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { getCardColourTier, getElapsedInfo, getWorkOrderProgress } from '../work-order-progress';
+import { getCardColourTier, getElapsedInfo, getWorkOrderProgress, PROGRESS_TIER_STYLES } from '../work-order-progress';
 
 import type { WorkOrder, WorkOrderItem } from '../../types/entities';
 import type { ItemOperationalStatus } from '@unithor/shared';
@@ -48,23 +48,24 @@ describe('getCardColourTier', () => {
     }
   });
 
-  it('muestra verde oscuro al completar todos los trabajos aunque siga iniciada y antigua', () => {
+  it('muestra revisión de calidad al completar los trabajos, incluso en una OT antigua', () => {
     expect(getCardColourTier({
       ...recentOrder,
       fechaIngreso: '2026-09-01T12:00:00.000Z',
       updatedAt: '2026-09-01T12:00:00.000Z',
       items: [item('completado', 1), item('completado', 2)],
-    }, now)).toBe('done');
+    }, now)).toBe('review');
   });
 
   it('conserva los estados terminales por encima del avance del checklist', () => {
     expect(getCardColourTier({ ...recentOrder, estado: 'cancelada', items: [item('completado', 1)] }, now)).toBe('cancelled');
     expect(getCardColourTier({ ...recentOrder, estado: 'entregada', items: [item('completado', 1)] }, now)).toBe('delivered');
-    expect(getCardColourTier({ ...recentOrder, estado: 'finalizada' }, now)).toBe('done');
+    expect(getCardColourTier({ ...recentOrder, estado: 'finalizada' }, now)).toBe('review');
+    expect(getCardColourTier({ ...recentOrder, estado: 'finalizada', qualityApprovedAt: '2026-11-05T10:00:00.000Z' }, now)).toBe('done');
   });
 
   it('los omitidos no penalizan el avance, pero omitir todas las tareas no equivale a completarlas', () => {
-    expect(getCardColourTier({ ...recentOrder, items: [item('completado', 1), item('omitido', 2)] }, now)).toBe('done');
+    expect(getCardColourTier({ ...recentOrder, items: [item('completado', 1), item('omitido', 2)] }, now)).toBe('review');
     expect(getCardColourTier({ ...recentOrder, items: [item('omitido', 1)] }, now)).toBe('active');
   });
 
@@ -74,9 +75,19 @@ describe('getCardColourTier', () => {
     expect(getCardColourTier({ ...recentOrder, items }, now)).toBe('active');
   });
 
-  it('mantiene la espera amarilla mientras tenga trabajos pendientes', () => {
+  it('prioriza la espera amarilla incluso con todos los trabajos completados y pendientes de calidad', () => {
     expect(getCardColourTier({ ...recentOrder, estado: 'esperando_repuesto', items: [item('pendiente', 1)] }, now)).toBe('waiting');
-    expect(getCardColourTier({ ...recentOrder, estado: 'esperando_repuesto', items: [item('completado', 1)] }, now)).toBe('done');
+    expect(getCardColourTier({ ...recentOrder, estado: 'esperando_repuesto', items: [item('completado', 1)] }, now)).toBe('waiting');
+  });
+
+  it('reserva el verde oscuro para finalizada con aprobación general explícita', () => {
+    for (const qualityApprovedAt of [undefined, null]) {
+      expect(getCardColourTier({ ...recentOrder, estado: 'finalizada', qualityApprovedAt }, now)).toBe('review');
+      expect(getCardColourTier({ ...recentOrder, qualityApprovedAt, items: [item('completado', 1)] }, now)).toBe('review');
+    }
+    expect(getCardColourTier({ ...recentOrder, qualityApprovedAt: '2026-11-05T10:00:00.000Z', items: [item('completado', 1)] }, now)).toBe('review');
+    expect(getCardColourTier({ ...recentOrder, estado: 'cancelada', qualityApprovedAt: '2026-11-05T10:00:00.000Z' }, now)).toBe('cancelled');
+    expect(getCardColourTier({ ...recentOrder, estado: 'entregada', qualityApprovedAt: '2026-11-05T10:00:00.000Z' }, now)).toBe('delivered');
   });
 
   it('conserva las alertas por antigüedad y la gracia de actividad reciente en órdenes incompletas', () => {
@@ -127,6 +138,22 @@ describe('getWorkOrderProgress', () => {
       estado: 'en_progreso',
       items: [item('completado', 1), item('omitido', 2)],
     } as Pick<WorkOrder, 'estado' | 'items'>);
+    expect(progress.percent).toBe(100);
+    expect(progress.tier).toBe('review');
+  });
+
+  it('no inventa aprobación general en órdenes antiguas o con servicios individualmente aprobados', () => {
+    for (const qualityApprovedAt of [undefined, null]) {
+      const approvedItem = { ...item('completado', 1), qualityStatus: 'aprobado' as const };
+      const progress = getWorkOrderProgress({ estado: 'finalizada', qualityApprovedAt, items: [approvedItem] });
+      expect(progress.percent).toBe(100);
+      expect(progress.tier).toBe('review');
+      expect(PROGRESS_TIER_STYLES[progress.tier].label).toBe('Pendiente de calidad');
+    }
+  });
+
+  it('muestra finalizado al completar todos los trabajos con aprobación general', () => {
+    const progress = getWorkOrderProgress({ estado: 'finalizada', qualityApprovedAt: '2026-11-05T10:00:00.000Z', items: [item('completado', 1)] });
     expect(progress.percent).toBe(100);
     expect(progress.tier).toBe('done');
   });

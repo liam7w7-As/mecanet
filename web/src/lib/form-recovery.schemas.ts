@@ -40,6 +40,7 @@ const item = z.object({
   estadoOperativo: z.enum(ITEM_OPERATIONAL_STATUS),
   notasOperativas: z.string(),
   assignedUserId: z.number().int().positive().nullable().optional(),
+  teamMembers: z.array(z.object({ userId: z.number().int().nonnegative(), specialtyId: z.number().nullable().optional(), estimatedHours: z.number().nullable() })).optional(),
   descuentoTipo: z.enum(['porcentaje', 'fijo']).nullable().optional(),
   descuentoValor: z.string().optional(),
 });

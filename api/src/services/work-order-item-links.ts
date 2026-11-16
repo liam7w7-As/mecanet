@@ -2,10 +2,13 @@ import { Transaction } from 'sequelize';
 
 import { QuotationItem } from '../models/QuotationItem.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
+import { WorkOrderItemAssignment } from '../models/WorkOrderItemAssignment.js';
 import { WorkOrderItemProgressEvent } from '../models/WorkOrderItemProgressEvent.js';
 import { WorkOrderItemSession } from '../models/WorkOrderItemSession.js';
 import { WorkOrderObservation } from '../models/WorkOrderObservation.js';
 import { WorkOrderPriceSuggestion } from '../models/WorkOrderPriceSuggestion.js';
+import { WorkOrderQualityReview } from '../models/WorkOrderQualityReview.js';
+import { WorkshopTimeRequest } from '../models/WorkshopTimeRequest.js';
 import { ApiError } from '../utils/ApiError.js';
 
 interface ItemIdentity {
@@ -76,6 +79,9 @@ export const assertWorkItemsRemovable = async (
   for (const item of items) {
     const where = { workOrderItemId: item.id };
     const counts = await Promise.all([
+      WorkOrderQualityReview.count({ where, transaction }),
+      WorkOrderItemAssignment.count({ where, transaction }),
+      WorkshopTimeRequest.count({ where, transaction }),
       WorkOrderItemSession.count({ where, transaction }),
       WorkOrderItemProgressEvent.count({ where, transaction }),
       WorkOrderObservation.count({ where, transaction }),

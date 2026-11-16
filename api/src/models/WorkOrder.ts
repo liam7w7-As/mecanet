@@ -52,13 +52,15 @@ export class WorkOrder extends Model<
   @Column(DataType.INTEGER)
   declare id: CreationOptional<number>;
 
-  @Index
+  @Index({ name: 'work_orders_codigo_unique', unique: true })
   @Column({
     type: DataType.STRING(30),
     allowNull: false,
-    unique: true,
   })
   declare codigo: string;
+
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
+  declare priceApprovalRequired: CreationOptional<boolean>;
 
   @Column({
     type: DataType.ENUM(...WORK_ORDER_ENTRY_TYPES),
@@ -204,6 +206,16 @@ export class WorkOrder extends Model<
   @ForeignKey(() => User)
   @Column({ type: DataType.INTEGER, allowNull: true })
   declare assignedMechanicId: number | null;
+
+  @ForeignKey(() => User)
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare qualityApprovedBy: CreationOptional<number | null>;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare qualityApprovedAt: CreationOptional<Date | null>;
+
+  @Column({ type: DataType.TEXT, allowNull: true })
+  declare qualityApprovalNote: CreationOptional<string | null>;
 
   @Column(DataType.DATE)
   declare createdAt: CreationOptional<Date>;

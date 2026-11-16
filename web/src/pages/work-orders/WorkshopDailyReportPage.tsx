@@ -32,6 +32,7 @@ export const WorkshopDailyReportPage = () => {
     <header className="page-banner">
       <div><div className="dashboard-heading"><h1>Reporte diario de horas</h1><BrandLogo className="dashboard-heading-logo" /></div><p className="mt-1 text-sm text-brand-muted">Actividad del equipo y avances del taller</p></div>
       <div className="workshop-report-tools">
+        <Link className="secondary-button" to={`/reports?section=workshop-cost&from=${fecha}&to=${fecha}`}>Costos y horas</Link>
         <DatePicker label="Fecha del reporte" value={fecha} onChange={setFecha} allowClear={false} />
         <ListExportButtons
           target="workshop-daily"

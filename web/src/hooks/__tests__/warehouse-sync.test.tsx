@@ -9,7 +9,7 @@ import { useWorkOrderWorksheet } from '../useWorkOrderLabor';
 import type { WorkOrderWorksheet, WorkOrderWorksheetItem } from '../../types/entities';
 import type { ReactNode } from 'react';
 
-vi.mock('../../lib/api', () => ({ api: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('../../lib/api', () => ({ api: { get: vi.fn(), post: vi.fn() }, setSessionExpiredHandler: vi.fn() }));
 
 const worksheet = (awaitingWarehouseDelivery: boolean): WorkOrderWorksheet => {
   const item: WorkOrderWorksheetItem = {

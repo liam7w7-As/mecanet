@@ -66,7 +66,8 @@
   max-width: 948px;
   max-height: calc(100dvh - 40px);
   padding: 16px 16px 0;
-  overflow: hidden;
+  /* Only the body scrolls; focusing a lower control must not move the header. */
+  overflow: clip;
   border: 0;
   border-radius: 24px;
   box-shadow: 0 24px 80px #15294038;
@@ -276,4 +277,13 @@
   .workshop-price-comparison strong { font-size: 12px; }
   .workshop-price-form { padding: 12px; }
   .workshop-price-submit > button { width: 100%; min-height: 44px; }
+}
+
+/* One scroll region for the daily journal; narrower than the workshop detail. */
+.reference-dialog.workshop-operations-dialog { width: min(100%, 1100px); max-width: 1100px; max-height: 92dvh; }
+.workshop-operations-dialog > .ui-modal-header { padding: 20px 24px; }
+.workshop-operations-dialog .workshop-labor-detail-body { min-width: 0; }
+@media (max-width: 640px) {
+  .reference-dialog.workshop-operations-dialog { max-height: 94dvh; }
+  .workshop-operations-dialog input, .workshop-operations-dialog select, .workshop-operations-dialog textarea { font-size: 16px; }
 }

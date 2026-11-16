@@ -10,9 +10,9 @@ import type { WorkOrderStatus } from '@unithor/shared';
  * Priority (highest first):
  *  cancelada       → 'cancelled'   (grey)
  *  entregada       → 'delivered'   (dark-grey / black)
- *  finalizada      → 'done'        (dark green)
- *  all measurable tasks completed → 'done' (dark green, even before finalizing)
+ *  finalizada + qualityApprovedAt → 'done' (dark green)
  *  esperando_repuesto → 'waiting'  (pulsing lemon yellow)
+ *  finalizada without quality, or all measurable tasks completed → 'review'
  *  active > 30 d, real work < 48 h ago → 'warning' (static yellow)
  *  active > 30 d                  → 'danger'   (red)
  *  active > 20 d                  → 'warning'  (static yellow)
@@ -21,6 +21,7 @@ import type { WorkOrderStatus } from '@unithor/shared';
  */
 export type CardColourTier =
   | 'done'
+  | 'review'
   | 'active'
   | 'warning'
   | 'danger'
@@ -32,18 +33,18 @@ export type CardColourTier =
 const MS_PER_DAY = 86_400_000;
 
 export const getCardColourTier = (
-  workOrder: Pick<WorkOrder, 'estado' | 'fechaIngreso' | 'updatedAt' | 'items' | 'lastWorkActivityAt'>,
+  workOrder: Pick<WorkOrder, 'estado' | 'fechaIngreso' | 'updatedAt' | 'items' | 'lastWorkActivityAt'> & { qualityApprovedAt?: string | null },
   now: number,
 ): CardColourTier => {
   const { estado, fechaIngreso, lastWorkActivityAt } = workOrder;
 
   if (estado === 'cancelada') return 'cancelled';
   if (estado === 'entregada') return 'delivered';
-  if (estado === 'finalizada') return 'done';
+  if (estado === 'finalizada' && workOrder.qualityApprovedAt) return 'done';
   const progress = getWorkOrderProgress(workOrder);
-  // Compare counts: rounding 199/200 to 100% must not mark unfinished work done.
-  if (progress.total > 0 && progress.completed === progress.total) return 'done';
   if (estado === 'esperando_repuesto') return 'waiting';
+  // A completed checklist still needs explicit quality confirmation.
+  if (estado === 'finalizada' || (progress.total > 0 && progress.completed === progress.total)) return 'review';
 
   // For active orders (en_progreso) calculate elapsed days
   const start = fechaIngreso ? new Date(fechaIngreso).getTime() : null;
@@ -63,7 +64,7 @@ export const getCardColourTier = (
   return 'active';
 };
 
-export type ProgressTier = 'done' | 'good' | 'mid' | 'low' | 'none' | 'neutral';
+export type ProgressTier = 'done' | 'review' | 'good' | 'mid' | 'low' | 'none' | 'neutral';
 
 export interface WorkOrderProgress {
   total: number;
@@ -82,7 +83,7 @@ const isTerminalStatus = (estado: WorkOrderStatus): boolean =>
  * Progreso por tareas: los omitidos no penalizan (se excluyen del total).
  * Sin tareas medibles -> tier neutral (diagnóstico, sin color de avance).
  */
-export const getWorkOrderProgress = (workOrder: Pick<WorkOrder, 'estado' | 'items'>): WorkOrderProgress => {
+export const getWorkOrderProgress = (workOrder: Pick<WorkOrder, 'estado' | 'items'> & { qualityApprovedAt?: string | null }): WorkOrderProgress => {
   const items: WorkOrderItem[] = workOrder.items ?? [];
   const omitted = items.filter((item) => item.estadoOperativo === 'omitido').length;
   const measurable = items.filter((item) => item.estadoOperativo !== 'omitido');
@@ -99,7 +100,7 @@ export const getWorkOrderProgress = (workOrder: Pick<WorkOrder, 'estado' | 'item
   } else if (total === 0) {
     tier = 'neutral';
   } else if (percent >= 100) {
-    tier = 'done';
+    tier = workOrder.qualityApprovedAt ? 'done' : 'review';
   } else if (percent >= 70) {
     tier = 'good';
   } else if (percent >= 30) {
@@ -115,6 +116,7 @@ export const getWorkOrderProgress = (workOrder: Pick<WorkOrder, 'estado' | 'item
 
 export const PROGRESS_TIER_STYLES: Record<ProgressTier, { bar: string; ring: string; chip: string; label: string }> = {
   done: { bar: 'bg-brand-mint', ring: 'ring-brand-mint border-brand-line', chip: 'bg-brand-mintPale text-brand-mintInk', label: 'Finalizado' },
+  review: { bar: 'bg-indigo-300', ring: 'ring-indigo-200 border-indigo-200', chip: 'bg-indigo-50 text-indigo-700', label: 'Pendiente de calidad' },
   good: { bar: 'bg-lime-500', ring: 'ring-lime-200 border-lime-200', chip: 'bg-lime-100 text-lime-800', label: 'Buen avance' },
   mid: { bar: 'bg-brand-gold', ring: 'ring-brand-line border-brand-line', chip: 'bg-brand-goldPale text-brand-goldInk', label: 'Avance medio' },
   low: { bar: 'bg-brand-coral', ring: 'ring-brand-line border-brand-coral/30', chip: 'bg-brand-coralPale text-brand-coralInk', label: 'Poco avance' },

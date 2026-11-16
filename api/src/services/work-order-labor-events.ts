@@ -1,3 +1,5 @@
+import { invalidateItemQuality } from './work-order-quality-state.js';
+import { WorkOrderItemAssignment } from '../models/WorkOrderItemAssignment.js';
 import { WorkOrderItemProgressEvent } from '../models/WorkOrderItemProgressEvent.js';
 
 import type { WorkOrderItem } from '../models/WorkOrderItem.js';
@@ -71,6 +73,8 @@ export const recordChecklistStatusChange = async (
   transaction: Transaction,
 ): Promise<void> => {
   if (previousStatus === item.estadoOperativo) return;
+  await invalidateItemQuality(item, userId, 'Ejecución del servicio modificada', transaction);
+  await synchronizeTeamCompletion(item, previousStatus, transaction);
   await recordItemProgressEvent({
     workOrderId: item.workOrderId,
     workOrderItemId: item.id,
@@ -83,4 +87,16 @@ export const recordChecklistStatusChange = async (
     horasReales: item.horasHombreReales === null ? null : Number(item.horasHombreReales),
     source: item.estadoOperativo === 'completado' || (previousStatus === 'pendiente' && item.estadoOperativo === 'en_proceso') ? 'check' : 'reverso',
   }, transaction);
+};
+
+/** Direct chief actions and mirrored checklist edits must resolve/reopen the same team. */
+export const synchronizeTeamCompletion = async (item: WorkOrderItem, previousStatus: ItemOperationalStatus, transaction: Transaction): Promise<void> => {
+  if (previousStatus === item.estadoOperativo) return;
+  if (item.teamManaged) {
+    if (item.estadoOperativo === 'completado' || item.estadoOperativo === 'omitido') {
+      await WorkOrderItemAssignment.update({ completedAt: new Date() }, { where: { workOrderItemId: item.id, active: true, completedAt: null }, transaction });
+    } else if (previousStatus === 'completado' || previousStatus === 'omitido') {
+      await WorkOrderItemAssignment.update({ completedAt: null }, { where: { workOrderItemId: item.id, active: true }, transaction });
+    }
+  }
 };

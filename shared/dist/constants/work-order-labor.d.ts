@@ -1,4 +1,4 @@
-export declare const WORK_ORDER_LABOR_SESSION_KINDS: readonly ["cronometro", "ajuste"];
+export declare const WORK_ORDER_LABOR_SESSION_KINDS: readonly ["cronometro", "ajuste", "manual"];
 export type WorkOrderLaborSessionKind = (typeof WORK_ORDER_LABOR_SESSION_KINDS)[number];
 export declare const WORK_ORDER_LABOR_SESSION_STATUS: readonly ["abierta", "cerrada"];
 export type WorkOrderLaborSessionStatus = (typeof WORK_ORDER_LABOR_SESSION_STATUS)[number];

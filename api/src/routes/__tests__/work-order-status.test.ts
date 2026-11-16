@@ -278,7 +278,7 @@ describe('Work Order State Machine Routes (E2E)', () => {
     expect(resumeResponse.body.workOrder.estado).toBe('en_progreso');
   });
 
-  it('rechaza marcar finalizada con trabajos pendientes y la permite al completarlos', async () => {
+  it('exige ejecución completa, aprobación individual y confirmación final de calidad', async () => {
     const devCookies = await loginAs('dev@unithor.local');
     const workOrder = await createWorkOrder(11, 'en_progreso');
     const item = await WorkOrderItem.create({
@@ -299,10 +299,12 @@ describe('Work Order State Machine Routes (E2E)', () => {
       .send({ nuevoEstado: 'finalizada' });
     expect(blockedResponse.status).toBe(400);
     expect(blockedResponse.body.error.message).toBe(
-      'Todos los trabajos y repuestos deben estar completados u omitidos antes de marcar la orden como finalizada',
+      'Todos los trabajos y repuestos deben estar completados u omitidos antes de confirmar la calidad',
     );
 
     await item.update({ estadoOperativo: 'completado' });
+    expect((await request(app).patch(`/api/work-orders/${workOrder.id}/status`).set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken).send({ nuevoEstado: 'finalizada' })).status).toBe(400);
+    expect((await request(app).post(`/api/work-orders/${workOrder.id}/items/${item.id}/quality`).set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken).send({ decision: 'aprobar' })).status).toBe(200);
     const okResponse = await request(app)
       .patch(`/api/work-orders/${workOrder.id}/status`)
       .set('Cookie', authCookie(devCookies))
@@ -315,6 +317,7 @@ describe('Work Order State Machine Routes (E2E)', () => {
   it('exige el flujo de cierre para finalizada -> entregada y registra el acta', async () => {
     const devCookies = await loginAs('dev@unithor.local');
     const workOrder = await createWorkOrder(3, 'finalizada');
+    expect((await request(app).post(`/api/work-orders/${workOrder.id}/quality/confirm`).set('Cookie', authCookie(devCookies)).set('X-CSRF-Token', devCookies.csrfToken).send({})).status).toBe(200);
 
     const directResponse = await request(app)
       .patch(`/api/work-orders/${workOrder.id}/status`)
@@ -357,9 +360,10 @@ describe('Work Order State Machine Routes (E2E)', () => {
     const stored = await WorkOrder.findByPk(workOrder.id);
     expect(stored?.fechaEntrega).not.toBeNull();
     expect(await WorkOrderDelivery.count({ where: { workOrderId: workOrder.id } })).toBe(1);
-    expect(response.body.workOrder.events).toEqual([
+    expect(response.body.workOrder.events).toEqual(expect.arrayContaining([
       expect.objectContaining({ tipo: 'entrega', descripcion: 'Vehículo entregado a Cliente de Prueba' }),
-    ]);
+      expect.objectContaining({ descripcion: 'Control de calidad final aprobado' }),
+    ]));
   });
 
   it('rechaza transición inválida en_progreso -> entregada', async () => {

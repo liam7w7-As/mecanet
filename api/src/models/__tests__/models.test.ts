@@ -101,10 +101,11 @@ describe('Sequelize Models & Database Integration (unithor_test)', () => {
     await Role.destroy({ where: {}, force: true });
   });
 
-  it('verifica que los 39 modelos se registran correctamente en la instancia Sequelize', () => {
-    expect(models.length).toBe(39);
+  it('registra todos los modelos operativos y de personal en la instancia Sequelize', () => {
+    expect(Object.keys(testSequelize.models)).toHaveLength(models.length);
 
     const registeredModelNames = Object.keys(testSequelize.models);
+    for (const name of ['Specialty', 'SpecialtyRate', 'WorkerSpecialty', 'WorkshopSchedule', 'WorkshopScheduleException', 'WorkshopTimeRequest', 'WorkOrderItemAssignment']) expect(registeredModelNames).toContain(name);
     expect(registeredModelNames).toContain('Role');
     expect(registeredModelNames).toContain('Permission');
     expect(registeredModelNames).toContain('RolePermission');

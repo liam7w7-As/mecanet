@@ -18,6 +18,12 @@ import { up as ensureCustomerEmails } from './database/migrations/044-create-cus
 import { up as ensureFleetRetirement } from './database/migrations/045-fleet-retirement-and-private-owner.js';
 import { up as ensureUserSalesAccessAll } from './database/migrations/048-add-user-sales-access-all.js';
 import { up as ensureVehiclePhotos } from './database/migrations/049-add-vehicle-photo.js';
+import { up as ensureWorkshopPersonnel } from './database/migrations/050-workshop-personnel.js';
+import { up as ensureWorkshopTime } from './database/migrations/051-workshop-time-requests.js';
+import { up as ensureWorkOrderTeams } from './database/migrations/052-work-order-teams.js';
+import { up as ensureWorkOrderQuality } from './database/migrations/053-work-order-quality.js';
+import { up as ensureWorkOrderCommercialControl } from './database/migrations/054-work-order-commercial-control.js';
+import { up as ensureWorkshopAlertSettings } from './database/migrations/055-workshop-alert-settings.js';
 import { csrfProtection } from './middlewares/csrf-protection.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
@@ -25,6 +31,7 @@ import { requestIdMiddleware } from './middlewares/request-id.js';
 import { apiRouter } from './routes/index.js';
 import { startCustomerEmailWorker } from './services/customer-email-worker.service.js';
 import { initializeFileStorage } from './services/file-storage.service.js';
+import { startWorkshopShiftWorker } from './services/workshop-shift-worker.service.js';
 import { logger } from './utils/logger.js';
 
 import type { Logger } from 'pino';
@@ -184,6 +191,12 @@ if (env.NODE_ENV !== 'test') {
       await ensureWorkOrderLabor(sequelize.getQueryInterface());
       await ensureQuotationWorkItemLinks(sequelize.getQueryInterface());
   await ensureCustomerEmails(sequelize.getQueryInterface());
+      await ensureWorkshopPersonnel(sequelize.getQueryInterface());
+      await ensureWorkshopTime(sequelize.getQueryInterface());
+      await ensureWorkOrderTeams(sequelize.getQueryInterface());
+      await ensureWorkOrderQuality(sequelize.getQueryInterface());
+      await ensureWorkOrderCommercialControl(sequelize.getQueryInterface());
+  await ensureWorkshopAlertSettings(sequelize.getQueryInterface());
       try {
         await sequelize.sync({ alter: true });
         logger.info('Modelos sincronizados con la base de datos (alter: true).');
@@ -192,6 +205,11 @@ if (env.NODE_ENV !== 'test') {
         await sequelize.sync({ alter: false });
       }
       await ensureDatabaseBootstrapped();
+      // sync alter cannot model a generated uniqueness column; restore that invariant.
+      await ensureWorkshopPersonnel(sequelize.getQueryInterface());
+      const stopShiftWorker = startWorkshopShiftWorker();
+      process.once('SIGTERM', stopShiftWorker);
+      process.once('SIGINT', stopShiftWorker);
       const stopEmailWorker = startCustomerEmailWorker();
       process.once('SIGTERM', stopEmailWorker);
       process.once('SIGINT', stopEmailWorker);

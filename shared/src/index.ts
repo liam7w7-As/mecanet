@@ -28,3 +28,12 @@ export * from './utils/rut.js';
 export * from './utils/fleet-expiry.js';
 export * from './utils/fleet-documents.js';
 export * from './utils/purchase-pricing.js';
+
+export * from './schemas/workshop-personnel.schema.js';
+export * from './schemas/workshop-time.schema.js';
+
+export * from './schemas/work-order-quality.schema.js';
+export * from './schemas/work-order-commercial.schema.js';
+export * from './schemas/workshop-cost-report.schema.js';
+export * from './schemas/workshop-history.schema.js';
+export * from './schemas/workshop-alert.schema.js';

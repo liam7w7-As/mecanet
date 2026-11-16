@@ -1,4 +1,4 @@
-export const WORK_ORDER_LABOR_SESSION_KINDS = ['cronometro', 'ajuste'] as const;
+export const WORK_ORDER_LABOR_SESSION_KINDS = ['cronometro', 'ajuste', 'manual'] as const;
 export type WorkOrderLaborSessionKind = (typeof WORK_ORDER_LABOR_SESSION_KINDS)[number];
 
 export const WORK_ORDER_LABOR_SESSION_STATUS = ['abierta', 'cerrada'] as const;

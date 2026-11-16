@@ -90,6 +90,14 @@ export const workOrderItemInputSchema = z.object({
   notasOperativas: optionalText(1000),
 });
 
+export const workOrderTeamMemberSchema = z.object({
+  userId: z.number().int().positive(),
+  specialtyId: z.number().int().positive().nullable().optional(),
+  estimatedHours: z.number().min(0).max(9999).nullable(),
+}).strict();
+export const workOrderTeamMembersSchema = z.array(workOrderTeamMemberSchema).max(30)
+  .refine((members) => new Set(members.map((m) => m.userId)).size === members.length, 'No se puede repetir un trabajador');
+
 export const createWorkOrderSchema = z.object({
   ...discountFields,
   emailPhotoSlots: z.array(z.enum(WORK_ORDER_INSPECTION_PHOTO_SLOTS)).max(9).refine((slots) => new Set(slots).size === slots.length, 'No se pueden repetir fotos').optional(),
@@ -111,7 +119,7 @@ export const createWorkOrderSchema = z.object({
     .datetime({ message: 'fechaEntrega debe ser una fecha ISO 8601 válida' })
     .nullable()
     .optional(),
-  items: z.array(workOrderItemInputSchema.extend({ assignedUserId: nullablePositiveId })).default([]),
+  items: z.array(workOrderItemInputSchema.extend({ assignedUserId: nullablePositiveId, teamMembers: workOrderTeamMembersSchema.optional() })).default([]),
   inspection: workOrderInspectionSchema.optional(),
 });
 
@@ -249,8 +257,15 @@ export const assignWorkOrderItemSchema = z.object({
   assignedUserId: z.coerce.number().int().positive().nullable(),
 });
 
+export const assignWorkOrderTeamSchema = z.object({
+  members: workOrderTeamMembersSchema,
+  motivo: z.string().trim().min(2, 'Indica el motivo de la asignación o cambio').max(1000),
+}).strict();
+export type AssignWorkOrderTeamInput = z.infer<typeof assignWorkOrderTeamSchema>;
+
 export const updateWorkOrderItemEstimateSchema = z.object({
   horasHombreEstimadas: optionalHoursSchema,
+  motivo: z.string().trim().min(2).max(1000).optional(),
 });
 
 export const completeWorkOrderItemSchema = z.object({

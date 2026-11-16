@@ -14,7 +14,10 @@ import { getInspectionPhoto } from './work-order-inspection-photo.service.js';
 import { assertWorkItemsRemovable, ensureQuotationItemLinks, itemIdentity } from './work-order-item-links.js';
 import { recordChecklistStatusChange } from './work-order-labor-events.js';
 import { closeWorkOrderTimers } from './work-order-labor-sessions.js';
+import { assertChiefPriceEditsAllowed } from './work-order-price-policy.js';
+import { invalidateItemQuality, revokeFinalQuality } from './work-order-quality-state.js';
 import { createWorkOrderInTransaction, getWorkOrderById, type WorkOrderPublic } from './work-order.service.js';
+import { withWorkshopTransaction } from './workshop-transaction.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -507,6 +510,7 @@ const syncLinkedWorkOrderFromQuotation = async (
   await assertWorkItemsRemovable(removed, transaction);
   await restoreConsumedWorkOrderStock(existingItems, transaction, userId, workOrder.codigo);
   if (removed.length > 0) {
+    await revokeFinalQuality(workOrder.id, userId, 'Servicios retirados desde la cotización', transaction);
     await WorkOrderItem.destroy({ where: { id: removed.map((item) => item.id) }, transaction });
   }
   const persisted: WorkOrderItem[] = [];
@@ -520,6 +524,8 @@ const syncLinkedWorkOrderFromQuotation = async (
         await assertWorkItemsRemovable([existing], transaction);
       }
       const previousStatus = existing.estadoOperativo;
+      const technicalChanged = existing.descripcion !== payload.descripcion || Number(existing.cantidad) !== Number(payload.cantidad) || existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea || existing.unidadMedida !== payload.unidadMedida || existing.notasOperativas !== payload.notasOperativas;
+      if (technicalChanged) await invalidateItemQuality(existing, userId, 'Contenido del servicio actualizado desde la cotización', transaction);
       await existing.update({ ...payload, stockConsumidoWarehouseId: null }, { transaction });
       await recordChecklistStatusChange(existing, previousStatus, userId, transaction);
       if (existing.estadoOperativo === 'completado' || existing.estadoOperativo === 'omitido') {
@@ -527,6 +533,7 @@ const syncLinkedWorkOrderFromQuotation = async (
       }
       persisted.push(existing);
     } else {
+      await revokeFinalQuality(workOrder.id, userId, 'Se agregaron trabajos desde la cotización', transaction);
       const created = await WorkOrderItem.create(payload, { transaction });
       await line.update({ workOrderItemId: created.id }, { transaction });
       persisted.push(created);
@@ -857,7 +864,7 @@ export const updateQuotation = async (
   data: UpdateQuotationInput,
   userId: number,
 ): Promise<QuotationPublic> => {
-  const quotationId = await sequelize.transaction(async (transaction) => {
+  const quotationId = await withWorkshopTransaction(async (transaction) => {
     const quotation = await Quotation.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
     if (!quotation) {
       throw ApiError.notFound('Cotización no encontrada');
@@ -876,6 +883,10 @@ export const updateQuotation = async (
       }
 
       const previous = await QuotationItem.findAll({ where: { quotationId: id }, order: [['id', 'ASC']], transaction });
+      if (quotation.workOrderId !== null && data.items) await assertChiefPriceEditsAllowed(userId, data.items.some((input) => {
+        const existing = previous.find((line) => line.id === input.id);
+        return existing && existing.tipoLinea !== 'parte' && Number(existing.precioUnitario) !== Number(input.precioUnitario);
+      }), transaction);
       const items = data.items ? preserveLineDiscounts(data.items, previous) : previous;
       if (data.items) await assertCatalogItemsExist(data.items, transaction);
       const discount = {
@@ -989,7 +1000,7 @@ export const convertQuotationToWorkOrder = async (
       throw ApiError.badRequest('No se puede convertir una cotización archivada');
     }
     const clientId = data.clientId ?? quotation.clientId;
-    const itemAssignments = new Map((data.itemAssignments ?? []).map((item) => [item.quotationItemId, item.assignedUserId]));
+    const itemAssignments = new Map((data.itemAssignments ?? []).map((item) => [item.quotationItemId, item]));
     if ([...itemAssignments.keys()].some((id) => !(quotation.items ?? []).some((item) => item.id === id))) {
       throw ApiError.badRequest('Uno o más servicios no pertenecen a la cotización');
     }
@@ -1002,7 +1013,8 @@ export const convertQuotationToWorkOrder = async (
         clientId,
         descripcion: data.descripcion ?? quotation.notas ?? `Generada desde cotización ${quotation.codigo}`,
         items: (quotation.items ?? []).map((item) => ({
-          assignedUserId: itemAssignments.get(item.id) ?? null,
+          assignedUserId: itemAssignments.get(item.id)?.assignedUserId ?? null,
+          teamMembers: itemAssignments.get(item.id)?.teamMembers,
           catalogItemId: item.catalogItemId,
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,

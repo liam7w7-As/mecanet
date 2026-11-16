@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '../lib/api';
+import { hasUserPermission } from '../lib/permissions';
+import { useAuthStore } from '../stores/auth.store';
 
 import type {
   MyLaborOrder,
   WorkOrderPriceSuggestion,
+  WorkOrder,
   WorkOrderWorksheet,
   WorkshopDailyReport,
 } from '../types/entities';
@@ -47,6 +50,7 @@ const useWorksheetMutation = <TVariables>(
       void queryClient.invalidateQueries({ queryKey: ['catalog'] });
       void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['workshop-time'] });
     },
   });
 };
@@ -110,8 +114,24 @@ export const useAssignWorkOrderItemMutation = () =>
     },
   );
 
+export interface AssignItemTeamInput {
+  members: Array<{ userId: number; specialtyId?: number | null; estimatedHours: number | null }>;
+  motivo: string;
+}
+
+export const useAssignItemTeamMutation = () =>
+  useWorksheetMutation<{ id: number; itemId: number; data: AssignItemTeamInput }>(
+    async ({ id, itemId, data }) => {
+      const response = await api.post<WorksheetResponse>(
+        `/work-orders/${id}/items/${itemId}/team`,
+        data,
+      );
+      return response.data.worksheet;
+    },
+  );
+
 export const useUpdateItemEstimateMutation = () =>
-  useWorksheetMutation<{ id: number; itemId: number; data: UpdateWorkOrderItemEstimateInput }>(
+  useWorksheetMutation<{ id: number; itemId: number; data: UpdateWorkOrderItemEstimateInput & { motivo?: string } }>(
     async ({ id, itemId, data }) => {
       const response = await api.patch<WorksheetResponse>(
         `/work-orders/${id}/items/${itemId}/estimate`,
@@ -169,6 +189,7 @@ export const useSubmitWorksheetProgressMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ['work-order-labor', 'daily'] });
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['workshop-time'] });
     },
   });
 };
@@ -204,6 +225,55 @@ export const useCreateObservationMutation = () => {  const queryClient = useQuer
   });
 };
 
+export interface WorkOrderPricePolicy { approvalRequired: boolean; canConfigure: boolean }
+export const pricePolicyKeys = {
+  all: ['work-order-price-policy'] as const,
+  detail: (id: number) => ['work-order-price-policy', id] as const,
+};
+const pricePolicyViewerKey = (id: number) => {
+  const user = useAuthStore.getState().user;
+  return [...pricePolicyKeys.detail(id), user?.id ?? null, user?.role ?? null, JSON.stringify(user?.permissions ?? null)] as const;
+};
+const requirePriceUpdate = (review = false): void => {
+  const user = useAuthStore.getState().user;
+  if (!user || !(review ? ['admin', 'desarrollador'] : ['admin', 'desarrollador', 'jefe']).includes(user.role) || !hasUserPermission(user, 'taller', 'update')) {
+    throw new Error('No tienes permiso para modificar los precios de esta orden.');
+  }
+};
+
+export const useWorkOrderPricePolicy = (id: number, enabled = true) => {
+  const user = useAuthStore((state) => state.user);
+  const allowed = Boolean(user && ['admin', 'desarrollador', 'jefe'].includes(user.role) && hasUserPermission(user, 'taller', 'read'));
+  const query = useQuery({
+    queryKey: pricePolicyViewerKey(id),
+    queryFn: async () => {
+      const { data } = await api.get<{ policy: WorkOrderPricePolicy }>(`/work-orders/${id}/price-policy`);
+      if (typeof data.policy?.approvalRequired !== 'boolean') throw new Error('No se pudo cargar la política de precios de esta OT.');
+      return data.policy;
+    },
+    enabled: enabled && allowed && Number.isInteger(id) && id > 0,
+    refetchInterval: 30_000,
+  });
+  return { ...query, data: allowed ? query.data : undefined };
+};
+
+export const useUpdateWorkOrderPricePolicyMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['work-order-labor', 'mutation'],
+    mutationFn: async ({ id, approvalRequired }: { id: number; approvalRequired: boolean }) => {
+      requirePriceUpdate(true);
+      return (await api.patch<{ policy: WorkOrderPricePolicy }>(`/work-orders/${id}/price-policy`, { approvalRequired })).data.policy;
+    },
+    onSuccess: (policy, { id }) => {
+      queryClient.setQueryData(pricePolicyViewerKey(id), policy);
+      queryClient.setQueriesData<WorkOrder>({ queryKey: ['work-orders', id] }, (saved) => saved ? { ...saved, priceApprovalRequired: policy.approvalRequired } : saved);
+      void queryClient.invalidateQueries({ queryKey: pricePolicyKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+    },
+  });
+};
+
 export const usePriceSuggestions = (id: number, enabled = true) =>
   useQuery({
     queryKey: laborKeys.suggestions(id),
@@ -227,15 +297,20 @@ export const useCreatePriceSuggestionMutation = () => {
       id: number;
       data: CreateWorkOrderPriceSuggestionInput;
     }) => {
+      requirePriceUpdate();
       const response = await api.post<{ suggestion: WorkOrderPriceSuggestion }>(
         `/work-orders/${id}/price-suggestions`,
         data,
       );
       return response.data.suggestion;
     },
-    onSuccess: (_suggestion, variables) => {
+    onSuccess: (suggestion, variables) => {
+      if (suggestion.estado === 'aprobada') {
+        for (const queryKey of [['work-orders'], ['work-order-labor'], ['catalog'], ['quotations'], ['quotation-payments'], ['finance']]) void queryClient.invalidateQueries({ queryKey });
+      }
       void queryClient.invalidateQueries({ queryKey: laborKeys.suggestions(variables.id) });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['workshop-time'] });
     },
   });
 };
@@ -253,6 +328,7 @@ export const useReviewPriceSuggestionMutation = () => {
       suggestionId: number;
       data: ReviewWorkOrderPriceSuggestionInput;
     }) => {
+      requirePriceUpdate(true);
       const response = await api.patch<{ suggestion: WorkOrderPriceSuggestion }>(
         `/work-orders/${id}/price-suggestions/${suggestionId}`,
         data,
@@ -262,11 +338,13 @@ export const useReviewPriceSuggestionMutation = () => {
     onSuccess: (_suggestion, variables) => {
       void queryClient.invalidateQueries({ queryKey: laborKeys.suggestions(variables.id) });
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+      void queryClient.invalidateQueries({ queryKey: laborKeys.worksheet(variables.id) });
       void queryClient.invalidateQueries({ queryKey: ['catalog'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({ queryKey: ['quotation-payments'] });
       void queryClient.invalidateQueries({ queryKey: ['finance'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['workshop-time'] });
     },
   });
 };

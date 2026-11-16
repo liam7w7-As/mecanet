@@ -40,13 +40,16 @@ describe('Correcciones de gestión de trabajo', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.setState({ user: { id: 9, nombre: 'Mecánico Uno', email: 'mecanico@example.invalid', role: 'mecanico' }, isLoading: false, isAuthenticated: true });
-    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url === '/work-orders/12/worksheet' ? { worksheet } : { items: [], total: 0, page: 1, pageSize: 20, totalPages: 0 } }));
+    vi.mocked(api.get).mockImplementation((url) => Promise.resolve({ data: url.endsWith('/alerts')
+      ? { summary: { generatedAt: '2026-11-16T10:00:00Z', alerts: [], counts: { total: 0, high: 0 }, settings: { timeTolerancePercent: 0, commercialTolerancePercent: 0 }, scheduleConfigured: false } }
+      : url === '/work-orders/12/worksheet' ? { worksheet } : { items: [], total: 0, page: 1, pageSize: 20, totalPages: 0 } }));
     vi.mocked(api.post).mockResolvedValue({ data: { worksheet } });
   });
 
   it('permite sugerir solo para el servicio propio y conserva la propuesta si falla el envío', async () => {
     mount(<WorkOrderQuickDetailModal workOrderId={12} initialView="execution" onClose={vi.fn()} onPreviewPdf={vi.fn()} />);
     const own = await screen.findByRole('article', { name: 'Trabajo: Servicio 20' });
+    fireEvent.click(within(own).getByText('Ver detalle', { selector: 'summary' }));
     fireEvent.click(within(own).getByRole('button', { name: 'Sugerir precio' }));
     expect(await screen.findByRole('heading', { name: 'Sugerir precio de un servicio' })).toBeInTheDocument();
     expect(screen.getByLabelText('Servicio para sugerencia de precio')).toHaveValue('20');
@@ -56,7 +59,7 @@ describe('Correcciones de gestión de trabajo', () => {
     fireEvent.change(screen.getByLabelText('Motivo de la propuesta'), { target: { value: 'Complejidad adicional' } });
     vi.mocked(api.post).mockRejectedValueOnce(new Error('Sin conexión'));
     fireEvent.click(screen.getByRole('button', { name: 'Enviar al jefe de taller' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Tu propuesta se conserva para reintentar');
+    expect(await screen.findByText(/Tu propuesta se conserva para reintentar/)).toBeInTheDocument();
     expect(screen.getByLabelText('Motivo de la propuesta')).toHaveValue('Complejidad adicional');
     fireEvent.click(screen.getByRole('button', { name: 'Enviar al jefe de taller' }));
     await waitFor(() => expect(api.post).toHaveBeenLastCalledWith('/work-orders/12/requests', { tipo: 'aumento_precio', workOrderItemId: 20, precioSugerido: 35000, motivo: 'Complejidad adicional' }));

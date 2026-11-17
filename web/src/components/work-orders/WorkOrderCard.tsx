@@ -118,7 +118,7 @@ export default function WorkOrderCard({
     >
       <div className="workshop-card-band">
         <button type="button" onClick={() => { close(); onOpenDetail(); }} aria-label={`Ver detalle de ${workOrder.codigo}`}>{workOrder.codigo}</button>
-        <span>{colourTier === 'review' ? 'Pendiente de calidad' : statusLabel}</span>
+        <span>{colourTier === 'review' ? 'Pendiente de control de calidad' : statusLabel}</span>
       </div>
       <button type="button" className="workshop-card-summary" aria-label={`Ver información de ${workOrder.codigo}`} aria-expanded={Boolean(activePanel)} aria-controls={informationId} onClick={() => toggle('information')}
         onKeyDown={(event) => {

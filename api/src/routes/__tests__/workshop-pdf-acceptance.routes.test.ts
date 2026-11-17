@@ -27,6 +27,7 @@ describe('Supervisor PDF acceptance: productivity, recovery, quality and immutab
   const csrf = `pdf-close-${tag}`;
   const actors = {} as Record<'admin' | 'jefe' | 'mecanico' | 'finanzas' | 'vendedor', User>;
   let orderId: number; let item: WorkOrderItem; let quotation: Quotation; let vehicle: Vehicle;
+  let foreignOrderId: number; let foreignItem: WorkOrderItem;
   let specialty: Specialty; let manualId: number;
   const path = '/api/reports/workshop-costs';
   const headers = (who: keyof typeof actors) => [`access_token=${signAccessToken({ sub: actors[who].id, role: who })}`, `csrf_token=${csrf}`];
@@ -54,6 +55,10 @@ describe('Supervisor PDF acceptance: productivity, recovery, quality and immutab
     item = (await WorkOrderItem.findOne({ where: { workOrderId: orderId } }))!;
     quotation = (await Quotation.findOne({ where: { workOrderId: orderId } }))!;
     ok(await post(`/api/work-orders/${orderId}/items/${item.id}/team`, { members: [{ userId: actors.mecanico.id, specialtyId: specialty.id, estimatedHours: 1 }], motivo: 'Estimación original del diagnóstico' }));
+    const foreignCreated = await post('/api/work-orders', { clientId: client.id, vehicleId: vehicle.id, fechaIngreso: '2026-11-16T12:00:00Z',
+      items: [{ descripcion: `Servicio de otra OT ${tag}`, tipoLinea: 'especifico', cantidad: 1, precioUnitario: 20000 }] }, 'admin');
+    ok(foreignCreated, 201); foreignOrderId = Number(foreignCreated.body.workOrder.id);
+    foreignItem = (await WorkOrderItem.findOne({ where: { workOrderId: foreignOrderId } }))!;
   }, 60000);
   afterAll(async () => { vi.useRealTimers(); await sequelize.close(); });
 
@@ -64,6 +69,18 @@ describe('Supervisor PDF acceptance: productivity, recovery, quality and immutab
     expect((await post(`${path}/commercial-reviews`, payload, 'finanzas')).status).toBe(403);
     expect((await request(app).post(`${path}/commercial-reviews`).set('Cookie', headers('jefe')).send(payload)).status).toBe(403);
     expect((await get(`${path}/analysis?fechaDesde=2026-11-17&fechaHasta=2026-11-16`)).status).toBe(400);
+  });
+
+  it('keeps the saved hourly rates private to supervisors and out of public order responses', async () => {
+    const chief = await get(`/api/work-orders/${orderId}/worksheet`, 'jefe');
+    ok(chief);
+    expect(chief.body.worksheet.servicios[0].assignments[0]).toMatchObject({ costHourly: 4000, saleHourly: 10000 });
+    const mechanic = await get(`/api/work-orders/${orderId}/worksheet`, 'mecanico');
+    ok(mechanic);
+    expect(JSON.stringify(mechanic.body)).not.toMatch(/costHourly|saleHourly/);
+    const publicOrder = await get(`/api/work-orders/${orderId}`, 'admin');
+    ok(publicOrder);
+    expect(JSON.stringify(publicOrder.body)).not.toMatch(/costHourly|saleHourly/);
   });
 
   it('rejects manual hours before creation and legacy orders without a real vehicle', async () => {
@@ -84,6 +101,17 @@ describe('Supervisor PDF acceptance: productivity, recovery, quality and immutab
       await order.update({ vehicleId: vehicle.id });
       vi.setSystemTime(new Date('2026-11-16T12:00:00Z'));
     }
+  });
+
+  it('blocks manual hours for a service that does not belong to the OT or the worker', async () => {
+    const interval = { startedAt: '2026-11-16T11:45:00Z', endedAt: '2026-11-16T11:59:00Z', note: 'Intento de servicio ajeno' };
+    const mismatched = await post('/api/workshop-time/requests', { workOrderId: orderId, itemId: foreignItem.id, ...interval }, 'mecanico');
+    ok(mismatched, 404);
+    expect(mismatched.body.error.message).toMatch(/servicio/i);
+    const unassigned = await post('/api/workshop-time/requests', { workOrderId: foreignOrderId, itemId: foreignItem.id, ...interval }, 'mecanico');
+    ok(unassigned, 403);
+    expect(unassigned.body.error.message).toMatch(/asignado/i);
+    expect(await WorkOrderItemSession.count({ where: { workOrderItemId: [item.id, foreignItem.id] } })).toBe(0);
   });
 
   it('measures three automatic hours against a one-hour estimate without losing the clock', async () => {

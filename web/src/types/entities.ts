@@ -757,7 +757,7 @@ export interface WorkOrderWorksheetItem {
   qualityReviewedBy?: number | null;
   qualityNote?: string | null;
 
-  assignments?: Array<{ id: number; userId: number; userName: string; specialtyId: number | null; specialtyName: string | null; estimatedHours: number | null; originalEstimatedHours: number | null; completedAt: string | null; active: boolean }>;
+  assignments?: Array<{ id: number; userId: number; userName: string; specialtyId: number | null; specialtyName: string | null; costHourly?: number | null; saleHourly?: number | null; estimatedHours: number | null; originalEstimatedHours: number | null; completedAt: string | null; active: boolean }>;
   activeSessions?: NonNullable<WorkOrderWorksheetItem['activeSession']>[];
   id: number;
   descripcion: string;

@@ -635,7 +635,7 @@ describe('WorkOrdersPage', () => {
     createWrapper(<WorkOrdersPage />);
 
     await screen.findByText('OT-2026-0012');
-    expect(screen.getByLabelText('Avance: Pendiente de calidad')).toHaveTextContent('100%');
+    expect(screen.getByLabelText('Avance: Pendiente de control de calidad')).toHaveTextContent('100%');
     expect(screen.getByRole('article', { name: `Orden ${workOrder.codigo}` })).toHaveAttribute('data-colour', 'review');
   });
 

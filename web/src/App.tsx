@@ -30,6 +30,7 @@ import WorkOrderCreatePage from './pages/work-orders/WorkOrderCreatePage';
 import WorkOrderDetailPage from './pages/work-orders/WorkOrderDetailPage';
 import WorkOrdersPage from './pages/work-orders/WorkOrdersPage';
 import WorkshopDailyReportPage from './pages/work-orders/WorkshopDailyReportPage';
+import WorkshopJournalPage from './pages/work-orders/WorkshopJournalPage';
 import { useAuthStore } from './stores/auth.store';
 
 const HomeRedirect = () => {
@@ -95,6 +96,14 @@ export const App = () => (
           element={
             <ProtectedRoute access={APP_ROUTES.dailyReport}>
               <WorkshopDailyReportPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={APP_ROUTES.workshopJournal.path}
+          element={
+            <ProtectedRoute access={APP_ROUTES.workshopJournal}>
+              <WorkshopJournalPage />
             </ProtectedRoute>
           }
         />

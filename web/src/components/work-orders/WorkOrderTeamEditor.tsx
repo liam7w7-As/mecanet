@@ -5,6 +5,7 @@ import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useAssignItemTeamMutation } from '../../hooks/useWorkOrderLabor';
 import { useWorkshopPersonnel } from '../../hooks/useWorkshopPersonnel';
 import { getApiErrorMessage } from '../../lib/api-error';
+import { formatClp } from '../../lib/formatters';
 import { notifySuccess } from '../../stores/toast.store';
 
 import type { WorkOrderMechanic } from '../../hooks/useWorkOrders';
@@ -116,6 +117,10 @@ export default function WorkOrderTeamEditor({ item, workOrderId, editable, disab
           const specialtyIds = [profile?.principalSpecialtyId, ...(profile?.additionalSpecialtyIds ?? [])];
           const specialties = personnel.data?.specialties?.filter((specialty) => specialty.active && specialtyIds.includes(specialty.id)) ?? [];
           const principal = specialties.find((specialty) => specialty.id === profile?.principalSpecialtyId);
+          const estimateHours = Number(member.estimatedHours);
+          const theoreticalValue = current?.saleHourly != null && member.estimatedHours !== '' && Number.isFinite(estimateHours) && estimateHours > 0
+            ? estimateHours * current.saleHourly
+            : null;
           return <div key={index} className="workshop-labor-admin" role="group" aria-label={`Integrante ${index + 1} de ${item.descripcion}`}>
             <label>Mecánico<select aria-label={`Mecánico ${index + 1} de ${item.descripcion}`} value={member.userId} disabled={locked || loadingMechanics} onChange={(event) => update(index, { userId: event.target.value, specialtyId: undefined })}>
               <option value="">Seleccionar mecánico</option>
@@ -129,6 +134,7 @@ export default function WorkOrderTeamEditor({ item, workOrderId, editable, disab
               {member.specialtyId != null && !specialties.some((specialty) => specialty.id === member.specialtyId) && <option value={member.specialtyId}>{current?.specialtyName ?? `Especialidad #${member.specialtyId}`} (asignada)</option>}
               {specialties.map((specialty) => <option key={specialty.id} value={specialty.id}>{specialty.name}</option>)}
             </select></label> : current?.specialtyName && <small>Especialidad: {current.specialtyName}</small>}
+            {theoreticalValue !== null && <small>Valor teórico: {formatClp(theoreticalValue)}</small>}
             {current?.completedAt && <small>Parte terminada</small>}
             <button type="button" disabled={locked} onClick={() => setDraft(members.filter((_, i) => i !== index))}>Quitar integrante {index + 1}</button>
           </div>;
@@ -142,7 +148,7 @@ export default function WorkOrderTeamEditor({ item, workOrderId, editable, disab
           <button type="button" className="workshop-labor-primary" disabled={locked || !changed || Boolean(invalid) || reason.trim().length < 2 || reason.trim().length > 500} onClick={save}>{mutation.isPending ? 'Guardando equipo…' : 'Guardar equipo'}</button>
         </div>
         {error && <p role="alert" className="workshop-labor-error">{error}</p>}
-      </> : <ul>{item.assignments?.filter((member) => member.active).map((member) => <li key={member.id}><strong>{member.userName ?? `Mecánico #${member.userId}`}</strong><span>{member.specialtyName ? `${member.specialtyName} · ` : ''}Estimado: {member.estimatedHours === null ? 'Sin definir' : `${member.estimatedHours} h`}{member.completedAt ? ' · Parte terminada' : ''}</span></li>)}</ul>}
+      </> : <ul>{item.assignments?.filter((member) => member.active).map((member) => <li key={member.id}><strong>{member.userName ?? `Mecánico #${member.userId}`}</strong><span>{member.specialtyName ? `${member.specialtyName} · ` : ''}Estimado: {member.estimatedHours === null ? 'Sin definir' : `${member.estimatedHours} h`}{member.saleHourly != null && member.estimatedHours != null ? ` · Valor teórico: ${formatClp(member.saleHourly * member.estimatedHours)}` : ''}{member.completedAt ? ' · Parte terminada' : ''}</span></li>)}</ul>}
     </div>
   </details>;
 }

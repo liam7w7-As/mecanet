@@ -375,7 +375,7 @@ export default function WorkshopTimePanel({
                     <option value="">Seleccionar servicio</option>
                     {items.map((item) => (
                       <option key={item.itemId} value={item.itemId}>
-                        {item.workOrderCode} · {item.description}
+                        {item.patente ? `${item.patente} · ` : ''}{item.workOrderCode} · {item.description}
                       </option>
                     ))}
                   </select>

@@ -18,6 +18,11 @@ const number = (value: number | null): string =>
     : new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(value);
 const hours = (value: number | null): string =>
   value === null || !Number.isFinite(value) ? 'Sin base' : `${number(value)} h`;
+const signedHours = (value: number | null): string => {
+  if (value === null || !Number.isFinite(value)) return 'Sin base';
+  if (value === 0) return '0 h';
+  return `${number(Math.abs(value))} h ${value > 0 ? 'a favor' : 'en contra'}`;
+};
 const percent = (value: number | null): string =>
   value === null || !Number.isFinite(value) ? 'Sin base' : `${number(value)} %`;
 const money = (value: number | null): string =>
@@ -53,7 +58,7 @@ const Snapshot = ({ snapshot }: { snapshot: WorkshopCommercialSnapshot }) => (
     <Metric label="Recibido neto estimado (prorrateado)">{money(snapshot.receivedNet)}</Metric>
     <Metric label="Horas equivalentes cotizadas">{hours(snapshot.equivalentQuotedHours)}</Metric>
     <Metric label="Horas equivalentes recibidas">{hours(snapshot.equivalentReceivedHours)}</Metric>
-    <Metric label="Diferencia de horas">{hours(snapshot.hoursDifference)}</Metric>
+    <Metric label="Diferencia de horas">{signedHours(snapshot.hoursDifference)}</Metric>
     <Metric label="Diferencia neta">{money(snapshot.netDifference)}</Metric>
     <Metric label="Costo real acumulado">{money(snapshot.actualCost)}</Metric>
     <Metric label="Margen comercial">{money(snapshot.commercialMargin)}</Metric>
@@ -399,7 +404,7 @@ export default function WorkshopPerformanceAnalysis({
                   <td data-label="Recibido neto estimado">{money(service.receivedNet)}</td>
                   <td data-label="H. equiv. cotizadas">{hours(service.equivalentQuotedHours)}</td>
                   <td data-label="H. equiv. recibidas">{hours(service.equivalentReceivedHours)}</td>
-                  <td data-label="Diferencia horas">{hours(service.hoursDifference)}</td>
+                  <td data-label="Diferencia horas">{signedHours(service.hoursDifference)}</td>
                   <td data-label="Diferencia neta">{money(service.netDifference)}</td>
                   <td data-label="Costo acumulado">{money(service.actualCost)}</td>
                   <td data-label="Margen comercial">{money(service.commercialMargin)}</td>

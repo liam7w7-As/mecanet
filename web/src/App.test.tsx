@@ -36,7 +36,7 @@ const mobileRoleCases: { role: Role; permissions?: PermissionDefinition[]; prima
   { role: 'vendedor', primary: demoPrimaryPaths, more: ['/reports', '/quotations', '/clients', '/catalog'] },
   { role: 'bodeguero', primary: demoPrimaryPaths, more: ['/reports', '/quotations', '/clients', '/catalog', '/purchases'] },
   { role: 'finanzas', primary: ['/dashboard', '/vehicles', '/quotations'], more: ['/reports', '/clients', '/catalog', '/purchases', '/finance'] },
-  { role: 'mecanico', primary: ['/work-orders/mine'], more: [] },
+  { role: 'mecanico', primary: ['/work-orders/mine'], more: ['/work-orders/journal'] },
   { role: 'vendedor', permissions: [{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }], primary: ['/dashboard', '/work-orders', '/vehicles', '/quotations'], more: ['/reports', '/clients', '/catalog'] },
   { role: 'vendedor', permissions: [{ modulo: 'comercial', accion: 'read' }], primary: ['/dashboard', '/vehicles', '/quotations'], more: ['/reports', '/clients', '/catalog'] },
   { role: 'bodeguero', permissions: [{ modulo: 'almacen', accion: 'read' }], primary: ['/warehouses'], more: ['/reports'] },
@@ -223,7 +223,7 @@ describe('App routing and authentication', () => {
 
     const navigation = within(screen.getByRole('navigation', { name: 'Navegación principal' }));
     expect(navigation.getByRole('link', { name: 'Mi taller' })).toHaveAttribute('href', '/work-orders/mine');
-    expect(navigation.getAllByRole('link')).toHaveLength(1);
+    expect(navigation.getAllByRole('link')).toHaveLength(2);
     expect(navigation.queryByRole('link', { name: 'Cotizaciones' })).not.toBeInTheDocument();
     expect(navigation.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument();
   });
@@ -289,7 +289,7 @@ describe('App routing and authentication', () => {
     ['vendedor', 'Cotizaciones', 'Clientes'],
     ['bodeguero', 'Almacenes', 'Catálogo'],
     ['finanzas', 'Finanzas / Contabilidad', 'Compras'],
-    ['mecanico', 'Mi taller', 'Mi taller'],
+    ['mecanico', 'Mi taller', 'Registrar jornada'],
   ] satisfies Array<[Role, string, string]>)('conserva la navegación autorizada de %s', (role, first, second) => {
     useAuthStore.setState({ user: { ...authenticatedUser, role }, isAuthenticated: true, isLoading: false });
     renderRoute('/forbidden');
@@ -457,7 +457,8 @@ describe('App routing and authentication', () => {
     renderRoute('/work-orders/mine');
     fireEvent.click(screen.getByRole('button', { name: 'Abrir todas las secciones' }));
     const more = within(screen.getByRole('dialog', { name: 'Más opciones' }));
-    expect(more.queryAllByRole('link')).toHaveLength(0);
+    expect(more.getAllByRole('link')).toHaveLength(1);
+    expect(more.getByRole('link', { name: 'Registrar jornada' })).toHaveAttribute('href', '/work-orders/journal');
     expect(more.getByRole('button', { name: 'Mi perfil' })).toBeInTheDocument();
     expect(document.getElementById('shell-navigation')).not.toBeInTheDocument();
   });

@@ -115,8 +115,8 @@ export const getWorkOrderProgress = (workOrder: Pick<WorkOrder, 'estado' | 'item
 };
 
 export const PROGRESS_TIER_STYLES: Record<ProgressTier, { bar: string; ring: string; chip: string; label: string }> = {
-  done: { bar: 'bg-brand-mint', ring: 'ring-brand-mint border-brand-line', chip: 'bg-brand-mintPale text-brand-mintInk', label: 'Finalizado' },
-  review: { bar: 'bg-indigo-300', ring: 'ring-indigo-200 border-indigo-200', chip: 'bg-indigo-50 text-indigo-700', label: 'Pendiente de calidad' },
+  done: { bar: 'bg-brand-mint', ring: 'ring-brand-mint border-brand-line', chip: 'bg-brand-mintPale text-brand-mintInk', label: 'Listo para entregar' },
+  review: { bar: 'bg-indigo-300', ring: 'ring-indigo-200 border-indigo-200', chip: 'bg-indigo-50 text-indigo-700', label: 'Pendiente de control de calidad' },
   good: { bar: 'bg-lime-500', ring: 'ring-lime-200 border-lime-200', chip: 'bg-lime-100 text-lime-800', label: 'Buen avance' },
   mid: { bar: 'bg-brand-gold', ring: 'ring-brand-line border-brand-line', chip: 'bg-brand-goldPale text-brand-goldInk', label: 'Avance medio' },
   low: { bar: 'bg-brand-coral', ring: 'ring-brand-line border-brand-coral/30', chip: 'bg-brand-coralPale text-brand-coralInk', label: 'Poco avance' },

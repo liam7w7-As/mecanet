@@ -148,14 +148,15 @@ describe('getWorkOrderProgress', () => {
       const progress = getWorkOrderProgress({ estado: 'finalizada', qualityApprovedAt, items: [approvedItem] });
       expect(progress.percent).toBe(100);
       expect(progress.tier).toBe('review');
-      expect(PROGRESS_TIER_STYLES[progress.tier].label).toBe('Pendiente de calidad');
+      expect(PROGRESS_TIER_STYLES[progress.tier].label).toBe('Pendiente de control de calidad');
     }
   });
 
-  it('muestra finalizado al completar todos los trabajos con aprobación general', () => {
+  it('muestra listo para entregar al completar todos los trabajos con aprobación general', () => {
     const progress = getWorkOrderProgress({ estado: 'finalizada', qualityApprovedAt: '2026-11-05T10:00:00.000Z', items: [item('completado', 1)] });
     expect(progress.percent).toBe(100);
     expect(progress.tier).toBe('done');
+    expect(PROGRESS_TIER_STYLES[progress.tier].label).toBe('Listo para entregar');
   });
 
   it('tier medio entre 30 y 69', () => {

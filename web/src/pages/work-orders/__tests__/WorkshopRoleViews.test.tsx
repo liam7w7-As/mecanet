@@ -135,7 +135,7 @@ describe('Updated workshop role workspaces', () => {
       : url === '/workshop-time'
         ? { date: toLocalDateInput(new Date()), workers: [{ id: 9, nombre: 'Carlos Mecánico' }], entries: [], requests: [],
             totals: { registeredMinutes: 0, pendingMinutes: 0, scheduledMinutes: 480, unregisteredMinutes: 480 } }
-        : { items: [{ workOrderId: 41, workOrderCode: 'OT-26-41', itemId: 20, userId: 9, description: 'Diagnóstico' }] } }));
+        : { items: [{ workOrderId: 41, workOrderCode: 'OT-26-41', patente: 'ABCD12', itemId: 20, userId: 9, description: 'Diagnóstico' }] } }));
     renderPage(<WorkshopDailyReportPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Registrar horas extra' }));
     let dialog = screen.getByRole('dialog', { name: 'Jornada y alertas del taller' });
@@ -149,12 +149,12 @@ describe('Updated workshop role workspaces', () => {
     dialog = screen.getByRole('dialog', { name: 'Jornada y alertas del taller' });
     await screen.findAllByRole('option', { name: 'Carlos Mecánico' });
     fireEvent.change(within(dialog).getByLabelText('Trabajador del registro'), { target: { value: '9' } });
-    await screen.findByRole('option', { name: 'OT-26-41 · Diagnóstico' });
+    await screen.findByRole('option', { name: 'ABCD12 · OT-26-41 · Diagnóstico' });
     fireEvent.change(within(dialog).getByLabelText('Servicio asignado'), { target: { value: '20' } });
     fireEvent.change(within(dialog).getByLabelText('Inicio del intervalo'), { target: { value: '2025-10-04T18:00' } });
     fireEvent.change(within(dialog).getByLabelText('Fin del intervalo'), { target: { value: '2025-10-04T19:00' } });
     fireEvent.change(within(dialog).getByLabelText('Motivo del registro'), { target: { value: 'Diagnóstico urgente' } });
-    await waitFor(() => expect(within(dialog).getByRole('option', { name: 'OT-26-41 · Diagnóstico' })).toBeInTheDocument());
+    await waitFor(() => expect(within(dialog).getByRole('option', { name: 'ABCD12 · OT-26-41 · Diagnóstico' })).toBeInTheDocument());
     fireEvent.change(within(dialog).getByLabelText('Servicio asignado'), { target: { value: '20' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
     expect(screen.getByRole('alertdialog', { name: 'Cambios sin guardar' })).toBeInTheDocument();

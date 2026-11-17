@@ -583,7 +583,7 @@ export const getWorkshopTimeEligibleItems = async (
     attributes: ['id', 'codigo', 'estado', 'assignedMechanicId', 'createdAt', 'vehicleId'],
     where: { id: { [Op.in]: orderIds }, estado: { [Op.notIn]: ['finalizada', 'entregada', 'cancelada'] },
       createdAt: { [Op.lt]: range.end }, vehicleId: { [Op.ne]: null } },
-    include: [{ model: Vehicle, as: 'vehicle', attributes: ['id'], required: true }],
+    include: [{ model: Vehicle, as: 'vehicle', attributes: ['id', 'patente'], required: true }],
   });
   if (!orders.length) return [];
   const items = await WorkOrderItem.findAll({
@@ -615,6 +615,7 @@ export const getWorkshopTimeEligibleItems = async (
       eligible.push({
         workOrderId: order.id,
         workOrderCode: order.codigo,
+        patente: order.vehicle?.patente ?? null,
         itemId: item.id,
         description: item.descripcion,
         userId,

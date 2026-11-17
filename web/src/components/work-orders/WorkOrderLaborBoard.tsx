@@ -13,7 +13,7 @@ import {
 import { useAssignWorkOrderMechanicMutation, useMechanics, useUpdateWorkOrderExecutionMutation } from '../../hooks/useWorkOrders';
 import { usePauseWorkshopTimerMutation } from '../../hooks/useWorkshopTime';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { formatDateTime } from '../../lib/formatters';
+import { formatClp, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { formatWorkshopMinutes as minutesLabel } from '../../lib/workshop-time-format';
 import { useAuthStore } from '../../stores/auth.store';
@@ -129,6 +129,8 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
   const hasTeam = item.tipoLinea !== 'parte' && Boolean(item.assignments?.length);
   const team = item.assignments?.filter((member) => member.active) ?? [];
   const ownAssignment = team.find((member) => member.userId === actorId);
+  const hasTheoreticalValue = team.length > 0 && team.every((member) => member.saleHourly != null && member.estimatedHours != null);
+  const theoreticalTeamValue = team.reduce((sum, member) => sum + (member.saleHourly != null && member.estimatedHours != null ? member.saleHourly * member.estimatedHours : 0), 0);
   const ownPartDone = Boolean(ownAssignment?.completedAt);
   const activeSessions = useMemo(() => {
     const sessions = item.activeSessions ?? [];
@@ -201,7 +203,7 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
       </select></label>{assigneeDraft !== undefined && !assign.isPending && <button type="button" disabled={disabled} onClick={() => saveAssignee(assigneeDraft)}>Reintentar asignación</button>}</div> : <span className="workshop-labor-assigned-name">{hasTeam ? team.map((member) => member.userName ?? `Mecánico #${member.userId}`).join(', ') || 'Sin asignar' : item.assignedUser?.nombre ?? 'Sin asignar'}</span>}
     </div>
     <div className="workshop-labor-task-controls">
-      <div className="workshop-labor-hours"><span className={activeSessions.length ? 'is-running' : ''}><Clock3 aria-hidden="true" />{hasTeam ? 'Equipo' : 'Servicio'}: <span>{minutesLabel(realMinutes)}</span>{activeSessions.length ? ' · En curso' : ''}</span>{ownSessionMinutes !== null && <span>Tu sesión actual: {minutesLabel(ownSessionMinutes)}</span>}{ownAssignment && <span>Tus horas estimadas: {ownAssignment.estimatedHours === null ? 'Sin definir' : minutesLabel(ownAssignment.estimatedHours * 60)}</span>}<span>Estimado{hasTeam ? ' del servicio' : ''}: {item.horasEstimadasTotales === null ? 'Sin definir' : minutesLabel(item.horasEstimadasTotales * 60)}</span>{item.laborValidatedAt && <span>Horas validadas</span>}</div>
+      <div className="workshop-labor-hours"><span className={activeSessions.length ? 'is-running' : ''}><Clock3 aria-hidden="true" />{hasTeam ? 'Equipo' : 'Servicio'}: <span>{minutesLabel(realMinutes)}</span>{activeSessions.length ? ' · En curso' : ''}</span>{ownSessionMinutes !== null && <span>Tu sesión actual: {minutesLabel(ownSessionMinutes)}</span>}{ownAssignment && <span>Tus horas estimadas: {ownAssignment.estimatedHours === null ? 'Sin definir' : minutesLabel(ownAssignment.estimatedHours * 60)}</span>}{hasTheoreticalValue && <span>Valor teórico{hasTeam ? ' del equipo' : ''}: {formatClp(theoreticalTeamValue)}</span>}<span>Estimado{hasTeam ? ' del servicio' : ''}: {item.horasEstimadasTotales === null ? 'Sin definir' : minutesLabel(item.horasEstimadasTotales * 60)}</span>{item.laborValidatedAt && <span>Horas validadas</span>}</div>
       <div className="workshop-labor-actions">
         {canControl && !['completado', 'omitido'].includes(item.estadoOperativo) && <>
           {item.tipoLinea !== 'parte' && (controlSession ? <button type="button" className="workshop-labor-primary" disabled={disabled} onClick={() => { setPauseError(null); setPauseOpen(true); }}><Pause aria-hidden="true" />Pausar</button>

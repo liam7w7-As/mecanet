@@ -153,7 +153,7 @@ export interface WorksheetItem {
   qualityReviewedBy: number | null;
   qualityNote: string | null;
 
-  assignments: Array<{ id: number; userId: number; userName: string; specialtyId: number | null; specialtyName: string | null; estimatedHours: number | null; originalEstimatedHours: number | null; completedAt: Date | null; active: boolean }>;
+  assignments: Array<{ id: number; userId: number; userName: string; specialtyId: number | null; specialtyName: string | null; costHourly?: number | null; saleHourly?: number | null; estimatedHours: number | null; originalEstimatedHours: number | null; completedAt: Date | null; active: boolean }>;
   activeSessions: NonNullable<WorksheetItem['activeSession']>[];
   id: number;
   descripcion: string;
@@ -371,7 +371,7 @@ export const getWorkOrderWorksheet = async (
         : item.horasHombreReales === null ? null : toNumber(item.horasHombreReales);
 
     return {
-      assignments: assignments.filter((a) => a.workOrderItemId === item.id && a.active).map((a) => ({ id: a.id, userId: a.userId, userName: a.userName, specialtyId: a.specialtyId, specialtyName: a.specialtyName, estimatedHours: a.estimatedHours === null ? null : Number(a.estimatedHours), originalEstimatedHours: a.originalEstimatedHours === null ? null : Number(a.originalEstimatedHours), completedAt: a.completedAt, active: a.active })),
+      assignments: assignments.filter((a) => a.workOrderItemId === item.id && a.active).map((a) => ({ id: a.id, userId: a.userId, userName: a.userName, specialtyId: a.specialtyId, specialtyName: a.specialtyName, ...(SUPERVISOR_ROLES.includes(role) ? { costHourly: a.costHourly === null ? null : Number(a.costHourly), saleHourly: a.saleHourly === null ? null : Number(a.saleHourly) } : {}), estimatedHours: a.estimatedHours === null ? null : Number(a.estimatedHours), originalEstimatedHours: a.originalEstimatedHours === null ? null : Number(a.originalEstimatedHours), completedAt: a.completedAt, active: a.active })),
       activeSessions: openSessions.map((s) => ({ id: s.id, userId: s.userId, userName: s.userName, startedAt: s.startedAt, elapsedMinutes: getSessionMinutes(s, now), mine: s.userId === userId })),
       id: item.id,
       descripcion: item.descripcion,

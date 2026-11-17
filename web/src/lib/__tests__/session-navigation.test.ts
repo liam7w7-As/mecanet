@@ -128,7 +128,7 @@ describe('post-login route permission checks', () => {
 
   it('keeps mechanics on mine or numeric worksheets, subject to current permissions', () => {
     const mechanic = user('mecanico');
-    for (const from of ['/work-orders/mine?status=active#cards', '/work-orders/42/ficha?tab=observaciones#draft']) {
+    for (const from of ['/work-orders/mine?status=active#cards', '/work-orders/journal?date=2026-11-16', '/work-orders/42/ficha?tab=observaciones#draft']) {
       expect(getPostLoginPath(mechanic, from)).toBe(from);
       expect(getPostLoginPath(user('mecanico', []), from)).toBe('/forbidden');
     }
@@ -161,6 +161,7 @@ describe('route access matching', () => {
   it('ranks static routes before read-protected detail parameters', () => {
     expect(getRouteAccess('/work-orders/new')).toBe(APP_ROUTES.workOrderCreate);
     expect(getRouteAccess('/work-orders/daily-report')).toBe(APP_ROUTES.dailyReport);
+    expect(getRouteAccess('/work-orders/journal')).toBe(APP_ROUTES.workshopJournal);
     expect(getRouteAccess('/quotations/new')).toBe(APP_ROUTES.quotationCreate);
     expect(getRouteAccess('/purchases/new')).toBe(APP_ROUTES.purchaseCreate);
     expect(getRouteAccess('/vehicles/42')).toBe(APP_ROUTES.vehicleDetail);

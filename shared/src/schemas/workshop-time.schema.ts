@@ -69,6 +69,7 @@ export interface WorkshopTimeWorker {
 export interface WorkshopTimeEligibleItem {
   workOrderId: number;
   workOrderCode: string;
+  patente: string | null;
   itemId: number;
   description: string;
   userId: number;

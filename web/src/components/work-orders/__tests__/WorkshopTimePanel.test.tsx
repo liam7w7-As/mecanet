@@ -113,6 +113,7 @@ beforeEach(() => {
               {
                 workOrderId: 12,
                 workOrderCode: 'OT-12',
+                patente: 'ABCD12',
                 itemId: 20,
                 description: 'Diagnóstico',
                 userId: 9,
@@ -129,7 +130,7 @@ beforeEach(() => {
 describe('Workshop time panel', () => {
   it('submits the worker activity for approval and keeps corrections free of replayable status', async () => {
     mount();
-    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    await screen.findByRole('option', { name: 'ABCD12 · OT-12 · Diagnóstico' });
     fireEvent.change(screen.getByLabelText('Servicio asignado'), { target: { value: '20' } });
     fillInterval();
     fireEvent.change(screen.getByLabelText('Estado de mi actividad'), { target: { value: 'completado' } });
@@ -146,7 +147,7 @@ describe('Workshop time panel', () => {
   });
   it('refreshes service eligibility when the selected manual date changes', async () => {
     mount();
-    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    await screen.findByRole('option', { name: 'ABCD12 · OT-12 · Diagnóstico' });
     expect(api.get).toHaveBeenCalledWith('/workshop-time/eligible-items', { params: { fecha: '2025-10-04' } });
     fireEvent.change(screen.getByLabelText('Día del diario'), { target: { value: '2025-10-03' } });
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/workshop-time/eligible-items', { params: { fecha: '2025-10-03' } }));
@@ -156,7 +157,7 @@ describe('Workshop time panel', () => {
   it('shows the missing part of an eight-hour day while allowing a shorter manual request', async () => {
     journal.totals = { registeredMinutes: 150, pendingMinutes: 0, scheduledMinutes: 480, unregisteredMinutes: 330 };
     mount();
-    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    await screen.findByRole('option', { name: 'ABCD12 · OT-12 · Diagnóstico' });
     expect(screen.getByText('Jornada: 8 h 00 min')).toBeInTheDocument();
     expect(screen.getByText('Sin registrar: 5 h 30 min')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Servicio asignado'), { target: { value: '20' } });
@@ -177,7 +178,7 @@ describe('Workshop time panel', () => {
   it('keeps the manual draft on API error and retries without adding a mechanic userId', async () => {
     const state = vi.fn();
     mount({ onState: state });
-    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    await screen.findByRole('option', { name: 'ABCD12 · OT-12 · Diagnóstico' });
     fireEvent.change(screen.getByLabelText('Servicio asignado'), { target: { value: '20' } });
     fillInterval();
     vi.mocked(api.post).mockRejectedValueOnce(new Error('Offline'));
@@ -258,7 +259,7 @@ describe('Workshop time panel', () => {
     fireEvent.change(await screen.findByLabelText('Trabajador del registro'), {
       target: { value: '9' },
     });
-    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    await screen.findByRole('option', { name: 'ABCD12 · OT-12 · Diagnóstico' });
     fireEvent.change(screen.getByLabelText('Servicio asignado'), { target: { value: '20' } });
     fillInterval();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar horas aceptadas' }));
@@ -275,7 +276,7 @@ describe('Workshop time panel', () => {
     mount({ onState: state });
     await screen.findAllByRole('option', { name: 'Mecánico Uno' });
     fireEvent.change(screen.getByLabelText('Trabajador del registro'), { target: { value: '9' } });
-    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    await screen.findByRole('option', { name: 'ABCD12 · OT-12 · Diagnóstico' });
     fireEvent.change(screen.getByLabelText('Servicio asignado'), { target: { value: '20' } });
     fillInterval();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Registrar como horas extra' }));
@@ -297,7 +298,7 @@ describe('Workshop time panel', () => {
     expect(state).toHaveBeenLastCalledWith(false, false);
     expect(screen.getByRole('checkbox', { name: 'Registrar como horas extra' })).toBeChecked();
     fireEvent.change(screen.getByLabelText('Trabajador del registro'), { target: { value: '9' } });
-    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    await screen.findByRole('option', { name: 'ABCD12 · OT-12 · Diagnóstico' });
     fireEvent.change(screen.getByLabelText('Servicio asignado'), { target: { value: '20' } });
     fillInterval();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar horas aceptadas' }));
@@ -394,6 +395,6 @@ describe('Workshop time panel', () => {
       await screen.findByText('Totales del día completo; historial de esta OT.'),
     ).toBeInTheDocument();
     expect(screen.queryByText('OT-12 · Servicio anterior reasignado')).not.toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: 'OT-12 · Diagnóstico' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'ABCD12 · OT-12 · Diagnóstico' })).not.toBeInTheDocument();
   });
 });

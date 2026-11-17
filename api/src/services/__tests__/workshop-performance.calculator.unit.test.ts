@@ -82,6 +82,27 @@ describe('Registered utilization excludes lunch and retains operational overtime
       session(2, '12:00', '13:00', { supersededAt: now })], now, 'day');
     expect(report.utilization.registeredHours).toBe(0.01);
   });
+  it('adds both records when a diagnosis continues on the next day', () => {
+    const nextDay: PerformanceDay = { date: '2026-11-17', start: new Date('2026-11-17T03:00:00Z'), end: new Date('2026-11-18T03:00:00Z'),
+      workers: [{ userId: 9, intervals: [{ start: new Date('2026-11-17T12:00:00Z'), end: new Date('2026-11-17T21:00:00Z') }] }] };
+    const report = calculateUtilization([scheduled, nextDay], [
+      session(1, '12:00', '15:00'),
+      session(2, '12:00', '14:00', { startedAt: new Date('2026-11-17T12:00:00Z'), endedAt: new Date('2026-11-17T14:00:00Z') }),
+    ], new Date('2026-11-17T23:00:00Z'), 'day');
+    expect(report.utilization.registeredHours).toBe(5);
+    expect(report.periods.map((period) => period.registeredHours)).toEqual([3, 2]);
+  });
+  it('reconciles weekly periods with individual records across a week boundary', () => {
+    const sunday: PerformanceDay = { date: '2026-11-15', start: new Date('2026-11-15T03:00:00Z'), end: new Date('2026-11-16T03:00:00Z'),
+      workers: [{ userId: 9, intervals: [{ start: new Date('2026-11-15T12:00:00Z'), end: new Date('2026-11-15T16:00:00Z') }] }] };
+    const report = calculateUtilization([sunday, scheduled], [
+      session(1, '12:00', '15:00', { startedAt: new Date('2026-11-15T12:00:00Z'), endedAt: new Date('2026-11-15T15:00:00Z') }),
+      session(2, '12:00', '16:00'),
+    ], new Date('2026-11-16T23:00:00Z'), 'week');
+    expect(report.utilization.registeredHours).toBe(7);
+    expect(report.periods.map((period) => period.key)).toEqual(['2026-11-09', '2026-11-16']);
+    expect(report.periods.reduce((sum, period) => sum + period.registeredHours, 0)).toBe(7);
+  });
 });
 
 describe('Quality measures real review history and rework intervals', () => {

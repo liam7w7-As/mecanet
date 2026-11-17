@@ -54,7 +54,9 @@ export const getPostLoginPath = (user: UserPublic, from?: string): string => {
   const route = getRouteAccess(pathname);
   if (!route || !hasRouteAccess(user, route)) return home;
   if (user.role === 'mecanico') {
-    return route.path === APP_ROUTES.myWorkOrders.path || /^\/work-orders\/\d+\/ficha$/.test(pathname)
+    return route.path === APP_ROUTES.myWorkOrders.path
+      || route.path === APP_ROUTES.workshopJournal.path
+      || /^\/work-orders\/\d+\/ficha$/.test(pathname)
       ? from : home;
   }
   if (route.path === APP_ROUTES.myWorkOrders.path) return home;

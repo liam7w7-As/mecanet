@@ -33,6 +33,11 @@ export const APP_ROUTES = {
     path: '/work-orders/daily-report',
     allowedRoles: ['desarrollador', 'admin', 'jefe'],
   },
+  workshopJournal: {
+    path: '/work-orders/journal',
+    allowedRoles: ['desarrollador', 'admin', 'jefe', 'mecanico'],
+    requiredAnyPermission: [{ modulo: 'taller', accion: 'read' }],
+  },
   worksheet: {
     path: '/work-orders/:id/ficha',
     requiredAnyPermission: [{ modulo: 'taller', accion: 'read' }],

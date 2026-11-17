@@ -257,9 +257,9 @@ describe('WorkOrderQualityPanel', () => {
     original.cantidad = 5;
     original.horasHombreEstimadas = 99;
     original.assignments = [
-      { id: 1, userId: 9, userName: 'Carlos', specialtyId: 2, specialtyName: 'Mecánica', estimatedHours: 1.5, originalEstimatedHours: 1, completedAt: new Date().toISOString(), active: true },
-      { id: 2, userId: 10, userName: 'Luis', specialtyId: null, specialtyName: null, estimatedHours: null, originalEstimatedHours: null, completedAt: new Date().toISOString(), active: true },
-      { id: 3, userId: 11, userName: 'Anterior', specialtyId: 3, specialtyName: 'Electricidad', estimatedHours: 8, originalEstimatedHours: 8, completedAt: null, active: false },
+      { id: 1, userId: 9, userName: 'Carlos', specialtyId: 2, specialtyName: 'Mecánica', costHourly: null, saleHourly: null, estimatedHours: 1.5, originalEstimatedHours: 1, completedAt: new Date().toISOString(), active: true },
+      { id: 2, userId: 10, userName: 'Luis', specialtyId: null, specialtyName: null, costHourly: null, saleHourly: null, estimatedHours: null, originalEstimatedHours: null, completedAt: new Date().toISOString(), active: true },
+      { id: 3, userId: 11, userName: 'Anterior', specialtyId: 3, specialtyName: 'Electricidad', costHourly: null, saleHourly: null, estimatedHours: 8, originalEstimatedHours: 8, completedAt: null, active: false },
     ];
     renderPanel(); await openPanel(); const item = openItem();
     fireEvent.click(within(item).getByRole('button', { name: 'Solicitar corrección' }));

@@ -20,8 +20,8 @@ const config = {
   profiles: [{ userId: 9, principalSpecialtyId: 2, additionalSpecialtyIds: [3] }, { userId: 10, principalSpecialtyId: 2, additionalSpecialtyIds: [] }],
 };
 const team: NonNullable<WorkOrderWorksheetItem['assignments']> = [
-  { id: 1, userId: 9, userName: 'Carlos', specialtyId: null, specialtyName: null, estimatedHours: 1.5, originalEstimatedHours: 1, completedAt: null, active: true },
-  { id: 2, userId: 10, userName: 'Luis', specialtyId: 2, specialtyName: 'Mecánica', estimatedHours: 2.25, originalEstimatedHours: 2.25, completedAt: null, active: true },
+  { id: 1, userId: 9, userName: 'Carlos', specialtyId: null, specialtyName: null, costHourly: 4000, saleHourly: 8000, estimatedHours: 1.5, originalEstimatedHours: 1, completedAt: null, active: true },
+  { id: 2, userId: 10, userName: 'Luis', specialtyId: 2, specialtyName: 'Mecánica', costHourly: 5000, saleHourly: 10000, estimatedHours: 2.25, originalEstimatedHours: 2.25, completedAt: null, active: true },
 ];
 const session = (userId: number, mine: boolean): NonNullable<WorkOrderWorksheetItem['activeSession']> => ({ id: userId, userId, userName: userId === 9 ? 'Carlos' : 'Luis', startedAt: new Date(Date.now() - 10 * 60000).toISOString(), elapsedMinutes: 10, mine });
 let worksheet: WorkOrderWorksheet;

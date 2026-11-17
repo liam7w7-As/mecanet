@@ -154,6 +154,8 @@ describe('Updated workshop role workspaces', () => {
     fireEvent.change(within(dialog).getByLabelText('Inicio del intervalo'), { target: { value: '2025-10-04T18:00' } });
     fireEvent.change(within(dialog).getByLabelText('Fin del intervalo'), { target: { value: '2025-10-04T19:00' } });
     fireEvent.change(within(dialog).getByLabelText('Motivo del registro'), { target: { value: 'Diagnóstico urgente' } });
+    await waitFor(() => expect(within(dialog).getByRole('option', { name: 'OT-26-41 · Diagnóstico' })).toBeInTheDocument());
+    fireEvent.change(within(dialog).getByLabelText('Servicio asignado'), { target: { value: '20' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
     expect(screen.getByRole('alertdialog', { name: 'Cambios sin guardar' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Seguir editando' }));

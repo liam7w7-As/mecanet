@@ -16,7 +16,7 @@ vi.mock('../../../lib/api', () => ({
 
 const initialConfig = (): WorkshopPersonnelConfig => ({
   specialties: [{ id: 2, name: 'Electricista', active: true }], rates: [],
-  workers: [{ id: 9, nombre: 'Camila Taller', activo: true }],
+  workers: [{ id: 9, nombre: 'Camila Taller', activo: true, role: 'mecanico' }],
   profiles: [{ userId: 9, principalSpecialtyId: null, additionalSpecialtyIds: [] }],
   schedule: { timezone: 'America/Santiago', weekly: [], updatedAt: null, updatedBy: null }, exceptions: [],
 });
@@ -81,7 +81,7 @@ describe('WorkshopPersonnelPanel', () => {
     expect(screen.queryByText('Electricista')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Nueva especialidad' })).not.toBeInTheDocument();
   });
-  it('allows a chief to record reasoned exceptions but keeps general configuration read-only', async () => {
+  it('allows a chief to record reasoned exceptions from the operations modal', async () => {
     useAuthStore.setState({ user: { id: 3, nombre: 'Jefe', email: 'j@example.test', role: 'jefe', permissions: [
       { modulo: 'taller', accion: 'read' }, { modulo: 'taller', accion: 'update' }, { modulo: 'admin', accion: 'update' },
     ] } });
@@ -98,6 +98,24 @@ describe('WorkshopPersonnelPanel', () => {
     fireEvent.change(screen.getByLabelText('Motivo obligatorio'), { target: { value: '  Permiso médico  ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Registrar nueva versión' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/workshop-personnel/workers/9/exceptions', { date: '2026-11-16', dayOff: true, start: null, end: null, reason: 'Permiso médico' }));
+  });
+  it('lets a chief create specialties and assign profiles without admin permissions', async () => {
+    useAuthStore.setState({ user: { id: 3, nombre: 'Jefe', email: 'j@example.test', role: 'jefe', permissions: [
+      { modulo: 'taller', accion: 'read' }, { modulo: 'taller', accion: 'create' }, { modulo: 'taller', accion: 'update' },
+    ] } });
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Nueva especialidad' }));
+    fireEvent.change(screen.getByLabelText('Nombre de especialidad'), { target: { value: 'Soldador' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/workshop-personnel/specialties', { name: 'Soldador' }));
+    // Prices remain administration data even though the chief manages the catalog and profiles.
+    expect(screen.queryByRole('button', { name: 'Nueva tarifa de Electricista' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Editar perfil de Camila Taller' }));
+    fireEvent.click(screen.getByLabelText('Asignar Electricista'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/workshop-personnel/workers/9/profile', {
+      principalSpecialtyId: 2, additionalSpecialtyIds: [],
+    }));
   });
   it('requires explicit numeric rates and accepts a deliberate zero', async () => {
     renderPanel();
@@ -135,10 +153,51 @@ describe('WorkshopPersonnelPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     await screen.findByRole('alert');
     expect(screen.getByLabelText('Nombre de especialidad')).toHaveValue('Soldador');
-    await act(async () => useAuthStore.setState({ user: { id: 3, nombre: 'Jefe', email: 'j@example.test', role: 'jefe' } }));
+    await act(async () => useAuthStore.setState({ user: { id: 3, nombre: 'Jefe', email: 'j@example.test', role: 'jefe', permissions: [{ modulo: 'taller', accion: 'read' }] } }));
     // A new scoped query prevents the prior admin response being reused during a role change.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled());
     fireEvent.submit(screen.getByRole('button', { name: 'Guardar cambios' }).closest('form')!);
     expect(api.post).toHaveBeenCalledTimes(1);
+  });
+  it('auto-assigns the first specialty as principal when the profile is empty', async () => {
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar perfil de Camila Taller' }));
+    expect(screen.getByLabelText('Principal Electricista')).not.toBeChecked();
+    fireEvent.click(screen.getByLabelText('Asignar Electricista'));
+    expect(screen.getByLabelText('Principal Electricista')).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/workshop-personnel/workers/9/profile', {
+      principalSpecialtyId: 2, additionalSpecialtyIds: [],
+    }));
+  });
+  it('promotes another assigned specialty when the principal is unchecked', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: {
+      ...initialConfig(),
+      specialties: [{ id: 2, name: 'Electricista', active: true }, { id: 3, name: 'Pintor', active: true }],
+      profiles: [{ userId: 9, principalSpecialtyId: 2, additionalSpecialtyIds: [3] }],
+    } });
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar perfil de Camila Taller' }));
+    expect(screen.getByLabelText('Principal Electricista')).toBeChecked();
+    fireEvent.click(screen.getByLabelText('Asignar Electricista'));
+    expect(screen.getByLabelText('Principal Electricista')).not.toBeChecked();
+    expect(screen.getByLabelText('Principal Electricista')).toBeDisabled();
+    expect(screen.getByLabelText('Principal Pintor')).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/workshop-personnel/workers/9/profile', {
+      principalSpecialtyId: 3, additionalSpecialtyIds: [],
+    }));
+  });
+  it('hides inactive specialties unless the worker already has them assigned', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: {
+      ...initialConfig(),
+      specialties: [{ id: 2, name: 'Electricista', active: true }, { id: 4, name: 'Soldador', active: false }],
+    } });
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar perfil de Camila Taller' }));
+    expect(screen.queryByLabelText('Asignar Soldador')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Buscar especialidad'), { target: { value: 'elec' } });
+    expect(screen.getByLabelText('Asignar Electricista')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Asignar Soldador')).not.toBeInTheDocument();
   });
 });

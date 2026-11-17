@@ -108,7 +108,7 @@ describe('Workshop time router without database setup', () => {
       .get('/api/workshop-time/eligible-items?userId=9')
       .set('x-test-role', 'jefe');
     expect(eligible.body).toEqual({ items: [] });
-    expect(getWorkshopTimeEligibleItems).toHaveBeenCalledWith({ id: 1, role: 'jefe' }, 9);
+    expect(getWorkshopTimeEligibleItems).toHaveBeenCalledWith({ id: 1, role: 'jefe' }, 9, undefined);
   });
   it('validates interval payloads before calling persistence', async () => {
     const result = await request(app)
@@ -122,6 +122,20 @@ describe('Workshop time router without database setup', () => {
         note: ' ',
       });
     expect(result.status).toBe(400);
+    expect(createWorkshopTimeRequest).not.toHaveBeenCalled();
+  });
+  it('validates and forwards the selected eligible date without coercing impossible dates', async () => {
+    expect((await request(app).get('/api/workshop-time/eligible-items?fecha=2026-02-30').set('x-test-role', 'mecanico')).status).toBe(400);
+    expect(getWorkshopTimeEligibleItems).not.toHaveBeenCalled();
+    expect((await request(app).get('/api/workshop-time/eligible-items?fecha=2025-10-04').set('x-test-role', 'mecanico')).status).toBe(200);
+    expect(getWorkshopTimeEligibleItems).toHaveBeenCalledWith({ id: 9, role: 'mecanico' }, undefined, '2025-10-04');
+  });
+  it('keeps optional activity compatible but forbids state injection on corrections', async () => {
+    const data = { workOrderId: 12, itemId: 20, startedAt: '2025-10-04T12:00:00Z', endedAt: '2025-10-04T13:00:00Z', note: 'Diagnóstico realizado', activityStatus: 'completado' };
+    expect((await request(app).post('/api/workshop-time/requests').set('x-test-role', 'mecanico').send(data)).status).toBe(201);
+    expect(createWorkshopTimeRequest).toHaveBeenCalledWith({ id: 9, role: 'mecanico' }, expect.objectContaining({ activityStatus: 'completado' }));
+    vi.mocked(createWorkshopTimeRequest).mockClear();
+    expect((await request(app).post('/api/workshop-time/requests').set('x-test-role', 'mecanico').send({ sourceSessionId: 30, startedAt: data.startedAt, endedAt: data.endedAt, note: data.note, activityStatus: 'en_proceso' })).status).toBe(400);
     expect(createWorkshopTimeRequest).not.toHaveBeenCalled();
   });
   it('reserves reasoned review for supervisors', async () => {

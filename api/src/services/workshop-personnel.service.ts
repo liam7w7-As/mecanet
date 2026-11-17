@@ -7,6 +7,7 @@ import { Op, UniqueConstraintError } from 'sequelize';
 
 import { closeSession, recalculateItemHours } from './work-order-labor-sessions.js';
 import { withWorkshopTransaction } from './workshop-transaction.js';
+import { Role } from '../models/Role.js';
 import { Specialty } from '../models/Specialty.js';
 import { SpecialtyRate } from '../models/SpecialtyRate.js';
 import { User } from '../models/User.js';
@@ -57,14 +58,18 @@ export async function getWorkshopPersonnelConfig(): Promise<WorkshopPersonnelCon
     const [specialties, rates, workers, assignments, schedule, exceptions] = await Promise.all([
       Specialty.findAll({ order: [['name', 'ASC']], transaction }),
       SpecialtyRate.findAll({ order: [['validityFrom', 'DESC'], ['id', 'DESC']], transaction }),
-      User.findAll({ attributes: ['id', 'nombre', 'activo'], order: [['nombre', 'ASC']], transaction }),
+      User.findAll({
+        attributes: ['id', 'nombre', 'activo'],
+        include: [{ model: Role, attributes: ['nombre'], required: false }],
+        order: [['nombre', 'ASC']], transaction,
+      }),
       WorkerSpecialty.findAll({ order: [['specialtyId', 'ASC']], transaction }),
       WorkshopSchedule.findByPk(1, { transaction }),
       WorkshopScheduleException.findAll({ order: [['date', 'DESC'], ['version', 'DESC'], ['id', 'DESC']], transaction }),
     ]);
     return {
       specialties: specialties.map(specialtyPublic), rates: rates.map(ratePublic),
-      workers: workers.map((worker) => ({ id: worker.id, nombre: worker.nombre, activo: worker.activo })),
+      workers: workers.map((worker) => ({ id: worker.id, nombre: worker.nombre, activo: worker.activo, role: worker.role?.nombre ?? null })),
       profiles: workers.map((worker) => {
         const memberships = assignments.filter((row) => row.userId === worker.id);
         return { userId: worker.id, principalSpecialtyId: memberships.find((row) => row.isPrincipal)?.specialtyId ?? null,
@@ -205,10 +210,17 @@ const refreshOpenShiftCutoffs = async (transaction: Transaction, userId?: number
   }
 };
 
-const partsAt = (at: Date, timezone: string): Record<string, string> => Object.fromEntries(
-  new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(at).map((part) => [part.type, part.value]),
-);
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+const partsAt = (at: Date, timezone: string): Record<string, string> => {
+  let formatter = dateFormatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+    if (dateFormatters.size >= 16) dateFormatters.clear();
+    dateFormatters.set(timezone, formatter);
+  }
+  return Object.fromEntries(formatter.formatToParts(at).map((part) => [part.type, part.value]));
+};
 const localDate = (at: Date, timezone: string): string => {
   const parts = partsAt(at, timezone);
   return `${parts.year}-${parts.month}-${parts.day}`;
@@ -255,6 +267,12 @@ export async function getWorkshopDayRange(date: string, transaction?: Transactio
   if (!workshopDateSchema.safeParse(date).success) throw ApiError.badRequest('Fecha inválida');
   const schedule = await WorkshopSchedule.findByPk(1, { transaction });
   const timezone = schedule?.timezone ?? DEFAULT_WORKSHOP_TIMEZONE;
+  return getCivilDayRange(date, timezone);
+}
+
+/** Shared by reports: resolve a whole configured period without one SQL query per worker/day. */
+export function getCivilDayRange(date: string, timezone: string): { start: Date; end: Date } {
+  if (!workshopDateSchema.safeParse(date).success) throw ApiError.badRequest('Fecha inválida');
   const boundary = (civilDate: string): Date => {
     const nominal = Date.parse(`${civilDate}T00:00:00.000Z`);
     let low = nominal - 48 * 3_600_000;
@@ -280,9 +298,17 @@ export async function getWorkerShift(userId: number, at: Date, transaction?: Tra
   const timezone = schedule?.timezone ?? DEFAULT_WORKSHOP_TIMEZONE;
   const date = localDate(at, timezone);
   const exception = await WorkshopScheduleException.findOne({ where: { userId, date }, order: [['version', 'DESC'], ['id', 'DESC']], transaction });
+  return resolveWorkerShift(schedule?.weekly ?? DEFAULT_WORKSHOP_WEEKLY, timezone, at, exception);
+}
+
+export function resolveWorkerShift(
+  weekly: WorkshopWeeklyDay[], timezone: string, at: Date,
+  exception?: { dayOff: boolean; start: string | null; end: string | null } | null,
+): WorkerShift {
+  assertDate(at);
+  const date = localDate(at, timezone);
   if (exception) return exception.dayOff ? { configured: true, start: null, end: null } : shiftDates(date, exception.start!, exception.end!, timezone);
   // A stored empty array remains an intentional administrative override.
-  const weekly = schedule?.weekly ?? DEFAULT_WORKSHOP_WEEKLY;
   if (!weekly.length) return { configured: false, start: null, end: null };
   const weekday = new Date(`${date}T00:00:00.000Z`).getUTCDay();
   const day = weekly.find((entry) => entry.weekday === weekday);

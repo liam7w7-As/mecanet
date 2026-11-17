@@ -77,7 +77,7 @@ export class WorkOrderItemSession extends Model<
   @Column({ type: DataType.DATE, allowNull: true })
   declare endedAt: Date | null;
 
-  @Column({ type: DataType.INTEGER, allowNull: true })
+  @Column({ type: DataType.DECIMAL(14, 8), allowNull: true })
   declare durationMinutes: number | null;
 
   @Column({ type: DataType.DATE, allowNull: true })

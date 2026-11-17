@@ -29,6 +29,7 @@ import {
   createRecordSalesAccessGrantSchema,
   salesAccessGrantParamsSchema,
 } from '@unithor/shared';
+import { pauseWorkshopTimerSchema } from '@unithor/shared';
 import { Router } from 'express';
 import { z } from 'zod';
 
@@ -269,7 +270,7 @@ workOrderRouter.post(
 workOrderRouter.post(
   '/:id/items/:itemId/pause',
   authorize('taller', 'update'),
-  validate({ params: itemParamSchema }),
+  validate({ params: itemParamSchema, body: pauseWorkshopTimerSchema.partial().default({}) }),
   pauseItemTimerHandler,
 );
 

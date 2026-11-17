@@ -17,6 +17,7 @@ import { useAuthStore } from '../../stores/auth.store';
 import type {
   CreateWorkshopTimeRequestInput,
   WorkshopTimeEntry,
+  WorkshopTimeActivityStatus,
   WorkshopTimeRequestRecord,
 } from '@unithor/shared';
 import type { FormEvent } from 'react';
@@ -37,7 +38,7 @@ const localDate = (): string => {
 };
 const localInput = (value: string): string => {
   const date = new Date(value);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
 };
 const statusLabels = {
   pendiente: 'Pendiente de validación',
@@ -123,6 +124,7 @@ export default function WorkshopTimePanel({
   const [date, setDate] = useState(initialDate ?? localDate);
   const [filterWorker, setFilterWorker] = useState('');
   const [manualWorker, setManualWorker] = useState('');
+  const [activityStatus, setActivityStatus] = useState<WorkshopTimeActivityStatus>('en_proceso');
   const [itemId, setItemId] = useState('');
   const [startedAt, setStartedAt] = useState('');
   const [endedAt, setEndedAt] = useState('');
@@ -152,6 +154,7 @@ export default function WorkshopTimePanel({
   const eligible = useWorkshopTimeEligibleItems(
     supervisor && manualWorker ? Number(manualWorker) : undefined,
     editable && (!supervisor || Boolean(manualWorker)),
+    startedAt.slice(0, 10) || date,
   );
   const create = useCreateWorkshopTimeRequestMutation();
   const items = (eligible.data ?? []).filter(
@@ -165,7 +168,7 @@ export default function WorkshopTimePanel({
   );
   const dirty =
     allowed &&
-    (Boolean(source || itemId || startedAt || endedAt || note || (supervisor && overtime !== defaultOvertime)) ||
+    (Boolean(source || itemId || startedAt || endedAt || note || activityStatus !== 'en_proceso' || (supervisor && overtime !== defaultOvertime)) ||
       Object.values(reviewStates).some((state) => state.dirty));
   const pending = create.isPending || Object.values(reviewStates).some((state) => state.pending);
   useEffect(() => {
@@ -210,6 +213,7 @@ export default function WorkshopTimePanel({
           itemId: selected!.itemId,
           ...(supervisor ? { userId: Number(manualWorker) } : {}),
           overtime: supervisor && overtime,
+          activityStatus,
           startedAt: start.toISOString(),
           endedAt: end.toISOString(),
           note,
@@ -227,6 +231,7 @@ export default function WorkshopTimePanel({
         setEndedAt('');
         setItemId('');
         setSource(null);
+        setActivityStatus('en_proceso');
         setOvertime(defaultOvertime);
         setDate(startedAt.slice(0, 10));
         if (supervisor) setFilterWorker(String(request.userId));
@@ -398,6 +403,7 @@ export default function WorkshopTimePanel({
                 Inicio del intervalo
                 <input
                   type="datetime-local"
+                  step="1"
                   required
                   value={startedAt}
                   disabled={create.isPending}
@@ -408,6 +414,7 @@ export default function WorkshopTimePanel({
                 Fin del intervalo
                 <input
                   type="datetime-local"
+                  step="1"
                   required
                   value={endedAt}
                   disabled={create.isPending}
@@ -425,6 +432,20 @@ export default function WorkshopTimePanel({
                 onChange={(event) => setNote(event.target.value)}
               />
             </label>
+            {!source && (
+              <label>
+                Estado de mi actividad
+                <select value={activityStatus} disabled={create.isPending}
+                  onChange={(event) => setActivityStatus(event.target.value as WorkshopTimeActivityStatus)}>
+                  <option value="en_proceso">En proceso</option>
+                  <option value="completado">Finalizado por el trabajador</option>
+                </select>
+              </label>
+            )}
+            <p className="workshop-labor-help">
+              Describe la actividad realizada en el motivo. El avance se aplica al aprobar,
+              si sigue vigente. Finalizar tu parte conserva el avance del resto del equipo y requiere control de calidad.
+            </p>
             {supervisor && !source && (
               <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
@@ -520,6 +541,7 @@ export default function WorkshopTimePanel({
                 {formatDateTime(request.startedAt)} → {formatDateTime(request.endedAt)}
               </p>
               <p>{request.note}</p>
+              {request.activityStatus && <p>Actividad declarada: {request.activityStatus === 'completado' ? 'Finalizado por el trabajador' : 'En proceso'}</p>}
               {request.reviewNote && <p>Motivo de revisión: {request.reviewNote}</p>}
               {request.status === 'pendiente' && supervisor && (
                 <ReviewRequest request={request} enabled={editable} onState={onReviewState} />

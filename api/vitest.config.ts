@@ -6,5 +6,8 @@ export default defineConfig({
     // Vaciar las tablas transaccionales antes de cada archivo, dejando la linea
     // base del seed intacta. Ver el comentario en src/test/setup-truncate.ts.
     setupFiles: ['./src/test/setup-truncate.ts'],
+    // globalSetup cierra la conexión y cada archivo reconecta en beforeAll; en
+    // una corrida paralela ese arranque supera los 10s por defecto.
+    hookTimeout: 30_000,
   },
 });

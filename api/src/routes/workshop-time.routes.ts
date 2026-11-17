@@ -46,7 +46,7 @@ workshopTimeRouter.get(
   validate({ query: workshopTimeEligibleQuerySchema }),
   asyncHandler(async (req, res) => {
     const query = workshopTimeEligibleQuerySchema.parse(req.query);
-    res.json({ items: await getWorkshopTimeEligibleItems(actor(req), query.userId) });
+    res.json({ items: await getWorkshopTimeEligibleItems(actor(req), query.userId, query.fecha) });
   }),
 );
 workshopTimeRouter.post(

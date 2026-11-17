@@ -2,13 +2,16 @@ import { Op, Transaction } from 'sequelize';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { User } from '../../models/User.js';
+import { Vehicle } from '../../models/Vehicle.js';
 import { WorkOrder } from '../../models/WorkOrder.js';
 import { WorkOrderItem } from '../../models/WorkOrderItem.js';
 import { WorkOrderItemAssignment } from '../../models/WorkOrderItemAssignment.js';
+import { WorkOrderItemProgressEvent } from '../../models/WorkOrderItemProgressEvent.js';
 import { WorkOrderItemSession } from '../../models/WorkOrderItemSession.js';
 import { WorkshopTimeRequest } from '../../models/WorkshopTimeRequest.js';
-import { recordItemProgressEvent } from '../work-order-labor-events.js';
+import { recordItemProgressEvent, synchronizeTeamCompletion } from '../work-order-labor-events.js';
 import * as sessionHelpers from '../work-order-labor-sessions.js';
+import { invalidateItemQuality } from '../work-order-quality-state.js';
 import { getAssignedOrderIds, isAssignedToItem } from '../work-order-team-access.js';
 import { syncMirrorQuotationFromWorkOrder } from '../work-order.service.js';
 import { getWorkerShift, getWorkshopDayRange } from '../workshop-personnel.service.js';
@@ -23,6 +26,8 @@ import { withWorkshopTransaction } from '../workshop-transaction.js';
 
 vi.mock('../../models/User.js', () => ({ User: { findByPk: vi.fn(), findAll: vi.fn() } }));
 vi.mock('../../models/Role.js', () => ({ Role: class {} }));
+vi.mock('../../models/Vehicle.js', () => ({ Vehicle: { findByPk: vi.fn() } }));
+vi.mock('../../models/WorkOrderItemProgressEvent.js', () => ({ WorkOrderItemProgressEvent: { findOne: vi.fn() } }));
 vi.mock('../../models/WorkOrder.js', () => ({
   WorkOrder: { findByPk: vi.fn(), findAll: vi.fn() },
 }));
@@ -33,15 +38,17 @@ vi.mock('../../models/WorkOrderItemSession.js', () => ({
   WorkOrderItemSession: { findOne: vi.fn(), findAll: vi.fn(), create: vi.fn() },
 }));
 vi.mock('../../models/WorkOrderItemAssignment.js', () => ({
-  WorkOrderItemAssignment: { findOne: vi.fn() },
+  WorkOrderItemAssignment: { findOne: vi.fn(), findAll: vi.fn() },
 }));
 vi.mock('../../models/WorkshopTimeRequest.js', () => ({
   WorkshopTimeRequest: { findByPk: vi.fn(), findOne: vi.fn(), findAll: vi.fn(), create: vi.fn() },
 }));
-vi.mock('../work-order-labor-events.js', () => ({
+vi.mock('../work-order-labor-events.js', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../work-order-labor-events.js')>(),
   recordItemProgressEvent: vi.fn(),
-  roundHours: (hours: number) => Math.round(hours * 100) / 100,
+  synchronizeTeamCompletion: vi.fn(),
 }));
+vi.mock('../work-order-quality-state.js', () => ({ invalidateItemQuality: vi.fn() }));
 vi.mock('../work-order-team-access.js', () => ({
   isAssignedToItem: vi.fn(),
   getAssignedOrderIds: vi.fn(),
@@ -94,6 +101,8 @@ beforeEach(() => {
     codigo: 'OT-12',
     estado: 'en_progreso',
     assignedMechanicId: 10,
+    vehicleId: 5,
+    createdAt: new Date('2026-11-01T00:00:00Z'),
     total: 99000,
     client: { deuda: 8000 },
   });
@@ -102,6 +111,7 @@ beforeEach(() => {
     workOrderId: 12,
     descripcion: 'Diagnóstico',
     tipoLinea: 'especifico',
+    createdAt: new Date('2026-11-01T00:00:00Z'),
     assignedUserId: 10,
     estadoOperativo: 'completado',
     horasHombreEstimadas: 1,
@@ -146,6 +156,8 @@ beforeEach(() => {
   });
   vi.mocked(User.findByPk).mockResolvedValue(worker);
   vi.mocked(User.findAll).mockResolvedValue([worker]);
+  vi.mocked(Vehicle.findByPk).mockResolvedValue(row<Vehicle>({ id: 5 }));
+  vi.mocked(WorkOrderItemProgressEvent.findOne).mockResolvedValue(null);
   vi.mocked(WorkOrder.findByPk).mockResolvedValue(order);
   vi.mocked(WorkOrder.findAll).mockResolvedValue([order]);
   vi.mocked(WorkOrderItem.findOne).mockResolvedValue(item);
@@ -156,8 +168,9 @@ beforeEach(() => {
     row<WorkOrderItemSession>({ id: 100, ...values }),
   );
   vi.mocked(WorkOrderItemAssignment.findOne).mockResolvedValue(
-    row<WorkOrderItemAssignment>({ id: 44 }),
+    row<WorkOrderItemAssignment>({ id: 44, userId: 9, active: true, completedAt: null, createdAt: new Date('2026-11-01T00:00:00Z') }),
   );
+  vi.mocked(WorkOrderItemAssignment.findAll).mockResolvedValue([]);
   vi.mocked(WorkshopTimeRequest.create).mockImplementation(async (values) =>
     row<WorkshopTimeRequest>({ id: 200, createdAt: new Date(), ...values }),
   );
@@ -176,9 +189,40 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('Manual time authorization and validation', () => {
+  it('captures optional activity and assignment, without applying either before chief approval', async () => {
+    item.estadoOperativo = 'pendiente';
+    vi.mocked(WorkOrderItemProgressEvent.findOne).mockResolvedValue(row<WorkOrderItemProgressEvent>({ id: 7 }));
+    const request = await createWorkshopTimeRequest(mechanic, { ...manual, activityStatus: 'completado' });
+    expect(request).toMatchObject({ status: 'pendiente', activityStatus: 'completado' });
+    expect(WorkshopTimeRequest.create).toHaveBeenCalledWith(expect.objectContaining({ assignmentId: 44, stateEventId: 7, activityStatus: 'completado' }), { transaction: tx });
+    expect(item.update).not.toHaveBeenCalled();
+    expect(synchronizeTeamCompletion).not.toHaveBeenCalled();
+  });
+  it.each(['order', 'item', 'assignment'])('rejects API intervals predating their %s origin', async (origin) => {
+    const afterStart = new Date('2026-11-15T12:00:01Z');
+    if (origin === 'order') order.createdAt = afterStart;
+    if (origin === 'item') item.createdAt = afterStart;
+    if (origin === 'assignment') vi.mocked(WorkOrderItemAssignment.findOne).mockResolvedValue(row<WorkOrderItemAssignment>({ id: 44, createdAt: afterStart }));
+    await expect(createWorkshopTimeRequest(mechanic, manual)).rejects.toMatchObject({ statusCode: 400 });
+    expect(WorkshopTimeRequest.create).not.toHaveBeenCalled();
+  });
+  it('rejects missing/removed vehicles and quality-approved or omitted services', async () => {
+    order.vehicleId = null;
+    await expect(createWorkshopTimeRequest(mechanic, manual)).rejects.toMatchObject({ statusCode: 400 });
+    order.vehicleId = 5;
+    vi.mocked(Vehicle.findByPk).mockResolvedValueOnce(null);
+    await expect(createWorkshopTimeRequest(mechanic, manual)).rejects.toMatchObject({ statusCode: 400 });
+    item.qualityStatus = 'aprobado';
+    await expect(createWorkshopTimeRequest(mechanic, manual)).rejects.toMatchObject({ statusCode: 400 });
+    item.qualityStatus = 'pendiente';
+    item.estadoOperativo = 'omitido';
+    await expect(createWorkshopTimeRequest(mechanic, manual)).rejects.toMatchObject({ statusCode: 400 });
+    expect(WorkshopTimeRequest.create).not.toHaveBeenCalled();
+  });
   it('persists mechanic hours visibly pending without creating sessions or adding hours', async () => {
     const request = await createWorkshopTimeRequest(mechanic, manual);
     expect(request).toMatchObject({ status: 'pendiente', userId: 9, durationMinutes: 60 });
@@ -238,7 +282,7 @@ describe('Manual time authorization and validation', () => {
       statusCode: 403,
     });
   });
-  it.each(['entregada', 'cancelada'])('refuses new manual hours on %s orders', async (estado) => {
+  it.each(['finalizada', 'entregada', 'cancelada'])('refuses new manual hours on %s orders', async (estado) => {
     order.estado = estado as WorkOrder['estado'];
     await expect(createWorkshopTimeRequest(mechanic, manual)).rejects.toMatchObject({
       statusCode: 400,
@@ -284,6 +328,126 @@ describe('Manual time authorization and validation', () => {
     source.scheduledEndAt = new Date(interval.startedAt);
     vi.mocked(WorkOrderItemSession.findAll).mockResolvedValue([source]);
     expect((await createWorkshopTimeRequest(mechanic, manual)).status).toBe('pendiente');
+  });
+});
+
+describe('Approval applies only the current worker activity', () => {
+  let member: WorkOrderItemAssignment;
+  let partner: WorkOrderItemAssignment;
+  beforeEach(() => {
+    item.estadoOperativo = 'en_proceso';
+    item.teamManaged = true;
+    item.qualityStatus = 'pendiente';
+    pending.kind = 'manual';
+    pending.sourceSessionId = null;
+    pending.assignmentId = 44;
+    pending.activityStatus = 'completado';
+    pending.stateEventId = null;
+    member = row<WorkOrderItemAssignment>({ id: 44, userId: 9, active: true, completedAt: null, createdAt: new Date('2026-11-01T00:00:00Z') });
+    partner = row<WorkOrderItemAssignment>({ id: 45, userId: 10, active: true, completedAt: null });
+    vi.mocked(WorkOrderItemAssignment.findOne).mockResolvedValue(member);
+    vi.mocked(WorkOrderItemAssignment.findAll).mockResolvedValue([member, partner]);
+    vi.mocked(WorkOrderItemSession.findOne).mockResolvedValue(null);
+  });
+  const approve = () => reviewWorkshopTimeRequest(chief, 200, { approve: true, note: 'Actividad verificada' });
+  it('finishes just the applicant part while retaining the unfinished team', async () => {
+    await approve();
+    expect(member.completedAt).toEqual(pending.endedAt);
+    expect(partner.update).not.toHaveBeenCalled();
+    expect(item.estadoOperativo).toBe('en_proceso');
+    expect(synchronizeTeamCompletion).not.toHaveBeenCalled();
+    expect(WorkOrderItemSession.create).toHaveBeenCalledWith(expect.objectContaining({ assignmentId: 44 }), { transaction: tx });
+    expect(recordItemProgressEvent).toHaveBeenCalledWith(expect.objectContaining({ fromStatus: 'en_proceso', toStatus: 'en_proceso' }), tx);
+  });
+  it('completes the service only after every active team member finishes and requires quality', async () => {
+    partner.completedAt = new Date('2026-11-15T11:00:00Z');
+    await approve();
+    expect(item.estadoOperativo).toBe('completado');
+    expect(synchronizeTeamCompletion).toHaveBeenCalledWith(item, 'en_proceso', tx);
+    expect(invalidateItemQuality).toHaveBeenCalledWith(item, 1, expect.any(String), tx);
+    expect(item.qualityStatus).toBe('pendiente');
+    expect(recordItemProgressEvent).toHaveBeenCalledWith(expect.objectContaining({ fromStatus: 'en_proceso', toStatus: 'completado' }), tx);
+  });
+  it('can advance pending work to in-progress without clearing completed teammate progress', async () => {
+    item.estadoOperativo = 'pendiente';
+    pending.activityStatus = 'en_proceso';
+    partner.completedAt = new Date('2026-11-15T11:00:00Z');
+    await approve();
+    expect(item.estadoOperativo).toBe('en_proceso');
+    expect(member.completedAt).toBeNull();
+    expect(partner.completedAt).not.toBeNull();
+    expect(partner.update).not.toHaveBeenCalled();
+  });
+  it.each(['revoked', 'new-state', 'new-timer', 'quality', 'closed', 'already-completed'])('accepts historical hours but does not replay activity after %s', async (change) => {
+    if (change === 'revoked') vi.mocked(WorkOrderItemAssignment.findAll).mockResolvedValue([partner]);
+    if (change === 'new-state') vi.mocked(WorkOrderItemProgressEvent.findOne).mockResolvedValue(row<WorkOrderItemProgressEvent>({ id: 99 }));
+    if (change === 'new-timer') vi.mocked(WorkOrderItemSession.findOne).mockResolvedValue(source);
+    if (change === 'quality') item.qualityStatus = 'aprobado';
+    if (change === 'closed') order.estado = 'entregada';
+    if (change === 'already-completed') { item.estadoOperativo = 'completado'; pending.activityStatus = 'en_proceso'; }
+    const previousStatus = item.estadoOperativo;
+    const result = await approve();
+    expect(result.status).toBe('aprobada');
+    expect(member.update).not.toHaveBeenCalled();
+    expect(partner.update).not.toHaveBeenCalled();
+    expect(item.estadoOperativo).toBe(previousStatus);
+    expect(invalidateItemQuality).not.toHaveBeenCalled();
+    expect(WorkOrderItemSession.create).toHaveBeenCalledWith(expect.objectContaining({ assignmentId: 44 }), { transaction: tx });
+  });
+  it('rejects retroactive interval tampering again during approval', async () => {
+    pending.startedAt = new Date('2026-10-01T12:00:00Z');
+    await expect(approve()).rejects.toMatchObject({ statusCode: 400 });
+    expect(WorkOrderItemSession.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('Real time calculation through approval and correction', () => {
+  it('preserves fractional manual/overtime minutes and recalculates actual hours from accepted sessions', async () => {
+    vi.mocked(sessionHelpers.recalculateItemHours).mockRestore();
+    const sessions: WorkOrderItemSession[] = [];
+    vi.mocked(WorkOrderItemSession.findAll).mockImplementation(async () => sessions);
+    vi.mocked(WorkOrderItemSession.create).mockImplementation(async (values) => {
+      const session = row<WorkOrderItemSession>({ id: 100, ...values });
+      sessions.push(session);
+      return session;
+    });
+    vi.mocked(getWorkerShift).mockResolvedValue({ configured: true, start: null, end: null });
+    const result = await createWorkshopTimeRequest(chief, { ...manual, userId: 9, overtime: true, endedAt: '2026-11-15T12:01:29Z' });
+    expect(result.durationMinutes).toBeCloseTo(89 / 60, 8);
+    expect(sessions[0].durationMinutes).toBeCloseTo(89 / 60, 8);
+    expect(item.horasHombreReales).toBe(0.02);
+    const journal = await getWorkshopTimeJournal(mechanic, { fecha: '2026-11-15' });
+    expect(journal.totals.registeredMinutes).toBeCloseTo(89 / 60, 8);
+    expect(journal.entries[0].durationMinutes).toBeCloseTo(89 / 60, 8);
+  });
+  it('replaces the original exactly once, keeping attribution and never replaying a correction state', async () => {
+    vi.mocked(sessionHelpers.recalculateItemHours).mockRestore();
+    source.assignmentId = 33;
+    pending.endedAt = new Date('2026-11-15T13:30:00Z');
+    pending.durationMinutes = 90;
+    pending.activityStatus = 'en_proceso'; // Even malformed legacy metadata cannot replay state.
+    const sessions = [source];
+    vi.mocked(WorkOrderItemSession.findAll).mockImplementation(async (options) => {
+      const filter = options?.where as { workOrderItemId?: number } | undefined;
+      return filter?.workOrderItemId ? sessions : sessions.filter((session) => session.id !== 30);
+    });
+    vi.mocked(WorkOrderItemSession.create).mockImplementation(async (values) => {
+      const session = row<WorkOrderItemSession>({ id: 100, ...values });
+      sessions.push(session);
+      return session;
+    });
+    const original = { startedAt: source.startedAt, endedAt: source.endedAt, durationMinutes: source.durationMinutes, assignmentId: source.assignmentId, note: source.note };
+    await reviewWorkshopTimeRequest(chief, 200, { approve: true, note: 'Corrección verificada' });
+    expect(source).toMatchObject(original);
+    expect(source.supersededAt).toBeInstanceOf(Date);
+    expect(sessions[1].assignmentId).toBe(33);
+    expect(item.horasHombreReales).toBe(1.5);
+    expect(item.estadoOperativo).toBe('completado');
+    expect(synchronizeTeamCompletion).not.toHaveBeenCalled();
+    expect(invalidateItemQuality).not.toHaveBeenCalled();
+    expect(recordItemProgressEvent).toHaveBeenCalledWith(expect.objectContaining({ horasDelta: 0.5, fromStatus: 'completado', toStatus: 'completado' }), tx);
+    await expect(reviewWorkshopTimeRequest(chief, 200, { approve: true, note: 'Intento repetido' })).rejects.toMatchObject({ statusCode: 409 });
+    expect(sessions).toHaveLength(2);
   });
 });
 
@@ -427,6 +591,31 @@ describe('Immutable correction requests', () => {
 });
 
 describe('Scoped journals and configured shifts', () => {
+  it('validates eligibility dates at the service boundary and uses vehicle/order/item creation gates', async () => {
+    await expect(getWorkshopTimeEligibleItems(mechanic, undefined, '2026-02-30')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(getWorkshopTimeEligibleItems(mechanic, undefined, '2999-01-01')).rejects.toMatchObject({ statusCode: 400 });
+    expect(getAssignedOrderIds).not.toHaveBeenCalled();
+    await getWorkshopTimeEligibleItems(mechanic, undefined, '2026-11-14');
+    const end = new Date('2026-11-15T03:00:00Z');
+    expect(WorkOrder.findAll).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ createdAt: { [Op.lt]: end }, vehicleId: { [Op.ne]: null }, estado: { [Op.notIn]: ['finalizada', 'entregada', 'cancelada'] } }),
+      include: [expect.objectContaining({ model: Vehicle, required: true })],
+    }));
+    expect(WorkOrderItem.findAll).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ createdAt: { [Op.lt]: end }, qualityStatus: { [Op.ne]: 'aprobado' }, tipoLinea: { [Op.ne]: 'parte' } }) }));
+  });
+  it('does not offer a current assignment on dates before that assignment existed', async () => {
+    item.teamManaged = true;
+    vi.mocked(WorkOrderItemAssignment.findOne).mockResolvedValue(row<WorkOrderItemAssignment>({ id: 44, createdAt: new Date('2026-11-15T12:00:00Z') }));
+    expect(await getWorkshopTimeEligibleItems(mechanic, undefined, '2026-11-14')).toEqual([]);
+    expect(await getWorkshopTimeEligibleItems(mechanic, undefined, '2026-11-15')).toHaveLength(1);
+  });
+  it('accepts a partial day and reports the remaining ordinary coverage without imposing eight hours', async () => {
+    const manualSession = row<WorkOrderItemSession>({ ...source, kind: 'manual', durationMinutes: 150, startedAt: new Date('2026-11-15T11:00:00Z'), endedAt: new Date('2026-11-15T13:30:00Z') });
+    vi.mocked(WorkOrderItemSession.findAll).mockResolvedValue([manualSession]);
+    vi.mocked(getWorkerShift).mockResolvedValue({ configured: true, start: new Date('2026-11-15T11:00:00Z'), end: new Date('2026-11-15T19:00:00Z') });
+    const journal = await getWorkshopTimeJournal(mechanic, { fecha: '2026-11-15' });
+    expect(journal.totals).toMatchObject({ registeredMinutes: 150, scheduledMinutes: 480, unregisteredMinutes: 330 });
+  });
   it('counts all shift segments while excluding lunch and extra work from ordinary coverage', async () => {
     vi.mocked(getWorkerShift).mockResolvedValue({
       configured: true,

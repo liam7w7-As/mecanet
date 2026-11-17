@@ -145,8 +145,31 @@ describe('Multi-worker labor board', () => {
     const pause = await screen.findByRole('button', { name: 'Pausar' });
     vi.mocked(api.post).mockResolvedValueOnce({ data: { worksheet } });
     fireEvent.click(pause);
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith(`/work-orders/${order.id}/items/10/pause`));
+    expect(api.post).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Motivo de la pausa'), { target: { value: 'Falta herramienta' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar pausa' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith(`/work-orders/${order.id}/items/10/pause`, { note: 'Falta herramienta' }));
     expect(within(task()).getByText('En curso por Luis.')).toBeInTheDocument();
+  });
+  it('retains a failed pause reason and submits trimmed text on retry', async () => {
+    setTeam();
+    worksheet.items[0].activeSession = session(9, true);
+    worksheet.items[0].activeSessions = [session(9, true)];
+    useAuthStore.setState({ user: { id: 9, nombre: 'Carlos', email: 'qa@example.test', role: 'mecanico' } });
+    open();
+    const pause = await screen.findByRole('button', { name: 'Pausar' });
+    fireEvent.click(pause);
+    expect(screen.getByRole('dialog', { name: 'Pausar trabajo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar pausa' })).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('Motivo de la pausa'), { target: { value: '  Espera de repuesto  ' } });
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('Sin conexión'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar pausa' }));
+    await screen.findByRole('alert');
+    expect(screen.getByLabelText('Motivo de la pausa')).toHaveValue('  Espera de repuesto  ');
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { worksheet } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar pausa' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Pausar trabajo' })).not.toBeInTheDocument());
+    expect(api.post).toHaveBeenLastCalledWith(`/work-orders/${order.id}/items/10/pause`, { note: 'Espera de repuesto' });
   });
 
   it('finishes only the worker’s assignment, retains notes after failure and prevents restarting the finished part', async () => {

@@ -2,12 +2,14 @@ import { WORK_ORDER_STATUS, WORK_ORDER_STATUS_LABELS } from '@unithor/shared';
 import { FileSpreadsheet, FileText, LoaderCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import WorkshopPerformanceAnalysis from './WorkshopPerformanceAnalysis';
 import {
-  useWorkshopCostReport,
-  useWorkshopCostReportDownload,
-} from '../../hooks/useWorkshopCostReport';
+  useWorkshopPerformance,
+  useWorkshopPerformanceDownload,
+} from '../../hooks/useWorkshopPerformance';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDateTime } from '../../lib/formatters';
+import { reportActorKey } from '../../lib/report-access';
 import {
   canExportWorkshopCosts,
   canReadWorkshopCosts,
@@ -15,7 +17,7 @@ import {
 import { useAuthStore } from '../../stores/auth.store';
 
 import type { ReportPanelProps } from './ReportPanels';
-import type { WorkOrderStatus } from '@unithor/shared';
+import type { WorkOrderStatus, WorkshopPerformanceFilters } from '@unithor/shared';
 
 const hours = (value: number | null): string =>
   value === null
@@ -33,7 +35,7 @@ const WorkshopCostReportContent = ({
   setFilter,
 }: ReportPanelProps) => {
   const user = useAuthStore((state) => state.user);
-  const filters = {
+  const filters: WorkshopPerformanceFilters = {
     fechaDesde: from,
     fechaHasta: to,
     search: search || undefined,
@@ -41,9 +43,13 @@ const WorkshopCostReportContent = ({
     userId: params.get('costWorker') ? Number(params.get('costWorker')) : undefined,
     specialtyId: params.get('costSpecialty') ? Number(params.get('costSpecialty')) : undefined,
     estado: (params.get('costStatus') || undefined) as WorkOrderStatus | undefined,
+    vehicleId: params.get('costVehicle') ? Number(params.get('costVehicle')) : undefined,
+    catalogItemId: params.get('costCatalog') ? Number(params.get('costCatalog')) : undefined,
+    workOrderItemId: params.get('costService') ? Number(params.get('costService')) : undefined,
+    groupBy: (params.get('costGroup') || 'day') as WorkshopPerformanceFilters['groupBy'],
   };
-  const query = useWorkshopCostReport(filters);
-  const download = useWorkshopCostReportDownload();
+  const query = useWorkshopPerformance(filters);
+  const download = useWorkshopPerformanceDownload();
   const report = query.isError ? undefined : query.data;
   const totals = report?.totals;
   const inputClass = 'mt-1 w-full px-3 text-sm';
@@ -51,8 +57,8 @@ const WorkshopCostReportContent = ({
     <section className="min-w-0 space-y-4" aria-label="Costos y horas de mano de obra">
       <div className="report-panel-heading">
         <div>
-          <h2>Costos y horas de mano de obra</h2>
-          <p>Costos internos por servicio, trabajador y tarifa histórica.</p>
+          <h2>Costos y desempeño del taller</h2>
+          <p>Productividad, calidad y comparación comercial por servicio.</p>
         </div>
         {canExportWorkshopCosts(user) && (
           <div
@@ -159,6 +165,64 @@ const WorkshopCostReportContent = ({
           </select>
         </label>
         <label>
+          Vehículo
+          <select
+            aria-label="Vehículo de costos"
+            value={params.get('costVehicle') ?? ''}
+            onChange={(event) => setFilter('costVehicle', event.target.value)}
+            className={inputClass}
+          >
+            <option value="">Todos los vehículos</option>
+            {report?.options.vehicles.map((vehicle) => (
+              <option key={vehicle.id} value={vehicle.id}>
+                {vehicle.patente}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Servicio de OT
+          <select
+            aria-label="Servicio de costos"
+            value={params.get('costService') ?? ''}
+            onChange={(event) => setFilter('costService', event.target.value)}
+            className={inputClass}
+          >
+            <option value="">Todos los servicios</option>
+            {report?.options.services.map((service) => (
+              <option key={service.id} value={service.id}>
+                {service.workOrderCodigo} · {service.description}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Servicio de catálogo (ID)
+          <input
+            aria-label="Servicio de catálogo (ID)"
+            type="number"
+            min="1"
+            step="1"
+            value={params.get('costCatalog') ?? ''}
+            onChange={(event) => setFilter('costCatalog', event.target.value)}
+            placeholder="Todos los servicios de catálogo"
+            className={inputClass}
+          />
+        </label>
+        <label>
+          Agrupar períodos
+          <select
+            aria-label="Agrupar períodos"
+            value={params.get('costGroup') || 'day'}
+            onChange={(event) => setFilter('costGroup', event.target.value)}
+            className={inputClass}
+          >
+            <option value="day">Día</option>
+            <option value="week">Semana</option>
+            <option value="month">Mes</option>
+          </select>
+        </label>
+        <label>
           Estado OT
           <select
             aria-label="Estado OT de costos"
@@ -187,7 +251,7 @@ const WorkshopCostReportContent = ({
       </div>
       {!query.valid && (
         <p role="alert" className="text-sm text-brand-coralInk">
-          Selecciona un período válido y filtros con identificadores positivos.
+          Selecciona un período válido de hasta 366 días y filtros con identificadores positivos.
         </p>
       )}
       {query.isError && (
@@ -212,6 +276,7 @@ const WorkshopCostReportContent = ({
           Cargando costos y horas…
         </p>
       )}
+      {report && <WorkshopPerformanceAnalysis report={report} />}
       {totals && (
         <>
           <div className="report-summary-panel report-table-panel">
@@ -348,5 +413,7 @@ const WorkshopCostReportContent = ({
 
 export default function WorkshopCostReportPanel(props: ReportPanelProps) {
   const user = useAuthStore((state) => state.user);
-  return canReadWorkshopCosts(user) ? <WorkshopCostReportContent {...props} /> : null;
+  return canReadWorkshopCosts(user) ? (
+    <WorkshopCostReportContent key={reportActorKey(user)} {...props} />
+  ) : null;
 }

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { ROLES } from '../constants/roles.js';
+
 /** Suggestions only: opting in creates names, never rates or worker assignments. */
 export const DEFAULT_WORKSHOP_SPECIALTIES = ['Mecánico', 'Electricista', 'Ayudante', 'Desabollador', 'Pintor'] as const;
 export const DEFAULT_WORKSHOP_TIMEZONE = 'America/Santiago';
@@ -92,7 +94,10 @@ export const workshopSpecialtyRateSchema = z.object({
   costHourly: hourlyAmountSchema, saleHourly: hourlyAmountSchema, currency: z.literal('CLP'),
   createdBy: idSchema.nullable(), createdAt: z.string().datetime(),
 });
-export const workshopWorkerSchema = z.object({ id: idSchema, nombre: z.string(), activo: z.boolean() });
+/** The specialty is independent of the authorization role; the role is shown for orientation only. */
+export const workshopWorkerSchema = z.object({
+  id: idSchema, nombre: z.string(), activo: z.boolean(), role: z.enum(ROLES).nullable(),
+});
 export const workshopWorkerProfileSchema = z.object({
   userId: idSchema, principalSpecialtyId: idSchema.nullable(), additionalSpecialtyIds: z.array(idSchema),
 });

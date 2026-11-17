@@ -26,6 +26,8 @@ import { up as ensureWorkOrderCommercialControl } from './database/migrations/05
 import { up as ensureWorkshopAlertSettings } from './database/migrations/055-workshop-alert-settings.js';
 import { up as ensureWorkshopWorkingHours } from './database/migrations/056-workshop-working-hours.js';
 import { up as ensureWorkshopOvertime } from './database/migrations/057-workshop-overtime.js';
+import { up as ensureWorkshopTimeOperational } from './database/migrations/058-workshop-time-operational.js';
+import { up as ensureWorkshopCommercialReviews } from './database/migrations/059-workshop-commercial-reviews.js';
 import { csrfProtection } from './middlewares/csrf-protection.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
@@ -201,6 +203,8 @@ if (env.NODE_ENV !== 'test') {
   await ensureWorkshopAlertSettings(sequelize.getQueryInterface());
       await ensureWorkshopWorkingHours(sequelize.getQueryInterface());
       await ensureWorkshopOvertime(sequelize.getQueryInterface());
+      await ensureWorkshopTimeOperational(sequelize.getQueryInterface());
+      await ensureWorkshopCommercialReviews(sequelize.getQueryInterface());
       try {
         await sequelize.sync({ alter: true });
         logger.info('Modelos sincronizados con la base de datos (alter: true).');

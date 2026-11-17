@@ -8,6 +8,7 @@ import { WorkOrderItemSession } from '../models/WorkOrderItemSession.js';
 import { WorkOrderObservation } from '../models/WorkOrderObservation.js';
 import { WorkOrderPriceSuggestion } from '../models/WorkOrderPriceSuggestion.js';
 import { WorkOrderQualityReview } from '../models/WorkOrderQualityReview.js';
+import { WorkshopCommercialReview } from '../models/WorkshopCommercialReview.js';
 import { WorkshopTimeRequest } from '../models/WorkshopTimeRequest.js';
 import { ApiError } from '../utils/ApiError.js';
 
@@ -86,6 +87,7 @@ export const assertWorkItemsRemovable = async (
       WorkOrderItemProgressEvent.count({ where, transaction }),
       WorkOrderObservation.count({ where, transaction }),
       WorkOrderPriceSuggestion.count({ where, transaction }),
+      WorkshopCommercialReview.count({ where, transaction }),
     ]);
     if (
       item.horasHombreReales !== null ||

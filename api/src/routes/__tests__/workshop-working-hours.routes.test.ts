@@ -63,7 +63,7 @@ describe('Confirmed workshop working hours and lunch (unithor_test only)', () =>
     await settleExpiredLaborSessions();
     await morning!.reload();
     expect(morning?.endedAt?.toISOString()).toBe('2026-11-16T16:00:00.000Z');
-    expect(morning?.durationMinutes).toBe(10);
+    expect(Number(morning?.durationMinutes)).toBe(10);
     expect((await post(start, {}, true)).status).toBe(400);
     vi.setSystemTime(new Date('2026-11-16T17:00:00Z'));
     expect(await WorkOrderItemSession.count({ where: { workOrderItemId: item.id, status: 'abierta' } })).toBe(0);
@@ -73,7 +73,7 @@ describe('Confirmed workshop working hours and lunch (unithor_test only)', () =>
     vi.setSystemTime(new Date('2026-11-16T22:00:00Z')); // 19:00, app closed across 18:00
     await settleExpiredLaborSessions();
     await afternoon!.reload();
-    expect(afternoon?.durationMinutes).toBe(240);
+    expect(Number(afternoon?.durationMinutes)).toBe(240);
     expect((await post(start, {}, true)).status).toBe(400);
     const journal = await request(app).get(`/api/workshop-time?fecha=2026-11-16&userId=${mechanic.id}`).set('Cookie', cookies(chief, 'jefe'));
     expect(journal.status).toBe(200);
@@ -90,7 +90,7 @@ describe('Confirmed workshop working hours and lunch (unithor_test only)', () =>
     await settleExpiredLaborSessions();
     const session = await WorkOrderItemSession.findOne({ where: { workOrderItemId: item.id } });
     expect(session?.endedAt?.toISOString()).toBe('2026-11-14T16:00:00.000Z');
-    expect(session?.durationMinutes).toBe(30);
+    expect(Number(session?.durationMinutes)).toBe(30);
     expect((await post(start, {}, true)).status).toBe(400);
   });
   it('rejects before 09 and on Sunday without creating a time session', async () => {
@@ -112,7 +112,7 @@ describe('Confirmed workshop working hours and lunch (unithor_test only)', () =>
     await legacy.reload();
     expect(legacy.status).toBe('cerrada');
     expect(legacy.endedAt?.toISOString()).toBe('2026-11-16T16:30:00.000Z');
-    expect(legacy.durationMinutes).toBe(210);
+    expect(Number(legacy.durationMinutes)).toBe(210);
     expect(legacy.startedAt.toISOString()).toBe('2026-11-16T13:00:00.000Z');
   });
   it('registers extra time through the chief, reports it once, and leaves COT prices and payments unchanged', async () => {
@@ -129,7 +129,8 @@ describe('Confirmed workshop working hours and lunch (unithor_test only)', () =>
     expect(result.status, JSON.stringify(result.body)).toBe(201);
     expect(result.body.request).toMatchObject({ overtime: true, status: 'aprobada', userId: mechanic.id, durationMinutes: 60 });
     const saved = await WorkOrderItemSession.findOne({ where: { id: result.body.request.replacementSessionId } });
-    expect(saved).toMatchObject({ overtime: true, createdBy: chief.id, userId: mechanic.id, durationMinutes: 60 });
+    expect(saved).toMatchObject({ overtime: true, createdBy: chief.id, userId: mechanic.id });
+    expect(Number(saved?.durationMinutes)).toBe(60);
     const report = await request(app).get('/api/work-orders/reports/daily?fecha=2026-11-13').set('Cookie', cookies(chief, 'jefe'));
     expect(report.status).toBe(200);
     const person = report.body.report.usuarios.find((entry: { id: number }) => entry.id === mechanic.id);

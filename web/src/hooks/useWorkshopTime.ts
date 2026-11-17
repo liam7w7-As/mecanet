@@ -29,19 +29,34 @@ export const useWorkshopTime = (date: string, userId?: number, enabled = true) =
   });
 };
 
-export const useWorkshopTimeEligibleItems = (userId?: number, enabled = true) => {
+export const useWorkshopTimeEligibleItems = (userId?: number, enabled = true, date?: string) => {
   const viewerId = useAuthStore((state) => state.user?.id);
   const viewerRole = useAuthStore((state) => state.user?.role);
   return useQuery({
-    queryKey: [...workshopTimeKeys.all, 'eligible', viewerId, viewerRole, userId ?? 'own'],
+    queryKey: [...workshopTimeKeys.all, 'eligible', viewerId, viewerRole, userId ?? 'own', date],
     queryFn: async () => {
       const response = await api.get<{ items: WorkshopTimeEligibleItem[] }>(
         '/workshop-time/eligible-items',
-        { params: userId === undefined ? {} : { userId } },
+        { params: { ...(userId === undefined ? {} : { userId }), ...(date ? { fecha: date } : {}) } },
       );
       return response.data.items;
     },
     enabled: enabled && Boolean(viewerId),
+  });
+};
+
+// Uses the existing timer endpoint; the reason belongs to that session's audit note.
+export const usePauseWorkshopTimerMutation = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, itemId, note }: { id: number; itemId: number; note?: string }) => {
+      await api.post(`/work-orders/${id}/items/${itemId}/pause`, { note });
+    },
+    onSuccess: async () => {
+      await Promise.all([['work-order-labor'], ['workshop-time'], ['work-orders']].map((queryKey) =>
+        client.invalidateQueries({ queryKey }),
+      ));
+    },
   });
 };
 

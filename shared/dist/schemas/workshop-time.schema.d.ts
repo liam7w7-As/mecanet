@@ -3,6 +3,7 @@ export declare const WORKSHOP_TIME_REQUEST_KINDS: readonly ["manual", "correctio
 export declare const WORKSHOP_TIME_REQUEST_STATUS: readonly ["pendiente", "aprobada", "rechazada"];
 export type WorkshopTimeRequestKind = (typeof WORKSHOP_TIME_REQUEST_KINDS)[number];
 export type WorkshopTimeRequestStatus = (typeof WORKSHOP_TIME_REQUEST_STATUS)[number];
+export type WorkshopTimeActivityStatus = 'en_proceso' | 'completado';
 export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z.ZodObject<{
     startedAt: z.ZodString;
     endedAt: z.ZodString;
@@ -11,6 +12,7 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
     itemId: z.ZodNumber;
     userId: z.ZodOptional<z.ZodNumber>;
     overtime: z.ZodDefault<z.ZodBoolean>;
+    activityStatus: z.ZodOptional<z.ZodEnum<["en_proceso", "completado"]>>;
 }, "strict", z.ZodTypeAny, {
     workOrderId: number;
     itemId: number;
@@ -19,6 +21,7 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
     endedAt: string;
     note: string;
     userId?: number | undefined;
+    activityStatus?: "completado" | "en_proceso" | undefined;
 }, {
     workOrderId: number;
     itemId: number;
@@ -27,6 +30,7 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
     note: string;
     userId?: number | undefined;
     overtime?: boolean | undefined;
+    activityStatus?: "completado" | "en_proceso" | undefined;
 }>, z.ZodObject<{
     startedAt: z.ZodString;
     endedAt: z.ZodString;
@@ -50,6 +54,7 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
     endedAt: string;
     note: string;
     userId?: number | undefined;
+    activityStatus?: "completado" | "en_proceso" | undefined;
 } | {
     startedAt: string;
     endedAt: string;
@@ -63,6 +68,7 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
     note: string;
     userId?: number | undefined;
     overtime?: boolean | undefined;
+    activityStatus?: "completado" | "en_proceso" | undefined;
 } | {
     startedAt: string;
     endedAt: string;
@@ -89,13 +95,22 @@ export declare const workshopTimeQuerySchema: z.ZodObject<{
     fecha: string;
     userId?: number | undefined;
 }>;
-export declare const workshopTimeEligibleQuerySchema: z.ZodObject<Omit<{
-    fecha: z.ZodString;
+export declare const workshopTimeEligibleQuerySchema: z.ZodObject<{
     userId: z.ZodOptional<z.ZodNumber>;
-}, "fecha">, "strict", z.ZodTypeAny, {
+    fecha: z.ZodOptional<z.ZodString>;
+}, "strict", z.ZodTypeAny, {
     userId?: number | undefined;
+    fecha?: string | undefined;
 }, {
     userId?: number | undefined;
+    fecha?: string | undefined;
+}>;
+export declare const pauseWorkshopTimerSchema: z.ZodObject<{
+    note: z.ZodString;
+}, "strict", z.ZodTypeAny, {
+    note: string;
+}, {
+    note: string;
 }>;
 export declare const workshopTimeRequestParamsSchema: z.ZodObject<{
     id: z.ZodNumber;
@@ -141,6 +156,7 @@ export interface WorkshopTimeRequestRecord {
     id: number;
     kind: WorkshopTimeRequestKind;
     overtime: boolean;
+    activityStatus: WorkshopTimeActivityStatus | null;
     status: WorkshopTimeRequestStatus;
     workOrderId: number;
     workOrderCode: string;

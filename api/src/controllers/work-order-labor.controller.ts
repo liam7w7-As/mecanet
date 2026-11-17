@@ -63,6 +63,7 @@ export const pauseItemTimerHandler = asyncHandler(
       getWorkOrderId(req),
       getItemId(req),
       getCurrentUserId(req),
+      (req.body as { note?: string } | undefined)?.note,
     );
     res.status(200).json({ worksheet });
   },

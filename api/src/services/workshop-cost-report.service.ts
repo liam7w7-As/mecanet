@@ -28,10 +28,9 @@ const assertSize = (length: number): void => {
 /** A single read snapshot prevents correction/reassignment races between these queries. */
 export const getWorkshopCostReport = async (
   filters: WorkshopCostReportFilters,
-): Promise<WorkshopCostReport> =>
-  sequelize.transaction(
-    { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ, readOnly: true },
-    async (transaction) => {
+  snapshotTransaction?: Transaction,
+): Promise<WorkshopCostReport> => {
+  const read = async (transaction: Transaction): Promise<WorkshopCostReport> => {
       const now = new Date();
       const { start } = await getWorkshopDayRange(filters.fechaDesde, transaction);
       const { end } = await getWorkshopDayRange(filters.fechaHasta, transaction);
@@ -134,8 +133,11 @@ export const getWorkshopCostReport = async (
       );
       assertSize(report.rows.length);
       return report;
-    },
+  };
+  return snapshotTransaction ? read(snapshotTransaction) : sequelize.transaction(
+    { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ, readOnly: true }, read,
   );
+};
 
 /** Both formats consume exactly the same filtered calculation as the JSON preview. */
 export const buildWorkshopCostReportDataset = (report: WorkshopCostReport): ExportDataset => ({

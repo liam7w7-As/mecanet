@@ -460,7 +460,7 @@ describe('Work order mechanic workflow (E2E)', () => {
       .post(`/api/work-orders/${assignedWorkOrderId}/items/${timerItem.id}/start`)
       .set('Cookie', authCookie(mechanicCookies))
       .set('X-CSRF-Token', mechanicCookies.csrfToken);
-    expect(startResponse.status).toBe(200);
+    expect(startResponse.status, JSON.stringify(startResponse.body)).toBe(200);
     const startedItem = startResponse.body.worksheet.items.find(
       (item: { id: number }) => item.id === timerItem.id,
     );

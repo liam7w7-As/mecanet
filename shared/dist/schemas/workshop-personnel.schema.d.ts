@@ -231,18 +231,22 @@ export declare const workshopSpecialtyRateSchema: z.ZodObject<{
     currency: "CLP";
     createdBy: number | null;
 }>;
+/** The specialty is independent of the authorization role; the role is shown for orientation only. */
 export declare const workshopWorkerSchema: z.ZodObject<{
     id: z.ZodNumber;
     nombre: z.ZodString;
     activo: z.ZodBoolean;
+    role: z.ZodNullable<z.ZodEnum<["desarrollador", "admin", "jefe", "mecanico", "vendedor", "bodeguero", "finanzas"]>>;
 }, "strip", z.ZodTypeAny, {
     nombre: string;
     activo: boolean;
     id: number;
+    role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
 }, {
     nombre: string;
     activo: boolean;
     id: number;
+    role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
 }>;
 export declare const workshopWorkerProfileSchema: z.ZodObject<{
     userId: z.ZodNumber;
@@ -395,14 +399,17 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
         id: z.ZodNumber;
         nombre: z.ZodString;
         activo: z.ZodBoolean;
+        role: z.ZodNullable<z.ZodEnum<["desarrollador", "admin", "jefe", "mecanico", "vendedor", "bodeguero", "finanzas"]>>;
     }, "strip", z.ZodTypeAny, {
         nombre: string;
         activo: boolean;
         id: number;
+        role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
     }, {
         nombre: string;
         activo: boolean;
         id: number;
+        role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
     }>, "many">;
     profiles: z.ZodArray<z.ZodObject<{
         userId: z.ZodNumber;
@@ -529,6 +536,7 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
         nombre: string;
         activo: boolean;
         id: number;
+        role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
     }[];
     profiles: {
         userId: number;
@@ -579,6 +587,7 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
         nombre: string;
         activo: boolean;
         id: number;
+        role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
     }[];
     profiles: {
         userId: number;

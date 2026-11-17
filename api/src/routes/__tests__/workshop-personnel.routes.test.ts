@@ -76,18 +76,33 @@ describe('workshop personnel routes', () => {
     expect(response.status).toBe(403);
     expect(response.body.error.code).toBe('CSRF_INVALID');
   });
-  it('keeps general specialties, rates, profiles and weekly schedule admin-only', async () => {
+  it('lets the workshop chief create specialties, assign profiles and edit the weekly schedule', async () => {
     const specialty = await createSpecialty();
     const workerId = people.get('mecanico')!.id;
-    const mutations = [
-      request(app).post('/api/workshop-personnel/specialties').send({ name: 'No autorizado' }),
-      request(app).post('/api/workshop-personnel/specialties/seed').send({}),
-      request(app).patch(`/api/workshop-personnel/specialties/${specialty.id}`).send({ active: false }),
-      request(app).post(`/api/workshop-personnel/specialties/${specialty.id}/rates`).send({ validityFrom: '2099-01-01', costHourly: 1, saleHourly: 2 }),
-      request(app).put(`/api/workshop-personnel/workers/${workerId}/profile`).send({ principalSpecialtyId: specialty.id, additionalSpecialtyIds: [] }),
-      request(app).put('/api/workshop-personnel/schedule').send({ timezone: 'America/Santiago', weekly: [] }),
-    ];
-    for (const mutation of mutations) expect((await as(mutation, 'jefe')).status).toBe(403);
+    const created = await as(request(app).post('/api/workshop-personnel/specialties').send({ name: `Oficio jefe ${randomUUID().slice(0, 8)}` }), 'jefe');
+    expect(created.status).toBe(201);
+    specialtyIds.push(created.body.id as number);
+    expect((await as(request(app).patch(`/api/workshop-personnel/specialties/${created.body.id}`).send({ active: false }), 'jefe')).status).toBe(200);
+    expect((await as(request(app).put(`/api/workshop-personnel/workers/${workerId}/profile`).send({ principalSpecialtyId: specialty.id, additionalSpecialtyIds: [] }), 'jefe')).status).toBe(200);
+    expect((await as(request(app).put('/api/workshop-personnel/schedule').send({ timezone: 'America/Santiago', weekly: [] }), 'jefe')).status).toBe(200);
+    const seeded = await as(request(app).post('/api/workshop-personnel/specialties/seed').send({}), 'jefe');
+    expect(seeded.status).toBe(201);
+    specialtyIds.push(...(seeded.body as { id: number }[]).map((row) => row.id));
+  });
+  it('keeps specialty prices admin-only', async () => {
+    const specialty = await createSpecialty();
+    const response = await as(request(app).post(`/api/workshop-personnel/specialties/${specialty.id}/rates`)
+      .send({ validityFrom: '2099-01-01', costHourly: 1, saleHourly: 2 }), 'jefe');
+    expect(response.status).toBe(403);
+  });
+  it('rejects workshop management from mechanics and sellers', async () => {
+    const specialty = await createSpecialty();
+    const workerId = people.get('mecanico')!.id;
+    for (const role of ['mecanico', 'vendedor'] as const) {
+      expect((await as(request(app).post('/api/workshop-personnel/specialties').send({ name: `No autorizado ${role}` }), role)).status).toBe(403);
+      expect((await as(request(app).put(`/api/workshop-personnel/workers/${workerId}/profile`)
+        .send({ principalSpecialtyId: specialty.id, additionalSpecialtyIds: [] }), role)).status).toBe(403);
+    }
   });
   it('supports opt-in default names without creating any rates', async () => {
     const response = await as(request(app).post('/api/workshop-personnel/specialties/seed')).send({});

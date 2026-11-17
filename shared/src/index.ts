@@ -35,5 +35,6 @@ export * from './schemas/workshop-time.schema.js';
 export * from './schemas/work-order-quality.schema.js';
 export * from './schemas/work-order-commercial.schema.js';
 export * from './schemas/workshop-cost-report.schema.js';
+export * from './schemas/workshop-performance.schema.js';
 export * from './schemas/workshop-history.schema.js';
 export * from './schemas/workshop-alert.schema.js';

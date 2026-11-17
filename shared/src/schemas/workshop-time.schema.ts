@@ -4,6 +4,7 @@ export const WORKSHOP_TIME_REQUEST_KINDS = ['manual', 'correction'] as const;
 export const WORKSHOP_TIME_REQUEST_STATUS = ['pendiente', 'aprobada', 'rechazada'] as const;
 export type WorkshopTimeRequestKind = (typeof WORKSHOP_TIME_REQUEST_KINDS)[number];
 export type WorkshopTimeRequestStatus = (typeof WORKSHOP_TIME_REQUEST_STATUS)[number];
+export type WorkshopTimeActivityStatus = 'en_proceso' | 'completado';
 
 const positiveId = z.number().int().positive();
 const note = z.string().trim().min(1, 'Debe indicar el motivo').max(2000);
@@ -21,6 +22,7 @@ export const createWorkshopTimeRequestSchema = z
         itemId: positiveId,
         userId: positiveId.optional(),
         overtime: z.boolean().default(false),
+        activityStatus: z.enum(['en_proceso', 'completado']).optional(),
         ...interval,
       })
       .strict(),
@@ -52,7 +54,8 @@ export const workshopTimeQuerySchema = z
     userId: z.coerce.number().int().positive().optional(),
   })
   .strict();
-export const workshopTimeEligibleQuerySchema = workshopTimeQuerySchema.omit({ fecha: true });
+export const workshopTimeEligibleQuerySchema = workshopTimeQuerySchema.partial({ fecha: true });
+export const pauseWorkshopTimerSchema = z.object({ note }).strict();
 export const workshopTimeRequestParamsSchema = z.object({ id: z.coerce.number().int().positive() });
 
 export type CreateWorkshopTimeRequestInput = z.input<typeof createWorkshopTimeRequestSchema>;
@@ -93,6 +96,7 @@ export interface WorkshopTimeRequestRecord {
   id: number;
   kind: WorkshopTimeRequestKind;
   overtime: boolean;
+  activityStatus: WorkshopTimeActivityStatus | null;
   status: WorkshopTimeRequestStatus;
   workOrderId: number;
   workOrderCode: string;

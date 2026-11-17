@@ -7,6 +7,8 @@ export default defineConfig({
     environment: 'node',
     include: [
       'src/services/__tests__/workshop-time.unit.test.ts',
+      'src/services/__tests__/workshop-time-timers.unit.test.ts',
+      'src/services/__tests__/workshop-time-migration.unit.test.ts',
       'src/routes/__tests__/workshop-time.unit.test.ts',
       'src/services/__tests__/workshop-daily-report.unit.test.ts',
     ],

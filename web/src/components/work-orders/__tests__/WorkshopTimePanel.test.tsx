@@ -19,6 +19,7 @@ const makeRequest = (): WorkshopTimeRequestRecord => ({
   id: 200,
   kind: 'manual',
   overtime: false,
+  activityStatus: 'en_proceso',
   status: 'pendiente',
   workOrderId: 12,
   workOrderCode: 'OT-12',
@@ -126,6 +127,43 @@ beforeEach(() => {
 });
 
 describe('Workshop time panel', () => {
+  it('submits the worker activity for approval and keeps corrections free of replayable status', async () => {
+    mount();
+    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    fireEvent.change(screen.getByLabelText('Servicio asignado'), { target: { value: '20' } });
+    fillInterval();
+    fireEvent.change(screen.getByLabelText('Estado de mi actividad'), { target: { value: 'completado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar horas al jefe' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/workshop-time/requests', expect.objectContaining({ activityStatus: 'completado' })));
+    await waitFor(() => expect(screen.getByLabelText('Motivo del registro')).toHaveValue(''));
+    expect(screen.getByLabelText('Estado de mi actividad')).toHaveValue('en_proceso');
+    fireEvent.click(screen.getByRole('button', { name: 'Solicitar corrección #30' }));
+    expect(screen.queryByLabelText('Estado de mi actividad')).not.toBeInTheDocument();
+    fillInterval();
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar corrección al jefe' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.post).mock.calls[1][1]).not.toHaveProperty('activityStatus');
+  });
+  it('refreshes service eligibility when the selected manual date changes', async () => {
+    mount();
+    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    expect(api.get).toHaveBeenCalledWith('/workshop-time/eligible-items', { params: { fecha: '2025-10-04' } });
+    fireEvent.change(screen.getByLabelText('Día del diario'), { target: { value: '2025-10-03' } });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/workshop-time/eligible-items', { params: { fecha: '2025-10-03' } }));
+    fireEvent.change(screen.getByLabelText('Inicio del intervalo'), { target: { value: '2025-10-02T09:00' } });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/workshop-time/eligible-items', { params: { fecha: '2025-10-02' } }));
+  });
+  it('shows the missing part of an eight-hour day while allowing a shorter manual request', async () => {
+    journal.totals = { registeredMinutes: 150, pendingMinutes: 0, scheduledMinutes: 480, unregisteredMinutes: 330 };
+    mount();
+    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    expect(screen.getByText('Jornada: 8 h 00 min')).toBeInTheDocument();
+    expect(screen.getByText('Sin registrar: 5 h 30 min')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Servicio asignado'), { target: { value: '20' } });
+    fillInterval();
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar horas al jefe' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledOnce());
+  });
   it('shows own reassigned hours and unconfigured shifts without financials or chief controls', async () => {
     mount();
     expect(await screen.findByText('OT-12 · Servicio anterior reasignado')).toBeInTheDocument();

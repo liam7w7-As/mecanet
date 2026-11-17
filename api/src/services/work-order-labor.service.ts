@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   WORK_ORDER_OBSERVATION_FILE_MIME_TYPES,
   WORK_ORDER_OBSERVATION_MAX_FILES,
+  pauseWorkshopTimerSchema,
   type CreateWorkOrderObservationInput,
   type ItemOperationalStatus,
   type Role as RoleName,
@@ -588,6 +589,10 @@ export const startItemTimer = async (
     assertEditable(workOrder);
     const item = await findItem(workOrderId, itemId, transaction, true);
     await assertItemAccess(item, workOrder, role, userId, transaction);
+    if (item.tipoLinea === 'parte') throw ApiError.badRequest('Solo se pueden cronometrar servicios');
+    if (workOrder.estado === 'finalizada' || ['completado', 'omitido'].includes(item.estadoOperativo)) {
+      throw ApiError.badRequest('El jefe debe reabrir el trabajo antes de iniciar otro cronómetro');
+    }
     if (item.qualityStatus === 'aprobado') throw ApiError.badRequest('El servicio ya fue aprobado en calidad. El jefe debe reabrirlo para corregirlo');
 
     const openItemSession = await WorkOrderItemSession.findOne({
@@ -685,24 +690,30 @@ export const pauseItemTimer = async (
   workOrderId: number,
   itemId: number,
   userId: number,
+  note?: string,
 ): Promise<WorkOrderWorksheet> => {
+  const parsed = note === undefined ? undefined : pauseWorkshopTimerSchema.safeParse({ note });
+  if (parsed && !parsed.success) throw ApiError.badRequest('Indica un motivo de pausa válido (máximo 2000 caracteres)');
   await withWorkshopTransaction(async (transaction) => {
+    await User.findByPk(userId, { transaction, lock: Transaction.LOCK.UPDATE });
     const { workOrder, role } = await getLaborContext(workOrderId, userId, transaction);
     assertEditable(workOrder);
     const item = await findItem(workOrderId, itemId, transaction, true);
     await assertItemAccess(item, workOrder, role, userId, transaction);
 
     const session = await WorkOrderItemSession.findOne({
-      where: { workOrderItemId: item.id, status: 'abierta', ...(role === 'mecanico' ? { userId } : {}) },
+      where: { workOrderItemId: item.id, status: 'abierta', userId },
       transaction,
       lock: Transaction.LOCK.UPDATE,
-    });
+    }) ?? (role !== 'mecanico' && !item.teamManaged ? await WorkOrderItemSession.findOne({
+      where: { workOrderItemId: item.id, status: 'abierta' }, transaction, lock: Transaction.LOCK.UPDATE,
+    }) : null);
     if (!session) return;
     if (session.userId !== null && session.userId !== userId && role === 'mecanico') {
       throw ApiError.forbidden('Solo quien inició el cronómetro puede pausarlo');
     }
 
-    await closeSession(session, 'pausa', transaction);
+    await closeSession(session, 'pausa', transaction, parsed?.success ? parsed.data.note : undefined);
     await recalculateItemHours(item, transaction);
   });
 
@@ -716,6 +727,7 @@ export const completeItemTimer = async (
   notasOperativas?: string | null,
 ): Promise<WorkOrderWorksheet> => {
   await withWorkshopTransaction(async (transaction) => {
+    await User.findByPk(userId, { transaction, lock: Transaction.LOCK.UPDATE });
     const { workOrder, role } = await getLaborContext(workOrderId, userId, transaction);
     assertEditable(workOrder);
     const item = await findItem(workOrderId, itemId, transaction, true);
@@ -742,16 +754,20 @@ export const completeItemTimer = async (
       }
     }
 
+    const team = await WorkOrderItemAssignment.findAll({ where: { workOrderItemId: item.id, active: true }, transaction, lock: Transaction.LOCK.UPDATE });
+    if (item.teamManaged && !team.some((member) => member.userId === userId)) {
+      throw ApiError.forbidden('Solo puedes terminar tu propia parte del equipo');
+    }
     const sessions = await WorkOrderItemSession.findAll({
-      where: { workOrderItemId: item.id, status: 'abierta', ...(role === 'mecanico' ? { userId } : {}) },
+      where: { workOrderItemId: item.id, status: 'abierta', ...(role === 'mecanico' || item.teamManaged ? { userId } : {}) },
       transaction, lock: Transaction.LOCK.UPDATE,
     });
     for (const open of sessions) await closeSession(open, 'completado', transaction);
     const session = sessions[0] ?? null;
-    const team = await WorkOrderItemAssignment.findAll({ where: { workOrderItemId: item.id, active: true }, transaction, lock: Transaction.LOCK.UPDATE });
-    for (const member of team) if ((role !== 'mecanico' || member.userId === userId) && !member.completedAt) await member.update({ completedAt: new Date() }, { transaction });
+    for (const member of team) if (member.userId === userId && !member.completedAt) await member.update({ completedAt: new Date() }, { transaction });
     const complete = team.length === 0 || team.every((member) => member.completedAt !== null);
     if (!complete) {
+      if (notasOperativas !== undefined) await item.update({ notasOperativas }, { transaction });
       await recalculateItemHours(item, transaction);
       return;
     }

@@ -43,6 +43,7 @@ import { WorkOrderProgressReport } from './WorkOrderProgressReport.js';
 import { WorkOrderQualityReview } from './WorkOrderQualityReview.js';
 import { WorkOrderRequest } from './WorkOrderRequest.js';
 import { WorkshopAlertSettings } from './WorkshopAlertSettings.js';
+import { WorkshopCommercialReview } from './WorkshopCommercialReview.js';
 import { WorkshopSchedule } from './WorkshopSchedule.js';
 import { WorkshopScheduleException } from './WorkshopScheduleException.js';
 import { WorkshopTimeRequest } from './WorkshopTimeRequest.js';
@@ -50,6 +51,7 @@ import { WorkshopTimeRequest } from './WorkshopTimeRequest.js';
 import type { Sequelize } from 'sequelize-typescript';
 
 export const models = [
+  WorkshopCommercialReview,
   WorkshopAlertSettings,
   WorkOrderQualityReview,
   Specialty,
@@ -106,6 +108,7 @@ export function initModels(sequelize: Sequelize): void {
 }
 
 export {
+  WorkshopCommercialReview,
   WorkshopAlertSettings,
   WorkOrderQualityReview,
   Specialty,

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { WORK_ORDER_DELIVERY_CHECKLIST } from '@unithor/shared';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { sequelize } from '../../config/database.js';
 import { up as ensureQualitySchema } from '../../database/migrations/053-work-order-quality.js';
@@ -72,6 +72,8 @@ describe('Phase 2 work-order quality and security (unithor_test only)', () => {
   });
 
   beforeAll(async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-16T15:00:00Z'));
     if (sequelize.getDatabaseName() !== 'unithor_test') throw new Error('Quality tests require unithor_test');
     // The parent runner applies migrations and registers models before this suite.
     expect((await sequelize.getQueryInterface().describeTable('work_order_items')).quality_status).toBeDefined();
@@ -97,6 +99,7 @@ describe('Phase 2 work-order quality and security (unithor_test only)', () => {
   }, 30000);
 
   afterAll(async () => {
+    vi.useRealTimers();
     if (sequelize.getDatabaseName() !== 'unithor_test') return;
     if (orderIds.length) {
       await Notification.destroy({ where: { workOrderId: orderIds } });

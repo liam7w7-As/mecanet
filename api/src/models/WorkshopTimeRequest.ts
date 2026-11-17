@@ -14,7 +14,7 @@ import { WorkOrder } from './WorkOrder.js';
 import { WorkOrderItem } from './WorkOrderItem.js';
 import { WorkOrderItemSession } from './WorkOrderItemSession.js';
 
-import type { WorkshopTimeRequestKind, WorkshopTimeRequestStatus } from '@unithor/shared';
+import type { WorkshopTimeActivityStatus, WorkshopTimeRequestKind, WorkshopTimeRequestStatus } from '@unithor/shared';
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 
 @Table({
@@ -62,9 +62,13 @@ export class WorkshopTimeRequest extends Model<
   @ForeignKey(() => WorkOrderItemSession)
   @Column({ type: DataType.INTEGER, allowNull: true, unique: true })
   declare replacementSessionId: number | null;
+  @Column({ type: DataType.INTEGER, allowNull: true }) declare assignmentId: CreationOptional<number | null>;
+  @Column({ type: DataType.INTEGER, allowNull: true }) declare stateEventId: CreationOptional<number | null>;
+  @Column({ type: DataType.ENUM('en_proceso', 'completado'), allowNull: true })
+  declare activityStatus: CreationOptional<WorkshopTimeActivityStatus | null>;
   @Column({ type: DataType.DATE, allowNull: false }) declare startedAt: Date;
   @Column({ type: DataType.DATE, allowNull: false }) declare endedAt: Date;
-  @Column({ type: DataType.INTEGER, allowNull: false }) declare durationMinutes: number;
+  @Column({ type: DataType.DECIMAL(14, 8), allowNull: false }) declare durationMinutes: number;
   @Column({ type: DataType.TEXT, allowNull: false }) declare note: string;
   @ForeignKey(() => User)
   @Column({ type: DataType.INTEGER, allowNull: false })

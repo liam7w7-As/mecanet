@@ -26,6 +26,8 @@ import { up as ensureWorkOrderCommercialControl } from '../database/migrations/0
 import { up as ensureWorkshopAlertSettings } from '../database/migrations/055-workshop-alert-settings.js';
 import { up as ensureWorkshopWorkingHours } from '../database/migrations/056-workshop-working-hours.js';
 import { up as ensureWorkshopOvertime } from '../database/migrations/057-workshop-overtime.js';
+import { up as ensureWorkshopTimeOperational } from '../database/migrations/058-workshop-time-operational.js';
+import { up as ensureWorkshopCommercialReviews } from '../database/migrations/059-workshop-commercial-reviews.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -43,6 +45,7 @@ import { up as ensureWorkshopOvertime } from '../database/migrations/057-worksho
  * suite en rojo sin cambiar una linea de codigo.
  */
 const TRANSIENT = [
+  'workshop_commercial_reviews',
   'workshop_alert_settings',
   'work_order_quality_reviews',
   'work_order_item_assignments',
@@ -105,6 +108,8 @@ beforeAll(async () => {
   await ensureWorkshopAlertSettings(sequelize.getQueryInterface());
   await ensureWorkshopWorkingHours(sequelize.getQueryInterface());
   await ensureWorkshopOvertime(sequelize.getQueryInterface());
+  await ensureWorkshopTimeOperational(sequelize.getQueryInterface());
+  await ensureWorkshopCommercialReviews(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
   await ensureImportPermissions();

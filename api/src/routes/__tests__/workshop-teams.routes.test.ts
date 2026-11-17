@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
@@ -16,6 +16,8 @@ describe('Workshop teams, time retention and shift cutoff', () => {
     .set('X-CSRF-Token', cookies[who].find((c) => c.startsWith('csrf_token='))!.slice(11)).send(body);
   const get = (path: string, who = 0) => request(app).get(path).set('Cookie', cookies[who]);
   beforeAll(async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-16T15:00:00Z'));
     if (sequelize.getDatabaseName() !== 'unithor_test') throw new Error('Solo unithor_test');
     await User.destroy({ where: { email: [0, 1, 2, 3, 4].map((i) => `team-phase1-${i}@example.com`) }, force: true });
     const password = 'TeamValidation2026!';
@@ -33,7 +35,7 @@ describe('Workshop teams, time retention and shift cutoff', () => {
     [vehicle] = await Vehicle.findOrCreate({ where: { patente: 'TMTEST' }, defaults: { patente: 'TMTEST', clientId: client.id } });
     await vehicle.update({ clientId: client.id });
   }, 30000);
-  afterAll(async () => { await sequelize.close(); });
+  afterAll(async () => { vi.useRealTimers(); await sequelize.close(); });
   const create = async () => {
     const response = await mutate('/api/work-orders', { clientId: client.id, vehicleId: vehicle.id,
       items: [{ descripcion: 'Diagnóstico compartido', tipoLinea: 'especifico', cantidad: 1, precioUnitario: 10000 }] });
@@ -107,9 +109,12 @@ describe('Workshop teams, time retention and shift cutoff', () => {
     expect((await request(app).post(`/api/work-orders/${orderId}/items/${item.id}/team`).set('Cookie', cookies[0]).send({ members: [], motivo: 'Prueba' })).status).toBe(403);
   });
   it('keeps manual hours pending, approves them for the worker and replaces a correction without double-counting', async () => {
+    const currentTime = Date.now();
+    vi.setSystemTime(new Date(currentTime - 3 * 86400000));
     const { orderId, item } = await create();
     await team(orderId, item.id, [2]);
-    const end = new Date(Math.floor(Date.now() / 1000) * 1000 - 2 * 86400000);
+    vi.setSystemTime(new Date(currentTime));
+    const end = new Date(currentTime - 2 * 86400000);
     const start = new Date(end.getTime() - 60 * 60000);
     const submitted = await mutate('/api/workshop-time/requests', { workOrderId: orderId, itemId: item.id, startedAt: start.toISOString(), endedAt: end.toISOString(), note: 'Trabajo del día anterior pendiente de registrar' }, 2);
     expect(submitted.status, JSON.stringify(submitted.body)).toBe(201);
@@ -165,12 +170,14 @@ describe('Workshop teams, time retention and shift cutoff', () => {
     expect(await WorkOrderItemAssignment.count({ where: { workOrderItemId: item.id, active: true, completedAt: null } })).toBe(2);
     expect((await mutate(`/api/work-orders/${orderId}/items/${item.id}/start`, {}, 1)).status).toBe(200);
   });
-  it('restricts the general schedule to administration and lets the chief authorize a worker-day exception', async () => {
+  it('lets administration and the chief set the general schedule and authorize a worker-day exception', async () => {
     const put = (body: object, who: number) => request(app).put('/api/workshop-personnel/schedule').set('Cookie', cookies[who])
       .set('X-CSRF-Token', cookies[who].find((c) => c.startsWith('csrf_token='))!.slice(11)).send(body);
     const now = new Date();
     const schedule = { timezone: 'UTC', weekly: [{ weekday: now.getUTCDay(), start: '00:00', end: '00:01' }] };
-    expect((await put(schedule, 4)).status).toBe(403);
+    // The chief already owns shifts, so the weekly schedule is no longer administration-only.
+    expect((await put(schedule, 4)).status).toBe(200);
+    expect((await put(schedule, 1)).status).toBe(403);
     expect((await put(schedule, 0)).status).toBe(200);
     const { orderId, item } = await create();
     await team(orderId, item.id, [3]);

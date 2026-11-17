@@ -573,7 +573,8 @@ describe('WorkOrdersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/work-orders/12/items/20/start'));
     fireEvent.click(await screen.findByRole('button', { name: 'Pausar' }));
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/work-orders/12/items/20/pause'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar pausa' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/work-orders/12/items/20/pause', { note: undefined }));
     await screen.findByRole('button', { name: 'Continuar' });
     expect(api.get).not.toHaveBeenCalledWith('/work-orders/12');
   });

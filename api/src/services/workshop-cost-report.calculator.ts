@@ -101,6 +101,7 @@ export const calculateWorkshopCostReport = (
   start: Date,
   end: Date,
   now: Date,
+  behavior: { includeWithoutActivity?: boolean } = {},
 ): WorkshopCostReport => {
   const allRows: WorkshopCostReportRow[] = [];
   const assignmentsByItem = new Map<number, CostReportAssignment[]>();
@@ -128,7 +129,7 @@ export const calculateWorkshopCostReport = (
     );
     const createdInPeriod =
       item.createdAt >= start && item.createdAt < end && item.createdAt <= now;
-    if (!sessions.length && !createdInPeriod && !assignments.some((row) => row.createdAt >= start))
+    if (!behavior.includeWithoutActivity && !sessions.length && !createdInPeriod && !assignments.some((row) => row.createdAt >= start))
       continue;
     const rows = new Map<string, WorkshopCostReportRow>();
     const makeRow = (

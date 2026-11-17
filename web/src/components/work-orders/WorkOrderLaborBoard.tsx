@@ -1,14 +1,17 @@
 import { WORK_ORDER_OBSERVATION_FILE_MIME_TYPES, WORK_ORDER_OBSERVATION_MAX_FILES, WORK_ORDER_OBSERVATION_MAX_FILE_BYTES } from '@unithor/shared';
 import { AlertCircle, BadgeDollarSign, Check, Clock3, LoaderCircle, Pause, Play, RotateCcw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import WorkOrderTeamEditor, { ItemEstimateReasonDialog } from './WorkOrderTeamEditor';
+import { useModalOverlay } from '../../hooks/useModalOverlay';
 import {
   useAssignWorkOrderItemMutation, useCompleteItemTimerMutation,
-  useCreateObservationMutation, usePauseItemTimerMutation, useStartItemTimerMutation,
+  useCreateObservationMutation, useStartItemTimerMutation,
   useUpdateItemEstimateMutation, useValidateItemHoursMutation, useWorkOrderWorksheet,
 } from '../../hooks/useWorkOrderLabor';
 import { useAssignWorkOrderMechanicMutation, useMechanics, useUpdateWorkOrderExecutionMutation } from '../../hooks/useWorkOrders';
+import { usePauseWorkshopTimerMutation } from '../../hooks/useWorkshopTime';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
@@ -21,6 +24,26 @@ import type { WorkOrder, WorkOrderWorksheetItem } from '../../types/entities';
 import type { ItemOperationalStatus } from '@unithor/shared';
 
 const labels = { pendiente: 'Pendiente', en_proceso: 'En proceso', completado: 'Completado', omitido: 'Omitido' } as const;
+
+function PauseReasonDialog({ reason, onReason, pending, error, onClose, onConfirm }: {
+  reason: string; onReason: (value: string) => void; pending: boolean;
+  error: string | null; onClose: () => void; onConfirm: () => void;
+}) {
+  const titleId = useId();
+  const panelRef = useModalOverlay({ isOpen: true, onClose, isPending: pending, labelledBy: titleId });
+  return createPortal(<div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-[#18273c55] p-4 backdrop-blur-sm">
+    <section ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="workshop-action-dialog relative w-full max-w-[440px] bg-white p-6 shadow-2xl">
+      <h2 id={titleId} className="text-lg font-semibold text-brand-ink">Pausar trabajo</h2>
+      <label className="mt-4 grid gap-2 text-sm text-brand-ink">Motivo de la pausa<textarea className="form-control" rows={3} maxLength={2000} value={reason} disabled={pending} onChange={(event) => onReason(event.target.value)} /></label>
+      <p className="mt-2 text-xs text-brand-muted">Motivo opcional. Si lo agregas, se conserva junto con las horas de esta sesión.</p>
+      {error && <p role="alert" className="workshop-labor-error mt-3">{error}</p>}
+      <div className="dialog-buttons mt-5">
+        <button type="button" className="secondary-button" disabled={pending} onClick={onClose}>Volver</button>
+        <button type="button" className="primary-button" disabled={pending || reason.trim().length > 2000} onClick={onConfirm}>{pending ? 'Guardando…' : 'Confirmar pausa'}</button>
+      </div>
+    </section>
+  </div>, document.body);
+}
 
 const observationError = (text: string, files: readonly File[]): string | null => {
   if (text.trim().length > 2000) return 'La observación admite hasta 2000 caracteres.';
@@ -77,7 +100,7 @@ interface TaskProps {
 const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, observations, onState, onSuggestPrice, onNext, onCompleted }: TaskProps) => {
   const actorId = useAuthStore((state) => state.user?.id);
   const start = useStartItemTimerMutation();
-  const pause = usePauseItemTimerMutation();
+  const pause = usePauseWorkshopTimerMutation();
   const complete = useCompleteItemTimerMutation();
   const assign = useAssignWorkOrderItemMutation();
   const estimate = useUpdateItemEstimateMutation();
@@ -86,6 +109,9 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
   const observation = useCreateObservationMutation();
   const mechanics = useMechanics(canManage && !closed);
   const [note, setNote] = useState<string | null>(null);
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [pauseReason, setPauseReason] = useState('');
+  const [pauseError, setPauseError] = useState<string | null>(null);
   const [estimated, setEstimated] = useState<string | null>(null);
   const [estimateReason, setEstimateReason] = useState('');
   const [confirmEstimate, setConfirmEstimate] = useState(false);
@@ -121,7 +147,7 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
   const estimateValue = estimated ?? (item.horasHombreEstimadas === null ? '' : String(item.horasHombreEstimadas));
   const changedNote = note !== null && note !== (item.notasOperativas ?? '');
   const changedEstimate = estimated !== null && estimated !== (item.horasHombreEstimadas === null ? '' : String(item.horasHombreEstimadas));
-  const dirty = teamState.dirty || changedNote || changedEstimate || assigneeDraft !== undefined || statusDraft !== null || Boolean(estimateReason || validationNote.trim() || comment || files.length);
+  const dirty = pauseOpen || Boolean(pauseReason) || teamState.dirty || changedNote || changedEstimate || assigneeDraft !== undefined || statusDraft !== null || Boolean(estimateReason || validationNote.trim() || comment || files.length);
   const attachmentError = observationError(comment, files);
   useEffect(() => { onState(item.id, dirty, pending); }, [onState, item.id, dirty, pending]);
   useEffect(() => () => onState(item.id, false, false), [onState, item.id]);
@@ -178,7 +204,7 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
       <div className="workshop-labor-hours"><span className={activeSessions.length ? 'is-running' : ''}><Clock3 aria-hidden="true" />{hasTeam ? 'Equipo' : 'Servicio'}: <span>{minutesLabel(realMinutes)}</span>{activeSessions.length ? ' · En curso' : ''}</span>{ownSessionMinutes !== null && <span>Tu sesión actual: {minutesLabel(ownSessionMinutes)}</span>}{ownAssignment && <span>Tus horas estimadas: {ownAssignment.estimatedHours === null ? 'Sin definir' : minutesLabel(ownAssignment.estimatedHours * 60)}</span>}<span>Estimado{hasTeam ? ' del servicio' : ''}: {item.horasEstimadasTotales === null ? 'Sin definir' : minutesLabel(item.horasEstimadasTotales * 60)}</span>{item.laborValidatedAt && <span>Horas validadas</span>}</div>
       <div className="workshop-labor-actions">
         {canControl && !['completado', 'omitido'].includes(item.estadoOperativo) && <>
-          {item.tipoLinea !== 'parte' && (controlSession ? <button type="button" className="workshop-labor-primary" disabled={disabled} onClick={() => pause.mutate(variables, { onError: fail })}><Pause aria-hidden="true" />Pausar</button>
+          {item.tipoLinea !== 'parte' && (controlSession ? <button type="button" className="workshop-labor-primary" disabled={disabled} onClick={() => { setPauseError(null); setPauseOpen(true); }}><Pause aria-hidden="true" />Pausar</button>
             : <button type="button" className="workshop-labor-primary" disabled={disabled} onClick={() => start.mutate(variables, { onError: fail, onSuccess: (result) => { if (result.pausedOtherItems) notifySuccess('Se pausó tu trabajo anterior y se conservaron sus horas.'); } })}><Play aria-hidden="true" />{item.estadoOperativo === 'en_proceso' ? 'Continuar' : 'Iniciar'}</button>)}
           <button type="button" className="workshop-labor-complete" disabled={disabled || awaitingPartDelivery} onClick={completeTask}><Check aria-hidden="true" />{item.tipoLinea === 'parte' ? 'Marcar usado' : hasTeam ? 'Terminar mi parte' : 'Completar'}</button>
         </>}
@@ -186,6 +212,16 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
         {pending && <span role="status"><LoaderCircle className="animate-spin" aria-hidden="true" /><span className="sr-only">Guardando trabajo</span></span>}
       </div>
     </div>
+    {pauseOpen && <PauseReasonDialog reason={pauseReason} onReason={setPauseReason} pending={pause.isPending} error={pauseError}
+      onClose={() => { if (!pause.isPending) { setPauseOpen(false); setPauseReason(''); setPauseError(null); } }}
+      onConfirm={() => {
+        if (disabled || !canControl) return;
+        setPauseError(null);
+        pause.mutate({ ...variables, note: pauseReason.trim() || undefined }, {
+          onSuccess: () => { setPauseOpen(false); setPauseReason(''); },
+          onError: (error) => setPauseError(getApiErrorMessage(error, 'No se pudo pausar. El motivo se conserva para reintentar.')),
+        });
+      }} />}
     {awaitingPartDelivery && <p className="workshop-labor-help">Pendiente de entrega por bodega. Podrás marcar el repuesto como usado cuando se registre su entrega.</p>}
     {feedback && <div ref={savedRef} tabIndex={-1} role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'workshop-labor-error' : 'workshop-labor-saved'}><span>{feedback.text}</span>{feedback.error && feedback.completed && canControl && !awaitingPartDelivery && <button type="button" disabled={disabled} onClick={completeTask}><RotateCcw aria-hidden="true" />Reintentar</button>}{!feedback.error && feedback.completed && onNext && <button type="button" onClick={onNext}>Ir al siguiente trabajo</button>}</div>}
     {ownPartDone && !['completado', 'omitido'].includes(item.estadoOperativo) && <p className="workshop-labor-help">Parte terminada / equipo pendiente</p>}

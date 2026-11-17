@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { sequelize } from '../../config/database.js';
 import { app } from '../../main.js';
@@ -60,6 +60,8 @@ describe('Labor integrity and mechanic privacy regressions', () => {
     });
 
   beforeAll(async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-16T15:00:00Z'));
     if (sequelize.getDatabaseName() !== 'unithor_test')
       throw new Error('Tests require unithor_test');
     const role = await Role.findOne({ where: { nombre: 'mecanico' } });
@@ -98,6 +100,7 @@ describe('Labor integrity and mechanic privacy regressions', () => {
   });
 
   afterAll(async () => {
+    vi.useRealTimers();
     if (orderIds.length) {
       await Quotation.destroy({ where: { workOrderId: orderIds }, force: true });
       await WorkOrder.destroy({ where: { id: orderIds }, force: true });
@@ -549,7 +552,7 @@ describe('Labor integrity and mechanic privacy regressions', () => {
     const closed = await WorkOrderItemSession.findOne({ where: { workOrderId: order.id } });
     expect(closed?.status).toBe('cerrada');
     expect(closed?.closeReason).toBe('sistema');
-    expect(closed?.durationMinutes).toBeGreaterThanOrEqual(30);
+    expect(Number(closed?.durationMinutes)).toBeGreaterThanOrEqual(30);
     expect(Number((await items[0].reload()).horasHombreReales)).toBe(0.5);
     const endedAt = closed!.endedAt!.getTime();
     expect(
@@ -647,11 +650,12 @@ describe('Labor integrity and mechanic privacy regressions', () => {
     ]);
     const first = await get('/api/work-orders/reports/daily?fecha=2020-01-01');
     expect(first.status).toBe(200);
-    expect(first.body.report.totalHoras).toBe(15);
+    // Civil days are reported in Chile (UTC-3 in January), not UTC.
+    expect(first.body.report.totalHoras).toBe(22);
     const second = await get('/api/work-orders/reports/daily?fecha=2020-01-02');
     expect(second.status).toBe(200);
-    expect(second.body.report.totalHoras).toBe(49.5);
-    expect(second.body.report.ordenes[0].horas).toBe(49.5);
+    expect(second.body.report.totalHoras).toBe(48.5);
+    expect(second.body.report.ordenes[0].horas).toBe(48.5);
     expect(
       second.body.report.usuarios.find((user: { id: number }) => user.id === mechanics[0].id)
         .enCurso,

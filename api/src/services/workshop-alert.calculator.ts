@@ -71,6 +71,7 @@ export interface AlertWorkerDay {
   configured: boolean;
   start: Date | null;
   end: Date | null;
+  intervals?: Array<{ start: Date; end: Date }>;
   dayStart?: Date;
   dayEnd?: Date;
   /** All the worker's canonical sessions on that day, across every order. */
@@ -411,11 +412,10 @@ export function calculateWorkshopAlerts(
     }
   for (const worker of source.workers) {
     if (actor.mechanic && worker.userId !== actor.id) continue;
-    if (!worker.configured || !worker.start || !worker.end || worker.end > now) continue;
-    const expected = Math.max(
-      0,
-      Math.floor((worker.end.getTime() - worker.start.getTime()) / 60000),
-    );
+    const intervals = worker.intervals ?? (worker.start && worker.end ? [{ start: worker.start, end: worker.end }] : []);
+    const lastEnd = intervals.reduce((latest, span) => Math.max(latest, span.end.getTime()), 0);
+    if (!worker.configured || !intervals.length || lastEnd > now.getTime()) continue;
+    const expected = intervals.reduce((sum, span) => sum + Math.max(0, (span.end.getTime() - span.start.getTime()) / 60000), 0);
     if (!expected) continue;
     // Match the journal's shift coverage. Overtime and numeric adjustments remain
     // in actual labor totals; they cannot fill an unrecorded interval in the shift.
@@ -428,12 +428,7 @@ export function calculateWorkshopAlerts(
       ].reduce(
         (sum, session) =>
           sum +
-          costReportSessionMinutes(
-            session,
-            worker.start!,
-            worker.end!,
-            now,
-          ),
+          intervals.reduce((minutes, span) => minutes + costReportSessionMinutes(session, span.start, span.end, now), 0),
         0,
       ),
     );

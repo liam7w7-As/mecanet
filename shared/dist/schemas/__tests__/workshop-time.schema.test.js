@@ -1,11 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import { createWorkshopTimeRequestSchema, reviewWorkshopTimeRequestSchema, workshopTimeQuerySchema, } from '../workshop-time.schema.js';
+import { createWorkshopTimeRequestSchema, reviewWorkshopTimeRequestSchema, workshopTimeQuerySchema, workshopTimeEligibleQuerySchema, pauseWorkshopTimerSchema, } from '../workshop-time.schema.js';
 const interval = {
     startedAt: '2025-10-04T09:00:00-03:00',
     endedAt: '2025-10-04T10:00:00-03:00',
     note: 'Trabajo de diagnóstico',
 };
 describe('Workshop time contract', () => {
+    it('accepts optional worker activity only on manual requests, preserving old clients', () => {
+        const data = { workOrderId: 1, itemId: 2, ...interval };
+        expect(createWorkshopTimeRequestSchema.parse(data)).not.toHaveProperty('activityStatus');
+        for (const activityStatus of ['en_proceso', 'completado']) {
+            expect(createWorkshopTimeRequestSchema.safeParse({ ...data, activityStatus }).success).toBe(true);
+            expect(createWorkshopTimeRequestSchema.safeParse({ sourceSessionId: 3, ...interval, activityStatus }).success).toBe(false);
+        }
+        expect(createWorkshopTimeRequestSchema.safeParse({ ...data, activityStatus: 'aprobado' }).success).toBe(false);
+        expect(createWorkshopTimeRequestSchema.safeParse({ ...data, activityStatus: 'pendiente' }).success).toBe(false);
+    });
+    it('validates optional eligible calendar dates and pause reasons', () => {
+        expect(workshopTimeEligibleQuerySchema.parse({ fecha: '2026-11-15', userId: '9' })).toEqual({ fecha: '2026-11-15', userId: 9 });
+        expect(workshopTimeEligibleQuerySchema.safeParse({ fecha: '2026-02-30' }).success).toBe(false);
+        expect(workshopTimeEligibleQuerySchema.safeParse({ fecha: '2026-11-15', price: 9 }).success).toBe(false);
+        expect(pauseWorkshopTimerSchema.parse({ note: '  Falta herramienta  ' })).toEqual({ note: 'Falta herramienta' });
+        expect(pauseWorkshopTimerSchema.safeParse({ note: ' ' }).success).toBe(false);
+        expect(pauseWorkshopTimerSchema.safeParse({ note: 'x'.repeat(2001) }).success).toBe(false);
+    });
+    it('defaults manual overtime to false and only accepts an explicit boolean', () => {
+        const data = { workOrderId: 1, itemId: 2, ...interval };
+        expect(createWorkshopTimeRequestSchema.parse(data)).toMatchObject({ overtime: false });
+        expect(createWorkshopTimeRequestSchema.parse({ ...data, overtime: true })).toMatchObject({ overtime: true });
+        expect(createWorkshopTimeRequestSchema.safeParse({ ...data, overtime: 'true' }).success).toBe(false);
+        expect(createWorkshopTimeRequestSchema.safeParse({ sourceSessionId: 3, ...interval, overtime: true }).success).toBe(false);
+        expect(createWorkshopTimeRequestSchema.safeParse({ sourceSessionId: 3, ...interval, overtime: false }).success).toBe(false);
+    });
     it('accepts explicit timezone intervals and trims the mandatory reason', () => {
         expect(createWorkshopTimeRequestSchema.parse({
             workOrderId: 1,

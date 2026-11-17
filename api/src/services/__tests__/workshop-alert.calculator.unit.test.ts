@@ -74,6 +74,22 @@ const source = (extra: Partial<WorkshopAlertSource> = {}): WorkshopAlertSource =
 const calculate = (value = source(), mechanic = false, tolerances = settings) =>
   calculateWorkshopAlerts(value, tolerances, { id: 7, mechanic }, now, date);
 
+describe('Lunch-aware day alerts', () => {
+  const split = () => source({ workers: [{ userId: 7, name: 'Mecánico', configured: true,
+    start: new Date('2026-11-16T12:00:00Z'), end: new Date('2026-11-16T16:00:00Z'),
+    intervals: [
+      { start: new Date('2026-11-16T12:00:00Z'), end: new Date('2026-11-16T16:00:00Z') },
+      { start: new Date('2026-11-16T17:00:00Z'), end: new Date('2026-11-16T21:00:00Z') },
+    ], sessions: [] }] });
+  it('waits for the actual end of the full work day, not the lunch boundary', () => {
+    expect(calculate(split()).alerts.some((alert) => ['no_daily_record', 'unregistered_time'].includes(alert.kind))).toBe(false);
+  });
+  it('compares against eight effective hours after 18, excluding lunch', () => {
+    const result = calculateWorkshopAlerts(split(), settings, { id: 7, mechanic: false }, new Date('2026-11-16T22:00:00Z'), date);
+    expect(result.alerts.find((alert) => alert.kind === 'no_daily_record')?.description).toContain('8 h configuradas');
+  });
+});
+
 describe('Live workshop alerts without database or mutation', () => {
   it('compares team totals without quantity multiplication and respects exact tolerance boundaries', () => {
     const value = source();

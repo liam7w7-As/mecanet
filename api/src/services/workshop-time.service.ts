@@ -2,15 +2,17 @@ import {
   createWorkshopTimeRequestSchema,
   reviewWorkshopTimeRequestSchema,
   workshopTimeQuerySchema,
+  workshopTimeEligibleQuerySchema,
 } from '@unithor/shared';
-import { Op, Transaction } from 'sequelize';
+import { col, Op, Transaction, where } from 'sequelize';
 
-import { recordItemProgressEvent, roundHours } from './work-order-labor-events.js';
+import { recordItemProgressEvent, roundHours, synchronizeTeamCompletion } from './work-order-labor-events.js';
 import {
   getSessionMinutes,
   getSessionMinutesInRange,
   recalculateItemHours,
 } from './work-order-labor-sessions.js';
+import { invalidateItemQuality } from './work-order-quality-state.js';
 import { getAssignedOrderIds, isAssignedToItem } from './work-order-team-access.js';
 import { syncMirrorQuotationFromWorkOrder } from './work-order.service.js';
 import { getWorkerShift, getWorkshopDayRange } from './workshop-personnel.service.js';
@@ -18,8 +20,11 @@ import { settleExpiredLaborSessions } from './workshop-shift-worker.service.js';
 import { withWorkshopTransaction } from './workshop-transaction.js';
 import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
+import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
+import { WorkOrderItemAssignment } from '../models/WorkOrderItemAssignment.js';
+import { WorkOrderItemProgressEvent } from '../models/WorkOrderItemProgressEvent.js';
 import { WorkOrderItemSession } from '../models/WorkOrderItemSession.js';
 import { WorkshopTimeRequest } from '../models/WorkshopTimeRequest.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -57,7 +62,7 @@ const scopeUserId = (actor: WorkshopTimeActor, userId?: number): number | undefi
 const intervalMinutes = (start: Date, end: Date, rangeStart: Date, rangeEnd: Date): number =>
   exactIntervalMinutes(start, end, rangeStart, rangeEnd);
 
-const workshopDateAt = async (at: Date, transaction: Transaction): Promise<string> => {
+const workshopDateAt = async (at: Date, transaction?: Transaction): Promise<string> => {
   const date = at.toISOString().slice(0, 10);
   const range = await getWorkshopDayRange(date, transaction);
   const civil = new Date(`${date}T00:00:00Z`);
@@ -137,6 +142,71 @@ const assertAssigned = async (
 ): Promise<void> => {
   if (!(await isAssignedToItem(item, workOrder, userId, transaction))) {
     throw ApiError.forbidden('El servicio no está asignado a este trabajador');
+  }
+};
+
+const assertIntervalOrigin = (
+  startedAt: Date,
+  workOrder: WorkOrder,
+  item: WorkOrderItem,
+  assignment?: WorkOrderItemAssignment | null,
+): void => {
+  if (startedAt < workOrder.createdAt || startedAt < item.createdAt) {
+    throw ApiError.badRequest('El intervalo no puede comenzar antes de crear la OT o el servicio');
+  }
+  if (assignment && startedAt < assignment.createdAt) {
+    throw ApiError.badRequest('El intervalo no puede comenzar antes de la asignación del trabajador');
+  }
+};
+
+const latestStateEvent = (itemId: number, transaction?: Transaction) =>
+  WorkOrderItemProgressEvent.findOne({
+    attributes: ['id'],
+    where: {
+      workOrderItemId: itemId,
+      [Op.or]: [where(col('from_status'), Op.ne, col('to_status')), { fromStatus: null }],
+    },
+    order: [['id', 'DESC']],
+    transaction,
+  });
+
+/** Approval may advance this worker, never replay an older execution or reopen quality. */
+const applyApprovedActivity = async (
+  request: WorkshopTimeRequest,
+  workOrder: WorkOrder,
+  item: WorkOrderItem,
+  actorId: number,
+  transaction: Transaction,
+): Promise<void> => {
+  if (request.kind !== 'manual' || !request.activityStatus ||
+    ['finalizada', 'entregada', 'cancelada'].includes(workOrder.estado) ||
+    item.qualityStatus === 'aprobado' || ['completado', 'omitido'].includes(item.estadoOperativo)) return;
+  if (((await latestStateEvent(item.id, transaction))?.id ?? null) !== (request.stateEventId ?? null)) return;
+  const newerTimer = await WorkOrderItemSession.findOne({
+    attributes: ['id'],
+    where: { workOrderItemId: item.id, userId: request.userId, kind: 'cronometro',
+      supersededAt: null, startedAt: { [Op.gte]: request.endedAt } },
+    transaction,
+  });
+  if (newerTimer) return;
+  const team = await WorkOrderItemAssignment.findAll({
+    where: { workOrderItemId: item.id, active: true }, transaction, lock: Transaction.LOCK.UPDATE,
+  });
+  const member = team.find((entry) => entry.id === request.assignmentId && entry.userId === request.userId);
+  if (item.teamManaged ? !member : !(await isAssignedToItem(item, workOrder, request.userId, transaction))) return;
+  if (request.assignmentId && !member) return;
+  if (member?.completedAt) return;
+  if (request.activityStatus === 'completado' && member) {
+    await member.update({ completedAt: request.endedAt }, { transaction });
+  }
+  const previousStatus = item.estadoOperativo;
+  const completed = request.activityStatus === 'completado' &&
+    (!item.teamManaged || (team.length > 0 && team.every((entry) => entry.completedAt !== null)));
+  const status = completed ? 'completado' : 'en_proceso';
+  if (previousStatus !== status) {
+    await item.update({ estadoOperativo: status }, { transaction });
+    await synchronizeTeamCompletion(item, previousStatus, transaction);
+    await invalidateItemQuality(item, actorId, 'Actividad manual aprobada, pendiente de control de calidad', transaction);
   }
 };
 
@@ -224,6 +294,7 @@ const toRequestRecord = (
   id: request.id,
   kind: request.kind,
   overtime: request.overtime ?? false,
+  activityStatus: request.activityStatus ?? null,
   status: request.status,
   workOrderId: request.workOrderId,
   workOrderCode: workOrder?.codigo ?? `OT ${request.workOrderId}`,
@@ -235,10 +306,10 @@ const toRequestRecord = (
   replacementSessionId: request.replacementSessionId,
   startedAt: request.startedAt.toISOString(),
   endedAt: request.endedAt.toISOString(),
-  durationMinutes: request.durationMinutes,
+  durationMinutes: Number(request.durationMinutes),
   minutesOnDate: range
     ? intervalMinutes(request.startedAt, request.endedAt, range.start, range.end)
-    : request.durationMinutes,
+    : Number(request.durationMinutes),
   note: request.note,
   createdBy: request.createdBy,
   createdAt: request.createdAt.toISOString(),
@@ -257,20 +328,12 @@ const acceptRequest = async (
   source?: WorkOrderItemSession,
 ): Promise<void> => {
   const { workOrder, item } = context;
+  const previousStatus = item.estadoOperativo;
   const previousHours = await recalculateItemHours(item, transaction);
   if (source) {
     // Do not rewrite the original interval, minutes, note, attribution or status.
     await source.update({ supersededAt: new Date() }, { transaction });
   }
-  const { WorkOrderItemAssignment } = await import('../models/WorkOrderItemAssignment.js');
-  const assignment = source
-    ? null
-    : await WorkOrderItemAssignment.findOne({
-        attributes: ['id'],
-        where: { workOrderItemId: item.id, userId: request.userId, active: true },
-        transaction,
-        lock: Transaction.LOCK.UPDATE,
-      });
   const session = await WorkOrderItemSession.create(
     {
       workOrderId: workOrder.id,
@@ -282,13 +345,13 @@ const acceptRequest = async (
       status: 'cerrada',
       startedAt: request.startedAt,
       endedAt: request.endedAt,
-      durationMinutes: request.durationMinutes,
+      durationMinutes: Number(request.durationMinutes),
       note: request.note,
       closeReason: 'cierre_manual',
       createdBy: actor.id,
       supersededAt: null,
       scheduledEndAt: null,
-      assignmentId: source ? (source.assignmentId ?? null) : (assignment?.id ?? null),
+      assignmentId: source ? (source.assignmentId ?? null) : (request.assignmentId ?? null),
     },
     { transaction },
   );
@@ -303,6 +366,7 @@ const acceptRequest = async (
     },
     { transaction },
   );
+  if (!source) await applyApprovedActivity(request, workOrder, item, actor.id, transaction);
   const hours = await recalculateItemHours(item, transaction);
   // An approved change invalidates a previous whole-item hours validation.
   await item.update(
@@ -314,7 +378,7 @@ const acceptRequest = async (
       workOrderId: workOrder.id,
       workOrderItemId: item.id,
       itemDescripcion: item.descripcion,
-      fromStatus: item.estadoOperativo,
+      fromStatus: previousStatus,
       toStatus: item.estadoOperativo,
       performedByUserId: actor.id,
       assignedUserId: request.userId,
@@ -364,12 +428,29 @@ export const createWorkshopTimeRequest = async (
       transaction,
     );
     if (!correction) {
-      if (['entregada', 'cancelada'].includes(context.workOrder.estado))
+      if (['finalizada', 'entregada', 'cancelada'].includes(context.workOrder.estado))
         throw ApiError.badRequest('La orden de trabajo está cerrada');
+      if (!context.workOrder.vehicleId || !(await Vehicle.findByPk(context.workOrder.vehicleId, {
+        attributes: ['id'], transaction,
+      }))) throw ApiError.badRequest('La OT debe tener un vehículo real registrado');
+      if (context.item.qualityStatus === 'aprobado' || context.item.estadoOperativo === 'omitido') {
+        throw ApiError.badRequest('El jefe debe reabrir el servicio antes de registrar actividad manual');
+      }
       await assertAssigned(context.item, context.workOrder, userId, transaction);
     }
     const startedAt = new Date(data.startedAt);
     const endedAt = new Date(data.endedAt);
+    const assignment = await WorkOrderItemAssignment.findOne({
+      where: source?.assignmentId
+        ? { id: source.assignmentId, workOrderItemId: context.item.id, userId }
+        : { workOrderItemId: context.item.id, userId, active: true },
+      transaction, lock: Transaction.LOCK.UPDATE,
+    });
+    if (!correction && context.item.teamManaged && !assignment) {
+      throw ApiError.forbidden('El servicio no está asignado a este trabajador');
+    }
+    assertIntervalOrigin(startedAt, context.workOrder, context.item,
+      correction && !source?.assignmentId ? null : assignment);
     const overtime = source ? (source.overtime ?? false) : (!correction && data.overtime);
     if (overtime) await assertOutsideOrdinaryShift(userId, startedAt, endedAt, transaction);
     if (
@@ -390,10 +471,14 @@ export const createWorkshopTimeRequest = async (
         userId,
         userName: worker.nombre,
         sourceSessionId: source?.id ?? null,
+        assignmentId: source ? (source.assignmentId ?? null) : (assignment?.id ?? null),
+        activityStatus: correction ? null : (data.activityStatus ?? null),
+        stateEventId: !correction && data.activityStatus
+          ? ((await latestStateEvent(context.item.id, transaction))?.id ?? null) : null,
         replacementSessionId: null,
         startedAt,
         endedAt,
-        durationMinutes: Math.floor((endedAt.getTime() - startedAt.getTime()) / 60_000),
+        durationMinutes: intervalMinutes(startedAt, endedAt, startedAt, endedAt),
         note: data.note,
         createdBy: actor.id,
         reviewedBy: null,
@@ -457,6 +542,11 @@ export const reviewWorkshopTimeRequest = async (
       ) {
         throw ApiError.conflict('El registro original no corresponde a esta solicitud');
       }
+      const assignmentId = source ? source.assignmentId : request.assignmentId;
+      const assignment = assignmentId ? await WorkOrderItemAssignment.findOne({
+        where: { id: assignmentId, workOrderItemId: context.item.id, userId: request.userId }, transaction,
+      }) : null;
+      assertIntervalOrigin(request.startedAt, context.workOrder, context.item, assignment);
       if (source ? source.overtime : request.overtime) {
         await assertOutsideOrdinaryShift(request.userId, request.startedAt, request.endedAt, transaction);
       }
@@ -479,20 +569,31 @@ export const reviewWorkshopTimeRequest = async (
 export const getWorkshopTimeEligibleItems = async (
   actor: WorkshopTimeActor,
   selectedUserId?: number,
+  selectedDate?: string,
 ): Promise<WorkshopTimeEligibleItem[]> => {
-  const userId = scopeUserId(actor, selectedUserId) ?? actor.id;
+  const query = workshopTimeEligibleQuerySchema.safeParse({ userId: selectedUserId, fecha: selectedDate });
+  if (!query.success) throw ApiError.badRequest('Fecha o trabajador inválido');
+  const userId = scopeUserId(actor, query.data.userId) ?? actor.id;
+  const date = query.data.fecha ?? await workshopDateAt(new Date());
+  const range = await getWorkshopDayRange(date);
+  if (range.start.getTime() > Date.now()) throw ApiError.badRequest('No se pueden registrar horas futuras');
   const orderIds = await getAssignedOrderIds(userId);
   if (!orderIds.length) return [];
   const orders = await WorkOrder.findAll({
-    attributes: ['id', 'codigo', 'estado', 'assignedMechanicId'],
-    where: { id: { [Op.in]: orderIds }, estado: { [Op.notIn]: ['entregada', 'cancelada'] } },
+    attributes: ['id', 'codigo', 'estado', 'assignedMechanicId', 'createdAt', 'vehicleId'],
+    where: { id: { [Op.in]: orderIds }, estado: { [Op.notIn]: ['finalizada', 'entregada', 'cancelada'] },
+      createdAt: { [Op.lt]: range.end }, vehicleId: { [Op.ne]: null } },
+    include: [{ model: Vehicle, as: 'vehicle', attributes: ['id'], required: true }],
   });
   if (!orders.length) return [];
   const items = await WorkOrderItem.findAll({
-    attributes: ['id', 'workOrderId', 'descripcion', 'tipoLinea', 'assignedUserId', 'teamManaged'],
+    attributes: ['id', 'workOrderId', 'descripcion', 'tipoLinea', 'assignedUserId', 'teamManaged', 'createdAt'],
     where: {
       workOrderId: { [Op.in]: orders.map((order) => order.id) },
       tipoLinea: { [Op.ne]: 'parte' },
+      qualityStatus: { [Op.ne]: 'aprobado' },
+      estadoOperativo: { [Op.ne]: 'omitido' },
+      createdAt: { [Op.lt]: range.end },
     },
     order: [
       ['workOrderId', 'DESC'],
@@ -505,6 +606,12 @@ export const getWorkshopTimeEligibleItems = async (
   for (const item of items) {
     const order = byOrder.get(item.workOrderId);
     if (order && (await isAssignedToItem(item, order, userId))) {
+      const assignment = await WorkOrderItemAssignment.findOne({
+        attributes: ['id', 'createdAt'],
+        where: { workOrderItemId: item.id, userId, active: true },
+      });
+      if (item.teamManaged && !assignment) continue;
+      if (assignment && assignment.createdAt >= range.end) continue;
       eligible.push({
         workOrderId: order.id,
         workOrderCode: order.codigo,
@@ -630,7 +737,7 @@ export const getWorkshopTimeJournal = async (
             // Preserve the replaced record's original audit metadata. Effective
             // totals exclude it; current clocks expose their exact elapsed time.
             durationMinutes: session.supersededAt
-              ? session.durationMinutes ?? 0
+              ? Number(session.durationMinutes ?? 0)
               : getSessionMinutes(session, now),
             minutesOnDate: session.supersededAt
               ? 0

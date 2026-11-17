@@ -74,3 +74,170 @@
   .settings-reference-dialog .reception-edit-body { padding: 18px 16px; }
   .settings-reference-dialog .reception-edit-footer { padding: 14px 16px; }
 }
+
+/* ── Personal y jornadas del taller ───────────────────────────────────────
+   The settings page and the chief operations modal share these cards. Each
+   block owns one decision, so the panel reads as a checklist instead of a
+   stack of open accordions. */
+.workshop-personnel-panel {
+  --wp-ink: #294d7b;
+  --wp-text: #47658c;
+  --wp-muted: #8b9db8;
+  --wp-line: #e9eff7;
+  --wp-soft: #f4f7fb;
+  --wp-navy: #003570;
+  padding-bottom: 22px;
+}
+.workshop-personnel-panel .administration-panel-heading { padding: 22px 24px 14px; }
+.workshop-personnel-panel .administration-panel-heading h2 { color: var(--wp-ink); }
+.workshop-personnel-panel > .administration-notice { margin: 0 24px 14px; }
+.workshop-personnel-panel.is-chief { padding-bottom: 0; }
+.workshop-personnel-panel.is-chief .administration-panel-heading { padding: 0 0 14px; }
+.workshop-personnel-body { display: grid; gap: 14px; padding: 0 24px; }
+.workshop-personnel-panel.is-chief .workshop-personnel-body { padding: 0; }
+
+.workshop-personnel-card { min-width: 0; overflow: hidden; border: 1px solid var(--wp-line); border-radius: 18px; background: #fff; }
+.workshop-personnel-card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; padding: 15px 18px; border-bottom: 1px solid var(--wp-line); }
+.workshop-personnel-card-heading { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.workshop-personnel-icon { display: grid; width: 36px; height: 36px; flex: none; place-items: center; border-radius: 12px; background: var(--wp-soft); color: #7f9cc4; }
+.workshop-personnel-icon svg { width: 17px; height: 17px; }
+.workshop-personnel-card-heading > div { min-width: 0; }
+.workshop-personnel-card-heading h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--wp-ink); font-size: 13px; font-weight: 600; line-height: 1.5; }
+.workshop-personnel-card-heading p { margin-top: 2px; color: var(--wp-muted); font-size: 10.5px; line-height: 1.6; }
+.workshop-personnel-count { display: inline-flex; min-width: 21px; height: 21px; align-items: center; justify-content: center; padding: 0 7px; border-radius: 999px; background: var(--wp-soft); color: #6d89ad; font-size: 10px; font-weight: 600; }
+.workshop-personnel-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.workshop-personnel-panel :is(.administration-primary, .administration-secondary) { min-height: 34px; padding: 7px 13px; border: 0; border-radius: 999px; font-size: 10.5px; font-weight: 500; }
+.workshop-personnel-panel .administration-primary { background: var(--wp-navy); color: #fff; }
+.workshop-personnel-panel .administration-secondary { background: #eef3fa; color: #5b7da8; }
+.workshop-personnel-panel .administration-secondary:hover:not(:disabled) { background: #e2ebf7; color: var(--wp-navy); }
+.workshop-personnel-panel .administration-primary svg, .workshop-personnel-panel .administration-secondary svg { width: 14px; height: 14px; }
+
+.workshop-personnel-empty-note { padding: 20px 18px; color: var(--wp-muted); font-size: 11px; line-height: 1.8; }
+.workshop-personnel-empty { display: grid; justify-items: center; gap: 6px; padding: 30px 20px; text-align: center; }
+.workshop-personnel-empty svg { width: 24px; height: 24px; color: #b3c4d9; }
+.workshop-personnel-empty strong { color: #5d7ba1; font-size: 12px; font-weight: 500; }
+.workshop-personnel-empty span { max-width: 360px; color: var(--wp-muted); font-size: 10.5px; line-height: 1.7; }
+
+.workshop-schedule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px; padding: 16px 18px 6px; }
+.workshop-schedule-day { display: grid; gap: 2px; min-width: 0; padding: 11px 12px; border-radius: 13px; background: var(--wp-soft); }
+.workshop-schedule-day > span { color: #7d93b0; font-size: 9.5px; font-weight: 600; letter-spacing: .35px; text-transform: uppercase; }
+.workshop-schedule-hours { color: var(--wp-ink); font-size: 12px; font-weight: 500; }
+.workshop-schedule-lunch { color: var(--wp-muted); font-size: 9.5px; line-height: 1.5; }
+.workshop-personnel-note { padding: 10px 18px 16px; color: var(--wp-muted); font-size: 10.5px; line-height: 1.75; }
+
+.workshop-specialty-list, .workshop-worker-list, .workshop-exception-list { display: grid; min-width: 0; }
+.workshop-specialty-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 9px 14px; padding: 12px 18px; border-top: 1px solid #f0f4f9; }
+.workshop-specialty-list > li:first-child .workshop-specialty-row { border-top: 0; }
+.workshop-specialty-info { display: grid; min-width: 0; gap: 3px; }
+.workshop-specialty-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #3c5f8b; font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; }
+.workshop-specialty-meta { color: var(--wp-muted); font-size: 10.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.workshop-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: #eef6f1; color: #5c8b73; font-size: 9.5px; font-weight: 600; line-height: 1.7; }
+.workshop-badge svg { width: 11px; height: 11px; }
+.workshop-badge.is-off { background: #fdeff2; color: #a96a78; }
+.workshop-badge.is-muted { background: var(--wp-soft); color: #7d93b0; }
+.workshop-badge.is-principal { background: #eaf1fb; color: #3f6ea9; }
+.workshop-rate-history { margin: 0 18px 12px; overflow: hidden; border: 1px solid var(--wp-line); border-radius: 12px; background: #fbfcfe; }
+.workshop-rate-history > summary { padding: 8px 12px; cursor: pointer; color: #7890ad; font-size: 10.5px; }
+.workshop-rate-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.workshop-rate-table th, .workshop-rate-table td { padding: 7px 12px; border-top: 1px solid #eff3f8; color: #6d86a5; text-align: left; }
+.workshop-rate-table th { color: #8fa3bd; font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+
+.workshop-team-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--wp-line); }
+.workshop-personnel-panel .workshop-team-search,
+.workshop-profile-dialog .workshop-team-search { position: relative; flex: 1 1 210px; min-width: 0; }
+.workshop-personnel-panel .workshop-team-search > svg,
+.workshop-profile-dialog .workshop-team-search > svg { position: absolute; top: 50%; left: 12px; width: 14px; height: 14px; color: #9aadc5; transform: translateY(-50%); pointer-events: none; }
+.workshop-personnel-panel .workshop-team-search input,
+.reference-dialog.reference-form-dialog.administration-form.workshop-personnel-dialog .workshop-team-search input { width: 100%; height: 36px; min-height: 36px; margin: 0; padding: 0 12px 0 34px; border: 1px solid transparent; border-radius: 11px; background: var(--wp-soft); color: #56759c; font-size: 11px; }
+.workshop-personnel-panel .workshop-team-search input:focus,
+.reference-dialog.reference-form-dialog.administration-form.workshop-personnel-dialog .workshop-team-search input:focus { border-color: #b0c3dd; box-shadow: 0 0 0 3px #1d396a0c; outline: 0; }
+.workshop-filter-pills { display: flex; gap: 3px; padding: 3px; border-radius: 999px; background: var(--wp-soft); }
+.workshop-filter-pills > button { min-height: 30px; padding: 6px 12px; border: 0; border-radius: 999px; background: transparent; color: #7d93b0; font-size: 10px; font-weight: 500; }
+.workshop-filter-pills > button[aria-pressed=true] { background: #fff; color: var(--wp-navy); box-shadow: 0 1px 4px #1d396a14; }
+
+.workshop-worker-row { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 14px; padding: 11px 18px; border-top: 1px solid #f0f4f9; }
+.workshop-worker-list > li:first-child .workshop-worker-row { border-top: 0; }
+.workshop-worker-avatar { display: grid; width: 34px; height: 34px; flex: none; place-items: center; border-radius: 12px; background: #edf3fa; color: #6684ad; font-size: 10.5px; font-weight: 600; letter-spacing: .2px; }
+.workshop-worker-identity { flex: 1 1 145px; min-width: 0; }
+.workshop-worker-identity strong { display: block; color: #33567f; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.workshop-worker-identity small { display: block; margin-top: 1px; color: var(--wp-muted); font-size: 9.5px; }
+.workshop-worker-specialties { display: flex; flex: 2 1 220px; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; }
+.workshop-worker-empty { color: #a6b5c8; font-size: 10px; font-style: italic; }
+
+.workshop-exception-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 9px 14px; padding: 12px 18px; border-top: 1px solid #f0f4f9; }
+.workshop-exception-list > li:first-child .workshop-exception-row { border-top: 0; }
+.workshop-exception-main { display: grid; min-width: 0; flex: 1 1 260px; gap: 4px; }
+.workshop-exception-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.workshop-exception-heading strong { color: #33567f; font-size: 12px; font-weight: 600; }
+.workshop-exception-reason { color: #5d7ba1; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
+.workshop-exception-main > small { color: var(--wp-muted); font-size: 9.5px; }
+
+/* Dialogs are portaled outside the panel, so they keep their own scope. */
+.reference-dialog.administration-form.workshop-personnel-dialog { --reference-dialog-width: 560px; width: min(560px, 100%); max-width: 560px; border: 0; border-radius: 24px; }
+.reference-dialog.administration-form.workshop-schedule-dialog { --reference-dialog-width: 680px; width: min(680px, 100%); max-width: 680px; }
+.reference-dialog.administration-form.workshop-profile-dialog { --reference-dialog-width: 660px; width: min(660px, 100%); max-width: 660px; }
+.workshop-personnel-dialog { --wp-ink: #294d7b; --wp-muted: #8b9db8; --wp-line: #e9eff7; --wp-soft: #f4f7fb; --wp-navy: #003570; }
+.workshop-personnel-dialog .ui-modal-header { padding: 20px 24px 16px; }
+.workshop-personnel-dialog .ui-modal-header h2 { color: var(--wp-ink); font-size: 16px; font-weight: 600; }
+.workshop-personnel-dialog .ui-modal-description { color: var(--wp-muted); font-size: 10.5px; }
+.workshop-personnel-dialog .ui-modal-close { width: 34px; height: 34px; border-radius: 11px; background: var(--wp-soft); color: #8499b4; }
+.workshop-personnel-dialog .reception-edit-body { display: grid; align-content: start; gap: 16px; padding: 20px 24px 24px; }
+.workshop-personnel-dialog .reception-edit-footer { flex-wrap: wrap; gap: 10px; padding: 15px 24px; border-top: 1px solid var(--wp-line); background: #fff; }
+.workshop-personnel-dialog .reception-edit-footer > span { color: var(--wp-muted); font-size: 10px; }
+.workshop-personnel-dialog .reception-edit-footer > div:not(.reception-discard) { flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
+.workshop-personnel-dialog .reception-edit-footer button { min-height: 40px; padding: 9px 17px; border: 0; border-radius: 999px; font-size: 11px; }
+.workshop-personnel-dialog .reception-secondary-button { background: var(--wp-soft); color: #6f87a9; }
+.workshop-personnel-dialog .reception-primary-button { background: var(--wp-navy); color: #fff; }
+.workshop-personnel-dialog .reception-discard { flex-basis: 100%; }
+.reference-dialog.reference-form-dialog.administration-form.workshop-personnel-dialog textarea { width: 100%; min-width: 0; margin-top: 6px; padding: 10px 13px; border: 1px solid #e4ebf4; border-radius: 12px; background: #f7f9fc; color: #56759c; font-family: inherit; font-size: 12px; line-height: 1.6; resize: vertical; }
+.workshop-dialog-note { color: var(--wp-muted); font-size: 10.5px; line-height: 1.75; }
+.workshop-inline-check { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.administration-form-grid > .workshop-inline-check { display: flex; }
+.workshop-inline-check input { width: 16px; height: 16px; accent-color: var(--wp-navy); }
+.workshop-inline-check > span { color: #6d86a5; font-size: 11px; }
+
+.workshop-schedule-form-row { display: grid; grid-column: 1 / -1; gap: 10px; padding: 12px 14px; border: 1px solid var(--wp-line); border-radius: 14px; background: #fbfcfe; }
+.workshop-schedule-form-times { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; }
+.workshop-schedule-form-times > label:not(.workshop-inline-check) { flex: 1 1 110px; }
+
+.workshop-profile-dialog .reception-edit-body { gap: 13px; }
+.workshop-profile-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 12px 15px; border-radius: 14px; background: #f3f7fc; }
+.workshop-profile-summary > div { display: grid; min-width: 0; gap: 1px; }
+.workshop-profile-summary > div > span { color: var(--wp-muted); font-size: 9.5px; }
+.workshop-profile-summary strong { color: var(--wp-ink); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.workshop-profile-hint { color: var(--wp-muted); font-size: 10.5px; line-height: 1.7; }
+.workshop-profile-search { flex: 0 0 auto; }
+.reference-dialog.reference-form-dialog.administration-form.workshop-personnel-dialog .workshop-profile-search input { height: 38px; min-height: 38px; }
+.workshop-specialty-matrix { min-width: 0; overflow: hidden; border: 1px solid var(--wp-line); border-radius: 14px; }
+.workshop-specialty-matrix-head, .workshop-specialty-option { display: grid; grid-template-columns: minmax(0, 1fr) 78px 84px; align-items: center; gap: 8px; }
+.workshop-specialty-matrix-head { padding: 9px 14px; border-bottom: 1px solid var(--wp-line); background: #f8fafd; color: #8fa3bd; font-size: 9px; font-weight: 600; letter-spacing: .35px; text-transform: uppercase; }
+.workshop-specialty-matrix-head > span:nth-child(2), .workshop-specialty-matrix-head > span:nth-child(3) { text-align: center; }
+.workshop-specialty-matrix ul { display: grid; max-height: min(46vh, 380px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.workshop-specialty-option { padding: 9px 14px; border-top: 1px solid #f0f4f9; }
+.workshop-specialty-option:first-child { border-top: 0; }
+.workshop-specialty-option.is-assigned { background: #fbfdff; }
+.workshop-specialty-option-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; color: #41618a; font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+.workshop-specialty-option:not(.is-assigned) .workshop-specialty-option-name { color: #7d93b0; font-weight: 400; }
+.workshop-option-control { display: grid; min-height: 28px; place-items: center; cursor: pointer; }
+.workshop-option-control input { width: 16px; height: 16px; margin: 0; accent-color: var(--wp-navy); cursor: pointer; }
+.workshop-option-control input:disabled { cursor: not-allowed; opacity: .35; }
+.workshop-matrix-empty { padding: 26px 16px; color: #93a6bf; font-size: 11px; text-align: center; }
+
+@media (max-width: 699px) {
+  .workshop-personnel-panel .administration-panel-heading { padding: 18px 18px 12px; }
+  .workshop-personnel-panel > .administration-notice { margin-inline: 16px; }
+  .workshop-personnel-body { gap: 12px; padding: 0 16px; }
+  .workshop-personnel-card-head { padding: 14px; }
+  .workshop-personnel-actions { width: 100%; }
+  .workshop-personnel-actions > button { flex: 1 1 auto; justify-content: center; }
+  .workshop-schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px 14px 4px; }
+  .workshop-personnel-note { padding: 10px 14px 14px; }
+  .workshop-specialty-row, .workshop-worker-row, .workshop-exception-row, .workshop-team-toolbar { padding-inline: 14px; }
+  .workshop-worker-specialties { flex-basis: 100%; }
+  .workshop-personnel-dialog .ui-modal-header { padding: 17px 16px 14px; }
+  .workshop-personnel-dialog .reception-edit-body { padding: 16px; }
+  .workshop-personnel-dialog .reception-edit-footer { padding: 13px 16px; }
+  .workshop-specialty-matrix-head, .workshop-specialty-option { grid-template-columns: minmax(0, 1fr) 62px 70px; gap: 4px; padding-inline: 11px; }
+  .workshop-specialty-matrix-head { font-size: 8px; letter-spacing: .15px; }
+  .workshop-schedule-form-times > label:not(.workshop-inline-check) { flex-basis: 100%; }
+}

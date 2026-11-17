@@ -41,7 +41,7 @@ vi.mock('../report-branding.js', async (importOriginal) => ({
 
 const filters = { fechaDesde: '2026-11-01', fechaHasta: '2026-11-12' };
 const dailyReport = (): WorkshopDailyReport => ({
-  fecha: filters.fechaHasta, generadoEn: new Date(), totalHoras: 0, totalItemsCompletados: 0,
+  fecha: filters.fechaHasta, generadoEn: new Date(), totalHoras: 0, totalHorasExtra: 0, totalItemsCompletados: 0,
   totalSesiones: 0, usuarios: [], ordenes: [],
 });
 const financialData = (): FinancialReportData => ({

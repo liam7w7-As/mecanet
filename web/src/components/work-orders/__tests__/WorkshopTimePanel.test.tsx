@@ -18,6 +18,7 @@ vi.mock('../../../lib/api', () => ({
 const makeRequest = (): WorkshopTimeRequestRecord => ({
   id: 200,
   kind: 'manual',
+  overtime: false,
   status: 'pendiente',
   workOrderId: 12,
   workOrderCode: 'OT-12',
@@ -52,6 +53,7 @@ const makeJournal = (): WorkshopTimeJournal => ({
       userId: 9,
       userName: 'Mecánico Uno',
       kind: 'cronometro',
+      overtime: false,
       status: 'cerrada',
       startedAt: '2025-10-04T12:00:00Z',
       endedAt: '2025-10-04T13:00:00Z',
@@ -130,6 +132,7 @@ describe('Workshop time panel', () => {
     expect(screen.getByText('Jornada sin configurar')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Solicitar corrección #30' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Filtrar trabajador')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Registrar como horas extra' })).not.toBeInTheDocument();
     expect(screen.queryByText(/precio|costo|subtotal|CLP/i)).not.toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalledWith('/work-orders/12');
   });
@@ -227,6 +230,58 @@ describe('Workshop time panel', () => {
         expect.objectContaining({ userId: 9, itemId: 20 }),
       ),
     );
+  });
+  it.each(['jefe', 'admin', 'desarrollador'] as const)('submits explicit extra hours for %s and preserves the flag on API failure', async (role) => {
+    useAuthStore.setState({ user: { id: 1, role, nombre: 'Supervisor', email: 'jefe@example.invalid' } });
+    const state = vi.fn();
+    mount({ onState: state });
+    await screen.findAllByRole('option', { name: 'Mecánico Uno' });
+    fireEvent.change(screen.getByLabelText('Trabajador del registro'), { target: { value: '9' } });
+    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    fireEvent.change(screen.getByLabelText('Servicio asignado'), { target: { value: '20' } });
+    fillInterval();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Registrar como horas extra' }));
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('Intervalo superpuesto'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar horas aceptadas' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Tus datos se conservan');
+    expect(screen.getByRole('checkbox', { name: 'Registrar como horas extra' })).toBeChecked();
+    expect(state).toHaveBeenLastCalledWith(true, false);
+    expect(api.post).toHaveBeenLastCalledWith('/workshop-time/requests', expect.objectContaining({ userId: 9, overtime: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar horas aceptadas' }));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Registrar como horas extra' })).not.toBeChecked());
+  });
+
+  it('treats initial overtime as a clean default and restores it after saving another extra interval', async () => {
+    useAuthStore.setState({ user: { id: 1, role: 'jefe', nombre: 'Jefe', email: 'jefe@example.invalid' } });
+    const state = vi.fn();
+    mount({ initialOvertime: true, onState: state });
+    await screen.findAllByRole('option', { name: 'Mecánico Uno' });
+    expect(state).toHaveBeenLastCalledWith(false, false);
+    expect(screen.getByRole('checkbox', { name: 'Registrar como horas extra' })).toBeChecked();
+    fireEvent.change(screen.getByLabelText('Trabajador del registro'), { target: { value: '9' } });
+    await screen.findByRole('option', { name: 'OT-12 · Diagnóstico' });
+    fireEvent.change(screen.getByLabelText('Servicio asignado'), { target: { value: '20' } });
+    fillInterval();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar horas aceptadas' }));
+    await waitFor(() => expect(screen.getByLabelText('Motivo del registro')).toHaveValue(''));
+    expect(screen.getByRole('checkbox', { name: 'Registrar como horas extra' })).toBeChecked();
+    expect(state).toHaveBeenLastCalledWith(false, false);
+    expect(api.post).toHaveBeenCalledWith('/workshop-time/requests', expect.objectContaining({ overtime: true }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Registrar como horas extra' }));
+    await waitFor(() => expect(state).toHaveBeenLastCalledWith(true, false));
+  });
+
+  it('shows inherited extra classification on corrections and sends no override', async () => {
+    journal.entries[0].overtime = true;
+    journal.requests = [{ ...makeRequest(), overtime: true }];
+    mount();
+    await screen.findAllByText(/Horas extra/);
+    fireEvent.click(screen.getByRole('button', { name: 'Solicitar corrección #30' }));
+    expect(screen.getByText('Horas extra: la corrección conserva esta clasificación.')).toBeInTheDocument();
+    fillInterval();
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar corrección al jefe' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.post).mock.calls[0][1]).not.toHaveProperty('overtime');
   });
   it('shows superseded originals read-only and offers corrections only for own current closed entries', async () => {
     journal.entries[0].supersededAt = '2025-10-04T14:00:00Z';

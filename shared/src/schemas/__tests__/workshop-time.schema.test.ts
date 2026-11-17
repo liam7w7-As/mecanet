@@ -12,6 +12,14 @@ const interval = {
   note: 'Trabajo de diagnóstico',
 };
 describe('Workshop time contract', () => {
+  it('defaults manual overtime to false and only accepts an explicit boolean', () => {
+    const data = { workOrderId: 1, itemId: 2, ...interval };
+    expect(createWorkshopTimeRequestSchema.parse(data)).toMatchObject({ overtime: false });
+    expect(createWorkshopTimeRequestSchema.parse({ ...data, overtime: true })).toMatchObject({ overtime: true });
+    expect(createWorkshopTimeRequestSchema.safeParse({ ...data, overtime: 'true' }).success).toBe(false);
+    expect(createWorkshopTimeRequestSchema.safeParse({ sourceSessionId: 3, ...interval, overtime: true }).success).toBe(false);
+    expect(createWorkshopTimeRequestSchema.safeParse({ sourceSessionId: 3, ...interval, overtime: false }).success).toBe(false);
+  });
   it('accepts explicit timezone intervals and trims the mandatory reason', () => {
     expect(
       createWorkshopTimeRequestSchema.parse({

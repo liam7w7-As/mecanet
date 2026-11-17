@@ -288,6 +288,28 @@ describe('Manual time authorization and validation', () => {
 });
 
 describe('Immutable correction requests', () => {
+  it('inherits overtime from the source through submission and approval without changing its audit label', async () => {
+    source.overtime = true;
+    vi.mocked(getWorkerShift).mockResolvedValue({ configured: true, start: null, end: null });
+    const created = await createWorkshopTimeRequest(mechanic, { sourceSessionId: 30, ...interval });
+    expect(created).toMatchObject({ overtime: true, status: 'pendiente' });
+    expect(source.update).not.toHaveBeenCalled();
+    // Approval uses the authoritative source even for an older pending request.
+    pending.overtime = false;
+    const approved = await reviewWorkshopTimeRequest(chief, 200, { approve: true, note: 'Intervalo confirmado' });
+    expect(approved.overtime).toBe(true);
+    expect(WorkOrderItemSession.create).toHaveBeenCalledWith(expect.objectContaining({ overtime: true }), { transaction: tx });
+    expect(source.overtime).toBe(true);
+  });
+
+  it('revalidates inherited overtime against the ordinary schedule on submission and approval', async () => {
+    source.overtime = true;
+    vi.mocked(getWorkerShift).mockResolvedValue({ configured: true, start: new Date(interval.startedAt), end: new Date(interval.endedAt) });
+    await expect(createWorkshopTimeRequest(mechanic, { sourceSessionId: 30, ...interval })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(reviewWorkshopTimeRequest(chief, 200, { approve: true, note: 'Revisado' })).rejects.toMatchObject({ statusCode: 400 });
+    expect(source.update).not.toHaveBeenCalled();
+    expect(WorkOrderItemSession.create).not.toHaveBeenCalled();
+  });
   it('accepts an own closed interval after reassignment without changing the original', async () => {
     vi.mocked(isAssignedToItem).mockResolvedValue(false);
     const request = await createWorkshopTimeRequest(mechanic, { sourceSessionId: 30, ...interval });
@@ -405,6 +427,26 @@ describe('Immutable correction requests', () => {
 });
 
 describe('Scoped journals and configured shifts', () => {
+  it('counts all shift segments while excluding lunch and extra work from ordinary coverage', async () => {
+    vi.mocked(getWorkerShift).mockResolvedValue({
+      configured: true,
+      start: new Date('2026-11-15T18:00:00Z'),
+      end: new Date('2026-11-15T22:00:00Z'),
+      intervals: [
+        { start: new Date('2026-11-15T13:00:00Z'), end: new Date('2026-11-15T17:00:00Z') },
+        { start: new Date('2026-11-15T18:00:00Z'), end: new Date('2026-11-15T22:00:00Z') },
+      ],
+    });
+    vi.mocked(WorkOrderItemSession.findAll).mockResolvedValue([
+      row<WorkOrderItemSession>({ ...source, startedAt: new Date('2026-11-15T13:00:00Z'), endedAt: new Date('2026-11-15T17:00:00Z'), durationMinutes: 240 }),
+      row<WorkOrderItemSession>({ ...source, id: 31, overtime: true, startedAt: new Date('2026-11-15T17:00:00Z'), endedAt: new Date('2026-11-15T18:00:00Z'), durationMinutes: 60 }),
+      row<WorkOrderItemSession>({ ...source, id: 32, overtime: true, supersededAt: new Date(), durationMinutes: 60 }),
+    ]);
+    const journal = await getWorkshopTimeJournal(mechanic, { fecha: '2026-11-15' });
+    expect(journal.totals).toMatchObject({ registeredMinutes: 300, scheduledMinutes: 480, unregisteredMinutes: 240 });
+    expect(journal.entries.find((entry) => entry.id === 31)?.overtime).toBe(true);
+    expect(journal.entries.find((entry) => entry.id === 32)).toMatchObject({ overtime: true, minutesOnDate: 0 });
+  });
   it('preserves 44s + 45s in canonical DTOs, day totals and configured shift coverage', async () => {
     const first = row<WorkOrderItemSession>({ ...source, durationMinutes: 0, endedAt: new Date('2026-11-15T11:00:44Z') });
     const second = row<WorkOrderItemSession>({ ...source, id: 31, durationMinutes: 0, startedAt: new Date('2026-11-15T11:01:00Z'), endedAt: new Date('2026-11-15T11:01:45Z') });
@@ -519,5 +561,93 @@ describe('Scoped journals and configured shifts', () => {
     expect(getAssignedOrderIds).toHaveBeenCalledWith(9);
     vi.mocked(isAssignedToItem).mockResolvedValue(false);
     expect(await getWorkshopTimeEligibleItems(mechanic)).toEqual([]);
+  });
+});
+
+describe('Explicit operational overtime', () => {
+  beforeEach(() => {
+    vi.mocked(getWorkshopDayRange).mockImplementation(async (date) => ({
+      start: new Date(`${date}T04:00:00Z`),
+      end: new Date(new Date(`${date}T04:00:00Z`).getTime() + 86_400_000),
+    }));
+    vi.mocked(getWorkerShift).mockImplementation(async (_userId, at) => {
+      const local = new Date(at.getTime() - 4 * 60 * 60_000);
+      const date = local.toISOString().slice(0, 10);
+      const weekday = local.getUTCDay();
+      if (weekday === 0) return { configured: true, start: null, end: null };
+      const morning = { start: new Date(`${date}T13:00:00Z`), end: new Date(`${date}T17:00:00Z`) };
+      if (weekday === 6) return { configured: true, ...morning };
+      const afternoon = { start: new Date(`${date}T18:00:00Z`), end: new Date(`${date}T22:00:00Z`) };
+      return { configured: true, ...(at < morning.end ? morning : afternoon), intervals: [morning, afternoon] };
+    });
+  });
+
+  it('forbids a mechanic from declaring extra hours before acquiring locks or writing', async () => {
+    await expect(createWorkshopTimeRequest(mechanic, { ...manual, overtime: true })).rejects.toMatchObject({ statusCode: 403 });
+    expect(withWorkshopTransaction).not.toHaveBeenCalled();
+    expect(WorkshopTimeRequest.create).not.toHaveBeenCalled();
+  });
+
+  it.each(['jefe', 'admin', 'desarrollador'])('allows explicit extra hours for a supervisor: %s', async (role) => {
+    const result = await createWorkshopTimeRequest({ id: 1, role }, { ...manual, userId: 9, overtime: true,
+      startedAt: '2026-11-13T18:00:00-04:00', endedAt: '2026-11-13T19:00:00-04:00' });
+    expect(result).toMatchObject({ overtime: true, status: 'aprobada', durationMinutes: 60 });
+    expect(WorkOrderItemSession.create).toHaveBeenCalledOnce();
+    expect(WorkOrderItemSession.create).toHaveBeenCalledWith(expect.objectContaining({ overtime: true, durationMinutes: 60 }), { transaction: tx });
+    expect(getWorkerShift).toHaveBeenCalledWith(9, expect.any(Date), tx);
+  });
+
+  it.each([
+    ['2026-11-13T08:00:00-04:00', '2026-11-13T09:00:00-04:00'],
+    ['2026-11-13T13:00:00-04:00', '2026-11-13T14:00:00-04:00'],
+    ['2026-11-14T13:00:00-04:00', '2026-11-14T14:00:00-04:00'],
+    ['2026-11-15T09:00:00-04:00', '2026-11-15T10:00:00-04:00'],
+    ['2026-11-13T23:00:00-04:00', '2026-11-14T09:00:00-04:00'],
+  ])('allows intervals completely outside ordinary work: %s — %s', async (startedAt, endedAt) => {
+    expect((await createWorkshopTimeRequest(chief, { ...manual, userId: 9, overtime: true, startedAt, endedAt })).overtime).toBe(true);
+  });
+
+  it.each([
+    ['2026-11-13T09:00:00-04:00', '2026-11-13T10:00:00-04:00'],
+    ['2026-11-13T08:00:00-04:00', '2026-11-13T09:01:00-04:00'],
+    ['2026-11-13T13:00:00-04:00', '2026-11-13T14:01:00-04:00'],
+    ['2026-11-13T17:30:00-04:00', '2026-11-13T19:00:00-04:00'],
+    ['2026-11-14T12:30:00-04:00', '2026-11-14T14:00:00-04:00'],
+    ['2026-11-13T23:00:00-04:00', '2026-11-14T09:01:00-04:00'],
+    ['2026-11-13T18:00:00-04:00', '2026-11-16T10:00:00-04:00'],
+  ])('rejects any ordinary overlap, including subsequent days: %s — %s', async (startedAt, endedAt) => {
+    await expect(createWorkshopTimeRequest(chief, { ...manual, userId: 9, overtime: true, startedAt, endedAt })).rejects.toMatchObject({ statusCode: 400 });
+    expect(WorkshopTimeRequest.create).not.toHaveBeenCalled();
+    expect(WorkOrderItemSession.create).not.toHaveBeenCalled();
+  });
+
+  it('uses all intervals even when start/end point to the last segment', async () => {
+    vi.mocked(getWorkerShift).mockResolvedValue({ configured: true,
+      start: new Date('2026-11-13T18:00:00Z'), end: new Date('2026-11-13T22:00:00Z'),
+      intervals: [{ start: new Date('2026-11-13T13:00:00Z'), end: new Date('2026-11-13T17:00:00Z') },
+        { start: new Date('2026-11-13T18:00:00Z'), end: new Date('2026-11-13T22:00:00Z') }] });
+    await expect(createWorkshopTimeRequest(chief, { ...manual, userId: 9, overtime: true,
+      startedAt: '2026-11-13T09:00:00-04:00', endedAt: '2026-11-13T10:00:00-04:00' })).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('requires a configured ordinary schedule to validate an extra interval', async () => {
+    vi.mocked(getWorkerShift).mockResolvedValue({ configured: false, start: null, end: null });
+    await expect(createWorkshopTimeRequest(chief, { ...manual, userId: 9, overtime: true })).rejects.toMatchObject({ statusCode: 422 });
+  });
+
+  it('rejects extra intervals longer than 24 hours before any daily schedule queries', async () => {
+    await expect(createWorkshopTimeRequest(chief, { ...manual, userId: 9, overtime: true,
+      startedAt: '1900-01-01T00:00:00Z', endedAt: '2026-11-15T00:00:00Z' })).rejects.toMatchObject({ statusCode: 400 });
+    expect(getWorkerShift).not.toHaveBeenCalled();
+    expect(getWorkshopDayRange).not.toHaveBeenCalled();
+  });
+
+  it('retains the shared overlap check and never automatically tags a late manual interval', async () => {
+    const late = { ...manual, userId: 9, startedAt: '2026-11-13T18:00:00-04:00', endedAt: '2026-11-13T19:00:00-04:00' };
+    expect((await createWorkshopTimeRequest(chief, late)).overtime).toBe(false);
+    expect(getWorkerShift).not.toHaveBeenCalled();
+    vi.mocked(WorkOrderItemSession.findAll).mockResolvedValue([row<WorkOrderItemSession>({ ...source,
+      startedAt: new Date(late.startedAt), endedAt: new Date(late.endedAt) })]);
+    await expect(createWorkshopTimeRequest(chief, { ...late, overtime: true })).rejects.toMatchObject({ statusCode: 409 });
   });
 });

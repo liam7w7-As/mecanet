@@ -1916,7 +1916,7 @@ export const createWorkOrderInTransaction = async (
   if (assignees.length > 0) await notifyUsers(assignees, {
     tipo: 'mecanico_asignado', titulo: `Tienes trabajos asignados en ${workOrder.codigo}`,
     mensaje: 'Revisa tus servicios y registra sus avances y horas en Gestionar trabajo.',
-    href: `/work-orders/${workOrder.id}/ficha`, workOrderId: workOrder.id, actorId: userId,
+    href: `/work-orders/mine?manage=${workOrder.id}`, workOrderId: workOrder.id, actorId: userId,
   }, transaction);
   return workOrder;
 };
@@ -2667,7 +2667,7 @@ export const assignMechanic = async (
           tipo: 'mecanico_asignado',
           titulo: `Te asignaron ${codigo}`,
           mensaje: `${assigner?.nombre ?? 'El taller'} te asignó esta orden como responsable técnico.`,
-          href: `/work-orders/${id}`,
+          href: `/work-orders/mine?manage=${id}`,
           workOrderId: id,
           actorId: userId,
         },

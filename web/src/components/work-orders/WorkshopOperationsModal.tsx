@@ -9,7 +9,11 @@ import { useAuthStore } from '../../stores/auth.store';
 import ModalHeader from '../common/ModalHeader';
 import WorkshopPersonnelPanel from '../settings/WorkshopPersonnelPanel';
 
-export default function WorkshopOperationsModal({ onClose }: { onClose: () => void }) {
+export default function WorkshopOperationsModal({ onClose, initialDate, initialOvertime }: {
+  onClose: () => void;
+  initialDate?: string;
+  initialOvertime?: boolean;
+}) {
   const role = useAuthStore((state) => state.user?.role);
   type Tab = 'time' | 'schedule' | 'alerts';
   const [tab, setTab] = useState<Tab>('time');
@@ -40,7 +44,7 @@ export default function WorkshopOperationsModal({ onClose }: { onClose: () => vo
         <button type="button" role="tab" aria-selected={tab === 'alerts'} className={tab === 'alerts' ? 'primary-button' : 'secondary-button'} onClick={() => request('alerts')} disabled={pending}>Alertas</button>
       </div>
       <div className="min-h-0 overflow-y-auto p-4 sm:p-6">
-        {tab === 'time' && <WorkshopTimePanel onState={onTimeState} />}
+        {tab === 'time' && <WorkshopTimePanel initialDate={initialDate} initialOvertime={initialOvertime} onState={onTimeState} />}
         {tab === 'schedule' && <WorkshopPersonnelPanel mode="chief" onState={onScheduleState} />}
         {hasOpenedAlerts && <div hidden={tab !== 'alerts'}><WorkshopAlertsPanel key={alertsVersion} active={tab === 'alerts'} onState={onAlertsState} /></div>}
       </div>

@@ -5,6 +5,7 @@ import ProtectedRoute from './components/layout/ProtectedRoute';
 import PublicRoute from './components/layout/PublicRoute';
 import { APP_ROUTES } from './lib/route-access';
 import { getSessionHomePath } from './lib/session-navigation';
+import { getWorkOrderManagementPath } from './lib/work-order-management';
 import LoginPage from './pages/auth/LoginPage';
 import CatalogPage from './pages/catalog/CatalogPage';
 import ClientsPage from './pages/clients/ClientsPage';
@@ -41,9 +42,11 @@ const DashboardEntry = () => {
   return user?.role === 'mecanico' ? <HomeRedirect /> : <DashboardPage />;
 };
 
-const WorksheetEntry = () => {
+// Keep saved links and earlier notifications working without a second work screen.
+const LegacyWorksheetRedirect = () => {
   const { id } = useParams();
-  return <Navigate to={`/work-orders?manage=${Number(id)}`} replace />;
+  const role = useAuthStore((state) => state.user?.role);
+  return <Navigate to={getWorkOrderManagementPath(Number(id), role)} replace />;
 };
 
 export const App = () => (
@@ -99,7 +102,7 @@ export const App = () => (
           path={APP_ROUTES.worksheet.path}
           element={
             <ProtectedRoute access={APP_ROUTES.worksheet}>
-              <WorksheetEntry />
+              <LegacyWorksheetRedirect />
             </ProtectedRoute>
           }
         />

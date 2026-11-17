@@ -55,7 +55,16 @@ export const workshopWeeklyDaySchema = z.object({
   weekday: z.number().int().min(0).max(6),
   start: workshopTimeSchema,
   end: workshopTimeSchema,
-}).strict().refine((value) => value.end > value.start, { path: ['end'], message: 'La salida debe ser posterior a la entrada' });
+  breakStart: workshopTimeSchema.optional(),
+  breakEnd: workshopTimeSchema.optional(),
+}).strict().superRefine((value, context) => {
+  if (value.end <= value.start) context.addIssue({ code: z.ZodIssueCode.custom, path: ['end'], message: 'La salida debe ser posterior a la entrada' });
+  if (value.breakStart !== undefined || value.breakEnd !== undefined) {
+    if (!value.breakStart || !value.breakEnd || value.breakStart <= value.start || value.breakEnd >= value.end || value.breakEnd <= value.breakStart) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['breakEnd'], message: 'El almuerzo debe tener inicio y fin dentro de la jornada' });
+    }
+  }
+});
 
 export const updateWorkshopScheduleSchema = z.object({
   timezone: workshopTimezoneSchema,
@@ -109,6 +118,10 @@ export type UpdateWorkerSpecialtiesInput = z.infer<typeof updateWorkerSpecialtie
 export type UpdateWorkshopScheduleInput = z.infer<typeof updateWorkshopScheduleSchema>;
 export type CreateWorkshopScheduleExceptionInput = z.infer<typeof createWorkshopScheduleExceptionSchema>;
 export type WorkshopWeeklyDay = z.infer<typeof workshopWeeklyDaySchema>;
+export const DEFAULT_WORKSHOP_WEEKLY: WorkshopWeeklyDay[] = [
+  ...[1, 2, 3, 4, 5].map((weekday) => ({ weekday, start: '09:00', end: '18:00', breakStart: '13:00', breakEnd: '14:00' })),
+  { weekday: 6, start: '09:00', end: '13:00' },
+];
 export type WorkshopSpecialty = z.infer<typeof workshopSpecialtySchema>;
 export type WorkshopSpecialtyRate = z.infer<typeof workshopSpecialtyRateSchema>;
 export type WorkshopWorker = z.infer<typeof workshopWorkerSchema>;
@@ -116,7 +129,14 @@ export type WorkshopWorkerProfile = z.infer<typeof workshopWorkerProfileSchema>;
 export type WorkshopScheduleConfig = z.infer<typeof workshopScheduleSchema>;
 export type WorkshopShiftException = z.infer<typeof workshopScheduleExceptionSchema>;
 export type WorkshopPersonnelConfig = z.infer<typeof workshopPersonnelConfigSchema>;
-export interface WorkerShift { configured: boolean; start: Date | null; end: Date | null }
+export interface WorkerShift {
+  configured: boolean;
+  /** Current or next working segment; a morning timer stops at lunch. */
+  start: Date | null;
+  end: Date | null;
+  /** All working segments of the day, excluding lunch. Legacy continuous shifts omit this. */
+  intervals?: Array<{ start: Date; end: Date }>;
+}
 export interface WorkerRateSnapshot {
   specialtyId: number | null; specialtyName: string | null; rateId: number | null;
   costHourly: number | null; saleHourly: number | null;

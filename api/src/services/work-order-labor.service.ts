@@ -27,7 +27,7 @@ import {
   consumeCompletedPartStock,
   syncMirrorQuotationFromWorkOrder,
 } from './work-order.service.js';
-import { getWorkerShift } from './workshop-personnel.service.js';
+import { getWorkerShift, getWorkshopDayRange } from './workshop-personnel.service.js';
 import { settleExpiredLaborSessions } from './workshop-shift-worker.service.js';
 import { withWorkshopTransaction } from './workshop-transaction.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -601,6 +601,11 @@ export const startItemTimer = async (
 
     const shift = await getWorkerShift(userId, new Date(), transaction);
     if (shift.configured && (!shift.start || !shift.end || Date.now() < shift.start.getTime() || Date.now() >= shift.end.getTime())) {
+      const lunch = shift.intervals?.some((segment, index, intervals) => {
+        const next = intervals[index + 1];
+        return next && Date.now() >= segment.end.getTime() && Date.now() < next.start.getTime();
+      });
+      if (lunch) throw ApiError.badRequest('El taller está en horario de almuerzo. Reanuda el cronómetro al terminar el descanso');
       throw ApiError.badRequest('Estás fuera de la jornada configurada. El jefe debe registrar el tiempo adicional con su motivo');
     }
     const assignment = await WorkOrderItemAssignment.findOne({ where: { workOrderItemId: item.id, userId, active: true }, transaction });
@@ -1091,6 +1096,7 @@ export interface DailyReportUser {
   rol: string;
   minutos: number;
   horas: number;
+  horasExtra: number;
   sesiones: number;
   itemsCompletados: number;
   eventos: number;
@@ -1101,6 +1107,10 @@ export interface DailyReportUser {
     itemDescripcion: string;
     minutos: number;
     estado: string;
+    overtime: boolean;
+    startedAt: string;
+    endedAt: string | null;
+    note: string | null;
   }>;
 }
 
@@ -1119,6 +1129,7 @@ export interface WorkshopDailyReport {
   fecha: string;
   generadoEn: Date;
   totalHoras: number;
+  totalHorasExtra: number;
   totalItemsCompletados: number;
   totalSesiones: number;
   usuarios: DailyReportUser[];
@@ -1134,13 +1145,14 @@ export const getWorkshopDailyReport = async (
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
     throw ApiError.badRequest('La fecha debe tener formato YYYY-MM-DD');
   }
-  const dayStart = new Date(`${day}T00:00:00.000Z`);
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const { start: dayStart, end: dayEnd } = await getWorkshopDayRange(day);
   const now = new Date();
 
   const users = await User.findAll({
-    where: { activo: true },
-    include: [{ model: Role, as: 'role', attributes: ['nombre'], required: true }],
+    attributes: ['id', 'nombre', 'activo', 'deletedAt'],
+    paranoid: false,
+    include: [{ model: Role, as: 'role', attributes: ['nombre'], required: true,
+      where: { nombre: { [Op.in]: ['mecanico', 'jefe'] } } }],
     order: [['nombre', 'ASC']],
   });
   const trackedUsers = users.filter((user) =>
@@ -1152,6 +1164,7 @@ export const getWorkshopDailyReport = async (
     WorkOrderItemSession.findAll({
       where: {
         userId: { [Op.in]: trackedIds.length > 0 ? trackedIds : [-1] },
+        supersededAt: null,
         startedAt: { [Op.lt]: dayEnd },
         [Op.or]: [{ endedAt: { [Op.gt]: dayStart } }, ...(now > dayStart ? [{ status: 'abierta' as const }] : []),
           { kind: 'ajuste', startedAt: { [Op.gte]: dayStart } }],
@@ -1185,27 +1198,41 @@ export const getWorkshopDailyReport = async (
   const orderIdsWithActivity = new Set<number>();
   const usersById = new Map(trackedUsers.map((user) => [user.id, user]));
   const reportUsers = new Map<number, DailyReportUser>();
-  for (const user of trackedUsers) {
-    reportUsers.set(user.id, {
+  const overtimeMinutes = new Map<number, number>();
+  const ensureReportUser = (userId: number, snapshotName?: string | null): DailyReportUser | undefined => {
+    const existing = reportUsers.get(userId);
+    if (existing) return existing;
+    const user = usersById.get(userId);
+    if (!user) return undefined;
+    const entry: DailyReportUser = {
       id: user.id,
-      nombre: user.nombre,
+      nombre: snapshotName || user.nombre,
       rol: user.role?.nombre ?? '',
       minutos: 0,
       horas: 0,
+      horasExtra: 0,
       sesiones: 0,
       itemsCompletados: 0,
       eventos: 0,
       enCurso: false,
       detalle: [],
-    });
+    };
+    reportUsers.set(user.id, entry);
+    return entry;
+  };
+  for (const user of trackedUsers) {
+    if (user.activo && !user.deletedAt) ensureReportUser(user.id);
   }
 
   for (const session of sessions) {
-    if (session.userId === null) continue;
-    const entry = reportUsers.get(session.userId);
+    if (session.userId === null || session.supersededAt) continue;
+    const entry = ensureReportUser(session.userId, session.userName);
     if (!entry) continue;
     const minutes = getSessionMinutesInRange(session, dayStart, dayEnd, now);
     entry.minutos += minutes;
+    if (session.overtime) {
+      overtimeMinutes.set(session.userId, (overtimeMinutes.get(session.userId) ?? 0) + minutes);
+    }
     entry.sesiones += 1;
     if (session.status === 'abierta' && now >= dayStart && now < dayEnd) entry.enCurso = true;
     if (session.workOrderId) orderIdsWithActivity.add(session.workOrderId);
@@ -1215,12 +1242,16 @@ export const getWorkshopDailyReport = async (
       itemDescripcion: session.item?.descripcion ?? 'Trabajo eliminado',
       minutos: minutes,
       estado: session.status,
+      overtime: session.overtime ?? false,
+      startedAt: session.startedAt.toISOString(),
+      endedAt: session.endedAt?.toISOString() ?? null,
+      note: session.note,
     });
   }
 
   for (const event of events) {
     if (event.performedByUserId === null) continue;
-    const entry = reportUsers.get(event.performedByUserId);
+    const entry = ensureReportUser(event.performedByUserId);
     if (!entry) continue;
     entry.eventos += 1;
     if (event.toStatus === 'completado' && event.fromStatus !== 'completado') {
@@ -1231,12 +1262,13 @@ export const getWorkshopDailyReport = async (
 
   for (const entry of reportUsers.values()) {
     entry.horas = minutesToHours(entry.minutos);
+    entry.horasExtra = minutesToHours(overtimeMinutes.get(entry.id) ?? 0);
   }
 
   const orderReports: DailyReportOrder[] = orders
     .filter((order) => orderIdsWithActivity.has(order.id))
     .map((order) => {
-      const orderSessions = sessions.filter((session) => session.workOrderId === order.id);
+      const orderSessions = sessions.filter((session) => session.workOrderId === order.id && !session.supersededAt);
       const orderEvents = events.filter((event) => event.workOrderId === order.id);
       const mechanics = [
         ...new Set(
@@ -1267,11 +1299,12 @@ export const getWorkshopDailyReport = async (
     totalHoras: roundHours(
       [...reportUsers.values()].reduce((sum, entry) => sum + entry.horas, 0),
     ),
+    totalHorasExtra: minutesToHours([...overtimeMinutes.values()].reduce((sum, minutes) => sum + minutes, 0)),
     totalItemsCompletados: [...reportUsers.values()].reduce(
       (sum, entry) => sum + entry.itemsCompletados,
       0,
     ),
-    totalSesiones: sessions.length,
+    totalSesiones: [...reportUsers.values()].reduce((sum, entry) => sum + entry.sesiones, 0),
     usuarios: [...reportUsers.values()],
     ordenes: orderReports,
   };

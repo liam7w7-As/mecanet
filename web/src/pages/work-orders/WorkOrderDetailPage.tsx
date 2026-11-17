@@ -63,6 +63,7 @@ import { validateInspectionFile } from '../../lib/inspection-photos';
 import { canUploadWorkOrderInspectionPhotos, hasUserPermission } from '../../lib/permissions';
 import { buildPdfShareText } from '../../lib/whatsapp';
 import { getWorkOrderAssigneeLabel } from '../../lib/work-order-assignees';
+import { getWorkOrderManagementPath } from '../../lib/work-order-management';
 import { getWorkOrderPricing, getWorkOrderTotal } from '../../lib/work-order-pricing';
 import { getElapsedInfo, getWorkOrderProgress, useNow } from '../../lib/work-order-progress';
 import { useAuthStore } from '../../stores/auth.store';
@@ -307,10 +308,9 @@ export const WorkOrderDetailPage = () => {
     return <PageLoader label="Cargando orden de trabajo..." />;
   }
 
-  // El mecánico no puede ver el detalle general (precios, documentos); su
-  // acceso es la ficha de trabajo restringida.
+  // Mechanics use the operational modal, whose worksheet excludes commercial data.
   if (user?.role === 'mecanico' && Number.isInteger(workOrderId) && workOrderId > 0) {
-    return <Navigate to={`/work-orders/${workOrderId}/ficha`} replace />;
+    return <Navigate to={getWorkOrderManagementPath(workOrderId, user.role)} replace />;
   }
 
   if (workOrderQuery.isError || !workOrder) {
@@ -326,7 +326,7 @@ export const WorkOrderDetailPage = () => {
       <header className="workshop-record-header flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex items-start gap-3">
           <div>
-            <p className="text-sm font-medium text-brand-muted">Ficha de taller · Orden de trabajo</p>
+            <p className="text-sm font-medium text-brand-muted">Orden de trabajo</p>
             <div className="mt-1 flex flex-wrap items-center gap-3">
               <h1 className="font-mono text-2xl font-bold text-brand-primaryInk sm:text-3xl">{workOrder.codigo}</h1>
               <WorkOrderStatusBadge className="workshop-header-status" status={workOrder.estado} />
@@ -349,7 +349,7 @@ export const WorkOrderDetailPage = () => {
               <AnimateIcon variant="wiggle" animateOnHover>
                 <Pencil className="h-4 w-4" aria-hidden="true" />
               </AnimateIcon>
-              Editar ficha
+              Editar recepción
             </button>
           )}
           <button type="button" className="workshop-record-official inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primaryInk px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow" onClick={() => setShowPdfModal(true)}>

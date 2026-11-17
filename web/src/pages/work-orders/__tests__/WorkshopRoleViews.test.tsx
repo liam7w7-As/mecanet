@@ -98,6 +98,77 @@ describe('Updated workshop role workspaces', () => {
     expect(screen.getByTestId('list-export-workshop-daily')).toBeInTheDocument();
     expect(listExportSpy.mock.lastCall?.[0]).toMatchObject({ target: 'workshop-daily', disabled: false });
     expect(screen.queryByRole('button', { name: 'Descargar PDF' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Registrar horas extra' })).not.toBeInTheDocument();
+  });
+
+  it('shows extra hours within the total with person, dates, OT, service and mandatory reason', async () => {
+    const report = structuredClone(workshopRoleReport);
+    report.totalHorasExtra = 1;
+    report.usuarios[0].horasExtra = 1;
+    Object.assign(report.usuarios[0].detalle[0], { overtime: true,
+      startedAt: '2026-11-13T22:00:00Z', endedAt: '2026-11-13T23:00:00Z', note: 'Diagnóstico urgente al cierre' });
+    vi.mocked(api.get).mockResolvedValue({ data: { report } });
+    renderPage(<WorkshopDailyReportPage />);
+    await waitFor(() => expect(screen.getByTestId('daily-overtime')).toHaveTextContent('1 h'));
+    expect(screen.getByTestId('daily-hours')).toHaveTextContent('3,5 h');
+    const person = screen.getByText('Carlos Mecánico', { selector: 'strong' }).closest('tr')!;
+    expect(person.querySelector('[data-label="Horas extra"]')).toHaveTextContent('1 h');
+    expect(within(person).getByText('Motivo: Diagnóstico urgente al cierre')).toBeInTheDocument();
+    expect(within(person).getByText(/Revisión de suspensión/)).toBeInTheDocument();
+    expect(within(person).getByRole('link', { name: 'OT-26-41' })).toHaveAttribute('href', '/work-orders?manage=41');
+    expect(within(person).getByText(/→/)).toBeInTheDocument();
+    expect(listExportSpy.mock.lastCall?.[0]).toMatchObject({ target: 'workshop-daily', disabled: false });
+  });
+
+  it('counts actual activity rather than everyone in the team', async () => {
+    const report = structuredClone(workshopRoleReport);
+    Object.assign(report.usuarios[0], { sesiones: 0, eventos: 0, enCurso: false });
+    vi.mocked(api.get).mockResolvedValue({ data: { report } });
+    renderPage(<WorkshopDailyReportPage />);
+    expect(await screen.findByText('1 personas con actividad')).toBeInTheDocument();
+    expect(screen.getByTestId('daily-running')).toHaveTextContent('0');
+  });
+
+  it('opens the existing time form with overtime enabled and keeps dirty/pending close protection', async () => {
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/work-orders/reports/daily'
+      ? { report: workshopRoleReport }
+      : url === '/workshop-time'
+        ? { date: toLocalDateInput(new Date()), workers: [{ id: 9, nombre: 'Carlos Mecánico' }], entries: [], requests: [],
+            totals: { registeredMinutes: 0, pendingMinutes: 0, scheduledMinutes: 480, unregisteredMinutes: 480 } }
+        : { items: [{ workOrderId: 41, workOrderCode: 'OT-26-41', itemId: 20, userId: 9, description: 'Diagnóstico' }] } }));
+    renderPage(<WorkshopDailyReportPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar horas extra' }));
+    let dialog = screen.getByRole('dialog', { name: 'Jornada y alertas del taller' });
+    expect(within(dialog).getByRole('checkbox', { name: 'Registrar como horas extra' })).toBeChecked();
+    expect(within(dialog).getByText('Registrar horas extra', { selector: 'summary' })).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Día del diario')).toHaveValue(toLocalDateInput(new Date()));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Jornada y alertas del taller' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar horas extra' }));
+    dialog = screen.getByRole('dialog', { name: 'Jornada y alertas del taller' });
+    await screen.findAllByRole('option', { name: 'Carlos Mecánico' });
+    fireEvent.change(within(dialog).getByLabelText('Trabajador del registro'), { target: { value: '9' } });
+    await screen.findByRole('option', { name: 'OT-26-41 · Diagnóstico' });
+    fireEvent.change(within(dialog).getByLabelText('Servicio asignado'), { target: { value: '20' } });
+    fireEvent.change(within(dialog).getByLabelText('Inicio del intervalo'), { target: { value: '2025-10-04T18:00' } });
+    fireEvent.change(within(dialog).getByLabelText('Fin del intervalo'), { target: { value: '2025-10-04T19:00' } });
+    fireEvent.change(within(dialog).getByLabelText('Motivo del registro'), { target: { value: 'Diagnóstico urgente' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+    expect(screen.getByRole('alertdialog', { name: 'Cambios sin guardar' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    let reject: (cause: Error) => void = () => undefined;
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar horas aceptadas' }));
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cerrar' })).toBeDisabled());
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(dialog).toBeInTheDocument();
+    await act(async () => reject(new Error('Sin conexión')));
+    await screen.findByRole('alert');
+    expect(within(dialog).getByLabelText('Motivo del registro')).toHaveValue('Diagnóstico urgente');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar cambios' }));
+    expect(screen.queryByRole('dialog', { name: 'Jornada y alertas del taller' })).not.toBeInTheDocument();
   });
 
   it('passes the selected report date to shared export controls and to the daily report query', async () => {

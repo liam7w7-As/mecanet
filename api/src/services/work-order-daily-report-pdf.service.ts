@@ -12,6 +12,9 @@ const MUTED = rgb(95 / 255, 103 / 255, 112 / 255);
 const TEXT = rgb(33 / 255, 37 / 255, 41 / 255);
 const BORDER = rgb(222 / 255, 226 / 255, 230 / 255);
 const HEADER = rgb(240 / 255, 244 / 255, 248 / 255);
+const extraDateTime = (value: string): string => new Intl.DateTimeFormat('es-CL', {
+  timeZone: 'America/Santiago', dateStyle: 'short', timeStyle: 'short',
+}).format(new Date(value));
 
 interface RenderContext {
   doc: PDFDocument;
@@ -143,6 +146,25 @@ const drawHeaderRow = async (
   context.y -= 16;
 };
 
+const drawParagraph = async (context: RenderContext, text: string): Promise<void> => {
+  const width = A4_WIDTH - MARGIN * 2;
+  for (const paragraph of text.split(/\r?\n/)) {
+    let line = '';
+    for (const character of paragraph) {
+      if (context.font.widthOfTextAtSize(line + character, 8.5) > width) {
+        await ensureSpace(context, 18);
+        drawText(context, line, { size: 8.5 });
+        context.y -= 13;
+        line = '';
+      }
+      line += character;
+    }
+    await ensureSpace(context, 18);
+    drawText(context, line, { size: 8.5 });
+    context.y -= 13;
+  }
+};
+
 export const generateWorkshopDailyReportPdf = async (
   report: WorkshopDailyReport,
 ): Promise<Uint8Array> => {
@@ -154,24 +176,28 @@ export const generateWorkshopDailyReportPdf = async (
     `Horas registradas: ${report.totalHoras.toFixed(2)} h   |   Trabajos completados: ${report.totalItemsCompletados}   |   Sesiones: ${report.totalSesiones}`,
     { size: 9, color: MUTED },
   );
+  context.y -= 13;
+  drawText(context, `Horas extra: ${report.totalHorasExtra.toFixed(2)} h (incluidas en horas registradas)`, { size: 9, color: MUTED });
 
   await drawSectionTitle(context, 'Avance por persona');
   await drawHeaderRow(context, [
-    { text: 'Persona', width: 150 },
-    { text: 'Rol', width: 60 },
+    { text: 'Persona', width: 130 },
+    { text: 'Rol', width: 55 },
     { text: 'Horas', width: 45 },
+    { text: 'Extra', width: 45 },
     { text: 'Sesiones', width: 50 },
     { text: 'Completados', width: 65 },
-    { text: 'Estado', width: 90 },
+    { text: 'Estado', width: 80 },
   ]);
   for (const user of report.usuarios) {
     await drawRow(context, [
-      { text: user.nombre, width: 150, bold: true },
-      { text: user.rol, width: 60 },
+      { text: user.nombre, width: 130, bold: true },
+      { text: user.rol, width: 55 },
       { text: user.horas.toFixed(2), width: 45 },
+      { text: user.horasExtra.toFixed(2), width: 45 },
       { text: String(user.sesiones), width: 50 },
       { text: String(user.itemsCompletados), width: 65 },
-      { text: user.enCurso ? 'En curso' : user.sesiones > 0 ? 'Con actividad' : 'Sin actividad', width: 90 },
+      { text: user.enCurso ? 'En curso' : user.sesiones > 0 ? 'Con actividad' : 'Sin actividad', width: 80 },
     ]);
     for (const detail of user.detalle.slice(0, 8)) {
       await drawRow(context, [
@@ -180,6 +206,17 @@ export const generateWorkshopDailyReportPdf = async (
         { text: `${detail.minutos} min`, width: 70 },
         { text: detail.estado, width: 60 },
       ]);
+    }
+  }
+
+  await drawSectionTitle(context, 'Detalle de horas extra');
+  await drawParagraph(context, 'Fechas y horas en America/Santiago.');
+  for (const user of report.usuarios) {
+    for (const detail of user.detalle.filter((entry) => entry.overtime)) {
+      await drawParagraph(context, `${user.nombre} · ${detail.workOrderCodigo} · ${detail.itemDescripcion} · ${detail.minutos} min`);
+      await drawParagraph(context, `Inicio: ${extraDateTime(detail.startedAt)} | Fin: ${detail.endedAt ? extraDateTime(detail.endedAt) : 'En curso'}`);
+      await drawParagraph(context, `Motivo: ${detail.note ?? '-'}`);
+      context.y -= 5;
     }
   }
 

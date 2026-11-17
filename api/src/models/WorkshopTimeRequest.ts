@@ -38,6 +38,8 @@ export class WorkshopTimeRequest extends Model<
   @PrimaryKey @AutoIncrement @Column(DataType.INTEGER) declare id: CreationOptional<number>;
   @Column({ type: DataType.ENUM('manual', 'correction'), allowNull: false })
   declare kind: WorkshopTimeRequestKind;
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare overtime: CreationOptional<boolean>;
   @Column({
     type: DataType.ENUM('pendiente', 'aprobada', 'rechazada'),
     allowNull: false,

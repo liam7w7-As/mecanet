@@ -2,10 +2,25 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createSpecialtySchema, createSpecialtyRateSchema, updateWorkerSpecialtiesSchema,
-  updateWorkshopScheduleSchema, createWorkshopScheduleExceptionSchema, workshopDateSchema,
+  updateWorkshopScheduleSchema, createWorkshopScheduleExceptionSchema, workshopDateSchema, DEFAULT_WORKSHOP_WEEKLY,
 } from '../workshop-personnel.schema.js';
 
 describe('workshop personnel contracts', () => {
+  it('defines eight working hours on weekdays and four on Saturday, excluding lunch', () => {
+    const weekly = updateWorkshopScheduleSchema.parse({ timezone: 'America/Santiago', weekly: DEFAULT_WORKSHOP_WEEKLY }).weekly;
+    expect(weekly).toHaveLength(6);
+    expect(weekly.filter((day) => day.weekday <= 5)).toEqual([1, 2, 3, 4, 5].map((weekday) => ({ weekday, start: '09:00', end: '18:00', breakStart: '13:00', breakEnd: '14:00' })));
+    expect(weekly.find((day) => day.weekday === 6)).toEqual({ weekday: 6, start: '09:00', end: '13:00' });
+    expect(weekly.find((day) => day.weekday === 0)).toBeUndefined();
+  });
+  it.each([
+    { breakStart: '13:00' }, { breakEnd: '14:00' },
+    { breakStart: '14:00', breakEnd: '13:00' },
+    { breakStart: '08:00', breakEnd: '14:00' },
+    { breakStart: '13:00', breakEnd: '18:00' },
+  ])('rejects incomplete or out-of-shift lunch %j', (lunch) => {
+    expect(updateWorkshopScheduleSchema.safeParse({ timezone: 'America/Santiago', weekly: [{ weekday: 1, start: '09:00', end: '18:00', ...lunch }] }).success).toBe(false);
+  });
   it('stores specialties independently of authorization roles', () => {
     expect(createSpecialtySchema.parse({ name: '  Soldador  ' })).toEqual({ name: 'Soldador' });
     expect(createSpecialtySchema.safeParse({ name: 'Soldador', roleId: 4 }).success).toBe(false);

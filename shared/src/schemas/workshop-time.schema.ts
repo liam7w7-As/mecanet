@@ -20,6 +20,7 @@ export const createWorkshopTimeRequestSchema = z
         workOrderId: positiveId,
         itemId: positiveId,
         userId: positiveId.optional(),
+        overtime: z.boolean().default(false),
         ...interval,
       })
       .strict(),
@@ -54,7 +55,7 @@ export const workshopTimeQuerySchema = z
 export const workshopTimeEligibleQuerySchema = workshopTimeQuerySchema.omit({ fecha: true });
 export const workshopTimeRequestParamsSchema = z.object({ id: z.coerce.number().int().positive() });
 
-export type CreateWorkshopTimeRequestInput = z.infer<typeof createWorkshopTimeRequestSchema>;
+export type CreateWorkshopTimeRequestInput = z.input<typeof createWorkshopTimeRequestSchema>;
 export type ReviewWorkshopTimeRequestInput = z.infer<typeof reviewWorkshopTimeRequestSchema>;
 export type WorkshopTimeQueryInput = z.infer<typeof workshopTimeQuerySchema>;
 
@@ -78,6 +79,7 @@ export interface WorkshopTimeEntry {
   userId: number;
   userName: string | null;
   kind: 'cronometro' | 'ajuste' | 'manual';
+  overtime: boolean;
   status: 'abierta' | 'cerrada';
   startedAt: string;
   endedAt: string | null;
@@ -90,6 +92,7 @@ export interface WorkshopTimeEntry {
 export interface WorkshopTimeRequestRecord {
   id: number;
   kind: WorkshopTimeRequestKind;
+  overtime: boolean;
   status: WorkshopTimeRequestStatus;
   workOrderId: number;
   workOrderCode: string;

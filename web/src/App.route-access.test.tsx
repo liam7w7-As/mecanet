@@ -93,6 +93,22 @@ beforeEach(() => {
 });
 
 describe('App route guards', () => {
+  it.each([
+    ['jefe', '/work-orders?manage=42', 'workOrders'],
+    ['mecanico', '/work-orders/mine?manage=42', 'myWorkOrders'],
+  ] as const)('opens earlier worksheet links directly in unified management for %s', async (role, destination, page) => {
+    signIn([{ modulo: 'taller', accion: 'read' }], role);
+    renderRoute('/work-orders/42/ficha');
+    await waitFor(() => expect(screen.getByLabelText('location')).toHaveTextContent(destination));
+    expect(screen.getByTestId('route-page')).toHaveTextContent(page);
+  });
+
+  it('does not open a modal for an invalid earlier worksheet ID', async () => {
+    signIn([{ modulo: 'taller', accion: 'read' }], 'mecanico');
+    renderRoute('/work-orders/abc/ficha');
+    await waitFor(() => expect(screen.getByLabelText('location').textContent).toBe('/work-orders/mine'));
+  });
+
   it.each(guards)('keeps the existing minimal authorization for $path', async ({ path, page, permissions, role }) => {
     signIn(permissions, role);
     renderRoute(path);

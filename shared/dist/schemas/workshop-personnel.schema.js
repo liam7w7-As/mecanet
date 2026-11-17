@@ -51,7 +51,17 @@ export const workshopWeeklyDaySchema = z.object({
     weekday: z.number().int().min(0).max(6),
     start: workshopTimeSchema,
     end: workshopTimeSchema,
-}).strict().refine((value) => value.end > value.start, { path: ['end'], message: 'La salida debe ser posterior a la entrada' });
+    breakStart: workshopTimeSchema.optional(),
+    breakEnd: workshopTimeSchema.optional(),
+}).strict().superRefine((value, context) => {
+    if (value.end <= value.start)
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ['end'], message: 'La salida debe ser posterior a la entrada' });
+    if (value.breakStart !== undefined || value.breakEnd !== undefined) {
+        if (!value.breakStart || !value.breakEnd || value.breakStart <= value.start || value.breakEnd >= value.end || value.breakEnd <= value.breakStart) {
+            context.addIssue({ code: z.ZodIssueCode.custom, path: ['breakEnd'], message: 'El almuerzo debe tener inicio y fin dentro de la jornada' });
+        }
+    }
+});
 export const updateWorkshopScheduleSchema = z.object({
     timezone: workshopTimezoneSchema,
     weekly: z.array(workshopWeeklyDaySchema).max(7),
@@ -95,3 +105,7 @@ export const workshopPersonnelConfigSchema = z.object({
     workers: z.array(workshopWorkerSchema), profiles: z.array(workshopWorkerProfileSchema),
     schedule: workshopScheduleSchema, exceptions: z.array(workshopScheduleExceptionSchema),
 });
+export const DEFAULT_WORKSHOP_WEEKLY = [
+    ...[1, 2, 3, 4, 5].map((weekday) => ({ weekday, start: '09:00', end: '18:00', breakStart: '13:00', breakEnd: '14:00' })),
+    { weekday: 6, start: '09:00', end: '13:00' },
+];

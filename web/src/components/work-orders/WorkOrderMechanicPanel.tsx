@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import WorkOrderAlertsPanel from './WorkOrderAlertsPanel';
+import WorkOrderExecutionHistory from './WorkOrderExecutionHistory';
 import WorkOrderHistoryPanel from './WorkOrderHistoryPanel';
 import WorkOrderLaborBoard from './WorkOrderLaborBoard';
 import WorkOrderMechanicPriceRequest from './WorkOrderMechanicPriceRequest';
@@ -227,61 +228,10 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
         <fieldset disabled={isPending} className={`workshop-edit-fields ${section === 'all' ? 'grid divide-y divide-brand-line xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:divide-x xl:divide-y-0' : ''}`}>
           <div className="workshop-execution-columns" hidden={!showingExecution}>
             <div hidden={executionFocus === 'quality'}><WorkOrderLaborBoard workOrder={workOrder} focus={executionFocus === 'unassigned' ? 'unassigned' : 'all'} onFocusChange={setExecutionFocus} onSuggestPrice={openPrices} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} /></div>
-            {(isSupervisor || user?.role === 'mecanico') && <div hidden={isSupervisor && executionFocus !== 'quality'}><WorkOrderQualityPanel workOrder={workOrder} onState={onQualityState} active={active && showingExecution && (!isSupervisor || executionFocus === 'quality')} focused={executionFocus === 'quality'} /></div>}
+            {isSupervisor && <div hidden={executionFocus !== 'quality'}><WorkOrderQualityPanel workOrder={workOrder} onState={onQualityState} active={active && showingExecution && executionFocus === 'quality'} focused={executionFocus === 'quality'} /></div>}
           </div>
 
-          {canExecute && <><div className="workshop-execution-side" hidden={!showingExecution || executionFocus === 'quality'}>
-            {/* Reportar avance */}
-            <details className="workshop-progress-form"><summary>Reportar avance</summary><div>
-              <h3 className="text-sm font-bold text-brand-ink">Reportar avance</h3>
-              <p className="mt-0.5 text-xs text-brand-muted">
-                Registre el avance porcentual acumulado de la orden de trabajo.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-[8rem_1fr]">
-                <label className="grid gap-1 text-xs font-semibold text-brand-muted">
-                  Avance %
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    className="h-10 rounded-xl border border-brand-line bg-white px-3 text-sm font-bold text-brand-ink outline-none focus:border-brand-primary"
-                    value={progress}
-                    onChange={(event) => setProgress(event.target.value)}
-                  />
-                </label>
-                <label className="grid gap-1 text-xs font-semibold text-brand-muted">
-                  Comentario
-                  <input
-                    className="h-10 rounded-xl border border-brand-line bg-white px-3 text-sm text-brand-ink outline-none focus:border-brand-primary"
-                    value={comment}
-                    onChange={(event) => setComment(event.target.value)}
-                    placeholder="Resumen del trabajo realizado"
-                  />
-                </label>
-              </div>
-              <label className="mt-3 grid gap-1 text-xs font-semibold text-brand-muted">
-                Bloqueos o novedades
-                <textarea
-                  className="min-h-20 resize-none rounded-xl border border-brand-line bg-white p-3 text-sm text-brand-ink outline-none focus:border-brand-primary"
-                  value={blockers}
-                  onChange={(event) => setBlockers(event.target.value)}
-                  placeholder="Inconvenientes técnicos, falta de repuestos..."
-                />
-              </label>
-              <button
-                type="button"
-                className="primary-button mt-4 inline-flex h-10 items-center gap-2 rounded-xl px-5 text-xs font-bold text-white shadow-xs hover:shadow transition-all disabled:opacity-50"
-                onClick={submitProgress}
-                disabled={executionMutation.isPending || !validProgress}
-              >
-                <ClipboardPen className="h-4 w-4" aria-hidden="true" />
-                Registrar avance
-              </button>
-            </div>
-            </details>
-            <details className="workshop-progress-log"><summary>Ver reportes de avance</summary>{progressHistory}</details>
-          </div>
-
+          {canExecute && <>
           {/* Solicitudes de repuestos / aumentos */}
           <div className="workshop-request-form min-w-0 p-5 sm:p-6" hidden={!showingRequests}>
             <details open={!isSupervisor}>
@@ -439,11 +389,24 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
       <div ref={pricePanelRef} className="workshop-price-review-container" hidden={!showingPrices}>{user?.role === 'mecanico'
         ? <WorkOrderMechanicPriceRequest workOrder={workOrder} requestedItem={priceRequest ?? localPriceRequest} onDirtyChange={setPriceDirty} onPendingChange={setPricePending} />
         : <WorkOrderPriceSuggestions workOrder={workOrder} requestedItem={priceRequest ?? localPriceRequest} onDirtyChange={setPriceDirty} onPendingChange={setPricePending} />}</div>
-      {!canExecute && showingExecution && progressHistory}
       {(isSupervisor || user?.role === 'mecanico') && <details className="workshop-follow-up" open={followUpOpen} hidden={!showingExecution} onToggle={(event) => setFollowUpOpen(event.currentTarget.open)}>
         <summary onClick={(event) => { event.preventDefault(); setFollowUpOpen((current) => !current); }}>Horas, alertas e historial</summary>
         <div className="workshop-follow-up-body">
+          <WorkOrderExecutionHistory workOrder={workOrder} active={active && showingExecution && followUpOpen} />
           <WorkOrderTimeDetails workOrderId={workOrder.id} onState={onTimeState} />
+          {user?.role === 'mecanico' && <WorkOrderQualityPanel workOrder={workOrder} onState={onQualityState} active={active && showingExecution && followUpOpen} />}
+          {canExecute && <fieldset disabled={isPending}>
+            <details className="workshop-progress-form"><summary>Reportar avance</summary><div>
+              <p className="mt-0.5 text-xs text-brand-muted">Agrega un reporte adicional cuando necesites explicar un avance o bloqueo de la orden.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-[8rem_1fr]">
+                <label className="grid gap-1 text-xs font-semibold text-brand-muted">Avance %<input type="number" min="0" max="100" className="form-control" value={progress} onChange={(event) => setProgress(event.target.value)} /></label>
+                <label className="grid gap-1 text-xs font-semibold text-brand-muted">Comentario<input className="form-control" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Resumen del trabajo realizado" /></label>
+              </div>
+              <label className="mt-3 grid gap-1 text-xs font-semibold text-brand-muted">Bloqueos o novedades<textarea className="form-control min-h-20 resize-none" value={blockers} onChange={(event) => setBlockers(event.target.value)} placeholder="Inconvenientes técnicos, falta de repuestos..." /></label>
+              <button type="button" className="primary-button mt-4 inline-flex h-10 items-center gap-2 rounded-xl px-5 text-xs font-bold text-white disabled:opacity-50" onClick={submitProgress} disabled={isPending || !validProgress}><ClipboardPen className="h-4 w-4" aria-hidden="true" />Registrar avance</button>
+            </div></details>
+          </fieldset>}
+          <details className="workshop-progress-log"><summary>Ver reportes de avance</summary>{progressHistory}</details>
           <WorkOrderAlertsPanel workOrder={workOrder} active={active && showingExecution && followUpOpen} />
           {isSupervisor && <WorkOrderHistoryPanel workOrder={workOrder} active={active && showingExecution && followUpOpen} onState={onHistoryState} />}
         </div>

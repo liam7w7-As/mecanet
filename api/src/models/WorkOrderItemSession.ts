@@ -65,6 +65,9 @@ export class WorkOrderItemSession extends Model<
   @Column({ type: DataType.ENUM(...WORK_ORDER_LABOR_SESSION_KINDS), allowNull: false, defaultValue: 'cronometro' })
   declare kind: CreationOptional<WorkOrderLaborSessionKind>;
 
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare overtime: CreationOptional<boolean>;
+
   @Column({ type: DataType.ENUM(...WORK_ORDER_LABOR_SESSION_STATUS), allowNull: false, defaultValue: 'abierta' })
   declare status: CreationOptional<WorkOrderLaborSessionStatus>;
 

@@ -62,22 +62,32 @@ export declare const workshopWeeklyDaySchema: z.ZodEffects<z.ZodObject<{
     weekday: z.ZodNumber;
     start: z.ZodString;
     end: z.ZodString;
+    breakStart: z.ZodOptional<z.ZodString>;
+    breakEnd: z.ZodOptional<z.ZodString>;
 }, "strict", z.ZodTypeAny, {
     weekday: number;
     start: string;
     end: string;
+    breakStart?: string | undefined;
+    breakEnd?: string | undefined;
 }, {
     weekday: number;
     start: string;
     end: string;
+    breakStart?: string | undefined;
+    breakEnd?: string | undefined;
 }>, {
     weekday: number;
     start: string;
     end: string;
+    breakStart?: string | undefined;
+    breakEnd?: string | undefined;
 }, {
     weekday: number;
     start: string;
     end: string;
+    breakStart?: string | undefined;
+    breakEnd?: string | undefined;
 }>;
 export declare const updateWorkshopScheduleSchema: z.ZodEffects<z.ZodObject<{
     timezone: z.ZodEffects<z.ZodString, string, string>;
@@ -85,22 +95,32 @@ export declare const updateWorkshopScheduleSchema: z.ZodEffects<z.ZodObject<{
         weekday: z.ZodNumber;
         start: z.ZodString;
         end: z.ZodString;
+        breakStart: z.ZodOptional<z.ZodString>;
+        breakEnd: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }, {
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }>, {
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }, {
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }>, "many">;
 }, "strict", z.ZodTypeAny, {
     timezone: string;
@@ -108,6 +128,8 @@ export declare const updateWorkshopScheduleSchema: z.ZodEffects<z.ZodObject<{
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }[];
 }, {
     timezone: string;
@@ -115,6 +137,8 @@ export declare const updateWorkshopScheduleSchema: z.ZodEffects<z.ZodObject<{
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }[];
 }>, {
     timezone: string;
@@ -122,6 +146,8 @@ export declare const updateWorkshopScheduleSchema: z.ZodEffects<z.ZodObject<{
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }[];
 }, {
     timezone: string;
@@ -129,6 +155,8 @@ export declare const updateWorkshopScheduleSchema: z.ZodEffects<z.ZodObject<{
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }[];
 }>;
 export declare const createWorkshopScheduleExceptionSchema: z.ZodEffects<z.ZodObject<{
@@ -235,22 +263,32 @@ export declare const workshopScheduleSchema: z.ZodObject<{
         weekday: z.ZodNumber;
         start: z.ZodString;
         end: z.ZodString;
+        breakStart: z.ZodOptional<z.ZodString>;
+        breakEnd: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }, {
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }>, {
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }, {
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }>, "many">;
     updatedAt: z.ZodNullable<z.ZodString>;
     updatedBy: z.ZodNullable<z.ZodNumber>;
@@ -261,6 +299,8 @@ export declare const workshopScheduleSchema: z.ZodObject<{
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }[];
     updatedBy: number | null;
 }, {
@@ -270,6 +310,8 @@ export declare const workshopScheduleSchema: z.ZodObject<{
         weekday: number;
         start: string;
         end: string;
+        breakStart?: string | undefined;
+        breakEnd?: string | undefined;
     }[];
     updatedBy: number | null;
 }>;
@@ -381,22 +423,32 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
             weekday: z.ZodNumber;
             start: z.ZodString;
             end: z.ZodString;
+            breakStart: z.ZodOptional<z.ZodString>;
+            breakEnd: z.ZodOptional<z.ZodString>;
         }, "strict", z.ZodTypeAny, {
             weekday: number;
             start: string;
             end: string;
+            breakStart?: string | undefined;
+            breakEnd?: string | undefined;
         }, {
             weekday: number;
             start: string;
             end: string;
+            breakStart?: string | undefined;
+            breakEnd?: string | undefined;
         }>, {
             weekday: number;
             start: string;
             end: string;
+            breakStart?: string | undefined;
+            breakEnd?: string | undefined;
         }, {
             weekday: number;
             start: string;
             end: string;
+            breakStart?: string | undefined;
+            breakEnd?: string | undefined;
         }>, "many">;
         updatedAt: z.ZodNullable<z.ZodString>;
         updatedBy: z.ZodNullable<z.ZodNumber>;
@@ -407,6 +459,8 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
             weekday: number;
             start: string;
             end: string;
+            breakStart?: string | undefined;
+            breakEnd?: string | undefined;
         }[];
         updatedBy: number | null;
     }, {
@@ -416,6 +470,8 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
             weekday: number;
             start: string;
             end: string;
+            breakStart?: string | undefined;
+            breakEnd?: string | undefined;
         }[];
         updatedBy: number | null;
     }>;
@@ -486,6 +542,8 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
             weekday: number;
             start: string;
             end: string;
+            breakStart?: string | undefined;
+            breakEnd?: string | undefined;
         }[];
         updatedBy: number | null;
     };
@@ -534,6 +592,8 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
             weekday: number;
             start: string;
             end: string;
+            breakStart?: string | undefined;
+            breakEnd?: string | undefined;
         }[];
         updatedBy: number | null;
     };
@@ -557,6 +617,7 @@ export type UpdateWorkerSpecialtiesInput = z.infer<typeof updateWorkerSpecialtie
 export type UpdateWorkshopScheduleInput = z.infer<typeof updateWorkshopScheduleSchema>;
 export type CreateWorkshopScheduleExceptionInput = z.infer<typeof createWorkshopScheduleExceptionSchema>;
 export type WorkshopWeeklyDay = z.infer<typeof workshopWeeklyDaySchema>;
+export declare const DEFAULT_WORKSHOP_WEEKLY: WorkshopWeeklyDay[];
 export type WorkshopSpecialty = z.infer<typeof workshopSpecialtySchema>;
 export type WorkshopSpecialtyRate = z.infer<typeof workshopSpecialtyRateSchema>;
 export type WorkshopWorker = z.infer<typeof workshopWorkerSchema>;
@@ -566,8 +627,14 @@ export type WorkshopShiftException = z.infer<typeof workshopScheduleExceptionSch
 export type WorkshopPersonnelConfig = z.infer<typeof workshopPersonnelConfigSchema>;
 export interface WorkerShift {
     configured: boolean;
+    /** Current or next working segment; a morning timer stops at lunch. */
     start: Date | null;
     end: Date | null;
+    /** All working segments of the day, excluding lunch. Legacy continuous shifts omit this. */
+    intervals?: Array<{
+        start: Date;
+        end: Date;
+    }>;
 }
 export interface WorkerRateSnapshot {
     specialtyId: number | null;

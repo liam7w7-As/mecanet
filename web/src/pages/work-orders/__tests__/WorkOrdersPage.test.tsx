@@ -860,7 +860,8 @@ describe('WorkOrdersPage', () => {
     createWrapper(<WorkOrdersPage />);
     await openCard();
     fireEvent.click(screen.getByRole('button', { name: 'Gestionar trabajo' }));
-    await screen.findByRole('heading', { name: 'Reportar avance' });
+    fireEvent.click(await screen.findByText('Horas, alertas e historial', { selector: 'summary' }));
+    fireEvent.click(screen.getByText('Reportar avance', { selector: 'summary' }));
     fireEvent.change(screen.getByLabelText('Avance %'), { target: { value: '120' } });
     fireEvent.change(screen.getByLabelText('Comentario'), { target: { value: 'Diagnóstico completado' } });
     expect(screen.getByRole('button', { name: 'Registrar avance' })).toBeDisabled();
@@ -1230,7 +1231,7 @@ describe('WorkOrdersPage', () => {
     vi.mocked(api.post).mockResolvedValue({ data: { photo: { ...workOrder.inspection?.photos[0], id: 2, slot: 'trasera' } } } as AxiosResponse);
     createWrapper(<Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>, `/work-orders/${workOrder.id}`);
     expect(await screen.findByText('Registro fotográfico')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Editar ficha/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Editar recepción/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Eliminar foto Frontal' })).not.toBeInTheDocument();
     expect(screen.queryByText('Inspección bloqueada por estado')).not.toBeInTheDocument();
     if (hasInspection) expect(screen.getByLabelText('Reemplazar foto Frontal')).toBeInTheDocument();
@@ -1272,7 +1273,7 @@ describe('WorkOrdersPage', () => {
 
   it('protege la edición de recepción al salir y conserva los campos al continuar', async () => {
     createWrapper(<Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>, '/work-orders/12');
-    fireEvent.click(await screen.findByRole('button', { name: /Editar ficha/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Editar recepción/i }));
     const dialog = await screen.findByRole('dialog', { name: 'Editar recepción e inspección' });
     fireEvent.change(within(dialog).getByLabelText('Observaciones de inspección'), { target: { value: 'Nota sin guardar' } });
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -1310,7 +1311,7 @@ describe('WorkOrdersPage', () => {
     let finish: () => void = () => { throw new Error('Guardado no iniciado'); };
     vi.mocked(api.patch).mockImplementation(() => new Promise((resolve) => { finish = () => resolve({ data: { workOrder } } as AxiosResponse); }));
     createWrapper(<Routes><Route path="/work-orders/:id" element={<WorkOrderDetailPage />} /></Routes>, '/work-orders/12');
-    fireEvent.click(await screen.findByRole('button', { name: /Editar ficha/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Editar recepción/i }));
     const dialog = await screen.findByRole('dialog', { name: 'Editar recepción e inspección' });
     fireEvent.change(within(dialog).getByLabelText('Observaciones de inspección'), { target: { value: 'Guardado pendiente' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
@@ -1341,7 +1342,7 @@ describe('WorkOrdersPage', () => {
       `/work-orders/${workOrder.id}`,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /Editar ficha/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Editar recepción/i }));
     await screen.findByRole('dialog', { name: /Editar recepción e inspección/i });
     fireEvent.change(screen.getByLabelText('Observaciones de inspección'), {
       target: { value: 'Observación corregida en recepción' },

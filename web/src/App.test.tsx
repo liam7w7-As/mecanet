@@ -239,7 +239,7 @@ describe('App routing and authentication', () => {
   it.each([
     ['/login', '/work-orders/mine'],
     ['/quotations', '/work-orders/mine'],
-    ['/work-orders/1083/ficha?tab=observaciones', '/work-orders/1083/ficha?tab=observaciones'],
+    ['/work-orders/1083/ficha?tab=observaciones', '/work-orders/mine?manage=1083'],
   ])('al iniciar sesión como mecánico desde %s respeta el destino operativo', async (path, destination) => {
     vi.mocked(api.post).mockResolvedValue({ data: { user: { ...authenticatedUser, role: 'mecanico' } } } as AxiosResponse<AuthResponse>);
     renderRoute(path);

@@ -1,0 +1,89 @@
+.workshop-execution-history > .workshop-labor-detail-body {
+  gap: 10px;
+}
+.workshop-execution-history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.workshop-execution-history button {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #dfe7f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #365777;
+  font-size: 11px;
+}
+.workshop-execution-history button:hover:not(:disabled),
+.workshop-execution-history button[aria-pressed='true'] {
+  border-color: transparent;
+  background: #e4eefb;
+  color: #1d396a;
+}
+.workshop-execution-history button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.workshop-execution-history button:focus-visible {
+  outline: 2px solid #1d396a;
+  outline-offset: 2px;
+}
+.workshop-execution-history-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.workshop-execution-history-list > li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f4f6f9;
+  color: #72839b;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.workshop-execution-history-list strong {
+  color: #365777;
+  font-weight: 600;
+}
+.workshop-execution-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.workshop-execution-history-meta time {
+  color: #72839b;
+  font-size: 10px;
+}
+.workshop-execution-history-pill {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e4eefb;
+  color: #1d396a;
+  font-size: 10px;
+}
+.workshop-execution-history-text {
+  white-space: pre-wrap;
+}
+.workshop-execution-history-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.workshop-execution-history-files a {
+  color: #1d396a;
+  text-decoration: underline;
+}
+.workshop-execution-history-more {
+  justify-self: start;
+}
+@media (max-width: 767px) {
+  .workshop-execution-history button {
+    min-height: 40px;
+  }
+}

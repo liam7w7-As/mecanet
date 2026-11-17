@@ -66,6 +66,39 @@ const workshopDateAt = async (at: Date, transaction: Transaction): Promise<strin
   return civil.toISOString().slice(0, 10);
 };
 
+const shiftIntervals = (shift: {
+  start: Date | null;
+  end: Date | null;
+  intervals?: Array<{ start: Date; end: Date }>;
+}): Array<{ start: Date; end: Date }> =>
+  shift.intervals ?? (shift.start && shift.end ? [{ start: shift.start, end: shift.end }] : []);
+
+const assertOutsideOrdinaryShift = async (
+  userId: number,
+  startedAt: Date,
+  endedAt: Date,
+  transaction: Transaction,
+): Promise<void> => {
+  if (endedAt.getTime() - startedAt.getTime() > 86_400_000) {
+    throw ApiError.badRequest('Cada intervalo de horas extra puede durar como máximo 24 horas');
+  }
+  let cursor = startedAt;
+  while (cursor < endedAt) {
+    const date = await workshopDateAt(cursor, transaction);
+    const range = await getWorkshopDayRange(date, transaction);
+    const shift = await getWorkerShift(userId, cursor, transaction);
+    if (!shift.configured) {
+      throw ApiError.unprocessable('Configura la jornada del trabajador antes de registrar horas extra');
+    }
+    if (shiftIntervals(shift).some(({ start, end }) => startedAt < end && endedAt > start)) {
+      throw ApiError.badRequest(
+        'Las horas extra no pueden superponerse con la jornada ordinaria. Registra por separado cada intervalo',
+      );
+    }
+    cursor = range.end;
+  }
+};
+
 // Every writer takes this lock before any order/item/request/session lock. The timer
 // start path uses the same User lock, including when a worker has no sessions yet.
 const lockWorker = async (userId: number, transaction: Transaction): Promise<User> => {
@@ -190,6 +223,7 @@ const toRequestRecord = (
 ): WorkshopTimeRequestRecord => ({
   id: request.id,
   kind: request.kind,
+  overtime: request.overtime ?? false,
   status: request.status,
   workOrderId: request.workOrderId,
   workOrderCode: workOrder?.codigo ?? `OT ${request.workOrderId}`,
@@ -244,6 +278,7 @@ const acceptRequest = async (
       userId: request.userId,
       userName: worker.nombre,
       kind: 'manual',
+      overtime: source ? (source.overtime ?? false) : (request.overtime ?? false),
       status: 'cerrada',
       startedAt: request.startedAt,
       endedAt: request.endedAt,
@@ -260,6 +295,7 @@ const acceptRequest = async (
   await request.update(
     {
       status: 'aprobada',
+      overtime: source ? (source.overtime ?? false) : (request.overtime ?? false),
       replacementSessionId: session.id,
       reviewedBy: actor.id,
       reviewedAt: new Date(),
@@ -308,6 +344,9 @@ export const createWorkshopTimeRequest = async (
     throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Intervalo inválido');
   const data = parsed.data;
   const correction = 'sourceSessionId' in data;
+  if (!correction && data.overtime && !SUPERVISORS.has(actor.role)) {
+    throw ApiError.forbidden('Solo el jefe puede declarar horas extra');
+  }
   if (!correction && data.userId !== undefined && !SUPERVISORS.has(actor.role)) {
     throw ApiError.forbidden('Solo el jefe puede registrar horas para otro trabajador');
   }
@@ -331,6 +370,8 @@ export const createWorkshopTimeRequest = async (
     }
     const startedAt = new Date(data.startedAt);
     const endedAt = new Date(data.endedAt);
+    const overtime = source ? (source.overtime ?? false) : (!correction && data.overtime);
+    if (overtime) await assertOutsideOrdinaryShift(userId, startedAt, endedAt, transaction);
     if (
       source &&
       source.startedAt.getTime() === startedAt.getTime() &&
@@ -342,6 +383,7 @@ export const createWorkshopTimeRequest = async (
     const request = await WorkshopTimeRequest.create(
       {
         kind: correction ? 'correction' : 'manual',
+        overtime,
         status: 'pendiente',
         workOrderId: context.workOrder.id,
         workOrderItemId: context.item.id,
@@ -414,6 +456,9 @@ export const reviewWorkshopTimeRequest = async (
           source.workOrderItemId !== request.workOrderItemId)
       ) {
         throw ApiError.conflict('El registro original no corresponde a esta solicitud');
+      }
+      if (source ? source.overtime : request.overtime) {
+        await assertOutsideOrdinaryShift(request.userId, request.startedAt, request.endedAt, transaction);
       }
       await assertNoOverlap(
         request.userId,
@@ -578,6 +623,7 @@ export const getWorkshopTimeJournal = async (
             userId: session.userId,
             userName: session.userName,
             kind: session.kind,
+            overtime: session.overtime ?? false,
             status: session.status,
             startedAt: session.startedAt.toISOString(),
             endedAt: session.endedAt?.toISOString() ?? null,
@@ -623,31 +669,32 @@ export const getWorkshopTimeJournal = async (
       unregisteredMinutes = null;
       break;
     }
-    if (!shift.start || !shift.end) continue;
-    const start = new Date(Math.max(new Date(shift.start).getTime(), range.start.getTime()));
-    const end = new Date(Math.min(new Date(shift.end).getTime(), range.end.getTime()));
-    const scheduled = intervalMinutes(start, end, start, end);
-    const covered = sessions.reduce(
-      (sum, session) =>
-        sum +
-        (session.userId === worker.id && !session.supersededAt && session.kind !== 'ajuste'
-          ? intervalMinutes(
-              session.startedAt,
-              new Date(
-                Math.min(
-                  session.endedAt?.getTime() ?? now.getTime(),
-                  now.getTime(),
-                  session.scheduledEndAt?.getTime() ?? Infinity,
+    for (const segment of shiftIntervals(shift)) {
+      const start = new Date(Math.max(new Date(segment.start).getTime(), range.start.getTime()));
+      const end = new Date(Math.min(new Date(segment.end).getTime(), range.end.getTime()));
+      const scheduled = intervalMinutes(start, end, start, end);
+      const covered = sessions.reduce(
+        (sum, session) =>
+          sum +
+          (session.userId === worker.id && !session.supersededAt && session.kind !== 'ajuste'
+            ? intervalMinutes(
+                session.startedAt,
+                new Date(
+                  Math.min(
+                    session.endedAt?.getTime() ?? now.getTime(),
+                    now.getTime(),
+                    session.scheduledEndAt?.getTime() ?? Infinity,
+                  ),
                 ),
-              ),
-              start,
-              end,
-            )
-          : 0),
-      0,
-    );
-    scheduledMinutes = (scheduledMinutes ?? 0) + scheduled;
-    unregisteredMinutes = (unregisteredMinutes ?? 0) + Math.max(0, scheduled - covered);
+                start,
+                end,
+              )
+            : 0),
+        0,
+      );
+      scheduledMinutes = (scheduledMinutes ?? 0) + scheduled;
+      unregisteredMinutes = (unregisteredMinutes ?? 0) + Math.max(0, scheduled - covered);
+    }
   }
   return {
     entries,

@@ -26,6 +26,7 @@ export interface WorkshopTimePanelProps {
   workOrderId?: number;
   /** YYYY-MM-DD. Defaults to the browser's current calendar day. */
   initialDate?: string;
+  initialOvertime?: boolean;
   /** Lets a containing dialog protect drafts and in-flight submissions. */
   onState?: (dirty: boolean, pending: boolean) => void;
 }
@@ -110,6 +111,7 @@ function ReviewRequest({
 export default function WorkshopTimePanel({
   workOrderId,
   initialDate,
+  initialOvertime = false,
   onState,
 }: WorkshopTimePanelProps = {}) {
   const user = useAuthStore((state) => state.user);
@@ -126,6 +128,8 @@ export default function WorkshopTimePanel({
   const [endedAt, setEndedAt] = useState('');
   const [note, setNote] = useState('');
   const [source, setSource] = useState<WorkshopTimeEntry | null>(null);
+  const defaultOvertime = initialOvertime && supervisor;
+  const [overtime, setOvertime] = useState(defaultOvertime);
   const [feedback, setFeedback] = useState<{ error: boolean; text: string } | null>(null);
   const [reviewStates, setReviewStates] = useState<
     Record<number, { dirty: boolean; pending: boolean }>
@@ -161,7 +165,7 @@ export default function WorkshopTimePanel({
   );
   const dirty =
     allowed &&
-    (Boolean(source || itemId || startedAt || endedAt || note) ||
+    (Boolean(source || itemId || startedAt || endedAt || note || (supervisor && overtime !== defaultOvertime)) ||
       Object.values(reviewStates).some((state) => state.dirty));
   const pending = create.isPending || Object.values(reviewStates).some((state) => state.pending);
   useEffect(() => {
@@ -205,6 +209,7 @@ export default function WorkshopTimePanel({
           workOrderId: selected!.workOrderId,
           itemId: selected!.itemId,
           ...(supervisor ? { userId: Number(manualWorker) } : {}),
+          overtime: supervisor && overtime,
           startedAt: start.toISOString(),
           endedAt: end.toISOString(),
           note,
@@ -222,6 +227,7 @@ export default function WorkshopTimePanel({
         setEndedAt('');
         setItemId('');
         setSource(null);
+        setOvertime(defaultOvertime);
         setDate(startedAt.slice(0, 10));
         if (supervisor) setFilterWorker(String(request.userId));
         setFeedback({
@@ -316,7 +322,7 @@ export default function WorkshopTimePanel({
           <summary>
             {source
               ? `Solicitar corrección del registro #${source.id}`
-              : 'Registrar intervalo manual'}
+              : overtime && supervisor ? 'Registrar horas extra' : 'Registrar intervalo manual'}
           </summary>
           <form
             className="workshop-labor-detail-body"
@@ -419,6 +425,25 @@ export default function WorkshopTimePanel({
                 onChange={(event) => setNote(event.target.value)}
               />
             </label>
+            {supervisor && !source && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  style={{ width: 'auto', alignSelf: 'center', margin: 0 }}
+                  checked={overtime}
+                  disabled={create.isPending}
+                  onChange={(event) => setOvertime(event.target.checked)}
+                />
+                Registrar como horas extra
+              </label>
+            )}
+            {source?.overtime && <p>Horas extra: la corrección conserva esta clasificación.</p>}
+            {supervisor && !source && overtime && (
+              <p className="workshop-labor-help">
+                El intervalo debe quedar completamente fuera de la jornada ordinaria. Si cruza
+                el cierre, registra dos intervalos separados. Las horas extra se incluyen en las horas registradas.
+              </p>
+            )}
             <p className="workshop-labor-help">
               {source || !supervisor
                 ? 'Requiere validación del jefe antes de modificar las horas registradas.'
@@ -440,6 +465,7 @@ export default function WorkshopTimePanel({
                   disabled={create.isPending}
                   onClick={() => {
                     setSource(null);
+                    setOvertime(defaultOvertime);
                     setStartedAt('');
                     setEndedAt('');
                     setNote('');
@@ -488,6 +514,7 @@ export default function WorkshopTimePanel({
                   ? `Corrección del registro #${request.sourceSessionId}`
                   : 'Registro manual'}{' '}
                 · {minutesLabel(request.durationMinutes)}
+                {request.overtime && ' · Horas extra'}
               </p>
               <p>
                 {formatDateTime(request.startedAt)} → {formatDateTime(request.endedAt)}
@@ -523,6 +550,7 @@ export default function WorkshopTimePanel({
                   : entry.kind === 'ajuste'
                     ? 'Ajuste'
                     : 'Cronómetro'}
+                {entry.overtime && ' · Horas extra'}
               </p>
               <p>
                 {formatDateTime(entry.startedAt)} →{' '}

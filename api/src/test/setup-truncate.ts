@@ -24,6 +24,8 @@ import { up as ensureWorkOrderTeams } from '../database/migrations/052-work-orde
 import { up as ensureWorkOrderQuality } from '../database/migrations/053-work-order-quality.js';
 import { up as ensureWorkOrderCommercialControl } from '../database/migrations/054-work-order-commercial-control.js';
 import { up as ensureWorkshopAlertSettings } from '../database/migrations/055-workshop-alert-settings.js';
+import { up as ensureWorkshopWorkingHours } from '../database/migrations/056-workshop-working-hours.js';
+import { up as ensureWorkshopOvertime } from '../database/migrations/057-workshop-overtime.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -101,6 +103,8 @@ beforeAll(async () => {
   await ensureWorkOrderQuality(sequelize.getQueryInterface());
   await ensureWorkOrderCommercialControl(sequelize.getQueryInterface());
   await ensureWorkshopAlertSettings(sequelize.getQueryInterface());
+  await ensureWorkshopWorkingHours(sequelize.getQueryInterface());
+  await ensureWorkshopOvertime(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
   await ensureImportPermissions();

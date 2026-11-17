@@ -1,5 +1,5 @@
 import {
-  DEFAULT_WORKSHOP_SPECIALTIES, DEFAULT_WORKSHOP_TIMEZONE,
+  DEFAULT_WORKSHOP_SPECIALTIES, DEFAULT_WORKSHOP_TIMEZONE, DEFAULT_WORKSHOP_WEEKLY,
   createSpecialtySchema, updateSpecialtySchema, createSpecialtyRateSchema,
   updateWorkerSpecialtiesSchema, updateWorkshopScheduleSchema, createWorkshopScheduleExceptionSchema, workshopDateSchema,
 } from '@unithor/shared';
@@ -22,7 +22,7 @@ import type {
   CreateSpecialtyInput, UpdateSpecialtyInput, CreateSpecialtyRateInput,
   UpdateWorkerSpecialtiesInput, UpdateWorkshopScheduleInput, CreateWorkshopScheduleExceptionInput,
   WorkshopPersonnelConfig, WorkshopScheduleConfig, WorkshopSpecialty, WorkshopSpecialtyRate,
-  WorkshopWorkerProfile, WorkshopShiftException, WorkerShift, WorkerRateSnapshot,
+  WorkshopWorkerProfile, WorkshopShiftException, WorkerShift, WorkerRateSnapshot, WorkshopWeeklyDay,
 } from '@unithor/shared';
 import type { Transaction } from 'sequelize';
 
@@ -37,7 +37,7 @@ const exceptionPublic = (row: WorkshopScheduleException): WorkshopShiftException
   start: row.start, end: row.end, reason: row.reason, createdBy: row.createdBy, createdAt: row.createdAt.toISOString(),
 });
 const schedulePublic = (row: WorkshopSchedule | null): WorkshopScheduleConfig => ({
-  timezone: row?.timezone ?? DEFAULT_WORKSHOP_TIMEZONE, weekly: row?.weekly ?? [],
+  timezone: row?.timezone ?? DEFAULT_WORKSHOP_TIMEZONE, weekly: row?.weekly ?? DEFAULT_WORKSHOP_WEEKLY.map((day) => ({ ...day })),
   updatedBy: row?.updatedBy ?? null, updatedAt: row?.updatedAt?.toISOString() ?? null,
 });
 
@@ -191,6 +191,11 @@ const refreshOpenShiftCutoffs = async (transaction: Transaction, userId?: number
     if (shift.end === null || shift.end <= session.startedAt) {
       await session.update({ scheduledEndAt: now }, { transaction });
       await closeSession(session, 'sistema', transaction, 'Pausa por cambio de jornada o día libre.');
+    } else if (shift.intervals && shift.end <= now) {
+      // Adding/changing lunch is prospective. Keep the elapsed legacy interval;
+      // an audited time correction, never a schedule edit, can replace those hours.
+      await session.update({ scheduledEndAt: now }, { transaction });
+      await closeSession(session, 'sistema', transaction, 'Pausa al actualizar el almuerzo; se conserva el tiempo registrado antes del cambio.');
     } else {
       const scheduledEndAt = new Date(Math.max(session.startedAt.getTime(), shift.end.getTime()));
       await session.update({ scheduledEndAt }, { transaction });
@@ -231,6 +236,16 @@ const shiftDates = (date: string, start: string, end: string, timezone: string):
   if (endAt <= startAt) throw ApiError.unprocessable('La salida debe ser posterior a la entrada');
   return { configured: true, start: startAt, end: endAt };
 };
+const weeklyShift = (date: string, day: WorkshopWeeklyDay, timezone: string, at: Date): WorkerShift => {
+  const shift = shiftDates(date, day.start, day.end, timezone);
+  if (!day.breakStart || !day.breakEnd) return shift;
+  const intervals = [
+    { start: shift.start!, end: wallTime(date, day.breakStart, timezone) },
+    { start: wallTime(date, day.breakEnd, timezone), end: shift.end! },
+  ];
+  const segment = intervals.find((entry) => at < entry.end) ?? intervals[intervals.length - 1]!;
+  return { configured: true, ...segment, intervals };
+};
 const assertDate = (at: Date): void => {
   if (!Number.isFinite(at.getTime())) throw ApiError.badRequest('Fecha inválida');
 };
@@ -259,17 +274,19 @@ export async function getWorkshopDayRange(date: string, transaction?: Transactio
 }
 
 /** Latest worker/day exception wins, even when the weekly schedule is unconfigured. */
-export async function getWorkerShift(userId: number, at: Date, transaction?: Transaction): Promise<{ configured: boolean; start: Date | null; end: Date | null }> {
+export async function getWorkerShift(userId: number, at: Date, transaction?: Transaction): Promise<WorkerShift> {
   assertDate(at);
   const schedule = await WorkshopSchedule.findByPk(1, { transaction });
   const timezone = schedule?.timezone ?? DEFAULT_WORKSHOP_TIMEZONE;
   const date = localDate(at, timezone);
   const exception = await WorkshopScheduleException.findOne({ where: { userId, date }, order: [['version', 'DESC'], ['id', 'DESC']], transaction });
   if (exception) return exception.dayOff ? { configured: true, start: null, end: null } : shiftDates(date, exception.start!, exception.end!, timezone);
-  if (!schedule?.weekly.length) return { configured: false, start: null, end: null };
+  // A stored empty array remains an intentional administrative override.
+  const weekly = schedule?.weekly ?? DEFAULT_WORKSHOP_WEEKLY;
+  if (!weekly.length) return { configured: false, start: null, end: null };
   const weekday = new Date(`${date}T00:00:00.000Z`).getUTCDay();
-  const day = schedule.weekly.find((entry) => entry.weekday === weekday);
-  return day ? shiftDates(date, day.start, day.end, timezone) : { configured: true, start: null, end: null };
+  const day = weekly.find((entry) => entry.weekday === weekday);
+  return day ? weeklyShift(date, day, timezone, at) : { configured: true, start: null, end: null };
 }
 
 /** Legacy assignments/rates stay null. An explicit specialty must belong to the worker. */

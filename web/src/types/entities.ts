@@ -898,6 +898,7 @@ export interface WorkshopDailyReport {
   fecha: string;
   generadoEn: string;
   totalHoras: number;
+  totalHorasExtra: number;
   totalItemsCompletados: number;
   totalSesiones: number;
   usuarios: Array<{
@@ -906,6 +907,7 @@ export interface WorkshopDailyReport {
     rol: string;
     minutos: number;
     horas: number;
+    horasExtra: number;
     sesiones: number;
     itemsCompletados: number;
     eventos: number;
@@ -916,6 +918,10 @@ export interface WorkshopDailyReport {
       itemDescripcion: string;
       minutos: number;
       estado: string;
+      overtime: boolean;
+      startedAt: string;
+      endedAt: string | null;
+      note: string | null;
     }>;
   }>;
   ordenes: Array<{

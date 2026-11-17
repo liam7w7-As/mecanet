@@ -10,9 +10,11 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
     workOrderId: z.ZodNumber;
     itemId: z.ZodNumber;
     userId: z.ZodOptional<z.ZodNumber>;
+    overtime: z.ZodDefault<z.ZodBoolean>;
 }, "strict", z.ZodTypeAny, {
     workOrderId: number;
     itemId: number;
+    overtime: boolean;
     startedAt: string;
     endedAt: string;
     note: string;
@@ -24,6 +26,7 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
     endedAt: string;
     note: string;
     userId?: number | undefined;
+    overtime?: boolean | undefined;
 }>, z.ZodObject<{
     startedAt: z.ZodString;
     endedAt: z.ZodString;
@@ -42,6 +45,7 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
 }>]>, {
     workOrderId: number;
     itemId: number;
+    overtime: boolean;
     startedAt: string;
     endedAt: string;
     note: string;
@@ -58,6 +62,7 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
     endedAt: string;
     note: string;
     userId?: number | undefined;
+    overtime?: boolean | undefined;
 } | {
     startedAt: string;
     endedAt: string;
@@ -99,7 +104,7 @@ export declare const workshopTimeRequestParamsSchema: z.ZodObject<{
 }, {
     id: number;
 }>;
-export type CreateWorkshopTimeRequestInput = z.infer<typeof createWorkshopTimeRequestSchema>;
+export type CreateWorkshopTimeRequestInput = z.input<typeof createWorkshopTimeRequestSchema>;
 export type ReviewWorkshopTimeRequestInput = z.infer<typeof reviewWorkshopTimeRequestSchema>;
 export type WorkshopTimeQueryInput = z.infer<typeof workshopTimeQuerySchema>;
 export interface WorkshopTimeWorker {
@@ -122,6 +127,7 @@ export interface WorkshopTimeEntry {
     userId: number;
     userName: string | null;
     kind: 'cronometro' | 'ajuste' | 'manual';
+    overtime: boolean;
     status: 'abierta' | 'cerrada';
     startedAt: string;
     endedAt: string | null;
@@ -134,6 +140,7 @@ export interface WorkshopTimeEntry {
 export interface WorkshopTimeRequestRecord {
     id: number;
     kind: WorkshopTimeRequestKind;
+    overtime: boolean;
     status: WorkshopTimeRequestStatus;
     workOrderId: number;
     workOrderCode: string;

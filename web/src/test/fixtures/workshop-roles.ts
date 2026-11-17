@@ -28,10 +28,10 @@ export const workshopRoleMine: MyLaborOrder[] = workshopRoleOrders.map((order, i
 }));
 
 export const workshopRoleReport: WorkshopDailyReport = {
-  fecha: now.toISOString().slice(0, 10), generadoEn: now.toISOString(), totalHoras: 3.5, totalItemsCompletados: 2, totalSesiones: 4,
+  fecha: now.toISOString().slice(0, 10), generadoEn: now.toISOString(), totalHoras: 3.5, totalHorasExtra: 0, totalItemsCompletados: 2, totalSesiones: 4,
   usuarios: [
-    { id: 9, nombre: 'Carlos Mecánico', rol: 'mecanico', minutos: 150, horas: 2.5, sesiones: 3, itemsCompletados: 1, eventos: 2, enCurso: true, detalle: [{ workOrderId: 41, workOrderCodigo: 'OT-26-41', itemDescripcion: 'Revisión de suspensión', minutos: 150, estado: 'en_proceso' }] },
-    { id: 10, nombre: 'Luis Mecánico', rol: 'mecanico', minutos: 60, horas: 1, sesiones: 1, itemsCompletados: 1, eventos: 1, enCurso: false, detalle: [{ workOrderId: 44, workOrderCodigo: 'OT-26-44', itemDescripcion: 'Mantención preventiva', minutos: 60, estado: 'completado' }] },
+    { id: 9, nombre: 'Carlos Mecánico', rol: 'mecanico', minutos: 150, horas: 2.5, horasExtra: 0, sesiones: 3, itemsCompletados: 1, eventos: 2, enCurso: true, detalle: [{ workOrderId: 41, workOrderCodigo: 'OT-26-41', itemDescripcion: 'Revisión de suspensión', minutos: 150, estado: 'en_proceso', overtime: false, startedAt: now.toISOString(), endedAt: null, note: null }] },
+    { id: 10, nombre: 'Luis Mecánico', rol: 'mecanico', minutos: 60, horas: 1, horasExtra: 0, sesiones: 1, itemsCompletados: 1, eventos: 1, enCurso: false, detalle: [{ workOrderId: 44, workOrderCodigo: 'OT-26-44', itemDescripcion: 'Mantención preventiva', minutos: 60, estado: 'completado', overtime: false, startedAt: now.toISOString(), endedAt: now.toISOString(), note: null }] },
   ],
   ordenes: [{ id: 41, codigo: 'OT-26-41', patente: 'KJTR84', estado: 'en_progreso', horas: 2.5, completados: 1, enProceso: 1, mecanicos: ['Carlos Mecánico'] }, { id: 44, codigo: 'OT-26-44', patente: 'TGRD22', estado: 'finalizada', horas: 1, completados: 1, enProceso: 0, mecanicos: ['Luis Mecánico'] }],
 };

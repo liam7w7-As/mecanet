@@ -21,6 +21,7 @@ export const buildLaborExport: ExportBuilder = async (target, raw, actor) => {
       ],
       rows: [
         { indicador: 'Horas registradas', valor: report.totalHoras },
+        { indicador: 'Horas extra (incluidas en horas registradas)', valor: report.totalHorasExtra },
         { indicador: 'Sesiones', valor: report.totalSesiones },
         { indicador: 'Trabajos completados', valor: report.totalItemsCompletados },
         { indicador: 'Órdenes con actividad', valor: report.ordenes.length },
@@ -33,6 +34,7 @@ export const buildLaborExport: ExportBuilder = async (target, raw, actor) => {
         { key: 'nombre', header: 'Persona', width: 30 },
         { key: 'rol', header: 'Rol', width: 15 },
         { key: 'horas', header: 'Horas', width: 12, kind: 'number' },
+        { key: 'horasExtra', header: 'Horas extra', width: 12, kind: 'number' },
         { key: 'sesiones', header: 'Sesiones', width: 12, kind: 'number' },
         { key: 'completados', header: 'Completados', width: 14, kind: 'number' },
         { key: 'estado', header: 'Estado', width: 17 },
@@ -42,6 +44,7 @@ export const buildLaborExport: ExportBuilder = async (target, raw, actor) => {
         nombre: person.nombre,
         rol: person.rol,
         horas: person.horas,
+        horasExtra: person.horasExtra,
         sesiones: person.sesiones,
         completados: person.itemsCompletados,
         estado: person.enCurso
@@ -80,6 +83,10 @@ export const buildLaborExport: ExportBuilder = async (target, raw, actor) => {
         { key: 'descripcion', header: 'Trabajo', width: 45 },
         { key: 'minutos', header: 'Minutos', width: 12, kind: 'number' },
         { key: 'estado', header: 'Estado', width: 15 },
+        { key: 'overtime', header: 'Horas extra', width: 12, kind: 'boolean' },
+        { key: 'inicio', header: 'Inicio', width: 23, kind: 'datetime' },
+        { key: 'fin', header: 'Fin', width: 23, kind: 'datetime' },
+        { key: 'motivo', header: 'Motivo', width: 45 },
       ],
       rows: report.usuarios.flatMap((person) =>
         person.detalle.map((detail) => ({
@@ -88,6 +95,10 @@ export const buildLaborExport: ExportBuilder = async (target, raw, actor) => {
           descripcion: detail.itemDescripcion,
           minutos: detail.minutos,
           estado: detail.estado,
+          overtime: detail.overtime,
+          inicio: detail.startedAt,
+          fin: detail.endedAt,
+          motivo: detail.note,
         })),
       ),
     },
@@ -97,6 +108,7 @@ export const buildLaborExport: ExportBuilder = async (target, raw, actor) => {
   return {
     title: 'Reporte diario de horas de taller',
     filters: exportFilters({ fecha: report.fecha }),
+    notes: ['Las horas extra están incluidas una sola vez en las horas registradas.'],
     tables,
   };
 };

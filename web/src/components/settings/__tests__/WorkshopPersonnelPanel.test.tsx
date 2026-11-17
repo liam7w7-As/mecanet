@@ -36,6 +36,33 @@ beforeEach(() => {
 });
 
 describe('WorkshopPersonnelPanel', () => {
+  it('prepares the confirmed work week including lunch without saving until confirmed', async () => {
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Configurar horario' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Usar jornada de lunes a viernes y sábado' }));
+    expect(screen.getByLabelText('Entrada Lunes')).toHaveValue('09:00');
+    expect(screen.getByLabelText('Salida Lunes')).toHaveValue('18:00');
+    expect(screen.getByLabelText('Inicio almuerzo Lunes')).toHaveValue('13:00');
+    expect(screen.getByLabelText('Fin almuerzo Lunes')).toHaveValue('14:00');
+    expect(screen.getByLabelText('Salida Sábado')).toHaveValue('13:00');
+    expect(screen.getByLabelText('Almuerzo Sábado')).not.toBeChecked();
+    expect(screen.getByLabelText('Domingo')).not.toBeChecked();
+    expect(api.put).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/workshop-personnel/schedule', expect.objectContaining({
+      weekly: expect.arrayContaining([{ weekday: 1, start: '09:00', end: '18:00', breakStart: '13:00', breakEnd: '14:00' }, { weekday: 6, start: '09:00', end: '13:00' }]),
+    })));
+  });
+  it('rejects lunch extending past the shift and retains editable times', async () => {
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Configurar horario' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Usar jornada de lunes a viernes y sábado' }));
+    fireEvent.change(screen.getByLabelText('Fin almuerzo Lunes'), { target: { value: '19:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('almuerzo');
+    expect(api.put).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Fin almuerzo Lunes')).toHaveValue('19:00');
+  });
   it('shows an unconfigured weekly schedule and missing rates without populating hours or prices', async () => {
     renderPanel();
     expect(await screen.findByText(/Horario sin configurar/)).toBeInTheDocument();

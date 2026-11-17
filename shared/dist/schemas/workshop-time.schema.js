@@ -15,6 +15,7 @@ export const createWorkshopTimeRequestSchema = z
         workOrderId: positiveId,
         itemId: positiveId,
         userId: positiveId.optional(),
+        overtime: z.boolean().default(false),
         ...interval,
     })
         .strict(),

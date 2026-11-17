@@ -1,6 +1,6 @@
 import {
   createSpecialtySchema, updateSpecialtySchema, createSpecialtyRateSchema,
-  updateWorkerSpecialtiesSchema, updateWorkshopScheduleSchema, createWorkshopScheduleExceptionSchema,
+  updateWorkerSpecialtiesSchema, updateWorkshopScheduleSchema, createWorkshopScheduleExceptionSchema, DEFAULT_WORKSHOP_WEEKLY,
 } from '@unithor/shared';
 import { AlertCircle, CalendarClock, LoaderCircle, Plus, UsersRound, Wrench } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
@@ -144,8 +144,9 @@ export function WorkshopPersonnelPanel({ mode = 'settings', className = '', onSt
           <p>Zona horaria: <strong>{data.schedule.timezone}</strong></p>
           {data.schedule.weekly.length === 0 ? <p role="status" className="administration-notice">Horario sin configurar. No se presupone una jornada ni una duración.</p> : <>
             <ul className="grid gap-2 sm:grid-cols-2">{[...data.schedule.weekly].sort((a, b) => a.weekday - b.weekday).map((day) =>
-              <li key={day.weekday}>{DAYS[day.weekday]}: {day.start} – {day.end}</li>)}</ul>
-            <p className="text-sm text-slate-500">Los días no incluidos son días libres.</p>
+              <li key={day.weekday}>{DAYS[day.weekday]}: {day.start} – {day.end}
+                {day.breakStart && day.breakEnd && <span className="block text-xs text-slate-500">Almuerzo {day.breakStart} – {day.breakEnd}</span>}</li>)}</ul>
+            <p className="text-sm text-slate-500">Los cronómetros se pausan al almuerzo y al cierre. Después del almuerzo se reanudan desde el servicio. Los días no incluidos no tienen jornada.</p>
           </>}
           {canConfigure && <button type="button" className="administration-secondary" disabled={busy} onClick={() => open({ kind: 'schedule', timezone: data.schedule.timezone, weekly: data.schedule.weekly.map((day) => ({ ...day })) })}>
             <CalendarClock aria-hidden="true" />Configurar horario</button>}
@@ -244,12 +245,22 @@ export function WorkshopPersonnelPanel({ mode = 'settings', className = '', onSt
         {dialog.kind === 'schedule' && <>
           <label className="administration-wide"><span>Zona horaria IANA</span><input value={dialog.timezone} placeholder="America/Santiago" onChange={(event) => edit({ ...dialog, timezone: event.target.value })} /></label>
           <p className="administration-wide">Activa los días que se trabajan e ingresa sus horas. Sin días seleccionados, el horario queda sin configurar.</p>
+          <button type="button" className="administration-secondary administration-wide" onClick={() => edit({ ...dialog, weekly: DEFAULT_WORKSHOP_WEEKLY.map((day) => ({ ...day })) })}>Usar jornada de lunes a viernes y sábado</button>
           {DAYS.map((name, weekday) => {
             const day = dialog.weekly.find((entry) => entry.weekday === weekday);
             return <fieldset key={weekday} className="administration-wide flex flex-wrap gap-3 items-center"><legend className="sr-only">{name}</legend>
               <label><input type="checkbox" checked={Boolean(day)} onChange={(event) => edit({ ...dialog, weekly: event.target.checked ? [...dialog.weekly, { weekday, start: '', end: '' }] : dialog.weekly.filter((entry) => entry.weekday !== weekday) })} /><span>{name}</span></label>
               {day && <><label><span>Entrada {name}</span><input type="time" value={day.start} onChange={(event) => edit({ ...dialog, weekly: dialog.weekly.map((entry) => entry.weekday === weekday ? { ...entry, start: event.target.value } : entry) })} /></label>
-                <label><span>Salida {name}</span><input type="time" value={day.end} onChange={(event) => edit({ ...dialog, weekly: dialog.weekly.map((entry) => entry.weekday === weekday ? { ...entry, end: event.target.value } : entry) })} /></label></>}
+                <label><span>Salida {name}</span><input type="time" value={day.end} onChange={(event) => edit({ ...dialog, weekly: dialog.weekly.map((entry) => entry.weekday === weekday ? { ...entry, end: event.target.value } : entry) })} /></label>
+                <label><input type="checkbox" checked={Boolean(day.breakStart || day.breakEnd)} onChange={(event) => edit({ ...dialog, weekly: dialog.weekly.map((entry) => {
+                  if (entry.weekday !== weekday) return entry;
+                  if (event.target.checked) return { ...entry, breakStart: '13:00', breakEnd: '14:00' };
+                  const { breakStart: _start, breakEnd: _end, ...continuous } = entry;
+                  return continuous;
+                }) })} /><span>Almuerzo {name}</span></label>
+                {(day.breakStart || day.breakEnd) && <><label><span>Inicio almuerzo {name}</span><input type="time" value={day.breakStart ?? ''} onChange={(event) => edit({ ...dialog, weekly: dialog.weekly.map((entry) => entry.weekday === weekday ? { ...entry, breakStart: event.target.value } : entry) })} /></label>
+                  <label><span>Fin almuerzo {name}</span><input type="time" value={day.breakEnd ?? ''} onChange={(event) => edit({ ...dialog, weekly: dialog.weekly.map((entry) => entry.weekday === weekday ? { ...entry, breakEnd: event.target.value } : entry) })} /></label></>}
+              </>}
             </fieldset>;
           })}
         </>}

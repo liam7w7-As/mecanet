@@ -38,6 +38,7 @@ const usePersonnelMutation = <Input, Output>(request: (input: Input) => Promise<
         queryClient.invalidateQueries({ queryKey: workshopPersonnelKeys.all }),
         queryClient.invalidateQueries({ queryKey: ['work-orders'] }),
         queryClient.invalidateQueries({ queryKey: ['work-order-labor'] }),
+        queryClient.invalidateQueries({ queryKey: ['workshop-time'] }),
       ]);
     },
   });

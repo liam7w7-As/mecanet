@@ -48,7 +48,7 @@ export const getWorkOrderByIdHandler = asyncHandler(
     const userId = getCurrentUserId(req);
     await workOrderService.assertWorkOrderAccess(id, userId);
     if (req.user?.role === 'mecanico') {
-      throw ApiError.forbidden('El mecánico accede al detalle desde su ficha de trabajo');
+      throw ApiError.forbidden('El mecánico accede a sus trabajos desde Gestionar trabajo');
     }
     const workOrder = await workOrderService.getWorkOrderById(id, userId);
     res.status(200).json({ workOrder });

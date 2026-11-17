@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { appendSpecialtyRate, appendWorkshopScheduleException, getWorkerRateSnapshot, getWorkerShift, getWorkshopDayRange, updateWorkerSpecialties, updateWorkshopSchedule, seedWorkshopSpecialties } from '../workshop-personnel.service.js';
 
+import type { WorkshopWeeklyDay } from '@unithor/shared';
 import type { Transaction } from 'sequelize';
 
 const mocks = vi.hoisted(() => {
@@ -24,7 +25,7 @@ vi.mock('../work-order-labor-sessions.js', () => ({ closeSession: mocks.closeSes
 
 const transaction = { LOCK: { UPDATE: 'UPDATE' } } as unknown as Transaction;
 const instant = new Date('2026-01-03T01:00:00.000Z'); // Friday Jan 2 in Santiago, Saturday in UTC.
-const schedule = (weekly: Array<{ weekday: number; start: string; end: string }>, timezone = 'America/Santiago') => ({ timezone, weekly });
+const schedule = (weekly: WorkshopWeeklyDay[], timezone = 'America/Santiago') => ({ timezone, weekly });
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -40,10 +41,31 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe('worker shifts without a database', () => {
-  it.each([null, schedule([])])('does not invent a shift when weekly configuration is %j', async (value) => {
+  it.each([schedule([])])('keeps an explicitly empty weekly configuration unconfigured %j', async (value) => {
     mocks.schedule.findByPk.mockResolvedValue(value);
     expect(await getWorkerShift(9, instant, transaction)).toEqual({ configured: false, start: null, end: null });
     expect(mocks.exception.findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 9, date: '2026-01-02' }, transaction }));
+  });
+  it('uses the confirmed standard hours when no schedule has been stored', async () => {
+    const shift = await getWorkerShift(9, new Date('2026-11-16T15:00:00Z'));
+    expect(shift.end).toEqual(new Date('2026-11-16T16:00:00Z'));
+    expect(shift.intervals).toEqual([
+      { start: new Date('2026-11-16T12:00:00Z'), end: new Date('2026-11-16T16:00:00Z') },
+      { start: new Date('2026-11-16T17:00:00Z'), end: new Date('2026-11-16T21:00:00Z') },
+    ]);
+  });
+  it.each([
+    ['2026-11-16T15:59:59Z', '2026-11-16T12:00:00Z', '2026-11-16T16:00:00Z'],
+    ['2026-11-16T16:00:00Z', '2026-11-16T17:00:00Z', '2026-11-16T21:00:00Z'],
+    ['2026-11-16T17:00:00Z', '2026-11-16T17:00:00Z', '2026-11-16T21:00:00Z'],
+  ])('selects the correct segment at %s without counting lunch', async (at, start, end) => {
+    const shift = await getWorkerShift(9, new Date(at));
+    expect(shift.start).toEqual(new Date(start));
+    expect(shift.end).toEqual(new Date(end));
+  });
+  it('closes Saturday at 13 and has no Sunday shift', async () => {
+    expect(await getWorkerShift(9, new Date('2026-11-21T15:00:00Z'))).toEqual({ configured: true, start: new Date('2026-11-21T12:00:00Z'), end: new Date('2026-11-21T16:00:00Z') });
+    expect(await getWorkerShift(9, new Date('2026-11-22T15:00:00Z'))).toEqual({ configured: true, start: null, end: null });
   });
   it('uses the Chilean date and configured times rather than an eight-hour fallback', async () => {
     mocks.schedule.findByPk.mockResolvedValue(schedule([{ weekday: 5, start: '07:30', end: '09:15' }]));
@@ -179,6 +201,13 @@ describe('configuration changes and open timer cutoffs', () => {
     await updateWorkshopSchedule({ timezone: 'America/Santiago', weekly: [{ weekday: 1, start: '10:00', end: '19:00' }] }, 1);
     expect(session.update).not.toHaveBeenCalled();
     expect(mocks.closeSession).not.toHaveBeenCalled();
+  });
+  it('does not retroactively remove elapsed time when lunch is added after the break', async () => {
+    vi.setSystemTime(new Date('2026-11-16T18:00:00Z')); // 15:00 Chile, legacy timer started 11:00
+    const session = runningSession();
+    await updateWorkshopSchedule({ timezone: 'America/Santiago', weekly: [{ weekday: 1, start: '09:00', end: '18:00', breakStart: '13:00', breakEnd: '14:00' }] }, 1);
+    expect(session.scheduledEndAt).toEqual(new Date('2026-11-16T18:00:00Z'));
+    expect(mocks.closeSession).toHaveBeenCalledWith(session, 'sistema', transaction, expect.stringContaining('se conserva'));
   });
   it('preserves a known cutoff if the administrator unconfigures the weekly schedule', async () => {
     const session = runningSession();

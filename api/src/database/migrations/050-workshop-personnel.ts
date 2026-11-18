@@ -41,9 +41,12 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     if (!(await tableExists(queryInterface, table))) await queryInterface.createTable(table, columns, { charset: 'utf8mb4', collate: 'utf8mb4_unicode_ci' });
   }
   // MySQL has no partial unique indexes. NULL additional rows do not collide.
+  // VIRTUAL is required: MySQL rejects a STORED expression based on user_id
+  // because its foreign key uses ON UPDATE CASCADE. The unique secondary index
+  // still enforces one principal specialty without changing that foreign key.
   const workerColumns = await queryInterface.describeTable('worker_specialties');
   if (!workerColumns.principal_user_id) {
-    await queryInterface.sequelize.query('ALTER TABLE `worker_specialties` ADD COLUMN `principal_user_id` INTEGER GENERATED ALWAYS AS (CASE WHEN `is_principal` = 1 THEN `user_id` ELSE NULL END) STORED');
+    await queryInterface.sequelize.query('ALTER TABLE `worker_specialties` ADD COLUMN `principal_user_id` INTEGER GENERATED ALWAYS AS (CASE WHEN `is_principal` = 1 THEN `user_id` ELSE NULL END) VIRTUAL');
   }
   for (const [table, fields, name] of [
     ['specialties', ['name'], 'specialties_name_unique'],

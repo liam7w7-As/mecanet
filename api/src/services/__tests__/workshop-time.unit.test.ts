@@ -742,6 +742,7 @@ describe('Scoped journals and configured shifts', () => {
       {
         workOrderId: 12,
         workOrderCode: 'OT-12',
+        patente: null,
         itemId: 20,
         description: 'Diagnóstico',
         userId: 9,

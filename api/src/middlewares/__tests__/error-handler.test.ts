@@ -138,4 +138,18 @@ describe('errorHandler middleware', () => {
     expect(body.error.code).toBe('INTERNAL_SERVER_ERROR');
     expect(body.error.message).toBe('Error interno del servidor');
   });
+
+  it('shows the database cause in the server log message without disclosing it to the client', () => {
+    const res = createMockRes();
+    const error = new Error("Unknown column 'WorkOrder.quality_approved_at' in 'field list'");
+    error.name = 'SequelizeDatabaseError';
+    Object.assign(error, { parent: { code: 'ER_BAD_FIELD_ERROR' } });
+    const log = { error: vi.fn(), warn: vi.fn() };
+    res.locals.logger = log;
+    res.locals.requestId = 'ot-diagnostic-test';
+    errorHandler(error, mockReq, res, next);
+    expect(log.error).toHaveBeenCalledWith(expect.objectContaining({ requestId: 'ot-diagnostic-test' }),
+      expect.stringContaining("SequelizeDatabaseError/ER_BAD_FIELD_ERROR: Unknown column 'WorkOrder.quality_approved_at'"));
+    expect(res.jsonBody).toEqual({ error: { code: 'INTERNAL_SERVER_ERROR', message: 'Error interno del servidor' } });
+  });
 });

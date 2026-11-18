@@ -68,6 +68,10 @@ describe('workshop personnel routes', () => {
       expect(Object.keys(response.body).sort()).toEqual(['exceptions', 'profiles', 'rates', 'schedule', 'specialties', 'workers']);
       expect(JSON.stringify(response.body)).not.toContain('passwordHash');
     }
+    // Hourly rates are costing data: the chief manages people and shifts but never receives prices.
+    const chief = await as(request(app).get('/api/workshop-personnel/config'), 'jefe');
+    expect(chief.body.rates).toEqual([]);
+    expect(JSON.stringify(chief.body)).not.toContain('costHourly');
   });
   it('uses global CSRF protection for configuration mutations', async () => {
     const response = await request(app).post('/api/workshop-personnel/specialties')

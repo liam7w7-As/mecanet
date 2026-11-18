@@ -3,6 +3,7 @@ import { ZodError } from 'zod';
 
 import { env } from '../config/env.js';
 import { ApiError } from '../utils/ApiError.js';
+import { errorDiagnostic } from '../utils/error-diagnostic.js';
 import { logger } from '../utils/logger.js';
 
 import type { NextFunction, Request, Response } from 'express';
@@ -74,7 +75,7 @@ export const errorHandler = (
          path: req.path,
          statusCode,
       },
-      message,
+      `${message} [${req.method} ${req.path ?? req.originalUrl}; ref=${res.locals.requestId ?? 'sin-id'}] ${errorDiagnostic(err)}`,
     );
   } else {
     log.warn(

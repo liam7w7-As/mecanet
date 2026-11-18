@@ -36,6 +36,7 @@ import { apiRouter } from './routes/index.js';
 import { startCustomerEmailWorker } from './services/customer-email-worker.service.js';
 import { initializeFileStorage } from './services/file-storage.service.js';
 import { startWorkshopShiftWorker } from './services/workshop-shift-worker.service.js';
+import { errorDiagnostic } from './utils/error-diagnostic.js';
 import { logger } from './utils/logger.js';
 
 import type { Logger } from 'pino';
@@ -209,7 +210,7 @@ if (env.NODE_ENV !== 'test') {
         await sequelize.sync({ alter: true });
         logger.info('Modelos sincronizados con la base de datos (alter: true).');
       } catch (syncErr) {
-        logger.warn({ syncErr }, 'Aviso: sync alter parcial, asegurando tablas base');
+        logger.warn({ syncErr }, `Aviso: sync alter parcial, asegurando tablas base: ${errorDiagnostic(syncErr)}`);
         await sequelize.sync({ alter: false });
       }
       await ensureDatabaseBootstrapped();
@@ -225,7 +226,7 @@ if (env.NODE_ENV !== 'test') {
     .catch((err: unknown) => {
       logger.warn(
         { err },
-        'Aviso: No se pudo conectar a la base de datos MySQL (el servidor iniciará en modo desacoplado)',
+        `Aviso: Inicialización de MySQL incompleta (modo desacoplado): ${errorDiagnostic(err)}`,
       );
     });
 

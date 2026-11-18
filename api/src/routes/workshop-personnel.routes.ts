@@ -6,6 +6,7 @@ import { authenticate } from '../middlewares/authenticate.js';
 import { authorizeRoles } from '../middlewares/authorize-roles.js';
 import { authorize } from '../middlewares/authorize.js';
 import { validate } from '../middlewares/validate.js';
+import { hasPermission } from '../services/permission.service.js';
 import * as personnel from '../services/workshop-personnel.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -20,8 +21,12 @@ const pricingOnly = [authorizeRoles('desarrollador', 'admin'), authorize('admin'
 const specialtyParams = z.object({ specialtyId: z.coerce.number().int().positive() });
 const workerParams = z.object({ userId: z.coerce.number().int().positive() });
 
-workshopPersonnelRouter.get('/config', asyncHandler(async (_req, res) => {
-  res.json(await personnel.getWorkshopPersonnelConfig());
+workshopPersonnelRouter.get('/config', asyncHandler(async (req, res) => {
+  const user = req.user!;
+  // Rates stay private to the same roles allowed to create them.
+  const includeRates = ['desarrollador', 'admin'].includes(user.role)
+    && await hasPermission(user.id, 'admin', 'update');
+  res.json(await personnel.getWorkshopPersonnelConfig({ includeRates }));
 }));
 workshopPersonnelRouter.post('/specialties', ...workshopCreation, validate({ body: createSpecialtySchema }), asyncHandler(async (req, res) => {
   res.status(201).json(await personnel.createSpecialty(req.body));

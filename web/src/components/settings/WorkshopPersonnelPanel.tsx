@@ -254,9 +254,9 @@ export function WorkshopPersonnelPanel({ mode = 'settings', className = '', onSt
                     <span className="workshop-specialty-title">{specialty.name}
                       {!specialty.active && <span className="workshop-badge is-off">Inactiva</span>}
                     </span>
-                    <span className="workshop-specialty-meta">{latest
+                    {canPrice && <span className="workshop-specialty-meta">{latest
                       ? `Costo ${formatClp(latest.costHourly, 2)} · Venta ${formatClp(latest.saleHourly, 2)} por hora · vigente desde ${formatDate(latest.validityFrom)}`
-                      : 'Sin tarifa configurada'}</span>
+                      : 'Sin tarifa configurada'}</span>}
                   </div>
                   {(canManage || canPrice) && <div className="workshop-personnel-actions">
                     {canManage && <button type="button" className="administration-secondary" disabled={busy} aria-label={`Editar ${specialty.name}`}
@@ -265,7 +265,7 @@ export function WorkshopPersonnelPanel({ mode = 'settings', className = '', onSt
                       onClick={() => open({ kind: 'rate', specialtyId: specialty.id, validityFrom: '', costHourly: '', saleHourly: '' })}><Plus aria-hidden="true" />Nueva tarifa</button>}
                   </div>}
                 </div>
-                {rates.length > 1 && <details className="workshop-rate-history">
+                {canPrice && rates.length > 1 && <details className="workshop-rate-history">
                   <summary>Historial de tarifas ({rates.length})</summary>
                   <table className="workshop-rate-table">
                     <caption className="sr-only">Historial de tarifas de {specialty.name}</caption>

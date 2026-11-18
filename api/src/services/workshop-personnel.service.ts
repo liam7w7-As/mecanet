@@ -53,11 +53,19 @@ const uniqueConflict = (error: unknown): never => {
   throw error;
 };
 
-export async function getWorkshopPersonnelConfig(): Promise<WorkshopPersonnelConfig> {
+/**
+ * Cost and sale rates are costing data: only administration may receive them.
+ * The chief still gets specialties, profiles, schedules and exceptions.
+ */
+export async function getWorkshopPersonnelConfig(
+  { includeRates = false }: { includeRates?: boolean } = {},
+): Promise<WorkshopPersonnelConfig> {
   return withWorkshopTransaction(async (transaction) => {
     const [specialties, rates, workers, assignments, schedule, exceptions] = await Promise.all([
       Specialty.findAll({ order: [['name', 'ASC']], transaction }),
-      SpecialtyRate.findAll({ order: [['validityFrom', 'DESC'], ['id', 'DESC']], transaction }),
+      includeRates
+        ? SpecialtyRate.findAll({ order: [['validityFrom', 'DESC'], ['id', 'DESC']], transaction })
+        : Promise.resolve([] as SpecialtyRate[]),
       User.findAll({
         attributes: ['id', 'nombre', 'activo'],
         include: [{ model: Role, attributes: ['nombre'], required: false }],

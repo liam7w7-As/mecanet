@@ -34,7 +34,6 @@ export default function FormRecoveryBanner(props: FormRecoveryBannerProps) {
           </p>
           <p className="mt-1 text-xs text-brand-muted">
             Guardado en este navegador el {new Date(props.candidateAt).toLocaleString('es-CL')}.
-            Puedes continuar donde lo dejaste, incluidas las fotos seleccionadas.
           </p>
         </div>
         {confirmDiscard ? (

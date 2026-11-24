@@ -103,6 +103,9 @@ html {
 }
 
 body {
+  /* Typography adds 1pt at build time; keep :root at 14px for rem spacing. */
+  font-size: 1rem;
+  font-weight: 400;
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
@@ -119,6 +122,21 @@ body {
 #root {
   min-width: 0;
   min-height: 100vh;
+}
+
+/* Shared Tailwind utilities keep their original values in approved documents,
+ * including the preview, print portal and background PDF/image exports. */
+.pdf-paper-sheet {
+  --ui-font-size-step: 0pt;
+  --ui-font-weight-normal: 400;
+  --ui-font-weight-bold: bolder;
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+/* Tables have a browser-level normal weight instead of inheriting body's. */
+table {
+  font-weight: 400;
 }
 
 input,
@@ -164,4 +182,3 @@ input[type='radio'] {
   color: #ffffff;
   background: var(--primary);
 }
-

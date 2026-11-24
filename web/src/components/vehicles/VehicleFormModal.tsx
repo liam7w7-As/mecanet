@@ -252,7 +252,6 @@ export const VehicleFormModal = ({
         <ModalHeader
           id="vehicle-form-title"
           title={isEditing ? 'Editar vehículo' : 'Nuevo vehículo'}
-          description="Identificación, mecánica y propietario"
           badge={<Car aria-hidden="true" />}
           onClose={close}
           closeDisabled={isSaving}
@@ -262,7 +261,7 @@ export const VehicleFormModal = ({
           <div className="workspace-form-body reference-form-body">
           <fieldset className="reference-form-sections" disabled={isSaving || !canSave}>
           <legend className="sr-only">Datos del vehículo</legend>
-          <div className="vehicle-form-section-heading"><h3>Identificación y mecánica</h3><span>La patente identifica al vehículo</span></div>
+          <div className="vehicle-form-section-heading"><h3>Identificación y mecánica</h3></div>
           <div className="reference-form-group vehicle-technical-form-grid grid gap-4 sm:grid-cols-2">
             <div className="vehicle-form-field-plate">
               <label className="text-sm font-medium text-brand-ink">

@@ -3,8 +3,18 @@ import {
   updateCatalogItemSchema,
   UNIT_MEASURES,
   UNIT_MEASURE_LABELS,
+  type CatalogDivision,
+  type CatalogSubtype,
+  type CatalogType,
 } from '@unithor/shared';
-import { AlertCircle, Package, Settings2, Wrench } from 'lucide-react';
+import {
+  AlertCircle,
+  Package,
+  Settings2,
+  Sparkles,
+  Wrench,
+  ShoppingBag,
+} from 'lucide-react';
 import { useState } from 'react';
 
 import { useCreateCatalogItemMutation, useUpdateCatalogItemMutation } from '../../hooks/useCatalog';
@@ -17,7 +27,6 @@ import CurrencyInput from '../common/CurrencyInput';
 import FormDialog from '../common/FormDialog';
 
 import type { CatalogItem } from '../../types/entities';
-import type { CatalogType } from '@unithor/shared';
 
 interface CatalogItemModalProps {
   item?: CatalogItem | null;
@@ -25,6 +34,8 @@ interface CatalogItemModalProps {
 }
 
 interface CatalogFormState {
+  division: CatalogDivision;
+  subtipo: CatalogSubtype;
   tipo: CatalogType;
   codigo: string;
   nombre: string;
@@ -36,35 +47,58 @@ interface CatalogFormState {
   stockMinimo: string;
 }
 
-const typeOptions = [
-  { value: 'estandar', label: 'Servicio estándar', icon: Wrench },
-  { value: 'parte', label: 'Repuesto', icon: Package },
-  { value: 'especifico', label: 'Servicio específico', icon: Settings2 },
-] as const;
-
 const inputClassName =
   'mt-1 h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 disabled:cursor-not-allowed disabled:bg-brand-pale disabled:text-brand-muted aria-[invalid=true]:border-brand-coralInk';
 
-const getInitialState = (item?: CatalogItem | null): CatalogFormState => ({
-  tipo: item?.tipo ?? 'estandar',
-  codigo: item?.codigo ?? '',
-  nombre: item?.nombre ?? '',
-  descripcion: item?.descripcion ?? '',
-  unidadMedida: item?.unidadMedida ?? 'unidad',
-  precio: String(item?.precio ?? 0),
-  horasHombreEstandar:
-    item?.horasHombreEstandar === null || item?.horasHombreEstandar === undefined
-      ? ''
-      : String(item.horasHombreEstandar),
-  stock: String(item?.stock ?? 0),
-  stockMinimo: String(item?.stockMinimo ?? 0),
-});
+const getInitialState = (item?: CatalogItem | null): CatalogFormState => {
+  let division: CatalogDivision = item?.division ?? 'MEC';
+  let subtipo: CatalogSubtype =
+    item?.subtipo ??
+    (item?.tipo === 'parte' ? 'en_stock' : item?.tipo === 'especifico' ? 'especifico' : 'estandar');
+
+  if (item?.tipo === 'parte' && !item.division) {
+    division = 'ACC';
+  } else if (item?.division === 'DP') {
+    division = 'DP';
+    subtipo = 'servicio_dp';
+  }
+
+  let tipo: CatalogType = item?.tipo ?? 'estandar';
+  if (division === 'ACC') {
+    tipo = 'parte';
+  } else if (division === 'DP') {
+    tipo = 'estandar';
+  } else {
+    tipo = subtipo === 'especifico' ? 'especifico' : 'estandar';
+  }
+
+  return {
+    division,
+    subtipo,
+    tipo,
+    codigo: item?.codigo ?? '',
+    nombre: item?.nombre ?? '',
+    descripcion: item?.descripcion ?? '',
+    unidadMedida: item?.unidadMedida ?? (division === 'ACC' ? 'unidad' : 'servicio'),
+    precio: String(item?.precio ?? (subtipo === 'especifico' ? 1 : 0)),
+    horasHombreEstandar:
+      item?.horasHombreEstandar === null || item?.horasHombreEstandar === undefined
+        ? ''
+        : String(item.horasHombreEstandar),
+    stock: String(item?.stock ?? 0),
+    stockMinimo: String(item?.stockMinimo ?? 0),
+  };
+};
 
 export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
   const user = useAuthStore((state) => state.user);
   const action = item ? 'update' : 'create';
-  const canSave = Boolean(user && (hasUserPermission(user, 'taller', action) || hasUserPermission(user, 'admin', action)));
-  const canInitializeStock = Boolean(user && hasUserPermission(user, 'almacen', 'read') && hasUserPermission(user, 'almacen', 'create'));
+  const canSave = Boolean(
+    user && (hasUserPermission(user, 'taller', action) || hasUserPermission(user, 'admin', action)),
+  );
+  const canInitializeStock = Boolean(
+    user && hasUserPermission(user, 'almacen', 'read') && hasUserPermission(user, 'almacen', 'create'),
+  );
   const [form, setForm] = useState<CatalogFormState>(() => getInitialState(item));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const createMutation = useCreateCatalogItemMutation();
@@ -72,18 +106,82 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
   const isEditing = Boolean(item);
   const activeMutation = isEditing ? updateMutation : createMutation;
   const pricePreview = Number(form.precio);
-  const stockPermissionMissing = !item && form.tipo === 'parte' && Number(form.stock) > 0 && !canInitializeStock;
+  const stockPermissionMissing =
+    !item &&
+    form.division === 'ACC' &&
+    form.subtipo === 'en_stock' &&
+    Number(form.stock) > 0 &&
+    !canInitializeStock;
 
   const setValue = <K extends keyof CatalogFormState>(key: K, value: CatalogFormState[K]): void => {
     setForm((current) => ({
       ...current,
       [key]: value,
-      ...(key === 'tipo' && value !== 'parte' ? { stock: '0', stockMinimo: '0' } : {}),
     }));
     setFieldErrors((current) => {
       const next = { ...current };
       delete next[key];
       return next;
+    });
+  };
+
+  const selectDivision = (nextDivision: CatalogDivision): void => {
+    setForm((current) => {
+      let nextSubtipo: CatalogSubtype = 'estandar';
+      let nextTipo: CatalogType = 'estandar';
+      let nextPrecio = current.precio;
+      let nextUnidad = current.unidadMedida;
+
+      if (nextDivision === 'DP') {
+        nextSubtipo = 'servicio_dp';
+        nextTipo = 'estandar';
+        nextUnidad = 'servicio';
+      } else if (nextDivision === 'ACC') {
+        nextSubtipo = current.subtipo === 'a_pedido' ? 'a_pedido' : 'en_stock';
+        nextTipo = 'parte';
+        nextUnidad = current.unidadMedida === 'servicio' ? 'unidad' : current.unidadMedida;
+      } else {
+        nextDivision = 'MEC';
+        nextSubtipo = current.subtipo === 'especifico' ? 'especifico' : 'estandar';
+        nextTipo = nextSubtipo === 'especifico' ? 'especifico' : 'estandar';
+        nextUnidad = 'servicio';
+        if (nextSubtipo === 'especifico' && (!current.precio || current.precio === '0')) {
+          nextPrecio = '1';
+        }
+      }
+
+      return {
+        ...current,
+        division: nextDivision,
+        subtipo: nextSubtipo,
+        tipo: nextTipo,
+        unidadMedida: nextUnidad,
+        precio: nextPrecio,
+        stock: nextDivision === 'ACC' && nextSubtipo === 'en_stock' ? current.stock : '0',
+        stockMinimo: nextDivision === 'ACC' && nextSubtipo === 'en_stock' ? current.stockMinimo : '0',
+      };
+    });
+  };
+
+  const selectSubtipo = (nextSubtipo: CatalogSubtype): void => {
+    setForm((current) => {
+      let nextTipo = current.tipo;
+      let nextPrecio = current.precio;
+      if (current.division === 'MEC') {
+        nextTipo = nextSubtipo === 'especifico' ? 'especifico' : 'estandar';
+        if (nextSubtipo === 'especifico' && (!current.precio || current.precio === '0')) {
+          nextPrecio = '1';
+        }
+      } else if (current.division === 'ACC') {
+        nextTipo = 'parte';
+      }
+      return {
+        ...current,
+        subtipo: nextSubtipo,
+        tipo: nextTipo,
+        precio: nextPrecio,
+        ...(nextSubtipo === 'a_pedido' ? { stock: '0', stockMinimo: '0' } : {}),
+      };
     });
   };
 
@@ -95,16 +193,24 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
     setFieldErrors({});
 
     const payload = {
+      division: form.division,
+      subtipo: form.subtipo,
       tipo: form.tipo,
       codigo: form.codigo,
       nombre: form.nombre,
       descripcion: form.descripcion,
       unidadMedida: form.unidadMedida,
       precio: form.precio,
-      horasHombreEstandar: form.tipo === 'parte' ? null : form.horasHombreEstandar,
-      ...(!item ? { stock: form.tipo === 'parte' ? form.stock : '0' } : {}),
-      stockMinimo: form.tipo === 'parte' ? form.stockMinimo : '0',
+      horasHombreEstandar: form.division === 'ACC' ? null : form.horasHombreEstandar,
+      ...(!item && form.division === 'ACC' && form.subtipo === 'en_stock'
+        ? { stock: form.stock }
+        : !item
+          ? { stock: '0' }
+          : {}),
+      stockMinimo:
+        form.division === 'ACC' && form.subtipo === 'en_stock' ? form.stockMinimo : '0',
     };
+
     if (item) {
       const result = updateCatalogItemSchema.safeParse(payload);
       if (!result.success) {
@@ -124,12 +230,14 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
   };
 
   const dirty = JSON.stringify(form) !== JSON.stringify(getInitialState(item));
+  const isPartStock = form.division === 'ACC' && form.subtipo === 'en_stock';
+
   return (
     <FormDialog
       id="catalog-form-title"
       title={isEditing ? 'Editar item' : 'Nuevo item de catálogo'}
       code="Catálogo"
-      context="Servicio, trabajo específico o repuesto"
+      context="D&P (Carrocería), ACC (Repuestos) o MEC (Mecánica)"
       submitLabel={isEditing ? 'Guardar cambios' : 'Crear item'}
       dirty={dirty}
       pending={activeMutation.isPending}
@@ -140,37 +248,154 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
       className="inventory-form reference-form-dialog catalog-form-dialog"
     >
       <fieldset disabled={!canSave} className="inventory-form-fields catalog-editor-fields min-w-0">
-        {!canSave && <p role="status">Tus permisos actuales permiten consultar el catálogo, pero no guardar estos cambios.</p>}
-        <fieldset className="catalog-type-selector">
-          <legend className="mb-2 text-sm font-medium text-brand-ink">Tipo de item</legend>
+        {!canSave && (
+          <p role="status">
+            Tus permisos actuales permiten consultar el catálogo, pero no guardar estos cambios.
+          </p>
+        )}
+
+        {/* Selector de División de Catálogo */}
+        <fieldset className="catalog-division-selector mb-4">
+          <legend className="mb-2 text-sm font-semibold text-brand-ink">
+            División de taller
+          </legend>
           <div className="grid gap-2 sm:grid-cols-3">
-            {typeOptions.map((option) => {
-              const Icon = option.icon;
-              const selected = form.tipo === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${selected ? 'border-brand-primaryInk bg-brand-primaryInk text-white' : 'border-brand-line text-brand-muted hover:border-brand-primary/40'}`}
-                  onClick={() => setValue('tipo', option.value)}
-                  aria-pressed={selected}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {option.label}
-                </button>
-              );
-            })}
+            <button
+              type="button"
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
+                form.division === 'DP'
+                  ? 'border-purple-600 bg-purple-700 text-white shadow-sm'
+                  : 'border-brand-line bg-white text-brand-muted hover:border-purple-300'
+              }`}
+              onClick={() => selectDivision('DP')}
+              aria-pressed={form.division === 'DP'}
+            >
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              D&P · Desabolladura y Pintura
+            </button>
+            <button
+              type="button"
+              aria-label="Repuesto"
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
+                form.division === 'ACC'
+                  ? 'border-amber-600 bg-amber-600 text-white shadow-sm'
+                  : 'border-brand-line bg-white text-brand-muted hover:border-amber-300'
+              }`}
+              onClick={() => selectDivision('ACC')}
+              aria-pressed={form.division === 'ACC'}
+            >
+              <Package className="h-4 w-4" aria-hidden="true" />
+              ACC · Repuestos y Accesorios
+            </button>
+            <button
+              type="button"
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
+                form.division === 'MEC'
+                  ? 'border-brand-primaryInk bg-brand-primaryInk text-white shadow-sm'
+                  : 'border-brand-line bg-white text-brand-muted hover:border-brand-primary/40'
+              }`}
+              onClick={() => selectDivision('MEC')}
+              aria-pressed={form.division === 'MEC'}
+            >
+              <Wrench className="h-4 w-4" aria-hidden="true" />
+              MEC · Mecánica
+            </button>
           </div>
         </fieldset>
+
+        {/* Subtipo según División */}
+        {form.division === 'MEC' && (
+          <div className="mb-4 rounded-lg border border-brand-line/70 bg-brand-pale/50 p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-brand-muted">
+              Modalidad de servicio mecánico
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                aria-label="Servicio estándar"
+                className={`flex min-h-10 items-center justify-center gap-2 rounded-md border px-3 text-sm transition ${
+                  form.subtipo === 'estandar'
+                    ? 'border-brand-primary bg-white font-semibold text-brand-primaryInk shadow-sm'
+                    : 'border-brand-line bg-white/70 font-medium text-brand-muted hover:bg-white'
+                }`}
+                onClick={() => selectSubtipo('estandar')}
+                aria-pressed={form.subtipo === 'estandar'}
+              >
+                <Wrench className="h-4 w-4" aria-hidden="true" />
+                Servicio estándar (precio y HH definidos)
+              </button>
+              <button
+                type="button"
+                aria-label="Servicio específico"
+                className={`flex min-h-10 items-center justify-center gap-2 rounded-md border px-3 text-sm transition ${
+                  form.subtipo === 'especifico'
+                    ? 'border-brand-primary bg-white font-semibold text-brand-primaryInk shadow-sm'
+                    : 'border-brand-line bg-white/70 font-medium text-brand-muted hover:bg-white'
+                }`}
+                onClick={() => selectSubtipo('especifico')}
+                aria-pressed={form.subtipo === 'especifico'}
+              >
+                <Settings2 className="h-4 w-4" aria-hidden="true" />
+                Servicio específico (diagnóstico / precio $1)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {form.division === 'ACC' && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-amber-900/80">
+              Disponibilidad de repuesto / accesorio
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                aria-label="En stock físico"
+                className={`flex min-h-10 items-center justify-center gap-2 rounded-md border px-3 text-sm transition ${
+                  form.subtipo === 'en_stock'
+                    ? 'border-amber-600 bg-white font-semibold text-amber-900 shadow-sm'
+                    : 'border-amber-200 bg-white/70 font-medium text-amber-800 hover:bg-white'
+                }`}
+                onClick={() => selectSubtipo('en_stock')}
+                aria-pressed={form.subtipo === 'en_stock'}
+              >
+                <Package className="h-4 w-4" aria-hidden="true" />
+                En stock físico (almacén / bodega)
+              </button>
+              <button
+                type="button"
+                aria-label="A pedido"
+                className={`flex min-h-10 items-center justify-center gap-2 rounded-md border px-3 text-sm transition ${
+                  form.subtipo === 'a_pedido'
+                    ? 'border-amber-600 bg-white font-semibold text-amber-900 shadow-sm'
+                    : 'border-amber-200 bg-white/70 font-medium text-amber-800 hover:bg-white'
+                }`}
+                onClick={() => selectSubtipo('a_pedido')}
+                aria-pressed={form.subtipo === 'a_pedido'}
+              >
+                <ShoppingBag className="h-4 w-4" aria-hidden="true" />
+                A pedido / Fuera de stock (por encargo)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Grid de campos */}
         <div className="catalog-field-grid grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-medium text-brand-ink">
-            {form.tipo === 'parte' ? 'Código de repuesto' : 'Código interno (opcional)'}
+            {form.division === 'ACC' ? 'Código de repuesto' : 'Código interno (opcional)'}
             <input
               className={`${inputClassName} uppercase`}
               value={form.codigo}
               onChange={(event) => setValue('codigo', event.target.value.toUpperCase())}
               aria-invalid={Boolean(fieldErrors.codigo)}
-              placeholder={form.tipo === 'parte' ? 'REP-001' : 'SRV-001'}
+              placeholder={
+                form.division === 'DP'
+                  ? 'DP-001'
+                  : form.division === 'ACC'
+                    ? 'REP-001'
+                    : 'SRV-001'
+              }
             />
             {fieldErrors.codigo && (
               <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.codigo}</span>
@@ -183,14 +408,20 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
               value={form.nombre}
               onChange={(event) => setValue('nombre', event.target.value)}
               aria-invalid={Boolean(fieldErrors.nombre)}
-              placeholder="Nombre visible en órdenes y cotizaciones"
+              placeholder={
+                form.division === 'DP'
+                  ? 'Ej.: Puerta delantera izquierda'
+                  : form.division === 'ACC'
+                    ? 'Ej.: Parachoque delantero'
+                    : 'Ej.: Cambio de aceite sintético'
+              }
             />
             {fieldErrors.nombre && (
               <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.nombre}</span>
             )}
           </label>
           <label className="text-sm font-medium text-brand-ink">
-            Precio
+            {form.subtipo === 'especifico' ? 'Precio referencial de diagnóstico' : 'Precio de venta'}
             <CurrencyInput
               value={form.precio}
               onChange={(value) => setValue('precio', value)}
@@ -203,6 +434,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
             )}
             <span className="mt-1 block text-xs font-semibold text-brand-primaryInk">
               {Number.isFinite(pricePreview) ? formatClp(pricePreview) : formatClp(0)}
+              {form.subtipo === 'especifico' && ' (Valor inicial referencial)'}
             </span>
           </label>
           <label className="text-sm font-medium text-brand-ink">
@@ -228,7 +460,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
             )}
           </label>
           <label className="text-sm font-medium text-brand-ink">
-            Horas hombre estándar (por unidad)
+            Horas hombre asignadas / estimadas (HH)
             <input
               className={inputClassName}
               type="number"
@@ -237,22 +469,24 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
               step="0.25"
               value={form.horasHombreEstandar}
               onChange={(event) => setValue('horasHombreEstandar', event.target.value)}
-              disabled={form.tipo === 'parte'}
+              disabled={form.division === 'ACC'}
               aria-label="Horas hombre estándar por unidad"
               aria-invalid={Boolean(fieldErrors.horasHombreEstandar)}
-              placeholder="Ej.: 0.5 = 30 minutos"
+              placeholder="Ej.: 1.5 = 1 hora 30 min"
             />
             {fieldErrors.horasHombreEstandar && (
               <span className="mt-1 block text-xs text-brand-coralInk">
                 {fieldErrors.horasHombreEstandar}
               </span>
             )}
-            <span className="mt-1 block text-xs text-brand-muted">
-              {form.tipo === 'parte'
-                ? 'Solo aplica a servicios y trabajos.'
-                : 'Se usa como estimación inicial al agregar el servicio a una OT.'}
-            </span>
+            {form.division !== 'ACC' && (
+              <span className="mt-1 block text-xs text-brand-muted">
+                Estimación pre-cargada que se asignará automáticamente en la OT (editable).
+              </span>
+            )}
           </label>
+
+          {/* Campos de stock para ACC */}
           <label className="text-sm font-medium text-brand-ink">
             {isEditing ? 'Stock actual' : 'Stock inicial'}
             <input
@@ -262,23 +496,27 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
               step="1"
               value={form.stock}
               onChange={(event) => setValue('stock', event.target.value)}
-              disabled={isEditing || form.tipo !== 'parte' || !canInitializeStock}
+              disabled={isEditing || !isPartStock || !canInitializeStock}
               aria-label={isEditing ? 'Stock actual' : 'Stock inicial'}
               aria-invalid={Boolean(fieldErrors.stock)}
             />
             {fieldErrors.stock && (
               <span className="mt-1 block text-xs text-brand-coralInk">{fieldErrors.stock}</span>
             )}
-            {form.tipo !== 'parte' && (
+            {isEditing && isPartStock && (
               <span className="mt-1 block text-xs text-brand-muted">
-                Los servicios no manejan inventario.
+                Registra entradas, salidas y ajustes desde Movimiento de inventario para conservar su historial por almacén.
               </span>
             )}
-            {isEditing && form.tipo === 'parte' && <span className="mt-1 block text-xs text-brand-muted">Registra entradas, salidas y ajustes desde Movimiento de inventario para conservar su historial por almacén.</span>}
-            {!isEditing && form.tipo === 'parte' && !canInitializeStock && <span className="mt-1 block text-xs text-brand-muted">Puedes registrar el repuesto sin existencias. El stock inicial requiere permisos de lectura y movimientos de almacén.</span>}
+            {!isEditing && isPartStock && !canInitializeStock && (
+              <span className="mt-1 block text-xs text-brand-muted">
+                Puedes registrar el repuesto sin existencias. El stock inicial requiere permisos de almacén.
+              </span>
+            )}
           </label>
+
           <label className="text-sm font-medium text-brand-ink">
-            Stock mínimo
+            Stock mínimo de alerta
             <input
               className={inputClassName}
               type="number"
@@ -286,7 +524,7 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
               step="1"
               value={form.stockMinimo}
               onChange={(event) => setValue('stockMinimo', event.target.value)}
-              disabled={form.tipo !== 'parte'}
+              disabled={!isPartStock}
               aria-label="Stock mínimo"
               aria-invalid={Boolean(fieldErrors.stockMinimo)}
             />
@@ -295,31 +533,31 @@ export const CatalogItemModal = ({ item, onClose }: CatalogItemModalProps) => {
                 {fieldErrors.stockMinimo}
               </span>
             )}
-            {form.tipo === 'parte' && (
+            {isPartStock && (
               <span className="mt-1 block text-xs text-brand-muted">
-                Avisa en dashboard y almacén al llegar a este nivel.
+                Alerta en dashboard y almacén al descender de este nivel.
               </span>
             )}
           </label>
+
           <label className="text-sm font-medium text-brand-ink sm:col-span-2">
-            Descripción
+            Descripción y notas técnicas
             <textarea
               className="mt-1 min-h-24 w-full resize-y rounded-lg border border-brand-line px-3 py-2 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
               value={form.descripcion}
               onChange={(event) => setValue('descripcion', event.target.value)}
-              placeholder="Detalle técnico o comercial opcional"
+              placeholder="Detalle técnico, compatibilidad vehicular o especificaciones"
             />
           </label>
         </div>
+
         {activeMutation.error && (
           <div
             className="flex items-start gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-3 py-2.5 text-sm text-brand-coralInk"
             role="alert"
           >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>
-              {getApiErrorMessage(activeMutation.error)}
-            </span>
+            <span>{getApiErrorMessage(activeMutation.error)}</span>
           </div>
         )}
       </fieldset>

@@ -105,7 +105,7 @@ describe('local-day ranges for journals and reports', () => {
     ['2026-04-04', '2026-04-04T03:00:00.000Z', '2026-04-05T04:00:00.000Z', 25],
   ])('resolves %s as a %s to %s interval lasting %s hours', async (date, start, end, hours) => {
     const result = await getWorkshopDayRange(date, transaction);
-    expect(result).toEqual({ start: new Date(start), end: new Date(end) });
+    expect(result).toEqual({ start: new Date(start), end: new Date(end), timezone: 'America/Santiago' });
     expect(result.end.getTime() - result.start.getTime()).toBe(hours * 3_600_000);
     expect(mocks.schedule.findByPk).toHaveBeenCalledWith(1, { transaction });
   });

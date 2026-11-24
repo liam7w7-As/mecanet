@@ -20,6 +20,7 @@ import {
   createWorkOrderSchema,
   createWorkOrderReentrySchema,
   updateWorkOrderSchema,
+  workOrderItemInputSchema,
   workOrderQuerySchema,
   WORK_ORDER_INSPECTION_PHOTO_SLOTS,
   assignWorkOrderMechanicSchema,
@@ -28,6 +29,9 @@ import {
   updateWorkOrderExecutionSchema,
   createRecordSalesAccessGrantSchema,
   salesAccessGrantParamsSchema,
+  updateDpStageSchema,
+  reviewDpQualitySchema,
+  updateAccCustodySchema,
 } from '@unithor/shared';
 import { pauseWorkshopTimerSchema } from '@unithor/shared';
 import { Router } from 'express';
@@ -80,6 +84,10 @@ import {
   getMechanicsHandler,
   reviewWorkOrderRequestHandler,
   updateWorkOrderExecutionHandler,
+  updateWorkOrderDpStageHandler,
+  reviewWorkOrderDpQualityHandler,
+  updateWorkOrderAccCustodyHandler,
+  addWorkOrderItemHandler,
 } from '../controllers/work-order.controller.js';
 import { getWorkshopServiceHistoryHandler, getWorkOrderAlertsHandler, getWorkshopAlertsHandler, getWorkshopAlertSettingsHandler, updateWorkshopAlertSettingsHandler } from '../controllers/workshop-insights.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
@@ -118,6 +126,10 @@ const observationFileParamSchema = idParamSchema.extend({
 
 const suggestionParamSchema = idParamSchema.extend({
   suggestionId: z.coerce.number().int().positive('ID de sugerencia inválido'),
+});
+
+const stageParamSchema = idParamSchema.extend({
+  stageId: z.coerce.number().int().positive('ID de etapa inválido'),
 });
 
 /**
@@ -393,6 +405,34 @@ workOrderRouter.patch(
   authorize('taller', 'update'),
   validate({ params: idParamSchema, body: updateWorkOrderExecutionSchema }),
   updateWorkOrderExecutionHandler,
+);
+
+workOrderRouter.patch(
+  '/:id/dp-stages/:stageId',
+  authorize('taller', 'update'),
+  validate({ params: stageParamSchema, body: updateDpStageSchema }),
+  updateWorkOrderDpStageHandler,
+);
+
+workOrderRouter.patch(
+  '/:id/items/:itemId/dp-ccf',
+  authorize('taller', 'update'),
+  validate({ params: itemParamSchema, body: reviewDpQualitySchema }),
+  reviewWorkOrderDpQualityHandler,
+);
+
+workOrderRouter.patch(
+  '/:id/items/:itemId/acc-custody',
+  authorize('taller', 'update'),
+  validate({ params: itemParamSchema, body: updateAccCustodySchema }),
+  updateWorkOrderAccCustodyHandler,
+);
+
+workOrderRouter.post(
+  '/:id/items',
+  authorize('taller', 'update'),
+  validate({ params: idParamSchema, body: workOrderItemInputSchema }),
+  addWorkOrderItemHandler,
 );
 
 workOrderRouter.post(

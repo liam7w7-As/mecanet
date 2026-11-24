@@ -1,8 +1,13 @@
 import { z } from 'zod';
 
+import { dpQuoteInputSchema } from './dp-configuration.schema.js';
 import { paginationSchema } from './pagination.schema.js';
 import { createWorkOrderSchema, workOrderTeamMembersSchema } from './work-order.schema.js';
-import { CATALOG_TYPES } from '../constants/catalog-types.js';
+import {
+  CATALOG_DIVISIONS,
+  CATALOG_SUBTYPES,
+  CATALOG_TYPES,
+} from '../constants/catalog-types.js';
 import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
 import { QUOTATION_PAYMENT_METHODS } from '../constants/quotation-commercial.js';
 import { QUOTATION_STATUS } from '../constants/quotation-status.js';
@@ -37,8 +42,11 @@ const commercialFields = {
 export const quotationItemInputSchema = z.object({
   id: z.number().int().positive().optional(),
   ...discountFields,
+  dpPricing: dpQuoteInputSchema.optional(),
   catalogItemId: z.coerce.number().int().positive().nullable().optional(),
   tipoLinea: z.enum(CATALOG_TYPES).default('estandar'),
+  division: z.enum(CATALOG_DIVISIONS).optional(),
+  subtipo: z.enum(CATALOG_SUBTYPES).optional(),
   descripcion: z.string().trim().min(2, 'La descripción debe tener al menos 2 caracteres').max(255),
   cantidad: z.coerce.number().int().min(1, 'La cantidad debe ser un número entero mayor a 0').default(1),
   unidadMedida: z.enum(UNIT_MEASURES).default('unidad'),
@@ -46,6 +54,8 @@ export const quotationItemInputSchema = z.object({
   estadoOperativo: z.enum(ITEM_OPERATIONAL_STATUS).default('pendiente'),
   notasOperativas: optionalText(1000),
 }).superRefine((item, context) => {
+  // A D&P selection is priced authoritatively in the transaction, not from the submitted amount.
+  if (item.dpPricing) return;
   try { calculateQuotationPricing([item]); } catch (error) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['descuentoValor'], message: error instanceof Error ? error.message : 'Descuento inválido' });
   }
@@ -69,6 +79,7 @@ export const createQuotationSchema = z
       message: 'Debe informar una orden de trabajo, cliente o vehículo',
     },
   ).superRefine((data, context) => {
+    if (data.items.some((item) => item.dpPricing)) return;
     try { calculateQuotationPricing(data.items, data); } catch (error) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ['descuentoValor'], message: error instanceof Error ? error.message : 'Descuento inválido' });
     }

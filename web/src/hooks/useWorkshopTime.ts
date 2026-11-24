@@ -64,7 +64,7 @@ const useRefreshWorkshopTime = () => {
   const client = useQueryClient();
   return async (): Promise<void> => {
     await Promise.all(
-      [['workshop-time'], ['work-order-labor'], ['work-orders'], ['quotations']].map((queryKey) =>
+      [['workshop-time'], ['work-order-labor'], ['work-order-quality'], ['work-orders'], ['quotations']].map((queryKey) =>
         client.invalidateQueries({ queryKey }),
       ),
     );

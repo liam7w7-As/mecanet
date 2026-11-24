@@ -10,12 +10,16 @@ import {
 import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 
 import { enqueueCustomerEmail, enqueueWorkOrderProgress } from './customer-email-queue.service.js';
+import { calculateDpWorkPricing } from './dp-configuration.service.js';
 import { notifyByType, notifyUsers } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { getSalesScope, scopeSalesAssociations, workOrderWhere, type SalesScope } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { getLastWorkActivity } from './work-order-activity.service.js';
 import { createPriceSuggestionInTransaction } from './work-order-commercial.service.js';
+import { ensureAccRequestsForItems } from './work-order-division-actions.js';
+import { normalizeDivisionMetadata } from './work-order-division-rules.js';
+import { assertDpItemStatus, ensureDpStagesForItems, getDpStages } from './work-order-dp-state.js';
 import { assertWorkItemsRemovable, ensureQuotationItemLinks, itemIdentity } from './work-order-item-links.js';
 import { recordChecklistStatusChange, recordItemProgressEvent, synchronizeTeamCompletion } from './work-order-labor-events.js';
 import { closeWorkOrderTimers } from './work-order-labor-sessions.js';
@@ -36,6 +40,7 @@ import { Vehicle } from '../models/Vehicle.js';
 import { Warehouse } from '../models/Warehouse.js';
 import { WorkOrder } from '../models/WorkOrder.js';
 import { WorkOrderDelivery } from '../models/WorkOrderDelivery.js';
+import { WorkOrderDpStage } from '../models/WorkOrderDpStage.js';
 import { WorkOrderEvent } from '../models/WorkOrderEvent.js';
 import { WorkOrderInspection } from '../models/WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from '../models/WorkOrderInspectionPhoto.js';
@@ -53,6 +58,7 @@ import type {
   CreateWorkOrderInput,
   DiscountInput,
   DiscountType,
+  DpWorkQuote,
   ItemOperationalStatus,
   QuotationStatus,
   UpdateWorkOrderInput,
@@ -66,6 +72,8 @@ import type {
   VehicleInventoryItem,
   WorkOrderInspectionPhotoSlot,
   CatalogType,
+  CatalogDivision,
+  CatalogSubtype,
   CreateWorkOrderReentryInput,
   UnitMeasure,
   DeliverWorkOrderInput,
@@ -79,7 +87,7 @@ import type {
   WorkOrderRequestStatus,
   WorkOrderRequestType,
 } from '@unithor/shared';
-import type { InferAttributes, WhereOptions } from 'sequelize';
+import type { IncludeOptions, InferAttributes, WhereOptions } from 'sequelize';
 
 interface WorkOrderClientPublic {
   id: number;
@@ -111,12 +119,42 @@ interface WorkOrderCreatorPublic {
 }
 
 interface WorkOrderItemPublic {
+  dpPricingSnapshot?: DpWorkQuote | null;
   assignments?: Array<{ id: number; userId: number; userName: string; specialtyId: number | null; specialtyName: string | null; estimatedHours: number | null; originalEstimatedHours: number | null; completedAt: Date | null; active: boolean }>;
 
   qualityStatus: 'pendiente' | 'aprobado' | 'rechazado';
   qualityReviewedAt: Date | null;
   qualityReviewedBy: number | null;
   qualityNote: string | null;
+
+  division: string;
+  subtipo: string;
+  esAPedido: boolean;
+  bodegueroUserId: number | null;
+  entregadoBodega: boolean;
+  entregadoBodegaAt: Date | null;
+  armadorUserId: number | null;
+  recibidoTaller: boolean;
+  recibidoTallerAt: Date | null;
+  notaEntrega: string | null;
+  ccfStatus: 'pendiente' | 'aprobado' | 'rechazado';
+  ccfReviewedBy: number | null;
+  ccfReviewedAt: Date | null;
+  ccfNotes: string | null;
+  dpStages?: Array<{
+    id: number;
+    workOrderItemId: number;
+    stageKey: string;
+    stageIndex: number;
+    stageName: string;
+    allowedSpecialties: string[] | null;
+    assignedUserId: number | null;
+    status: 'pendiente' | 'en_proceso' | 'completado';
+    startedAt: Date | null;
+    completedAt: Date | null;
+    notes: string | null;
+    assignedUser?: { id: number; nombre: string } | null;
+  }>;
 
   id: number;
   catalogItemId: number | null;
@@ -370,17 +408,32 @@ const assignedMechanicInclude = {
   attributes: ['id', 'nombre', 'email'],
 };
 
-const itemsInclude = {
+const itemsInclude: IncludeOptions = {
   model: WorkOrderItem,
   as: 'items',
   attributes: [
     'id',
     'catalogItemId',
+    'division',
+    'subtipo',
+    'esAPedido',
+    'bodegueroUserId',
+    'entregadoBodega',
+    'entregadoBodegaAt',
+    'armadorUserId',
+    'recibidoTaller',
+    'recibidoTallerAt',
+    'notaEntrega',
+    'ccfStatus',
+    'ccfReviewedBy',
+    'ccfReviewedAt',
+    'ccfNotes',
     'descripcion',
     'tipoLinea',
     'unidadMedida',
     'cantidad',
     'precioUnitario',
+    'dpPricingSnapshot',
     'subtotal',
     'estadoOperativo',
     'notasOperativas',
@@ -397,6 +450,13 @@ const itemsInclude = {
     'stockConsumidoWarehouseId',
   ],
   include: [
+    {
+      model: WorkOrderDpStage,
+      as: 'dpStages',
+      separate: true,
+      include: [{ model: User, as: 'assignedUser', attributes: ['id', 'nombre'] }],
+      order: [['stageIndex', 'ASC']],
+    },
     { model: WorkOrderItemAssignment, as: 'assignments', separate: true, where: { active: true }, attributes: ['id', 'userId', 'userName', 'specialtyId', 'specialtyName', 'estimatedHours', 'originalEstimatedHours', 'completedAt', 'active'] },
     {
       model: CatalogItem,
@@ -663,7 +723,7 @@ const getMirrorItemDiscount = (workOrder: WorkOrder, item: WorkOrderItem) => {
   };
 };
 
-const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null = null): WorkOrderPublic => ({
+const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null = null, includeDpPricing = false): WorkOrderPublic => ({
   priceApprovalRequired: workOrder.priceApprovalRequired,
   id: workOrder.id,
   codigo: workOrder.codigo,
@@ -777,6 +837,47 @@ const toWorkOrderPublic = (workOrder: WorkOrder, lastWorkActivityAt: Date | null
     .map((item) => ({
       id: item.id,
       catalogItemId: item.catalogItemId,
+      ...(includeDpPricing ? { dpPricingSnapshot: item.dpPricingSnapshot ?? null } : {}),
+      division: item.division ?? (item.tipoLinea === 'parte' ? 'ACC' : 'MEC'),
+      subtipo: item.subtipo ?? (item.tipoLinea === 'parte' ? (item.esAPedido ? 'a_pedido' : 'en_stock') : item.tipoLinea === 'especifico' ? 'especifico' : 'estandar'),
+      esAPedido: Boolean(item.esAPedido),
+      bodegueroUserId: item.bodegueroUserId ?? null,
+      custodyBodegueroId: item.bodegueroUserId ?? null,
+      entregadoBodega: Boolean(item.entregadoBodega),
+      entregadoBodegaAt: item.entregadoBodegaAt ?? null,
+      custodyBodegueroDeliveredAt: item.entregadoBodegaAt ?? null,
+      armadorUserId: item.armadorUserId ?? null,
+      custodyArmadorId: item.armadorUserId ?? null,
+      recibidoTaller: Boolean(item.recibidoTaller),
+      recibidoTallerAt: item.recibidoTallerAt ?? null,
+      custodyArmadorReceivedAt: item.recibidoTallerAt ?? null,
+      notaEntrega: item.notaEntrega ?? null,
+      custodyArmadorNote: item.notaEntrega ?? null,
+      ccfStatus: item.ccfStatus ?? 'pendiente',
+      ccfReviewedBy: item.ccfReviewedBy ?? null,
+      ccfReviewedAt: item.ccfReviewedAt ?? null,
+      ccfCheckedAt: item.ccfReviewedAt ?? null,
+      ccfNotes: item.ccfNotes ?? null,
+      ccfNote: item.ccfNotes ?? null,
+      dpStages: (item.dpStages ?? []).map((stage) => ({
+        id: stage.id,
+        workOrderItemId: stage.workOrderItemId,
+        stageKey: stage.stageKey,
+        stageIndex: stage.stageIndex,
+        stageOrder: stage.stageIndex,
+        stageLabel: stage.stageLabel ?? stage.stageKey,
+        stageName: stage.stageLabel ?? stage.stageKey,
+        allowedSpecialties: stage.allowedSpecialties ?? null,
+        assignedUserId: stage.assignedUserId,
+        assignedUserName: stage.assignedUserName ?? stage.assignedUser?.nombre ?? null,
+        status: stage.status,
+        startedAt: stage.startedAt,
+        completedAt: stage.completedAt,
+        note: stage.note ?? null,
+        mechanicNote: stage.note ?? null,
+        notes: stage.note ?? null,
+        assignedUser: stage.assignedUser ? { id: stage.assignedUser.id, nombre: stage.assignedUser.nombre } : null,
+      })),
       descripcion: item.descripcion,
       tipoLinea: item.tipoLinea,
       unidadMedida: item.unidadMedida,
@@ -1037,18 +1138,52 @@ const recordWorkOrderEvent = async (
   );
 };
 
+type PricedWorkOrderItemInput = WorkOrderItemInput & { dpPricingSnapshot?: DpWorkQuote | null };
+
+/** Snapshots are internal persistence data; HTTP schemas only accept a pricing selection. */
+const applyDpPricing = async (
+  items: PricedWorkOrderItemInput[],
+  transaction: Transaction,
+  previous: WorkOrderItem[] = [],
+): Promise<PricedWorkOrderItemInput[]> => {
+  const resolved: PricedWorkOrderItemInput[] = [];
+  for (const item of items) {
+    const old = previous.find((line) => line.id === item.id);
+    if (!item.dpPricing) {
+      const metadata = normalizeDivisionMetadata(item, old);
+      const snapshot = metadata.division === 'DP'
+        ? (item.dpPricingSnapshot !== undefined ? item.dpPricingSnapshot : old?.dpPricingSnapshot ?? null)
+        : null;
+      resolved.push({ ...item, dpPricingSnapshot: snapshot });
+      continue;
+    }
+    const catalog = item.catalogItemId == null ? null : await CatalogItem.findByPk(item.catalogItemId, { transaction });
+    const metadata = normalizeDivisionMetadata(item, old ?? catalog);
+    if (metadata.division !== 'DP' || item.tipoLinea === 'parte' || catalog?.tipo === 'parte') {
+      throw ApiError.badRequest('El cálculo D&P solo corresponde a servicios de la división D&P');
+    }
+    const snapshot = await calculateDpWorkPricing(item.dpPricing, transaction);
+    resolved.push({ ...item, ...metadata, precioUnitario: snapshot.precioUnitario, dpPricingSnapshot: snapshot });
+  }
+  return resolved;
+};
+
 const buildItemsPayload = (
   workOrderId: number,
-  items: Array<WorkOrderItemInput & { assignedUserId?: number | null }>,
+  items: Array<PricedWorkOrderItemInput & { assignedUserId?: number | null }>,
 ): Array<{
   workOrderId: number;
   assignedUserId: number | null;
   catalogItemId: number | null;
+  division: CatalogDivision;
+  subtipo: CatalogSubtype;
+  esAPedido: boolean;
   descripcion: string;
   tipoLinea: CatalogType;
   unidadMedida: UnitMeasure;
   cantidad: number;
   precioUnitario: number;
+  dpPricingSnapshot: DpWorkQuote | null;
   subtotal: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
@@ -1060,16 +1195,22 @@ const buildItemsPayload = (
   return items.map((item) => {
     const cantidad = Number(item.cantidad);
     const precioUnitario = Number(item.precioUnitario);
+    const { division, subtipo, esAPedido } = normalizeDivisionMetadata(item);
+    if ((division === 'ACC') !== (item.tipoLinea === 'parte')) throw ApiError.badRequest('La división no corresponde al tipo de servicio o repuesto');
 
     return {
       workOrderId,
       assignedUserId: item.assignedUserId ?? null,
-       catalogItemId: item.catalogItemId ?? null,
-       descripcion: item.descripcion,
-       tipoLinea: item.tipoLinea,
-       unidadMedida: item.unidadMedida,
-       cantidad,
+      catalogItemId: item.catalogItemId ?? null,
+      division,
+      subtipo,
+      esAPedido,
+      descripcion: item.descripcion,
+      tipoLinea: item.tipoLinea,
+      unidadMedida: item.unidadMedida,
+      cantidad,
       precioUnitario,
+      dpPricingSnapshot: item.dpPricingSnapshot ?? null,
       subtotal: cantidad * precioUnitario,
       estadoOperativo: item.estadoOperativo ?? 'pendiente',
       notasOperativas: item.notasOperativas ?? null,
@@ -1182,7 +1323,7 @@ export const consumeCompletedPartStock = async (
 
 const createMirrorQuotation = async (
   workOrder: WorkOrder,
-  items: WorkOrderItemInput[],
+  items: PricedWorkOrderItemInput[],
   userId: number,
   transaction: Transaction,
   discount: DiscountInput = {},
@@ -1218,11 +1359,14 @@ const createMirrorQuotation = async (
         quotationId: quotation.id,
         workOrderItemId: persistedItems[index].id,
         catalogItemId: item.catalogItemId,
+        division: item.division,
+        subtipo: item.subtipo,
         descripcion: item.descripcion,
         tipoLinea: item.tipoLinea,
         unidadMedida: item.unidadMedida,
         cantidad: item.cantidad,
         precioUnitario: item.precioUnitario,
+        dpPricingSnapshot: persistedItems[index].dpPricingSnapshot ?? null,
         descuentoTipo: items[index].descuentoTipo ?? null,
         descuentoValor: Number(items[index].descuentoValor ?? 0),
         subtotal: pricing.lines[index].subtotal,
@@ -1285,11 +1429,14 @@ export const syncMirrorQuotationFromWorkOrder = async (
     quotationId: quotation.id,
     workOrderItemId: item.id,
     catalogItemId: item.catalogItemId,
+    division: item.division,
+    subtipo: item.subtipo,
     descripcion: item.descripcion,
     tipoLinea: item.tipoLinea,
     unidadMedida: item.unidadMedida,
     cantidad: toNumber(item.cantidad),
     precioUnitario: toNumber(item.precioUnitario),
+    dpPricingSnapshot: item.dpPricingSnapshot ?? null,
     estadoOperativo: item.estadoOperativo,
     notasOperativas: item.notasOperativas,
     ...discounts.items?.get(item.id),
@@ -1549,39 +1696,58 @@ const applyCatalogLaborDefaults = async (
   const catalogItemIds = [
     ...new Set(
       items
-        .filter((item) => item.horasHombreEstimadas === undefined && item.catalogItemId != null)
+        .filter((item) => item.catalogItemId != null)
         .map((item) => item.catalogItemId as number),
     ),
   ];
 
   if (catalogItemIds.length === 0) {
-    return items;
+    return items.map((item) => ({ ...item, ...normalizeDivisionMetadata(item) }));
   }
 
   const catalogItems = await CatalogItem.findAll({
     where: { id: catalogItemIds },
-    attributes: ['id', 'horasHombreEstandar'],
+    attributes: ['id', 'tipo', 'horasHombreEstandar', 'division', 'subtipo'],
     transaction,
   });
-  const hoursByCatalogId = new Map(
+  const catalogById = new Map(
     catalogItems.map((catalogItem) => [
       catalogItem.id,
-      catalogItem.horasHombreEstandar === null
-        ? null
-        : Number(catalogItem.horasHombreEstandar),
+      {
+        hours:
+          catalogItem.horasHombreEstandar === null
+            ? null
+            : Number(catalogItem.horasHombreEstandar),
+        division: catalogItem.division,
+        subtipo: catalogItem.subtipo,
+        tipo: catalogItem.tipo,
+      },
     ]),
   );
 
   return items.map((item) => {
-    if (item.horasHombreEstimadas !== undefined || item.catalogItemId == null) {
-      return item;
+    if (item.catalogItemId == null) {
+      return { ...item, ...normalizeDivisionMetadata(item) };
     }
-    const standardHours = hoursByCatalogId.get(item.catalogItemId);
-    return standardHours === undefined
-      ? item
-      : { ...item, horasHombreEstimadas: standardHours };
+    const meta = catalogById.get(item.catalogItemId);
+    if (!meta) return item;
+
+    const standardHours =
+      item.horasHombreEstimadas !== undefined ? item.horasHombreEstimadas : meta.hours;
+    const { division, subtipo, esAPedido } = normalizeDivisionMetadata(item, meta);
+
+    return {
+      ...item,
+      tipoLinea: meta.tipo,
+      horasHombreEstimadas: standardHours,
+      division,
+      subtipo,
+      esAPedido,
+    };
   });
 };
+
+const initDpStagesForItems = ensureDpStagesForItems;
 
 const SUPERVISOR_ROLES: RoleName[] = ['desarrollador', 'admin', 'jefe'];
 
@@ -1739,7 +1905,9 @@ export const listWorkOrders = async (
       vehicleInclude,
       assignedMechanicInclude,
       quotationInclude,
-      { ...itemsInclude, separate: true },
+      { ...itemsInclude, attributes: Array.isArray(itemsInclude.attributes)
+        ? itemsInclude.attributes.filter((attribute) => attribute !== 'dpPricingSnapshot')
+        : { exclude: ['dpPricingSnapshot'] }, separate: true },
     ], scope),
     limit: pagination.limit,
     offset: pagination.offset,
@@ -1765,7 +1933,7 @@ export const getWorkOrderById = async (
   }
   const workOrder = await getCompleteWorkOrder(id, undefined, await getSalesScope(userId));
   const activities = await getLastWorkActivity([id]);
-  return toWorkOrderPublic(workOrder, activities.get(id) ?? null);
+  return toWorkOrderPublic(workOrder, activities.get(id) ?? null, true);
 };
 
 export const createWorkOrderInTransaction = async (
@@ -1773,6 +1941,7 @@ export const createWorkOrderInTransaction = async (
   userId: number,
   transaction: Transaction,
   createQuotation = true,
+  dpPricingSnapshots: ReadonlyMap<number, DpWorkQuote> = new Map(),
 ): Promise<WorkOrder> => {
   if (!createQuotation && (data.descuentoTipo !== undefined || data.descuentoValor !== undefined)) {
     throw ApiError.badRequest('Los descuentos de la conversión deben provenir de la cotización');
@@ -1847,7 +2016,16 @@ export const createWorkOrderInTransaction = async (
     clientId !== null && vehicleOwner.clientId !== null && vehicleOwner.clientId !== clientId;
 
   await assertCatalogItemsExist(data.items, transaction);
-  const itemsWithLaborDefaults = await applyCatalogLaborDefaults(data.items, transaction);
+  const itemsWithLaborDefaults = await applyDpPricing(await applyCatalogLaborDefaults(data.items, transaction), transaction);
+  for (const [index, snapshot] of dpPricingSnapshots) {
+    if (!itemsWithLaborDefaults[index] || data.items[index].dpPricing || itemsWithLaborDefaults[index].division !== 'DP') {
+      throw ApiError.badRequest('La copia del cálculo D&P no corresponde al trabajo de la cotización');
+    }
+    itemsWithLaborDefaults[index].dpPricingSnapshot = snapshot;
+  }
+  if (itemsWithLaborDefaults.some((item) => item.division === 'DP' && item.estadoOperativo && item.estadoOperativo !== 'pendiente')) {
+    throw ApiError.badRequest('Los trabajos D&P nuevos deben iniciar con sus cinco etapas pendientes');
+  }
 
   const codigo = await generateWorkOrderCode(transaction);
   const workOrder = await WorkOrder.create(
@@ -1876,6 +2054,8 @@ export const createWorkOrderInTransaction = async (
       buildItemsPayload(workOrder.id, itemsWithLaborDefaults),
       { transaction },
     );
+    await initDpStagesForItems(workOrder.id, createdItems, transaction);
+    await ensureAccRequestsForItems(workOrder, createdItems, userId, transaction);
     for (let index = 0; index < createdItems.length; index += 1) {
       const team = data.items[index]?.teamMembers;
       if (team !== undefined) await replaceItemTeam(workOrder, createdItems[index], { members: team, motivo: 'Equipo inicial de recepción' }, userId, transaction, false);
@@ -1887,7 +2067,7 @@ export const createWorkOrderInTransaction = async (
   }
 
   if (createQuotation) {
-    await createMirrorQuotation(workOrder, data.items, userId, transaction, data);
+    await createMirrorQuotation(workOrder, itemsWithLaborDefaults, userId, transaction, data);
   }
 
   if (data.inspection !== undefined) {
@@ -1990,14 +2170,19 @@ export const updateWorkOrder = async (
         transaction,
         lock: Transaction.LOCK.UPDATE,
       });
-      await assertChiefPriceEditsAllowed(userId, data.items.some((input) => {
+      const pricedItems = await applyDpPricing(data.items, transaction, existingItems);
+      await assertChiefPriceEditsAllowed(userId, pricedItems.some((input) => {
         const existing = existingItems.find((line) => line.id === input.id);
         return existing && existing.tipoLinea !== 'parte' && Number(existing.precioUnitario) !== Number(input.precioUnitario);
       }), transaction);
-      await restoreConsumedStock(existingItems, transaction, {
-        userId,
-        referencia: workOrder.codigo,
+      const stockToRestore = existingItems.filter((existing) => {
+        const incoming = data.items?.find((line) => line.id === existing.id);
+        const changed = !incoming || incoming.catalogItemId !== existing.catalogItemId || Number(incoming.cantidad) !== Number(existing.cantidad);
+        if (changed && existing.entregadoBodega) throw ApiError.badRequest('Registra la devolución en bodega antes de retirar o cambiar un repuesto entregado');
+        const reopenedLegacyConsumption = !existing.entregadoBodega && existing.estadoOperativo === 'completado' && incoming?.estadoOperativo !== 'completado';
+        return existing.stockConsumido && (changed || reopenedLegacyConsumption);
       });
+      await restoreConsumedStock(stockToRestore, transaction, { userId, referencia: workOrder.codigo });
 
       const existingById = new Map(existingItems.map((item) => [item.id, item]));
       const incomingIds = new Set(
@@ -2018,7 +2203,7 @@ export const updateWorkOrder = async (
       }
 
       for (const item of existingItems) {
-        if (incomingIds.has(item.id) && item.stockConsumido) {
+        if (incomingIds.has(item.id) && stockToRestore.some((restored) => restored.id === item.id)) {
           await item.update(
             {
               stockConsumido: false,
@@ -2032,9 +2217,9 @@ export const updateWorkOrder = async (
       }
 
       const persistedItems: WorkOrderItem[] = [];
-      const itemsToCreate: WorkOrderItemInput[] = [];
+      const itemsToCreate: PricedWorkOrderItemInput[] = [];
 
-      for (const item of data.items) {
+      for (const item of pricedItems) {
         const existing = item.id !== undefined ? existingById.get(item.id) : undefined;
 
         if (!existing) {
@@ -2045,16 +2230,28 @@ export const updateWorkOrder = async (
         const cantidad = Number(item.cantidad);
         const precioUnitario = Number(item.precioUnitario);
         const previousStatus = existing.estadoOperativo;
+        const metadata = normalizeDivisionMetadata(item, existing);
+        if (metadata.division === 'DP' && existing.division !== 'DP' && (existing.estadoOperativo !== 'pendiente' || Number(existing.horasHombreReales) > 0)) {
+          throw ApiError.badRequest('Conserva el historial de este trabajo y agrega una nueva línea D&P');
+        }
+        await assertDpItemStatus(existing, item.estadoOperativo, transaction);
+        if (existing.division === 'DP' && metadata.division !== 'DP' && (await getDpStages(existing.id, transaction)).some((stage) => stage.assignedUserId !== null || stage.status !== 'pendiente')) {
+          throw ApiError.badRequest('Este trabajo D&P tiene asignaciones o avances. Conserva su historial y agrega una nueva línea para otra división');
+        }
         const technicalChanged = existing.descripcion !== item.descripcion || Number(existing.cantidad) !== cantidad || existing.catalogItemId !== (item.catalogItemId ?? null) || existing.tipoLinea !== item.tipoLinea || existing.unidadMedida !== item.unidadMedida || existing.notasOperativas !== (item.notasOperativas ?? null);
         if (technicalChanged) await invalidateItemQuality(existing, userId, 'Contenido del servicio actualizado desde la OT', transaction);
         await existing.update(
           {
             catalogItemId: item.catalogItemId ?? null,
+            ...metadata,
             descripcion: item.descripcion,
             tipoLinea: item.tipoLinea,
             unidadMedida: item.unidadMedida,
             cantidad,
             precioUnitario,
+            dpPricingSnapshot: metadata.division === 'DP'
+              ? (item.dpPricingSnapshot !== undefined ? item.dpPricingSnapshot : existing.dpPricingSnapshot ?? null)
+              : null,
             subtotal: cantidad * precioUnitario,
             estadoOperativo: item.estadoOperativo ?? existing.estadoOperativo,
             notasOperativas: item.notasOperativas ?? null,
@@ -2066,6 +2263,7 @@ export const updateWorkOrder = async (
           { transaction },
         );
         await recordChecklistStatusChange(existing, previousStatus, userId, transaction);
+        await ensureDpStagesForItems(id, [existing], transaction);
         persistedItems.push(existing);
         itemDiscounts.set(existing.id, {
           descuentoTipo: item.descuentoTipo,
@@ -2079,6 +2277,8 @@ export const updateWorkOrder = async (
           buildItemsPayload(id, await applyCatalogLaborDefaults(itemsToCreate, transaction)),
           { transaction },
         );
+        await initDpStagesForItems(id, createdItems, transaction);
+        await ensureAccRequestsForItems(workOrder, createdItems, userId, transaction);
         persistedItems.push(...createdItems);
         createdItems.forEach((item, index) => itemDiscounts.set(item.id, {
           descuentoTipo: itemsToCreate[index].descuentoTipo,
@@ -2488,13 +2688,16 @@ export const createWorkOrderReentry = async (
           transaction,
         })
       : [];
-    const copiedItems: WorkOrderItemInput[] = sourceItems.map((item) => ({
+    const copiedItems: PricedWorkOrderItemInput[] = sourceItems.map((item) => ({
       catalogItemId: item.catalogItemId,
+      ...normalizeDivisionMetadata(item),
+      horasHombreEstimadas: item.horasHombreEstimadas == null ? null : Number(item.horasHombreEstimadas),
       descripcion: item.descripcion,
       tipoLinea: item.tipoLinea,
       unidadMedida: item.unidadMedida,
       cantidad: toNumber(item.cantidad),
       precioUnitario: coberturaGarantia ? 0 : toNumber(item.precioUnitario),
+      dpPricingSnapshot: item.dpPricingSnapshot ?? null,
       estadoOperativo: 'pendiente',
       notasOperativas: `Referencia de ${source.codigo}${item.notasOperativas ? `: ${item.notasOperativas}` : ''}`,
     }));
@@ -2537,9 +2740,11 @@ export const createWorkOrderReentry = async (
     );
 
     if (copiedItems.length > 0) {
-      await WorkOrderItem.bulkCreate(buildItemsPayload(workOrder.id, copiedItems), {
+      const createdItems = await WorkOrderItem.bulkCreate(buildItemsPayload(workOrder.id, copiedItems), {
         transaction,
       });
+      await initDpStagesForItems(workOrder.id, createdItems, transaction);
+      await ensureAccRequestsForItems(workOrder, createdItems, userId, transaction);
     }
     await createMirrorQuotation(workOrder, copiedItems, userId, transaction);
 
@@ -2766,6 +2971,10 @@ export const updateWorkOrderExecution = async (
       if (actorRole === 'mecanico' && itemUpdate.estadoOperativo === 'completado') {
         const team = await WorkOrderItemAssignment.findAll({ where: { workOrderItemId: item.id, active: true }, transaction });
         if (team.length > 0) throw ApiError.badRequest('Termina tu parte desde Gestionar trabajo para conservar el avance de cada integrante');
+      }
+
+      if (item.division === 'DP' && itemUpdate.estadoOperativo !== item.estadoOperativo) {
+        throw ApiError.badRequest('Actualiza la etapa D&P desde Gestionar trabajo o Registro Diario');
       }
 
       if (itemUpdate.estadoOperativo === 'completado' && !item.stockConsumido) {
@@ -3072,6 +3281,7 @@ export const reviewWorkOrderRequest = async (
           {
             workOrderId: id,
              catalogItemId: catalogItem.id,
+             ...normalizeDivisionMetadata({}, catalogItem),
              descripcion: catalogItem.nombre,
              tipoLinea: catalogItem.tipo,
              unidadMedida: catalogItem.unidadMedida,
@@ -3093,6 +3303,8 @@ export const reviewWorkOrderRequest = async (
               quotationId: quotation.id,
               workOrderItemId: createdItem.id,
               catalogItemId: catalogItem.id,
+              division: createdItem.division,
+              subtipo: createdItem.subtipo,
               descripcion: catalogItem.nombre,
               tipoLinea: catalogItem.tipo,
               unidadMedida: catalogItem.unidadMedida,
@@ -3220,3 +3432,5 @@ export const deleteWorkOrder = async (id: number, userId: number): Promise<void>
     await workOrder.destroy({ transaction });
   });
 };
+
+export { updateWorkOrderDpStage, reviewWorkOrderDpQuality, updateWorkOrderAccCustody, addWorkOrderItem } from './work-order-division-actions.js';

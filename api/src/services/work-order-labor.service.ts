@@ -36,6 +36,7 @@ import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { WorkOrder } from '../models/WorkOrder.js';
+import { WorkOrderDpStage } from '../models/WorkOrderDpStage.js';
 import { WorkOrderEvent } from '../models/WorkOrderEvent.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { WorkOrderItemAssignment } from '../models/WorkOrderItemAssignment.js';
@@ -181,7 +182,32 @@ export interface WorksheetItem {
   observationsCount: number;
   canWork: boolean;
   awaitingWarehouseDelivery: boolean;
-  sessions: Array<{ id: number; userName: string | null; startedAt: Date; endedAt: Date | null; minutes: number; kind: string; note: string | null }>;
+  canReceiveCustody?: boolean;
+  division?: string;
+  subtipo?: string | null;
+  esAPedido?: boolean;
+  precioUnitario?: number;
+  custodyBodegueroId?: number | null;
+  custodyBodegueroDeliveredAt?: Date | null;
+  custodyArmadorId?: number | null;
+  custodyArmadorReceivedAt?: Date | null;
+  custodyArmadorNote?: string | null;
+  ccfStatus?: string;
+  ccfNote?: string | null;
+  ccfCheckedAt?: Date | null;
+  dpStages?: Array<{
+    id: number;
+    stageKey: string;
+    stageLabel: string;
+    stageOrder: number;
+    assignedUserId: number | null;
+    assignedUserName: string | null;
+    status: string;
+    startedAt: Date | null;
+    completedAt: Date | null;
+    mechanicNote: string | null;
+  }>;
+  sessions: Array<{ id: number; userName: string | null; startedAt: Date; endedAt: Date | null; reportedDate?: string | null; minutes: number; kind: string; note: string | null }>;
 }
 
 export interface WorksheetObservationFile {
@@ -299,8 +325,14 @@ export const getWorkOrderWorksheet = async (
         }),
     WorkOrderItem.findAll({
       where: { workOrderId },
-      include: [{ model: User, as: 'assignedUser', attributes: ['id', 'nombre'] }],
-      order: [['id', 'ASC']],
+      include: [
+        { model: User, as: 'assignedUser', attributes: ['id', 'nombre'] },
+        { model: WorkOrderDpStage, as: 'dpStages' },
+      ],
+      order: [
+        ['id', 'ASC'],
+        [{ model: WorkOrderDpStage, as: 'dpStages' }, 'stageIndex', 'ASC'],
+      ],
     }),
     WorkOrderItemSession.findAll({
       where: { workOrderId },
@@ -348,7 +380,9 @@ export const getWorkOrderWorksheet = async (
     );
   }
 
-  const permitted = (item: WorkOrderItem): boolean => item.teamManaged
+  const permitted = (item: WorkOrderItem): boolean => item.division === 'DP'
+    ? (item.dpStages ?? []).some((stage) => stage.assignedUserId === userId)
+    : item.teamManaged
     ? assignments.some((a) => a.workOrderItemId === item.id && a.active && a.userId === userId)
     : (item.assignedUserId ?? workOrder.assignedMechanicId) === userId;
   const visibleItems = items;
@@ -410,7 +444,36 @@ export const getWorkOrderWorksheet = async (
       awaitingWarehouseDelivery: item.tipoLinea === 'parte' && !item.stockConsumido && requests.some(
         (request) => request.tipo === 'repuesto' && request.estado === 'aprobada' && request.workOrderItemId === item.id,
       ),
-      sessions: itemSessions.map((session) => ({ id: session.id, userName: session.userName, startedAt: session.startedAt, endedAt: session.endedAt, minutes: getSessionMinutes(session, now), kind: session.kind, note: session.note })),
+      division: item.division ?? (item.tipoLinea === 'parte' ? 'ACC' : 'MEC'),
+      canReceiveCustody: role === 'mecanico' && (items.some((line) => line.division === 'DP')
+        ? items.some((line) => line.dpStages?.some((stage) => stage.assignedUserId === userId && ['armador_desarme', 'armador_montaje'].includes(stage.stageKey)))
+        : items.some(permitted)),
+      subtipo: item.subtipo ?? null,
+      esAPedido: item.esAPedido ?? false,
+      ...(SUPERVISOR_ROLES.includes(role) ? { precioUnitario: Number(item.precioUnitario ?? 0) } : {}),
+      dpStages: (item.dpStages ?? []).map((stage) => ({
+        id: stage.id,
+        stageKey: stage.stageKey,
+        stageLabel: stage.stageLabel,
+        stageIndex: stage.stageIndex,
+        stageOrder: stage.stageIndex,
+        assignedUserId: stage.assignedUserId ?? null,
+        assignedUserName: stage.assignedUserName ?? null,
+        status: stage.status,
+        startedAt: stage.startedAt ? new Date(stage.startedAt) : null,
+        completedAt: stage.completedAt ? new Date(stage.completedAt) : null,
+        note: stage.note ?? null,
+        mechanicNote: stage.note ?? null,
+      })),
+      custodyBodegueroId: item.bodegueroUserId ?? null,
+      custodyBodegueroDeliveredAt: item.entregadoBodegaAt ?? null,
+      custodyArmadorId: item.armadorUserId ?? null,
+      custodyArmadorReceivedAt: item.recibidoTallerAt ?? null,
+      custodyArmadorNote: item.notaEntrega ?? null,
+      ccfStatus: item.ccfStatus ?? 'pendiente',
+      ccfNote: item.ccfNotes ?? null,
+      ccfCheckedAt: item.ccfReviewedAt ?? null,
+      sessions: itemSessions.map((session) => ({ id: session.id, userName: session.userName, startedAt: session.startedAt, endedAt: session.endedAt, reportedDate: session.reportedDate ?? null, minutes: getSessionMinutes(session, now), kind: session.kind, note: session.note })),
     };
   });
 
@@ -590,6 +653,7 @@ export const startItemTimer = async (
     const item = await findItem(workOrderId, itemId, transaction, true);
     await assertItemAccess(item, workOrder, role, userId, transaction);
     if (item.tipoLinea === 'parte') throw ApiError.badRequest('Solo se pueden cronometrar servicios');
+    if (item.division === 'DP') throw ApiError.badRequest('Registra las horas de tu etapa D&P desde Registro Diario');
     if (workOrder.estado === 'finalizada' || ['completado', 'omitido'].includes(item.estadoOperativo)) {
       throw ApiError.badRequest('El jefe debe reabrir el trabajo antes de iniciar otro cronómetro');
     }
@@ -732,6 +796,7 @@ export const completeItemTimer = async (
     assertEditable(workOrder);
     const item = await findItem(workOrderId, itemId, transaction, true);
     await assertItemAccess(item, workOrder, role, userId, transaction);
+    if (item.division === 'DP') throw ApiError.badRequest('Completa tu etapa D&P desde Gestionar trabajo o Registro Diario');
     if (item.qualityStatus === 'aprobado') {
       if (notasOperativas !== undefined && notasOperativas !== item.notasOperativas) throw ApiError.badRequest('El jefe debe reabrir el servicio aprobado antes de modificarlo');
       return;
@@ -1126,6 +1191,7 @@ export interface DailyReportUser {
     overtime: boolean;
     startedAt: string;
     endedAt: string | null;
+    reportedDate?: string | null;
     note: string | null;
   }>;
 }
@@ -1182,7 +1248,7 @@ export const getWorkshopDailyReport = async (
         userId: { [Op.in]: trackedIds.length > 0 ? trackedIds : [-1] },
         supersededAt: null,
         startedAt: { [Op.lt]: dayEnd },
-        [Op.or]: [{ endedAt: { [Op.gt]: dayStart } }, ...(now > dayStart ? [{ status: 'abierta' as const }] : []),
+        [Op.or]: [{ reportedDate: day }, { endedAt: { [Op.gt]: dayStart } }, ...(now > dayStart ? [{ status: 'abierta' as const }] : []),
           { kind: 'ajuste', startedAt: { [Op.gte]: dayStart } }],
       },
       include: [
@@ -1261,6 +1327,7 @@ export const getWorkshopDailyReport = async (
       overtime: session.overtime ?? false,
       startedAt: session.startedAt.toISOString(),
       endedAt: session.endedAt?.toISOString() ?? null,
+      reportedDate: session.reportedDate ?? null,
       note: session.note,
     });
   }

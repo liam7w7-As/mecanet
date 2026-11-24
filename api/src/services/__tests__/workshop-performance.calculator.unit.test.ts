@@ -61,6 +61,16 @@ describe('Commercial recovery is distinct from cash and labor cost', () => {
 });
 
 describe('Registered utilization excludes lunch and retains operational overtime', () => {
+  it('includes quantities declared for a day without placing them in the midnight shift', () => {
+    const declared = session(2, '03:00', '03:00', { reportedDate: day, durationMinutes: 120 });
+    const nextDay: PerformanceDay = { ...scheduled, date: '2026-11-17', start: new Date('2026-11-17T03:00:00Z'), end: new Date('2026-11-18T03:00:00Z'), workers: [] };
+    const report = calculateUtilization([scheduled, nextDay], [session(1, '12:00', '13:00'), declared], now, 'day');
+    expect(report.utilization).toMatchObject({ registeredHours: 3, regularHours: 3, extraHours: 0, scheduledHours: 8, unregisteredHours: 5 });
+    expect(report.periods.map((period) => period.registeredHours)).toEqual([3, 0]);
+    const extra = calculateUtilization([scheduled], [{ ...declared, overtime: true }], now, 'day');
+    expect(extra.utilization).toMatchObject({ registeredHours: 2, extraHours: 2, unregisteredHours: 8 });
+  });
+
   it('shows five of eight hours and three unregistered, not an eight-hour completion requirement', () => {
     const report = calculateUtilization([scheduled], [session(1, '12:00', '16:00'), session(2, '17:00', '18:00')], now, 'day');
     expect(report.utilization).toMatchObject({ registeredHours: 5, scheduledHours: 8, unregisteredHours: 3, registeredPercent: 62.5 });
@@ -106,6 +116,14 @@ describe('Registered utilization excludes lunch and retains operational overtime
 });
 
 describe('Quality measures real review history and rework intervals', () => {
+  it('does not infer technical rework from the midnight marker of declared hours', () => {
+    const report = calculateQuality([{ id: 5, estadoOperativo: 'completado', qualityStatus: 'aprobado' }], [
+      { id: 1, workOrderItemId: 5, decision: 'rechazado', createdAt: new Date('2026-11-15T20:00:00Z') },
+      { id: 2, workOrderItemId: 5, decision: 'aprobado', createdAt: at('19:00') },
+    ], [session(1, '03:00', '03:00', { reportedDate: day, durationMinutes: 120 }), session(2, '17:00', '18:00')], scheduled.start, scheduled.end, now);
+    expect(report).toMatchObject({ reworkHours: 1, pendingServices: 0 });
+  });
+
   it('distinguishes first-pass approval, rejection and extra technical rework', () => {
     const reviews = [
       { id: 1, workOrderItemId: 5, decision: 'rechazado' as const, createdAt: at('18:00') },

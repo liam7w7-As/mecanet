@@ -1,3 +1,4 @@
+import { Clock3 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -30,7 +31,7 @@ export function ItemEstimateReasonDialog({ description, reason, onReasonChange, 
       <h2 id={titleId} className="text-lg font-semibold text-brand-ink">Motivo del cambio de estimación</h2>
       <p className="mt-2 text-sm text-brand-muted">{description}</p>
       <label className="mt-4 grid gap-2 text-sm text-brand-ink">Motivo del cambio<textarea className="form-control" rows={3} maxLength={500} value={reason} disabled={pending} onChange={(event) => onReasonChange(event.target.value)} /></label>
-      <p className="mt-2 text-xs text-brand-muted">Indica al menos 2 caracteres. El motivo quedará en el historial.</p>
+      <p className="mt-2 text-xs text-brand-muted">Indica al menos 2 caracteres.</p>
       {error && <p role="alert" className="workshop-labor-error mt-3">{error}</p>}
       <div className="dialog-buttons mt-5">
         <button type="button" className="secondary-button" disabled={pending} onClick={onClose}>Volver</button>
@@ -50,6 +51,7 @@ interface TeamEditorProps {
   item: WorkOrderWorksheetItem;
   workOrderId: number;
   editable: boolean;
+  showFinancials?: boolean;
   disabled: boolean;
   mechanics: WorkOrderMechanic[];
   loadingMechanics: boolean;
@@ -74,14 +76,24 @@ const memberError = (members: MemberDraft[]): string | null => {
   return null;
 };
 
-export default function WorkOrderTeamEditor({ item, workOrderId, editable, disabled, mechanics, loadingMechanics, mechanicsError, autoOpenTeam = false, onState }: TeamEditorProps) {
+export default function WorkOrderTeamEditor({ item, workOrderId, editable, showFinancials = false, disabled, mechanics, loadingMechanics, mechanicsError, autoOpenTeam = false, onState }: TeamEditorProps) {
   const mutation = useAssignItemTeamMutation();
   const personnel = useWorkshopPersonnel(editable);
   const [draft, setDraft] = useState<MemberDraft[] | null>(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const detailsRef = useRef<HTMLDetailsElement>(null);
-  useEffect(() => { if (autoOpenTeam && detailsRef.current) detailsRef.current.open = true; }, [autoOpenTeam]);
+  const [editing, setEditing] = useState(autoOpenTeam);
+  const [focusRequest, setFocusRequest] = useState(0);
+  const editorId = useId();
+  const editorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (autoOpenTeam) setEditing(true); }, [autoOpenTeam]);
+  useEffect(() => {
+    if (editing && focusRequest > 0) {
+      const editor = editorRef.current;
+      (editor?.querySelector<HTMLElement>('input[type="number"]:not(:disabled)')
+        ?? editor?.querySelector<HTMLElement>('select:not(:disabled), button[data-add-member]'))?.focus();
+    }
+  }, [editing, focusRequest]);
   const baseline = initialMembers(item);
   const members = draft ?? baseline;
   const changed = draft !== null && JSON.stringify(draft) !== JSON.stringify(baseline);
@@ -103,11 +115,16 @@ export default function WorkOrderTeamEditor({ item, workOrderId, editable, disab
     });
   };
   if (!editable && draft === null && !item.assignments?.some((member) => member.active)) return null;
-  return <details ref={detailsRef} className="workshop-labor-details">
-    <summary>Equipo de trabajo<span>{members.length} {members.length === 1 ? 'integrante' : 'integrantes'} · estimación individual</span></summary>
-    <div className="workshop-labor-detail-body">
+  return <section className="workshop-job-team" aria-label={`Equipo de trabajo de ${item.descripcion}`}>
+    <div className="workshop-job-team-heading">
+      <div><h4>Equipo de trabajo</h4><p>{members.length ? members.map((member) => mechanics.find((mechanic) => mechanic.id === Number(member.userId))?.nombre ?? item.assignments?.find((entry) => entry.userId === Number(member.userId))?.userName ?? item.assignedUser?.nombre ?? 'Mecánico por seleccionar').join(' · ') : 'Sin integrantes asignados'}</p></div>
+      <div className="workshop-labor-actions">
+        {editable && <button type="button" className="workshop-job-hours-button" aria-controls={editorId} aria-expanded={editing} disabled={locked} onClick={() => { setEditing(true); setFocusRequest((current) => current + 1); }}><Clock3 aria-hidden="true" />Asignar horas</button>}
+        {editing && (editable || draft !== null) && <button type="button" disabled={mutation.isPending} aria-label={`Cerrar edición de equipo de ${item.descripcion}`} onClick={() => setEditing(false)}>Cerrar edición</button>}
+      </div>
+    </div>
+    <div ref={editorRef} id={editorId} className="workshop-labor-detail-body" hidden={(editable || draft !== null) && !editing}>
       {editable || draft !== null ? <>
-        <p>Cada integrante registra sus propias horas y termina su parte del servicio.</p>
         {mechanicsError && <p className="workshop-labor-help">No se pudo cargar la lista de mecánicos. Los integrantes y horas del borrador se conservan.</p>}
         {personnel.isError && <p className="workshop-labor-help">No se pudieron cargar las especialidades. Se conserva la especialidad de cada integrante.</p>}
         {members.map((member, index) => {
@@ -142,13 +159,13 @@ export default function WorkOrderTeamEditor({ item, workOrderId, editable, disab
         {!members.length && <p>Sin integrantes asignados.</p>}
         {changed && invalid && <p role="alert">{invalid}</p>}
         <label>Motivo del cambio de equipo<textarea rows={2} maxLength={500} value={reason} disabled={locked} onChange={(event) => setReason(event.target.value)} /></label>
-        <p className="workshop-labor-help">Indica al menos 2 caracteres. El equipo, las horas y el motivo quedarán en el historial.</p>
+        <p className="workshop-labor-help">Indica al menos 2 caracteres.</p>
         <div className="workshop-labor-actions">
-          <button type="button" disabled={locked || loadingMechanics || mechanicsError || members.length >= 30} onClick={() => setDraft([...members, { userId: '', estimatedHours: '' }])}>Agregar integrante</button>
+          <button type="button" data-add-member disabled={locked || loadingMechanics || mechanicsError || members.length >= 30} onClick={() => setDraft([...members, { userId: '', estimatedHours: '' }])}>Agregar integrante</button>
           <button type="button" className="workshop-labor-primary" disabled={locked || !changed || Boolean(invalid) || reason.trim().length < 2 || reason.trim().length > 500} onClick={save}>{mutation.isPending ? 'Guardando equipo…' : 'Guardar equipo'}</button>
         </div>
         {error && <p role="alert" className="workshop-labor-error">{error}</p>}
-      </> : <ul>{item.assignments?.filter((member) => member.active).map((member) => <li key={member.id}><strong>{member.userName ?? `Mecánico #${member.userId}`}</strong><span>{member.specialtyName ? `${member.specialtyName} · ` : ''}Estimado: {member.estimatedHours === null ? 'Sin definir' : `${member.estimatedHours} h`}{member.saleHourly != null && member.estimatedHours != null ? ` · Valor teórico: ${formatClp(member.saleHourly * member.estimatedHours)}` : ''}{member.completedAt ? ' · Parte terminada' : ''}</span></li>)}</ul>}
+      </> : <ul>{item.assignments?.filter((member) => member.active).map((member) => <li key={member.id}><strong>{member.userName ?? `Mecánico #${member.userId}`}</strong><span>{member.specialtyName ? `${member.specialtyName} · ` : ''}Estimado: {member.estimatedHours === null ? 'Sin definir' : `${member.estimatedHours} h`}{showFinancials && member.saleHourly != null && member.estimatedHours != null ? ` · Valor teórico: ${formatClp(member.saleHourly * member.estimatedHours)}` : ''}{member.completedAt ? ' · Parte terminada' : ''}</span></li>)}</ul>}
     </div>
-  </details>;
+  </section>;
 }

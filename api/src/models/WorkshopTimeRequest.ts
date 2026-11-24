@@ -29,6 +29,7 @@ import type { CreationOptional, InferAttributes, InferCreationAttributes } from 
       fields: ['user_id', 'status', 'started_at'],
     },
     { name: 'workshop_time_requests_source_status_idx', fields: ['source_session_id', 'status'] },
+    { name: 'workshop_time_requests_client_request_unique', fields: ['client_request_id'], unique: true },
   ],
 })
 export class WorkshopTimeRequest extends Model<
@@ -36,6 +37,12 @@ export class WorkshopTimeRequest extends Model<
   InferCreationAttributes<WorkshopTimeRequest>
 > {
   @PrimaryKey @AutoIncrement @Column(DataType.INTEGER) declare id: CreationOptional<number>;
+  @Column({ type: DataType.STRING(36), allowNull: true })
+  declare clientRequestId: CreationOptional<string | null>;
+  @Column({ type: DataType.STRING(64), allowNull: true })
+  declare clientRequestHash: CreationOptional<string | null>;
+  @Column({ type: DataType.DATEONLY, allowNull: true })
+  declare reportedDate: CreationOptional<string | null>;
   @Column({ type: DataType.ENUM('manual', 'correction'), allowNull: false })
   declare kind: WorkshopTimeRequestKind;
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
@@ -52,6 +59,8 @@ export class WorkshopTimeRequest extends Model<
   @ForeignKey(() => WorkOrderItem)
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare workOrderItemId: number;
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare dpStageId: CreationOptional<number | null>;
   @ForeignKey(() => User)
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare userId: number;

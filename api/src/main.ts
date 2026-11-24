@@ -28,6 +28,12 @@ import { up as ensureWorkshopWorkingHours } from './database/migrations/056-work
 import { up as ensureWorkshopOvertime } from './database/migrations/057-workshop-overtime.js';
 import { up as ensureWorkshopTimeOperational } from './database/migrations/058-workshop-time-operational.js';
 import { up as ensureWorkshopCommercialReviews } from './database/migrations/059-workshop-commercial-reviews.js';
+import { up as ensureWorkshopDailyEntries } from './database/migrations/060-workshop-daily-entries.js';
+import { up as ensureWorkshopDeclaredHours } from './database/migrations/061-workshop-declared-hours.js';
+import { up as ensureCatalogDivisionsAndDpWorkflow } from './database/migrations/062-catalog-divisions-and-dp-workflow.js';
+import { up as ensureDpTimeStage } from './database/migrations/063-dp-time-stage.js';
+import { up as ensureDpConfiguration } from './database/migrations/064-dp-configuration.js';
+import { up as ensureDpWorkSnapshots } from './database/migrations/065-dp-work-snapshots.js';
 import { csrfProtection } from './middlewares/csrf-protection.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
@@ -84,6 +90,8 @@ app.use(
 
 // 3. Parsers de petición
 app.use(cookieParser());
+// The editable matrix contains all body types, pieces and positions in one version.
+app.use('/api/settings/dp', express.json({ limit: '2mb' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -206,6 +214,12 @@ if (env.NODE_ENV !== 'test') {
       await ensureWorkshopOvertime(sequelize.getQueryInterface());
       await ensureWorkshopTimeOperational(sequelize.getQueryInterface());
       await ensureWorkshopCommercialReviews(sequelize.getQueryInterface());
+      await ensureWorkshopDailyEntries(sequelize.getQueryInterface());
+      await ensureWorkshopDeclaredHours(sequelize.getQueryInterface());
+      await ensureCatalogDivisionsAndDpWorkflow(sequelize.getQueryInterface());
+      await ensureDpTimeStage(sequelize.getQueryInterface());
+      await ensureDpConfiguration(sequelize.getQueryInterface());
+      await ensureDpWorkSnapshots(sequelize.getQueryInterface());
       try {
         await sequelize.sync({ alter: true });
         logger.info('Modelos sincronizados con la base de datos (alter: true).');

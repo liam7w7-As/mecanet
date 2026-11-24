@@ -14,12 +14,35 @@ const interval = {
   note,
 };
 
+const validateInterval = (
+  value: { startedAt: string; endedAt: string },
+  context: z.RefinementCtx,
+): void => {
+  const start = Date.parse(value.startedAt);
+  const end = Date.parse(value.endedAt);
+  if (end - start < 60_000) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endedAt'],
+      message: 'El intervalo debe durar al menos un minuto',
+    });
+  }
+  if (start > Date.now() || end > Date.now()) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endedAt'],
+      message: 'No se pueden registrar horas futuras',
+    });
+  }
+};
+
 export const createWorkshopTimeRequestSchema = z
   .union([
     z
       .object({
         workOrderId: positiveId,
         itemId: positiveId,
+        dpStageId: positiveId.optional(),
         userId: positiveId.optional(),
         overtime: z.boolean().default(false),
         activityStatus: z.enum(['en_proceso', 'completado']).optional(),
@@ -28,24 +51,23 @@ export const createWorkshopTimeRequestSchema = z
       .strict(),
     z.object({ sourceSessionId: positiveId, ...interval }).strict(),
   ])
-  .superRefine((value, context) => {
-    const start = Date.parse(value.startedAt);
-    const end = Date.parse(value.endedAt);
-    if (end - start < 60_000) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['endedAt'],
-        message: 'El intervalo debe durar al menos un minuto',
-      });
-    }
-    if (start > Date.now() || end > Date.now()) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['endedAt'],
-        message: 'No se pueden registrar horas futuras',
-      });
-    }
-  });
+  .superRefine(validateInterval);
+
+const dailyEntryFields = {
+  clientRequestId: z.string().uuid().transform((value) => value.toLowerCase()),
+  workOrderId: positiveId,
+  itemId: positiveId,
+  dpStageId: positiveId.optional(),
+  userId: positiveId.optional(),
+  fecha: z.string().date('La fecha debe ser YYYY-MM-DD'),
+  note,
+  activityStatus: z.enum(['en_proceso', 'completado']),
+};
+export const createWorkshopDailyEntrySchema = z.union([
+  z.object({ ...dailyEntryFields, horasUtilizadas: z.number().finite().min(1 / 60, 'Indica al menos un minuto de trabajo') }).strict(),
+  // Keep previously saved drafts and queued requests compatible.
+  z.object({ ...dailyEntryFields, ...interval }).strict().superRefine(validateInterval),
+]);
 
 export const reviewWorkshopTimeRequestSchema = z.object({ approve: z.boolean(), note }).strict();
 export const workshopTimeQuerySchema = z
@@ -59,6 +81,7 @@ export const pauseWorkshopTimerSchema = z.object({ note }).strict();
 export const workshopTimeRequestParamsSchema = z.object({ id: z.coerce.number().int().positive() });
 
 export type CreateWorkshopTimeRequestInput = z.input<typeof createWorkshopTimeRequestSchema>;
+export type CreateWorkshopDailyEntryInput = z.input<typeof createWorkshopDailyEntrySchema>;
 export type ReviewWorkshopTimeRequestInput = z.infer<typeof reviewWorkshopTimeRequestSchema>;
 export type WorkshopTimeQueryInput = z.infer<typeof workshopTimeQuerySchema>;
 
@@ -67,15 +90,21 @@ export interface WorkshopTimeWorker {
   nombre: string;
 }
 export interface WorkshopTimeEligibleItem {
+  dpStageId?: number;
+  dpStageLabel?: string;
+  blocked?: boolean;
   workOrderId: number;
   workOrderCode: string;
   patente: string | null;
   itemId: number;
   description: string;
   userId: number;
+  division?: 'DP' | 'ACC' | 'MEC' | null;
 }
 export interface WorkshopTimeEntry {
+  dpStageId?: number | null;
   id: number;
+  reportedDate?: string | null;
   workOrderId: number;
   workOrderCode: string;
   itemId: number;
@@ -92,9 +121,16 @@ export interface WorkshopTimeEntry {
   note: string | null;
   supersededAt: string | null;
   scheduledEndAt: string | null;
+  activityStatus?: 'pendiente' | WorkshopTimeActivityStatus | 'omitido' | null;
+  ownPartCompleted?: boolean;
 }
 export interface WorkshopTimeRequestRecord {
+  dpStageId?: number | null;
   id: number;
+  reportedDate?: string | null;
+  dailyEntry?: boolean;
+  clientRequestId?: string | null;
+  teamPending?: boolean;
   kind: WorkshopTimeRequestKind;
   overtime: boolean;
   activityStatus: WorkshopTimeActivityStatus | null;
@@ -119,6 +155,7 @@ export interface WorkshopTimeRequestRecord {
   reviewNote: string | null;
 }
 export interface WorkshopTimeJournal {
+  timezone?: string;
   entries: WorkshopTimeEntry[];
   requests: WorkshopTimeRequestRecord[];
   workers: WorkshopTimeWorker[];

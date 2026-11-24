@@ -37,7 +37,6 @@ export default function WorkOrderHistoryPanel({ workOrder, active = true, reques
   return <details className="workshop-insight-panel" open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
     <summary><span><History aria-hidden="true" />Comparar trabajos anteriores</span><span>Horas y precios de referencia</span></summary>
     <div className="workshop-insight-body">
-      <p className="workshop-labor-help">Consulta servicios terminados de órdenes anteriores finalizadas o entregadas. Esta referencia no modifica los precios ni las estimaciones actuales.</p>
       {!services.length ? <p>Esta OT no tiene servicios para comparar.</p> : <>
         <label>Servicio para comparar<select value={itemId} disabled={!active} onChange={(event) => { setItemId(event.target.value); setPage(1); }}><option value="">Seleccionar servicio</option>{services.map((item) => <option key={item.id} value={item.id}>{item.descripcion}</option>)}</select></label>
         {selected && <div className="workshop-insight-metrics" aria-label="Trabajo actual"><div><span>Cantidad actual</span><strong>{selected.cantidad} {selected.unidadMedida}</strong></div><div><span>Estimación actual por unidad</span><strong>{hours(selected.horasHombreEstimadas)}</strong></div><div><span>Horas actuales del servicio</span><strong>{hours(selected.horasHombreReales)}</strong></div></div>}

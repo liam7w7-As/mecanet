@@ -8,11 +8,13 @@ import {
 import { Router } from 'express';
 import { z } from 'zod';
 
+import { dpCatalogRouter } from './dp-configuration.routes.js';
 import {
   adjustStockHandler,
   createCatalogItemHandler,
   deleteCatalogItemHandler,
   getCatalogItemByIdHandler,
+  getCatalogEventsHandler,
   getCatalogItemsHandler,
   updateCatalogItemHandler,
 } from '../controllers/catalog.controller.js';
@@ -62,6 +64,19 @@ const authorizeAny = (
 };
 
 catalogRouter.use(authenticate);
+catalogRouter.use('/dp', authorizeAny([
+  { modulo: 'taller', accion: 'read' },
+  { modulo: 'comercial', accion: 'read' },
+]), dpCatalogRouter);
+
+catalogRouter.get(
+  '/events',
+  authorizeAny([
+    { modulo: 'taller', accion: 'read' },
+    { modulo: 'comercial', accion: 'read' },
+  ]),
+  getCatalogEventsHandler,
+);
 
 catalogRouter.get(
   '/',

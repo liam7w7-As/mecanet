@@ -8,21 +8,7 @@ const interval = {
     endedAt: z.string().datetime({ offset: true }),
     note,
 };
-export const createWorkshopTimeRequestSchema = z
-    .union([
-    z
-        .object({
-        workOrderId: positiveId,
-        itemId: positiveId,
-        userId: positiveId.optional(),
-        overtime: z.boolean().default(false),
-        activityStatus: z.enum(['en_proceso', 'completado']).optional(),
-        ...interval,
-    })
-        .strict(),
-    z.object({ sourceSessionId: positiveId, ...interval }).strict(),
-])
-    .superRefine((value, context) => {
+const validateInterval = (value, context) => {
     const start = Date.parse(value.startedAt);
     const end = Date.parse(value.endedAt);
     if (end - start < 60_000) {
@@ -39,7 +25,38 @@ export const createWorkshopTimeRequestSchema = z
             message: 'No se pueden registrar horas futuras',
         });
     }
-});
+};
+export const createWorkshopTimeRequestSchema = z
+    .union([
+    z
+        .object({
+        workOrderId: positiveId,
+        itemId: positiveId,
+        dpStageId: positiveId.optional(),
+        userId: positiveId.optional(),
+        overtime: z.boolean().default(false),
+        activityStatus: z.enum(['en_proceso', 'completado']).optional(),
+        ...interval,
+    })
+        .strict(),
+    z.object({ sourceSessionId: positiveId, ...interval }).strict(),
+])
+    .superRefine(validateInterval);
+const dailyEntryFields = {
+    clientRequestId: z.string().uuid().transform((value) => value.toLowerCase()),
+    workOrderId: positiveId,
+    itemId: positiveId,
+    dpStageId: positiveId.optional(),
+    userId: positiveId.optional(),
+    fecha: z.string().date('La fecha debe ser YYYY-MM-DD'),
+    note,
+    activityStatus: z.enum(['en_proceso', 'completado']),
+};
+export const createWorkshopDailyEntrySchema = z.union([
+    z.object({ ...dailyEntryFields, horasUtilizadas: z.number().finite().min(1 / 60, 'Indica al menos un minuto de trabajo') }).strict(),
+    // Keep previously saved drafts and queued requests compatible.
+    z.object({ ...dailyEntryFields, ...interval }).strict().superRefine(validateInterval),
+]);
 export const reviewWorkshopTimeRequestSchema = z.object({ approve: z.boolean(), note }).strict();
 export const workshopTimeQuerySchema = z
     .object({

@@ -175,9 +175,6 @@ export const ReportsPage = () => {
         ))}
       </nav>
 
-      <p className="report-preview-context">
-        Los filtros seleccionados se aplican a la vista previa, al PDF y al archivo Excel.
-      </p>
       <div className="report-workspace">
         {selected === 'workshop-cost' && <WorkshopCostReportPanel {...filters} />}
         {selected === 'finance' && (

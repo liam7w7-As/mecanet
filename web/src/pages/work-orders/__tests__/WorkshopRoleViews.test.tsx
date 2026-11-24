@@ -232,7 +232,6 @@ describe('Updated workshop role workspaces', () => {
     renderPage(<DashboardPage />);
     expect(await screen.findByText('Recaudación del mes')).toBeInTheDocument();
     expect(screen.getByText('OTs en taller')).toBeInTheDocument();
-    expect(screen.getByText(/OT, cotizaciones y cobros según tu acceso/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Nueva cotización' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Revisar abonos/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ajustar' })).not.toBeInTheDocument();

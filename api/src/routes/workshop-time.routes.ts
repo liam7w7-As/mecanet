@@ -1,4 +1,5 @@
 import {
+  createWorkshopDailyEntrySchema,
   createWorkshopTimeRequestSchema,
   reviewWorkshopTimeRequestSchema,
   workshopTimeEligibleQuerySchema,
@@ -12,6 +13,7 @@ import { authorizeRoles } from '../middlewares/authorize-roles.js';
 import { authorize } from '../middlewares/authorize.js';
 import { validate } from '../middlewares/validate.js';
 import {
+  createWorkshopDailyEntry,
   createWorkshopTimeRequest,
   getWorkshopTimeEligibleItems,
   getWorkshopTimeJournal,
@@ -47,6 +49,14 @@ workshopTimeRouter.get(
   asyncHandler(async (req, res) => {
     const query = workshopTimeEligibleQuerySchema.parse(req.query);
     res.json({ items: await getWorkshopTimeEligibleItems(actor(req), query.userId, query.fecha) });
+  }),
+);
+workshopTimeRouter.post(
+  '/daily-entries',
+  authorize('taller', 'update'),
+  validate({ body: createWorkshopDailyEntrySchema }),
+  asyncHandler(async (req, res) => {
+    res.status(201).json({ request: await createWorkshopDailyEntry(actor(req), req.body) });
   }),
 );
 workshopTimeRouter.post(

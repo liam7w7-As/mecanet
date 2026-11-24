@@ -25,32 +25,32 @@ export declare const updateSupplierSchema: z.ZodEffects<z.ZodObject<{
     contactoNombre: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     notas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
 }, "strip", z.ZodTypeAny, {
-    email?: string | null | undefined;
     nombre?: string | undefined;
+    email?: string | null | undefined;
     rut?: string | null | undefined;
     telefono?: string | null | undefined;
     direccion?: string | null | undefined;
     notas?: string | null | undefined;
     contactoNombre?: string | null | undefined;
 }, {
-    email?: string | null | undefined;
     nombre?: string | undefined;
+    email?: string | null | undefined;
     rut?: string | null | undefined;
     telefono?: string | null | undefined;
     direccion?: string | null | undefined;
     notas?: string | null | undefined;
     contactoNombre?: string | null | undefined;
 }>, {
-    email?: string | null | undefined;
     nombre?: string | undefined;
+    email?: string | null | undefined;
     rut?: string | null | undefined;
     telefono?: string | null | undefined;
     direccion?: string | null | undefined;
     notas?: string | null | undefined;
     contactoNombre?: string | null | undefined;
 }, {
-    email?: string | null | undefined;
     nombre?: string | undefined;
+    email?: string | null | undefined;
     rut?: string | null | undefined;
     telefono?: string | null | undefined;
     direccion?: string | null | undefined;

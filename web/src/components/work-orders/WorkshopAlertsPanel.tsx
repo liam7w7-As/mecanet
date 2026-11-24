@@ -42,7 +42,6 @@ export default function WorkshopAlertsPanel({ active = true, initialDate, onStat
     <summary><span><BellRing aria-hidden="true" />{mechanic ? 'Mis alertas del taller' : 'Alertas del taller'}</span><span>{query.data ? `${alerts.length} avisos` : 'Seguimiento operativo'}</span></summary>
     <div className="workshop-insight-body">
       <label>Día de jornada<input type="date" value={date} disabled={!active || mutation.isPending} onChange={(event) => setDate(event.target.value)} /></label>
-      <p className="workshop-labor-help">El día elegido se usa para la jornada según la configuración del taller. Las demás alertas reflejan el estado actual de las OT.</p>
       {!validInsightDate(date) && <p role="alert">Selecciona una fecha válida para consultar las alertas.</p>}
       {query.isPending && active && expanded && validInsightDate(date) && <p role="status">Consultando alertas del taller…</p>}
       {query.isError && <div className="workshop-labor-error" role="alert"><span>No se pudieron consultar las alertas del taller.</span><button type="button" disabled={!active || !expanded} onClick={() => void query.refetch()}>Reintentar alertas del taller</button></div>}

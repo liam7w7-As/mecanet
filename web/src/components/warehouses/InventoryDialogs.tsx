@@ -305,7 +305,6 @@ export function WarehouseFormModal({
         <label className="inventory-active-control">
           <span>
             <strong>Almacén activo</strong>
-            <small>Permite registrar movimientos y despachar repuestos desde esta ubicación.</small>
           </span>
           <input
             type="checkbox"
@@ -356,7 +355,6 @@ export function StockMovementModal({
       id="movement-modal-title"
       title="Movimiento de inventario"
       code={warehouse.nombre}
-      context="Entrada, salida o ajuste de existencias"
       submitLabel="Guardar movimiento"
       dirty={
         tipo !== 'ingreso' ||
@@ -447,11 +445,6 @@ export function StockMovementModal({
             current={stock}
             next={next}
           />
-        )}
-        {tipo === 'ajuste' && (
-          <p className="inventory-field-hint">
-            En un ajuste, la cantidad corresponde al stock final del almacén.
-          </p>
         )}
         <label>
           Motivo

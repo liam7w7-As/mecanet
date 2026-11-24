@@ -33,11 +33,23 @@ const IMPORT_ID_COLUMN: ImportColumnDefinition = {
 export const CATALOG_IMPORT_COLUMNS: readonly ImportColumnDefinition[] = [
   IMPORT_ID_COLUMN,
   {
+    key: 'division', header: 'División', required: false,
+    description: 'DP (Desabolladura y Pintura), ACC (Repuestos) o MEC (Mecánica). Vacío conserva el valor actual al actualizar.',
+    example: 'ACC', aliases: ['division', 'area', 'área'], width: 16,
+    list: ['DP', 'ACC', 'MEC'],
+  },
+  {
+    key: 'subtipo', header: 'Subtipo', required: false,
+    description: 'DP: servicio_dp. ACC: en_stock o a_pedido. MEC: estandar o especifico. Vacío conserva el valor actual si no cambia la división.',
+    example: 'en_stock', aliases: ['subtipo', 'sub tipo', 'clasificacion'], width: 20,
+    list: ['servicio_dp', 'en_stock', 'a_pedido', 'estandar', 'especifico'],
+  },
+  {
     key: 'tipo',
     header: 'Tipo',
     required: false,
     description:
-      'Repuesto, Servicio estándar o Servicio específico. Si se omite, se deduce por el código.',
+      'Repuesto, Servicio estándar o Servicio específico. Opcional cuando se indica división/subtipo. Al actualizar se conserva si no se informa clasificación.',
     example: 'Repuesto',
     aliases: ['tipo', 'tipo item', 'tipo de item', 'categoria', 'rubro'],
     width: 20,

@@ -128,6 +128,17 @@ beforeEach(() => {
 });
 
 describe('Workshop time panel', () => {
+  it('shows declared quantities by date without interval correction actions', async () => {
+    journal.entries[0] = { ...journal.entries[0], kind: 'manual', reportedDate: '2025-10-04', startedAt: '2025-10-04T03:00:00Z', endedAt: '2025-10-04T03:00:00Z', durationMinutes: 90, minutesOnDate: 90 };
+    journal.requests = [{ ...makeRequest(), reportedDate: '2025-10-04', startedAt: '2025-10-04T03:00:00Z', endedAt: '2025-10-04T03:00:00Z' }];
+    mount();
+    await screen.findByText('OT-12 · Servicio anterior reasignado');
+    expect(screen.getAllByText('04-10-2025 · Horas declaradas')).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Solicitar corrección #30' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/→/)).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('submits the worker activity for approval and keeps corrections free of replayable status', async () => {
     mount();
     await screen.findByRole('option', { name: 'ABCD12 · OT-12 · Diagnóstico' });

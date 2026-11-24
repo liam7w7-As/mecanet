@@ -25,6 +25,15 @@ const model = (session: CostReportSession) => session as unknown as WorkOrderIte
 afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
 
 describe('Canonical labor seconds without any database', () => {
+  it('counts declared daily hours as a dated quantity rather than a midnight interval', () => {
+    const session = clock(0, 1, {
+      kind: 'manual', startedAt: dayStart, endedAt: dayStart,
+      durationMinutes: 90, reportedDate: '2026-11-16',
+    });
+    expect(canonicalSessionMinutes(session, instant)).toBe(90);
+    expect(sessionMinutesInRange(session, dayStart, dayEnd, instant)).toBe(90);
+    expect(sessionMinutesInRange(session, dayEnd, new Date(dayEnd.getTime() + 86_400_000), instant)).toBe(0);
+  });
   it('recovers 44s + 45s despite the historical zero-minute storage marker', () => {
     const sessions = [clock(44), clock(45, 2)];
     expect(sessions.every((s) => s.durationMinutes === 0)).toBe(true);

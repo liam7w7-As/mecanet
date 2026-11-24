@@ -68,6 +68,14 @@ const report = (
 ) => calculateWorkshopCostReport(selected, { items, assignments, sessions }, start, end, now);
 
 describe('Workshop cost arithmetic without any database imports', () => {
+  it('counts a declared quantity at the date boundary without requiring a physical interval', () => {
+    const declared = session({ kind: 'manual', reportedDate: '2026-11-01', startedAt: start, endedAt: start, durationMinutes: 90 });
+    const result = report([assignment()], [declared]);
+    expect(result.totals).toMatchObject({ actualMinutes: 90, actualHours: 1.5, sessions: 1, runningSessions: 0, actualCost: 15000 });
+    expect(costReportSessionMinutes(declared, end, new Date('2026-11-04T03:00:00Z'), now)).toBe(0);
+    expect(report([assignment()], [{ ...declared, supersededAt: now }]).totals.actualMinutes).toBe(0);
+  });
+
   it('uses exact linked snapshot rates and assignment estimates without multiplying them by item quantity', () => {
     const result = report();
     expect(result.rows[0]).toMatchObject({

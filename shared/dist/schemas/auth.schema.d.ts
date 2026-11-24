@@ -18,14 +18,14 @@ export declare const registerSchema: z.ZodObject<{
     password: z.ZodString;
     roleId: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    nombre: string;
     password: string;
     email: string;
-    nombre: string;
     roleId: number;
 }, {
+    nombre: string;
     password: string;
     email: string;
-    nombre: string;
     roleId: number;
 }>;
 export type LoginInput = z.infer<typeof loginSchema>;

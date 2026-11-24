@@ -75,6 +75,24 @@ const calculate = (value = source(), mechanic = false, tolerances = settings) =>
   calculateWorkshopAlerts(value, tolerances, { id: 7, mechanic }, now, date);
 
 describe('Lunch-aware day alerts', () => {
+  it('counts dated quantities as registered hours without assigning them to midnight intervals', () => {
+    const declared = session({ kind: 'manual', reportedDate: date, startedAt: new Date(`${date}T03:00:00Z`), endedAt: new Date(`${date}T03:00:00Z`), durationMinutes: 60 });
+    const value = source({ workers: [{ userId: 7, name: 'Mecánico', configured: true,
+      start: new Date(`${date}T10:00:00Z`), end: new Date(`${date}T12:00:00Z`),
+      dayStart: new Date(`${date}T03:00:00Z`), dayEnd: new Date('2026-11-17T03:00:00Z'),
+      sessions: [declared],
+    }] });
+    const warning = calculate(value).alerts.find((alert) => alert.kind === 'unregistered_time');
+    expect(warning?.description).toContain('1 h registradas');
+    expect(warning?.description).toContain('sin intervalo horario');
+    value.workers[0].sessions.push(session({ id: 32, startedAt: new Date(`${date}T10:00:00Z`), endedAt: new Date(`${date}T11:00:00Z`), durationMinutes: 60 }));
+    expect(calculate(value).alerts.some((alert) => ['unregistered_time', 'no_daily_record'].includes(alert.kind))).toBe(false);
+    value.workers[0].sessions = [{ ...declared, overtime: true }];
+    expect(calculate(value).alerts.some((alert) => alert.kind === 'no_daily_record')).toBe(true);
+    value.workers[0].sessions = [{ ...declared, supersededAt: now }];
+    expect(calculate(value).alerts.some((alert) => alert.kind === 'no_daily_record')).toBe(true);
+  });
+
   const split = () => source({ workers: [{ userId: 7, name: 'Mecánico', configured: true,
     start: new Date('2026-11-16T12:00:00Z'), end: new Date('2026-11-16T16:00:00Z'),
     intervals: [

@@ -1,6 +1,7 @@
 import { Transaction } from 'sequelize';
 
 import { hasPermission } from './permission.service.js';
+import { assertDpItemStatus, getDpStages, setDpStageStatus } from './work-order-dp-state.js';
 import { recordChecklistStatusChange } from './work-order-labor-events.js';
 import { closeWorkOrderTimers } from './work-order-labor-sessions.js';
 import { requireQualitySupervisor, revokeFinalQuality } from './work-order-quality-state.js';
@@ -40,28 +41,37 @@ export const getWorkOrderQuality = async (workOrderId: number, userId: number) =
   };
 };
 
-export const reviewWorkOrderQuality = async (workOrderId: number, itemId: number, data: ReviewWorkOrderQualityInput, userId: number) => {
+export const reviewWorkOrderQuality = async (workOrderId: number, itemId: number, data: ReviewWorkOrderQualityInput, userId: number, dpOnly = false) => {
   await withWorkshopTransaction(async (transaction) => {
     const actor = await requireQualitySupervisor(userId, transaction);
+    if (!(await hasPermission(userId, 'taller', 'update'))) throw ApiError.forbidden('No tienes permiso para revisar la calidad');
     const order = await WorkOrder.findByPk(workOrderId, { transaction, lock: Transaction.LOCK.UPDATE });
     if (!order) throw ApiError.notFound('Orden de trabajo no encontrada');
     if (['entregada', 'cancelada'].includes(order.estado)) throw ApiError.badRequest('No se puede revisar la calidad de una orden cerrada');
     const item = await WorkOrderItem.findOne({ where: { id: itemId, workOrderId }, transaction, lock: Transaction.LOCK.UPDATE });
     if (!item || item.tipoLinea === 'parte') throw ApiError.badRequest('El control individual de calidad corresponde a los servicios de esta OT');
+    if (dpOnly && item.division !== 'DP') throw ApiError.badRequest('El CCF corresponde a los trabajos D&P');
     if (data.decision === 'aprobar' && item.qualityStatus === 'aprobado') return;
     if (data.decision === 'rechazar' && item.qualityStatus === 'rechazado' && item.estadoOperativo === 'pendiente' && item.qualityNote === data.nota && data.members === undefined) return;
     if (!['completado', 'omitido'].includes(item.estadoOperativo)) throw ApiError.badRequest('El servicio debe estar terminado u omitido antes de revisarlo');
     const decision = data.decision === 'aprobar' ? 'aprobado' : 'rechazado';
+    if (decision === 'aprobado') await assertDpItemStatus(item, 'completado', transaction);
     if (data.decision === 'rechazar') {
       await closeWorkOrderTimers(workOrderId, transaction, item.id);
       const previous = item.estadoOperativo;
       await item.update({ estadoOperativo: 'pendiente' }, { transaction });
       await recordChecklistStatusChange(item, previous, userId, transaction);
       await WorkOrderItemAssignment.update({ completedAt: null }, { where: { workOrderItemId: item.id, active: true }, transaction });
+      if (item.division === 'DP') {
+        const stages = await getDpStages(item.id, transaction);
+        const last = stages.at(-1);
+        if (last) await setDpStageStatus(last, 'pendiente', transaction);
+      }
       if (data.members !== undefined) await replaceItemTeam(order, item, { members: data.members, motivo: data.nota }, userId, transaction);
       await revokeFinalQuality(workOrderId, userId, data.nota, transaction);
     }
-    await item.update({ qualityStatus: decision, qualityReviewedAt: new Date(), qualityReviewedBy: userId, qualityNote: data.nota?.trim() || null }, { transaction });
+    await item.update({ qualityStatus: decision, qualityReviewedAt: new Date(), qualityReviewedBy: userId, qualityNote: data.nota?.trim() || null,
+      ...(item.division === 'DP' ? { ccfStatus: decision, ccfReviewedAt: new Date(), ccfReviewedBy: userId, ccfNotes: data.nota?.trim() || null } : {}) }, { transaction });
     const review = await WorkOrderQualityReview.create({ workOrderId, workOrderItemId: itemId, decision, reviewedBy: userId, reviewerName: actor.nombre, note: data.nota?.trim() || null }, { transaction });
     await WorkOrderEvent.create({ workOrderId, actorUserId: userId, tipo: 'actualizacion', descripcion: `Calidad ${decision === 'aprobado' ? 'aprobada' : 'rechazada'}: ${item.descripcion}`, metadata: { qualityReviewId: review.id, itemId, decision, note: data.nota ?? null } }, { transaction });
     await syncMirrorQuotationFromWorkOrder(workOrderId, transaction, true);

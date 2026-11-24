@@ -30,9 +30,9 @@ export const WorkshopDailyReportPage = () => {
   const metrics = [
     { title: 'Horas registradas', value: report ? formatHours(report.totalHoras) : '—', detail: `${report?.totalSesiones ?? 0} sesiones de trabajo`, icon: Clock3, testId: 'daily-hours' },
     { title: 'Horas extra', value: report ? formatHours(report.totalHorasExtra) : '—', detail: 'Incluidas en las horas registradas', icon: Clock3, testId: 'daily-overtime' },
-    { title: 'Trabajos completados', value: String(report?.totalItemsCompletados ?? 0), detail: 'En la fecha seleccionada', icon: CheckCircle2, testId: 'daily-completed' },
+    { title: 'Trabajos completados', value: String(report?.totalItemsCompletados ?? 0), detail: '', icon: CheckCircle2, testId: 'daily-completed' },
     { title: 'Personas en curso', value: String(report?.usuarios.filter((person) => person.enCurso).length ?? 0), detail: `${report?.usuarios.filter((person) => person.sesiones > 0 || person.eventos > 0 || person.enCurso).length ?? 0} personas con actividad`, icon: Users, testId: 'daily-running' },
-    { title: 'Órdenes con actividad', value: String(report?.ordenes.length ?? 0), detail: 'Trabajo registrado en el día', icon: Wrench, testId: 'daily-orders' },
+    { title: 'Órdenes con actividad', value: String(report?.ordenes.length ?? 0), detail: '', icon: Wrench, testId: 'daily-orders' },
   ];
   return <div className="workspace-page workspace-dashboard workshop-role-report min-w-0 space-y-5">
     <header className="page-banner">

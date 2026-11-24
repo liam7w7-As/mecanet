@@ -115,9 +115,6 @@ export const PurchaseVehiclePicker = ({ value, onChange }: PurchaseVehiclePicker
   return (
     <fieldset className="purchases-vehicle-picker">
       <legend className="text-sm font-semibold text-brand-ink">Vehículo asociado (opcional)</legend>
-      <p className="mt-1 text-xs text-brand-muted">
-        Normalmente un vehículo de taller. También puedes imputar la compra a un vehículo de flota.
-      </p>
 
       <div className="mt-3 grid grid-cols-3 gap-2">
         {[

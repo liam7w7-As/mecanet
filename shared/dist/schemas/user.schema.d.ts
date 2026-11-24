@@ -7,15 +7,15 @@ export declare const createUserSchema: z.ZodObject<{
     password: z.ZodString;
     roleId: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    nombre: string;
     password: string;
     email: string;
-    nombre: string;
     roleId: number;
     username: string;
 }, {
+    nombre: string;
     password: string;
     email: string;
-    nombre: string;
     roleId: number;
     username: string;
 }>;
@@ -26,26 +26,26 @@ export declare const updateUserSchema: z.ZodEffects<z.ZodObject<{
     roleId: z.ZodOptional<z.ZodNumber>;
     activo: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
-    email?: string | undefined;
     nombre?: string | undefined;
+    email?: string | undefined;
     roleId?: number | undefined;
     username?: string | undefined;
     activo?: boolean | undefined;
 }, {
-    email?: string | undefined;
     nombre?: string | undefined;
+    email?: string | undefined;
     roleId?: number | undefined;
     username?: string | undefined;
     activo?: boolean | undefined;
 }>, {
-    email?: string | undefined;
     nombre?: string | undefined;
+    email?: string | undefined;
     roleId?: number | undefined;
     username?: string | undefined;
     activo?: boolean | undefined;
 }, {
-    email?: string | undefined;
     nombre?: string | undefined;
+    email?: string | undefined;
     roleId?: number | undefined;
     username?: string | undefined;
     activo?: boolean | undefined;

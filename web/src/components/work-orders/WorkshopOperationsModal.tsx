@@ -37,7 +37,7 @@ export default function WorkshopOperationsModal({ onClose, initialDate, initialO
   const panel = useModalOverlay({ isOpen: true, onClose: () => request('close'), isPending: pending });
   return createPortal(<div className="reference-modal-overlay fixed inset-0 z-[60] flex items-center justify-center bg-[#18273c55] p-3 backdrop-blur-sm">
     <section ref={panel} role="dialog" aria-modal="true" aria-labelledby="workshop-operations-title" tabIndex={-1} className="reference-dialog workshop-operations-dialog flex max-h-[92dvh] w-full max-w-[1100px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-      <ModalHeader id="workshop-operations-title" title="Jornada y alertas del taller" description="Registros por trabajador, validaciones y seguimiento operativo" badge={<Clock3 />} onClose={() => request('close')} closeDisabled={pending} variant="plain" />
+      <ModalHeader id="workshop-operations-title" title="Jornada y alertas del taller" badge={<Clock3 />} onClose={() => request('close')} closeDisabled={pending} variant="plain" />
       <div className="flex flex-wrap gap-2 border-b border-brand-line px-5 py-3" role="tablist" aria-label="Control de jornada">
         <button type="button" role="tab" aria-selected={tab === 'time'} className={tab === 'time' ? 'primary-button' : 'secondary-button'} onClick={() => request('time')} disabled={pending}>Horas y solicitudes</button>
         {role !== 'mecanico' && <button type="button" role="tab" aria-selected={tab === 'schedule'} className={tab === 'schedule' ? 'primary-button' : 'secondary-button'} onClick={() => request('schedule')} disabled={pending}>Jornada y excepciones</button>}

@@ -406,7 +406,7 @@ describe('FleetVehiclesPage', () => {
     const responsible = form.getByRole('textbox', { name: /^Responsable \/ encargado del vehículo/ });
     expect(owner).toHaveAttribute('maxlength', '180');
     expect(responsible).toHaveAttribute('maxlength', '120');
-    expect(responsible).toHaveAccessibleDescription(/encargado, taller o rentacar/);
+    expect(responsible).toHaveAccessibleDescription(/Puede ser externa a la empresa/);
     fireEvent.change(owner, { target: { value: '  Empresa Arrendadora  ' } });
     fireEvent.change(responsible, { target: { value: 'Taller externo Juan' } });
     fireEvent.click(form.getByRole('button', { name: 'Crear vehículo de flota' }));

@@ -171,33 +171,34 @@ describe('CatalogPage', () => {
     });
   });
 
-  it('renderiza el listado y las tabs de navegación', async () => {
+  it('renderiza el listado y las tabs de navegación por división', async () => {
     renderPage();
 
     expect(await screen.findByText('Cambio de aceite')).toBeInTheDocument();
     expect(screen.getByText('Filtro de aceite')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Servicios Estándar' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Repuestos / Partes' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'D&P (Carrocería / Pintura)' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'ACC (Repuestos / Accesorios)' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'MEC (Mecánica)' })).toBeInTheDocument();
     expect(screen.getByText('Crítico · 3')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Importar' })).toBeInTheDocument();
   });
 
-  it('muestra el filtro de disponibilidad al seleccionar Repuestos', async () => {
+  it('muestra el filtro de disponibilidad al seleccionar ACC (Repuestos)', async () => {
     renderPage();
     await screen.findByText('Cambio de aceite');
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Repuestos / Partes' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'ACC (Repuestos / Accesorios)' }));
     const stockFilter = screen.getByRole('checkbox', { name: 'Solo con stock disponible' });
     fireEvent.click(stockFilter);
 
     await waitFor(() => {
       expect(api.get).toHaveBeenCalledWith('/catalog', {
-        params: expect.objectContaining({ tipo: 'parte', soloConStock: true }),
+        params: expect.objectContaining({ division: 'ACC', soloConStock: true }),
       });
     });
   });
 
-  it('exporta con los mismos filtros de búsqueda, repuestos y stock y limpia stock al cambiar tipo', async () => {
+  it('exporta con los mismos filtros de búsqueda, división y stock y limpia stock al cambiar división', async () => {
     useAuthStore.setState((state) => ({ user: { ...state.user!, role: 'bodeguero', permissions: [
       { modulo: 'taller', accion: 'read' }, { modulo: 'taller', accion: 'export' },
     ] } }));
@@ -206,21 +207,21 @@ describe('CatalogPage', () => {
     expect(screen.queryByRole('button', { name: 'Nuevo item' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Importar' })).not.toBeInTheDocument();
     expect(screen.getByTestId('list-export-catalog')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Repuestos / Partes' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'ACC (Repuestos / Accesorios)' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Solo con stock disponible' }));
     fireEvent.change(screen.getByLabelText('Buscar en catálogo'), { target: { value: 'Filtro' } });
     expect(listExportSpy.mock.lastCall?.[0].filters.search).toBeUndefined();
     await waitFor(() => {
       const props = listExportSpy.mock.lastCall?.[0];
       expect(props).toMatchObject({ target: 'catalog', disabled: false, filters: {
-        page: 1, pageSize: 20, search: 'Filtro', tipo: 'parte', soloConStock: true,
+        page: 1, pageSize: 20, search: 'Filtro', division: 'ACC', soloConStock: true,
       } });
       expect(props.filters).toEqual(vi.mocked(api.get).mock.lastCall?.[1]?.params);
     });
-    fireEvent.click(screen.getByRole('tab', { name: 'Servicios Estándar' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'MEC (Mecánica)' }));
     await waitFor(() => {
       expect(listExportSpy.mock.lastCall?.[0].filters).toEqual({
-        page: 1, pageSize: 20, search: 'Filtro', tipo: 'estandar', soloConStock: undefined,
+        page: 1, pageSize: 20, search: 'Filtro', division: 'MEC', soloConStock: undefined,
       });
       expect(listExportSpy.mock.lastCall?.[0].filters).toEqual(vi.mocked(api.get).mock.lastCall?.[1]?.params);
     });
@@ -231,9 +232,38 @@ describe('CatalogPage', () => {
     await screen.findByText('Cambio de aceite');
 
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'MEC · Mecánica' }));
     fireEvent.click(screen.getByRole('button', { name: 'Servicio estándar' }));
 
     expect(screen.getByLabelText('Stock inicial')).toBeDisabled();
+  });
+
+  it('permite filtrar por D&P sin banner decorativo de flujo', async () => {
+    renderPage();
+    await screen.findByText('Cambio de aceite');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'D&P (Carrocería / Pintura)' }));
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith('/catalog', {
+        params: expect.objectContaining({ division: 'DP' }),
+      });
+    });
+    expect(screen.queryByText(/Flujo quirúrgico de 5 etapas/i)).not.toBeInTheDocument();
+  });
+
+  it('permite filtrar ACC por subtipo a pedido', async () => {
+    renderPage();
+    await screen.findByText('Filtro de aceite');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'ACC (Repuestos / Accesorios)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'A pedido (por encargo)' }));
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith('/catalog', {
+        params: expect.objectContaining({ division: 'ACC', subtipo: 'a_pedido' }),
+      });
+    });
   });
 
   it('deshabilita la exportación del catálogo mientras carga y cuando falla el listado', async () => {

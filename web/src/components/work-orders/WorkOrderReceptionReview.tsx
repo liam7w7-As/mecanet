@@ -32,7 +32,6 @@ export default function WorkOrderReceptionReview(props: Props) {
       <ModalHeader
         id="confirm-ot-title"
         title="Confirmar recepción de OT"
-        description="Revisa tu orden antes de confirmar la recepción."
         variant="brand"
         onClose={props.onEdit}
         closeDisabled={pending}
@@ -40,7 +39,7 @@ export default function WorkOrderReceptionReview(props: Props) {
       <div className="reception-review-body">
         {props.quotationCode && (
           <p className="reception-origin">
-            Desde {props.quotationCode} · Los trabajos cotizados se conservan.
+            Desde {props.quotationCode}
           </p>
         )}
         <div className="reception-review-vehicle">

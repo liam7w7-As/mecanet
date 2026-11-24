@@ -184,7 +184,6 @@ describe('DashboardPage', () => {
     useAuthStore.setState({ user: { id: 2, nombre: 'Vendedora', email: 'ventas@example.com', role: 'vendedor' } });
     renderPage();
     expect(await screen.findByTestId('active-work-orders')).toHaveTextContent('8');
-    expect(screen.getByText(/OT, cotizaciones y cobros según tu acceso/)).toBeInTheDocument();
     expect(screen.queryByText('Mis OTs en taller')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Nueva cotización/ })).toHaveAttribute('href', '/quotations/new');
     expect(screen.queryByRole('link', { name: 'Caja del día' })).not.toBeInTheDocument();

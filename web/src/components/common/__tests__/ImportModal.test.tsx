@@ -106,7 +106,7 @@ describe('ImportModal', () => {
       screen.getByRole('dialog', { name: 'Importar catálogo' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Revisa los registros nuevos y los cambios/i),
+      screen.getByText(/Sube un Excel con repuestos y servicios/i),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Descargar plantilla/i }));

@@ -41,20 +41,18 @@ const COPY: Record<
 > = {
   catalog: {
     title: 'Importar catálogo',
-    description:
-      'Sube un Excel con repuestos y servicios. Revisa los registros nuevos y los cambios en los existentes antes de confirmar.',
+    description: 'Sube un Excel con repuestos y servicios.',
     success: 'Catálogo importado',
   },
   vehicles: {
     title: 'Importar vehículos de taller',
     description:
-      'Sube un Excel con vehículos de clientes. Revisa las altas y actualizaciones; los propietarios nuevos se crean automáticamente.',
+      'Sube un Excel con vehículos de clientes. Los propietarios nuevos se crean automáticamente.',
     success: 'Vehículos de taller importados',
   },
   'fleet-vehicles': {
     title: 'Importar vehículos de flota',
-    description:
-      'Sube un Excel con vehículos de uso interno. Revisa los registros nuevos, las actualizaciones y los conflictos antes de confirmar.',
+    description: 'Sube un Excel con vehículos de uso interno.',
     success: 'Vehículos de flota importados',
   },
 };
@@ -403,11 +401,9 @@ export default function ImportModal({ target, onClose }: ImportModalProps) {
 
               {file && (
                 <div className="import-review-actions">
-                  <p>
-                    {activePreview
-                      ? 'Revisa los cambios de cada fila antes de importar.'
-                      : 'Genera la vista previa del archivo seleccionado para continuar.'}
-                  </p>
+                  {!activePreview && (
+                    <p>Genera la vista previa del archivo seleccionado para continuar.</p>
+                  )}
                   <button
                     type="button"
                     className="reception-secondary-button"

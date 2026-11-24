@@ -1954,6 +1954,8 @@ export async function getCatalogReportPreview(filters: CatalogReportFilters & Sa
     items: items.slice(0, PREVIEW_LIMIT).map((item) => ({
       id: item.id,
       tipo: item.tipo,
+      division: item.division ?? (item.tipo === 'parte' ? 'ACC' : 'MEC'),
+      subtipo: item.subtipo ?? (item.tipo === 'parte' ? 'en_stock' : item.tipo === 'especifico' ? 'especifico' : 'estandar'),
       codigo: item.codigo,
       nombre: item.nombre,
       descripcion: item.descripcion,

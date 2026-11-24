@@ -540,7 +540,7 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
                   </span>
                 </h2>
                 <p className="mt-0.5 text-xs text-brand-muted">
-                  Documentación interna del vehículo. Los vencimientos generan alertas.
+                  Los vencimientos generan alertas.
                 </p>
               </div>
               {canCreateFleet && (
@@ -567,7 +567,6 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
                     {documents.length ? <ul className="fleet-document-list mt-3 space-y-3">{documents.map(renderDocument)}</ul> : <div className="py-5 text-center">
                       <FilePlus2 className="mx-auto h-7 w-7 text-brand-muted" aria-hidden="true" />
                       <p className="mt-2 text-sm font-semibold text-amber-700">Pendiente de registro</p>
-                      <p className="mt-1 text-xs text-brand-muted">Carga el archivo e informa su vencimiento cuando esté disponible.</p>
                       {canCreateFleet && <button type="button" onClick={() => setDocumentForm({ initialName: nombre })} className="secondary-button mt-3 inline-flex min-h-9 items-center gap-1.5 px-3 text-xs font-bold" aria-label={`Registrar ${nombre}`}><Plus className="h-4 w-4" aria-hidden="true" />Registrar documento</button>}
                     </div>}
                   </section>;
@@ -576,7 +575,7 @@ export const FleetVehicleDetail = ({ vehicleId, showOwner = false, onClose }: Fl
             </section>
             <section className="mt-6 border-t border-brand-line pt-4" aria-label="Documentos adicionales">
               <h3 className="text-sm font-bold text-brand-primaryInk">Documentos adicionales <span className="font-normal text-brand-muted">({additionalDocuments.length})</span></h3>
-              <p className="mt-1 text-xs text-brand-muted">Otros certificados, mantenciones o respaldos. Pueden registrarse sin vencimiento.</p>
+              <p className="mt-1 text-xs text-brand-muted">Pueden registrarse sin vencimiento.</p>
               {additionalDocuments.length ? <ul className="fleet-document-list mt-3 space-y-3">{additionalDocuments.map(renderDocument)}</ul> : <p className="mt-3 rounded-lg border border-dashed border-brand-line p-4 text-sm text-brand-muted">Sin documentos adicionales registrados.</p>}
             </section>
 

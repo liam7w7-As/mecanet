@@ -1,6 +1,7 @@
 import { getWorkOrderStatusLabel } from '@unithor/shared';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 
+import { groupDocumentItems } from './reports/document-divisions.js';
 import { getWorkOrderDocumentPricing } from './reports/work-order-document-pricing.js';
 import { Client } from '../models/Client.js';
 import { Quotation } from '../models/Quotation.js';
@@ -258,7 +259,7 @@ const getWorkOrderForPdf = async (workOrderId: number): Promise<WorkOrder> => {
       {
         model: WorkOrderItem,
         as: 'items',
-        attributes: ['id', 'catalogItemId', 'tipoLinea', 'unidadMedida', 'descripcion', 'cantidad', 'precioUnitario', 'subtotal'],
+        attributes: ['id', 'catalogItemId', 'tipoLinea', 'division', 'subtipo', 'unidadMedida', 'descripcion', 'cantidad', 'precioUnitario', 'subtotal'],
       },
       {
         model: Quotation,
@@ -387,9 +388,9 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
   cursorY -= 22;
 
   const tableX = MARGIN;
-  const colDescription = 285;
-  const colQuantity = 60;
-  const colPrice = 92;
+  const colDescription = 250;
+  const colQuantity = 45;
+  const colPrice = 100;
 
   const drawTableHeader = (): void => {
     page = ctx.page;
@@ -424,6 +425,15 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
   drawTableHeader();
   const items = [...(workOrder.items ?? [])].sort((left, right) => left.id - right.id);
   const { pricing, tax: { neto, iva, total } } = getWorkOrderDocumentPricing(items, workOrder.quotation);
+  const divisions = groupDocumentItems(items, (_item, index) => pricing.lines[index]!.subtotal);
+  const drawDivisionHeader = (label: string, continued = false): void => {
+    page = ctx.page;
+    page.drawRectangle({ x: tableX, y: cursorY - 18, width: A4_WIDTH - MARGIN * 2, height: 20, color: TABLE_HEADER });
+    page.drawText(`${label}${continued ? ' (continuación)' : ''}`, {
+      x: tableX + 8, y: cursorY - 12, size: 9, font: fonts.bold, color: PRIMARY,
+    });
+    cursorY -= 22;
+  };
 
   if (items.length === 0) {
     cursorY = ensureSpace(ctx, cursorY, 34);
@@ -445,54 +455,79 @@ export async function generateWorkOrderPdf(workOrderId: number): Promise<Uint8Ar
     });
     cursorY -= 34;
   } else {
-    for (const [index, item] of items.entries()) {
-      const subtotal = pricing.lines[index]!.subtotal;
-      const descriptionLines = wrapText(item.descripcion, fonts.regular, 9, colDescription - 16);
-      const rowHeight = Math.max(28, descriptionLines.length * 12 + 12);
-      cursorY = ensureSpace(ctx, cursorY, rowHeight + 8);
-      page = ctx.page;
+    for (const group of divisions) {
+      const firstHeight = Math.max(28, wrapText(group.lines[0].item.descripcion, fonts.regular, 9, colDescription - 16).length * 12 + 12);
+      cursorY = ensureSpace(ctx, cursorY, firstHeight + 52);
+      if (cursorY === A4_HEIGHT - MARGIN) drawTableHeader();
+      drawDivisionHeader(group.label);
+      for (const [lineIndex, { item, originalIndex }] of group.lines.entries()) {
+        const subtotal = pricing.lines[originalIndex]!.subtotal;
+        const descriptionLines = wrapText(item.descripcion, fonts.regular, 9, colDescription - 16);
+        const rowHeight = Math.max(28, descriptionLines.length * 12 + 12);
+        cursorY = ensureSpace(ctx, cursorY, rowHeight + 8 + (lineIndex === group.lines.length - 1 ? 22 : 0));
+        page = ctx.page;
 
-      if (cursorY === A4_HEIGHT - MARGIN) {
-        drawTableHeader();
+        if (cursorY === A4_HEIGHT - MARGIN) {
+          drawTableHeader();
+          drawDivisionHeader(group.label, true);
+        }
+
+        page.drawRectangle({
+          x: tableX,
+          y: cursorY - rowHeight + 4,
+          width: A4_WIDTH - MARGIN * 2,
+          height: rowHeight,
+          borderColor: BORDER,
+          borderWidth: 0.6,
+        });
+
+        drawTextLines(page, descriptionLines, tableX + 8, cursorY - 9, {
+          font: fonts.regular,
+          size: 9,
+          lineHeight: 12,
+        });
+        page.drawText(String(numberValue(item.cantidad)), {
+          x: tableX + colDescription + 8,
+          y: cursorY - 9,
+          size: 9,
+          font: fonts.regular,
+          color: TEXT,
+        });
+        page.drawText(formatMoney(numberValue(item.precioUnitario)), {
+          x: tableX + colDescription + colQuantity + 8,
+          y: cursorY - 9,
+          size: 9,
+          font: fonts.regular,
+          color: TEXT,
+        });
+        page.drawText(formatMoney(subtotal), {
+          x: tableX + colDescription + colQuantity + colPrice + 8,
+          y: cursorY - 9,
+          size: 9,
+          font: fonts.regular,
+          color: TEXT,
+        });
+        cursorY -= rowHeight;
       }
-
-      page.drawRectangle({
-        x: tableX,
-        y: cursorY - rowHeight + 4,
-        width: A4_WIDTH - MARGIN * 2,
-        height: rowHeight,
-        borderColor: BORDER,
-        borderWidth: 0.6,
+      page.drawRectangle({ x: tableX, y: cursorY - 18, width: A4_WIDTH - MARGIN * 2, height: 20, color: TABLE_HEADER });
+      const amount = formatMoney(group.subtotal);
+      page.drawText(`Subtotal ${group.division === 'DP' ? 'D&P' : group.division} (neto)`, {
+        x: tableX + 8, y: cursorY - 11, size: 9, font: fonts.bold, color: PRIMARY,
       });
-
-      drawTextLines(page, descriptionLines, tableX + 8, cursorY - 9, {
-        font: fonts.regular,
-        size: 9,
-        lineHeight: 12,
+      page.drawText(amount, {
+        x: A4_WIDTH - MARGIN - 8 - fonts.bold.widthOfTextAtSize(amount, 9),
+        y: cursorY - 11, size: 9, font: fonts.bold, color: PRIMARY,
       });
-      page.drawText(String(numberValue(item.cantidad)), {
-        x: tableX + colDescription + 8,
-        y: cursorY - 9,
-        size: 9,
-        font: fonts.regular,
-        color: TEXT,
-      });
-      page.drawText(formatMoney(numberValue(item.precioUnitario)), {
-        x: tableX + colDescription + colQuantity + 8,
-        y: cursorY - 9,
-        size: 9,
-        font: fonts.regular,
-        color: TEXT,
-      });
-      page.drawText(formatMoney(subtotal), {
-        x: tableX + colDescription + colQuantity + colPrice + 8,
-        y: cursorY - 9,
-        size: 9,
-        font: fonts.regular,
-        color: TEXT,
-      });
-      cursorY -= rowHeight;
+      cursorY -= 24;
     }
+  }
+
+  if (pricing.descuentoGeneral > 0) {
+    cursorY = ensureSpace(ctx, cursorY, 20);
+    ctx.page.drawText('Subtotales por área antes del descuento general e IVA.', {
+      x: MARGIN, y: cursorY - 10, size: 8, font: fonts.regular, color: MUTED,
+    });
+    cursorY -= 16;
   }
 
   const summary: Array<[string, number]> = [];

@@ -276,7 +276,8 @@ describe('Work management without losing context', () => {
   it('explains a pending warehouse delivery and keeps completion disabled until it arrives', async () => {
     worksheet.items[0] = { ...worksheet.items[0], tipoLinea: 'parte', awaitingWarehouseDelivery: true };
     open();
-    const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    await screen.findByText(/Pendiente de entrega por bodega/);
+    const task = screen.getByRole('article', { name: 'Trabajo: Revisión de suspensión' });
     expect(within(task).getByText(/Pendiente de entrega por bodega/)).toBeInTheDocument();
     fireEvent.click(within(task).getByRole('button', { name: 'Marcar usado' }));
     expect(api.post).not.toHaveBeenCalled();

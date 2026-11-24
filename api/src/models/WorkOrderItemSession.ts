@@ -54,6 +54,8 @@ export class WorkOrderItemSession extends Model<
   @ForeignKey(() => WorkOrderItem)
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare workOrderItemId: number;
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare dpStageId: CreationOptional<number | null>;
 
   @ForeignKey(() => User)
   @Column({ type: DataType.INTEGER, allowNull: true })
@@ -79,6 +81,8 @@ export class WorkOrderItemSession extends Model<
 
   @Column({ type: DataType.DECIMAL(14, 8), allowNull: true })
   declare durationMinutes: number | null;
+  @Column({ type: DataType.DATEONLY, allowNull: true })
+  declare reportedDate: CreationOptional<string | null>;
 
   @Column({ type: DataType.DATE, allowNull: true })
   declare scheduledEndAt: CreationOptional<Date | null>;

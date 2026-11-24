@@ -71,13 +71,13 @@ export declare const createWorkshopCommercialReviewSchema: z.ZodObject<{
     referenceHourlyRate: z.ZodOptional<z.ZodNumber>;
 }, "strict", z.ZodTypeAny, {
     workOrderItemId: number;
-    reason: "garantia" | "otro" | "error" | "descuento" | "cortesia" | "retrabajo" | "complejidad";
     note: string;
+    reason: "garantia" | "otro" | "error" | "descuento" | "cortesia" | "retrabajo" | "complejidad";
     referenceHourlyRate?: number | undefined;
 }, {
     workOrderItemId: number;
-    reason: "garantia" | "otro" | "error" | "descuento" | "cortesia" | "retrabajo" | "complejidad";
     note: string;
+    reason: "garantia" | "otro" | "error" | "descuento" | "cortesia" | "retrabajo" | "complejidad";
     referenceHourlyRate?: number | undefined;
 }>;
 export type CreateWorkshopCommercialReviewInput = z.infer<typeof createWorkshopCommercialReviewSchema>;

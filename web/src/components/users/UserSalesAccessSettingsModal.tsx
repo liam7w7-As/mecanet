@@ -118,10 +118,10 @@ export default function UserSalesAccessSettingsModal({ user, onClose }: Props) {
       </label>)}</div>
     </fieldset>
 
-    {current.mode === 'own' && <div className="sales-access-explanation"><UserRound aria-hidden="true" /><div><strong>Solo sus propios registros</strong>
-      <p>Verá las OT que creó y las cotizaciones a su nombre, junto con sus pagos. Al guardar se retirarán los accesos compartidos anteriores.</p></div></div>}
-    {current.mode === 'all' && <div className="sales-access-explanation is-all"><Globe2 aria-hidden="true" /><div><strong>Todas las OT y cotizaciones</strong>
-      <p>Incluye los registros de otros vendedores y los que se creen en adelante. El propietario de cada registro se mantiene.</p></div></div>}
+    {current.mode === 'own' && <div className="sales-access-explanation"><UserRound aria-hidden="true" /><div>
+      <p>Al guardar se retirarán los accesos compartidos anteriores.</p></div></div>}
+    {current.mode === 'all' && <div className="sales-access-explanation is-all"><Globe2 aria-hidden="true" /><div>
+      <p>Incluye los que se creen en adelante. El propietario de cada registro se mantiene.</p></div></div>}
 
     {current.mode === 'selected' && <fieldset disabled={!canManage} className="sales-access-picker" aria-label="Seleccionar OT y cotizaciones">
       <div className="sales-access-picker-intro"><strong>Agrega los registros que necesita</strong><p>Sus registros siempre están incluidos. Cada OT y su COT vinculada se comparten juntas.</p></div>

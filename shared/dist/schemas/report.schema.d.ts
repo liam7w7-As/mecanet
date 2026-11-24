@@ -105,13 +105,13 @@ export declare const inventoryReportQuerySchema: z.ZodEffects<z.ZodObject<{
     stock: "todos" | "con_stock" | "sin_stock" | "critico";
     fechaDesde: string;
     fechaHasta: string;
-    search?: string | undefined;
     tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
+    search?: string | undefined;
     catalogItemId?: number | undefined;
     warehouseId?: number | undefined;
 }, {
-    search?: string | undefined;
     tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
+    search?: string | undefined;
     stock?: "todos" | "con_stock" | "sin_stock" | "critico" | undefined;
     catalogItemId?: number | undefined;
     fechaDesde?: string | undefined;
@@ -121,13 +121,13 @@ export declare const inventoryReportQuerySchema: z.ZodEffects<z.ZodObject<{
     stock: "todos" | "con_stock" | "sin_stock" | "critico";
     fechaDesde: string;
     fechaHasta: string;
-    search?: string | undefined;
     tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
+    search?: string | undefined;
     catalogItemId?: number | undefined;
     warehouseId?: number | undefined;
 }, {
-    search?: string | undefined;
     tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
+    search?: string | undefined;
     stock?: "todos" | "con_stock" | "sin_stock" | "critico" | undefined;
     catalogItemId?: number | undefined;
     fechaDesde?: string | undefined;
@@ -145,11 +145,11 @@ export declare const catalogReportQuerySchema: z.ZodEffects<z.ZodObject<{
     stock: "todos" | "con_stock" | "sin_stock" | "critico";
     fechaDesde: string;
     fechaHasta: string;
-    search?: string | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
+    search?: string | undefined;
 }, {
-    search?: string | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
+    search?: string | undefined;
     stock?: "todos" | "con_stock" | "sin_stock" | "critico" | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
@@ -157,11 +157,11 @@ export declare const catalogReportQuerySchema: z.ZodEffects<z.ZodObject<{
     stock: "todos" | "con_stock" | "sin_stock" | "critico";
     fechaDesde: string;
     fechaHasta: string;
-    search?: string | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
+    search?: string | undefined;
 }, {
-    search?: string | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
+    search?: string | undefined;
     stock?: "todos" | "con_stock" | "sin_stock" | "critico" | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
@@ -177,40 +177,40 @@ export declare const fleetReportQuerySchema: z.ZodEffects<z.ZodObject<{
     onlyWithHistory: z.ZodOptional<z.ZodEffects<z.ZodUnion<[z.ZodBoolean, z.ZodEnum<["true", "false"]>]>, boolean, boolean | "true" | "false">>;
     search: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    scope: "clients" | "vehicles" | "all";
     fechaDesde: string;
     fechaHasta: string;
-    scope: "clients" | "vehicles" | "all";
     search?: string | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
     clientType?: "cliente" | "empresa" | undefined;
     onlyWithHistory?: boolean | undefined;
 }, {
+    scope?: "clients" | "vehicles" | "all" | undefined;
     search?: string | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
     clientType?: "cliente" | "empresa" | undefined;
-    scope?: "clients" | "vehicles" | "all" | undefined;
     onlyWithHistory?: boolean | "true" | "false" | undefined;
 }>, {
+    scope: "clients" | "vehicles" | "all";
     fechaDesde: string;
     fechaHasta: string;
-    scope: "clients" | "vehicles" | "all";
     search?: string | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
     clientType?: "cliente" | "empresa" | undefined;
     onlyWithHistory?: boolean | undefined;
 }, {
+    scope?: "clients" | "vehicles" | "all" | undefined;
     search?: string | undefined;
     clientId?: number | undefined;
     vehicleId?: number | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;
     clientType?: "cliente" | "empresa" | undefined;
-    scope?: "clients" | "vehicles" | "all" | undefined;
     onlyWithHistory?: boolean | "true" | "false" | undefined;
 }>;
 export type FleetReportFilters = z.infer<typeof fleetReportQuerySchema>;

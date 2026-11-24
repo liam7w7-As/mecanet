@@ -85,7 +85,7 @@ function ItemQualityReview({ item, workOrder, canReview, onState }: { item: Work
           {item.qualityReviewedAt && <p className="workshop-quality-help">Revisado {formatDateTime(item.qualityReviewedAt)}</p>}
           {item.qualityNote && <p className="workshop-quality-note">{item.qualityNote}</p>}
           {(canReview || dirty) && (!approved || note) && <label>{approved ? 'Nota local sin guardar' : 'Nota de revisión (opcional)'}<textarea aria-label={`Nota de calidad de ${item.descripcion}`} rows={2} maxLength={2000} value={note} readOnly={approved} disabled={disabled} onChange={(event) => { if (!approved) setNote(event.target.value); }} /></label>}
-          {approved && note && <><p className="workshop-quality-help">El servicio ya fue aprobado. Esta nota local no se guardó y se conserva para que puedas consultarla o descartarla.</p><button type="button" disabled={mutation.isPending} onClick={() => setNote('')}>Descartar solo esta nota</button></>}
+          {approved && note && <button type="button" disabled={mutation.isPending} onClick={() => setNote('')}>Descartar solo esta nota</button>}
           {!item.qualityNote && !(canReview || dirty) && <p className="workshop-quality-help">Sin notas de revisión.</p>}
         </div>
       </details>
@@ -93,7 +93,6 @@ function ItemQualityReview({ item, workOrder, canReview, onState }: { item: Work
         {rejecting && <div className="workshop-quality-correction">
           <label>Motivo de la corrección<textarea aria-label={`Motivo de corrección de ${item.descripcion}`} rows={2} maxLength={2000} value={reason} disabled={disabled} onChange={(event) => setReason(event.target.value)} /></label>
           <label className="workshop-quality-check"><input type="checkbox" aria-label={`Cambiar equipo de ${item.descripcion}`} checked={replaceCrew} disabled={disabled} onChange={(event) => setReplaceCrew(event.target.checked)} />Cambiar equipo para la corrección (opcional)</label>
-          {!replaceCrew && <p className="workshop-quality-help">Se mantiene el equipo actual. Las horas e historial se conservan.</p>}
           {replaceCrew && <div className="workshop-quality-crew">
             <p className="workshop-quality-help">El servicio volverá a pendiente con el equipo que indiques.</p>
             {mechanics.isError && <p role="alert">No se pudo cargar la lista de mecánicos. El equipo del borrador se conserva.<button type="button" disabled={mutation.isPending} onClick={() => void mechanics.refetch()}>Reintentar lista</button></p>}
@@ -170,7 +169,6 @@ export default function WorkOrderQualityPanel({ workOrder, onState, active = tru
       {query.isPending && <p role="status">Cargando control de calidad…</p>}
       {query.isError && <div className="workshop-quality-error" role="alert"><span>No se pudo cargar la calidad. Las revisiones guardadas y tus borradores se conservan.</span><button type="button" onClick={() => void query.refetch()}><RotateCcw aria-hidden="true" />Reintentar calidad</button></div>}
       {quality && <>
-        <p className="workshop-quality-help">{supervisor ? 'Revisa cada servicio terminado y confirma la calidad general al finalizar.' : 'Consulta la revisión de tus trabajos. El jefe de taller confirma la calidad.'}</p>
         {confirmed && <p className="workshop-quality-note">Calidad confirmada el {formatDateTime(quality.approvedAt!)}{quality.approvalNote ? ` · ${quality.approvalNote}` : ''}</p>}
         {services.length > 0 && <p className="workshop-quality-list-heading">{readyToReview} {readyToReview === 1 ? 'listo' : 'listos'} para revisar · {servicesToFinish} por terminar</p>}
         {[...services].sort((a, b) => reviewPriority(a) - reviewPriority(b)).map((item) => <ItemQualityReview key={item.id} item={item} workOrder={workOrder} canReview={canReview} onState={onItemState} />)}

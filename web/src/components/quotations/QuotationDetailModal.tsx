@@ -4,7 +4,7 @@ import {
   type ItemOperationalStatus,
   type QuotationItemInput,
 } from '@unithor/shared';
-import { AlertTriangle, Boxes, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, DollarSign, Download, LoaderCircle, Lock, Pencil, Plus, ThumbsDown, ThumbsUp, Wrench, X, Zap } from 'lucide-react';
+import { Boxes, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, DollarSign, Download, LoaderCircle, Lock, Pencil, Plus, ThumbsDown, ThumbsUp, Wrench, X, Zap } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -78,6 +78,8 @@ const toItemInput = (item: QuotationItem): QuotationItemInput => ({
   catalogItemId: item.catalogItemId,
   descripcion: item.descripcion,
   tipoLinea: item.tipoLinea,
+  division: item.division ?? undefined,
+  subtipo: item.subtipo ?? undefined,
   unidadMedida: item.unidadMedida,
   cantidad: Number(item.cantidad),
   precioUnitario: Number(item.precioUnitario),
@@ -104,8 +106,8 @@ export const QuotationDetailModal = ({
   const navigate = useNavigate();
   const [leaveAction, setLeaveAction] = useState<string | null>(null);
 
-  // Filter tabs: 'todos', 'estandar', 'especifico', 'parte'
-  const [activeCategory, setActiveCategory] = useState<'todos' | CatalogType>('todos');
+  // Filter tabs: 'todos', 'DP', 'ACC', 'MEC'
+  const [activeCategory, setActiveCategory] = useState<'todos' | 'DP' | 'ACC' | 'MEC'>('todos');
 
   // Inline editing state for service price
   const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null);
@@ -158,12 +160,14 @@ export const QuotationDetailModal = ({
   const categorizedItems = useMemo(() => {
     return rawItems.map((item, index) => {
       const tipo = item.tipoLinea ?? item.catalogItem?.tipo ?? 'parte';
+      const division = item.division ?? (tipo === 'parte' ? 'ACC' : 'MEC');
       const approval = parseItemApproval(item.notasOperativas);
       const cleanNote = cleanItemNote(item.notasOperativas);
       return {
         ...item,
         originalIndex: index,
         computedType: tipo,
+        computedDivision: division as 'DP' | 'ACC' | 'MEC',
         approval,
         cleanNote,
       };
@@ -172,16 +176,16 @@ export const QuotationDetailModal = ({
 
   const filteredItems = useMemo(() => {
     if (activeCategory === 'todos') return categorizedItems;
-    return categorizedItems.filter((item) => item.computedType === activeCategory);
+    return categorizedItems.filter((item) => item.computedDivision === activeCategory);
   }, [categorizedItems, activeCategory]);
 
   // Counts
   const counts = useMemo(() => {
     return {
       todos: categorizedItems.length,
-      estandar: categorizedItems.filter((i) => i.computedType === 'estandar').length,
-      especifico: categorizedItems.filter((i) => i.computedType === 'especifico').length,
-      parte: categorizedItems.filter((i) => i.computedType === 'parte').length,
+      DP: categorizedItems.filter((i) => i.computedDivision === 'DP').length,
+      ACC: categorizedItems.filter((i) => i.computedDivision === 'ACC').length,
+      MEC: categorizedItems.filter((i) => i.computedDivision === 'MEC').length,
       pendientesAprobacion: categorizedItems.filter((i) => i.approval === 'pendiente').length,
     };
   }, [categorizedItems]);
@@ -452,49 +456,49 @@ export const QuotationDetailModal = ({
 
                     <button
                       type="button"
-                      aria-pressed={activeCategory === 'estandar'} onClick={() => setActiveCategory('estandar')}
+                      aria-pressed={activeCategory === 'DP'} onClick={() => setActiveCategory('DP')}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
-                        activeCategory === 'estandar'
-                          ? 'bg-brand-primaryInk text-white shadow-2xs'
+                        activeCategory === 'DP'
+                          ? 'bg-blue-600 text-white shadow-2xs'
                           : 'bg-white text-brand-muted hover:bg-brand-pale border border-brand-line'
                       }`}
                     >
                       <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Servicios Estándar</span>
+                      <span>D&amp;P · Carrocería</span>
                       <span className="ml-1 rounded-full bg-brand-line/80 px-1.5 py-0.2 text-[10px] text-brand-ink">
-                        {counts.estandar}
+                        {counts.DP}
                       </span>
                     </button>
 
                     <button
                       type="button"
-                      aria-pressed={activeCategory === 'especifico'} onClick={() => setActiveCategory('especifico')}
+                      aria-pressed={activeCategory === 'ACC'} onClick={() => setActiveCategory('ACC')}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
-                        activeCategory === 'especifico'
-                          ? 'bg-purple-600 text-white shadow-2xs'
-                          : 'bg-white text-brand-muted hover:bg-brand-pale border border-brand-line'
-                      }`}
-                    >
-                      <Zap className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Servicios Específicos</span>
-                      <span className="ml-1 rounded-full bg-brand-line/80 px-1.5 py-0.2 text-[10px] text-brand-ink">
-                        {counts.especifico}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      aria-pressed={activeCategory === 'parte'} onClick={() => setActiveCategory('parte')}
-                      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
-                        activeCategory === 'parte'
-                          ? 'bg-brand-primary text-white shadow-2xs'
+                        activeCategory === 'ACC'
+                          ? 'bg-amber-500 text-white shadow-2xs'
                           : 'bg-white text-brand-muted hover:bg-brand-pale border border-brand-line'
                       }`}
                     >
                       <Boxes className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Repuestos y Accesorios</span>
+                      <span>ACC · Repuestos</span>
                       <span className="ml-1 rounded-full bg-brand-line/80 px-1.5 py-0.2 text-[10px] text-brand-ink">
-                        {counts.parte}
+                        {counts.ACC}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={activeCategory === 'MEC'} onClick={() => setActiveCategory('MEC')}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
+                        activeCategory === 'MEC'
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'bg-white text-brand-muted hover:bg-brand-pale border border-brand-line'
+                      }`}
+                    >
+                      <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>MEC · Mecánica</span>
+                      <span className="ml-1 rounded-full bg-brand-line/80 px-1.5 py-0.2 text-[10px] text-brand-ink">
+                        {counts.MEC}
                       </span>
                     </button>
                   </div>
@@ -512,18 +516,6 @@ export const QuotationDetailModal = ({
                     </button>
                   )}
                 </div>
-
-                {/* Suggested Items Notice if any pending */}
-                {counts.pendientesAprobacion > 0 && (
-                  <div className="flex items-center justify-between border-b border-brand-line bg-brand-goldPale/80 px-4 py-2.5 text-xs text-brand-ink">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-brand-goldInk shrink-0" aria-hidden="true" />
-                      <span>
-                        Hay <strong>{counts.pendientesAprobacion}</strong> {counts.pendientesAprobacion === 1 ? 'concepto sugerido' : 'conceptos sugeridos'} por el taller pendientes de aprobación del cliente.
-                      </span>
-                    </div>
-                  </div>
-                )}
 
                 {/* Add Suggested Item Drawer Form */}
                 <AnimatePresence>
@@ -684,7 +676,7 @@ export const QuotationDetailModal = ({
                           const isPendingApproval = item.approval === 'pendiente';
                           const isApproved = item.approval === 'aprobado' || item.approval === 'normal';
                           const isRejected = item.approval === 'rechazado';
-                          const isService = item.computedType === 'estandar' || item.computedType === 'especifico';
+                          const isService = item.computedDivision === 'DP' || item.computedDivision === 'MEC';
                           const isEditingPrice = canEditPrice && editingPriceIndex === item.originalIndex;
 
                           return (
@@ -731,20 +723,27 @@ export const QuotationDetailModal = ({
                                   <div className="flex items-center gap-2">
                                     <span className="font-semibold text-brand-ink">{item.descripcion}</span>
                                     {/* Category badge */}
-                                    {item.computedType === 'estandar' ? (
-                                      <span className="inline-flex items-center gap-1 rounded bg-brand-pale px-1.5 py-0.5 text-[10px] font-bold text-brand-primaryInk ring-1 ring-inset ring-brand-line">
+                                    {item.computedDivision === 'DP' ? (
+                                      <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 ring-1 ring-inset ring-blue-200">
                                         <Wrench className="h-2.5 w-2.5" />
-                                        Estándar
+                                        D&amp;P
                                       </span>
-                                    ) : item.computedType === 'especifico' ? (
-                                      <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-200">
-                                        <Zap className="h-2.5 w-2.5" />
-                                        Específico
-                                      </span>
+                                    ) : item.computedDivision === 'ACC' ? (
+                                      <>
+                                        <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-inset ring-amber-200">
+                                          <Boxes className="h-2.5 w-2.5" />
+                                          ACC
+                                        </span>
+                                        {item.subtipo === 'a_pedido' && (
+                                          <span className="inline-flex items-center gap-1 rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-200">
+                                            A pedido
+                                          </span>
+                                        )}
+                                      </>
                                     ) : (
-                                      <span className="inline-flex items-center gap-1 rounded bg-cyan-50 px-1.5 py-0.5 text-[10px] font-bold text-cyan-700 ring-1 ring-inset ring-cyan-200">
-                                        <Boxes className="h-2.5 w-2.5" />
-                                        Repuesto
+                                      <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                        <Zap className="h-2.5 w-2.5" />
+                                        MEC{item.subtipo === 'especifico' ? ' · Específico' : ''}
                                       </span>
                                     )}
 

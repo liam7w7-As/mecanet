@@ -271,11 +271,11 @@ const assertDate = (at: Date): void => {
 };
 
 /** Inclusive local-day start, exclusive next-day start. Midnight DST gaps produce the first real instant of that day. */
-export async function getWorkshopDayRange(date: string, transaction?: Transaction): Promise<{ start: Date; end: Date }> {
+export async function getWorkshopDayRange(date: string, transaction?: Transaction): Promise<{ start: Date; end: Date; timezone?: string }> {
   if (!workshopDateSchema.safeParse(date).success) throw ApiError.badRequest('Fecha inválida');
   const schedule = await WorkshopSchedule.findByPk(1, { transaction });
   const timezone = schedule?.timezone ?? DEFAULT_WORKSHOP_TIMEZONE;
-  return getCivilDayRange(date, timezone);
+  return { ...getCivilDayRange(date, timezone), timezone };
 }
 
 /** Shared by reports: resolve a whole configured period without one SQL query per worker/day. */

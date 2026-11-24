@@ -263,7 +263,7 @@ export const WorkOrderQuickDetailModal = ({
                 icon={<UserCog className="h-4 w-4" aria-hidden="true" />}
                 label="Mecánico responsable"
                 value={getWorkOrderAssigneeLabel(workOrder)}
-                hint={workOrder.items?.some((item) => item.assignedUserId) ? 'Asignaciones por servicio' : workOrder.assignedMechanic ? 'Ejecución técnica a su cargo' : null}
+                hint={workOrder.items?.some((item) => item.assignedUserId) ? 'Asignaciones por servicio' : null}
               />}
               {showFinancials && <SummaryRow
                 icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
@@ -276,7 +276,6 @@ export const WorkOrderQuickDetailModal = ({
                 icon={<CalendarClock className="h-4 w-4" aria-hidden="true" />}
                 label={workOrder.delivery ? 'Entrega registrada' : 'Entrega prometida'}
                 value={workOrder.delivery ? formatDateTime(workOrder.delivery.deliveredAt) : workOrder.fechaEntrega ? formatDateTime(workOrder.fechaEntrega) : 'Sin fecha prometida'}
-                hint={workOrder.delivery ? 'Recepción del vehículo confirmada' : 'Fecha de compromiso del taller'}
               />
             </div>
 

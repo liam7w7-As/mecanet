@@ -1,4 +1,4 @@
-import { createCatalogItemSchema } from '@unithor/shared';
+import { createCatalogItemSchema, resolveCatalogClassification } from '@unithor/shared';
 import { Transaction } from 'sequelize';
 
 import { CATALOG_IMPORT_COLUMNS, aliasesOf } from './import-columns.js';
@@ -23,14 +23,17 @@ import {
 import { CatalogItem } from '../../models/CatalogItem.js';
 import { StockBalance } from '../../models/StockBalance.js';
 import { Warehouse } from '../../models/Warehouse.js';
+import { publishCatalogChange } from '../catalog-events.service.js';
 import { registerMovement } from '../warehouse.service.js';
 
 import type { ImportActor, ImportContext, ImportPlanRow } from './import-plan.service.js';
 import type { SpreadsheetData } from './spreadsheet.service.js';
-import type { ImportPreview, ImportResult } from '@unithor/shared';
+import type { CatalogDivision, CatalogSubtype, ImportPreview, ImportResult } from '@unithor/shared';
 
 interface CatalogMetadata {
   tipo: 'parte' | 'estandar' | 'especifico';
+  division: CatalogDivision;
+  subtipo: CatalogSubtype;
   codigo: string | null;
   nombre: string;
   descripcion: string | null;
@@ -84,8 +87,24 @@ const UNIDAD_LABELS: Record<string, CatalogMetadata['unidadMedida']> = {
   servicios: 'servicio',
 };
 
+const DIVISION_LABELS: Record<string, CatalogDivision> = {
+  dp: 'DP', 'd&p': 'DP', 'd p': 'DP',
+  'desabolladura y pintura': 'DP', 'desabolladura pintura': 'DP',
+  acc: 'ACC', accesorios: 'ACC', repuestos: 'ACC',
+  mec: 'MEC', mecanica: 'MEC',
+};
+const SUBTYPE_LABELS: Record<string, CatalogSubtype> = {
+  servicio_dp: 'servicio_dp', 'servicio dp': 'servicio_dp', 'servicio d&p': 'servicio_dp',
+  en_stock: 'en_stock', 'en stock': 'en_stock', stock: 'en_stock',
+  a_pedido: 'a_pedido', 'a pedido': 'a_pedido', 'por encargo': 'a_pedido',
+  estandar: 'estandar', 'servicio estandar': 'estandar',
+  especifico: 'especifico', 'servicio especifico': 'especifico',
+};
+
 const FIELD_LABELS: Record<string, string> = {
   tipo: 'Tipo',
+  division: 'División',
+  subtipo: 'Subtipo',
   codigo: 'Código',
   nombre: 'Nombre',
   descripcion: 'Descripción',
@@ -101,7 +120,9 @@ const nameKey = (nombre: string, tipo: CatalogMetadata['tipo']): string =>
   `${tipo}:${normalizedName(nombre)}`;
 
 const metadataOf = (item: CatalogItem): CatalogMetadata => ({
-  tipo: item.tipo,
+  ...resolveCatalogClassification({}, {
+    tipo: item.tipo, division: item.division, subtipo: item.subtipo,
+  }),
   codigo: item.codigo,
   nombre: item.nombre,
   descripcion: item.descripcion,
@@ -156,6 +177,9 @@ const prepareRows = async (
   const itemSnapshot = (item: CatalogItem) => ({
     id: item.id,
     ...metadataOf(item),
+    // Keep the stored classification in the signed snapshot even when its
+    // legacy defaults are normalized for comparison and row planning.
+    storedClassification: { tipo: item.tipo, division: item.division, subtipo: item.subtipo },
     stock: Number(item.stock),
     updatedAt: importCell(item.updatedAt),
     deletedAt: importCell(item.deletedAt),
@@ -183,15 +207,33 @@ const prepareRows = async (
     const rawType = parseTextValue(row.values.tipo);
     const type = rawType ? TIPO_LABELS[normalizedName(rawType)] : undefined;
     if (rawType && !type) messages.push(`Tipo no reconocido: "${rawType}".`);
+    const rawDivision = parseTextValue(row.values.division);
+    const division = rawDivision ? DIVISION_LABELS[normalizedName(rawDivision)] : undefined;
+    if (rawDivision && !division) messages.push(`División no reconocida: "${rawDivision}".`);
+    const rawSubtype = parseTextValue(row.values.subtipo);
+    const subtipo = rawSubtype ? SUBTYPE_LABELS[normalizedName(rawSubtype)] : undefined;
+    if (rawSubtype && !subtipo) messages.push(`Subtipo no reconocido: "${rawSubtype}".`);
+    let suppliedClassification = { tipo: type, division, subtipo };
+    const identityType = resolveCatalogClassification(suppliedClassification).tipo;
     const candidates = hasCell(row.values.id)
       ? id && byId.has(id)
         ? [byId.get(id)!]
         : []
       : code
         ? (byCode.get(code) ?? [])
-        : (byName.get(nameKey(name ?? '', type ?? 'estandar')) ?? []);
+        : (byName.get(nameKey(name ?? '', identityType)) ?? []);
     const existing = candidates.length === 1 ? candidates[0] : undefined;
     const before = existing ? metadataOf(existing) : undefined;
+    if (
+      existing && existing.tipo !== 'estandar' &&
+      existing.division === 'MEC' && existing.subtipo === 'estandar' &&
+      type === existing.tipo && division === existing.division && subtipo === existing.subtipo
+    ) {
+      // An exported legacy row echoes the model defaults verbatim. Reimporting
+      // it is a no-op, not an instruction to turn its part/specific service into
+      // a standard service. Explicit reclassification still uses the new columns.
+      suppliedClassification = { tipo: type, division: undefined, subtipo: undefined };
+    }
     const keys: string[] = [];
     if (id) keys.push(`id:${id}`);
     if (code) keys.push(`code:${code}`);
@@ -259,9 +301,16 @@ const prepareRows = async (
       : (before?.unidadMedida ?? 'unidad');
     if (!unit) messages.push(`Unidad de medida no reconocida: "${rawUnit}".`);
     const suppliedStock = hasCell(row.values.stock);
+    const stockValidationStart = messages.length;
     const requestedStock = numeric('stock', 0, true) ?? 0;
-    const after: CatalogMetadata = {
-      tipo: type ?? before?.tipo ?? (code ? 'parte' : 'estandar'),
+    const validStock = messages.length === stockValidationStart && requestedStock >= 0;
+    let after: CatalogMetadata = {
+      ...resolveCatalogClassification(
+        !type && !division && !subtipo && !before
+          ? { tipo: code ? 'parte' : 'estandar' }
+          : suppliedClassification,
+        before,
+      ),
       codigo: code ?? before?.codigo ?? null,
       nombre: name ?? before?.nombre ?? '',
       descripcion: parseTextValue(row.values.descripcion) ?? before?.descripcion ?? null,
@@ -270,12 +319,24 @@ const prepareRows = async (
       stockMinimo: numeric('stockMinimo', before?.stockMinimo ?? 0, true) ?? 0,
       horasHombreEstandar: numeric('horasHombreEstandar', before?.horasHombreEstandar ?? null),
     };
-    const stockOperation = suppliedStock && after.tipo === 'parte';
-    const targetStock = after.tipo === 'parte' ? requestedStock : 0;
-    const parsed = createCatalogItemSchema.safeParse({ ...after, stock: targetStock });
+    // Invalid input is a row validation error, not an inventory operation. In
+    // particular, do not mask it with warehouse/permission/reconciliation conflicts.
+    const stockOperation = suppliedStock && validStock && after.tipo === 'parte' && after.subtipo === 'en_stock';
+    const targetStock = after.tipo === 'parte' && after.subtipo === 'en_stock' ? requestedStock : 0;
+    const parsed = createCatalogItemSchema.safeParse({
+      ...after,
+      ...(type ? { tipo: type } : {}),
+      stock: targetStock,
+    });
     if (!parsed.success) {
       for (const issue of parsed.error.issues)
         messages.push(`${issue.path.join('.')}: ${issue.message}`);
+    } else {
+      const { stock: _stock, ...metadata } = parsed.data;
+      after = { ...after, ...metadata };
+    }
+    if (suppliedStock && after.subtipo === 'a_pedido' && requestedStock !== 0) {
+      messages.push('Los repuestos a pedido no admiten stock inicial. Deja Stock vacío y registra su recepción en Almacén.');
     }
     const finalCode = upperTextValue(after.codigo);
     keys.push(finalCode ? `code:${finalCode}` : `name:${nameKey(after.nombre, after.tipo)}`);
@@ -323,11 +384,11 @@ const prepareRows = async (
 
     if (
       existing?.tipo === 'parte' &&
-      after.tipo !== 'parte' &&
+      (after.tipo !== 'parte' || (before?.subtipo !== 'a_pedido' && after.subtipo === 'a_pedido')) &&
       (Number(existing.stock) > 0 || itemBalances.some((balance) => Number(balance.cantidad) > 0))
     ) {
       conflict(
-        'No se puede convertir un repuesto en servicio mientras tenga stock global o saldos positivos.',
+        'No se puede convertir un repuesto en servicio o a pedido mientras tenga stock global o saldos positivos.',
       );
     }
     if (stockOperation && existing && Number(existing.stock) !== totalStock) {
@@ -434,7 +495,9 @@ export const importCatalog = async (
 ): Promise<ImportResult> => {
   const context = importContext(actor);
   const sheet = await readCatalogSpreadsheet(buffer, fileName);
-  return executePlannedImport('catalog', buffer, fileName, dryRun, sheet, context, (transaction) =>
+  const result = await executePlannedImport('catalog', buffer, fileName, dryRun, sheet, context, (transaction) =>
     prepareRows(sheet, fileName, context, transaction),
   );
+  if (!dryRun && ((result.created ?? 0) + (result.updated ?? 0)) > 0) publishCatalogChange();
+  return result;
 };

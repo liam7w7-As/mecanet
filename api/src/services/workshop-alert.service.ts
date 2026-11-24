@@ -148,6 +148,8 @@ const sessionAttributes = [
   'endedAt',
   'scheduledEndAt',
   'durationMinutes',
+  'reportedDate',
+  'overtime',
   'supersededAt',
 ];
 
@@ -407,6 +409,7 @@ async function readAlerts(
                 supersededAt: null,
                 startedAt: { [Op.lt]: end, [Op.lte]: now },
                 [Op.or]: [
+                  { reportedDate: date },
                   { kind: 'ajuste', startedAt: { [Op.gte]: start } },
                   {
                     kind: { [Op.ne]: 'ajuste' },

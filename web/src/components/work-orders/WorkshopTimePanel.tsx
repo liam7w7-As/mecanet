@@ -9,7 +9,7 @@ import {
   useWorkshopTimeEligibleItems,
 } from '../../hooks/useWorkshopTime';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { formatDateTime } from '../../lib/formatters';
+import { formatDate, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { formatWorkshopMinutes as minutesLabel } from '../../lib/workshop-time-format';
 import { useAuthStore } from '../../stores/auth.store';
@@ -179,6 +179,7 @@ export default function WorkshopTimePanel({
   if (!allowed) return null;
 
   const beginCorrection = (entry: WorkshopTimeEntry): void => {
+    if (entry.reportedDate) return;
     setSource(entry);
     setStartedAt(localInput(entry.startedAt));
     setEndedAt(entry.endedAt ? localInput(entry.endedAt) : '');
@@ -193,8 +194,8 @@ export default function WorkshopTimePanel({
       setFeedback({ error: true, text: 'Indica inicio y fin válidos. Tus datos se conservan.' });
       return;
     }
-    const selected = items.find((item) => item.itemId === Number(itemId));
-    if (!source && (!selected || (supervisor && !manualWorker))) {
+    const selected = items.find((item) => (item.dpStageId ? `${item.itemId}:${item.dpStageId}` : String(item.itemId)) === itemId);
+    if (!source && (!selected || selected.blocked || (supervisor && !manualWorker))) {
       setFeedback({
         error: true,
         text: 'Selecciona un trabajador y un servicio asignado vigente. Tus datos se conservan.',
@@ -211,6 +212,7 @@ export default function WorkshopTimePanel({
       : {
           workOrderId: selected!.workOrderId,
           itemId: selected!.itemId,
+          ...(selected!.dpStageId ? { dpStageId: selected!.dpStageId } : {}),
           ...(supervisor ? { userId: Number(manualWorker) } : {}),
           overtime: supervisor && overtime,
           activityStatus,
@@ -257,7 +259,6 @@ export default function WorkshopTimePanel({
       <div className="workshop-labor-toolbar flex-wrap">
         <div>
           <h2>Diario de horas</h2>
-          <p>Registro manual y solicitudes de corrección de intervalos.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <label>
@@ -374,8 +375,8 @@ export default function WorkshopTimePanel({
                   >
                     <option value="">Seleccionar servicio</option>
                     {items.map((item) => (
-                      <option key={item.itemId} value={item.itemId}>
-                        {item.patente ? `${item.patente} · ` : ''}{item.workOrderCode} · {item.description}
+                      <option key={`${item.itemId}:${item.dpStageId ?? 'service'}`} value={item.dpStageId ? `${item.itemId}:${item.dpStageId}` : String(item.itemId)} disabled={item.blocked}>
+                        {item.patente ? `${item.patente} · ` : ''}{item.workOrderCode} · {item.description}{item.blocked ? ' · Espera la etapa anterior' : ''}
                       </option>
                     ))}
                   </select>
@@ -443,7 +444,7 @@ export default function WorkshopTimePanel({
               </label>
             )}
             <p className="workshop-labor-help">
-              Describe la actividad realizada en el motivo. El avance se aplica al aprobar,
+              El avance se aplica al aprobar,
               si sigue vigente. Finalizar tu parte conserva el avance del resto del equipo y requiere control de calidad.
             </p>
             {supervisor && !source && (
@@ -538,7 +539,9 @@ export default function WorkshopTimePanel({
                 {request.overtime && ' · Horas extra'}
               </p>
               <p>
-                {formatDateTime(request.startedAt)} → {formatDateTime(request.endedAt)}
+                {request.reportedDate
+                  ? `${formatDate(request.reportedDate)} · Horas declaradas`
+                  : `${formatDateTime(request.startedAt)} → ${formatDateTime(request.endedAt)}`}
               </p>
               <p>{request.note}</p>
               {request.activityStatus && <p>Actividad declarada: {request.activityStatus === 'completado' ? 'Finalizado por el trabajador' : 'En proceso'}</p>}
@@ -552,7 +555,7 @@ export default function WorkshopTimePanel({
       </details>
       <details className="workshop-labor-details" open>
         <summary>
-          Historial registrado<span>{entries.length} intervalos</span>
+          Historial registrado<span>{entries.length} registros</span>
         </summary>
         <div className="workshop-labor-detail-body">
           {!entries.length && <p>Sin horas registradas para este día.</p>}
@@ -575,8 +578,9 @@ export default function WorkshopTimePanel({
                 {entry.overtime && ' · Horas extra'}
               </p>
               <p>
-                {formatDateTime(entry.startedAt)} →{' '}
-                {entry.endedAt ? formatDateTime(entry.endedAt) : 'En curso'}
+                {entry.reportedDate
+                  ? `${formatDate(entry.reportedDate)} · Horas declaradas`
+                  : `${formatDateTime(entry.startedAt)} → ${entry.endedAt ? formatDateTime(entry.endedAt) : 'En curso'}`}
               </p>
               {entry.note && <p>{entry.note}</p>}
               {entry.supersededAt && (
@@ -586,6 +590,7 @@ export default function WorkshopTimePanel({
                 entry.userId === user?.id &&
                 entry.status === 'cerrada' &&
                 !entry.supersededAt &&
+                !entry.reportedDate &&
                 entry.kind !== 'ajuste' &&
                 !requests.some(
                   (request) =>

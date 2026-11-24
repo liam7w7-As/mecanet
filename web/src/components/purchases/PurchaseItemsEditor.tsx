@@ -143,10 +143,6 @@ export const PurchaseItemsEditor = ({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-bold text-brand-primaryInk">Ítems de la compra</h2>
-          <p className="mt-0.5 text-xs text-brand-muted">
-            Los precios se ingresan netos. El stock se recibe solo si vinculas un repuesto del
-            catálogo y eliges almacén.
-          </p>
         </div>
         <span className="rounded-md bg-brand-pale px-2 py-1 text-xs font-semibold text-brand-primaryInk">
           {items.length} {items.length === 1 ? 'ítem' : 'ítems'}

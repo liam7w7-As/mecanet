@@ -1,5 +1,5 @@
 import { calculateQuotationPricing, createQuotationSchema, getQuotationTaxBreakdown, QUOTATION_PAYMENT_LABELS } from '@unithor/shared';
-import { AlertCircle, ArrowLeft, CheckCircle2, ClipboardCheck, LoaderCircle, Plus, ReceiptText, Save, UserRound } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, LoaderCircle, Plus, ReceiptText, Save, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -78,6 +78,9 @@ const QuotationCreateForm = () => {
       notas,
       items: items.map((item) => ({
         catalogItemId: item.catalogItemId,
+        division: item.division,
+        subtipo: item.subtipo,
+        ...(item.dpPricing ? { dpPricing: item.dpPricing } : {}),
         descripcion: item.descripcion,
         tipoLinea: item.tipoLinea,
         unidadMedida: item.unidadMedida,
@@ -185,11 +188,7 @@ const QuotationCreateForm = () => {
                 Cambiar
               </button>
             </div>
-          ) : (
-            <p className="mt-3 text-sm text-brand-muted">
-              Busca un cliente existente o crea uno nuevo sin salir de aquí.
-            </p>
-          )}
+          ) : null}
           {errors._form && <p className="mt-3 text-sm text-brand-coralInk" role="alert">{errors._form}</p>}
         </section>
         <div className="commercial-create-workspace">
@@ -206,7 +205,6 @@ const QuotationCreateForm = () => {
         </div>
         {createMutation.isError && <div className="mx-5 mb-5 flex items-center gap-2 rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk" role="alert"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{getApiErrorMessage(createMutation.error)}</div>}
         <footer className="commercial-create-footer flex flex-col-reverse gap-2 border-t border-brand-line bg-brand-line/40 p-4 sm:flex-row sm:justify-end">
-          <span className="commercial-create-footer-hint"><ClipboardCheck aria-hidden="true" />Revisa el resumen antes de emitir</span>
           <Link to="/quotations" className="inline-flex h-10 items-center justify-center rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink transition-colors hover:bg-brand-pale">Cancelar</Link>
           <button type="submit" className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow disabled:opacity-60" disabled={createMutation.isPending}>
             {createMutation.isPending ? (

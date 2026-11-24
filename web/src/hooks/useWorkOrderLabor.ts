@@ -46,6 +46,7 @@ const useWorksheetMutation = <TVariables>(
       void queryClient.invalidateQueries({ queryKey: laborKeys.worksheets() });
       void queryClient.invalidateQueries({ queryKey: ['work-order-labor', 'daily'] });
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['work-order-quality'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({ queryKey: ['catalog'] });
       void queryClient.invalidateQueries({ queryKey: ['warehouses'] });

@@ -265,3 +265,71 @@ export const reviewWorkOrderRequestHandler = asyncHandler(
     res.status(200).json({ workOrder });
   },
 );
+
+export const updateWorkOrderDpStageHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const stageId = Number(req.params.stageId);
+    const userId = getCurrentUserId(req);
+    const workOrder = await workOrderService.updateWorkOrderDpStage(
+      id,
+      stageId,
+      req.body,
+      userId,
+    );
+    if (req.user?.role === 'mecanico') {
+      const worksheet = await laborService.getWorkOrderWorksheet(id, userId);
+      res.status(200).json({ worksheet });
+      return;
+    }
+    res.status(200).json({ workOrder });
+  },
+);
+
+export const reviewWorkOrderDpQualityHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const itemId = Number(req.params.itemId);
+    const userId = getCurrentUserId(req);
+    const workOrder = await workOrderService.reviewWorkOrderDpQuality(
+      id,
+      itemId,
+      req.body,
+      userId,
+    );
+    res.status(200).json({ workOrder });
+  },
+);
+
+export const updateWorkOrderAccCustodyHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const itemId = Number(req.params.itemId);
+    const userId = getCurrentUserId(req);
+    const workOrder = await workOrderService.updateWorkOrderAccCustody(
+      id,
+      itemId,
+      req.body,
+      userId,
+    );
+    if (req.user?.role === 'mecanico') {
+      const worksheet = await laborService.getWorkOrderWorksheet(id, userId);
+      res.status(200).json({ worksheet });
+      return;
+    }
+    res.status(200).json({ workOrder });
+  },
+);
+
+export const addWorkOrderItemHandler = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const id = getParamId(req);
+    const userId = getCurrentUserId(req);
+    const workOrder = await workOrderService.addWorkOrderItem(
+      id,
+      req.body,
+      userId,
+    );
+    res.status(201).json({ workOrder });
+  },
+);

@@ -7,6 +7,7 @@ export interface WorkshopSessionTime {
   scheduledEndAt?: Date | null;
   durationMinutes: number | null;
   supersededAt?: Date | null;
+  reportedDate?: string | null;
 }
 
 export const exactIntervalMinutes = (
@@ -47,7 +48,7 @@ export const sessionMinutesInRange = (
   now: Date,
 ): number => {
   if (session.supersededAt) return 0;
-  if (session.kind === 'ajuste') return session.startedAt >= start && session.startedAt < endExclusive && session.startedAt <= now
+  if (session.kind === 'ajuste' || session.reportedDate) return session.startedAt >= start && session.startedAt < endExclusive && session.startedAt <= now
     ? canonicalSessionMinutes(session, now) : 0;
   return exactIntervalMinutes(session.startedAt, boundedEnd(session, now), start, endExclusive);
 };

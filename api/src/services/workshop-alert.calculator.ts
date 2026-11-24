@@ -417,20 +417,23 @@ export function calculateWorkshopAlerts(
     if (!worker.configured || !intervals.length || lastEnd > now.getTime()) continue;
     const expected = intervals.reduce((sum, span) => sum + Math.max(0, (span.end.getTime() - span.start.getTime()) / 60000), 0);
     if (!expected) continue;
-    // Match the journal's shift coverage. Overtime and numeric adjustments remain
-    // in actual labor totals; they cannot fill an unrecorded interval in the shift.
+    // Intervals establish shift coverage. Declared hours are a daily quantity,
+    // independent of the midnight storage marker and of particular shift spans.
+    const daySessions = [...new Map(worker.sessions.filter((s) => s.userId === worker.userId).map((s) => [s.id, s])).values()];
+    const declared = daySessions.filter((session) => session.reportedDate === date && !session.overtime)
+      .reduce((sum, session) => sum + costReportSessionMinutes(session, worker.dayStart ?? new Date(0), worker.dayEnd ?? new Date(now.getTime() + 1), now), 0);
     const recorded = Math.max(
       0,
       [
         ...new Map(
-          worker.sessions.filter((s) => s.userId === worker.userId && s.kind !== 'ajuste').map((s) => [s.id, s]),
+          daySessions.filter((s) => s.kind !== 'ajuste' && !s.reportedDate).map((s) => [s.id, s]),
         ).values(),
       ].reduce(
         (sum, session) =>
           sum +
           intervals.reduce((minutes, span) => minutes + costReportSessionMinutes(session, span.start, span.end, now), 0),
         0,
-      ),
+      ) + declared,
     );
     if (expected - recorded <= (expected * settings.timeTolerancePercent) / 100 + 0.00001) continue;
     const order = onlyOrderId ? orders.get(onlyOrderId) : undefined;
@@ -438,7 +441,7 @@ export function calculateWorkshopAlerts(
       recorded <= 0 ? 'no_daily_record' : 'unregistered_time',
       `${date}:${worker.userId}`,
       recorded <= 0 ? 'Jornada sin horas registradas' : 'Horas de jornada sin registrar',
-      `${actor.mechanic ? 'Tu jornada' : `La jornada de ${worker.name}`} finalizó: ${hourText(recorded)} registradas dentro de las ${hourText(expected)} configuradas. Las horas adicionales se conservan por separado; revisar registros pendientes. No se aplican descuentos ni sanciones.`,
+      `${actor.mechanic ? 'Tu jornada' : `La jornada de ${worker.name}`} finalizó: ${hourText(recorded)} registradas para las ${hourText(expected)} configuradas.${declared ? ' Incluye horas declaradas para la fecha, sin intervalo horario.' : ''} Las horas adicionales se conservan por separado; revisar registros pendientes. No se aplican descuentos ni sanciones.`,
       'medium',
       order,
       null,

@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { chilePhoneSchema, createClientSchema, rutSchema } from './client.schema.js';
+import { dpQuoteInputSchema } from './dp-configuration.schema.js';
 import { paginationSchema } from './pagination.schema.js';
-import { CATALOG_TYPES } from '../constants/catalog-types.js';
+import { CATALOG_DIVISIONS, CATALOG_SUBTYPES, CATALOG_TYPES, } from '../constants/catalog-types.js';
 import { ITEM_OPERATIONAL_STATUS } from '../constants/item-operational-status.js';
 import { UNIT_MEASURES } from '../constants/unit-measures.js';
 import { WORK_ORDER_DELIVERY_CHECKLIST } from '../constants/work-order-delivery.js';
@@ -58,9 +59,13 @@ export const updateWorkOrderInspectionSchema = z
 });
 export const workOrderItemInputSchema = z.object({
     ...discountFields,
+    dpPricing: dpQuoteInputSchema.optional(),
     id: z.coerce.number().int().positive().optional(),
     catalogItemId: z.coerce.number().int().positive().nullable().optional(),
     tipoLinea: z.enum(CATALOG_TYPES).default('estandar'),
+    division: z.enum(CATALOG_DIVISIONS).optional(),
+    subtipo: z.enum(CATALOG_SUBTYPES).optional(),
+    esAPedido: z.boolean().optional(),
     descripcion: z.string().trim().min(2, 'La descripción debe tener al menos 2 caracteres').max(255),
     cantidad: z.coerce.number().int().min(1, 'La cantidad debe ser un número entero mayor a 0').default(1),
     unidadMedida: z.enum(UNIT_MEASURES).default('unidad'),

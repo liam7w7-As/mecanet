@@ -1,6 +1,7 @@
-import { Transaction } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 
 import { QuotationItem } from '../models/QuotationItem.js';
+import { WorkOrderDpStage } from '../models/WorkOrderDpStage.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { WorkOrderItemAssignment } from '../models/WorkOrderItemAssignment.js';
 import { WorkOrderItemProgressEvent } from '../models/WorkOrderItemProgressEvent.js';
@@ -81,6 +82,7 @@ export const assertWorkItemsRemovable = async (
     const where = { workOrderItemId: item.id };
     const counts = await Promise.all([
       WorkOrderQualityReview.count({ where, transaction }),
+      WorkOrderDpStage.count({ where: { ...where, [Op.or]: [{ assignedUserId: { [Op.ne]: null } }, { status: { [Op.ne]: 'pendiente' } }, { note: { [Op.ne]: null } }] }, transaction }),
       WorkOrderItemAssignment.count({ where, transaction }),
       WorkshopTimeRequest.count({ where, transaction }),
       WorkOrderItemSession.count({ where, transaction }),

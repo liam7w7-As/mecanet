@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createWorkshopDailyEntrySchema,
   createWorkshopTimeRequestSchema,
   reviewWorkshopTimeRequestSchema,
   workshopTimeQuerySchema,
@@ -98,5 +99,42 @@ describe('Workshop time contract', () => {
   it('accepts only valid calendar day queries', () => {
     expect(workshopTimeQuerySchema.safeParse({ fecha: '2026-02-30' }).success).toBe(false);
     expect(workshopTimeQuerySchema.parse({ fecha: '2026-11-16', userId: '4' }).userId).toBe(4);
+  });
+});
+
+describe('Daily workshop entry contract', () => {
+  const daily = { workOrderId: 1, itemId: 2, clientRequestId: '5c3e8fb0-c568-4aa1-86a1-d3bb81787cc1', fecha: '2025-10-04', ...interval, activityStatus: 'completado' };
+  it('accepts a declared duration without requesting or guessing a work interval', () => {
+    const { startedAt: _start, endedAt: _end, ...declared } = daily;
+    expect(createWorkshopDailyEntrySchema.parse({ ...declared, horasUtilizadas: 1.5 })).toMatchObject({ horasUtilizadas: 1.5 });
+    for (const horasUtilizadas of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, 0.001]) {
+      expect(createWorkshopDailyEntrySchema.safeParse({ ...declared, horasUtilizadas }).success).toBe(false);
+    }
+    for (const horasUtilizadas of [3, 5, 25, 100]) {
+      expect(createWorkshopDailyEntrySchema.safeParse({ ...declared, horasUtilizadas }).success).toBe(true);
+    }
+    expect(createWorkshopDailyEntrySchema.safeParse({ ...daily, horasUtilizadas: 1.5 }).success).toBe(false);
+    expect(createWorkshopDailyEntrySchema.safeParse({ ...declared, horasUtilizadas: 1.5, qualityStatus: 'aprobado' }).success).toBe(false);
+  });
+  it('requires real interval hours, an explicit activity and UUID, and normalizes retries', () => {
+    expect(createWorkshopDailyEntrySchema.parse({ ...daily, clientRequestId: daily.clientRequestId.toUpperCase(), note: '  Diagnóstico  ' })).toMatchObject({ clientRequestId: daily.clientRequestId, note: 'Diagnóstico' });
+    expect(createWorkshopDailyEntrySchema.safeParse({ ...daily, activityStatus: 'en_proceso', userId: 9 }).success).toBe(true);
+    expect(createWorkshopDailyEntrySchema.safeParse({ ...daily, clientRequestId: undefined }).success).toBe(false);
+    expect(createWorkshopDailyEntrySchema.safeParse({ ...daily, activityStatus: undefined }).success).toBe(false);
+  });
+  it.each([
+    { clientRequestId: 'not-a-uuid' }, { fecha: '2026-02-30' }, { fecha: '2025-10-4' },
+    { userId: 0 }, { activityStatus: 'aprobado' }, { activityStatus: 'pendiente' },
+    { endedAt: interval.startedAt }, { endedAt: '2025-10-04T09:00:59-03:00' },
+    { startedAt: '2999-01-01T10:00:00Z', endedAt: '2999-01-01T11:00:00Z' },
+    { note: ' ' }, { startedAt: '2025-10-04T09:00' },
+    { overtime: true }, { overtime: false }, { sourceSessionId: 3 }, { qualityStatus: 'aprobado' },
+    { durationMinutes: 60 }, { dailyEntry: true }, { clientRequestHash: 'forged' },
+  ])('rejects invalid, estimated, overtime or quality-injection payloads: %j', (change) => {
+    expect(createWorkshopDailyEntrySchema.safeParse({ ...daily, ...change }).success).toBe(false);
+  });
+  it('keeps the legacy request contract separate from daily idempotency and dates', () => {
+    expect(createWorkshopTimeRequestSchema.safeParse({ workOrderId: 1, itemId: 2, ...interval }).success).toBe(true);
+    expect(createWorkshopTimeRequestSchema.safeParse({ workOrderId: 1, itemId: 2, ...interval, clientRequestId: daily.clientRequestId }).success).toBe(false);
   });
 });

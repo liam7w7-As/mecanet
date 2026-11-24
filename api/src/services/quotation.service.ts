@@ -5,11 +5,15 @@ import { col, literal, Op, Transaction, where as sequelizeWhere } from 'sequeliz
 
 
 import { enqueueCustomerEmail, enqueueWorkOrderProgress } from './customer-email-queue.service.js';
+import { calculateDpWorkPricing } from './dp-configuration.service.js';
 import { notifyByType } from './notification.service.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { propagateLinkedSalesAccess } from './sales-access-grant.service.js';
 import { assertSalesWorkOrderAccess, getSalesScope, quotationWhere, scopeSalesAssociations, type SalesScope } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
+import { ensureAccRequestsForItems } from './work-order-division-actions.js';
+import { normalizeDivisionMetadata } from './work-order-division-rules.js';
+import { assertDpItemStatus, ensureDpStagesForItems, getDpStages } from './work-order-dp-state.js';
 import { getInspectionPhoto } from './work-order-inspection-photo.service.js';
 import { assertWorkItemsRemovable, ensureQuotationItemLinks, itemIdentity } from './work-order-item-links.js';
 import { recordChecklistStatusChange } from './work-order-labor-events.js';
@@ -40,6 +44,8 @@ import type { InspectionPhotoFile, InspectionPhotoPublic } from './work-order-in
 import type {
   ConvertQuotationInput,
   CatalogType,
+  CatalogDivision,
+  CatalogSubtype,
   UnitMeasure,
   CreateQuotationInput,
   ItemOperationalStatus,
@@ -49,6 +55,7 @@ import type {
   UpdateQuotationInput,
   WorkOrderInspectionPhotoSlot,
   DiscountType,
+  DpWorkQuote,
   QuotationPaymentMethod,
 } from '@unithor/shared';
 import type { InferAttributes, WhereOptions } from 'sequelize';
@@ -91,10 +98,13 @@ interface QuotationItemCatalogPublic {
 }
 
 interface QuotationItemPublic {
+  dpPricingSnapshot?: DpWorkQuote | null;
   id: number;
   catalogItemId: number | null;
   descripcion: string;
   tipoLinea: CatalogType;
+  division?: import('@unithor/shared').CatalogDivision | null;
+  subtipo?: import('@unithor/shared').CatalogSubtype | null;
   unidadMedida: UnitMeasure;
   cantidad: number;
   precioUnitario: number;
@@ -103,6 +113,7 @@ interface QuotationItemPublic {
   descuentoValor: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
+  esAPedido?: boolean;
   catalogItem?: QuotationItemCatalogPublic | null;
 }
 
@@ -181,9 +192,12 @@ const itemsInclude = {
     'catalogItemId',
     'descripcion',
     'tipoLinea',
+    'division',
+    'subtipo',
     'unidadMedida',
     'cantidad',
     'precioUnitario',
+    'dpPricingSnapshot',
     'subtotal',
     'descuentoTipo',
     'descuentoValor',
@@ -303,9 +317,13 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
       catalogItemId: item.catalogItemId,
       descripcion: item.descripcion,
       tipoLinea: item.tipoLinea,
+      division: item.division ?? null,
+      subtipo: item.subtipo ?? null,
+      esAPedido: item.subtipo === 'a_pedido',
       unidadMedida: item.unidadMedida,
       cantidad: numberValue(item.cantidad),
       precioUnitario: numberValue(item.precioUnitario),
+      dpPricingSnapshot: item.dpPricingSnapshot ?? null,
       subtotal: numberValue(item.subtotal),
       descuentoTipo: item.descuentoTipo,
       descuentoValor: numberValue(item.descuentoValor),
@@ -322,18 +340,23 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
     })),
 });
 
+type PricedQuotationItemInput = QuotationItemInput & { dpPricingSnapshot?: DpWorkQuote | null };
+
 const buildItemsPayload = (
   quotationId: number,
-  items: Array<QuotationItemInput & { workOrderItemId?: number | null }>,
+  items: Array<PricedQuotationItemInput & { workOrderItemId?: number | null }>,
 ): Array<{
   quotationId: number;
   workOrderItemId: number | null;
   catalogItemId: number | null;
   descripcion: string;
   tipoLinea: CatalogType;
+  division: CatalogDivision;
+  subtipo: CatalogSubtype;
   unidadMedida: UnitMeasure;
   cantidad: number;
   precioUnitario: number;
+  dpPricingSnapshot: DpWorkQuote | null;
   subtotal: number;
   descuentoTipo: DiscountType | null;
   descuentoValor: number;
@@ -351,9 +374,11 @@ const buildItemsPayload = (
       catalogItemId: item.catalogItemId ?? null,
       descripcion: item.descripcion,
       tipoLinea: item.tipoLinea,
+      ...normalizeDivisionMetadata(item),
       unidadMedida: item.unidadMedida,
       cantidad,
       precioUnitario,
+      dpPricingSnapshot: item.dpPricingSnapshot ?? null,
       subtotal: pricing.lines[index].subtotal,
       descuentoTipo: item.descuentoTipo ?? null,
       descuentoValor: Number(item.descuentoValor ?? 0),
@@ -365,21 +390,22 @@ const buildItemsPayload = (
 
 const buildWorkOrderItemsPayload = (
   workOrderId: number,
-  items: QuotationItemInput[],
+  items: QuotationItem[],
 ): Array<{
   workOrderId: number;
   catalogItemId: number | null;
   descripcion: string;
   tipoLinea: CatalogType;
+  division: CatalogDivision;
+  subtipo: CatalogSubtype;
+  esAPedido: boolean;
   unidadMedida: UnitMeasure;
   cantidad: number;
   precioUnitario: number;
+  dpPricingSnapshot: DpWorkQuote | null;
   subtotal: number;
   estadoOperativo: ItemOperationalStatus;
   notasOperativas: string | null;
-  stockConsumido: boolean;
-  stockConsumidoCantidad: number;
-  stockConsumidoAt: null;
 }> =>
   items.map((item) => {
     const cantidad = Number(item.cantidad);
@@ -390,15 +416,14 @@ const buildWorkOrderItemsPayload = (
       catalogItemId: item.catalogItemId ?? null,
       descripcion: item.descripcion,
       tipoLinea: item.tipoLinea,
+      ...normalizeDivisionMetadata(item),
       unidadMedida: item.unidadMedida,
       cantidad,
       precioUnitario,
+      dpPricingSnapshot: item.dpPricingSnapshot ?? null,
       subtotal: cantidad * precioUnitario,
       estadoOperativo: item.estadoOperativo ?? 'pendiente',
       notasOperativas: item.notasOperativas ?? null,
-      stockConsumido: false,
-      stockConsumidoCantidad: 0,
-      stockConsumidoAt: null,
     };
   });
 
@@ -507,38 +532,70 @@ const syncLinkedWorkOrderFromQuotation = async (
   );
   const linkedIds = new Set(quotationItems.map((item) => item.workOrderItemId));
   const removed = existingItems.filter((item) => !linkedIds.has(item.id));
+  if (removed.some((item) => item.entregadoBodega || item.recibidoTaller)) {
+    throw ApiError.badRequest('No se puede eliminar un repuesto entregado por bodega sin registrar antes su devolución');
+  }
   await assertWorkItemsRemovable(removed, transaction);
-  await restoreConsumedWorkOrderStock(existingItems, transaction, userId, workOrder.codigo);
+  await restoreConsumedWorkOrderStock(removed, transaction, userId, workOrder.codigo);
   if (removed.length > 0) {
     await revokeFinalQuality(workOrder.id, userId, 'Servicios retirados desde la cotización', transaction);
     await WorkOrderItem.destroy({ where: { id: removed.map((item) => item.id) }, transaction });
   }
   const persisted: WorkOrderItem[] = [];
+  const createdItems: WorkOrderItem[] = [];
   let completedChanged = false;
   for (const line of quotationItems) {
     const payload = buildWorkOrderItemsPayload(workOrder.id, [line])[0];
     const existing = existingItems.find((item) => item.id === line.workOrderItemId);
     if (existing) {
+      if (payload.division !== 'DP') payload.dpPricingSnapshot = null;
+      const stockChanged = existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea || Number(existing.cantidad) !== Number(payload.cantidad);
+      if (stockChanged && (existing.entregadoBodega || existing.recibidoTaller)) {
+        throw ApiError.badRequest('No se puede cambiar el repuesto ni la cantidad de una entrega física sin registrar antes su devolución');
+      }
+      if (existing.division === 'DP') await assertDpItemStatus(existing, payload.estadoOperativo, transaction);
+      if (existing.division !== 'DP' && payload.division === 'DP') payload.estadoOperativo = 'pendiente';
+      if (existing.division === 'DP' && (payload.division !== 'DP' || existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea)) {
+        const stages = await getDpStages(existing.id, transaction);
+        if (stages.some((stage) => stage.assignedUserId != null || stage.status !== 'pendiente' || stage.startedAt != null || stage.completedAt != null || Boolean(stage.note?.trim()))) {
+          throw ApiError.badRequest('No se puede reclasificar un trabajo D&P que ya tiene asignaciones o historial de etapas');
+        }
+      }
       if (existing.estadoOperativo !== 'completado' && payload.estadoOperativo === 'completado') completedChanged = true;
       if (existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea) {
         await assertWorkItemsRemovable([existing], transaction);
       }
       const previousStatus = existing.estadoOperativo;
-      const technicalChanged = existing.descripcion !== payload.descripcion || Number(existing.cantidad) !== Number(payload.cantidad) || existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea || existing.unidadMedida !== payload.unidadMedida || existing.notasOperativas !== payload.notasOperativas;
+      const technicalChanged = existing.descripcion !== payload.descripcion || Number(existing.cantidad) !== Number(payload.cantidad) || existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea || existing.unidadMedida !== payload.unidadMedida || existing.notasOperativas !== payload.notasOperativas || existing.division !== payload.division || existing.subtipo !== payload.subtipo || existing.esAPedido !== payload.esAPedido;
       if (technicalChanged) await invalidateItemQuality(existing, userId, 'Contenido del servicio actualizado desde la cotización', transaction);
-      await existing.update({ ...payload, stockConsumidoWarehouseId: null }, { transaction });
+      if (stockChanged) await restoreConsumedWorkOrderStock([existing], transaction, userId, workOrder.codigo);
+      await existing.update({
+        ...payload,
+        ...(stockChanged ? { stockConsumido: false, stockConsumidoCantidad: 0, stockConsumidoAt: null, stockConsumidoWarehouseId: null } : {}),
+      }, { transaction });
       await recordChecklistStatusChange(existing, previousStatus, userId, transaction);
       if (existing.estadoOperativo === 'completado' || existing.estadoOperativo === 'omitido') {
         await closeWorkOrderTimers(workOrder.id, transaction, existing.id);
       }
       persisted.push(existing);
     } else {
+      if (payload.division === 'DP') payload.estadoOperativo = 'pendiente';
       await revokeFinalQuality(workOrder.id, userId, 'Se agregaron trabajos desde la cotización', transaction);
-      const created = await WorkOrderItem.create(payload, { transaction });
+      const catalogItem = payload.catalogItemId === null ? null : await CatalogItem.findByPk(payload.catalogItemId, { transaction });
+      const created = await WorkOrderItem.create({
+        ...payload,
+        horasHombreEstimadas: catalogItem?.horasHombreEstandar == null ? null : Number(catalogItem.horasHombreEstandar),
+      }, { transaction });
       await line.update({ workOrderItemId: created.id }, { transaction });
       persisted.push(created);
+      createdItems.push(created);
+    }
+    if (line.estadoOperativo !== payload.estadoOperativo) {
+      await line.update({ estadoOperativo: payload.estadoOperativo }, { transaction });
     }
   }
+  await ensureDpStagesForItems(workOrder.id, persisted, transaction);
+  if (createdItems.length) await ensureAccRequestsForItems(workOrder, createdItems, userId, transaction);
   await consumeCompletedWorkOrderPartStock(persisted, transaction, userId, workOrder.codigo);
   if (completedChanged) await enqueueWorkOrderProgress(workOrder.id, userId, transaction, `quotation-progress:${quotation.id}:${randomUUID()}`);
 };
@@ -560,10 +617,11 @@ const assertVehicleExists = async (vehicleId: number, transaction: Transaction):
   return vehicle;
 };
 
-const assertCatalogItemsExist = async (
-  items: QuotationItemInput[],
+const normalizeQuotationItems = async <T extends PricedQuotationItemInput>(
+  items: T[],
   transaction: Transaction,
-): Promise<void> => {
+  previous: QuotationItem[] = [],
+): Promise<Array<T & { division: CatalogDivision; subtipo: CatalogSubtype; dpPricingSnapshot: DpWorkQuote | null }>> => {
   const catalogItemIds = [
     ...new Set(
       items
@@ -575,14 +633,45 @@ const assertCatalogItemsExist = async (
     ),
   ];
 
-  if (catalogItemIds.length === 0) {
-    return;
-  }
-
-  const count = await CatalogItem.count({ where: { id: catalogItemIds }, transaction });
-  if (count !== catalogItemIds.length) {
+  const catalogItems = catalogItemIds.length === 0 ? [] : await CatalogItem.findAll({
+    where: { id: catalogItemIds }, transaction,
+    attributes: ['id', 'tipo', 'division', 'subtipo'],
+  });
+  if (catalogItems.length !== catalogItemIds.length) {
     throw ApiError.badRequest('Uno o más ítems de catálogo no existen');
   }
+  const catalogById = new Map(catalogItems.map((item) => [item.id, item]));
+  const remaining = [...previous];
+  const normalized: Array<T & { division: CatalogDivision; subtipo: CatalogSubtype; dpPricingSnapshot: DpWorkQuote | null }> = [];
+  for (const item of items) {
+    const matches = remaining.filter((old) => item.id !== undefined
+      ? old.id === item.id : itemIdentity(old) === itemIdentity(item));
+    const old = matches.length === 1 ? matches[0] : undefined;
+    if (old) remaining.splice(remaining.indexOf(old), 1);
+    const keepMetadata = old && old.catalogItemId === (item.catalogItemId ?? null) && old.tipoLinea === item.tipoLinea;
+    const metadata = normalizeDivisionMetadata({
+      tipoLinea: item.tipoLinea,
+      division: item.division ?? (keepMetadata && item.subtipo === undefined ? old.division : undefined),
+      subtipo: item.subtipo ?? (keepMetadata && item.division === undefined ? old.subtipo : undefined),
+    }, item.catalogItemId == null ? undefined : catalogById.get(item.catalogItemId));
+    const catalog = item.catalogItemId == null ? undefined : catalogById.get(item.catalogItemId);
+    if (item.dpPricing && (metadata.division !== 'DP' || item.tipoLinea === 'parte' || catalog?.tipo === 'parte')) {
+      throw ApiError.badRequest('El cálculo D&P solo corresponde a servicios de la división D&P');
+    }
+    const dpPricingSnapshot = item.dpPricing
+      ? await calculateDpWorkPricing(item.dpPricing, transaction)
+      : metadata.division === 'DP'
+        ? (item.dpPricingSnapshot !== undefined ? item.dpPricingSnapshot : old?.dpPricingSnapshot ?? null)
+        : null;
+    normalized.push({
+      ...item,
+      ...metadata,
+      dpPricingSnapshot,
+      ...(item.dpPricing && dpPricingSnapshot ? { precioUnitario: dpPricingSnapshot.precioUnitario } : {}),
+      tipoLinea: metadata.division === 'ACC' ? 'parte' as const : metadata.subtipo === 'especifico' ? 'especifico' as const : 'estandar' as const,
+    });
+  }
+  return normalized;
 };
 
 const getCompleteQuotation = async (
@@ -619,15 +708,18 @@ const getCompleteQuotation = async (
   return quotation;
 };
 
-const copyWorkOrderItems = (items: WorkOrderItem[]): Array<QuotationItemInput & { workOrderItemId: number }> => {
+const copyWorkOrderItems = (items: WorkOrderItem[]): Array<PricedQuotationItemInput & { workOrderItemId: number }> => {
   return items.map((item) => ({
     workOrderItemId: item.id,
     catalogItemId: item.catalogItemId,
     descripcion: item.descripcion,
     tipoLinea: item.tipoLinea,
+    division: item.division,
+    subtipo: item.subtipo ?? undefined,
     unidadMedida: item.unidadMedida,
     cantidad: numberValue(item.cantidad),
     precioUnitario: numberValue(item.precioUnitario),
+    dpPricingSnapshot: item.dpPricingSnapshot ?? null,
     estadoOperativo: item.estadoOperativo,
     notasOperativas: item.notasOperativas,
   }));
@@ -765,7 +857,7 @@ export const createQuotation = async (
   const result = await sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED }, async (transaction) => {
     let clientId = data.clientId ?? null;
     let vehicleId = data.vehicleId ?? null;
-    let items = data.items;
+    let items: PricedQuotationItemInput[] = data.items;
 
     if (data.workOrderId !== undefined && data.workOrderId !== null) {
       await assertSalesWorkOrderAccess(data.workOrderId, asesorId, transaction);
@@ -800,7 +892,7 @@ export const createQuotation = async (
     if (vehicleId !== null) {
       await assertVehicleExists(vehicleId, transaction);
     }
-    await assertCatalogItemsExist(items, transaction);
+    items = await normalizeQuotationItems(items, transaction);
 
     const pricing = priceQuotation(items, data);
     const { total } = pricing;
@@ -883,12 +975,14 @@ export const updateQuotation = async (
       }
 
       const previous = await QuotationItem.findAll({ where: { quotationId: id }, order: [['id', 'ASC']], transaction });
-      if (quotation.workOrderId !== null && data.items) await assertChiefPriceEditsAllowed(userId, data.items.some((input) => {
+      const normalizedItems = data.items
+        ? await normalizeQuotationItems(preserveLineDiscounts(data.items, previous), transaction, previous)
+        : undefined;
+      if (quotation.workOrderId !== null && normalizedItems) await assertChiefPriceEditsAllowed(userId, normalizedItems.some((input) => {
         const existing = previous.find((line) => line.id === input.id);
         return existing && existing.tipoLinea !== 'parte' && Number(existing.precioUnitario) !== Number(input.precioUnitario);
       }), transaction);
-      const items = data.items ? preserveLineDiscounts(data.items, previous) : previous;
-      if (data.items) await assertCatalogItemsExist(data.items, transaction);
+      const items = normalizedItems ?? previous;
       const discount = {
         descuentoTipo: data.descuentoTipo === undefined ? quotation.descuentoTipo : data.descuentoTipo,
         descuentoValor: data.descuentoValor ?? Number(quotation.descuentoValor),
@@ -900,8 +994,8 @@ export const updateQuotation = async (
       }
       nextTotal = total;
 
-      if (data.items) {
-        const nextItems = preserveLineDiscounts(data.items, previous);
+      if (normalizedItems) {
+        const nextItems = normalizedItems;
         if (quotation.workOrderId !== null) {
           await ensureQuotationItemLinks(quotation.id, quotation.workOrderId, transaction);
           for (const old of previous) await old.reload({ transaction });
@@ -1007,6 +1101,12 @@ export const convertQuotationToWorkOrder = async (
     if (!clientId) {
       throw ApiError.badRequest('Seleccione el responsable de la orden de trabajo');
     }
+    // Copy accepted prices and their original revision; conversion never re-quotes the COT.
+    const snapshots = new Map<number, DpWorkQuote>();
+    for (const [index, item] of (quotation.items ?? []).entries()) {
+      if (item.dpPricingSnapshot) snapshots.set(index, item.dpPricingSnapshot);
+    }
+    const snapshotArguments: [] | [ReadonlyMap<number, DpWorkQuote>] = snapshots.size ? [snapshots] : [];
     const workOrder = await createWorkOrderInTransaction(
       {
         ...data,
@@ -1018,16 +1118,22 @@ export const convertQuotationToWorkOrder = async (
           catalogItemId: item.catalogItemId,
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,
+          division: item.division ?? undefined,
+          subtipo: item.subtipo ?? undefined,
+          esAPedido: item.subtipo === 'a_pedido',
           unidadMedida: item.unidadMedida,
           cantidad: numberValue(item.cantidad),
           precioUnitario: numberValue(item.precioUnitario),
-          estadoOperativo: item.estadoOperativo,
+          descuentoTipo: item.descuentoTipo,
+          descuentoValor: numberValue(item.descuentoValor),
+          estadoOperativo: item.division === 'DP' ? 'pendiente' : item.estadoOperativo,
           notasOperativas: item.notasOperativas,
         })),
       },
       userId,
       transaction,
       false,
+      ...snapshotArguments,
     );
 
     await quotation.update({ workOrderId: workOrder.id, vehicleId: workOrder.vehicleId, clientId: quotation.clientId ?? clientId }, { transaction });
@@ -1040,7 +1146,14 @@ export const convertQuotationToWorkOrder = async (
       where: { workOrderId: workOrder.id }, order: [['id', 'ASC']], transaction,
     });
     for (const [index, line] of (quotation.items ?? []).entries()) {
-      await line.update({ workOrderItemId: createdItems[index].id }, { transaction });
+      const createdItem = createdItems[index];
+      if (!createdItem) throw ApiError.badRequest('No se pudieron vincular todos los trabajos de la cotización');
+      await line.update({
+        workOrderItemId: createdItem.id,
+        division: createdItem.division,
+        subtipo: createdItem.subtipo,
+        estadoOperativo: createdItem.estadoOperativo,
+      }, { transaction });
     }
 
     return {

@@ -1,5 +1,6 @@
 import { Op, Transaction } from 'sequelize';
 
+import { assertDpItemStatus } from './work-order-dp-state.js';
 import { ensureQuotationItemLinks } from './work-order-item-links.js';
 import { Quotation } from '../models/Quotation.js';
 import { Role } from '../models/Role.js';
@@ -37,6 +38,9 @@ export const revokeFinalQuality = async (workOrderId: number, actorId: number, r
 };
 
 export const invalidateItemQuality = async (item: WorkOrderItem, actorId: number, reason: string, transaction: Transaction): Promise<void> => {
+  if (item.division === 'DP' && item.ccfStatus !== 'pendiente') {
+    await item.update({ ccfStatus: 'pendiente', ccfReviewedAt: null, ccfReviewedBy: null }, { transaction });
+  }
   // Keep the rejection reason while the mechanic is correcting the service.
   if (item.qualityStatus === 'aprobado' || (item.qualityStatus === 'rechazado' && ['completado', 'omitido'].includes(item.estadoOperativo))) {
     await item.update({ qualityStatus: 'pendiente', qualityReviewedAt: null, qualityReviewedBy: null, qualityNote: null }, { transaction });
@@ -45,7 +49,7 @@ export const invalidateItemQuality = async (item: WorkOrderItem, actorId: number
 };
 
 export const invalidateAllQuality = async (workOrderId: number, actorId: number, reason: string, transaction: Transaction): Promise<void> => {
-  await WorkOrderItem.update({ qualityStatus: 'pendiente', qualityReviewedAt: null, qualityReviewedBy: null, qualityNote: null }, { where: { workOrderId }, transaction });
+  await WorkOrderItem.update({ qualityStatus: 'pendiente', qualityReviewedAt: null, qualityReviewedBy: null, qualityNote: null, ccfStatus: 'pendiente', ccfReviewedAt: null, ccfReviewedBy: null }, { where: { workOrderId }, transaction });
   await revokeFinalQuality(workOrderId, actorId, reason, transaction);
 };
 
@@ -54,6 +58,11 @@ export const assertQualityItemsResolved = async (workOrderId: number, transactio
   if (unfinished) throw ApiError.badRequest('Todos los trabajos y repuestos deben estar completados u omitidos antes de confirmar la calidad');
   const unapproved = await WorkOrderItem.count({ where: { workOrderId, tipoLinea: { [Op.ne]: 'parte' }, qualityStatus: { [Op.ne]: 'aprobado' } }, transaction });
   if (unapproved) throw ApiError.badRequest('El jefe de taller debe aprobar individualmente la calidad de todos los servicios antes de finalizar');
+  const dpItems = await WorkOrderItem.findAll({ where: { workOrderId, division: 'DP', estadoOperativo: { [Op.ne]: 'omitido' } }, transaction });
+  for (const item of dpItems) {
+    await assertDpItemStatus(item, 'completado', transaction);
+    if (item.ccfStatus !== 'aprobado') throw ApiError.badRequest('El jefe debe aprobar el CCF de todos los trabajos D&P');
+  }
 };
 
 /** Called only while holding the OT lock; direct state endpoints use this same gate. */

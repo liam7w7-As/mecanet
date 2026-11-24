@@ -234,9 +234,6 @@ const CommercialReviews = ({ report }: { report: WorkshopPerformanceReport }) =>
         aria-label="Historial de análisis comerciales"
       >
         <h3>Historial de análisis · {reviews.length}</h3>
-        <p className="text-sm text-brand-muted">
-          Capturas inmutables al guardar; los importes actuales pueden diferir.
-        </p>
         {reviews.map((review) => {
           const service = services.find((item) => item.workOrderItemId === review.workOrderItemId);
           return (

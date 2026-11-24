@@ -184,11 +184,7 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
     id: `client-${key}`,
     name: key,
     'aria-invalid': Boolean(fieldErrors[key]),
-    'aria-describedby': fieldErrors[key]
-      ? `client-${key}-error`
-      : key === 'rut'
-        ? 'client-rut-hint'
-        : undefined,
+    'aria-describedby': fieldErrors[key] ? `client-${key}-error` : undefined,
     onBlur: () => {
       if (form[key] === initial[key]) return;
       const result = createClientSchema.shape[key].safeParse(form[key]);
@@ -341,11 +337,6 @@ export const ClientFormModal = ({ client, initialValues, onClose, onSaved }: Cli
                       />
                     )}
                   </div>
-                  {!fieldErrors.rut && (
-                    <p id="client-rut-hint" className="mt-1.5 text-xs text-brand-muted">
-                      Incluye el dígito verificador o K.
-                    </p>
-                  )}
                 </Field>
               </div>
 

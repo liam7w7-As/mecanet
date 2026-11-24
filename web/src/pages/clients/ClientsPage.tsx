@@ -282,9 +282,6 @@ export const ClientsPage = () => {
           <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center">
             <Users className="h-9 w-9 text-brand-muted/40" aria-hidden="true" />
             <p className="mt-3 font-semibold text-brand-ink">No se encontraron clientes</p>
-            <p className="mt-1 text-sm text-brand-muted">
-              Ajuste la búsqueda o el tipo seleccionado.
-            </p>
           </div>
         )}
         <Pagination

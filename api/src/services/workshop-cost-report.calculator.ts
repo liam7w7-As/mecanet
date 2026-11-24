@@ -36,6 +36,8 @@ export interface CostReportSession {
   endedAt: Date | null;
   scheduledEndAt: Date | null;
   durationMinutes: number | null;
+  reportedDate?: string | null;
+  overtime?: boolean;
   supersededAt: Date | null;
 }
 export interface CostReportItem {
@@ -65,7 +67,7 @@ const round = (value: number): number =>
 const multiply = (a: number | null, b: number | null): number | null =>
   a === null || b === null ? null : round(a * b);
 
-/** Signed adjustments are events; timers/manual replacements are clipped intervals. */
+/** Adjustments and declared hours are dated quantities; timers are clipped intervals. */
 export const costReportSessionMinutes = (
   session: CostReportSession,
   start: Date,
@@ -82,7 +84,7 @@ const sessionInPeriod = (
   now: Date,
 ): boolean => {
   if (session.supersededAt || session.startedAt > now || session.startedAt >= end) return false;
-  if (session.kind === 'ajuste') return session.startedAt >= start;
+  if (session.kind === 'ajuste' || session.reportedDate) return session.startedAt >= start;
   const stop = Math.min(
     session.endedAt?.getTime() ?? now.getTime(),
     session.scheduledEndAt?.getTime() ?? Infinity,

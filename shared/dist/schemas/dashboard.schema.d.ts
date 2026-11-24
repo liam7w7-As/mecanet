@@ -58,11 +58,11 @@ export declare const dashboardSummarySchema: z.ZodObject<{
             id: z.ZodNumber;
             nombre: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            nombre: string;
             id: number;
+            nombre: string;
         }, {
-            nombre: string;
             id: number;
+            nombre: string;
         }>>;
         vehicle: z.ZodNullable<z.ZodObject<{
             id: z.ZodNumber;
@@ -76,13 +76,13 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         }>>;
     }, "strip", z.ZodTypeAny, {
         id: number;
+        updatedAt: string;
         codigo: string;
         estado: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
         fechaIngreso: string | null;
-        updatedAt: string;
         client: {
-            nombre: string;
             id: number;
+            nombre: string;
         } | null;
         vehicle: {
             id: number;
@@ -90,13 +90,13 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         } | null;
     }, {
         id: number;
+        updatedAt: string;
         codigo: string;
         estado: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
         fechaIngreso: string | null;
-        updatedAt: string;
         client: {
-            nombre: string;
             id: number;
+            nombre: string;
         } | null;
         vehicle: {
             id: number;
@@ -111,14 +111,14 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         stock: z.ZodNumber;
         stockMinimo: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
-        nombre: string;
         id: number;
+        nombre: string;
         codigo: string | null;
         stock: number;
         stockMinimo: number;
     }, {
-        nombre: string;
         id: number;
+        nombre: string;
         codigo: string | null;
         stock: number;
         stockMinimo?: number | undefined;
@@ -132,19 +132,19 @@ export declare const dashboardSummarySchema: z.ZodObject<{
             id: z.ZodNumber;
             nombre: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            nombre: string;
             id: number;
+            nombre: string;
         }, {
-            nombre: string;
             id: number;
+            nombre: string;
         }>>;
     }, "strip", z.ZodTypeAny, {
         total: number;
         id: number;
         codigo: string;
         client: {
-            nombre: string;
             id: number;
+            nombre: string;
         } | null;
         estadoPago: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado";
     }, {
@@ -152,8 +152,8 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         id: number;
         codigo: string;
         client: {
-            nombre: string;
             id: number;
+            nombre: string;
         } | null;
         estadoPago: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado";
     }>, "many">;
@@ -264,13 +264,13 @@ export declare const dashboardSummarySchema: z.ZodObject<{
     };
     recentWorkOrders: {
         id: number;
+        updatedAt: string;
         codigo: string;
         estado: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
         fechaIngreso: string | null;
-        updatedAt: string;
         client: {
-            nombre: string;
             id: number;
+            nombre: string;
         } | null;
         vehicle: {
             id: number;
@@ -279,8 +279,8 @@ export declare const dashboardSummarySchema: z.ZodObject<{
     }[];
     lowStockCount: number;
     lowStockItems: {
-        nombre: string;
         id: number;
+        nombre: string;
         codigo: string | null;
         stock: number;
         stockMinimo: number;
@@ -290,8 +290,8 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         id: number;
         codigo: string;
         client: {
-            nombre: string;
             id: number;
+            nombre: string;
         } | null;
         estadoPago: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado";
     }[];
@@ -328,13 +328,13 @@ export declare const dashboardSummarySchema: z.ZodObject<{
     };
     recentWorkOrders: {
         id: number;
+        updatedAt: string;
         codigo: string;
         estado: "en_progreso" | "esperando_repuesto" | "finalizada" | "entregada" | "cancelada";
         fechaIngreso: string | null;
-        updatedAt: string;
         client: {
-            nombre: string;
             id: number;
+            nombre: string;
         } | null;
         vehicle: {
             id: number;
@@ -343,8 +343,8 @@ export declare const dashboardSummarySchema: z.ZodObject<{
     }[];
     lowStockCount: number;
     lowStockItems: {
-        nombre: string;
         id: number;
+        nombre: string;
         codigo: string | null;
         stock: number;
         stockMinimo?: number | undefined;
@@ -354,8 +354,8 @@ export declare const dashboardSummarySchema: z.ZodObject<{
         id: number;
         codigo: string;
         client: {
-            nombre: string;
             id: number;
+            nombre: string;
         } | null;
         estadoPago: "total" | "parcial" | "por_verificar" | "por_pagar" | "ot_finalizado";
     }[];

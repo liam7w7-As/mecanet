@@ -14,11 +14,11 @@ export declare const notificationSchema: z.ZodObject<{
         id: z.ZodNumber;
         nombre: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        nombre: string;
         id: number;
+        nombre: string;
     }, {
-        nombre: string;
         id: number;
+        nombre: string;
     }>>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -34,8 +34,8 @@ export declare const notificationSchema: z.ZodObject<{
     leida: boolean;
     paymentId: number | null;
     actor: {
-        nombre: string;
         id: number;
+        nombre: string;
     } | null;
 }, {
     tipo: "reingreso_creado" | "solicitud_creada" | "solicitud_aprobada" | "solicitud_rechazada" | "repuesto_por_entregar" | "pago_por_verificar" | "pago_verificado" | "pago_rechazado" | "ot_estado_cambiado" | "ot_entregada" | "mecanico_asignado" | "fecha_entrega_vencida" | "cotizacion_creada" | "cotizacion_convertida" | "acceso_compartido";
@@ -50,8 +50,8 @@ export declare const notificationSchema: z.ZodObject<{
     leida: boolean;
     paymentId: number | null;
     actor: {
-        nombre: string;
         id: number;
+        nombre: string;
     } | null;
 }>;
 export declare const notificationListQuerySchema: z.ZodObject<{

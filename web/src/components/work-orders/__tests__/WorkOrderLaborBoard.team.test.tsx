@@ -32,7 +32,9 @@ const open = (dirty = vi.fn(), pending = vi.fn(), props: Partial<WorkOrderLaborB
 const task = () => screen.getByRole('article', { name: `Trabajo: ${description}` });
 const expandTeam = async () => {
   const article = await screen.findByRole('article', { name: `Trabajo: ${description}` });
-  fireEvent.click(within(article).getByText('Equipo de trabajo', { selector: 'summary' }));
+  const hoursButton = within(article).getByRole('button', { name: 'Asignar horas' });
+  await waitFor(() => expect(hoursButton).toBeEnabled());
+  fireEvent.click(hoursButton);
   await waitFor(() => expect(within(article).getByRole('button', { name: 'Agregar integrante' })).toBeEnabled());
   return article;
 };
@@ -55,6 +57,14 @@ beforeEach(() => {
 afterEach(() => client.clear());
 
 describe('Multi-worker labor board', () => {
+  it('labels declared history with its date and real quantity instead of a midnight time', async () => {
+    worksheet.items[0].sessions = [{ id: 99, userName: 'Carlos', kind: 'manual', reportedDate: '2026-11-19', startedAt: '2026-11-19T03:00:00Z', endedAt: '2026-11-19T03:00:00Z', minutes: 90, note: 'Diagnóstico registrado' }];
+    open();
+    const article = await screen.findByRole('article', { name: `Trabajo: ${description}` });
+    expect(await within(article).findByText('19-11-2026 · Horas declaradas · 1 h 30 min')).toBeInTheDocument();
+    expect(within(article).getByText('Diagnóstico registrado')).toBeInTheDocument();
+  });
+
   it('saves a team with individual estimates, worker specialties and a mandatory reason, retaining failed drafts', async () => {
     setTeam();
     const dirty = vi.fn(); const pending = vi.fn();
@@ -81,8 +91,8 @@ describe('Multi-worker labor board', () => {
     expect(within(article).getByLabelText('Motivo del cambio de equipo')).toHaveValue('  Distribución de trabajo  ');
     expect(dirty).toHaveBeenLastCalledWith(true);
     expect(pending).toHaveBeenCalledWith(true);
-    fireEvent.click(within(article).getByText('Equipo de trabajo', { selector: 'summary' }));
-    fireEvent.click(within(article).getByText('Equipo de trabajo', { selector: 'summary' }));
+    fireEvent.click(within(article).getByRole('button', { name: `Cerrar edición de equipo de ${description}` }));
+    fireEvent.click(within(article).getByRole('button', { name: 'Asignar horas' }));
     expect(hours).toHaveValue(2.5);
     expect(within(article).getByLabelText('Motivo del cambio de equipo')).toHaveValue('  Distribución de trabajo  ');
     vi.mocked(api.post).mockImplementationOnce(async () => {
@@ -290,8 +300,8 @@ describe('Multi-worker labor board', () => {
   it('keeps pending warehouse deliveries blocked for actual parts', async () => {
     worksheet.items[0] = { ...worksheet.items[0], tipoLinea: 'parte', awaitingWarehouseDelivery: true };
     open();
-    const article = await screen.findByRole('article', { name: `Trabajo: ${description}` });
-    await waitFor(() => expect(within(article).getByRole('button', { name: 'Marcar usado' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Marcar usado' })).toBeDisabled());
+    const article = screen.getByRole('article', { name: `Trabajo: ${description}` });
     expect(within(article).getByText(/Pendiente de entrega por bodega/)).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
   });
@@ -398,7 +408,7 @@ describe('Multi-worker labor board', () => {
     open(vi.fn(), vi.fn(), { workOrder: { ...order, assignedMechanicId: null }, focus: 'unassigned' });
     expect(await screen.findByRole('button', { name: 'Sin asignar 1' })).toHaveAttribute('aria-pressed', 'true');
     const article = await screen.findByRole('article', { name: 'Trabajo: Alineación delantera' });
-    await waitFor(() => expect(within(article).getByText('Equipo de trabajo', { selector: 'summary' }).closest('details')).toHaveAttribute('open'));
+    await waitFor(() => expect(within(article).getByRole('button', { name: 'Asignar horas' })).toHaveAttribute('aria-expanded', 'true'));
     expect(within(article).getByRole('button', { name: 'Agregar integrante' })).toBeVisible();
     expect(screen.queryByRole('article', { name: 'Trabajo: Repuesto sin asignar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('article', { name: 'Trabajo: Servicio terminado' })).not.toBeInTheDocument();
@@ -413,5 +423,54 @@ describe('Multi-worker labor board', () => {
     expect(await screen.findByRole('button', { name: 'Sin asignar 1' })).toHaveAttribute('aria-pressed', 'true');
     expect(await screen.findByRole('article', { name: 'Trabajo: Alineación delantera' })).toBeVisible();
     expect(screen.queryByRole('article', { name: `Trabajo: ${description}` })).not.toBeInTheDocument();
+  });
+});
+
+
+describe('Direct task controls', () => {
+  it('opens hour assignment directly and focuses the estimate without saving', async () => {
+    setTeam();
+    open();
+    const article = await screen.findByRole('article', { name: 'Trabajo: ' + description });
+    const button = within(article).getByRole('button', { name: 'Asignar horas' });
+    await waitFor(() => expect(button).toBeEnabled());
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(button.closest('details')).toBeNull();
+    fireEvent.click(button);
+    const hours = within(article).getByLabelText('Horas estimadas del integrante 1 de ' + description);
+    await waitFor(() => expect(hours).toHaveFocus());
+    expect(hours).toBeVisible();
+    expect(within(article).getByRole('button', { name: 'Guardar equipo' })).toBeDisabled();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('shows instructions and attachments without expanding details or mixing other jobs', async () => {
+    setTeam();
+    worksheet.items[0].notasOperativas = 'Revisar el soporte antes de desmontar.';
+    worksheet.observations = [
+      { id: 1, itemId: 10, itemDescripcion: description, authorName: 'Ana Jefa', texto: 'Foto del soporte a revisar.', createdAt: '2026-11-19T12:00:00Z', progressReportId: null, files: [{ id: 1, nombreOriginal: 'soporte.jpg', mimeType: 'image/jpeg', sizeBytes: 100, url: '/api/work-orders/1/observations/1/files/1' }] },
+      { id: 2, itemId: 11, itemDescripcion: 'Otro trabajo', authorName: 'Ana Jefa', texto: 'Indicación de otro trabajo.', createdAt: '2026-11-19T12:00:00Z', progressReportId: null, files: [{ id: 2, nombreOriginal: 'otro.pdf', mimeType: 'application/pdf', sizeBytes: 100, url: '/api/work-orders/1/observations/2/files/2' }] },
+    ];
+    useAuthStore.setState({ user: { id: 9, nombre: 'Carlos', email: 'qa@example.test', role: 'mecanico' } });
+    open();
+    const article = await screen.findByRole('article', { name: 'Trabajo: ' + description });
+    const context = within(article).getByRole('region', { name: 'Indicaciones y adjuntos de ' + description });
+    expect(await within(context).findByText('Revisar el soporte antes de desmontar.')).toBeVisible();
+    expect(within(context).getByText('Foto del soporte a revisar.')).toBeVisible();
+    expect(within(context).getByRole('button', { name: 'Ver imagen soporte.jpg' })).toBeVisible();
+    expect(within(context).queryByRole('link', { name: 'Abrir documento otro.pdf' })).not.toBeInTheDocument();
+    expect(within(article).queryByRole('button', { name: 'Asignar horas' })).not.toBeInTheDocument();
+    expect(within(article).queryByText(/Valor teórico/)).not.toBeInTheDocument();
+    expect(context.closest('details')).toBeNull();
+  });
+
+  it.each(['read-only', 'entregada', 'cancelada'])('does not offer hour assignment for %s', async (mode) => {
+    setTeam();
+    if (mode === 'read-only') useAuthStore.setState({ user: { id: 7, nombre: 'Ana Jefa', email: 'qa@example.test', role: 'jefe', permissions: [{ modulo: 'taller', accion: 'read' }] } });
+    open(vi.fn(), vi.fn(), { workOrder: { ...order, estado: mode === 'read-only' ? 'en_progreso' : mode as 'entregada' | 'cancelada' } });
+    await screen.findByRole('article', { name: 'Trabajo: ' + description });
+    expect(screen.queryByRole('button', { name: 'Asignar horas' })).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 });

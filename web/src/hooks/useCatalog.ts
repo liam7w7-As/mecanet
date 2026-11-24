@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { useCatalogEvents } from './useCatalogEvents';
 import { api } from '../lib/api';
 
 import type { CatalogItem, PaginatedResponse } from '../types/entities';
@@ -42,8 +43,9 @@ const replaceCatalogItem = (
   };
 };
 
-export const useCatalogItems = (queryParams: CatalogQueryParams) =>
-  useQuery({
+export const useCatalogItems = (queryParams: CatalogQueryParams) => {
+  useCatalogEvents();
+  return useQuery({
     queryKey: catalogKeys.list(queryParams),
     queryFn: async () => {
       const response = await api.get<PaginatedResponse<CatalogItem>>('/catalog', {
@@ -53,6 +55,7 @@ export const useCatalogItems = (queryParams: CatalogQueryParams) =>
     },
     placeholderData: keepPreviousData,
   });
+};
 
 export const useCreateCatalogItemMutation = () => {
   const queryClient = useQueryClient();

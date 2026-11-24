@@ -1,5 +1,7 @@
+import { createCatalogItemSchema, resolveCatalogClassification } from '@unithor/shared';
 import { Op, Transaction } from 'sequelize';
 
+import { publishCatalogChange } from './catalog-events.service.js';
 import { hasPermission } from './permission.service.js';
 import { getDefaultWarehouse, registerMovement } from './warehouse.service.js';
 import { sequelize } from '../config/database.js';
@@ -9,7 +11,9 @@ import { ApiError } from '../utils/ApiError.js';
 import { getPagination } from '../utils/paginate.js';
 
 import type {
+  CatalogDivision,
   CatalogItemQueryInput,
+  CatalogSubtype,
   CatalogType,
   CreateCatalogItemInput,
   UnitMeasure,
@@ -20,6 +24,8 @@ import type { InferAttributes, WhereOptions } from 'sequelize';
 export interface CatalogItemPublic {
   id: number;
   tipo: CatalogType;
+  division: CatalogDivision;
+  subtipo: CatalogSubtype;
   codigo: string | null;
   nombre: string;
   descripcion: string | null;
@@ -55,6 +61,8 @@ type CatalogItemWhere = WhereOptions<InferAttributes<CatalogItem>> & {
 const toCatalogItemPublic = (item: CatalogItem): CatalogItemPublic => ({
   id: item.id,
   tipo: item.tipo,
+  division: item.division ?? (item.tipo === 'parte' ? 'ACC' : 'MEC'),
+  subtipo: item.subtipo ?? (item.tipo === 'parte' ? 'en_stock' : item.tipo === 'especifico' ? 'especifico' : 'estandar'),
   codigo: item.codigo,
   nombre: item.nombre,
   descripcion: item.descripcion,
@@ -136,6 +144,14 @@ export const listCatalogItems = async (
     where.tipo = query.tipo;
   }
 
+  if (query.division !== undefined) {
+    where.division = query.division;
+  }
+
+  if (query.subtipo !== undefined) {
+    where.subtipo = query.subtipo;
+  }
+
   if (query.search) {
     const pattern = `%${query.search}%`;
     where[Op.or] = [{ nombre: { [Op.like]: pattern } }, { codigo: { [Op.like]: pattern } }];
@@ -177,9 +193,11 @@ export const getCatalogItemById = async (id: number): Promise<CatalogItemPublic>
 };
 
 export const createCatalogItem = async (
-  data: CreateCatalogItemInput,
+  input: Omit<CreateCatalogItemInput, 'division' | 'subtipo'> &
+    Partial<Pick<CreateCatalogItemInput, 'division' | 'subtipo'>>,
   userId?: number,
 ): Promise<CatalogItemPublic> => {
+  const data = createCatalogItemSchema.parse(input);
   const codigo = normalizeCode(data.codigo) ?? null;
   return sequelize.transaction(async (transaction) => {
     await assertCodeAvailable(codigo, undefined, transaction);
@@ -189,6 +207,8 @@ export const createCatalogItem = async (
     const item = await CatalogItem.create(
       {
         tipo: data.tipo,
+        division: data.division,
+        subtipo: data.subtipo,
         codigo,
         nombre: data.nombre,
         descripcion: data.descripcion ?? null,
@@ -216,6 +236,7 @@ export const createCatalogItem = async (
       await item.reload({ transaction });
     }
 
+    transaction.afterCommit(publishCatalogChange);
     return toCatalogItemPublic(item);
   });
 };
@@ -230,8 +251,20 @@ export const updateCatalogItem = async (
       throw ApiError.notFound('Item de catálogo no encontrado');
     }
 
-    const nextType = data.tipo ?? item.tipo;
+    const classification = resolveCatalogClassification(data, {
+      tipo: item.tipo, division: item.division, subtipo: item.subtipo,
+    });
+    const validated = createCatalogItemSchema.safeParse({
+      ...data, ...classification, nombre: data.nombre ?? item.nombre,
+    });
+    if (!validated.success) {
+      throw ApiError.badRequest(validated.error.issues.map((issue) => issue.message).join('. '));
+    }
+    const nextType = classification.tipo;
     if (item.tipo === 'parte' && nextType !== 'parte') await assertNoStock(item, transaction);
+    if (item.subtipo !== 'a_pedido' && classification.subtipo === 'a_pedido') {
+      await assertNoStock(item, transaction);
+    }
     if (nextType === 'parte' && data.stock !== undefined && data.stock !== Number(item.stock)) {
       throw ApiError.badRequest(
         'Modifica el stock mediante movimientos de almacén, no desde el catálogo',
@@ -241,6 +274,8 @@ export const updateCatalogItem = async (
       Pick<
         CatalogItem,
         | 'tipo'
+        | 'division'
+        | 'subtipo'
         | 'codigo'
         | 'nombre'
         | 'descripcion'
@@ -250,11 +285,7 @@ export const updateCatalogItem = async (
         | 'stockMinimo'
         | 'horasHombreEstandar'
       >
-    > = {};
-
-    if (data.tipo !== undefined) {
-      updatePayload.tipo = data.tipo;
-    }
+    > = { ...classification };
 
     if (data.codigo !== undefined) {
       const codigo = normalizeCode(data.codigo) ?? null;
@@ -294,6 +325,7 @@ export const updateCatalogItem = async (
     }
 
     await item.update(updatePayload, { transaction });
+    transaction.afterCommit(publishCatalogChange);
     return toCatalogItemPublic(item);
   });
 };
@@ -355,6 +387,7 @@ export const adjustStock = async (
         { transaction },
       );
       await item.reload({ transaction });
+      transaction.afterCommit(publishCatalogChange);
     }
 
     return {
@@ -376,5 +409,6 @@ export const deleteCatalogItem = async (id: number): Promise<void> => {
 
     await assertNoStock(item, transaction);
     await item.destroy({ transaction });
+    transaction.afterCommit(publishCatalogChange);
   });
 };

@@ -110,7 +110,7 @@ export interface WarehouseWorkOrderRequestPublic {
     vehicle: { id: number; patente: string; marca: string | null; modelo: string | null } | null;
     mechanic: { id: number; nombre: string } | null;
   };
-  catalogItem: { id: number; codigo: string | null; nombre: string; stock: number };
+  catalogItem: { id: number; codigo: string | null; nombre: string; stock: number; subtipo?: string | null; division?: string | null };
   requester: { id: number; nombre: string } | null;
   reviewer: { id: number; nombre: string } | null;
   deliveredWarehouse: { id: number; codigo: string; nombre: string } | null;
@@ -682,7 +682,7 @@ const warehouseRequestInclude = [
     model: CatalogItem,
     as: 'catalogItem',
     required: true,
-    attributes: ['id', 'codigo', 'nombre', 'stock'],
+    attributes: ['id', 'codigo', 'nombre', 'stock', 'subtipo', 'division'],
   },
   { model: User, as: 'requester', attributes: ['id', 'nombre'] },
   { model: User, as: 'reviewer', attributes: ['id', 'nombre'] },
@@ -738,6 +738,8 @@ const toWarehouseRequestPublic = (
       codigo: request.catalogItem.codigo,
       nombre: request.catalogItem.nombre,
       stock: Number(request.catalogItem.stock),
+      subtipo: request.catalogItem.subtipo ?? null,
+      division: request.catalogItem.division ?? null,
     },
     requester: request.requester
       ? { id: request.requester.id, nombre: request.requester.nombre }
@@ -891,6 +893,9 @@ export const deliverWorkOrderRequest = async (
         stockConsumidoCantidad: quantity,
         stockConsumidoAt: deliveredAt,
         stockConsumidoWarehouseId: consumption.warehouseId,
+        entregadoBodega: true,
+        entregadoBodegaAt: deliveredAt,
+        bodegueroUserId: userId,
       },
       { transaction },
     );

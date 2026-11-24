@@ -1,0 +1,676 @@
+.daily-journal {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+  color: #1d396a;
+}
+.daily-journal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.daily-journal-eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  color: #8c9fba;
+  letter-spacing: 0.08em;
+}
+.daily-journal-heading h1 {
+  margin: 6px 0;
+  font-size: 25px;
+  font-weight: 600;
+}
+.daily-journal-heading p {
+  margin: 0;
+  color: #7b90ac;
+  font-size: 12px;
+}
+.daily-journal-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #e9eef6;
+  border-radius: 18px;
+}
+.daily-journal-toolbar label {
+  display: grid;
+  gap: 7px;
+  min-width: 170px;
+  color: #6c83a3;
+  font-size: 11px;
+}
+.daily-journal-toolbar label > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.daily-journal-toolbar svg {
+  width: 16px;
+  height: 16px;
+}
+.daily-journal-toolbar input,
+.daily-journal-toolbar select {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid #e3eaf4;
+  border-radius: 12px;
+  background: #f6f8fc;
+  color: #1d396a;
+  font-size: 12px;
+}
+.daily-journal-worker {
+  display: grid;
+  align-self: center;
+  gap: 4px;
+  font-size: 13px;
+}
+.daily-journal-worker small {
+  color: #8b9db5;
+  font-size: 10px;
+}
+.daily-journal-history-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-left: auto;
+  min-height: 40px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 999px;
+  color: #1d396a;
+  background: #edf2fa;
+  font-size: 11px;
+}
+.daily-journal-notice {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #eaf1fc;
+  font-size: 12px;
+  color: #35567f;
+}
+.daily-journal-totals {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px 30px;
+  padding: 16px 20px;
+  background: #f0f5fd;
+  border-radius: 16px;
+}
+.daily-journal-totals > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.daily-journal-totals svg {
+  width: 24px;
+  height: 24px;
+  color: #748db4;
+}
+.daily-journal-totals span {
+  display: grid;
+  gap: 4px;
+  font-size: 10px;
+  color: #6d83a5;
+}
+.daily-journal-totals strong {
+  color: #1d396a;
+  font-size: 18px;
+  font-weight: 600;
+}
+.daily-journal-totals p {
+  margin: 0 0 0 auto;
+  color: #8093ae;
+  font-size: 11px;
+}
+.daily-journal-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.daily-journal-section-title h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.daily-journal-section-title > span {
+  color: #8a9db7;
+  font-size: 11px;
+}
+.daily-journal-orders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 14px;
+}
+.daily-journal-order {
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid #e6edf7;
+  border-radius: 18px;
+  background: #fff;
+}
+.daily-journal-order > header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.daily-journal-car {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: #f0f4fb;
+  color: #7694bd;
+}
+.daily-journal-car svg {
+  width: 23px;
+  height: 23px;
+}
+.daily-journal-plate {
+  display: inline-flex;
+  margin-bottom: 4px;
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: #edf3fc;
+  color: #1d396a;
+  font-size: 13px;
+  font-weight: 600;
+}
+.daily-journal-order h3 {
+  margin: 0;
+  color: #6980a2;
+  font-size: 11px;
+  font-weight: 500;
+}
+.daily-journal-order header > button {
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  width: 37px;
+  height: 37px;
+  border: 0;
+  border-radius: 50%;
+  background: #1d396a;
+  color: #fff;
+}
+.daily-journal-order header > button svg {
+  width: 19px;
+  height: 19px;
+}
+.daily-journal button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.daily-journal-order > p {
+  margin: 15px 0 8px;
+  color: #8b9db6;
+  font-size: 10px;
+}
+.daily-journal-order ul {
+  display: grid;
+  gap: 9px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.daily-journal-order li {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.daily-journal-order li > span {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.daily-journal-order li small {
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #6e87aa;
+  background: #f2f5fa;
+  font-size: 9px;
+}
+.daily-journal-order footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #edf2f8;
+  color: #8295b0;
+  font-size: 10px;
+}
+.daily-journal-empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 25px 18px;
+  border: 1px dashed #dce5f1;
+  border-radius: 15px;
+  color: #8295b1;
+  font-size: 12px;
+  text-align: center;
+}
+.daily-journal-empty svg {
+  width: 32px;
+  height: 32px;
+}
+.daily-journal-records {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.daily-journal-records > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 20px;
+  padding: 15px 17px;
+  border: 1px solid #e9eff7;
+  border-radius: 14px;
+  background: #fff;
+}
+.daily-journal-records strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+.daily-journal-records h3 {
+  margin: 4px 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+.daily-journal-records small,
+.daily-journal-records p {
+  margin: 0;
+  color: #8b9eb7;
+  font-size: 10px;
+}
+.daily-journal-record-status {
+  display: grid;
+  align-content: start;
+  justify-items: end;
+  gap: 5px;
+  text-align: right;
+}
+.daily-journal-record-status > strong {
+  font-size: 14px;
+}
+.daily-journal-record-status > span {
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #6b83a3;
+  background: #f0f4fb;
+  font-size: 9px;
+}
+.daily-journal-records .daily-journal-record-note {
+  grid-column: 1 / -1;
+  color: #617d9f;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.daily-journal-advanced {
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid #e6edf7;
+  background: #fff;
+}
+.daily-journal-advanced[hidden] {
+  display: none;
+}
+.daily-journal-advanced > h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.daily-journal-advanced > p {
+  margin-bottom: 18px;
+  color: #8195b1;
+  font-size: 11px;
+}
+.reception-edit-dialog.reference-dialog.daily-entry-dialog {
+  width: min(600px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  color: #1d396a;
+}
+.reference-dialog.daily-entry-dialog .ui-modal-header {
+  padding: 18px 22px 14px;
+}
+.daily-entry-dialog fieldset.reception-edit-body {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 18px 22px;
+}
+.daily-entry-dialog fieldset.daily-entry-core {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.daily-entry-work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  align-items: end;
+  gap: 12px;
+}
+.daily-entry-dialog label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: #6e85a5;
+  font-size: 11px;
+}
+.daily-entry-dialog input:not([type='radio']):not([type='checkbox']):not([type='file']),
+.daily-entry-dialog select,
+.daily-entry-dialog textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e2eaf5;
+  border-radius: 12px;
+  color: #1d396a;
+  background: #f5f8fc;
+  font-size: 12px;
+}
+.daily-entry-dialog input[readonly] {
+  background: #f0f4fa;
+  color: #6f86a7;
+}
+.daily-entry-dialog textarea {
+  min-height: 58px;
+  resize: vertical;
+}
+.daily-entry-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.daily-entry-status legend {
+  margin-bottom: 10px;
+  color: #6e85a5;
+  font-size: 11px;
+}
+.daily-entry-status label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 15px;
+  border: 1px solid #e1e9f5;
+  border-radius: 999px;
+  color: #1d396a;
+  background: #f3f6fb;
+}
+.daily-entry-dialog .daily-entry-status input {
+  appearance: auto;
+  width: 15px;
+  height: 15px;
+  min-height: 0;
+  margin: 0;
+  accent-color: #1d396a;
+}
+.daily-entry-status label:has(input:checked) {
+  background: #e6eefc;
+  border-color: #aabddd;
+}
+.daily-entry-additions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.daily-entry-additions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.daily-entry-additions button,
+.daily-entry-extra > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #eef3fb;
+  color: #1d396a;
+  font-size: 10px;
+}
+.daily-entry-additions .daily-entry-add-button {
+  border: 1px dashed #d5e0ee;
+  background: transparent;
+}
+.daily-entry-dialog .reception-edit-footer {
+  padding: 12px 22px;
+  gap: 10px;
+}
+.daily-entry-dialog .reception-edit-footer > span:empty {
+  display: none;
+}
+.daily-entry-dialog .reception-edit-footer > div:last-child {
+  margin-left: auto;
+}
+.daily-entry-additions svg,
+.daily-entry-extra svg {
+  width: 16px;
+  height: 16px;
+}
+.daily-entry-file-input {
+  display: none;
+}
+.daily-entry-extra {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+.daily-entry-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.daily-entry-photo {
+  position: relative;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid #e0e9f5;
+  border-radius: 11px;
+  background: #f7f9fd;
+}
+.daily-entry-photo img {
+  display: block;
+  width: 100%;
+  height: 80px;
+  border-radius: 7px;
+  object-fit: cover;
+}
+.daily-entry-photo span {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #6c83a4;
+  font-size: 9px;
+}
+.daily-entry-photo button {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  padding: 4px;
+  border: 0;
+  border-radius: 50%;
+  color: #1d396a;
+  background: #fff;
+}
+.daily-entry-photo button svg {
+  width: 14px;
+  height: 14px;
+}
+.daily-entry-error {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff0ed;
+  color: #a24733;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.daily-entry-saved {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #eaf7f1;
+  color: #397159;
+  font-size: 11px;
+}
+.daily-entry-error > small {
+  display: block;
+  margin-top: 5px;
+  font-size: inherit;
+}
+.daily-context-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding: 18px;
+  background: #18273c55;
+}
+.daily-context-overlay > section {
+  width: min(460px, 100%);
+  padding: 24px;
+  border-radius: 18px;
+  background: #fff;
+  color: #1d396a;
+}
+.daily-context-overlay h2 {
+  font-size: 18px;
+}
+.daily-context-overlay p {
+  color: #7087a6;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.daily-context-overlay button {
+  margin: 6px 8px 0 0;
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #edf2fb;
+  color: #1d396a;
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .daily-journal {
+    gap: 18px;
+  }
+  .daily-journal-heading h1 {
+    font-size: 21px;
+  }
+  .daily-journal-heading .dashboard-heading-logo {
+    max-width: 105px;
+  }
+  .daily-journal-toolbar {
+    align-items: stretch;
+    padding: 14px;
+  }
+  .daily-journal-toolbar > label {
+    flex: 1;
+    min-width: 135px;
+  }
+  .daily-journal-history-button {
+    width: 100%;
+    margin: 0;
+  }
+  .daily-journal-totals {
+    gap: 16px;
+    padding: 15px;
+  }
+  .daily-journal-totals p {
+    margin: 0;
+  }
+  .daily-journal-records > li {
+    padding: 13px;
+    gap: 9px;
+  }
+  .daily-journal-record-status {
+    max-width: 145px;
+  }
+  .daily-entry-dialog fieldset.reception-edit-body {
+    padding: 16px;
+  }
+  .daily-entry-work {
+    grid-template-columns: minmax(0, 1fr) 120px;
+    gap: 10px;
+  }
+  .daily-entry-dialog :is(input, select, textarea) {
+    font-size: 16px;
+  }
+}
+@media (max-width: 340px) {
+  .daily-entry-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Keep the activity pills in two columns even under FormDialog's field rules. */
+.daily-entry-dialog .daily-entry-core > .daily-entry-status {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+.daily-entry-dialog .daily-entry-core > .daily-entry-status > label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 0;
+  min-height: 38px;
+  margin: 0;
+  padding: 7px 12px;
+}
+.daily-entry-dialog .daily-entry-core > .daily-entry-status input[type='radio'] {
+  flex: 0 0 15px;
+  width: 15px;
+  min-width: 15px;
+  height: 15px;
+  min-height: 0;
+  margin: 0;
+}

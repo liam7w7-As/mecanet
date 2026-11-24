@@ -289,9 +289,6 @@ export const PurchaseDetailPage = () => {
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-line p-4 sm:p-5">
               <div>
                 <h2 className="font-bold text-brand-primaryInk">Ítems de la compra</h2>
-                <p className="mt-0.5 text-xs text-brand-muted">
-                  El stock se recibe solo en los ítems con repuesto de catálogo y almacén.
-                </p>
               </div>
               <span className="rounded-md bg-brand-pale px-2 py-1 text-xs font-semibold text-brand-primaryInk">
                 {purchase.items.length} {purchase.items.length === 1 ? 'ítem' : 'ítems'}
@@ -385,9 +382,6 @@ export const PurchaseDetailPage = () => {
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h2 className="font-bold text-brand-primaryInk">Comprobante</h2>
-                <p className="mt-0.5 text-xs text-brand-muted">
-                  Archivo y metadata tal como fueron registrados.
-                </p>
               </div>
               <FileText className="h-5 w-5 text-brand-muted" aria-hidden="true" />
             </div>
@@ -452,7 +446,6 @@ export const PurchaseDetailPage = () => {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h2 className="font-bold text-brand-primaryInk">Proveedor</h2>
-                <p className="mt-0.5 text-xs text-brand-muted">Datos comerciales registrados</p>
               </div>
               <Building2 className="h-5 w-5 text-brand-muted" aria-hidden="true" />
             </div>
@@ -547,7 +540,6 @@ export const PurchaseDetailPage = () => {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h2 className="font-bold text-brand-primaryInk">Pago y caja</h2>
-                <p className="mt-0.5 text-xs text-brand-muted">Egreso vinculado a la compra</p>
               </div>
               <WalletCards className="h-5 w-5 text-brand-muted" aria-hidden="true" />
             </div>

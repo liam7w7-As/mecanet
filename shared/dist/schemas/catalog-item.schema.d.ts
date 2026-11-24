@@ -1,6 +1,8 @@
 import { z } from 'zod';
-export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
-    tipo: z.ZodEnum<["parte", "estandar", "especifico"]>;
+export declare const createCatalogItemSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
+    tipo: z.ZodOptional<z.ZodEnum<["parte", "estandar", "especifico"]>>;
+    division: z.ZodOptional<z.ZodEnum<["DP", "ACC", "MEC"]>>;
+    subtipo: z.ZodOptional<z.ZodEnum<["servicio_dp", "en_stock", "a_pedido", "estandar", "especifico"]>>;
     codigo: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     nombre: z.ZodString;
     descripcion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
@@ -9,19 +11,23 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     stock: z.ZodDefault<z.ZodNumber>;
     stockMinimo: z.ZodDefault<z.ZodNumber>;
     horasHombreEstandar: z.ZodOptional<z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>>;
-}, "strip", z.ZodTypeAny, {
+}, "strict", z.ZodTypeAny, {
     nombre: string;
-    tipo: "parte" | "estandar" | "especifico";
     stock: number;
     stockMinimo: number;
     unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
     precio: number;
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
+    tipo?: "parte" | "estandar" | "especifico" | undefined;
     codigo?: string | null | undefined;
     descripcion?: string | null | undefined;
     horasHombreEstandar?: number | null | undefined;
 }, {
     nombre: string;
-    tipo: "parte" | "estandar" | "especifico";
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
+    tipo?: "parte" | "estandar" | "especifico" | undefined;
     codigo?: string | null | undefined;
     stock?: number | undefined;
     stockMinimo?: number | undefined;
@@ -30,9 +36,35 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     precio?: number | undefined;
     horasHombreEstandar?: unknown;
 }>, {
+    nombre: string;
+    stock: number;
+    stockMinimo: number;
+    unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
+    precio: number;
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
+    tipo?: "parte" | "estandar" | "especifico" | undefined;
+    codigo?: string | null | undefined;
+    descripcion?: string | null | undefined;
+    horasHombreEstandar?: number | null | undefined;
+}, {
+    nombre: string;
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
+    tipo?: "parte" | "estandar" | "especifico" | undefined;
+    codigo?: string | null | undefined;
+    stock?: number | undefined;
+    stockMinimo?: number | undefined;
+    descripcion?: string | null | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+    precio?: number | undefined;
+    horasHombreEstandar?: unknown;
+}>, {
+    division: "DP" | "ACC" | "MEC";
+    subtipo: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido";
+    tipo: "parte" | "estandar" | "especifico";
     stock: number;
     nombre: string;
-    tipo: "parte" | "estandar" | "especifico";
     stockMinimo: number;
     unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
     precio: number;
@@ -41,7 +73,9 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     horasHombreEstandar?: number | null | undefined;
 }, {
     nombre: string;
-    tipo: "parte" | "estandar" | "especifico";
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
+    tipo?: "parte" | "estandar" | "especifico" | undefined;
     codigo?: string | null | undefined;
     stock?: number | undefined;
     stockMinimo?: number | undefined;
@@ -50,8 +84,10 @@ export declare const createCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     precio?: number | undefined;
     horasHombreEstandar?: unknown;
 }>;
-export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
+export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     tipo: z.ZodOptional<z.ZodEnum<["parte", "estandar", "especifico"]>>;
+    division: z.ZodOptional<z.ZodEnum<["DP", "ACC", "MEC"]>>;
+    subtipo: z.ZodOptional<z.ZodEnum<["servicio_dp", "en_stock", "a_pedido", "estandar", "especifico"]>>;
     codigo: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     nombre: z.ZodOptional<z.ZodString>;
     descripcion: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
@@ -60,9 +96,11 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     stock: z.ZodOptional<z.ZodNumber>;
     stockMinimo: z.ZodOptional<z.ZodNumber>;
     horasHombreEstandar: z.ZodOptional<z.ZodEffects<z.ZodNullable<z.ZodNumber>, number | null, unknown>>;
-}, "strip", z.ZodTypeAny, {
-    nombre?: string | undefined;
+}, "strict", z.ZodTypeAny, {
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
+    nombre?: string | undefined;
     codigo?: string | null | undefined;
     stock?: number | undefined;
     stockMinimo?: number | undefined;
@@ -71,8 +109,10 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     precio?: number | undefined;
     horasHombreEstandar?: number | null | undefined;
 }, {
-    nombre?: string | undefined;
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
+    nombre?: string | undefined;
     codigo?: string | null | undefined;
     stock?: number | undefined;
     stockMinimo?: number | undefined;
@@ -81,8 +121,10 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     precio?: number | undefined;
     horasHombreEstandar?: unknown;
 }>, {
-    nombre?: string | undefined;
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
+    nombre?: string | undefined;
     codigo?: string | null | undefined;
     stock?: number | undefined;
     stockMinimo?: number | undefined;
@@ -91,8 +133,34 @@ export declare const updateCatalogItemSchema: z.ZodEffects<z.ZodObject<{
     precio?: number | undefined;
     horasHombreEstandar?: number | null | undefined;
 }, {
-    nombre?: string | undefined;
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
+    nombre?: string | undefined;
+    codigo?: string | null | undefined;
+    stock?: number | undefined;
+    stockMinimo?: number | undefined;
+    descripcion?: string | null | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+    precio?: number | undefined;
+    horasHombreEstandar?: unknown;
+}>, {
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
+    tipo?: "parte" | "estandar" | "especifico" | undefined;
+    nombre?: string | undefined;
+    codigo?: string | null | undefined;
+    stock?: number | undefined;
+    stockMinimo?: number | undefined;
+    descripcion?: string | null | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+    precio?: number | undefined;
+    horasHombreEstandar?: number | null | undefined;
+}, {
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
+    tipo?: "parte" | "estandar" | "especifico" | undefined;
+    nombre?: string | undefined;
     codigo?: string | null | undefined;
     stock?: number | undefined;
     stockMinimo?: number | undefined;
@@ -117,18 +185,24 @@ export declare const catalogItemQuerySchema: z.ZodObject<{
 } & {
     search: z.ZodOptional<z.ZodString>;
     tipo: z.ZodOptional<z.ZodEnum<["parte", "estandar", "especifico"]>>;
+    division: z.ZodOptional<z.ZodEnum<["DP", "ACC", "MEC"]>>;
+    subtipo: z.ZodOptional<z.ZodEnum<["servicio_dp", "en_stock", "a_pedido", "estandar", "especifico"]>>;
     soloConStock: z.ZodOptional<z.ZodEffects<z.ZodEnum<["true", "false"]>, boolean, "true" | "false">>;
 }, "strip", z.ZodTypeAny, {
     page: number;
     pageSize: number;
-    search?: string | undefined;
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
     tipo?: "parte" | "estandar" | "especifico" | undefined;
+    search?: string | undefined;
     soloConStock?: boolean | undefined;
 }, {
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
+    tipo?: "parte" | "estandar" | "especifico" | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
     search?: string | undefined;
-    tipo?: "parte" | "estandar" | "especifico" | undefined;
     soloConStock?: "true" | "false" | undefined;
 }>;
 export type CreateCatalogItemInput = z.infer<typeof createCatalogItemSchema>;

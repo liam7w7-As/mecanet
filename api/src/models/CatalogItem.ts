@@ -1,4 +1,10 @@
-import { CATALOG_TYPES, type CatalogType, type UnitMeasure } from '@unithor/shared';
+import {
+  CATALOG_TYPES,
+  type CatalogDivision,
+  type CatalogSubtype,
+  type CatalogType,
+  type UnitMeasure,
+} from '@unithor/shared';
 import {
   AutoIncrement,
   Column,
@@ -39,6 +45,22 @@ export class CatalogItem extends Model<
     allowNull: false,
   })
   declare tipo: CatalogType;
+
+  @Index
+  @Column({
+    type: DataType.STRING(20),
+    allowNull: false,
+    defaultValue: 'MEC',
+  })
+  declare division: CreationOptional<CatalogDivision>;
+
+  @Index
+  @Column({
+    type: DataType.STRING(30),
+    allowNull: false,
+    defaultValue: 'estandar',
+  })
+  declare subtipo: CreationOptional<CatalogSubtype>;
 
   @Index
   @Column({

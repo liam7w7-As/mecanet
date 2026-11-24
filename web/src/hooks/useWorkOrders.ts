@@ -24,6 +24,7 @@ import type {
   CreateWorkOrderRequestInput,
   ReviewWorkOrderRequestInput,
   UpdateWorkOrderExecutionInput,
+  WorkOrderItemInput,
 } from '@unithor/shared';
 
 interface WorkOrderResponse {
@@ -99,6 +100,8 @@ const updateWorkOrderCaches = (
   void queryClient.invalidateQueries({ queryKey: ['quotation-payments'] });
   void queryClient.invalidateQueries({ queryKey: ['finance'] });
   void queryClient.invalidateQueries({ queryKey: ['work-order-labor'] });
+  void queryClient.invalidateQueries({ queryKey: ['work-order-quality'] });
+  void queryClient.invalidateQueries({ queryKey: ['workshop-time'] });
   void queryClient.invalidateQueries({ queryKey: ['catalog'] });
   void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
   void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -123,6 +126,8 @@ const applyExecutionResponse = (
   void queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(workOrderId) });
   void queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
   void queryClient.invalidateQueries({ queryKey: ['work-order-labor'] });
+  void queryClient.invalidateQueries({ queryKey: ['work-order-quality'] });
+  void queryClient.invalidateQueries({ queryKey: ['workshop-time'] });
   void queryClient.invalidateQueries({ queryKey: ['quotations'] });
   void queryClient.invalidateQueries({ queryKey: ['catalog'] });
   void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
@@ -184,6 +189,106 @@ export const useReviewWorkOrderRequestMutation = () => {
     }) => {
       const response = await api.patch<WorkOrderResponse>(
         `/work-orders/${id}/requests/${requestId}`,
+        data,
+      );
+      return response.data.workOrder;
+    },
+    onSuccess: (workOrder) => updateWorkOrderCaches(queryClient, workOrder),
+  });
+};
+
+export const useUpdateWorkOrderDpStageMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      workOrderId,
+      stageId,
+      data,
+    }: {
+      workOrderId: number;
+      stageId: number;
+      data: {
+        assignedUserId?: number | null;
+        status?: 'pendiente' | 'en_proceso' | 'completado';
+        note?: string | null;
+      };
+    }) => {
+      const response = await api.patch<WorkOrderExecutionResponse>(
+        `/work-orders/${workOrderId}/dp-stages/${stageId}`,
+        data,
+      );
+      return response.data;
+    },
+    onSuccess: (response, variables) =>
+      applyExecutionResponse(queryClient, variables.workOrderId, response),
+  });
+};
+
+export const useReviewWorkOrderDpQualityMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      workOrderId,
+      itemId,
+      data,
+    }: {
+      workOrderId: number;
+      itemId: number;
+      data: {
+        status?: 'pendiente' | 'aprobado' | 'rechazado';
+        note?: string | null;
+      };
+    }) => {
+      const response = await api.patch<WorkOrderResponse>(
+        `/work-orders/${workOrderId}/items/${itemId}/dp-ccf`,
+        data,
+      );
+      return response.data.workOrder;
+    },
+    onSuccess: (workOrder) => updateWorkOrderCaches(queryClient, workOrder),
+  });
+};
+
+export const useUpdateWorkOrderAccCustodyMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      workOrderId,
+      itemId,
+      data,
+    }: {
+      workOrderId: number;
+      itemId: number;
+      data: {
+        entregado?: boolean;
+        recibido?: boolean;
+        warehouseId?: number;
+        notaEntrega?: string | null;
+      };
+    }) => {
+      const response = await api.patch<WorkOrderExecutionResponse>(
+        `/work-orders/${workOrderId}/items/${itemId}/acc-custody`,
+        data,
+      );
+      return response.data;
+    },
+    onSuccess: (response, variables) =>
+      applyExecutionResponse(queryClient, variables.workOrderId, response),
+  });
+};
+
+export const useAddWorkOrderItemMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      workOrderId,
+      data,
+    }: {
+      workOrderId: number;
+      data: Partial<WorkOrderItemInput> & Pick<WorkOrderItemInput, 'descripcion'>;
+    }) => {
+      const response = await api.post<WorkOrderResponse>(
+        `/work-orders/${workOrderId}/items`,
         data,
       );
       return response.data.workOrder;
@@ -347,31 +452,51 @@ export const useDeleteWorkOrderInspectionPhotoMutation = () => {
   });
 };
 
-export type CatalogPickerType = 'parte' | 'estandar' | 'especifico' | 'all';
+export type CatalogPickerType = 'parte' | 'estandar' | 'especifico' | 'all' | 'DP' | 'ACC' | 'MEC';
 
-export const useCatalogItems = (term: string, tipo: CatalogPickerType = 'all', page = 1) => {
+export const useCatalogItems = (
+  term: string,
+  divisionOrType: CatalogPickerType = 'all',
+  page = 1,
+  subtipo?: string,
+  enabled = true,
+) => {
   const normalizedTerm = term.trim();
   const debouncedTerm = useDebouncedValue(normalizedTerm, 250);
   // Limpiar o cambiar de pestaña vuelve al catálogo completo de inmediato.
   const search = normalizedTerm === '' ? '' : debouncedTerm;
   const isDebouncing = normalizedTerm !== search;
 
+  const params: Record<string, unknown> = {
+    page,
+    pageSize: 12,
+    search: search || undefined,
+  };
+
+  if (divisionOrType === 'DP') {
+    params.division = 'DP';
+  } else if (divisionOrType === 'parte' || divisionOrType === 'ACC') {
+    params.tipo = 'parte';
+    if (subtipo) params.subtipo = subtipo;
+  } else if (divisionOrType === 'estandar') {
+    params.tipo = 'estandar';
+  } else if (divisionOrType === 'especifico') {
+    params.tipo = 'especifico';
+  } else if (divisionOrType === 'MEC') {
+    params.division = 'MEC';
+  }
+
   const query = useQuery({
-    queryKey: ['catalog', 'picker', search, tipo, page],
+    queryKey: ['catalog', 'picker', search, divisionOrType, subtipo, page],
     queryFn: async ({ signal }) => {
       const response = await api.get<PaginatedResponse<CatalogItem>>('/catalog', {
         signal,
-        params: {
-          page,
-          pageSize: 12,
-          search: search || undefined,
-          tipo: tipo === 'all' ? undefined : tipo,
-        },
+        params,
       });
       return response.data;
     },
     // No pedir la página reiniciada con el término de la búsqueda anterior.
-    enabled: !isDebouncing,
+    enabled: enabled && !isDebouncing,
     staleTime: 60_000,
   });
   return { ...query, isDebouncing };

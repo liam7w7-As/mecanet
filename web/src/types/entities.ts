@@ -168,6 +168,8 @@ export interface QuickSearchResult {
 export interface CatalogItem {
   id: number;
   tipo: 'parte' | 'estandar' | 'especifico';
+  division?: import('@unithor/shared').CatalogDivision;
+  subtipo?: import('@unithor/shared').CatalogSubtype;
   codigo: string | null;
   nombre: string;
   descripcion: string | null;
@@ -226,11 +228,46 @@ export interface WorkOrderBilling extends WorkOrderContact {
   comuna: string | null;
 }
 
+export interface WorkOrderDpStage {
+  id: number;
+  workOrderItemId?: number;
+  stageKey: string;
+  stageIndex: number;
+  stageOrder?: number;
+  stageName?: string;
+  stageLabel?: string;
+  assignedUserId: number | null;
+  assignedUserName?: string | null;
+  status: 'pendiente' | 'en_proceso' | 'completado';
+  startedAt: string | null;
+  completedAt: string | null;
+  notes?: string | null;
+  note?: string | null;
+  mechanicNote?: string | null;
+  assignedUser?: { id: number; nombre: string } | null;
+}
+
 export interface WorkOrderItem {
   qualityStatus?: 'pendiente' | 'aprobado' | 'rechazado';
   qualityReviewedAt?: string | null;
   qualityReviewedBy?: number | null;
   qualityNote?: string | null;
+
+  division?: import('@unithor/shared').CatalogDivision;
+  subtipo?: import('@unithor/shared').CatalogSubtype;
+  esAPedido?: boolean;
+  bodegueroUserId?: number | null;
+  entregadoBodega?: boolean;
+  entregadoBodegaAt?: string | null;
+  armadorUserId?: number | null;
+  recibidoTaller?: boolean;
+  recibidoTallerAt?: string | null;
+  notaEntrega?: string | null;
+  ccfStatus?: 'pendiente' | 'aprobado' | 'rechazado';
+  ccfReviewedBy?: number | null;
+  ccfReviewedAt?: string | null;
+  ccfNotes?: string | null;
+  dpStages?: WorkOrderDpStage[];
 
   assignments?: WorkOrderWorksheetItem['assignments'];
   id: number;
@@ -457,6 +494,8 @@ export interface QuotationItem {
   catalogItemId: number | null;
   descripcion: string;
   tipoLinea: import('@unithor/shared').CatalogType;
+  division?: import('@unithor/shared').CatalogDivision | null;
+  subtipo?: import('@unithor/shared').CatalogSubtype | null;
   unidadMedida: import('@unithor/shared').UnitMeasure;
   cantidad: number;
   precioUnitario: number;
@@ -465,6 +504,7 @@ export interface QuotationItem {
   descuentoValor?: number;
   estadoOperativo: import('@unithor/shared').ItemOperationalStatus;
   notasOperativas: string | null;
+  esAPedido?: boolean;
   catalogItem?: ItemCatalogInfo | null;
 }
 
@@ -560,7 +600,7 @@ export interface WarehouseWorkOrderRequest {
     } | null;
     mechanic: { id: number; nombre: string } | null;
   };
-  catalogItem: { id: number; codigo: string | null; nombre: string; stock: number };
+  catalogItem: { id: number; codigo: string | null; nombre: string; stock: number; subtipo?: string | null; division?: string | null };
   requester: { id: number; nombre: string } | null;
   reviewer: { id: number; nombre: string } | null;
   deliveredWarehouse: { id: number; codigo: string; nombre: string } | null;
@@ -785,7 +825,31 @@ export interface WorkOrderWorksheetItem {
   observationsCount: number;
   canWork?: boolean;
   awaitingWarehouseDelivery?: boolean;
-  sessions?: Array<{ id: number; userName: string | null; startedAt: string; endedAt: string | null; minutes: number; kind: string; note: string | null }>;
+  canReceiveCustody?: boolean;
+  division?: import('@unithor/shared').CatalogDivision;
+  subtipo?: import('@unithor/shared').CatalogSubtype | null;
+  esAPedido?: boolean;
+  precioUnitario?: number;
+  custodyBodegueroId?: number | null;
+  custodyBodegueroDeliveredAt?: string | null;
+  custodyArmadorId?: number | null;
+  custodyArmadorReceivedAt?: string | null;
+  custodyArmadorNote?: string | null;
+  bodegueroUserId?: number | null;
+  entregadoBodega?: boolean;
+  entregadoBodegaAt?: string | null;
+  armadorUserId?: number | null;
+  recibidoTaller?: boolean;
+  recibidoTallerAt?: string | null;
+  notaEntrega?: string | null;
+  ccfStatus?: 'pendiente' | 'aprobado' | 'rechazado';
+  ccfNote?: string | null;
+  ccfNotes?: string | null;
+  ccfCheckedAt?: string | null;
+  ccfReviewedAt?: string | null;
+  ccfReviewedBy?: number | null;
+  dpStages?: WorkOrderDpStage[];
+  sessions?: Array<{ id: number; userName: string | null; startedAt: string; endedAt: string | null; reportedDate?: string | null; minutes: number; kind: string; note: string | null }>;
 }
 
 export interface WorkOrderWorksheetObservationFile {
@@ -921,6 +985,7 @@ export interface WorkshopDailyReport {
       overtime: boolean;
       startedAt: string;
       endedAt: string | null;
+      reportedDate?: string | null;
       note: string | null;
     }>;
   }>;

@@ -10,25 +10,28 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
     note: z.ZodString;
     workOrderId: z.ZodNumber;
     itemId: z.ZodNumber;
+    dpStageId: z.ZodOptional<z.ZodNumber>;
     userId: z.ZodOptional<z.ZodNumber>;
     overtime: z.ZodDefault<z.ZodBoolean>;
     activityStatus: z.ZodOptional<z.ZodEnum<["en_proceso", "completado"]>>;
 }, "strict", z.ZodTypeAny, {
     workOrderId: number;
+    note: string;
     itemId: number;
     overtime: boolean;
     startedAt: string;
     endedAt: string;
-    note: string;
     userId?: number | undefined;
+    dpStageId?: number | undefined;
     activityStatus?: "completado" | "en_proceso" | undefined;
 }, {
     workOrderId: number;
+    note: string;
     itemId: number;
     startedAt: string;
     endedAt: string;
-    note: string;
     userId?: number | undefined;
+    dpStageId?: number | undefined;
     overtime?: boolean | undefined;
     activityStatus?: "completado" | "en_proceso" | undefined;
 }>, z.ZodObject<{
@@ -37,44 +40,132 @@ export declare const createWorkshopTimeRequestSchema: z.ZodEffects<z.ZodUnion<[z
     note: z.ZodString;
     sourceSessionId: z.ZodNumber;
 }, "strict", z.ZodTypeAny, {
+    note: string;
     startedAt: string;
     endedAt: string;
-    note: string;
     sourceSessionId: number;
 }, {
+    note: string;
     startedAt: string;
     endedAt: string;
-    note: string;
     sourceSessionId: number;
 }>]>, {
     workOrderId: number;
+    note: string;
     itemId: number;
     overtime: boolean;
     startedAt: string;
     endedAt: string;
-    note: string;
     userId?: number | undefined;
+    dpStageId?: number | undefined;
     activityStatus?: "completado" | "en_proceso" | undefined;
 } | {
+    note: string;
     startedAt: string;
     endedAt: string;
-    note: string;
     sourceSessionId: number;
 }, {
     workOrderId: number;
+    note: string;
     itemId: number;
     startedAt: string;
     endedAt: string;
-    note: string;
     userId?: number | undefined;
+    dpStageId?: number | undefined;
     overtime?: boolean | undefined;
     activityStatus?: "completado" | "en_proceso" | undefined;
 } | {
+    note: string;
     startedAt: string;
     endedAt: string;
-    note: string;
     sourceSessionId: number;
 }>;
+export declare const createWorkshopDailyEntrySchema: z.ZodUnion<[z.ZodObject<{
+    horasUtilizadas: z.ZodNumber;
+    clientRequestId: z.ZodEffects<z.ZodString, string, string>;
+    workOrderId: z.ZodNumber;
+    itemId: z.ZodNumber;
+    dpStageId: z.ZodOptional<z.ZodNumber>;
+    userId: z.ZodOptional<z.ZodNumber>;
+    fecha: z.ZodString;
+    note: z.ZodString;
+    activityStatus: z.ZodEnum<["en_proceso", "completado"]>;
+}, "strict", z.ZodTypeAny, {
+    fecha: string;
+    workOrderId: number;
+    note: string;
+    itemId: number;
+    activityStatus: "completado" | "en_proceso";
+    horasUtilizadas: number;
+    clientRequestId: string;
+    userId?: number | undefined;
+    dpStageId?: number | undefined;
+}, {
+    fecha: string;
+    workOrderId: number;
+    note: string;
+    itemId: number;
+    activityStatus: "completado" | "en_proceso";
+    horasUtilizadas: number;
+    clientRequestId: string;
+    userId?: number | undefined;
+    dpStageId?: number | undefined;
+}>, z.ZodEffects<z.ZodObject<{
+    startedAt: z.ZodString;
+    endedAt: z.ZodString;
+    note: z.ZodString;
+    clientRequestId: z.ZodEffects<z.ZodString, string, string>;
+    workOrderId: z.ZodNumber;
+    itemId: z.ZodNumber;
+    dpStageId: z.ZodOptional<z.ZodNumber>;
+    userId: z.ZodOptional<z.ZodNumber>;
+    fecha: z.ZodString;
+    activityStatus: z.ZodEnum<["en_proceso", "completado"]>;
+}, "strict", z.ZodTypeAny, {
+    fecha: string;
+    workOrderId: number;
+    note: string;
+    itemId: number;
+    activityStatus: "completado" | "en_proceso";
+    startedAt: string;
+    endedAt: string;
+    clientRequestId: string;
+    userId?: number | undefined;
+    dpStageId?: number | undefined;
+}, {
+    fecha: string;
+    workOrderId: number;
+    note: string;
+    itemId: number;
+    activityStatus: "completado" | "en_proceso";
+    startedAt: string;
+    endedAt: string;
+    clientRequestId: string;
+    userId?: number | undefined;
+    dpStageId?: number | undefined;
+}>, {
+    fecha: string;
+    workOrderId: number;
+    note: string;
+    itemId: number;
+    activityStatus: "completado" | "en_proceso";
+    startedAt: string;
+    endedAt: string;
+    clientRequestId: string;
+    userId?: number | undefined;
+    dpStageId?: number | undefined;
+}, {
+    fecha: string;
+    workOrderId: number;
+    note: string;
+    itemId: number;
+    activityStatus: "completado" | "en_proceso";
+    startedAt: string;
+    endedAt: string;
+    clientRequestId: string;
+    userId?: number | undefined;
+    dpStageId?: number | undefined;
+}>]>;
 export declare const reviewWorkshopTimeRequestSchema: z.ZodObject<{
     approve: z.ZodBoolean;
     note: z.ZodString;
@@ -120,6 +211,7 @@ export declare const workshopTimeRequestParamsSchema: z.ZodObject<{
     id: number;
 }>;
 export type CreateWorkshopTimeRequestInput = z.input<typeof createWorkshopTimeRequestSchema>;
+export type CreateWorkshopDailyEntryInput = z.input<typeof createWorkshopDailyEntrySchema>;
 export type ReviewWorkshopTimeRequestInput = z.infer<typeof reviewWorkshopTimeRequestSchema>;
 export type WorkshopTimeQueryInput = z.infer<typeof workshopTimeQuerySchema>;
 export interface WorkshopTimeWorker {
@@ -127,15 +219,21 @@ export interface WorkshopTimeWorker {
     nombre: string;
 }
 export interface WorkshopTimeEligibleItem {
+    dpStageId?: number;
+    dpStageLabel?: string;
+    blocked?: boolean;
     workOrderId: number;
     workOrderCode: string;
     patente: string | null;
     itemId: number;
     description: string;
     userId: number;
+    division?: 'DP' | 'ACC' | 'MEC' | null;
 }
 export interface WorkshopTimeEntry {
+    dpStageId?: number | null;
     id: number;
+    reportedDate?: string | null;
     workOrderId: number;
     workOrderCode: string;
     itemId: number;
@@ -152,9 +250,16 @@ export interface WorkshopTimeEntry {
     note: string | null;
     supersededAt: string | null;
     scheduledEndAt: string | null;
+    activityStatus?: 'pendiente' | WorkshopTimeActivityStatus | 'omitido' | null;
+    ownPartCompleted?: boolean;
 }
 export interface WorkshopTimeRequestRecord {
+    dpStageId?: number | null;
     id: number;
+    reportedDate?: string | null;
+    dailyEntry?: boolean;
+    clientRequestId?: string | null;
+    teamPending?: boolean;
     kind: WorkshopTimeRequestKind;
     overtime: boolean;
     activityStatus: WorkshopTimeActivityStatus | null;
@@ -179,6 +284,7 @@ export interface WorkshopTimeRequestRecord {
     reviewNote: string | null;
 }
 export interface WorkshopTimeJournal {
+    timezone?: string;
     entries: WorkshopTimeEntry[];
     requests: WorkshopTimeRequestRecord[];
     workers: WorkshopTimeWorker[];

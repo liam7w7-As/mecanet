@@ -86,7 +86,6 @@ export const DashboardPage = () => {
         </div>
         <p className="dashboard-date">{formatCurrentDate()}</p>
       </header>
-      {(isSeller || isWarehouse || isFinance) && <p className="workshop-role-caption">{isSeller ? 'Tu gestión comercial · OT, cotizaciones y cobros según tu acceso. Clientes y vehículos compartidos.' : isWarehouse ? 'Tu bodega · despachos aprobados, existencias y movimientos.' : 'Tu gestión financiera · cobros, comprobantes y cierre de caja.'}</p>}
 
       <section className="dashboard-shortcuts view-panel" aria-labelledby="quick-actions-title">
         <div className="view-panel-title">
@@ -159,7 +158,6 @@ export const DashboardPage = () => {
               <div className="view-panel-title flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-base font-semibold text-brand-ink">Últimos trabajos en taller</h2>
-                  <p className="mt-0.5 text-sm text-brand-muted">Órdenes creadas o actualizadas recientemente</p>
                 </div>
                 <Link to="/work-orders" className="group inline-flex items-center gap-1.5 text-sm font-semibold text-brand-primaryInk hover:underline">
                   Ver todas
@@ -189,7 +187,7 @@ export const DashboardPage = () => {
                   </table>
                 </div>
               )}
-            </div> : <div className="view-panel"><div className="view-panel-title"><h2 className="text-base font-semibold text-brand-ink">Gestión de cobros</h2><p className="mt-1 text-sm text-brand-muted">Revisa comprobantes, consulta saldos y prepara el cierre.</p></div><div className="view-panel-body dashboard-finance-links">{canReadFinance && <><Link to="/finance?tab=payments"><ClipboardCheck aria-hidden="true" /><span><strong>Verificación de abonos</strong><small>{summary.operationalInbox.counts.paymentVerifications} pendiente(s)</small></span><ArrowRight aria-hidden="true" /></Link><Link to="/finance?tab=cash"><Coins aria-hidden="true" /><span><strong>Caja del día</strong><small>Ingresos, egresos y cierre diario</small></span><ArrowRight aria-hidden="true" /></Link></>}{canReadCommercial && <><Link to="/quotations"><ReceiptText aria-hidden="true" /><span><strong>Cotizaciones y saldos</strong><small>{summary.metrics.pendingQuotations} con cobro pendiente</small></span><ArrowRight aria-hidden="true" /></Link><Link to={canReadFinance ? '/reports?section=finance' : '/reports?section=commercial'}><FileText aria-hidden="true" /><span><strong>{canReadFinance ? 'Reportes financieros' : 'Reportes comerciales'}</strong><small>Filtros, PDF y Excel según tus permisos</small></span><ArrowRight aria-hidden="true" /></Link></>}</div></div>}
+            </div> : <div className="view-panel"><div className="view-panel-title"><h2 className="text-base font-semibold text-brand-ink">Gestión de cobros</h2></div><div className="view-panel-body dashboard-finance-links">{canReadFinance && <><Link to="/finance?tab=payments"><ClipboardCheck aria-hidden="true" /><span><strong>Verificación de abonos</strong><small>{summary.operationalInbox.counts.paymentVerifications} pendiente(s)</small></span><ArrowRight aria-hidden="true" /></Link><Link to="/finance?tab=cash"><Coins aria-hidden="true" /><span><strong>Caja del día</strong><small>Ingresos, egresos y cierre diario</small></span><ArrowRight aria-hidden="true" /></Link></>}{canReadCommercial && <><Link to="/quotations"><ReceiptText aria-hidden="true" /><span><strong>Cotizaciones y saldos</strong><small>{summary.metrics.pendingQuotations} con cobro pendiente</small></span><ArrowRight aria-hidden="true" /></Link><Link to={canReadFinance ? '/reports?section=finance' : '/reports?section=commercial'}><FileText aria-hidden="true" /><span><strong>{canReadFinance ? 'Reportes financieros' : 'Reportes comerciales'}</strong></span><ArrowRight aria-hidden="true" /></Link></>}</div></div>}
 
             <div className="view-panel" aria-label="Alertas operativas">
               {!isFinance && <section className="view-panel-body">

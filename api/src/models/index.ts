@@ -4,6 +4,8 @@ import { CatalogItem } from './CatalogItem.js';
 import { Client } from './Client.js';
 import { CompanySettings } from './CompanySettings.js';
 import { CustomerEmail } from './CustomerEmail.js';
+import { DpConfiguration } from './DpConfiguration.js';
+import { DpConfigurationRevision } from './DpConfigurationRevision.js';
 import { FleetDocument } from './FleetDocument.js';
 import { FleetDocumentVersion } from './FleetDocumentVersion.js';
 import { FleetVehicle } from './FleetVehicle.js';
@@ -29,6 +31,7 @@ import { Warehouse } from './Warehouse.js';
 import { WorkerSpecialty } from './WorkerSpecialty.js';
 import { WorkOrder } from './WorkOrder.js';
 import { WorkOrderDelivery } from './WorkOrderDelivery.js';
+import { WorkOrderDpStage } from './WorkOrderDpStage.js';
 import { WorkOrderEvent } from './WorkOrderEvent.js';
 import { WorkOrderInspection } from './WorkOrderInspection.js';
 import { WorkOrderInspectionPhoto } from './WorkOrderInspectionPhoto.js';
@@ -51,6 +54,8 @@ import { WorkshopTimeRequest } from './WorkshopTimeRequest.js';
 import type { Sequelize } from 'sequelize-typescript';
 
 export const models = [
+  DpConfiguration,
+  DpConfigurationRevision,
   WorkshopCommercialReview,
   WorkshopAlertSettings,
   WorkOrderQualityReview,
@@ -82,6 +87,7 @@ export const models = [
   StockMovement,
   WorkOrder,
   WorkOrderDelivery,
+  WorkOrderDpStage,
   WorkOrderEvent,
   WorkOrderItem,
   WorkOrderItemSession,
@@ -108,6 +114,8 @@ export function initModels(sequelize: Sequelize): void {
 }
 
 export {
+  DpConfiguration,
+  DpConfigurationRevision,
   WorkshopCommercialReview,
   WorkshopAlertSettings,
   WorkOrderQualityReview,
@@ -139,6 +147,7 @@ export {
   StockMovement,
   WorkOrder,
   WorkOrderDelivery,
+  WorkOrderDpStage,
   WorkOrderEvent,
   WorkOrderItem,
   WorkOrderItemSession,

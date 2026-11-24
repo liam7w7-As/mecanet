@@ -118,7 +118,7 @@ export const UsersPage = () => {
             </article>;
           })}
         {!usersQuery.isPending && !usersQuery.isError && usersQuery.data?.data.length === 0 && <div className="administration-empty"><UserCog aria-hidden="true" />
-          <h2>No se encontraron usuarios</h2><p>Prueba otro nombre o cambia los filtros.</p>{filtersActive && <button type="button" onClick={resetFilters}>Limpiar filtros</button>}
+          <h2>No se encontraron usuarios</h2>{filtersActive && <button type="button" onClick={resetFilters}>Limpiar filtros</button>}
         </div>}
       </section>
       <Pagination page={page} totalPages={usersQuery.data?.meta.totalPages ?? 0} total={usersQuery.data?.meta.total ?? 0} onPageChange={setPage} />
@@ -152,7 +152,7 @@ export const UsersPage = () => {
     </FormDialog>}
     {deleteTarget && <FormDialog id="delete-user-title" title="Eliminar usuario" code={`@${deleteTarget.username}`} context={deleteTarget.nombre}
       dirty={false} pending={deleteMutation.isPending} submitLabel="Eliminar usuario" headerVariant="plain" headerIcon={<Trash2 aria-hidden="true" />}
-      className="administration-form administration-confirm administration-confirm-danger users-reference-confirm" statusText="Eliminación con historial conservado"
+      className="administration-form administration-confirm administration-confirm-danger users-reference-confirm"
       submitDisabled={!canDelete || deleteTarget.id === currentUser?.id}
       onClose={() => setDeleteTarget(null)} onSubmit={(event) => {
         event.preventDefault();

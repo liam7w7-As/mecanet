@@ -97,9 +97,6 @@ export const PurchasePaymentModal = ({
             <p className="mt-1 text-2xl font-bold text-brand-primaryInk">
               {formatClp(purchase.total)}
             </p>
-            <p className="mt-1 text-xs text-brand-muted">
-              El pago es total y genera un egreso de caja por este monto.
-            </p>
           </div>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">

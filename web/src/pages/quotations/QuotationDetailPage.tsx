@@ -157,7 +157,6 @@ export const QuotationDetailPage = () => {
         className="commercial-form-dialog commercial-danger-dialog" headerVariant="plain" headerIcon={<ReceiptText aria-hidden="true" />}
         statusText="La anulación recalculará el saldo"
         onSubmit={(event) => { event.preventDefault(); deletePaymentMutation.mutate({ paymentId: paymentToDelete.id, quotationId: quotation.id }, { onSuccess: () => setPaymentToDelete(null) }); }}>
-        <p className="text-sm leading-6 text-brand-muted">Se eliminará el abono de {formatClp(paymentToDelete.monto)} y el saldo pendiente de la cotización será recalculado.</p>
         {deletePaymentMutation.isError && <p role="alert" className="mt-4 text-sm text-brand-coralInk">{getApiErrorMessage(deletePaymentMutation.error)}</p>}
       </FormDialog>}
       {showPdfModal && (

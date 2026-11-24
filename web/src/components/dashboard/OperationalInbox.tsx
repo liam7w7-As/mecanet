@@ -123,7 +123,6 @@ export const OperationalInbox = ({ inbox }: OperationalInboxProps) => {
             <ClipboardCheck className="h-5 w-5" aria-hidden="true" />
           </span>
           <p className="mt-3 text-sm font-semibold text-brand-ink">Todo al día por ahora</p>
-          <p className="mt-1 text-sm text-brand-muted">No tienes acciones pendientes para tu rol.</p>
         </div>
       ) : (
         <div className="grid divide-y divide-brand-line lg:grid-cols-2 lg:divide-y-0">

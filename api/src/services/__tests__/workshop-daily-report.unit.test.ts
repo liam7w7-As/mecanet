@@ -69,6 +69,32 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 
 describe('Operational overtime in the daily report without a database', () => {
+  it('includes declared hours by date and exports date/quantity without a fictitious interval', async () => {
+    vi.mocked(WorkOrderItemSession.findAll).mockResolvedValue([session({
+      reportedDate: '2026-11-13', startedAt: new Date('2026-11-13T04:00:00Z'), endedAt: new Date('2026-11-13T04:00:00Z'),
+      durationMinutes: 90, note: 'Horas declaradas del diagnóstico',
+    })]);
+    const report = await getWorkshopDailyReport('2026-11-13', 1);
+    expect(report).toMatchObject({ totalHoras: 1.5, totalSesiones: 1, totalHorasExtra: 0 });
+    expect(report.usuarios[0].detalle[0]).toMatchObject({ reportedDate: '2026-11-13', minutos: 90 });
+    expect(report.ordenes[0].horas).toBe(1.5);
+    const where = vi.mocked(WorkOrderItemSession.findAll).mock.calls[0][0]?.where;
+    expect(where).toMatchObject({ [Op.or]: expect.arrayContaining([{ reportedDate: '2026-11-13' }]) });
+    const dataset = await buildLaborExport('workshop-daily', { fecha: '2026-11-13' }, { id: 1, role: 'jefe' });
+    const details = dataset!.tables.find((table) => table.name === 'Detalle por trabajo')!;
+    expect(details.rows[0]).toMatchObject({ registro: 'Horas declaradas · 2026-11-13', minutos: 90, inicio: null, fin: null });
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await generateListExportExcel(dataset!) as unknown as ExcelJS.Buffer);
+    const values: unknown[] = [];
+    book.getWorksheet('Detalle por trabajo')!.eachRow((row) => row.eachCell((cell) => values.push(cell.value)));
+    expect(values).toContain('Horas declaradas · 2026-11-13');
+    expect(values.some((value) => value instanceof Date)).toBe(false);
+    const content = pdfText(await PDFDocument.load(await generateWorkshopDailyReportPdf(report)));
+    expect(content).toContain('DETALLE DE HORAS DECLARADAS');
+    expect(content).toContain('Fecha: 2026-11-13 | Horas declaradas: 90 min');
+    expect(content).not.toContain('Inicio:');
+  });
+
   it('keeps historical hours for inactive/deleted workers using session names, without including idle former workers', async () => {
     vi.mocked(User.findAll).mockResolvedValue([
       { id: 9, nombre: 'Nombre cambiado', activo: false, deletedAt: new Date(), role: { nombre: 'mecanico' } },

@@ -216,7 +216,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
     <section className="workshop-mechanic-panel min-w-0 overflow-hidden rounded-2xl border border-brand-line bg-white shadow-xs" data-workshop-role={user?.role} data-section={currentSection} aria-label="Gestión operativa de esta OT">
       <div hidden={!showingExecution}><WorkOrderOperationalOverview workOrder={workOrder} focus={executionFocus} pending={isPending} onFocus={setExecutionFocus} onRequests={() => navigateSection('requests')} onPrice={openPrices} /></div>
       {!onNavigateSection && currentSection !== 'all' && currentSection !== 'execution' && <button type="button" className="secondary-button" disabled={isPending} onClick={() => setLocalSection('execution')}>Volver a trabajos</button>}
-      <div className="workshop-mechanic-heading" hidden={!showingRequests}><div><h2 id="mechanic-panel-title">Solicitudes del taller</h2><p>{isSupervisor ? 'Revisa primero los pendientes del equipo.' : 'Solicita repuestos y consulta su aprobación.'}</p></div></div>
+      <div className="workshop-mechanic-heading" hidden={!showingRequests}><div><h2 id="mechanic-panel-title">Solicitudes del taller</h2></div></div>
 
       {mutationError && (
         <div className="flex items-center gap-2 border-b border-brand-coral/30 bg-brand-coralPale px-5 py-3 text-sm text-brand-coralInk" role="alert">
@@ -397,7 +397,6 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
           {user?.role === 'mecanico' && <WorkOrderQualityPanel workOrder={workOrder} onState={onQualityState} active={active && showingExecution && followUpOpen} />}
           {canExecute && <fieldset disabled={isPending}>
             <details className="workshop-progress-form"><summary>Reportar avance</summary><div>
-              <p className="mt-0.5 text-xs text-brand-muted">Agrega un reporte adicional cuando necesites explicar un avance o bloqueo de la orden.</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-[8rem_1fr]">
                 <label className="grid gap-1 text-xs font-semibold text-brand-muted">Avance %<input type="number" min="0" max="100" className="form-control" value={progress} onChange={(event) => setProgress(event.target.value)} /></label>
                 <label className="grid gap-1 text-xs font-semibold text-brand-muted">Comentario<input className="form-control" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Resumen del trabajo realizado" /></label>

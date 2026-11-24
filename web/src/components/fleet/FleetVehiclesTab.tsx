@@ -295,9 +295,6 @@ export const FleetVehiclesTab = ({ navigation }: { navigation?: ReactNode }) => 
           <div className="flex min-h-52 flex-col items-center justify-center border border-brand-line bg-white px-4 text-center">
             <AnimateIcon icon={Car} animation="bounce" size={36} className="text-brand-muted" />
             <p className="mt-3 font-semibold text-brand-ink">No se encontraron vehículos de flota</p>
-            <p className="mt-1 text-sm text-brand-muted">
-              Pruebe con otra patente, código o cambie los filtros.
-            </p>
           </div>
         )}
 

@@ -391,7 +391,7 @@ export const WorkOrderDetailPage = () => {
         </div>
         <div className="workshop-record-correspondence"><CustomerEmailPanel kind="work_order" id={workOrder.id} /></div>
         <section className="workshop-record-documents" aria-label="Documentos y compartir">
-          <div><h3>Documentos y compartir</h3><p>El comprobante de recepción y la OT oficial son documentos independientes.</p></div>
+          <div><h3>Documentos y compartir</h3></div>
           <div>
           <button type="button" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-primaryInk bg-white px-4 text-sm font-semibold text-brand-primaryInk shadow-sm transition-all hover:bg-brand-line/40 hover:shadow" onClick={() => receptionPdfMutation.downloadPdf(workOrder.id, workOrder.codigo)} disabled={receptionPdfMutation.isPending}>
             {receptionPdfMutation.isPending ? (
@@ -459,7 +459,6 @@ export const WorkOrderDetailPage = () => {
       <section className="overflow-hidden rounded-lg border border-brand-line bg-white" id="ot-reception" aria-labelledby="reception-billing-title">
         <div className="border-b border-brand-line px-5 py-4">
           <h2 id="reception-billing-title" className="font-bold text-brand-primaryInk">Recepción y facturación</h2>
-          <p className="mt-1 text-sm text-brand-muted">Diferencia entre quien deja físicamente el vehículo y los datos usados para emitir la factura.</p>
         </div>
         <div className="grid divide-y divide-brand-line lg:grid-cols-2 lg:divide-x lg:divide-y-0">
           <div className="p-5">
@@ -490,7 +489,6 @@ export const WorkOrderDetailPage = () => {
             <ClipboardCheck className="mt-0.5 h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
             <div>
               <h2 id="inspection-title" className="font-bold text-brand-primaryInk">Inspección de ingreso</h2>
-              <p className="mt-1 text-sm text-brand-muted">Estado físico, inventario interno y registro fotográfico tomado en recepción.</p>
             </div>
           </div>
           {!canEditInspection && <span className="rounded-md bg-brand-pale px-3 py-1.5 text-xs font-semibold text-brand-muted">{inspectionClosed ? 'Inspección bloqueada por estado' : 'Ficha de inspección de solo lectura'}</span>}
@@ -652,7 +650,6 @@ export const WorkOrderDetailPage = () => {
           <ClipboardCheck className="mt-0.5 h-5 w-5 text-brand-primaryInk" aria-hidden="true" />
           <div>
             <h2 id="audit-title" className="font-bold text-brand-primaryInk">Bitácora de actividad</h2>
-            <p className="mt-1 text-sm text-brand-muted">Registro cronológico de acciones críticas realizadas sobre esta orden.</p>
           </div>
         </div>
         {(workOrder.events?.length ?? 0) > 0 ? (
@@ -699,7 +696,7 @@ export const WorkOrderDetailPage = () => {
       </section>
 
       <section className="overflow-hidden rounded-lg border border-brand-line bg-white" aria-labelledby="work-order-items-title">
-        <div className="flex flex-col gap-3 border-b border-brand-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 id="work-order-items-title" className="font-bold text-brand-primaryInk">Trabajos y repuestos</h2><p className="mt-1 text-sm text-brand-muted">Checklist operativo y detalle económico registrado en la orden.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-brand-line/40 px-3 py-1.5 text-xs font-bold text-brand-primaryInk">{itemProgress.completed}/{itemProgress.total} completados</span>{itemProgress.active > 0 && <span className="rounded-md bg-brand-pale px-3 py-1.5 text-xs font-bold text-brand-primaryInk">{itemProgress.active} en proceso</span>}{canManage && workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada' ? <button type="button" className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-primaryInk bg-white px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-line/40" onClick={() => setShowItemsModal(true)}><Pencil className="h-4 w-4" aria-hidden="true" />Editar trabajos y precios</button> : <Printer className="h-5 w-5 text-brand-muted" aria-hidden="true" />}</div></div>
+        <div className="flex flex-col gap-3 border-b border-brand-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 id="work-order-items-title" className="font-bold text-brand-primaryInk">Trabajos y repuestos</h2></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-brand-line/40 px-3 py-1.5 text-xs font-bold text-brand-primaryInk">{itemProgress.completed}/{itemProgress.total} completados</span>{itemProgress.active > 0 && <span className="rounded-md bg-brand-pale px-3 py-1.5 text-xs font-bold text-brand-primaryInk">{itemProgress.active} en proceso</span>}{canManage && workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada' ? <button type="button" className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-primaryInk bg-white px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-line/40" onClick={() => setShowItemsModal(true)}><Pencil className="h-4 w-4" aria-hidden="true" />Editar trabajos y precios</button> : <Printer className="h-5 w-5 text-brand-muted" aria-hidden="true" />}</div></div>
         <div className="max-w-full overflow-x-auto overscroll-x-contain"><table className="workshop-record-items-table w-full min-w-[1060px] text-left text-sm"><thead className="bg-brand-line/40 text-xs uppercase text-brand-muted"><tr><th className="px-4 py-3 font-semibold">Descripción</th><th className="px-4 py-3 font-semibold">Avance</th><th className="px-4 py-3 font-semibold">Stock</th><th className="px-4 py-3 font-semibold">Nota</th><th className="px-4 py-3 text-right font-semibold">Cantidad</th><th className="px-4 py-3 text-right font-semibold">Precio unitario</th><th className="px-4 py-3 text-right font-semibold">Subtotal neto</th></tr></thead><tbody>{workOrder.items?.map((item, index) => <tr key={item.id} className="border-t border-brand-line"><td data-label="Descripción" className="px-4 py-3 font-medium text-brand-ink"><span>{item.descripcion}</span>{item.catalogItem?.codigo && <span className="ml-2 rounded bg-brand-pale px-1.5 py-0.5 font-mono text-[11px] text-brand-muted">{item.catalogItem.codigo}</span>}</td><td data-label="Avance" className="px-4 py-3"><span className="rounded-md bg-brand-pale px-2 py-1 text-xs font-semibold text-brand-ink">{ITEM_OPERATIONAL_STATUS_LABELS[item.estadoOperativo] ?? item.estadoOperativo}</span></td><td data-label="Stock" className="px-4 py-3">{item.catalogItem?.tipo === 'parte' ? <div className="flex flex-col gap-1"><span className={`w-fit rounded-md px-2 py-1 text-xs font-bold ${item.stockConsumido ? 'bg-brand-mintPale text-brand-mintInk' : 'bg-brand-goldPale text-brand-goldInk'}`}>{item.stockConsumido ? `Consumido: ${item.stockConsumidoCantidad}` : 'Pendiente consumo'}</span><span className="text-xs text-brand-muted">Disponible: {item.catalogItem.stock ?? 0}</span></div> : <span className="text-brand-muted">-</span>}</td><td data-label="Nota" className="max-w-64 px-4 py-3 text-brand-muted">{item.notasOperativas ?? '-'}</td><td data-label="Cantidad" className="px-4 py-3 text-right text-brand-muted">{item.cantidad} {UNIT_MEASURE_LABELS[item.unidadMedida]?.toLowerCase() ?? item.unidadMedida}</td><td data-label="Precio unitario" className="px-4 py-3 text-right text-brand-muted">{formatClp(item.precioUnitario)}</td><td data-label="Subtotal neto" className="px-4 py-3 text-right font-semibold text-brand-primaryInk">{formatClp(pricing!.lines[index]!.subtotal)}{pricing!.lines[index]!.descuentoMonto > 0 && <span className="block text-xs font-normal text-brand-muted">Dto. −{formatClp(pricing!.lines[index]!.descuentoMonto)}</span>}</td></tr>)}</tbody></table></div>
         {workOrder.items?.length === 0 && <p className="px-5 py-8 text-center text-sm text-brand-muted">Diagnóstico inicial, sin trabajos o repuestos cargados.</p>}
         <div className="flex justify-end border-t border-brand-line bg-brand-line/40 px-5 py-4"><div className="text-right">{pricingSummary}<p className="mt-3 text-xs font-semibold uppercase text-brand-muted">Total estimado (IVA incluido)</p><p className="mt-1 text-2xl font-bold text-brand-primaryInk">{formatClp(total)}</p></div></div>

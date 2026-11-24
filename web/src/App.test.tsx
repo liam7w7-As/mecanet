@@ -28,7 +28,7 @@ const authenticatedUser = {
 };
 
 const demoPrimaryPaths = ['/dashboard', '/work-orders', '/vehicles', '/warehouses'];
-const adminMorePaths = ['/reports', '/work-orders/daily-report', '/quotations', '/clients', '/catalog', '/purchases', '/finance', '/users', '/settings'];
+const adminMorePaths = ['/reports', '/work-orders/journal', '/work-orders/daily-report', '/quotations', '/clients', '/catalog', '/purchases', '/finance', '/users', '/settings'];
 const mobileRoleCases: { role: Role; permissions?: PermissionDefinition[]; primary: string[]; more: string[] }[] = [
   { role: 'desarrollador', primary: demoPrimaryPaths, more: adminMorePaths },
   { role: 'admin', primary: demoPrimaryPaths, more: adminMorePaths },
@@ -36,7 +36,7 @@ const mobileRoleCases: { role: Role; permissions?: PermissionDefinition[]; prima
   { role: 'vendedor', primary: demoPrimaryPaths, more: ['/reports', '/quotations', '/clients', '/catalog'] },
   { role: 'bodeguero', primary: demoPrimaryPaths, more: ['/reports', '/quotations', '/clients', '/catalog', '/purchases'] },
   { role: 'finanzas', primary: ['/dashboard', '/vehicles', '/quotations'], more: ['/reports', '/clients', '/catalog', '/purchases', '/finance'] },
-  { role: 'mecanico', primary: ['/work-orders/mine'], more: ['/work-orders/journal'] },
+  { role: 'mecanico', primary: ['/work-orders/mine', '/work-orders/journal'], more: [] },
   { role: 'vendedor', permissions: [{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }], primary: ['/dashboard', '/work-orders', '/vehicles', '/quotations'], more: ['/reports', '/clients', '/catalog'] },
   { role: 'vendedor', permissions: [{ modulo: 'comercial', accion: 'read' }], primary: ['/dashboard', '/vehicles', '/quotations'], more: ['/reports', '/clients', '/catalog'] },
   { role: 'bodeguero', permissions: [{ modulo: 'almacen', accion: 'read' }], primary: ['/warehouses'], more: ['/reports'] },
@@ -276,6 +276,7 @@ describe('App routing and authentication', () => {
     ['bodeguero', '/finance'], ['bodeguero', '/users'],
     ['finanzas', '/work-orders/new'], ['finanzas', '/users'],
     ['mecanico', '/quotations'], ['mecanico', '/finance'],
+    ['vendedor', '/work-orders/journal'], ['bodeguero', '/work-orders/journal'], ['finanzas', '/work-orders/journal'],
   ] as const)('impide a %s abrir directamente %s', async (role, path) => {
     useAuthStore.setState({ user: { ...authenticatedUser, role }, isAuthenticated: true, isLoading: false });
     renderRoute(path);
@@ -289,13 +290,20 @@ describe('App routing and authentication', () => {
     ['vendedor', 'Cotizaciones', 'Clientes'],
     ['bodeguero', 'Almacenes', 'Catálogo'],
     ['finanzas', 'Finanzas / Contabilidad', 'Compras'],
-    ['mecanico', 'Mi taller', 'Registrar jornada'],
+    ['mecanico', 'Mi taller', 'Registro diario'],
   ] satisfies Array<[Role, string, string]>)('conserva la navegación autorizada de %s', (role, first, second) => {
     useAuthStore.setState({ user: { ...authenticatedUser, role }, isAuthenticated: true, isLoading: false });
     renderRoute('/forbidden');
     const navigation = within(screen.getByRole('navigation', { name: 'Navegación principal' }));
     expect(navigation.getByRole('link', { name: first })).toBeInTheDocument();
     expect(navigation.getByRole('link', { name: second })).toBeInTheDocument();
+  });
+
+  it.each(['desarrollador', 'admin', 'jefe', 'mecanico'] as const)('ofrece Registro diario al rol %s', (role) => {
+    useAuthStore.setState({ user: { ...authenticatedUser, role }, isAuthenticated: true, isLoading: false });
+    renderRoute('/forbidden');
+    const navigation = within(screen.getByRole('navigation', { name: 'Navegación principal' }));
+    expect(navigation.getByRole('link', { name: 'Registro diario' })).toHaveAttribute('href', '/work-orders/journal');
   });
 
   it('aplica los permisos recibidos de la API antes de abrir una ruta', async () => {
@@ -355,16 +363,16 @@ describe('App routing and authentication', () => {
     expect(document.getElementById('shell-navigation')).not.toBeInTheDocument();
   });
 
-  it('usa Inicio, Taller, Vehículos y Almacenes y mantiene Más activo en el reporte diario', () => {
+  it.each(['/work-orders/daily-report', '/work-orders/journal'])('mantiene Más activo en %s sin activar Taller', (path) => {
     mockViewport(false);
     useAuthStore.setState({ user: authenticatedUser, isAuthenticated: true, isLoading: false });
-    renderRoute('/work-orders/daily-report');
+    renderRoute(path);
     const tabs = within(screen.getByRole('navigation', { name: 'Navegación principal (móvil)' }));
     expect(tabs.getAllByRole('link').map((link) => link.getAttribute('aria-label'))).toEqual(['Inicio', 'Taller', 'Vehículos', 'Almacenes']);
     expect(tabs.getByRole('link', { name: 'Taller' })).not.toHaveAttribute('aria-current');
     expect(tabs.getByRole('button', { name: 'Abrir todas las secciones' })).toHaveClass('active');
     fireEvent.click(tabs.getByRole('button', { name: 'Abrir todas las secciones' }));
-    expect(screen.getByRole('link', { name: 'Reporte diario' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: path.endsWith('/journal') ? 'Registro diario' : 'Reporte diario' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Compras' })).toHaveAttribute('href', '/purchases');
     expect(screen.getByRole('link', { name: 'Configuración' })).toHaveAttribute('href', '/settings');
   });
@@ -457,8 +465,7 @@ describe('App routing and authentication', () => {
     renderRoute('/work-orders/mine');
     fireEvent.click(screen.getByRole('button', { name: 'Abrir todas las secciones' }));
     const more = within(screen.getByRole('dialog', { name: 'Más opciones' }));
-    expect(more.getAllByRole('link')).toHaveLength(1);
-    expect(more.getByRole('link', { name: 'Registrar jornada' })).toHaveAttribute('href', '/work-orders/journal');
+    expect(more.queryAllByRole('link')).toHaveLength(0);
     expect(more.getByRole('button', { name: 'Mi perfil' })).toBeInTheDocument();
     expect(document.getElementById('shell-navigation')).not.toBeInTheDocument();
   });

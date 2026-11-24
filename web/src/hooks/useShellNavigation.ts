@@ -13,7 +13,7 @@ const STORAGE_KEY = 'unithor:sidebar-collapsed';
 export const getMobilePrimaryItems = (user: UserPublic | null): NavigationItem[] => {
   const items = new Map(getNavigationGroups(user).flatMap((group) => group.items).map((item) => [item.path, item]));
   const paths = user?.role === 'mecanico'
-    ? ['/work-orders/mine']
+    ? ['/work-orders/mine', '/work-orders/journal']
     : ['/dashboard', '/work-orders', '/vehicles', items.has('/warehouses') ? '/warehouses' : '/quotations'];
   const labels: Record<string, string> = { '/dashboard': 'Inicio', '/work-orders': 'Taller' };
 

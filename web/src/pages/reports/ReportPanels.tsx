@@ -178,7 +178,6 @@ export const FinanceReportPanel = ({
     <section className="min-w-0 space-y-4" aria-label="Reporte financiero">
       <PanelHeader
         title="Informe financiero ejecutivo"
-        description="Define el alcance, revisa la muestra tabular y genera el documento final."
         action={
           canExport && (
             <>
@@ -1168,7 +1167,7 @@ export const CatalogReportPanel = ({
           <>
             <p className="text-sm text-brand-muted">
               <strong className="text-brand-primaryInk">{items.data?.total ?? 0}</strong> items
-              filtrados. El PDF y Excel incluyen uso en COT, OT y stock.
+              filtrados.
             </p>
             <div className="report-table-panel overflow-x-auto">
               <table
@@ -1272,7 +1271,6 @@ export const FleetReportPanel = ({
     <section className="min-w-0 space-y-4" aria-label="Reporte de clientes y vehículos">
       <PanelHeader
         title="Reporte de clientes, vehículos e historial"
-        description="Elige si el documento incluirá clientes, vehículos o ambos, con su actividad del período."
         action={
           canExport && (
             <>

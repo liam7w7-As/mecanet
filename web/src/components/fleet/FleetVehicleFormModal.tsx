@@ -255,7 +255,6 @@ export const FleetVehicleFormModal = ({
         <ModalHeader
           id="fleet-vehicle-form-title"
           title={isEditing ? 'Editar vehículo de flota' : 'Nuevo vehículo de flota'}
-          description="Vehículo de uso interno de la empresa"
           onClose={close}
           closeDisabled={isSaving}
           badge={<Car aria-hidden="true" />}
@@ -264,7 +263,7 @@ export const FleetVehicleFormModal = ({
         <form className="workspace-form reference-form" noValidate onSubmit={handleSubmit} aria-busy={isSaving}>
           <div className="workspace-form-body reference-form-body">
             <fieldset disabled={isSaving || !canSave} className="min-w-0 space-y-5">
-          <div className="vehicle-form-section-heading"><h3>Identificación y operación</h3><span>Flota de uso interno</span></div>
+          <div className="vehicle-form-section-heading"><h3>Identificación y operación</h3></div>
           <div className="vehicle-fleet-form-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="vehicle-form-field-plate">
               <label className="text-sm font-medium text-brand-ink">
@@ -484,7 +483,7 @@ export const FleetVehicleFormModal = ({
                 placeholder="Encargado, taller o rentacar"
               />
               <span id="fleet-vehicle-responsable-help" className="mt-1 block text-xs font-normal text-brand-muted">
-                Persona o entidad a cargo: encargado, taller o rentacar. Puede ser externa a la empresa.
+                Puede ser externa a la empresa.
               </span>
               {fieldErrors.responsable && (
                 <span className="mt-1 block text-xs text-brand-coralInk">

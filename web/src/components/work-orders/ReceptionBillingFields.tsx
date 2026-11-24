@@ -39,7 +39,7 @@ export default function ReceptionBillingFields({ value, errors, edited, onChange
   return <section className="reception-billing-editor" aria-labelledby={`${id}-title`}>
     <header>
       <Building2 aria-hidden="true" />
-      <div><h3 id={`${id}-title`}>Datos de facturación</h3><p>Estos datos aparecerán en la OT y su cotización.</p></div>
+      <div><h3 id={`${id}-title`}>Datos de facturación</h3></div>
       <button type="button" aria-label="Cambiar datos de facturación" onClick={onChangeClient}>Cambiar cliente</button>
     </header>
     <div className="reception-billing-fields">
@@ -67,7 +67,7 @@ export default function ReceptionBillingFields({ value, errors, edited, onChange
         listLabel="Comunas de facturación" clearLabel="Limpiar comuna de facturación"
         onChange={(comuna) => onChange({ ...value, comuna, region: findCommuneRegion(comuna)?.name ?? value.region })} />)}
     </div>
-    <footer><p>Edita los campos directamente. Los cambios se guardan solo en esta orden.</p>
+    <footer><p>Los cambios se guardan solo en esta orden.</p>
       {edited && <button type="button" onClick={onReset}><RotateCcw aria-hidden="true" />Restablecer datos del cliente</button>}
     </footer>
   </section>;

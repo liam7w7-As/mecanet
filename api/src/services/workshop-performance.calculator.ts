@@ -34,7 +34,7 @@ export function calculateUtilization(days: PerformanceDay[], sessions: Performan
     const key = groupBy === 'month' ? day.date.slice(0, 7) : groupBy === 'week' ? nominal.toISOString().slice(0, 10) : day.date;
     const period = periods.get(key) ?? { minutes: 0, extra: 0, scheduled: 0, missing: 0 };
     const daySessions = sessions.filter((session) => !session.supersededAt && session.userId !== null &&
-      session.startedAt < day.end && (session.kind === 'ajuste' ? session.startedAt >= day.start :
+      session.startedAt < day.end && (session.kind === 'ajuste' || session.reportedDate ? session.startedAt >= day.start :
         (session.endedAt === null || session.endedAt > day.start)));
     const minutes = daySessions.reduce((sum, session) => sum + sessionMinutesInRange(session, day.start, day.end, now), 0);
     const extraMinutes = daySessions.filter((session) => session.overtime).reduce((sum, session) => sum + sessionMinutesInRange(session, day.start, day.end, now), 0);
@@ -45,14 +45,18 @@ export function calculateUtilization(days: PerformanceDay[], sessions: Performan
       const planned = worker.intervals.reduce((sum, span) => sum + (span.end.getTime() - span.start.getTime()) / 60_000, 0);
       const spans: Array<{ start: Date; end: Date }> = [];
       for (const session of daySessions) {
-        if (session.userId !== worker.userId || session.kind === 'ajuste') continue;
+        if (session.userId !== worker.userId || session.kind === 'ajuste' || session.reportedDate) continue;
         const stop = Math.min(session.endedAt?.getTime() ?? now.getTime(), session.scheduledEndAt?.getTime() ?? Infinity, now.getTime());
         for (const span of worker.intervals) spans.push({
           start: new Date(Math.max(session.startedAt.getTime(), span.start.getTime())),
           end: new Date(Math.min(stop, span.end.getTime())),
         });
       }
-      const unregistered = Math.max(0, planned - coverage(spans));
+      // Declared quantities reduce the day's missing total, without locating
+      // work at midnight or claiming coverage of a particular shift interval.
+      const declared = daySessions.filter((session) => session.userId === worker.userId && session.reportedDate && !session.overtime)
+        .reduce((sum, session) => sum + sessionMinutesInRange(session, day.start, day.end, now), 0);
+      const unregistered = Math.max(0, planned - coverage(spans) - declared);
       if (scheduled !== null) scheduled += planned;
       if (missing !== null) missing += unregistered;
       if (period.scheduled !== null) period.scheduled += planned;
@@ -100,7 +104,8 @@ export function calculateQuality(
     }
     if (rejectedAt) windows.push({ start: rejectedAt, end: now });
     for (const window of windows) for (const session of sessions) {
-      if (session.workOrderItemId !== itemId) continue;
+      // A day and quantity cannot establish whether work followed a rejection.
+      if (session.workOrderItemId !== itemId || session.reportedDate) continue;
       const from = new Date(Math.max(start.getTime(), window.start.getTime()));
       const to = new Date(Math.min(end.getTime(), window.end.getTime()));
       if (to > from) reworkMinutes += sessionMinutesInRange(session, from, to, now);

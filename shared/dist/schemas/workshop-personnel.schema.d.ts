@@ -238,14 +238,14 @@ export declare const workshopWorkerSchema: z.ZodObject<{
     activo: z.ZodBoolean;
     role: z.ZodNullable<z.ZodEnum<["desarrollador", "admin", "jefe", "mecanico", "vendedor", "bodeguero", "finanzas"]>>;
 }, "strip", z.ZodTypeAny, {
+    id: number;
     nombre: string;
     activo: boolean;
-    id: number;
     role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
 }, {
+    id: number;
     nombre: string;
     activo: boolean;
-    id: number;
     role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
 }>;
 export declare const workshopWorkerProfileSchema: z.ZodObject<{
@@ -401,14 +401,14 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
         activo: z.ZodBoolean;
         role: z.ZodNullable<z.ZodEnum<["desarrollador", "admin", "jefe", "mecanico", "vendedor", "bodeguero", "finanzas"]>>;
     }, "strip", z.ZodTypeAny, {
+        id: number;
         nombre: string;
         activo: boolean;
-        id: number;
         role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
     }, {
+        id: number;
         nombre: string;
         activo: boolean;
-        id: number;
         role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
     }>, "many">;
     profiles: z.ZodArray<z.ZodObject<{
@@ -533,9 +533,9 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
         createdBy: number | null;
     }[];
     workers: {
+        id: number;
         nombre: string;
         activo: boolean;
-        id: number;
         role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
     }[];
     profiles: {
@@ -584,9 +584,9 @@ export declare const workshopPersonnelConfigSchema: z.ZodObject<{
         createdBy: number | null;
     }[];
     workers: {
+        id: number;
         nombre: string;
         activo: boolean;
-        id: number;
         role: "desarrollador" | "admin" | "jefe" | "mecanico" | "vendedor" | "bodeguero" | "finanzas" | null;
     }[];
     profiles: {

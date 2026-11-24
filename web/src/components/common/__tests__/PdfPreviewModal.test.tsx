@@ -4,6 +4,7 @@ import { WORK_ORDER_INSPECTION_PHOTO_SLOTS } from '@unithor/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { formatClp } from '../../../lib/formatters';
+import { getQuotationDocumentPages } from '../../quotations/QuotationDocument';
 import PdfPreviewModal, { OfficialDocumentSheets } from '../PdfPreviewModal';
 
 import type { Quotation, WorkOrder } from '../../../types/entities';
@@ -227,7 +228,8 @@ describe('PdfPreviewModal', () => {
     const official = document.querySelector('#unithor-print-portal [data-official-template]')!;
     const summaryValue = (root: Element, label: string) => within(root as HTMLElement).getByText(label).parentElement;
     for (const root of [preview, official]) {
-      expect(within(root as HTMLElement).getAllByRole('row', { hidden: true })[1]).toHaveTextContent(formatClp(scenario.lineNet));
+      expect(root.querySelector('[data-document-item]')).toHaveTextContent(formatClp(15000));
+      expect(Array.from(root.querySelectorAll('[data-document-item]')).find((row) => row.textContent?.includes('Cambio de Aceite'))).toHaveTextContent(formatClp(scenario.lineNet));
       expect(summaryValue(root, 'Neto:')).toHaveTextContent(formatClp(scenario.neto));
       expect(summaryValue(root, 'IVA (19%):')).toHaveTextContent(formatClp(scenario.iva));
       expect(summaryValue(root, 'TOTAL:')).toHaveTextContent(formatClp(scenario.total));
@@ -386,7 +388,7 @@ describe('PdfPreviewModal', () => {
     const portal = document.getElementById('unithor-print-portal')!;
     const sheets = portal.querySelectorAll('[data-quotation-sheet]');
     expect(sheets.length).toBeGreaterThan(3);
-    expect(portal.querySelectorAll('tbody tr')).toHaveLength(40);
+    expect(portal.querySelectorAll('[data-document-item]')).toHaveLength(40);
     expect(sheets[sheets.length - 1]).toHaveTextContent(`Página ${sheets.length} de ${sheets.length}`);
   });
 
@@ -464,7 +466,7 @@ describe('PdfPreviewModal', () => {
 
     const printPortal = document.getElementById('unithor-print-portal')!;
     expect(printPortal.querySelectorAll('.pdf-paper-sheet')).toHaveLength(2);
-    expect(printPortal.querySelectorAll('tbody tr')).toHaveLength(40);
+    expect(printPortal.querySelectorAll('[data-document-item]')).toHaveLength(40);
   });
 });
 
@@ -504,4 +506,57 @@ describe('Shared approved document templates', () => {
     expect(automatic.container).toHaveTextContent('Página 2 de 2');
   });
 
+});
+
+describe('Documentos oficiales por división', () => {
+  const items = (): NonNullable<WorkOrder['items']> => [
+    { ...mockWorkOrder.items![0], id: 3, division: 'MEC', cantidad: 1, precioUnitario: 10000, subtotal: 10000, descripcion: 'Diagnóstico mecánico' },
+    { ...mockWorkOrder.items![1], id: 2, division: 'ACC', precioUnitario: 30000, subtotal: 27000, descuentoTipo: 'porcentaje', descuentoValor: 10, descripcion: 'Repuesto encargado' },
+    { ...mockWorkOrder.items![0], id: 1, division: 'DP', cantidad: 2, precioUnitario: 10000, subtotal: 19000, descuentoTipo: 'fijo', descuentoValor: 1000, descripcion: 'Pintura puerta' },
+  ];
+
+  it.each(['work-order', 'quotation'] as const)('agrupa %s sin alterar descuentos, IVA ni las hojas legales', (type) => {
+    const workOrder: WorkOrder = { ...mockWorkOrder, items: items(), descuentoTipo: 'porcentaje', descuentoValor: 10 };
+    const quotation: Quotation = { ...mockQuotation, items: items(), subtotal: 60000, total: 50400, descuentoTipo: 'porcentaje', descuentoValor: 10 };
+    const before = JSON.stringify({ workOrder, quotation });
+    const view = render(<OfficialDocumentSheets type={type} workOrder={workOrder} quotation={quotation} measure={false} />);
+    expect(Array.from(view.container.querySelectorAll('[data-document-division]')).map((row) => row.getAttribute('data-document-division'))).toEqual(['DP', 'ACC', 'MEC']);
+    for (const [division, amount] of [['DP', 19000], ['ACC', 27000], ['MEC', 10000]] as const) {
+      expect(view.container.querySelector(`[data-document-subtotal="${division}"]`)).toHaveTextContent(formatClp(amount));
+    }
+    expect(view.container).toHaveTextContent('$50.400');
+    expect(view.container).toHaveTextContent('$9.576');
+    expect(view.container).toHaveTextContent('$59.976');
+    expect(view.container).toHaveTextContent('antes del descuento general e IVA');
+    expect(view.container.querySelectorAll('.pdf-paper-sheet')).toHaveLength(type === 'work-order' ? 2 : 1);
+    if (type === 'work-order') expect(view.container).toHaveTextContent('CONDICIONES GENERALES DEL SERVICIO');
+    expect(JSON.stringify({ workOrder, quotation })).toBe(before);
+  });
+
+  it('clasifica documentos históricos sin división y no inventa áreas vacías', () => {
+    const view = render(<OfficialDocumentSheets type="quotation" quotation={mockQuotation} measure={false} />);
+    expect(Array.from(view.container.querySelectorAll('[data-document-division]')).map((row) => row.getAttribute('data-document-division'))).toEqual(['ACC', 'MEC']);
+    expect(view.container.querySelector('[data-document-subtotal="ACC"]')).toHaveTextContent('$15.000');
+    expect(view.container.querySelector('[data-document-subtotal="MEC"]')).toHaveTextContent('$65.000');
+  });
+
+  it('repite el área al continuar página y muestra cada subtotal una sola vez junto a su último concepto', () => {
+    const quotation: Quotation = { ...mockQuotation, items: Array.from({ length: 36 }, (_, index) => ({
+      ...items()[index % 3], id: index + 1, descripcion: `Concepto ${index + 1}: ${'Revisión y reparación de la pieza. '.repeat(4)}`,
+    })) };
+    const pages = getQuotationDocumentPages(quotation);
+    expect(pages.length).toBeGreaterThan(3);
+    const rows = pages.flatMap((page) => page.rows);
+    expect(rows.filter((row) => row.kind === 'item').map((row) => row.number)).toEqual(Array.from({ length: 36 }, (_, index) => index + 1));
+    expect(rows.filter((row) => row.kind === 'subtotal').map((row) => row.division)).toEqual(['DP', 'ACC', 'MEC']);
+    expect(rows.some((row) => row.kind === 'division' && row.continued)).toBe(true);
+    for (const page of pages.filter((entry) => entry.items.length)) {
+      expect(page.rows[0].kind).toBe('division');
+      expect(page.rows[page.rows.length - 1].kind).not.toBe('division');
+      page.rows.forEach((row, index) => {
+        if (row.kind === 'subtotal') expect(page.rows[index - 1].kind).toBe('item');
+      });
+    }
+    expect(pages.filter((page) => page.summary)).toHaveLength(1);
+  });
 });

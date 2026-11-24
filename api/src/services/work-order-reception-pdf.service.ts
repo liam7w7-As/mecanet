@@ -17,6 +17,7 @@ import {
 } from 'pdf-lib';
 import sharp from 'sharp';
 
+import { groupDocumentItems } from './reports/document-divisions.js';
 import { getReportBranding, type ReportBranding } from './reports/report-branding.js';
 import { getWorkOrderDocumentPricing } from './reports/work-order-document-pricing.js';
 import { readInspectionPhotoBytes } from './work-order-inspection-photo.service.js';
@@ -452,6 +453,8 @@ const getWorkOrderForPdf = async (workOrderId: number): Promise<WorkOrder> => {
           'id',
           'catalogItemId',
           'tipoLinea',
+          'division',
+          'subtipo',
           'unidadMedida',
           'descripcion',
           'cantidad',
@@ -864,6 +867,7 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
   cursorY = drawSectionTitle(ctx, 'Detalle operativo y valorización', cursorY);
   const items = (workOrder.items ?? []).slice().sort((left, right) => left.id - right.id);
   const { pricing, tax: { neto, iva, total } } = getWorkOrderDocumentPricing(items, workOrder.quotation);
+  const divisions = groupDocumentItems(items, (_item, index) => pricing.lines[index]!.subtotal);
   const widths = [62, 194, 70, 40, 74, 79];
   const xPositions = widths.reduce<number[]>((positions, width) => {
     positions.push(positions[positions.length - 1] + width);
@@ -891,6 +895,13 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
     );
     cursorY -= 24;
   };
+  const drawDivisionHeader = (label: string, continued = false): void => {
+    ctx.page.drawRectangle({ x: MARGIN, y: cursorY - 20, width: CONTENT_WIDTH, height: 20, color: SOFT });
+    ctx.page.drawText(`${label}${continued ? ' (continuación)' : ''}`, {
+      x: MARGIN + 5, y: cursorY - 13, size: 8, font: ctx.fonts.bold, color: PRIMARY,
+    });
+    cursorY -= 20;
+  };
 
   drawTableHeader();
   let completed = 0;
@@ -916,101 +927,130 @@ const drawItems = (ctx: PdfContext, workOrder: WorkOrder): void => {
   }
 
   let rowIndex = 0;
-  for (const [itemIndex, item] of items.entries()) {
-    const description = item.notasOperativas
-      ? `${item.descripcion}\nNota: ${item.notasOperativas}`
-      : item.descripcion;
-    const descriptionLines = wrapText(description, ctx.fonts.regular, 8, widths[1] - 10);
-    const rowHeight = Math.max(31, descriptionLines.length * 10 + 12);
-    if (cursorY - rowHeight < CONTENT_BOTTOM + 70) {
+  for (const group of divisions) {
+    const firstItem = group.lines[0].item;
+    const firstDescription = firstItem.notasOperativas ? `${firstItem.descripcion}\nNota: ${firstItem.notasOperativas}` : firstItem.descripcion;
+    const firstHeight = Math.max(31, wrapText(firstDescription, ctx.fonts.regular, 8, widths[1] - 10).length * 10 + 12);
+    if (cursorY - firstHeight - 44 < CONTENT_BOTTOM + 70) {
       cursorY = addPage(ctx, 'SERVICIOS Y REPUESTOS');
       drawTableHeader();
-      rowIndex = 0;
     }
+    drawDivisionHeader(group.label);
+    for (const [lineIndex, { item, originalIndex }] of group.lines.entries()) {
+      const description = item.notasOperativas
+        ? `${item.descripcion}\nNota: ${item.notasOperativas}`
+        : item.descripcion;
+      const descriptionLines = wrapText(description, ctx.fonts.regular, 8, widths[1] - 10);
+      const rowHeight = Math.max(31, descriptionLines.length * 10 + 12);
+      if (cursorY - rowHeight - (lineIndex === group.lines.length - 1 ? 22 : 0) < CONTENT_BOTTOM + 70) {
+        cursorY = addPage(ctx, 'SERVICIOS Y REPUESTOS');
+        drawTableHeader();
+        drawDivisionHeader(group.label, true);
+        rowIndex = 0;
+      }
 
-    const type =
-      item.catalogItem?.tipo === 'parte'
-        ? 'Repuesto'
-        : item.catalogItem?.tipo === 'estandar'
-          ? 'Estándar'
-          : item.catalogItem?.tipo === 'especifico'
-            ? 'Específico'
-            : 'Libre';
-    const status = item.estadoOperativo.replace(/_/g, ' ');
-    const subtotal = pricing.lines[itemIndex]!.subtotal;
-    if (item.estadoOperativo === 'completado') completed += 1;
-    if (item.stockConsumido) consumedParts += item.stockConsumidoCantidad;
+      const type =
+        item.catalogItem?.tipo === 'parte'
+          ? 'Repuesto'
+          : item.catalogItem?.tipo === 'estandar'
+            ? 'Estándar'
+            : item.catalogItem?.tipo === 'especifico'
+              ? 'Específico'
+              : 'Libre';
+      const status = item.estadoOperativo.replace(/_/g, ' ');
+      const subtotal = pricing.lines[originalIndex]!.subtotal;
+      if (item.estadoOperativo === 'completado') completed += 1;
+      if (item.stockConsumido) consumedParts += item.stockConsumidoCantidad;
 
-    ctx.page.drawRectangle({
-      x: MARGIN,
-      y: cursorY - rowHeight,
-      width: CONTENT_WIDTH,
-      height: rowHeight,
-      color: rowIndex % 2 === 0 ? rgb(1, 1, 1) : SOFT,
-      borderColor: BORDER,
-      borderWidth: 0.5,
-    });
-    for (let index = 1; index < xPositions.length - 1; index += 1) {
-      ctx.page.drawLine({
-        start: { x: xPositions[index], y: cursorY },
-        end: { x: xPositions[index], y: cursorY - rowHeight },
-        thickness: 0.4,
-        color: BORDER,
+      ctx.page.drawRectangle({
+        x: MARGIN,
+        y: cursorY - rowHeight,
+        width: CONTENT_WIDTH,
+        height: rowHeight,
+        color: rowIndex % 2 === 0 ? rgb(1, 1, 1) : SOFT,
+        borderColor: BORDER,
+        borderWidth: 0.5,
       });
+      for (let index = 1; index < xPositions.length - 1; index += 1) {
+        ctx.page.drawLine({
+          start: { x: xPositions[index], y: cursorY },
+          end: { x: xPositions[index], y: cursorY - rowHeight },
+          thickness: 0.4,
+          color: BORDER,
+        });
+      }
+      drawLines(
+        ctx.page,
+        wrapText(type, ctx.fonts.regular, 7.5, widths[0] - 10),
+        xPositions[0] + 5,
+        cursorY - 12,
+        ctx.fonts.regular,
+        7.5,
+        TEXT,
+        9,
+      );
+      drawLines(
+        ctx.page,
+        descriptionLines,
+        xPositions[1] + 5,
+        cursorY - 12,
+        ctx.fonts.regular,
+        8,
+        TEXT,
+        10,
+      );
+      drawLines(
+        ctx.page,
+        wrapText(status, ctx.fonts.regular, 7.5, widths[2] - 10),
+        xPositions[2] + 5,
+        cursorY - 12,
+        ctx.fonts.regular,
+        7.5,
+        item.estadoOperativo === 'completado' ? SUCCESS : WARNING,
+        9,
+      );
+      ctx.page.drawText(formatNumber(item.cantidad), {
+        x: xPositions[3] + 5,
+        y: cursorY - 12,
+        size: 7.5,
+        font: ctx.fonts.regular,
+        color: TEXT,
+      });
+      ctx.page.drawText(formatMoney(Number(item.precioUnitario)), {
+        x: xPositions[4] + 5,
+        y: cursorY - 12,
+        size: 7.1,
+        font: ctx.fonts.regular,
+        color: TEXT,
+      });
+      ctx.page.drawText(formatMoney(subtotal), {
+        x: xPositions[5] + 5,
+        y: cursorY - 12,
+        size: 7.1,
+        font: ctx.fonts.regular,
+        color: TEXT,
+      });
+      cursorY -= rowHeight;
+      rowIndex += 1;
     }
-    drawLines(
-      ctx.page,
-      wrapText(type, ctx.fonts.regular, 7.5, widths[0] - 10),
-      xPositions[0] + 5,
-      cursorY - 12,
-      ctx.fonts.regular,
-      7.5,
-      TEXT,
-      9,
-    );
-    drawLines(
-      ctx.page,
-      descriptionLines,
-      xPositions[1] + 5,
-      cursorY - 12,
-      ctx.fonts.regular,
-      8,
-      TEXT,
-      10,
-    );
-    drawLines(
-      ctx.page,
-      wrapText(status, ctx.fonts.regular, 7.5, widths[2] - 10),
-      xPositions[2] + 5,
-      cursorY - 12,
-      ctx.fonts.regular,
-      7.5,
-      item.estadoOperativo === 'completado' ? SUCCESS : WARNING,
-      9,
-    );
-    ctx.page.drawText(formatNumber(item.cantidad), {
-      x: xPositions[3] + 5,
-      y: cursorY - 12,
-      size: 7.5,
-      font: ctx.fonts.regular,
-      color: TEXT,
+    ctx.page.drawRectangle({ x: MARGIN, y: cursorY - 20, width: CONTENT_WIDTH, height: 20, color: SOFT });
+    ctx.page.drawText(`Subtotal ${group.division === 'DP' ? 'D&P' : group.division} (neto)`, {
+      x: MARGIN + 5, y: cursorY - 13, size: 8, font: ctx.fonts.bold, color: PRIMARY,
     });
-    ctx.page.drawText(formatMoney(Number(item.precioUnitario)), {
-      x: xPositions[4] + 5,
-      y: cursorY - 12,
-      size: 7.1,
-      font: ctx.fonts.regular,
-      color: TEXT,
+    const amount = formatMoney(group.subtotal);
+    ctx.page.drawText(amount, {
+      x: A4_WIDTH - MARGIN - 5 - ctx.fonts.bold.widthOfTextAtSize(amount, 8),
+      y: cursorY - 13, size: 8, font: ctx.fonts.bold, color: PRIMARY,
     });
-    ctx.page.drawText(formatMoney(subtotal), {
-      x: xPositions[5] + 5,
-      y: cursorY - 12,
-      size: 7.1,
-      font: ctx.fonts.regular,
-      color: TEXT,
+    cursorY -= 24;
+  }
+
+  if (pricing.descuentoGeneral > 0) {
+    if (cursorY < CONTENT_BOTTOM + 86) cursorY = addPage(ctx, 'RESUMEN Y CONFORMIDAD');
+    ctx.page.drawText('Subtotales por área antes del descuento general e IVA.', {
+      x: MARGIN, y: cursorY - 10, size: 7.5, font: ctx.fonts.regular, color: MUTED,
     });
-    cursorY -= rowHeight;
-    rowIndex += 1;
+    cursorY -= 16;
   }
 
   const amounts: Array<[string, number]> = [];

@@ -34,7 +34,7 @@ export const MobileTabBar = ({ onOpenMenu, isMenuOpen = false }: MobileTabBarPro
   // "Más" se marca activo cuando la ruta actual no corresponde a ninguna
   // pestaña, para que el usuario siempre sepa dónde está parado.
   const moreIsActive = !tabs.some(
-    (tab) => !(tab.path === '/work-orders' && pathname === '/work-orders/daily-report')
+    (tab) => !(tab.path === '/work-orders' && ['/work-orders/daily-report', '/work-orders/journal'].includes(pathname))
       && (pathname === tab.path || pathname.startsWith(`${tab.path}/`)),
   );
 
@@ -42,7 +42,7 @@ export const MobileTabBar = ({ onOpenMenu, isMenuOpen = false }: MobileTabBarPro
     <nav className="tabbar" aria-label="Navegación principal (móvil)" {...(isMenuOpen ? { inert: '', 'aria-hidden': true as const } : {})}>
       <div className="tabbar-inner">
         {tabs.map((tab) => {
-          const Icon = tab.path === '/dashboard' ? House : tab.path.startsWith('/work-orders') ? Wrench : tab.icon;
+          const Icon = tab.path === '/dashboard' ? House : ['/work-orders', '/work-orders/mine'].includes(tab.path) ? Wrench : tab.icon;
           const badgeCount = tab.badge ? badgeCounts[tab.badge] : 0;
           const badgeId = `mobile-tab-badge-${tab.badge}`;
           return (
@@ -51,7 +51,7 @@ export const MobileTabBar = ({ onOpenMenu, isMenuOpen = false }: MobileTabBarPro
               to={tab.path}
               aria-label={tab.label}
               aria-describedby={badgeCount > 0 ? badgeId : undefined}
-              end={tab.path === '/work-orders' && ['/work-orders/mine', '/work-orders/daily-report'].includes(pathname)}
+              end={tab.path === '/work-orders' && ['/work-orders/mine', '/work-orders/daily-report', '/work-orders/journal'].includes(pathname)}
               className={({ isActive }) => cn('tab-item', isActive && 'active')}
             >
               <span className="tab-icon">

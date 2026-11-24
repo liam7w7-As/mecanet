@@ -205,9 +205,6 @@ export const SupplierCombobox = ({
           {error}
         </p>
       )}
-      <p className="mt-1.5 text-xs text-brand-muted">
-        Si no existe, escribe el nombre completo. Se creará con datos incompletos.
-      </p>
     </div>
   );
 };

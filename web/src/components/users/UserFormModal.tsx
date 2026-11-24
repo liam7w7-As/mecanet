@@ -62,7 +62,7 @@ export const UserFormModal = ({ user, roles, onClose }: UserFormModalProps) => {
   };
 
   return <FormDialog id="user-form-title" title={user ? `Editar a ${user.nombre}` : 'Nuevo usuario'}
-    code={user ? `@${user.username}` : 'Cuenta de acceso'} context="Identidad y rol operativo"
+    code={user ? `@${user.username}` : 'Cuenta de acceso'}
     submitLabel={user ? 'Guardar cambios' : 'Crear usuario'} dirty={dirty}
     pending={mutation.isPending} onClose={onClose} onSubmit={submit}
     submitDisabled={!canSave || roles.length === 0 || Boolean(user && !dirty)}

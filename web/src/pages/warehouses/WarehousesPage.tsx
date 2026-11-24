@@ -219,9 +219,6 @@ export const WarehousesPage = () => {
           <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed border-brand-line bg-white px-4 text-center">
             <WarehouseIcon className="h-10 w-10 text-brand-muted/40" aria-hidden="true" />
             <p className="mt-3 font-semibold text-brand-ink">Sin almacenes registrados</p>
-            <p className="mt-1 text-sm text-brand-muted">
-              Cree la primera bodega para llevar stock por ubicación.
-            </p>
           </div>
         ) : (
           <div className="inventory-warehouse-selector">
@@ -493,6 +490,11 @@ export const WarehousesPage = () => {
                         Entregado
                       </span>
                     )}
+                    {request.catalogItem.subtipo === 'a_pedido' && (
+                      <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
+                        A pedido
+                      </span>
+                    )}
                   </div>
                   <p className="mt-2 truncate font-bold text-brand-ink">
                     {request.catalogItem.nombre}
@@ -594,7 +596,7 @@ export const WarehousesPage = () => {
           <div className="inventory-history-scope flex items-end gap-2 text-sm text-brand-muted">
             <History className="mb-2.5 h-4 w-4" aria-hidden="true" />
             <p className="pb-2">
-              {selected ? selected.nombre + ' · ' : ''}Ingresos, salidas, traslados y ajustes.
+              {selected?.nombre ?? ''}
             </p>
           </div>
         </div>

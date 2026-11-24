@@ -66,10 +66,7 @@ import { getApiErrorMessage } from '../../lib/api-error';
 import { getFieldErrors } from '../../lib/form-errors';
 import { workOrderRecoverySchema } from '../../lib/form-recovery.schemas';
 import { formatClp } from '../../lib/formatters';
-import {
-  MAX_INSPECTION_PHOTO_MB,
-  validateInspectionFile,
-} from '../../lib/inspection-photos';
+import { validateInspectionFile } from '../../lib/inspection-photos';
 import { canUploadWorkOrderInspectionPhotos, hasUserPermission } from '../../lib/permissions';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
@@ -285,11 +282,9 @@ const ClientSearchPicker = ({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-bold text-brand-primaryInk">{label}</h3>
-          <p className="mt-1 text-sm text-brand-muted">
-            {selectedClient
-              ? selectedClient.nombre
-              : 'Busque en la lista o registre un nuevo cliente.'}
-          </p>
+          {selectedClient && (
+            <p className="mt-1 text-sm text-brand-muted">{selectedClient.nombre}</p>
+          )}
         </div>
         <button
           type="button"
@@ -734,6 +729,8 @@ const WorkOrderCreateForm = () => {
           catalogItemId: item.catalogItemId,
           catalogTipo: item.tipoLinea,
           catalogStock: null,
+          division: item.division ?? undefined,
+          subtipo: item.subtipo ?? undefined,
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,
           unidadMedida: item.unidadMedida,
@@ -924,6 +921,10 @@ const WorkOrderCreateForm = () => {
         .filter((item) => item.descripcion.trim().length > 0)
         .map((item) => ({
           catalogItemId: item.catalogItemId,
+          division: item.division,
+          subtipo: item.subtipo,
+          esAPedido: item.esAPedido,
+          ...(item.dpPricing ? { dpPricing: item.dpPricing } : {}),
           ...(canAssignMechanic ? { assignedUserId: item.assignedUserId ?? null, teamMembers: item.teamMembers } : {}),
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,
@@ -1347,10 +1348,6 @@ const WorkOrderCreateForm = () => {
                         <div hidden={!vehicleSelectionOpen} className="reception-vehicle-tools">
                           <div>
                             <h3 className="font-bold text-brand-primaryInk">Buscar vehículo</h3>
-                            <p className="mt-1 text-sm text-brand-muted">
-                              Los vehículos existentes conservan su propietario registrado; la OT
-                              puede quedar a nombre de otra persona que los entrega.
-                            </p>
                           </div>
                         </div>
                         <div hidden={!vehicleSelectionOpen} className="mt-4">
@@ -1389,11 +1386,6 @@ const WorkOrderCreateForm = () => {
                             <div>
                               <p className="font-semibold">
                                 El propietario del vehículo es diferente al responsable de la OT.
-                              </p>
-                              <p className="mt-1 text-xs">
-                                Se guardarían ambos datos para mantener la trazabilidad:{' '}
-                                {vehicle?.client?.nombre} como propietario y {client?.nombre} como
-                                responsable de ingreso.
                               </p>
                             </div>
                           </div>
@@ -1554,11 +1546,9 @@ const WorkOrderCreateForm = () => {
                           <span className="reception-photo-count">{photos.length}/9 fotos</span>
                         </div>
                         <p className="reception-photo-guide-intro">
-                          Toma una foto por ángulo. Izquierda y derecha se consideran desde el
-                          asiento del conductor. Se admiten fotos verticales y horizontales.
+                          Izquierda y derecha se consideran desde el asiento del conductor.
                         </p>
-                        <p className="reception-photo-upload-note">JPG, PNG o WebP · máximo {MAX_INSPECTION_PHOTO_MB} MB por foto.
-                          Las fotos se subirán al confirmar la OT. Antes puedes quitarlas o reemplazarlas.</p>
+                        <p className="reception-photo-upload-note">Las fotos se subirán al confirmar la OT.</p>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           {RECEPTION_PHOTO_GUIDES.map(({ slot, image, hint }) => (
                             <ReceptionPhotoCard key={slot} label={photoSlotLabels[slot]} guideImage={image} hint={hint}
@@ -1635,14 +1625,6 @@ const WorkOrderCreateForm = () => {
 
                 {activeStep === 4 && (
                   <div className="reception-services-step space-y-4">
-                    {!isConversion && (
-                      <div className="reception-service-note rounded-lg border border-brand-primaryInk/20 bg-brand-line/60 px-4 py-3">
-                        <p className="text-sm font-semibold text-brand-primaryInk">
-                          Seleccione servicios y repuestos. Puede continuar sin ítems si el
-                          diagnóstico está pendiente.
-                        </p>
-                      </div>
-                    )}
                     {isConversion ? (
                       <section
                         aria-label="Servicios de la cotización"
@@ -1656,7 +1638,6 @@ const WorkOrderCreateForm = () => {
                             <thead className="border-b border-brand-line text-brand-muted">
                               <tr>
                                 <th className="p-3">Descripción</th>
-                                {canAssignMechanic && <th className="p-3">Mecánico del servicio</th>}
                                 <th className="p-3 text-right">Cantidad</th>
                                 <th className="p-3 text-right">Precio</th>
                                 <th className="p-3 text-right">Subtotal</th>
@@ -1672,28 +1653,6 @@ const WorkOrderCreateForm = () => {
                                       {item.horasHombreEstimadas ? ` · ${item.horasHombreEstimadas} h / unidad` : ''}
                                     </small>
                                   </td>
-                                  {canAssignMechanic && (
-                                    <td className="p-3" data-column="Mecánico del servicio">
-                                      {item.tipoLinea !== 'parte' && !item.teamMembers && (
-                                        <select
-                                          aria-label={`Mecánico de ${item.descripcion}`}
-                                          className={inputClassName}
-                                          value={item.assignedUserId ?? ''}
-                                          onChange={(event) => setItems((current) => current.map((line) =>
-                                            line.key === item.key
-                                              ? { ...line, assignedUserId: event.target.value ? Number(event.target.value) : null }
-                                              : line,
-                                          ))}
-                                        >
-                                          <option value="">Sin asignar</option>
-                                          {(mechanicsQuery.data ?? []).map((mechanic) => (
-                                            <option key={mechanic.id} value={mechanic.id}>{mechanic.nombre}</option>
-                                          ))}
-                                        </select>
-                                      )}
-                                      {item.tipoLinea !== 'parte' && <DraftItemTeamEditor item={item} mechanics={mechanicsQuery.data ?? []} onChange={(teamMembers) => setItems((current) => current.map((line) => line.key === item.key ? { ...line, teamMembers } : line))} />}
-                                    </td>
-                                  )}
                                   <td className="p-3 text-right" data-column="Cantidad">{item.cantidad}</td>
                                   <td className="whitespace-nowrap p-3 text-right" data-column="Precio unitario">
                                     {formatClp(Number(item.precioUnitario))}
@@ -1722,37 +1681,13 @@ const WorkOrderCreateForm = () => {
                         showExecution={false}
                         showDiscounts
                         showTotal={false}
-                        mechanics={canAssignMechanic ? mechanicsQuery.data ?? [] : undefined}
+                        mechanics={undefined}
                       />
                     )}
                     {!isConversion && <>
                       <QuotationDiscountSummary items={items.filter((item) => item.descripcion.trim())} value={discount} onChange={setDiscount} testId="work-order-total" />
                       {errors.descuentoValor && <p role="alert" className="text-sm text-brand-coralInk">{errors.descuentoValor}</p>}
                     </>}
-                        {canAssignMechanic && (
-                          <label className="reception-mechanic-field mt-4 block rounded-lg border border-brand-line bg-brand-line/40 p-3 text-sm font-semibold text-brand-ink">
-                            Responsable general (opcional)
-                            <select
-                              value={assignedMechanicId ?? ''}
-                              onChange={(event) =>
-                                setAssignedMechanicId(
-                                  event.target.value ? Number(event.target.value) : null,
-                                )
-                              }
-                              className="mt-2 h-10 w-full rounded-lg border border-brand-line bg-white px-3 text-sm font-normal outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-                            >
-                              <option value="">Sin asignar por ahora</option>
-                              {mechanicsQuery.data?.map((mechanic) => (
-                                <option key={mechanic.id} value={mechanic.id}>
-                                  {mechanic.nombre}
-                                </option>
-                              ))}
-                            </select>
-                            <span className="mt-1 block text-xs font-normal text-brand-muted">
-                              Atiende los servicios sin un mecánico propio. Puedes cambiarlo en Gestionar trabajo.
-                            </span>
-                          </label>
-                        )}
                   </div>
                 )}
               </motion.div>
@@ -1782,13 +1717,7 @@ const WorkOrderCreateForm = () => {
                     ? 'Completa contacto y facturación.'
                     : activeStep === 2 && !vehicle
                       ? 'Selecciona el vehículo que ingresa.'
-                      : [
-                          'Siguiente: contacto y facturación.',
-                          'Siguiente: vehículo.',
-                          'Siguiente: inspección.',
-                          'Siguiente: trabajos y repuestos.',
-                          'Revisa los datos antes de crear la orden.',
-                        ][activeStep]}
+                      : null}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 {activeStep > 0 && (

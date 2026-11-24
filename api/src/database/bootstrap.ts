@@ -10,6 +10,10 @@ import { up as ensureWorkOrderLabor } from './migrations/042-create-work-order-l
 import { up as ensureQuotationWorkItemLinks } from './migrations/043-link-quotation-work-items.js';
 import { up as ensureCustomerEmails } from './migrations/044-create-customer-emails.js';
 import { up as ensureVehiclePhotos } from './migrations/049-add-vehicle-photo.js';
+import { up as ensureCatalogDivisionsAndDpWorkflow } from './migrations/062-catalog-divisions-and-dp-workflow.js';
+import { up as ensureDpTimeStage } from './migrations/063-dp-time-stage.js';
+import { up as ensureDpConfiguration } from './migrations/064-dp-configuration.js';
+import { up as ensureDpWorkSnapshots } from './migrations/065-dp-work-snapshots.js';
 import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -234,6 +238,10 @@ async function ensureSchemaUpToDate(): Promise<void> {
   await ensureWorkOrderLabor(qi);
   await ensureQuotationWorkItemLinks(qi);
   await ensureCustomerEmails(qi);
+  await ensureCatalogDivisionsAndDpWorkflow(qi);
+  await ensureDpTimeStage(qi);
+  await ensureDpConfiguration(qi);
+  await ensureDpWorkSnapshots(qi);
   try {
     const woCols = await qi.describeTable('work_orders');
     if (!woCols.vehicle_owner_client_id) {

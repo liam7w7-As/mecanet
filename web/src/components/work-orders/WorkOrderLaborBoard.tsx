@@ -3,6 +3,9 @@ import { AlertCircle, BadgeDollarSign, Check, Clock3, LoaderCircle, Pause, Play,
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import WorkOrderAccSection from './WorkOrderAccSection';
+import WorkOrderDpSection from './WorkOrderDpSection';
+import WorkOrderObservationFiles from './WorkOrderObservationFiles';
 import WorkOrderTeamEditor, { ItemEstimateReasonDialog } from './WorkOrderTeamEditor';
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import {
@@ -13,14 +16,14 @@ import {
 import { useAssignWorkOrderMechanicMutation, useMechanics, useUpdateWorkOrderExecutionMutation } from '../../hooks/useWorkOrders';
 import { usePauseWorkshopTimerMutation } from '../../hooks/useWorkshopTime';
 import { getApiErrorMessage } from '../../lib/api-error';
-import { formatClp, formatDateTime } from '../../lib/formatters';
+import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
 import { formatWorkshopMinutes as minutesLabel } from '../../lib/workshop-time-format';
 import { useAuthStore } from '../../stores/auth.store';
 import { notifyError, notifySuccess } from '../../stores/toast.store';
 
 
-import type { WorkOrder, WorkOrderWorksheetItem } from '../../types/entities';
+import type { WorkOrder, WorkOrderWorksheetItem, WorkOrderWorksheetObservation } from '../../types/entities';
 import type { ItemOperationalStatus } from '@unithor/shared';
 
 const labels = { pendiente: 'Pendiente', en_proceso: 'En proceso', completado: 'Completado', omitido: 'Omitido' } as const;
@@ -35,7 +38,7 @@ function PauseReasonDialog({ reason, onReason, pending, error, onClose, onConfir
     <section ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="workshop-action-dialog relative w-full max-w-[440px] bg-white p-6 shadow-2xl">
       <h2 id={titleId} className="text-lg font-semibold text-brand-ink">Pausar trabajo</h2>
       <label className="mt-4 grid gap-2 text-sm text-brand-ink">Motivo de la pausa<textarea className="form-control" rows={3} maxLength={2000} value={reason} disabled={pending} onChange={(event) => onReason(event.target.value)} /></label>
-      <p className="mt-2 text-xs text-brand-muted">Motivo opcional. Si lo agregas, se conserva junto con las horas de esta sesión.</p>
+      <p className="mt-2 text-xs text-brand-muted">Motivo opcional.</p>
       {error && <p role="alert" className="workshop-labor-error mt-3">{error}</p>}
       <div className="dialog-buttons mt-5">
         <button type="button" className="secondary-button" disabled={pending} onClick={onClose}>Volver</button>
@@ -90,15 +93,17 @@ interface TaskProps {
   autoOpenTeam: boolean;
   closed: boolean;
   available: boolean;
-  observations: Array<{ id: number; texto: string | null; createdAt: string; authorName: string | null; files: Array<{ id: number; nombreOriginal: string; url: string }> }>;
+  observations: WorkOrderWorksheetObservation[];
   onState: (id: number, dirty: boolean, pending: boolean) => void;
   onSuggestPrice?: (itemId: number) => void;
   onNext?: () => void;
   onCompleted: () => void;
+  accessory?: boolean;
 }
 
-const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, observations, onState, onSuggestPrice, onNext, onCompleted }: TaskProps) => {
+const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, observations, onState, onSuggestPrice, onNext, onCompleted, accessory = false }: TaskProps) => {
   const actorId = useAuthStore((state) => state.user?.id);
+  const actorRole = useAuthStore((state) => state.user?.role);
   const start = useStartItemTimerMutation();
   const pause = usePauseWorkshopTimerMutation();
   const complete = useCompleteItemTimerMutation();
@@ -109,6 +114,8 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
   const observation = useCreateObservationMutation();
   const mechanics = useMechanics(canManage && !closed);
   const [note, setNote] = useState<string | null>(null);
+  const [fullInstructions, setFullInstructions] = useState(false);
+  const [fullObservation, setFullObservation] = useState(false);
   const [pauseOpen, setPauseOpen] = useState(false);
   const [pauseReason, setPauseReason] = useState('');
   const [pauseError, setPauseError] = useState<string | null>(null);
@@ -129,7 +136,7 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
   const hasTeam = item.tipoLinea !== 'parte' && Boolean(item.assignments?.length);
   const team = item.assignments?.filter((member) => member.active) ?? [];
   const ownAssignment = team.find((member) => member.userId === actorId);
-  const hasTheoreticalValue = team.length > 0 && team.every((member) => member.saleHourly != null && member.estimatedHours != null);
+  const hasTheoreticalValue = canManage && team.length > 0 && team.every((member) => member.saleHourly != null && member.estimatedHours != null);
   const theoreticalTeamValue = team.reduce((sum, member) => sum + (member.saleHourly != null && member.estimatedHours != null ? member.saleHourly * member.estimatedHours : 0), 0);
   const ownPartDone = Boolean(ownAssignment?.completedAt);
   const activeSessions = useMemo(() => {
@@ -146,6 +153,8 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
   }, [activeSessions]);
   const pending = teamState.pending || [start, pause, complete, assign, estimate, validate, execution, observation].some((mutation) => mutation.isPending);
   const noteValue = note ?? item.notasOperativas ?? '';
+  const longInstructions = noteValue.length > 220 || noteValue.split('\n').length > 3;
+  const latestObservation = [...observations].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)[0];
   const estimateValue = estimated ?? (item.horasHombreEstimadas === null ? '' : String(item.horasHombreEstimadas));
   const changedNote = note !== null && note !== (item.notasOperativas ?? '');
   const changedEstimate = estimated !== null && estimated !== (item.horasHombreEstimadas === null ? '' : String(item.horasHombreEstimadas));
@@ -153,8 +162,11 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
   const attachmentError = observationError(comment, files);
   useEffect(() => { onState(item.id, dirty, pending); }, [onState, item.id, dirty, pending]);
   useEffect(() => () => onState(item.id, false, false), [onState, item.id]);
-  const canWork = available && !closed && item.qualityStatus !== 'aprobado' && (canManage || (item.canWork === true && (!hasTeam || Boolean(ownAssignment))));
+  const canWork = available && !closed && item.qualityStatus !== 'aprobado' && (canManage || (item.canWork === true && (!accessory || actorRole === 'mecanico') && (!hasTeam || Boolean(ownAssignment))));
   const awaitingPartDelivery = item.tipoLinea === 'parte' && item.awaitingWarehouseDelivery === true;
+  const awaitingCustodyDelivery = accessory && !(item.entregadoBodegaAt || item.custodyBodegueroDeliveredAt || item.entregadoBodega);
+  const awaitingCustodyReception = accessory && !(item.recibidoTallerAt || item.custodyArmadorReceivedAt || item.recibidoTaller);
+  const awaitingPartCustody = awaitingPartDelivery || awaitingCustodyDelivery || awaitingCustodyReception;
   const canControl = canWork && (hasTeam ? Boolean(ownAssignment) && !ownPartDone : !controlSession || controlSession.mine || canManage);
   const disabled = pending || !available || closed;
   const fail = (error: unknown) => setFeedback({ error: true, text: getApiErrorMessage(error, 'No se pudo guardar. Tus datos siguen en el formulario.') });
@@ -182,7 +194,7 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
   };
   const saveNote = () => execution.mutate({ id: workOrderId, data: { items: [{ id: item.id, estadoOperativo: item.estadoOperativo, notasOperativas: noteValue || null }] } }, { onSuccess: () => { setNote(noteValue); notifySuccess('Nota guardada.'); }, onError: fail });
   const completeTask = (): void => {
-    if (item.awaitingWarehouseDelivery) return;
+    if (disabled || !canControl || awaitingPartCustody || ['completado', 'omitido'].includes(item.estadoOperativo)) return;
     setFeedback(null);
     complete.mutate({ ...variables, ...(changedNote ? { notasOperativas: noteValue || null } : {}) }, {
       onError: (error) => setFeedback({ error: true, text: getApiErrorMessage(error, 'No se pudo completar. Tus notas y horas guardadas se conservan.'), completed: true }),
@@ -194,21 +206,21 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
     });
   };
 
-  return <article className="workshop-labor-task" aria-label={`Trabajo: ${item.descripcion}`} data-status={item.estadoOperativo} aria-busy={pending}>
-    <div className="workshop-labor-task-top">
+  return <article className={accessory ? 'mt-3 border-t border-slate-100 pt-3' : 'workshop-labor-task'} aria-label={`Trabajo: ${item.descripcion}`} data-status={item.estadoOperativo} aria-busy={pending}>
+    {!accessory && <div className="workshop-labor-task-top">
       <div className="workshop-labor-task-title"><span className={`workshop-labor-state workshop-labor-state--${item.estadoOperativo}`}>{labels[item.estadoOperativo]}</span><h3>{item.descripcion}</h3></div>
       {canManage && !closed && !hasTeam && !autoOpenTeam ? <div className="workshop-labor-assignee"><label><span>Mecánico</span><select aria-label={`Mecánico de ${item.descripcion}`} value={(assigneeDraft === undefined ? item.assignedUser?.id : assigneeDraft) ?? ''} disabled={disabled || mechanics.isPending}
         onChange={(event) => saveAssignee(event.target.value ? Number(event.target.value) : null)}>
         <option value="">Sin asignar</option>{(mechanics.data ?? []).map((mechanic) => <option key={mechanic.id} value={mechanic.id}>{mechanic.nombre}</option>)}
       </select></label>{assigneeDraft !== undefined && !assign.isPending && <button type="button" disabled={disabled} onClick={() => saveAssignee(assigneeDraft)}>Reintentar asignación</button>}</div> : <span className="workshop-labor-assigned-name">{hasTeam ? team.map((member) => member.userName ?? `Mecánico #${member.userId}`).join(', ') || 'Sin asignar' : item.assignedUser?.nombre ?? 'Sin asignar'}</span>}
-    </div>
+    </div>}
     <div className="workshop-labor-task-controls">
-      <div className="workshop-labor-hours"><span className={activeSessions.length ? 'is-running' : ''}><Clock3 aria-hidden="true" />{hasTeam ? 'Equipo' : 'Servicio'}: <span>{minutesLabel(realMinutes)}</span>{activeSessions.length ? ' · En curso' : ''}</span>{ownSessionMinutes !== null && <span>Tu sesión actual: {minutesLabel(ownSessionMinutes)}</span>}{ownAssignment && <span>Tus horas estimadas: {ownAssignment.estimatedHours === null ? 'Sin definir' : minutesLabel(ownAssignment.estimatedHours * 60)}</span>}{hasTheoreticalValue && <span>Valor teórico{hasTeam ? ' del equipo' : ''}: {formatClp(theoreticalTeamValue)}</span>}<span>Estimado{hasTeam ? ' del servicio' : ''}: {item.horasEstimadasTotales === null ? 'Sin definir' : minutesLabel(item.horasEstimadasTotales * 60)}</span>{item.laborValidatedAt && <span>Horas validadas</span>}</div>
+      {accessory ? <span className={`workshop-labor-state workshop-labor-state--${item.estadoOperativo}`}>{labels[item.estadoOperativo]}</span> : <div className="workshop-labor-hours"><span className={activeSessions.length ? 'is-running' : ''}><Clock3 aria-hidden="true" />{hasTeam ? 'Equipo' : 'Servicio'}: <span>{minutesLabel(realMinutes)}</span>{activeSessions.length ? ' · En curso' : ''}</span>{ownSessionMinutes !== null && <span>Tu sesión actual: {minutesLabel(ownSessionMinutes)}</span>}{ownAssignment && <span>Tus horas estimadas: {ownAssignment.estimatedHours === null ? 'Sin definir' : minutesLabel(ownAssignment.estimatedHours * 60)}</span>}{hasTheoreticalValue && <span>Valor teórico{hasTeam ? ' del equipo' : ''}: {formatClp(theoreticalTeamValue)}</span>}<span>Estimado{hasTeam ? ' del servicio' : ''}: {item.horasEstimadasTotales === null ? 'Sin definir' : minutesLabel(item.horasEstimadasTotales * 60)}</span>{item.laborValidatedAt && <span>Horas validadas</span>}</div>}
       <div className="workshop-labor-actions">
         {canControl && !['completado', 'omitido'].includes(item.estadoOperativo) && <>
           {item.tipoLinea !== 'parte' && (controlSession ? <button type="button" className="workshop-labor-primary" disabled={disabled} onClick={() => { setPauseError(null); setPauseOpen(true); }}><Pause aria-hidden="true" />Pausar</button>
             : <button type="button" className="workshop-labor-primary" disabled={disabled} onClick={() => start.mutate(variables, { onError: fail, onSuccess: (result) => { if (result.pausedOtherItems) notifySuccess('Se pausó tu trabajo anterior y se conservaron sus horas.'); } })}><Play aria-hidden="true" />{item.estadoOperativo === 'en_proceso' ? 'Continuar' : 'Iniciar'}</button>)}
-          <button type="button" className="workshop-labor-complete" disabled={disabled || awaitingPartDelivery} onClick={completeTask}><Check aria-hidden="true" />{item.tipoLinea === 'parte' ? 'Marcar usado' : hasTeam ? 'Terminar mi parte' : 'Completar'}</button>
+          <button type="button" className="workshop-labor-complete" disabled={disabled || awaitingPartCustody} onClick={completeTask}><Check aria-hidden="true" />{item.tipoLinea === 'parte' ? 'Marcar usado' : hasTeam ? 'Terminar mi parte' : 'Completar'}</button>
         </>}
         {available && !closed && canManage && item.tipoLinea !== 'parte' && onSuggestPrice && <button type="button" disabled={disabled} onClick={() => onSuggestPrice(item.id)}><BadgeDollarSign aria-hidden="true" />Sugerir precio</button>}
         {pending && <span role="status"><LoaderCircle className="animate-spin" aria-hidden="true" /><span className="sr-only">Guardando trabajo</span></span>}
@@ -224,18 +236,26 @@ const Task = ({ item, workOrderId, canManage, autoOpenTeam, closed, available, o
           onError: (error) => setPauseError(getApiErrorMessage(error, 'No se pudo pausar. El motivo se conserva para reintentar.')),
         });
       }} />}
-    {awaitingPartDelivery && <p className="workshop-labor-help">Pendiente de entrega por bodega. Podrás marcar el repuesto como usado cuando se registre su entrega.</p>}
-    {feedback && <div ref={savedRef} tabIndex={-1} role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'workshop-labor-error' : 'workshop-labor-saved'}><span>{feedback.text}</span>{feedback.error && feedback.completed && canControl && !awaitingPartDelivery && <button type="button" disabled={disabled} onClick={completeTask}><RotateCcw aria-hidden="true" />Reintentar</button>}{!feedback.error && feedback.completed && onNext && <button type="button" onClick={onNext}>Ir al siguiente trabajo</button>}</div>}
+    {(awaitingPartDelivery || awaitingCustodyDelivery) && <p className="workshop-labor-help">Pendiente de entrega por bodega. Podrás marcar el repuesto como usado cuando se registre su entrega{accessory ? ' y recepción en taller' : ''}.</p>}
+    {!awaitingPartDelivery && !awaitingCustodyDelivery && awaitingCustodyReception && <p className="workshop-labor-help">Pendiente de recepción en taller. El armador debe confirmar la recepción antes de marcar el repuesto como usado.</p>}
+    {feedback && <div ref={savedRef} tabIndex={-1} role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'workshop-labor-error' : 'workshop-labor-saved'}><span>{feedback.text}</span>{feedback.error && feedback.completed && canControl && !awaitingPartCustody && <button type="button" disabled={disabled} onClick={completeTask}><RotateCcw aria-hidden="true" />Reintentar</button>}{!feedback.error && feedback.completed && onNext && <button type="button" onClick={onNext}>Ir al siguiente trabajo</button>}</div>}
     {ownPartDone && !['completado', 'omitido'].includes(item.estadoOperativo) && <p className="workshop-labor-help">Parte terminada / equipo pendiente</p>}
     {activeSessions.filter((session) => !session.mine).map((session) => <p key={session.id} className="workshop-labor-help">En curso por {session.userName ?? 'otro responsable'}.</p>)}
-    {item.tipoLinea !== 'parte' && <WorkOrderTeamEditor item={item} workOrderId={workOrderId} editable={canManage && !closed} disabled={disabled} mechanics={mechanics.data ?? []} loadingMechanics={mechanics.isPending} mechanicsError={mechanics.isError} autoOpenTeam={autoOpenTeam} onState={onTeamState} />}
+    {item.tipoLinea !== 'parte' && <WorkOrderTeamEditor item={item} workOrderId={workOrderId} editable={canManage && !closed} showFinancials={canManage} disabled={disabled} mechanics={mechanics.data ?? []} loadingMechanics={mechanics.isPending} mechanicsError={mechanics.isError} autoOpenTeam={autoOpenTeam} onState={onTeamState} />}
+    <section className="workshop-job-context" aria-label={`Indicaciones y adjuntos de ${item.descripcion}`}>
+      <h4>Indicaciones del trabajo</h4>
+      <p className={`workshop-job-instructions${longInstructions && !fullInstructions ? ' is-truncated' : ''}`}>{noteValue || 'Sin indicaciones adicionales.'}</p>
+      {longInstructions && <button type="button" aria-expanded={fullInstructions} onClick={() => setFullInstructions((value) => !value)}>{fullInstructions ? 'Ver menos' : 'Leer indicaciones completas'}</button>}
+      {latestObservation?.texto && <div className="workshop-job-latest-note"><small>{latestObservation.authorName ?? 'Taller'} · {formatDateTime(latestObservation.createdAt)}</small><p className={fullObservation ? '' : 'workshop-job-instructions is-truncated'}>{latestObservation.texto}</p>{(latestObservation.texto.length > 220 || latestObservation.texto.split('\n').length > 3) && <button type="button" aria-expanded={fullObservation} onClick={() => setFullObservation((value) => !value)}>{fullObservation ? 'Ver menos' : 'Leer observación completa'}</button>}</div>}
+      <WorkOrderObservationFiles files={observations.flatMap((entry) => entry.files)} />
+    </section>
     <details className="workshop-labor-details"><summary>Ver detalle<span>Notas, acciones e historial de horas</span></summary>
       <div className="workshop-labor-detail-body">
         {available && !closed && !canManage && item.canWork === true && item.tipoLinea !== 'parte' && onSuggestPrice && <div className="workshop-labor-actions"><button type="button" disabled={disabled} onClick={() => onSuggestPrice(item.id)}><BadgeDollarSign aria-hidden="true" />Sugerir precio</button></div>}
         <label>Nota del trabajo<textarea aria-label={`Nota técnica de ${item.descripcion}`} value={noteValue} maxLength={1000} disabled={!canWork || pending} onChange={(event) => setNote(event.target.value)} /></label>
         {changedNote && <button type="button" disabled={!canWork || pending} onClick={saveNote}>Guardar nota</button>}
-        <section aria-label={`Historial de horas de ${item.descripcion}`}><h4>Historial de horas</h4>{(item.sessions ?? []).length === 0 ? <p>Sin horas registradas.</p> : <ul>{item.sessions?.map((session) => <li key={session.id}><strong>{session.userName ?? 'Taller'}</strong><span>{formatDateTime(session.startedAt)} · {minutesLabel(session.minutes)}{session.kind === 'ajuste' ? ' · Ajuste' : ''}</span>{session.note && <p>{session.note}</p>}</li>)}</ul>}</section>
-        {canManage && !closed && <details><summary>Administrar trabajo</summary><div className="workshop-labor-admin">
+        <section aria-label={`Historial de horas de ${item.descripcion}`}><h4>Historial de horas</h4>{(item.sessions ?? []).length === 0 ? <p>Sin horas registradas.</p> : <ul>{item.sessions?.map((session) => <li key={session.id}><strong>{session.userName ?? 'Taller'}</strong><span>{session.reportedDate ? `${formatDate(session.reportedDate)} · Horas declaradas` : formatDateTime(session.startedAt)} · {minutesLabel(session.minutes)}{session.kind === 'ajuste' ? ' · Ajuste' : ''}</span>{session.note && <p>{session.note}</p>}</li>)}</ul>}</section>
+        {canManage && !closed && !accessory && <details><summary>Administrar trabajo</summary><div className="workshop-labor-admin">
           <label>Estado del trabajo<select aria-label={`Estado de ${item.descripcion}`} value={statusDraft ?? item.estadoOperativo} disabled={disabled} onChange={(event) => saveStatus(event.target.value as ItemOperationalStatus)}>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           {statusDraft !== null && !execution.isPending && <button type="button" disabled={disabled} onClick={() => saveStatus(statusDraft)}>Reintentar estado</button>}
           {!item.assignments?.length && <>
@@ -289,14 +309,47 @@ export default function WorkOrderLaborBoard({ workOrder, onDirtyChange, onPendin
     id: item.id, descripcion: item.descripcion, tipoLinea: item.tipoLinea, unidadMedida: item.unidadMedida, cantidad: Number(item.cantidad), estadoOperativo: item.estadoOperativo, notasOperativas: item.notasOperativas,
     horasHombreEstimadas: item.horasHombreEstimadas, horasEstimadasTotales: item.horasHombreEstimadas === null ? null : item.horasHombreEstimadas * item.cantidad,
     horasHombreReales: item.horasHombreReales, excedeEstimado: false, assignments: item.assignments, assignedUser: item.assignedUser ?? (item.assignedUserId ? { id: item.assignedUserId, nombre: `Mecánico #${item.assignedUserId}` } : null), laborValidatedAt: item.laborValidatedAt, laborValidationNote: item.laborValidationNote, activeSession: null, totalMinutes: (item.horasHombreReales ?? 0) * 60, observationsCount: 0,
+    division: item.division ?? (item.tipoLinea === 'parte' ? 'ACC' : 'MEC'),
+    subtipo: item.subtipo,
+    esAPedido: Boolean(item.esAPedido),
+    precioUnitario: item.precioUnitario,
+    bodegueroUserId: item.bodegueroUserId,
+    entregadoBodega: item.entregadoBodega,
+    entregadoBodegaAt: item.entregadoBodegaAt ?? null,
+    armadorUserId: item.armadorUserId,
+    recibidoTaller: item.recibidoTaller,
+    recibidoTallerAt: item.recibidoTallerAt ?? null,
+    notaEntrega: item.notaEntrega ?? null,
+    ccfStatus: item.ccfStatus ?? 'pendiente',
+    ccfNotes: item.ccfNotes ?? null,
+    ccfReviewedAt: item.ccfReviewedAt,
+    ccfReviewedBy: item.ccfReviewedBy,
+    dpStages: item.dpStages ?? [],
     ...('teamManaged' in item ? { teamManaged: item.teamManaged === true } : {}),
   })), [query.data?.items, workOrder.items]);
-  const isMine = (item: WorkOrderWorksheetItem): boolean => item.assignments?.length
+
+  const dpItems = useMemo(() => items.filter((item) => item.division === 'DP'), [items]);
+  const accItems = useMemo(
+    () => items.filter((item) => item.division === 'ACC' || item.tipoLinea === 'parte'),
+    [items],
+  );
+  const mecItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          item.division !== 'DP' &&
+          item.tipoLinea !== 'parte' &&
+          item.division !== 'ACC',
+      ),
+    [items],
+  );
+  const isMine = (item: WorkOrderWorksheetItem): boolean => item.dpStages?.some((stage) => stage.assignedUserId === user?.id) || (item.assignments?.length
     ? item.assignments.some((member) => member.active && member.userId === user?.id)
-    : Boolean(item.canWork || item.assignedUser?.id === user?.id || (!item.assignedUser && workOrder.assignedMechanicId === user?.id));
+    : Boolean(item.canWork || item.assignedUser?.id === user?.id || (!item.assignedUser && workOrder.assignedMechanicId === user?.id)));
   const mineItems = items.filter((item) => !mine || isMine(item));
   const isUnassigned = (item: WorkOrderWorksheetItem): boolean => {
     if (item.tipoLinea === 'parte' || ['completado', 'omitido'].includes(item.estadoOperativo)) return false;
+    if (item.division === 'DP') return !item.dpStages?.length || item.dpStages.some((stage) => !stage.assignedUserId);
     const original = workOrder.items?.find((entry) => entry.id === item.id);
     const explicitTeam = 'teamManaged' in item ? item.teamManaged === true
       : original && 'teamManaged' in original ? original.teamManaged === true : Boolean(item.assignments?.length);
@@ -310,11 +363,96 @@ export default function WorkOrderLaborBoard({ workOrder, onDirtyChange, onPendin
     window.requestAnimationFrame(() => { taskNodes.current[itemId]?.focus(); taskNodes.current[itemId]?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); });
   };
   return <div className="workshop-labor-board">
-    <div className="workshop-labor-toolbar"><div><h2>Trabajos de la orden</h2><p>{canManage ? 'Asigna responsables por servicio. Iniciar el cronómetro registra tus propias horas.' : 'Inicia tu trabajo para registrar horas y márcalo al terminar.'}</p></div>{user?.role === 'mecanico' && <button type="button" aria-pressed={mine} onClick={() => setMine((current) => !current)}>{mine ? 'Mis trabajos' : 'Todos los trabajos'}</button>}</div>
+    <div className="workshop-labor-toolbar"><div><h2>Trabajos de la orden</h2></div>{user?.role === 'mecanico' && <button type="button" aria-pressed={mine} onClick={() => setMine((current) => !current)}>{mine ? 'Mis trabajos' : 'Todos los trabajos'}</button>}</div>
     <div className="workshop-labor-filters" role="group" aria-label="Filtrar trabajos"><button type="button" aria-pressed={status === 'all' && (!supervisor || assignmentFocus === 'all')} onClick={() => changeAssignmentFocus('all')}>Todos <span>{mineItems.length}</span></button>{supervisor && <button type="button" aria-pressed={assignmentFocus === 'unassigned'} onClick={() => changeAssignmentFocus(assignmentFocus === 'unassigned' ? 'all' : 'unassigned')}>Sin asignar <span>{mineItems.filter(isUnassigned).length}</span></button>}{Object.entries(labels).map(([value, label]) => <button key={value} type="button" aria-pressed={status === value} onClick={() => setStatus(value as ItemOperationalStatus)}>{label} <span>{focusedItems.filter((item) => item.estadoOperativo === value).length}</span></button>)}</div>
     {query.isPending && <p role="status" className="workshop-labor-help">Cargando horas de trabajo…</p>}
     {query.isError && <div role="alert" className="workshop-labor-error"><AlertCircle aria-hidden="true" /><span>No se pudieron cargar las horas. Los registros guardados se conservan.</span><button type="button" onClick={() => void query.refetch()}><RotateCcw aria-hidden="true" />Reintentar</button></div>}
-    <div className="workshop-labor-list">{items.map((item) => { const next = focusedItems.find((other) => other.id !== item.id && !['completado', 'omitido'].includes(other.estadoOperativo) && (canManage || other.canWork) && (!other.assignments?.length || other.assignments.some((member) => member.active && member.userId === user?.id && !member.completedAt))); return <div key={item.id} ref={(node) => { taskNodes.current[item.id] = node; }} tabIndex={-1} hidden={!visibleItems.some((visible) => visible.id === item.id)}><Task item={item} workOrderId={workOrder.id} canManage={canManage} autoOpenTeam={supervisor && assignmentFocus === 'unassigned' && isUnassigned(item)} closed={closed} available={Boolean(query.data) && canUpdate} observations={(query.data?.observations ?? []).filter((entry) => entry.itemId === item.id)} onState={onState} onSuggestPrice={onSuggestPrice} onCompleted={() => setStatus('all')} onNext={next ? () => goTo(next.id) : undefined} /></div>; })}</div>
+
+    {/* Bloque D&P Quirúrgico (5 etapas secuenciales + CCF) */}
+    {dpItems.length > 0 && (
+      <WorkOrderDpSection
+        workOrderId={workOrder.id}
+        items={visibleItems.filter((item) => item.division === 'DP')}
+        mechanics={mechanics.data ?? []}
+        canManage={canManage}
+        closed={closed}
+        onSuggestPrice={onSuggestPrice}
+        onState={onState}
+      />
+    )}
+
+    {/* Bloque ACC (Custodia Bodeguero & Armador + Buscador Inteligente) */}
+    {(accItems.length > 0 || (canManage && !closed)) && (
+      <WorkOrderAccSection
+        workOrderId={workOrder.id}
+        items={accItems}
+        visibleItemIds={visibleItems.map((item) => item.id)}
+        assignedToOrder={user?.role === 'mecanico' && (workOrder.assignedMechanicId === user.id || items.some((item) => item.assignedUser?.id === user.id || item.assignments?.some((entry) => entry.active && entry.userId === user.id) || item.dpStages?.some((stage) => stage.assignedUserId === user.id)))}
+        mechanics={mechanics.data ?? []}
+        canManage={canManage}
+        closed={closed}
+        onSuggestPrice={onSuggestPrice}
+        onState={onState}
+        renderExecution={(item) => <div ref={(node) => { taskNodes.current[item.id] = node; }} tabIndex={-1}>
+          <Task item={item} workOrderId={workOrder.id} canManage={canManage} autoOpenTeam={false}
+            closed={closed} available={Boolean(query.data) && canUpdate}
+            observations={(query.data?.observations ?? []).filter((entry) => entry.itemId === item.id)}
+            onState={onState} onCompleted={() => setStatus('all')} accessory />
+        </div>}
+      />
+    )}
+
+    {/* Bloque MEC (Mecánica General: Estándar y Específicos) */}
+    {(mecItems.length > 0 || (dpItems.length === 0 && accItems.length === 0)) && (
+      <div className="rounded-2xl border border-sky-200 bg-[#edf4f9] p-4 sm:p-5 shadow-xs mb-5">
+        <div className="flex items-center gap-2.5 border-b border-sky-200/80 pb-3 mb-4">
+          <span className="rounded-md bg-[#1d396a] px-3 py-1 text-sm font-black tracking-wider text-white shadow-xs">
+            MEC:
+          </span>
+        </div>
+        <div className="workshop-labor-list">
+          {mecItems.map((item) => {
+            const next = focusedItems.find(
+              (other) =>
+                other.id !== item.id &&
+                !['completado', 'omitido'].includes(other.estadoOperativo) &&
+                (canManage || other.canWork) &&
+                (!other.assignments?.length ||
+                  other.assignments.some(
+                    (member) =>
+                      member.active &&
+                      member.userId === user?.id &&
+                      !member.completedAt,
+                  )),
+            );
+            return (
+              <div
+                key={item.id}
+                ref={(node) => {
+                  taskNodes.current[item.id] = node;
+                }}
+                tabIndex={-1}
+                hidden={!visibleItems.some((visible) => visible.id === item.id)}
+              >
+                <Task
+                  item={item}
+                  workOrderId={workOrder.id}
+                  canManage={canManage}
+                  autoOpenTeam={supervisor && assignmentFocus === 'unassigned' && isUnassigned(item)}
+                  closed={closed}
+                  available={Boolean(query.data) && canUpdate}
+                  observations={(query.data?.observations ?? []).filter((entry) => entry.itemId === item.id)}
+                  onState={onState}
+                  onSuggestPrice={onSuggestPrice}
+                  onCompleted={() => setStatus('all')}
+                  onNext={next ? () => goTo(next.id) : undefined}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    )}
     {items.length > 0 && visibleItems.length === 0 && <p className="workshop-labor-empty">No hay trabajos en este filtro.</p>}
     {query.data && <GeneralObservations workOrderId={workOrder.id} entries={query.data.observations.filter((entry) => entry.itemId === null)} editable={!closed && canUpdate} onState={onState} />}
     {!items.length && <p className="workshop-labor-empty">No hay trabajos cargados todavía.</p>}

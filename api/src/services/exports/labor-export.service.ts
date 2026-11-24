@@ -84,6 +84,7 @@ export const buildLaborExport: ExportBuilder = async (target, raw, actor) => {
         { key: 'minutos', header: 'Minutos', width: 12, kind: 'number' },
         { key: 'estado', header: 'Estado', width: 15 },
         { key: 'overtime', header: 'Horas extra', width: 12, kind: 'boolean' },
+        { key: 'registro', header: 'Registro', width: 30 },
         { key: 'inicio', header: 'Inicio', width: 23, kind: 'datetime' },
         { key: 'fin', header: 'Fin', width: 23, kind: 'datetime' },
         { key: 'motivo', header: 'Motivo', width: 45 },
@@ -96,8 +97,9 @@ export const buildLaborExport: ExportBuilder = async (target, raw, actor) => {
           minutos: detail.minutos,
           estado: detail.estado,
           overtime: detail.overtime,
-          inicio: detail.startedAt,
-          fin: detail.endedAt,
+          registro: detail.reportedDate ? `Horas declaradas · ${detail.reportedDate}` : 'Intervalo',
+          inicio: detail.reportedDate ? null : detail.startedAt,
+          fin: detail.reportedDate ? null : detail.endedAt,
           motivo: detail.note,
         })),
       ),
@@ -108,7 +110,8 @@ export const buildLaborExport: ExportBuilder = async (target, raw, actor) => {
   return {
     title: 'Reporte diario de horas de taller',
     filters: exportFilters({ fecha: report.fecha }),
-    notes: ['Las horas extra están incluidas una sola vez en las horas registradas.'],
+    notes: ['Las horas extra están incluidas una sola vez en las horas registradas.',
+      'Las horas declaradas son cantidades por fecha, sin intervalo de inicio y fin.'],
     tables,
   };
 };

@@ -92,4 +92,36 @@ describe('OT document monetary and photo regressions (synthetic, no DB/storage)'
       && image.dict.get(PDFName.of('Height'))?.toString() === '40')).toBe(true);
     expect(await textFromPdf(bytes)).not.toContain('Vista WebP disponible');
   });
+
+  it.each([generateWorkOrderPdf, generateWorkOrderReceptionPdf])('groups areas without changing line discounts, general discount or IVA', async (generate) => {
+    const order = fixture();
+    const mixedItems = [
+      { ...order.items[1], id: 3, descripcion: 'Diagnóstico mecánico', division: 'MEC' as const, cantidad: 1, precioUnitario: 10000, subtotal: 10000 },
+      { ...order.items[1], id: 2, descripcion: 'Repuesto encargado', tipoLinea: 'parte', division: 'ACC' as const },
+      { ...order.items[0], id: 1, descripcion: 'Pintura puerta', division: 'DP' as const },
+    ];
+    vi.spyOn(WorkOrder, 'findByPk').mockResolvedValue({ ...order, items: mixedItems } as unknown as WorkOrder);
+    const text = await textFromPdf(await generate(1));
+    const positions = ['D&P - Desabolladura y pintura', 'ACC - Accesorios y repuestos', 'MEC - Mecánica'].map((label) => text.indexOf(label));
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((left, right) => left - right));
+    for (const amount of ['$19.000', '$27.000', '$10.000', '$50.400', '$9.576', '$59.976']) expect(text).toContain(amount);
+    for (const division of ['D&P', 'ACC', 'MEC']) expect(text.match(new RegExp(`Subtotal ${division} \\(neto\\)`, 'g'))).toHaveLength(1);
+    expect(WorkOrder.findByPk).toHaveBeenCalledWith(1, expect.objectContaining({
+      include: expect.arrayContaining([expect.objectContaining({ as: 'items', attributes: expect.arrayContaining(['division', 'subtipo']) })]),
+    }));
+  });
+
+  it.each([generateWorkOrderPdf, generateWorkOrderReceptionPdf])('repeats the division when a long group spans pages, without repeating its subtotal', async (generate) => {
+    vi.spyOn(WorkOrder, 'findByPk').mockResolvedValue({ ...fixture(), quotation: undefined,
+      items: Array.from({ length: 40 }, (_, index) => ({ ...lines()[0], id: index + 1, division: 'DP', descripcion: `Pieza ${index + 1}: reparación y pintura con preparación de superficie y terminación`, })),
+    } as unknown as WorkOrder);
+    const bytes = await generate(1);
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBeGreaterThan(2);
+    const text = await textFromPdf(bytes);
+    expect(text).toContain('D&P - Desabolladura y pintura (continuación)');
+    expect(text.match(/Subtotal D&P \(neto\)/g)).toHaveLength(1);
+    expect(text).toContain('$952.000');
+    for (let index = 1; index <= 40; index += 1) expect(text).toContain(`Pieza ${index}:`);
+  });
 });

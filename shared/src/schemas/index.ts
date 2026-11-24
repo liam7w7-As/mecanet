@@ -21,3 +21,6 @@ export * from './supplier.schema.js';
 export * from './purchase.schema.js';
 export * from './import.schema.js';
 export * from './sales-access.schema.js';
+export * from './work-order-dp-stage.schema.js';
+export * from './work-order-acc-custody.schema.js';
+export * from './dp-configuration.schema.js';

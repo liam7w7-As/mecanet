@@ -53,7 +53,6 @@ export const SupplierListModal = ({ onClose }: SupplierListModalProps) => {
           id="suppliers-modal-title"
           title="Proveedores"
           variant="brand"
-          description="Las compras creadas con un nombre nuevo dejan al proveedor con datos incompletos hasta que administración lo complete."
           onClose={onClose}
           badge={<Truck className="h-6 w-6" aria-hidden="true" />}
         />

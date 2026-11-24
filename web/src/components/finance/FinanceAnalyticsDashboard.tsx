@@ -549,9 +549,6 @@ export const FinanceAnalyticsDashboard = () => {
             <section className="min-w-0 rounded-lg border border-brand-line bg-white">
               <div className="border-b border-brand-line px-5 py-4">
                 <h3 className="font-bold text-brand-primaryInk">Evolución del período</h3>
-                <p className="mt-1 text-xs text-brand-muted">
-                  Ventas, cobros y egresos por {filters.agruparPor}.
-                </p>
               </div>
               <div className="max-h-96 overflow-auto p-5">
                 {data.trend.length === 0 ? (
@@ -621,7 +618,6 @@ export const FinanceAnalyticsDashboard = () => {
             <section className="min-w-0 rounded-lg border border-brand-line bg-white">
               <div className="border-b border-brand-line px-5 py-4">
                 <h3 className="font-bold text-brand-primaryInk">Quién vendió más</h3>
-                <p className="mt-1 text-xs text-brand-muted">Ranking por venta bruta emitida.</p>
               </div>
               <div className="divide-y divide-brand-line">
                 {data.topSellers.length === 0 ? (

@@ -74,9 +74,86 @@ export declare const updateWorkOrderInspectionSchema: z.ZodEffects<z.ZodObject<{
     observaciones?: string | null | undefined;
 }>;
 export declare const workOrderItemInputSchema: z.ZodObject<{
+    dpPricing: z.ZodOptional<z.ZodEffects<z.ZodObject<{
+        configurationRevision: z.ZodNumber;
+        bodyTypeId: z.ZodString;
+        sizeId: z.ZodString;
+        pieceId: z.ZodOptional<z.ZodString>;
+        positionId: z.ZodOptional<z.ZodString>;
+        damageLevelId: z.ZodOptional<z.ZodString>;
+        scope: z.ZodDefault<z.ZodEnum<["piece", "global"]>>;
+        operations: z.ZodArray<z.ZodObject<{
+            descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+            descuentoValor: z.ZodOptional<z.ZodNumber>;
+            operationId: z.ZodString;
+        }, "strict", z.ZodTypeAny, {
+            operationId: string;
+            descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+            descuentoValor?: number | undefined;
+        }, {
+            operationId: string;
+            descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+            descuentoValor?: number | undefined;
+        }>, "many">;
+    }, "strict", z.ZodTypeAny, {
+        bodyTypeId: string;
+        scope: "piece" | "global";
+        operations: {
+            operationId: string;
+            descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+            descuentoValor?: number | undefined;
+        }[];
+        configurationRevision: number;
+        sizeId: string;
+        pieceId?: string | undefined;
+        positionId?: string | undefined;
+        damageLevelId?: string | undefined;
+    }, {
+        bodyTypeId: string;
+        operations: {
+            operationId: string;
+            descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+            descuentoValor?: number | undefined;
+        }[];
+        configurationRevision: number;
+        sizeId: string;
+        pieceId?: string | undefined;
+        positionId?: string | undefined;
+        scope?: "piece" | "global" | undefined;
+        damageLevelId?: string | undefined;
+    }>, {
+        bodyTypeId: string;
+        scope: "piece" | "global";
+        operations: {
+            operationId: string;
+            descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+            descuentoValor?: number | undefined;
+        }[];
+        configurationRevision: number;
+        sizeId: string;
+        pieceId?: string | undefined;
+        positionId?: string | undefined;
+        damageLevelId?: string | undefined;
+    }, {
+        bodyTypeId: string;
+        operations: {
+            operationId: string;
+            descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+            descuentoValor?: number | undefined;
+        }[];
+        configurationRevision: number;
+        sizeId: string;
+        pieceId?: string | undefined;
+        positionId?: string | undefined;
+        scope?: "piece" | "global" | undefined;
+        damageLevelId?: string | undefined;
+    }>>;
     id: z.ZodOptional<z.ZodNumber>;
     catalogItemId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     tipoLinea: z.ZodDefault<z.ZodEnum<["parte", "estandar", "especifico"]>>;
+    division: z.ZodOptional<z.ZodEnum<["DP", "ACC", "MEC"]>>;
+    subtipo: z.ZodOptional<z.ZodEnum<["servicio_dp", "en_stock", "a_pedido", "estandar", "especifico"]>>;
+    esAPedido: z.ZodOptional<z.ZodBoolean>;
     descripcion: z.ZodString;
     cantidad: z.ZodDefault<z.ZodNumber>;
     unidadMedida: z.ZodDefault<z.ZodEnum<["unidad", "litro", "mililitro", "kilogramo", "juego", "servicio"]>>;
@@ -93,25 +170,59 @@ export declare const workOrderItemInputSchema: z.ZodObject<{
     descripcion: string;
     unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
     tipoLinea: "parte" | "estandar" | "especifico";
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
     id?: number | undefined;
-    catalogItemId?: number | null | undefined;
-    horasHombreEstimadas?: number | null | undefined;
-    notasOperativas?: string | null | undefined;
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
+    dpPricing?: {
+        bodyTypeId: string;
+        scope: "piece" | "global";
+        operations: {
+            operationId: string;
+            descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+            descuentoValor?: number | undefined;
+        }[];
+        configurationRevision: number;
+        sizeId: string;
+        pieceId?: string | undefined;
+        positionId?: string | undefined;
+        damageLevelId?: string | undefined;
+    } | undefined;
+    catalogItemId?: number | null | undefined;
+    esAPedido?: boolean | undefined;
+    horasHombreEstimadas?: number | null | undefined;
+    notasOperativas?: string | null | undefined;
 }, {
     descripcion: string;
     cantidad?: number | undefined;
     precioUnitario?: number | undefined;
+    division?: "DP" | "ACC" | "MEC" | undefined;
+    subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
     id?: number | undefined;
-    estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
-    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
-    catalogItemId?: number | null | undefined;
-    tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-    horasHombreEstimadas?: unknown;
-    notasOperativas?: string | null | undefined;
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
+    estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
+    unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+    dpPricing?: {
+        bodyTypeId: string;
+        operations: {
+            operationId: string;
+            descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+            descuentoValor?: number | undefined;
+        }[];
+        configurationRevision: number;
+        sizeId: string;
+        pieceId?: string | undefined;
+        positionId?: string | undefined;
+        scope?: "piece" | "global" | undefined;
+        damageLevelId?: string | undefined;
+    } | undefined;
+    catalogItemId?: number | null | undefined;
+    tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+    esAPedido?: boolean | undefined;
+    horasHombreEstimadas?: unknown;
+    notasOperativas?: string | null | undefined;
 }>;
 export declare const workOrderTeamMemberSchema: z.ZodObject<{
     userId: z.ZodNumber;
@@ -163,8 +274,8 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         comuna: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
         notas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     }, "notas">, "strip", z.ZodTypeAny, {
-        nombre: string;
         tipo: "cliente" | "empresa";
+        nombre: string;
         email?: string | null | undefined;
         rut?: string | null | undefined;
         telefono?: string | null | undefined;
@@ -172,8 +283,8 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         region?: string | null | undefined;
         comuna?: string | null | undefined;
     }, {
-        nombre: string;
         tipo: "cliente" | "empresa";
+        nombre: string;
         email?: string | null | undefined;
         rut?: string | null | undefined;
         telefono?: string | null | undefined;
@@ -188,9 +299,86 @@ export declare const createWorkOrderSchema: z.ZodObject<{
     fechaIngreso: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     fechaEntrega: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     items: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        dpPricing: z.ZodOptional<z.ZodEffects<z.ZodObject<{
+            configurationRevision: z.ZodNumber;
+            bodyTypeId: z.ZodString;
+            sizeId: z.ZodString;
+            pieceId: z.ZodOptional<z.ZodString>;
+            positionId: z.ZodOptional<z.ZodString>;
+            damageLevelId: z.ZodOptional<z.ZodString>;
+            scope: z.ZodDefault<z.ZodEnum<["piece", "global"]>>;
+            operations: z.ZodArray<z.ZodObject<{
+                descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+                descuentoValor: z.ZodOptional<z.ZodNumber>;
+                operationId: z.ZodString;
+            }, "strict", z.ZodTypeAny, {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }, {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }>, "many">;
+        }, "strict", z.ZodTypeAny, {
+            bodyTypeId: string;
+            scope: "piece" | "global";
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            damageLevelId?: string | undefined;
+        }, {
+            bodyTypeId: string;
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            scope?: "piece" | "global" | undefined;
+            damageLevelId?: string | undefined;
+        }>, {
+            bodyTypeId: string;
+            scope: "piece" | "global";
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            damageLevelId?: string | undefined;
+        }, {
+            bodyTypeId: string;
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            scope?: "piece" | "global" | undefined;
+            damageLevelId?: string | undefined;
+        }>>;
         id: z.ZodOptional<z.ZodNumber>;
         catalogItemId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         tipoLinea: z.ZodDefault<z.ZodEnum<["parte", "estandar", "especifico"]>>;
+        division: z.ZodOptional<z.ZodEnum<["DP", "ACC", "MEC"]>>;
+        subtipo: z.ZodOptional<z.ZodEnum<["servicio_dp", "en_stock", "a_pedido", "estandar", "especifico"]>>;
+        esAPedido: z.ZodOptional<z.ZodBoolean>;
         descripcion: z.ZodString;
         cantidad: z.ZodDefault<z.ZodNumber>;
         unidadMedida: z.ZodDefault<z.ZodEnum<["unidad", "litro", "mililitro", "kilogramo", "juego", "servicio"]>>;
@@ -230,12 +418,29 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
         id?: number | undefined;
-        catalogItemId?: number | null | undefined;
-        horasHombreEstimadas?: number | null | undefined;
-        notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            scope: "piece" | "global";
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        esAPedido?: boolean | undefined;
+        horasHombreEstimadas?: number | null | undefined;
+        notasOperativas?: string | null | undefined;
         assignedUserId?: number | null | undefined;
         teamMembers?: {
             userId: number;
@@ -246,15 +451,32 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
         id?: number | undefined;
-        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
-        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
-        catalogItemId?: number | null | undefined;
-        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        horasHombreEstimadas?: unknown;
-        notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
+        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
+        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            scope?: "piece" | "global" | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+        esAPedido?: boolean | undefined;
+        horasHombreEstimadas?: unknown;
+        notasOperativas?: string | null | undefined;
         assignedUserId?: number | null | undefined;
         teamMembers?: {
             userId: number;
@@ -300,12 +522,29 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
         id?: number | undefined;
-        catalogItemId?: number | null | undefined;
-        horasHombreEstimadas?: number | null | undefined;
-        notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            scope: "piece" | "global";
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        esAPedido?: boolean | undefined;
+        horasHombreEstimadas?: number | null | undefined;
+        notasOperativas?: string | null | undefined;
         assignedUserId?: number | null | undefined;
         teamMembers?: {
             userId: number;
@@ -314,17 +553,17 @@ export declare const createWorkOrderSchema: z.ZodObject<{
         }[] | undefined;
     }[];
     vehicleId: number;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     fechaIngreso?: string | null | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
-    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
-    descuentoValor?: number | undefined;
     emailPhotoSlots?: ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[] | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     billing?: {
-        nombre: string;
         tipo: "cliente" | "empresa";
+        nombre: string;
         email?: string | null | undefined;
         rut?: string | null | undefined;
         telefono?: string | null | undefined;
@@ -347,20 +586,39 @@ export declare const createWorkOrderSchema: z.ZodObject<{
     } | undefined;
 }, {
     vehicleId: number;
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     fechaIngreso?: string | null | undefined;
     items?: {
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
         id?: number | undefined;
-        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
-        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
-        catalogItemId?: number | null | undefined;
-        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        horasHombreEstimadas?: unknown;
-        notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
+        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
+        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            scope?: "piece" | "global" | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+        esAPedido?: boolean | undefined;
+        horasHombreEstimadas?: unknown;
+        notasOperativas?: string | null | undefined;
         assignedUserId?: number | null | undefined;
         teamMembers?: {
             userId: number;
@@ -370,14 +628,12 @@ export declare const createWorkOrderSchema: z.ZodObject<{
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
-    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
-    descuentoValor?: number | undefined;
     emailPhotoSlots?: ("frontal" | "trasera" | "lateral_izquierdo" | "lateral_derecho" | "frontal_izquierdo" | "frontal_derecho" | "trasero_izquierdo" | "trasero_derecho" | "interior")[] | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     billing?: {
-        nombre: string;
         tipo: "cliente" | "empresa";
+        nombre: string;
         email?: string | null | undefined;
         rut?: string | null | undefined;
         telefono?: string | null | undefined;
@@ -409,9 +665,86 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     fechaIngreso: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     fechaEntrega: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     items: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        dpPricing: z.ZodOptional<z.ZodEffects<z.ZodObject<{
+            configurationRevision: z.ZodNumber;
+            bodyTypeId: z.ZodString;
+            sizeId: z.ZodString;
+            pieceId: z.ZodOptional<z.ZodString>;
+            positionId: z.ZodOptional<z.ZodString>;
+            damageLevelId: z.ZodOptional<z.ZodString>;
+            scope: z.ZodDefault<z.ZodEnum<["piece", "global"]>>;
+            operations: z.ZodArray<z.ZodObject<{
+                descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
+                descuentoValor: z.ZodOptional<z.ZodNumber>;
+                operationId: z.ZodString;
+            }, "strict", z.ZodTypeAny, {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }, {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }>, "many">;
+        }, "strict", z.ZodTypeAny, {
+            bodyTypeId: string;
+            scope: "piece" | "global";
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            damageLevelId?: string | undefined;
+        }, {
+            bodyTypeId: string;
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            scope?: "piece" | "global" | undefined;
+            damageLevelId?: string | undefined;
+        }>, {
+            bodyTypeId: string;
+            scope: "piece" | "global";
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            damageLevelId?: string | undefined;
+        }, {
+            bodyTypeId: string;
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            scope?: "piece" | "global" | undefined;
+            damageLevelId?: string | undefined;
+        }>>;
         id: z.ZodOptional<z.ZodNumber>;
         catalogItemId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         tipoLinea: z.ZodDefault<z.ZodEnum<["parte", "estandar", "especifico"]>>;
+        division: z.ZodOptional<z.ZodEnum<["DP", "ACC", "MEC"]>>;
+        subtipo: z.ZodOptional<z.ZodEnum<["servicio_dp", "en_stock", "a_pedido", "estandar", "especifico"]>>;
+        esAPedido: z.ZodOptional<z.ZodBoolean>;
         descripcion: z.ZodString;
         cantidad: z.ZodDefault<z.ZodNumber>;
         unidadMedida: z.ZodDefault<z.ZodEnum<["unidad", "litro", "mililitro", "kilogramo", "juego", "servicio"]>>;
@@ -428,25 +761,59 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
         id?: number | undefined;
-        catalogItemId?: number | null | undefined;
-        horasHombreEstimadas?: number | null | undefined;
-        notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            scope: "piece" | "global";
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        esAPedido?: boolean | undefined;
+        horasHombreEstimadas?: number | null | undefined;
+        notasOperativas?: string | null | undefined;
     }, {
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
         id?: number | undefined;
-        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
-        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
-        catalogItemId?: number | null | undefined;
-        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        horasHombreEstimadas?: unknown;
-        notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
+        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
+        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            scope?: "piece" | "global" | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+        esAPedido?: boolean | undefined;
+        horasHombreEstimadas?: unknown;
+        notasOperativas?: string | null | undefined;
     }>, "many">>;
     inspection: z.ZodOptional<z.ZodEffects<z.ZodObject<{
         inventario: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodEnum<["botiquin", "chaleco_reflectante", "extintor", "triangulo", "control_remoto", "manual", "radio", "usb", "rueda_repuesto", "llave_ruedas", "gata", "herramientas", "perno_seguridad", "enganche", "antena", "tapa_combustible", "tapas_ruedas", "limpiaparabrisas"]>, "many">, ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[], ("botiquin" | "chaleco_reflectante" | "extintor" | "triangulo" | "control_remoto" | "manual" | "radio" | "usb" | "rueda_repuesto" | "llave_ruedas" | "gata" | "herramientas" | "perno_seguridad" | "enganche" | "antena" | "tapa_combustible" | "tapas_ruedas" | "limpiaparabrisas")[]>>;
@@ -497,6 +864,8 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
     descuentoTipo: z.ZodOptional<z.ZodNullable<z.ZodEnum<["porcentaje", "fijo"]>>>;
     descuentoValor: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     fechaIngreso?: string | null | undefined;
     items?: {
         cantidad: number;
@@ -505,17 +874,32 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
         id?: number | undefined;
-        catalogItemId?: number | null | undefined;
-        horasHombreEstimadas?: number | null | undefined;
-        notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            scope: "piece" | "global";
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        esAPedido?: boolean | undefined;
+        horasHombreEstimadas?: number | null | undefined;
+        notasOperativas?: string | null | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
-    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
-    descuentoValor?: number | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     vehicleId?: number | undefined;
@@ -532,25 +916,42 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         observaciones?: string | null | undefined;
     } | undefined;
 }, {
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     fechaIngreso?: string | null | undefined;
     items?: {
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
         id?: number | undefined;
-        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
-        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
-        catalogItemId?: number | null | undefined;
-        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        horasHombreEstimadas?: unknown;
-        notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
+        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
+        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            scope?: "piece" | "global" | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+        esAPedido?: boolean | undefined;
+        horasHombreEstimadas?: unknown;
+        notasOperativas?: string | null | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
-    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
-    descuentoValor?: number | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     vehicleId?: number | undefined;
@@ -567,6 +968,8 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         observaciones?: string | null | undefined;
     } | undefined;
 }>, {
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     fechaIngreso?: string | null | undefined;
     items?: {
         cantidad: number;
@@ -575,17 +978,32 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         descripcion: string;
         unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
         tipoLinea: "parte" | "estandar" | "especifico";
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
         id?: number | undefined;
-        catalogItemId?: number | null | undefined;
-        horasHombreEstimadas?: number | null | undefined;
-        notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            scope: "piece" | "global";
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        esAPedido?: boolean | undefined;
+        horasHombreEstimadas?: number | null | undefined;
+        notasOperativas?: string | null | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
-    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
-    descuentoValor?: number | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     vehicleId?: number | undefined;
@@ -602,25 +1020,42 @@ export declare const updateWorkOrderSchema: z.ZodEffects<z.ZodObject<{
         observaciones?: string | null | undefined;
     } | undefined;
 }, {
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
     fechaIngreso?: string | null | undefined;
     items?: {
         descripcion: string;
         cantidad?: number | undefined;
         precioUnitario?: number | undefined;
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
         id?: number | undefined;
-        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
-        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
-        catalogItemId?: number | null | undefined;
-        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
-        horasHombreEstimadas?: unknown;
-        notasOperativas?: string | null | undefined;
         descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
         descuentoValor?: number | undefined;
+        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
+        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            scope?: "piece" | "global" | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+        esAPedido?: boolean | undefined;
+        horasHombreEstimadas?: unknown;
+        notasOperativas?: string | null | undefined;
     }[] | undefined;
     clientId?: number | null | undefined;
     descripcion?: string | null | undefined;
-    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
-    descuentoValor?: number | undefined;
     contactClientId?: number | null | undefined;
     billingClientId?: number | null | undefined;
     vehicleId?: number | undefined;

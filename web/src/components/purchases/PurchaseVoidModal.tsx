@@ -73,8 +73,7 @@ export const PurchaseVoidModal = ({ purchase, onClose, onVoided }: PurchaseVoidM
       {!canVoid && <p role="status" className="mb-3 text-sm text-brand-muted">La anulación no está disponible con el estado o los permisos actuales. Conservamos el motivo ingresado.</p>}
       <fieldset disabled={!canVoid || mutation.isPending} className="min-w-0">
           <div className="rounded-lg border border-brand-coral/30 bg-brand-coralPale px-4 py-3 text-sm text-brand-coralInk">
-            <p className="font-semibold">Esta acción no se puede deshacer.</p>
-            <p className="mt-1 text-xs">
+            <p className="text-xs">
               Se anulará el egreso de caja si aún está vigente. Si la compra ingresó stock, se
               intentará revertir; si ese stock ya fue consumido, la anulación fallará completa y la
               compra seguirá registrada.

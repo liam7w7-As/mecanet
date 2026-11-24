@@ -133,9 +133,9 @@ export declare const stockMovementQuerySchema: z.ZodObject<{
     fechaHasta?: string | undefined;
     warehouseId?: number | undefined;
 }, {
+    tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
-    tipo?: "ajuste" | "ingreso" | "salida" | "traslado_salida" | "traslado_ingreso" | "consumo_ot" | undefined;
     catalogItemId?: number | undefined;
     fechaDesde?: string | undefined;
     fechaHasta?: string | undefined;

@@ -73,7 +73,6 @@ export default function VehicleDirectoryRow({ number, plate, fotoUrl, privateSub
           </dl>
           {reference && <p className="vehicle-directory-expanded-reference">{reference}</p>}
           <div className="vehicle-directory-expanded-footer">
-            <p className="vehicle-directory-hint">Consulta el detalle y su historial en la ficha completa.</p>
             <footer className="vehicle-directory-actions">
               <button type="button" className="vehicle-directory-profile-action" aria-label={`Abrir ficha de ${displayPlate}`} title="Ver ficha completa" onClick={onOpen}><Eye aria-hidden="true" /><span>Ver ficha</span></button>
               {onEdit && <button type="button" aria-label={`Editar ${displayPlate}`} title="Editar vehículo" onClick={onEdit}><Pencil aria-hidden="true" /></button>}

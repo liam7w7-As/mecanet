@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { hasPermission } from '../../services/permission.service.js';
 import {
+  createWorkshopDailyEntry,
   createWorkshopTimeRequest,
   getWorkshopTimeEligibleItems,
   getWorkshopTimeJournal,
@@ -29,6 +30,7 @@ vi.mock('../../middlewares/authenticate.js', () => ({
 }));
 vi.mock('../../services/permission.service.js', () => ({ hasPermission: vi.fn() }));
 vi.mock('../../services/workshop-time.service.js', () => ({
+  createWorkshopDailyEntry: vi.fn(),
   createWorkshopTimeRequest: vi.fn(),
   getWorkshopTimeEligibleItems: vi.fn(),
   getWorkshopTimeJournal: vi.fn(),
@@ -62,6 +64,31 @@ beforeEach(() => {
 });
 
 describe('Workshop time router without database setup', () => {
+  const daily = { clientRequestId: '75a9ba73-ce5a-49b7-9fa9-a668c09d95d8', workOrderId: 12, itemId: 20, fecha: '2025-10-04', startedAt: '2025-10-04T12:00:00Z', endedAt: '2025-10-04T13:00:00Z', note: 'Diagnóstico registrado', activityStatus: 'completado' };
+  it('authorizes the new daily endpoint independently of its valid payload', async () => {
+    expect((await request(app).post('/api/workshop-time/daily-entries').send(daily)).status).toBe(401);
+    for (const role of ['vendedor', 'bodeguero', 'finanzas']) {
+      expect((await request(app).post('/api/workshop-time/daily-entries').set('x-test-role', role).send(daily)).status).toBe(403);
+    }
+    vi.mocked(hasPermission).mockResolvedValue(false);
+    expect((await request(app).post('/api/workshop-time/daily-entries').set('x-test-role', 'mecanico').send(daily)).status).toBe(403);
+    expect(hasPermission).toHaveBeenCalledWith(9, 'taller', 'update');
+    expect(createWorkshopDailyEntry).not.toHaveBeenCalled();
+  });
+  it('returns the daily request DTO and preserves the authenticated actor and service fields', async () => {
+    const saved = { id: 201, dailyEntry: true, clientRequestId: daily.clientRequestId, teamPending: true, status: 'pendiente' } as Awaited<ReturnType<typeof createWorkshopDailyEntry>>;
+    vi.mocked(createWorkshopDailyEntry).mockResolvedValue(saved);
+    const response = await request(app).post('/api/workshop-time/daily-entries').set('x-test-role', 'mecanico').send({ ...daily, note: '  Diagnóstico registrado  ' });
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual({ request: saved });
+    expect(createWorkshopDailyEntry).toHaveBeenCalledWith({ id: 9, role: 'mecanico' }, daily);
+  });
+  it('rejects malformed daily UUIDs, missing dates and quality or overtime injections before service work', async () => {
+    for (const change of [{ clientRequestId: 'bad' }, { fecha: undefined }, { activityStatus: undefined }, { qualityStatus: 'aprobado' }, { overtime: true }]) {
+      expect((await request(app).post('/api/workshop-time/daily-entries').set('x-test-role', 'jefe').send({ ...daily, ...change })).status).toBe(400);
+    }
+    expect(createWorkshopDailyEntry).not.toHaveBeenCalled();
+  });
   it('requires authentication and explicit workshop roles even when module permissions allow', async () => {
     expect((await request(app).get('/api/workshop-time?fecha=2025-10-04')).status).toBe(401);
     for (const role of ['vendedor', 'bodeguero', 'finanzas']) {

@@ -1,8 +1,11 @@
 import { updateCompanySettingsSchema } from '@unithor/shared';
-import { AlertCircle, Building2, Image as ImageIcon, LoaderCircle, RefreshCcw, RotateCcw, Save, Trash2, Upload } from 'lucide-react';
+import { AlertCircle, Building2, Image as ImageIcon, LoaderCircle, RefreshCcw, RotateCcw, Save, Settings2, Trash2, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import FormDialog from '../../components/common/FormDialog';
+import { canReadDpSettings } from '../../components/settings/dp-configuration-ui';
+import DpConfigurationPanel from '../../components/settings/DpConfigurationPanel';
 import WorkshopPersonnelPanel from '../../components/settings/WorkshopPersonnelPanel';
 import { buildLogoUrl, useCompanySettings, useDeleteCompanyLogo, useUpdateCompanySettings, useUploadCompanyLogo } from '../../hooks/useSettings';
 import { getApiErrorMessage } from '../../lib/api-error';
@@ -30,6 +33,8 @@ const toFormState = (data: CompanySettings): FormState => ({
 });
 
 export const SettingsPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [dpOpen, setDpOpen] = useState(searchParams.get('tab') === 'dp');
   const user = useAuthStore((state) => state.user);
   const canView = Boolean(user && hasUserPermission(user, 'admin', 'read'));
   const canEdit = Boolean(canView && user && hasUserPermission(user, 'admin', 'update'));
@@ -46,6 +51,16 @@ export const SettingsPage = () => {
   const form = draft ?? savedForm;
   const dirty = draft !== null;
   const busy = updateMutation.isPending || uploadMutation.isPending || deleteMutation.isPending;
+
+  useEffect(() => { if (searchParams.get('tab') === 'dp') setDpOpen(true); }, [searchParams]);
+  const closeDp = () => {
+    setDpOpen(false);
+    if (searchParams.get('tab') === 'dp') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('tab');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   useEffect(() => {
     if (!dirty && !busy) return undefined;
@@ -117,10 +132,15 @@ export const SettingsPage = () => {
 
   return <div className="workspace-page workspace-settings administration-page settings-reference-page">
     <header className="administration-heading"><h1>Configuración</h1><p>Identidad y documentos de la empresa</p></header>
+    {canReadDpSettings(user) && <section className="administration-settings-panel" aria-labelledby="settings-dp-title">
+      <header className="administration-panel-heading"><Settings2 aria-hidden="true" /><div><h2 id="settings-dp-title">Desabolladura y pintura · D&P</h2></div></header>
+      <div className="dp-catalog-launcher"><div><strong>Catálogo, tarifas y pasos D&P</strong><p>Configura piezas, carrocerías, tamaños, precios base y factores.</p></div>
+        <button type="button" className="administration-primary" disabled={busy} onClick={() => setDpOpen(true)}><Settings2 aria-hidden="true" />Configurar D&P</button>
+      </div>
+    </section>}
     {!canEdit && <p role="status" className="administration-notice">Configuración de solo lectura. Se necesita permiso de edición de Administración para guardar cambios.{dirty ? ' Los datos escritos se conservan.' : ''}</p>}
     <section className="administration-settings-panel" aria-labelledby="settings-company-title">
-      <header className="administration-panel-heading"><Building2 aria-hidden="true" /><div><h2 id="settings-company-title">Datos de la empresa</h2>
-        <p>Esta información aparece en las órdenes de trabajo, cotizaciones y documentos del taller.</p></div></header>
+      <header className="administration-panel-heading"><Building2 aria-hidden="true" /><div><h2 id="settings-company-title">Datos de la empresa</h2></div></header>
       <form className="settings-company-form" onSubmit={submit} noValidate aria-busy={updateMutation.isPending}>
         {updateMutation.error && <div className="administration-alert" role="alert"><AlertCircle aria-hidden="true" />{getApiErrorMessage(updateMutation.error)}</div>}
         <fieldset disabled={busy || !canEdit} className="administration-settings-fields">
@@ -153,13 +173,12 @@ export const SettingsPage = () => {
       </form>
     </section>
     <section className="administration-settings-panel" aria-labelledby="settings-logo-title">
-      <header className="administration-panel-heading"><ImageIcon aria-hidden="true" /><div><h2 id="settings-logo-title">Logo de la empresa</h2>
-        <p>Se muestra en el menú, el inicio de sesión y los documentos imprimibles.</p></div></header>
+      <header className="administration-panel-heading"><ImageIcon aria-hidden="true" /><div><h2 id="settings-logo-title">Logo de la empresa</h2></div></header>
       <div className="administration-branding-body"><div className="administration-logo-preview">
         <img src={logoSrc} alt={settingsQuery.data?.logo.tieneLogo ? 'Logo configurado' : 'Logo original del sistema'} />
         {!settingsQuery.data?.logo.tieneLogo && <p>Logo original del sistema</p>}
       </div><div className="administration-logo-controls">
-        <p>JPEG, PNG, WebP o SVG de hasta {LOGO_MAX_MB} MB. Preferiblemente horizontal y con fondo transparente.</p>
+        <p>JPEG, PNG, WebP o SVG de hasta {LOGO_MAX_MB} MB.</p>
         <input ref={fileInputRef} type="file" accept={LOGO_TYPES.join(',')} className="sr-only" aria-label="Seleccionar logo" disabled={busy || !canEdit}
           onChange={(event) => { onPickFile(event.target.files?.[0]); event.target.value = ''; }} />
         <div><button type="button" className="administration-primary" disabled={busy || !canEdit} onClick={() => fileInputRef.current?.click()}>
@@ -174,6 +193,7 @@ export const SettingsPage = () => {
       </div></div>
     </section>
     <WorkshopPersonnelPanel />
+    {dpOpen && canReadDpSettings(user) && <DpConfigurationPanel onClose={closeDp} />}
     {confirmRestore && <FormDialog id="restore-logo-title" title="Restaurar logo original" code="Identidad visual" context="Logo de la empresa"
       submitLabel="Restaurar logo" dirty={false} pending={deleteMutation.isPending} headerVariant="plain"
       className="administration-form administration-confirm settings-reference-dialog" statusText="Confirmación de identidad visual"

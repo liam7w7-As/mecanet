@@ -1,7 +1,14 @@
 import { z } from 'zod';
 
 import { paginationSchema } from './pagination.schema.js';
-import { CATALOG_TYPES } from '../constants/catalog-types.js';
+import {
+  CATALOG_DIVISIONS,
+  CATALOG_SUBTYPES,
+  CATALOG_TYPES,
+  CATALOG_DIVISION_SUBTYPES,
+  resolveCatalogClassification,
+  type CatalogClassification,
+} from '../constants/catalog-types.js';
 import { UNIT_MEASURES } from '../constants/unit-measures.js';
 
 const optionalCodeSchema = z
@@ -28,8 +35,26 @@ const optionalHoursSchema = z.preprocess(
     .nullable(),
 );
 
+const validateClassification = (
+  data: Partial<CatalogClassification>,
+  ctx: z.RefinementCtx,
+): void => {
+  if (data.division && data.subtipo &&
+    !(CATALOG_DIVISION_SUBTYPES[data.division] as readonly string[]).includes(data.subtipo)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['subtipo'],
+      message: 'El subtipo no corresponde a la división seleccionada' });
+  }
+  if (data.tipo && (data.division || data.subtipo) &&
+    resolveCatalogClassification(data).tipo !== data.tipo) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['tipo'],
+      message: 'El tipo no corresponde a la división y subtipo seleccionados' });
+  }
+};
+
 const catalogItemFields = {
-  tipo: z.enum(CATALOG_TYPES),
+  tipo: z.enum(CATALOG_TYPES).optional(),
+  division: z.enum(CATALOG_DIVISIONS).optional(),
+  subtipo: z.enum(CATALOG_SUBTYPES).optional(),
   codigo: optionalCodeSchema,
   nombre: z
     .string()
@@ -44,14 +69,26 @@ const catalogItemFields = {
   horasHombreEstandar: optionalHoursSchema.optional(),
 };
 
-export const createCatalogItemSchema = z.object(catalogItemFields).transform((data) => ({
-  ...data,
-  stock: data.tipo === 'parte' ? data.stock : 0,
-}));
+export const createCatalogItemSchema = z
+  .object(catalogItemFields)
+  .strict()
+  .superRefine(validateClassification)
+  .transform((data) => {
+    const resolved = resolveCatalogClassification(data);
+    return {
+      ...data,
+      division: resolved.division,
+      subtipo: resolved.subtipo,
+      tipo: resolved.tipo,
+      stock: resolved.division === 'ACC' && resolved.subtipo === 'en_stock' ? data.stock : 0,
+    };
+  });
 
 export const updateCatalogItemSchema = z
   .object({
-    tipo: catalogItemFields.tipo.optional(),
+    tipo: catalogItemFields.tipo,
+    division: catalogItemFields.division,
+    subtipo: catalogItemFields.subtipo,
     codigo: catalogItemFields.codigo,
     nombre: catalogItemFields.nombre.optional(),
     descripcion: catalogItemFields.descripcion,
@@ -61,7 +98,9 @@ export const updateCatalogItemSchema = z
     stockMinimo: z.coerce.number().int().min(0, 'El stock mínimo no puede ser negativo').optional(),
     horasHombreEstandar: optionalHoursSchema.optional(),
   })
-  .refine((data) => Object.keys(data).length > 0, {
+  .strict()
+  .superRefine(validateClassification)
+  .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: 'Debe enviar al menos un campo para actualizar',
   });
 
@@ -78,6 +117,8 @@ export const updateStockSchema = z.object({
 export const catalogItemQuerySchema = paginationSchema.extend({
   search: z.string().trim().optional(),
   tipo: z.enum(CATALOG_TYPES).optional(),
+  division: z.enum(CATALOG_DIVISIONS).optional(),
+  subtipo: z.enum(CATALOG_SUBTYPES).optional(),
   soloConStock: z
     .enum(['true', 'false'])
     .transform((value) => value === 'true')

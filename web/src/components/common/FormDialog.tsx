@@ -11,7 +11,7 @@ interface Props {
   id: string;
   title: string;
   code: string;
-  context: string;
+  context?: string;
   submitLabel: string;
   dirty: boolean;
   pending: boolean;
@@ -48,8 +48,8 @@ export default function FormDialog(props: Props) {
     <section role="dialog" aria-modal="true" aria-labelledby={props.id} tabIndex={-1}
       ref={setOverlayNode} className={`reception-edit-dialog ${props.headerVariant ? 'reference-dialog' : ''} ${props.className ?? ''}`}
       aria-busy={props.pending}>
-      {props.headerVariant ? <ModalHeader id={props.id} title={props.title} description={<><span>{props.code}</span><span aria-hidden="true"> · </span><span>{props.context}</span></>} badge={props.headerIcon} variant={props.headerVariant} onClose={requestClose} closeDisabled={props.pending} /> : <header className="reception-edit-heading">
-        {props.headerIcon && <span className="form-dialog-icon">{props.headerIcon}</span>}<div><p><span>{props.code}</span><span aria-hidden="true"> · </span><span>{props.context}</span></p><h2 id={props.id}>{props.title}</h2></div>
+      {props.headerVariant ? <ModalHeader id={props.id} title={props.title} description={<><span>{props.code}</span>{props.context ? <><span aria-hidden="true"> · </span><span>{props.context}</span></> : null}</>} badge={props.headerIcon} variant={props.headerVariant} onClose={requestClose} closeDisabled={props.pending} /> : <header className="reception-edit-heading">
+        {props.headerIcon && <span className="form-dialog-icon">{props.headerIcon}</span>}<div><p><span>{props.code}</span>{props.context ? <><span aria-hidden="true"> · </span><span>{props.context}</span></> : null}</p><h2 id={props.id}>{props.title}</h2></div>
         <button type="button" onClick={requestClose} disabled={props.pending} aria-label="Cerrar"><X aria-hidden="true" /></button>
       </header>}
       <form onSubmit={(event) => { if (props.pending || props.submitDisabled) event.preventDefault(); else props.onSubmit(event); }}>

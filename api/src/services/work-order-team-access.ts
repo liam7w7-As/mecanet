@@ -2,6 +2,7 @@ import { QueryTypes } from 'sequelize';
 
 import { sequelize } from '../config/database.js';
 import { WorkOrder } from '../models/WorkOrder.js';
+import { WorkOrderDpStage } from '../models/WorkOrderDpStage.js';
 import { WorkOrderItem } from '../models/WorkOrderItem.js';
 import { WorkOrderItemAssignment } from '../models/WorkOrderItemAssignment.js';
 
@@ -9,8 +10,13 @@ import type { Transaction } from 'sequelize';
 
 export const isAssignedToItem = async (item: WorkOrderItem, order: WorkOrder, userId: number, transaction?: Transaction): Promise<boolean> => {
   const rows = await WorkOrderItemAssignment.findAll({ where: { workOrderItemId: item.id }, attributes: ['userId', 'active'], transaction });
-  return item.teamManaged ? rows.some((row) => row.active && row.userId === userId)
-    : (item.assignedUserId ?? order.assignedMechanicId) === userId;
+  if (item.division === 'DP') {
+    return Boolean(await WorkOrderDpStage.findOne({ where: { workOrderItemId: item.id, assignedUserId: userId }, attributes: ['id'], transaction }));
+  }
+  if (item.teamManaged) {
+    return rows.some((row) => row.active && row.userId === userId);
+  }
+  return (item.assignedUserId ?? order.assignedMechanicId) === userId;
 };
 
 /** Explicit teams supersede the legacy order-wide responsible, including after revocation. */
@@ -24,6 +30,7 @@ export const getAssignedOrderIds = async (userId: number, transaction?: Transact
               WHERE a.work_order_item_id = wi.id AND a.active = 1 AND a.user_id = :userId))
       OR (COALESCE(wi.team_managed, 0) = 0
           AND COALESCE(wi.assigned_user_id, wo.assigned_mechanic_id) = :userId)
+      OR EXISTS (SELECT 1 FROM work_order_dp_stages dp WHERE dp.work_order_id = wo.id AND dp.assigned_user_id = :userId)
     ) ${options?.activeOnly ? "AND wo.estado NOT IN ('entregada', 'cancelada')" : ''}
     ${options?.limit ? 'LIMIT :limit' : ''}`, { replacements: { userId, ...(options?.limit ? { limit: options.limit } : {}) }, type: QueryTypes.SELECT, transaction });
   return rows.map((row) => Number(row.id));

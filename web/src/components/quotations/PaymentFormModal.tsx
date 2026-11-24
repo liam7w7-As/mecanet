@@ -280,9 +280,6 @@ export const PaymentFormModal = ({
             )}
             {metodo === 'transferencia' && (
               <div className="commercial-payment-bank space-y-3 border-l-4 border-brand-gold bg-brand-goldPale px-4 py-3">
-                <p className="text-sm text-brand-ink">
-                  La transferencia quedará pendiente hasta que Finanzas confirme su recepción.
-                </p>
                 <label className="block text-sm font-semibold text-brand-ink">
                   Banco de procedencia
                   <select

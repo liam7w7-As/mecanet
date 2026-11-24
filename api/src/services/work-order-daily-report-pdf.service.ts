@@ -204,8 +204,21 @@ export const generateWorkshopDailyReportPdf = async (
         { text: `   ${detail.workOrderCodigo}`, width: 150 },
         { text: detail.itemDescripcion, width: 250 },
         { text: `${detail.minutos} min`, width: 70 },
-        { text: detail.estado, width: 60 },
+        { text: detail.reportedDate ? 'Declaradas' : detail.estado, width: 60 },
       ]);
+    }
+  }
+
+  if (report.usuarios.some((user) => user.detalle.some((detail) => detail.reportedDate))) {
+    await drawSectionTitle(context, 'Detalle de horas declaradas');
+    await drawParagraph(context, 'Cantidades registradas por fecha, sin un intervalo de inicio y fin.');
+    for (const user of report.usuarios) {
+      for (const detail of user.detalle.filter((entry) => entry.reportedDate)) {
+        await drawParagraph(context, `${user.nombre} · ${detail.workOrderCodigo} · ${detail.itemDescripcion}`);
+        await drawParagraph(context, `Fecha: ${detail.reportedDate} | Horas declaradas: ${detail.minutos} min`);
+        if (detail.note) await drawParagraph(context, `Nota: ${detail.note}`);
+        context.y -= 5;
+      }
     }
   }
 
@@ -214,7 +227,9 @@ export const generateWorkshopDailyReportPdf = async (
   for (const user of report.usuarios) {
     for (const detail of user.detalle.filter((entry) => entry.overtime)) {
       await drawParagraph(context, `${user.nombre} · ${detail.workOrderCodigo} · ${detail.itemDescripcion} · ${detail.minutos} min`);
-      await drawParagraph(context, `Inicio: ${extraDateTime(detail.startedAt)} | Fin: ${detail.endedAt ? extraDateTime(detail.endedAt) : 'En curso'}`);
+      await drawParagraph(context, detail.reportedDate
+        ? `Fecha: ${detail.reportedDate} | Horas declaradas`
+        : `Inicio: ${extraDateTime(detail.startedAt)} | Fin: ${detail.endedAt ? extraDateTime(detail.endedAt) : 'En curso'}`);
       await drawParagraph(context, `Motivo: ${detail.note ?? '-'}`);
       context.y -= 5;
     }

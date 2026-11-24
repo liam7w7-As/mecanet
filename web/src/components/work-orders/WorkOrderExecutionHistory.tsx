@@ -167,7 +167,6 @@ export default function WorkOrderExecutionHistory({
         Historial de trabajo<span>{entries.length} {entries.length === 1 ? 'registro' : 'registros'}</span>
       </summary>
       <div className="workshop-labor-detail-body">
-        <p className="workshop-labor-help">Se actualiza con las sesiones, observaciones y avances guardados en esta orden.</p>
         {summaries.length > 0 && (
           <details className="workshop-labor-details" open>
             <summary>

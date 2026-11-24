@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   FileUp,
   LoaderCircle,
-  ReceiptText,
   Save,
   ShieldCheck,
   Trash2,
@@ -235,10 +234,6 @@ export const PurchaseCreatePage = () => {
           <h1 className="mt-1 text-2xl font-bold text-brand-primaryInk sm:text-3xl">
             Nueva compra
           </h1>
-          <p className="mt-1 text-sm text-brand-muted">
-            La fecha de registro se asigna automáticamente. La fecha de emisión pertenece solo al
-            comprobante.
-          </p>
         </div>
       </header>
 
@@ -396,7 +391,7 @@ export const PurchaseCreatePage = () => {
                         {comprobante.name}
                       </p>
                       <p className="text-xs text-brand-muted">
-                        {formatFileSize(comprobante.size)} · listo para adjuntar
+                        {formatFileSize(comprobante.size)}
                       </p>
                     </div>
                     <button
@@ -480,9 +475,6 @@ export const PurchaseCreatePage = () => {
               />
               <span>
                 <span className="block font-semibold text-brand-ink">La compra incluye IVA</span>
-                <span className="block text-xs text-brand-muted">
-                  Los precios se ingresan netos y el IVA se calcula una sola vez sobre el total.
-                </span>
               </span>
             </label>
 
@@ -573,12 +565,6 @@ export const PurchaseCreatePage = () => {
               anula y se vuelve a registrar.
             </p>
           </div>
-
-          <p className="flex items-start gap-2 text-xs text-brand-muted">
-            <ReceiptText className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            El stock solo se recibe en los ítems vinculados a un repuesto de catálogo con almacén
-            seleccionado.
-          </p>
         </aside>
         </fieldset>
       </form>

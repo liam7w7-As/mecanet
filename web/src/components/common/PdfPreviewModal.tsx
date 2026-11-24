@@ -14,6 +14,7 @@ import { useCompanyBranding } from './BrandingContext';
 import BrandLogo from './BrandLogo';
 import InspectionPhotoGallery from './InspectionPhotoGallery';
 import { useSalesAccessRecord } from '../../hooks/useSalesAccessRecord';
+import { groupDocumentItems } from '../../lib/document-divisions';
 import { formatClp, formatDateTime } from '../../lib/formatters';
 import { renderOfficialPdf } from '../../lib/official-pdf';
 import { preparePdfImages } from '../../lib/pdf-images';
@@ -145,6 +146,7 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
 }) => {
   const items = workOrder.items ?? [];
   const pricing = getWorkOrderPricing(workOrder);
+  const divisions = groupDocumentItems(items, (_item, index) => pricing.lines[index]!.subtotal);
   const company = useCompanyBranding();
   const density = items.length > 20 ? 2 : items.length > 10 ? 1 : 0;
   const fit = useFitToPage(
@@ -275,9 +277,13 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
             </thead>
             <tbody>
               {items.length > 0 ? (
-                items.map((item, idx) => (
-                  <tr key={item.id ?? idx} className="border-b border-slate-200">
-                    <td className={`${cellPadding} text-center text-slate-500`}>{idx + 1}</td>
+                divisions.map((group, groupIndex) => <React.Fragment key={group.division}>
+                  <tr data-document-division={group.division} className="bg-slate-100 text-[#0E2B4E]">
+                    <th colSpan={5} className={`${cellPadding} text-left font-bold`}>{group.label}</th>
+                  </tr>
+                  {group.lines.map(({ item, originalIndex }, index) => (
+                  <tr key={item.id ?? originalIndex} data-document-item className="border-b border-slate-200">
+                    <td className={`${cellPadding} text-center text-slate-500`}>{divisions.slice(0, groupIndex).reduce((count, area) => count + area.lines.length, 0) + index + 1}</td>
                     <td className={`${cellPadding} font-bold text-[#0E2B4E]`}>
                       <span
                         style={{
@@ -292,9 +298,14 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
                     </td>
                     <td className={`${cellPadding} text-center`}>{item.cantidad}</td>
                     <td className={`${cellPadding} text-right`}>{formatClp(item.precioUnitario)}</td>
-                    <td className={`${cellPadding} text-right font-bold text-[#0E2B4E]`}>{formatClp(pricing.lines[idx]!.subtotal)}</td>
+                    <td className={`${cellPadding} text-right font-bold text-[#0E2B4E]`}>{formatClp(pricing.lines[originalIndex]!.subtotal)}</td>
                   </tr>
-                ))
+                  ))}
+                  <tr data-document-subtotal={group.division} className="border-b border-slate-300 bg-slate-50 font-bold text-[#0E2B4E]">
+                    <td colSpan={4} className={`${cellPadding} text-right`}>Subtotal {group.division === 'DP' ? 'D&P' : group.division} (neto)</td>
+                    <td className={`${cellPadding} text-right`}>{formatClp(group.subtotal)}</td>
+                  </tr>
+                </React.Fragment>)
               ) : (
                 <tr className="border-b border-slate-200">
                   <td colSpan={5} className="p-2 text-center text-slate-400">
@@ -304,6 +315,7 @@ const WorkOrderSheetPage1: React.FC<WorkOrderSheetPage1Props> = ({
               )}
             </tbody>
           </table>
+          {pricing.descuentoGeneral > 0 && <p className="mt-1 text-[8px] text-slate-500">Subtotales por área con descuentos por ítem, antes del descuento general e IVA.</p>}
 
           {/* Resumen Totales */}
           <div className="mt-1 flex justify-end">

@@ -126,7 +126,6 @@ export const PaymentWorkSummary = ({ quotation, summary, pendingAmount }: Props)
         ) : (
           <div className="py-5 text-sm text-brand-muted">
             <p>Aún no hay trabajos marcados como terminados.</p>
-            <p className="mt-1">El pago se registrará como anticipo a la cotización.</p>
           </div>
         )}
       </div>
@@ -144,10 +143,6 @@ export const PaymentWorkSummary = ({ quotation, summary, pendingAmount }: Props)
           </ul>
         </details>
       )}
-      <p className="border-t border-brand-line pt-3 text-xs leading-relaxed text-brand-muted">
-        Los abonos se aplican al saldo total de la cotización. El estado de cada trabajo indica su
-        ejecución, no su pago individual.
-      </p>
     </section>
   );
 };

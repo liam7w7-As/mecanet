@@ -259,7 +259,6 @@ export default function FinancePayments({
           <div className="finance-empty">
             <ReceiptText aria-hidden="true" />
             <h3>No hay abonos para estos filtros</h3>
-            <p>Cambie el período, el método o el texto de búsqueda.</p>
           </div>
         )}
         <Pagination

@@ -76,8 +76,7 @@ export const RolePermissionsPanel = ({ roles, canUpdate }: RolePermissionsPanelP
   };
 
   return <section className="administration-permissions users-reference-permissions" aria-labelledby="permission-matrix-title" aria-busy={updateMutation.isPending}>
-    <header className="administration-panel-heading"><ShieldCheck aria-hidden="true" /><div><h2 id="permission-matrix-title">Matriz dinámica de permisos</h2>
-      <p>Selecciona un rol y revisa su acceso a cada área.</p></div></header>
+    <header className="administration-panel-heading"><ShieldCheck aria-hidden="true" /><div><h2 id="permission-matrix-title">Matriz dinámica de permisos</h2></div></header>
     <div className="administration-permission-content">
       <div className="administration-role-tabs" role="tablist" aria-label="Seleccionar rol">{roles.map((role) => {
         const RoleIcon = ROLE_ICONS[role.nombre] ?? Shield;

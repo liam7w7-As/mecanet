@@ -564,9 +564,6 @@ export const FinancePage = () => {
                 <h2 id="cash-count-title" className="font-bold text-brand-primaryInk">
                   Arqueo y cierre diario
                 </h2>
-                <p className="mt-1 text-sm text-brand-muted">
-                  Totales confirmados agrupados por método de pago.
-                </p>
               </div>
               <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 <div
@@ -875,7 +872,6 @@ export const FinancePage = () => {
           id="cash-movement-title"
           title="Registrar movimiento de caja"
           code={selectedDate}
-          context="Ingreso o egreso manual"
           submitLabel="Registrar movimiento"
           dirty={JSON.stringify(movementForm) !== JSON.stringify(defaultMovementForm(selectedDate))}
           pending={createMovementMutation.isPending}
@@ -1154,9 +1150,7 @@ export const FinancePage = () => {
           {!canCreate && <p role="status">Tu permiso actual no permite cerrar la caja. Conservamos el arqueo ingresado.</p>}
           <fieldset disabled={!canCreate || dailyQuery.isError || daily.isClosed || daily.totals.pendingTransferCount > 0} className="finance-form-fields min-w-0">
             <p className="mt-2 text-sm leading-6 text-brand-muted">
-              El sistema espera {formatClp(daily.totals.expectedCash)} en efectivo después de sumar
-              ingresos y restar egresos. Una vez cerrado el día no aceptará movimientos con esta
-              fecha.
+              Una vez cerrado el día no aceptará movimientos con esta fecha.
             </p>
             <label className="mt-4 block text-sm font-semibold text-brand-ink">
               Efectivo contado

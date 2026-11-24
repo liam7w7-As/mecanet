@@ -37,8 +37,7 @@ export default function PendingInspectionPhotos({
         <div>
           <p className="font-bold text-brand-primaryInk">La OT {code} ya está guardada</p>
           <p className="mt-1 text-sm text-brand-muted">
-            {savedSlots.length} de {photos.length} fotos guardadas. Los reintentos se aplican sobre
-            esta misma orden.
+            {savedSlots.length} de {photos.length} fotos guardadas.
           </p>
         </div>
         <button
@@ -120,10 +119,6 @@ export default function PendingInspectionPhotos({
           Tu cuenta ya no tiene permiso para subir fotos. La OT y las fotos pendientes se conservan.
         </p>
       )}
-      <p className="text-xs text-brand-muted">
-        Puedes volver a esta pantalla y recuperar las fotos pendientes desde este navegador. El
-        correo esperará a que se complete la carga.
-      </p>
     </section>
   );
 }

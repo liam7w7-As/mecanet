@@ -41,8 +41,8 @@ export default function WorkOrderOperationalOverview({ workOrder, focus, pending
   const unpriced = services.filter((item) => Number(item.precioUnitario) <= 0);
   return <section className="workshop-operational-overview" aria-label={supervisor ? 'Prioridades de esta OT' : 'Resumen de mi trabajo'}>
     <div className="workshop-operational-heading"><div><h2>{supervisor ? 'Control del taller' : 'Mi trabajo en esta OT'}</h2><p>{closed ? 'Trabajos e historial disponibles para consulta.' : supervisor
-      ? 'Resuelve los pendientes sin salir de esta orden.'
-      : `${mine.filter(finished).length} de ${mine.length} trabajos terminados · Inicia o continúa tu servicio para registrar tus horas.`}</p></div>
+      ? null
+      : `${mine.filter(finished).length} de ${mine.length} trabajos terminados`}</p></div>
       {supervisor && <button type="button" disabled={pending} aria-pressed={focus === 'all'} onClick={() => onFocus('all')}>Ver trabajos<ArrowRight aria-hidden="true" /></button>}
     </div>
     {supervisor && !closed && <div className="workshop-operational-priorities">

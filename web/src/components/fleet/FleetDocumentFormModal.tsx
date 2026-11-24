@@ -223,7 +223,6 @@ export const FleetDocumentFormModal = ({
           id="fleet-document-form-title"
           title={isEditing ? 'Editar documento' : 'Agregar documento'}
           eyebrow={document?.nombre ?? initialName}
-          description="Nombre libre, referencia y fechas. El archivo es opcional."
           badge={<FileText aria-hidden="true" />}
           onClose={close}
           closeDisabled={activeMutation.isPending}

@@ -1,6 +1,7 @@
 import { updateCompanySettingsSchema } from '@unithor/shared';
 import { Router } from 'express';
 
+import { dpConfigurationRouter } from './dp-configuration.routes.js';
 import {
   deleteCompanyLogoHandler,
   getCompanyLogoHandler,
@@ -15,6 +16,7 @@ import { companyLogoUpload } from '../middlewares/company-logo-upload.js';
 import { validate } from '../middlewares/validate.js';
 
 export const settingsRouter = Router();
+settingsRouter.use('/dp', dpConfigurationRouter);
 
 // --- Endpoints públicos: el login se pinta sin sesión -------------------
 settingsRouter.get('/branding', getPublicBrandingHandler);

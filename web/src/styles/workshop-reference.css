@@ -187,6 +187,53 @@
   .workshop-mechanic-panel:is([data-workshop-role=mecanico], [data-workshop-role=jefe]) .workshop-labor-board :is(button, input:not([type=file]), select, summary) { min-height: 44px; }
 }
 
+/* Focused task improvements preserve the existing vertical list of cards. */
+.workshop-labor-board .workshop-job-team { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e3e9f1; }
+.workshop-job-team-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.workshop-job-team-heading > div:first-child { min-width: 0; flex: 1 1 180px; }
+.workshop-job-team-heading h4, .workshop-job-context h4 { color: #405979; font-size: 12px; font-weight: 600; }
+.workshop-job-team-heading p { margin-top: 3px; color: #7a8ba2; font-size: 11px; overflow-wrap: anywhere; }
+.workshop-labor-board .workshop-job-hours-button { border-color: #1d396a; background: #1d396a; color: #fff; }
+.workshop-labor-board .workshop-job-hours-button:hover:not(:disabled) { background: #294d7b; }
+.workshop-job-team > .workshop-labor-detail-body[hidden] { display: none; }
+.workshop-job-team > .workshop-labor-detail-body { gap: 10px; }
+.workshop-job-team .workshop-labor-admin { padding: 12px; border: 1px solid #e4eaf2; border-radius: 12px; background: #fff; }
+.workshop-job-team > .workshop-labor-detail-body > ul { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0; }
+.workshop-job-team > .workshop-labor-detail-body > ul > li { padding: 7px 10px; }
+.workshop-job-context { min-width: 0; display: grid; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e3e9f1; color: #61758f; font-size: 12px; }
+.workshop-job-instructions { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.workshop-job-instructions.is-truncated { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.workshop-labor-board .workshop-job-context > button { justify-self: start; min-height: 28px; padding: 2px 0; border: 0; background: transparent; color: #1d396a; }
+.workshop-job-latest-note { padding-left: 10px; border-left: 2px solid #c9d8eb; }
+.workshop-job-latest-note small { color: #8797ac; font-size: 10px; }
+.workshop-job-latest-note p { margin-top: 3px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.workshop-job-files { min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.workshop-labor-board .workshop-job-files > .workshop-job-file { position: relative; display: flex; flex: 0 0 90px; flex-direction: column; align-items: stretch; justify-content: center; gap: 3px; min-width: 0; min-height: 82px; padding: 5px; border: 1px solid #dfe7f1; border-radius: 9px; background: #fff; color: #536d8b; text-decoration: none; }
+.workshop-job-file > img { width: 100%; height: 54px; border-radius: 5px; object-fit: cover; }
+.workshop-job-file > svg { align-self: center; width: 27px; height: 35px; }
+.workshop-job-file > span { overflow: hidden; font-size: 10px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.workshop-job-file > small { text-align: center; font-size: 9px; }
+.workshop-job-file:focus-visible { outline: 2px solid #7e9cc8; outline-offset: 3px; }
+.workshop-file-overlay { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 16px; background: #18273c99; backdrop-filter: blur(4px); }
+.workshop-file-preview { display: flex; flex-direction: column; width: min(100%, 940px); max-height: calc(100dvh - 32px); overflow: clip; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px #15294055; }
+.workshop-file-preview > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; background: #1d396a; color: #fff; }
+.workshop-file-preview h2 { min-width: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 600; }
+.workshop-file-preview button, .workshop-file-preview a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 7px 12px; border: 1px solid #dfe7f1; border-radius: 999px; background: #fff; color: #1d396a; font-size: 12px; }
+.workshop-file-preview > header button { flex: none; width: 36px; padding: 6px; border-color: #ffffff40; background: #ffffff15; color: #fff; }
+.workshop-file-preview svg { width: 18px; height: 18px; }
+.workshop-file-preview-body { min-height: 0; display: grid; place-items: center; padding: 12px; overflow-y: auto; background: #f4f6f9; }
+.workshop-file-preview-body > img { max-width: 100%; max-height: 70dvh; object-fit: contain; }
+.workshop-file-preview-body > :is(p, div) { padding: 22px; text-align: center; color: #657993; font-size: 12px; }
+.workshop-file-preview-body > p { display: flex; align-items: center; gap: 8px; }
+.workshop-file-preview > footer { display: flex; justify-content: flex-end; padding: 10px 16px; }
+@media (max-width: 767px) {
+  .workshop-job-team-heading > .workshop-labor-actions { width: auto; }
+  .workshop-labor-board .workshop-job-hours-button { min-height: 44px; }
+  .workshop-file-overlay { padding: 10px; }
+  .workshop-file-preview { max-height: calc(100dvh - 20px); }
+  .workshop-file-preview button, .workshop-file-preview a { min-height: 44px; }
+}
+
 /* Quality review stays within the existing compact workshop disclosures. */
 .workshop-card[data-colour=review], .workshop-card-popover[data-colour=review] {
   --card-accent: #a6b2e8;

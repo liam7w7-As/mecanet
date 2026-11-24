@@ -257,9 +257,9 @@ describe('QuotationDetailModal', () => {
   it('categoriza un repuesto libre por tipoLinea aunque su descripción mencione instalación', async () => {
     Object.assign(currentQuotation.items![2], { descripcion: 'Instalacion soporte', catalogItem: null });
     renderModal();
-    fireEvent.click(await screen.findByRole('button', { name: /Repuestos y Accesorios/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /ACC/i }));
     expect(screen.getByText('Instalacion soporte')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Servicios Estándar/i }));
+    fireEvent.click(screen.getByRole('button', { name: /D&P/i }));
     expect(screen.queryByText('Instalacion soporte')).not.toBeInTheDocument();
   });
 
@@ -341,9 +341,10 @@ describe('QuotationDetailModal', () => {
     expect(screen.getByText('KJHG77')).toBeInTheDocument();
     expect(screen.getByText('OT · OT-2026-0015')).toBeInTheDocument();
 
-    // Categorías
-    expect(screen.getByRole('button', { name: /Servicios Estándar/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Repuestos y Accesorios/i })).toBeInTheDocument();
+    // Categorías (ahora por división: D&P, ACC, MEC)
+    expect(screen.getByRole('button', { name: /D&P/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /ACC/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /MEC/i })).toBeInTheDocument();
   });
 
   it('permite alternar el check de entrega / aplicado al vehículo', async () => {

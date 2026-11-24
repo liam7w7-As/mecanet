@@ -80,6 +80,10 @@ const workOrder: WorkOrder = {
       catalogItemId: null,
       descripcion: 'Cambio de pastillas',
       tipoLinea: 'parte',
+      division: 'ACC',
+      subtipo: 'en_stock',
+      entregadoBodegaAt: '2026-09-15T10:10:00.000Z',
+      recibidoTallerAt: '2026-09-15T10:15:00.000Z',
       unidadMedida: 'unidad',
       cantidad: 2,
       precioUnitario: 25000,
@@ -533,6 +537,75 @@ describe('WorkOrdersPage', () => {
     expect(api.patch).not.toHaveBeenCalled();
     const card = within(screen.getByRole('article', { name: `Orden ${workOrder.codigo}` }));
     await waitFor(() => expect(card.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100'));
+  });
+
+  it.each([
+    ['la entrega de bodega', null, null, false],
+    ['la recepción en taller', '2026-09-15T10:10:00.000Z', null, false],
+    ['la entrega del repuesto solicitado', '2026-09-15T10:10:00.000Z', '2026-09-15T10:15:00.000Z', true],
+  ] as const)('impide marcar un ACC como usado mientras falta %s', async (_reason, deliveredAt, receivedAt, awaitingWarehouseDelivery) => {
+    const current = { ...workOrder, items: workOrder.items?.map((item) => ({
+      ...item, entregadoBodegaAt: deliveredAt, recibidoTallerAt: receivedAt,
+    })) };
+    const worksheet = worksheetFor(current);
+    worksheet.items[0].awaitingWarehouseDelivery = awaitingWarehouseDelivery;
+    const previousGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, ...args) => url === '/work-orders/12/worksheet'
+      ? Promise.resolve({ data: { worksheet } }) : previousGet(url, ...args));
+    createWrapper(<WorkOrdersPage />);
+    await openCard();
+    fireEvent.click(screen.getByRole('button', { name: 'Gestionar trabajo' }));
+    const complete = await screen.findByRole('button', { name: 'Marcar usado' });
+    expect(complete).toBeDisabled();
+    expect(screen.queryByLabelText('Estado de Cambio de pastillas')).not.toBeInTheDocument();
+    fireEvent.click(complete);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('permite al mecánico asignado marcar usado tras ambas firmas sin volver a firmar custodia', async () => {
+    useAuthStore.setState({ user: { id: 9, nombre: 'Mecánico', email: 'mecanico@demo.cl', role: 'mecanico' } });
+    const current = { ...workOrder, assignedMechanicId: 9 };
+    let worksheet = worksheetFor(current);
+    const previousGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, ...args) => url === '/work-orders/12/worksheet'
+      ? Promise.resolve({ data: { worksheet } }) : previousGet(url, ...args));
+    vi.mocked(api.post).mockImplementation(async () => {
+      worksheet = worksheetFor({ ...current, items: current.items?.map((item) => ({ ...item, estadoOperativo: 'completado' })) });
+      return { data: { worksheet } };
+    });
+    createWrapper(<WorkOrdersPage />, '/work-orders?manage=12');
+    const complete = await screen.findByRole('button', { name: 'Marcar usado' });
+    await waitFor(() => expect(complete).toBeEnabled());
+    fireEvent.click(complete);
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/work-orders/12/items/20/complete', {}));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Marcar usado' })).not.toBeInTheDocument());
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('conserva las notas ACC al filtrar y muestra el ítem una sola vez junto a trabajos MEC', async () => {
+    const current: WorkOrder = { ...workOrder, items: [...workOrder.items!, {
+      ...workOrder.items![0], id: 21, descripcion: 'Diagnóstico MEC', tipoLinea: 'especifico', division: 'MEC', subtipo: 'especifico',
+    }] };
+    const previousGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, ...args) => url === '/work-orders/12/worksheet'
+      ? Promise.resolve({ data: { worksheet: worksheetFor(current) } }) : previousGet(url, ...args));
+    createWrapper(<WorkOrdersPage />);
+    await openCard();
+    fireEvent.click(screen.getByRole('button', { name: 'Gestionar trabajo' }));
+    const noteLabel = 'Nota técnica de Cambio de pastillas';
+    fireEvent.change(await screen.findByLabelText(noteLabel), { target: { value: 'Conservar en el filtro' } });
+    expect(screen.getAllByLabelText(noteLabel)).toHaveLength(1);
+    expect(screen.getAllByRole('article', { name: 'Trabajo: Cambio de pastillas' })).toHaveLength(1);
+    expect(screen.getByRole('article', { name: 'Trabajo: Diagnóstico MEC' })).toBeInTheDocument();
+    const filters = within(screen.getByRole('group', { name: 'Filtrar trabajos' }));
+    fireEvent.click(filters.getByRole('button', { name: 'Completado 0' }));
+    expect(screen.queryByRole('article', { name: 'Trabajo: Cambio de pastillas' })).not.toBeInTheDocument();
+    fireEvent.click(filters.getByRole('button', { name: 'Todos 2' }));
+    expect(screen.getByLabelText(noteLabel)).toHaveValue('Conservar en el filtro');
+    expect(api.patch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(screen.getByRole('alertdialog', { name: 'Cambios sin guardar' })).toBeInTheDocument();
   });
 
   it('oculta importes y documentos financieros al mecánico incluso en la información desplegable', async () => {

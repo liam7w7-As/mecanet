@@ -22,6 +22,8 @@ const toEditableItems = (quotation: Quotation): EditableWorkOrderItem[] =>
     ...createEmptyWorkOrderItem(),
     id: item.id,
     catalogItemId: item.catalogItemId,
+    division: item.division ?? undefined,
+    subtipo: item.subtipo ?? undefined,
     descripcion: item.descripcion,
     tipoLinea: item.tipoLinea,
     unidadMedida: item.unidadMedida,
@@ -78,6 +80,9 @@ export const QuotationEditModal = ({ quotation, onClose, onSaved }: QuotationEdi
         items: items.map((item) => ({
           id: item.id ?? undefined,
           catalogItemId: item.catalogItemId,
+          division: item.division,
+          subtipo: item.subtipo,
+          ...(item.dpPricing ? { dpPricing: item.dpPricing } : {}),
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,
           unidadMedida: item.unidadMedida,

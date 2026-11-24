@@ -12,8 +12,8 @@ export declare const createClientSchema: z.ZodObject<{
     comuna: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     notas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
 }, "strip", z.ZodTypeAny, {
-    nombre: string;
     tipo: "cliente" | "empresa";
+    nombre: string;
     email?: string | null | undefined;
     rut?: string | null | undefined;
     telefono?: string | null | undefined;
@@ -22,8 +22,8 @@ export declare const createClientSchema: z.ZodObject<{
     comuna?: string | null | undefined;
     notas?: string | null | undefined;
 }, {
-    nombre: string;
     tipo: "cliente" | "empresa";
+    nombre: string;
     email?: string | null | undefined;
     rut?: string | null | undefined;
     telefono?: string | null | undefined;
@@ -43,40 +43,40 @@ export declare const updateClientSchema: z.ZodEffects<z.ZodObject<{
     comuna: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     notas: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
 }, "strip", z.ZodTypeAny, {
-    email?: string | null | undefined;
-    nombre?: string | undefined;
-    rut?: string | null | undefined;
     tipo?: "cliente" | "empresa" | undefined;
+    nombre?: string | undefined;
+    email?: string | null | undefined;
+    rut?: string | null | undefined;
     telefono?: string | null | undefined;
     direccion?: string | null | undefined;
     region?: string | null | undefined;
     comuna?: string | null | undefined;
     notas?: string | null | undefined;
 }, {
-    email?: string | null | undefined;
-    nombre?: string | undefined;
-    rut?: string | null | undefined;
     tipo?: "cliente" | "empresa" | undefined;
+    nombre?: string | undefined;
+    email?: string | null | undefined;
+    rut?: string | null | undefined;
     telefono?: string | null | undefined;
     direccion?: string | null | undefined;
     region?: string | null | undefined;
     comuna?: string | null | undefined;
     notas?: string | null | undefined;
 }>, {
-    email?: string | null | undefined;
-    nombre?: string | undefined;
-    rut?: string | null | undefined;
     tipo?: "cliente" | "empresa" | undefined;
+    nombre?: string | undefined;
+    email?: string | null | undefined;
+    rut?: string | null | undefined;
     telefono?: string | null | undefined;
     direccion?: string | null | undefined;
     region?: string | null | undefined;
     comuna?: string | null | undefined;
     notas?: string | null | undefined;
 }, {
-    email?: string | null | undefined;
-    nombre?: string | undefined;
-    rut?: string | null | undefined;
     tipo?: "cliente" | "empresa" | undefined;
+    nombre?: string | undefined;
+    email?: string | null | undefined;
+    rut?: string | null | undefined;
     telefono?: string | null | undefined;
     direccion?: string | null | undefined;
     region?: string | null | undefined;
@@ -92,13 +92,13 @@ export declare const clientQuerySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     page: number;
     pageSize: number;
-    search?: string | undefined;
     tipo?: "cliente" | "empresa" | undefined;
+    search?: string | undefined;
 }, {
+    tipo?: "cliente" | "empresa" | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
     search?: string | undefined;
-    tipo?: "cliente" | "empresa" | undefined;
 }>;
 export type CreateClientInput = z.infer<typeof createClientSchema>;
 export type UpdateClientInput = z.infer<typeof updateClientSchema>;

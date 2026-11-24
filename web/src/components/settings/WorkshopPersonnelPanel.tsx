@@ -228,14 +228,14 @@ export function WorkshopPersonnelPanel({ mode = 'settings', className = '', onSt
                   : <small className="workshop-schedule-lunch">Sin almuerzo</small>}
               </div>)}
           </div>}
-        <p className="workshop-personnel-note">Los cronómetros se pausan al almuerzo y al cierre. Después del almuerzo se reanudan desde el servicio. Los días no incluidos no tienen jornada.</p>
+        <p className="workshop-personnel-note">Los cronómetros se pausan al almuerzo y al cierre. Después del almuerzo se reanudan desde el servicio.</p>
       </section>
 
       {mode === 'settings' && <section className="workshop-personnel-card" aria-labelledby={`${panelId}-catalog`}>
         <header className="workshop-personnel-card-head">
           <div className="workshop-personnel-card-heading">
             <span className="workshop-personnel-icon"><Wrench aria-hidden="true" /></span>
-            <div><h3 id={`${panelId}-catalog`}>Catálogo de especialidades <span className="workshop-personnel-count">{data.specialties.length}</span></h3><p>El oficio es independiente del rol de acceso.</p></div>
+            <div><h3 id={`${panelId}-catalog`}>Catálogo de especialidades <span className="workshop-personnel-count">{data.specialties.length}</span></h3></div>
           </div>
           {canManage && <div className="workshop-personnel-actions">
             <button type="button" className="administration-primary" disabled={busy} onClick={() => open({ kind: 'specialty', name: '', active: true })}><Plus aria-hidden="true" />Nueva especialidad</button>
@@ -243,7 +243,7 @@ export function WorkshopPersonnelPanel({ mode = 'settings', className = '', onSt
           </div>}
         </header>
         {data.specialties.length === 0
-          ? <div className="workshop-personnel-empty"><Wrench aria-hidden="true" /><strong>No hay especialidades configuradas.</strong><span>Crea la primera o agrega las sugeridas para empezar a asignar perfiles.</span></div>
+          ? <div className="workshop-personnel-empty"><Wrench aria-hidden="true" /><strong>No hay especialidades configuradas.</strong></div>
           : <ul className="workshop-specialty-list">
             {data.specialties.map((specialty) => {
               const rates = ratesOf(specialty.id);
@@ -336,7 +336,7 @@ export function WorkshopPersonnelPanel({ mode = 'settings', className = '', onSt
         <header className="workshop-personnel-card-head">
           <div className="workshop-personnel-card-heading">
             <span className="workshop-personnel-icon"><CalendarOff aria-hidden="true" /></span>
-            <div><h3 id={`${panelId}-exceptions`}>Excepciones de jornada</h3><p>Cada cambio conserva la versión anterior y exige un motivo.</p></div>
+            <div><h3 id={`${panelId}-exceptions`}>Excepciones de jornada</h3></div>
           </div>
           {canExcept && <div className="workshop-personnel-actions">
             <button type="button" className="administration-primary" disabled={busy}
@@ -382,7 +382,6 @@ export function WorkshopPersonnelPanel({ mode = 'settings', className = '', onSt
           </div>
           <span className="workshop-badge is-muted">{dialog.selectedIds.length} asignada{dialog.selectedIds.length === 1 ? '' : 's'}</span>
         </div>
-        <p className="workshop-profile-hint">Marca las especialidades que puede ejecutar. La primera que asignes queda como principal y puedes cambiarla cuando quieras.</p>
         <div className="workshop-team-search workshop-profile-search">
           <Search aria-hidden="true" />
           <input value={dialog.query} onChange={(event) => setProfileQuery(event.target.value)} placeholder="Buscar especialidad" aria-label="Buscar especialidad" />
@@ -419,7 +418,6 @@ export function WorkshopPersonnelPanel({ mode = 'settings', className = '', onSt
         </>}
         {dialog.kind === 'schedule' && <>
           <label className="administration-wide"><span>Zona horaria IANA</span><input value={dialog.timezone} placeholder="America/Santiago" onChange={(event) => edit({ ...dialog, timezone: event.target.value })} /></label>
-          <p className="administration-wide workshop-dialog-note">Activa los días que se trabajan e ingresa sus horas. Sin días seleccionados, el horario queda sin configurar.</p>
           <button type="button" className="administration-secondary administration-wide" onClick={() => edit({ ...dialog, weekly: DEFAULT_WORKSHOP_WEEKLY.map((day) => ({ ...day })) })}>Usar jornada de lunes a viernes y sábado</button>
           {DAYS.map((name, weekday) => {
             const day = dialog.weekly.find((entry) => entry.weekday === weekday);

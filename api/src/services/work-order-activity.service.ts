@@ -25,6 +25,11 @@ export const getLastWorkActivity = async (ids: number[]): Promise<Map<number, Da
         )
       GROUP BY work_order_id
       UNION ALL
+      SELECT work_order_id, MAX(COALESCE(completed_at, started_at)) AS activity_at
+      FROM work_order_dp_stages
+      WHERE work_order_id IN (:ids) AND status IN ('en_proceso', 'completado')
+      GROUP BY work_order_id
+      UNION ALL
       SELECT work_order_id, MAX(created_at) AS activity_at
       FROM work_order_progress_reports
       WHERE work_order_id IN (:ids)

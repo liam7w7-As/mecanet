@@ -1,4 +1,13 @@
-import { ITEM_OPERATIONAL_STATUS, type CatalogType, type ItemOperationalStatus, type UnitMeasure, type DiscountType } from '@unithor/shared';
+import {
+  ITEM_OPERATIONAL_STATUS,
+  type CatalogDivision,
+  type CatalogSubtype,
+  type CatalogType,
+  type DpWorkQuote,
+  type ItemOperationalStatus,
+  type UnitMeasure,
+  type DiscountType,
+} from '@unithor/shared';
 import {
   AutoIncrement,
   BelongsTo,
@@ -64,6 +73,20 @@ export class QuotationItem extends Model<
   @Column({
     type: DataType.STRING(20),
     allowNull: false,
+    defaultValue: 'MEC',
+  })
+  declare division: CreationOptional<CatalogDivision>;
+
+  @Column({
+    type: DataType.STRING(30),
+    allowNull: true,
+    defaultValue: 'estandar',
+  })
+  declare subtipo: CreationOptional<CatalogSubtype | null>;
+
+  @Column({
+    type: DataType.STRING(20),
+    allowNull: false,
     defaultValue: 'unidad',
   })
   declare unidadMedida: CreationOptional<UnitMeasure>;
@@ -87,6 +110,12 @@ export class QuotationItem extends Model<
     defaultValue: 0,
   })
   declare precioUnitario: CreationOptional<number>;
+
+  @Column({ type: DataType.JSON, allowNull: true, get(this: QuotationItem): DpWorkQuote | null {
+    const value: unknown = this.getDataValue('dpPricingSnapshot');
+    return (typeof value === 'string' ? JSON.parse(value) : value ?? null) as DpWorkQuote | null;
+  } })
+  declare dpPricingSnapshot: CreationOptional<DpWorkQuote | null>;
 
   @Column({
     type: DataType.DECIMAL(12, 2),

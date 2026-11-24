@@ -240,6 +240,8 @@ export const buildDirectoryExport: ExportBuilder = async (target, query, actor) 
       const columns = importColumns(CATALOG_IMPORT_COLUMNS, [
         'id',
         'tipo',
+        'division',
+        'subtipo',
         'codigo',
         'nombre',
         'precio',
@@ -256,6 +258,8 @@ export const buildDirectoryExport: ExportBuilder = async (target, query, actor) 
         items.map((item) => ({
           id: item.id,
           tipo: item.tipo,
+          division: item.division,
+          subtipo: item.subtipo,
           codigo: item.codigo,
           nombre: item.nombre,
           descripcion: item.descripcion,

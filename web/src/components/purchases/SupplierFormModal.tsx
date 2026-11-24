@@ -75,7 +75,7 @@ export const SupplierFormModal = ({ supplier, onClose, onSaved }: SupplierFormMo
       title="Datos del proveedor"
       code={supplier.nombre}
       context={supplier.datosCompletos
-        ? 'Información comercial del proveedor'
+        ? undefined
         : 'Completa RUT y un canal de contacto'}
       className="purchases-form-dialog supplier-form-dialog"
       headerVariant="plain"

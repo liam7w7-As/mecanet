@@ -109,7 +109,7 @@ const SidebarContent = ({ onToggle, isCollapsed }: SidebarContentProps) => {
                     onMouseLeave={() => setRailHint(null)}
                     onFocus={(event) => showRailHint(event.currentTarget, item.path, item.label)}
                     onBlur={() => setRailHint(null)}
-                    end={item.path === '/work-orders' && ['/work-orders/mine', '/work-orders/daily-report'].includes(pathname)}
+                    end={item.path === '/work-orders' && ['/work-orders/mine', '/work-orders/daily-report', '/work-orders/journal'].includes(pathname)}
                     className={({ isActive }) => cn('nav-item', isActive && 'active')}
                   >
                     <AnimateIcon variant={item.variant} animateOnHover animateOnTap={false}>

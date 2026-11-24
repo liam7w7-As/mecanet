@@ -42,6 +42,7 @@ export const getWorkshopCostReport = async (
           supersededAt: null,
           startedAt: { [Op.lt]: end, [Op.lte]: now },
           [Op.or]: [
+            { reportedDate: { [Op.between]: [filters.fechaDesde, filters.fechaHasta] } },
             { kind: 'ajuste', startedAt: { [Op.gte]: start } },
             {
               kind: { [Op.ne]: 'ajuste' },

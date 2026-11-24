@@ -23,7 +23,7 @@ const renderPanel = (props: { active?: boolean; focused?: boolean } = {}) => ren
 const openPanel = async () => {
   const summary = await screen.findByText('Control de calidad');
   fireEvent.click(summary.closest('summary')!);
-  await screen.findByText('Revisa cada servicio terminado y confirma la calidad general al finalizar.');
+  await screen.findByRole('region', { name: `Calidad de ${description}` });
 };
 const openItem = (name = description) => {
   const item = screen.getByRole('region', { name: `Calidad de ${name}` });
@@ -329,7 +329,7 @@ describe('WorkOrderQualityPanel', () => {
     role('mecanico', 9);
     renderPanel();
     fireEvent.click(screen.getByText('Control de calidad').closest('summary')!);
-    await screen.findByText('Consulta la revisión de tus trabajos. El jefe de taller confirma la calidad.');
+    await screen.findByRole('region', { name: `Calidad de ${description}` });
     const item = openItem();
     expect(within(item).queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();

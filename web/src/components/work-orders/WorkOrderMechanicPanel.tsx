@@ -41,6 +41,7 @@ const requestStatusStyles = {
 } as const;
 
 interface Props {
+  compactWorkRows?: boolean;
   workOrder: WorkOrder;
   section?: 'all' | 'execution' | 'requests' | 'prices';
   priceRequest?: { itemId: number };
@@ -51,7 +52,7 @@ interface Props {
   active?: boolean;
 }
 
-export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceRequest, onSuggestPrice, onDirtyChange, onPendingChange, onNavigateSection, active = true }: Props) => {
+export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceRequest, onSuggestPrice, onDirtyChange, onPendingChange, onNavigateSection, active = true, compactWorkRows = false }: Props) => {
   const user = useAuthStore((state) => state.user);
   const isSupervisor = Boolean(
     user && ['desarrollador', 'admin', 'jefe'].includes(user.role),
@@ -227,7 +228,7 @@ export const WorkOrderMechanicPanel = ({ workOrder, section = 'all', priceReques
 
         <fieldset disabled={isPending} className={`workshop-edit-fields ${section === 'all' ? 'grid divide-y divide-brand-line xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:divide-x xl:divide-y-0' : ''}`}>
           <div className="workshop-execution-columns" hidden={!showingExecution}>
-            <div hidden={executionFocus === 'quality'}><WorkOrderLaborBoard workOrder={workOrder} focus={executionFocus === 'unassigned' ? 'unassigned' : 'all'} onFocusChange={setExecutionFocus} onSuggestPrice={openPrices} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} /></div>
+            <div hidden={executionFocus === 'quality'}><WorkOrderLaborBoard compact={compactWorkRows} workOrder={workOrder} focus={executionFocus === 'unassigned' ? 'unassigned' : 'all'} onFocusChange={setExecutionFocus} onSuggestPrice={openPrices} onDirtyChange={setWorkDirty} onPendingChange={setWorkPending} /></div>
             {isSupervisor && <div hidden={executionFocus !== 'quality'}><WorkOrderQualityPanel workOrder={workOrder} onState={onQualityState} active={active && showingExecution && executionFocus === 'quality'} focused={executionFocus === 'quality'} /></div>}
           </div>
 

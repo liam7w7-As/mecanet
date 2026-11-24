@@ -484,6 +484,7 @@ export const useCatalogItems = (
     params.tipo = 'especifico';
   } else if (divisionOrType === 'MEC') {
     params.division = 'MEC';
+    if (subtipo) params.subtipo = subtipo;
   }
 
   const query = useQuery({

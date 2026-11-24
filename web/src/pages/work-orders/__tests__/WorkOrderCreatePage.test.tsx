@@ -28,6 +28,7 @@ vi.mock('../../../components/vehicles/VehicleFormModal', () => ({
 const person = { id: 7, nombre: 'Cliente recepción', rut: null, tipo: 'cliente' as const, email: null, telefono: null, direccion: null };
 const savedVehicle: Vehicle = {
   id: 4, patente: 'ABCD12', marca: 'Toyota', modelo: 'Yaris', ano: 2024,
+  dpBodyTypeId: 'hatchback', dpSizeId: 'S',
   clientId: 7, client: person, kilometraje: 12345,
   color: null, vinChasis: null, motor: null, combustible: null, transmision: null,
   createdAt: '2026-11-12T12:00:00Z', updatedAt: '2026-11-12T12:00:00Z',

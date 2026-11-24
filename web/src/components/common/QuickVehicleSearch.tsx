@@ -26,6 +26,8 @@ interface QuickVehicleSearchProps {
 const normalizePlate = (value: string): string => normalizeChilePatente(value);
 
 const toQuickVehicle = (vehicle: Vehicle): QuickSearchVehicle => ({
+  dpBodyTypeId: vehicle.dpBodyTypeId,
+  dpSizeId: vehicle.dpSizeId,
   id: vehicle.id,
   patente: vehicle.patente,
   marca: vehicle.marca,

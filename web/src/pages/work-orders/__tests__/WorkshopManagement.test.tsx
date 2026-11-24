@@ -18,6 +18,14 @@ const makeWorksheet = (): WorkOrderWorksheet => {
 };
 const proposal: WorkOrderPriceSuggestion = { id: 5, workOrderId: order.id, workOrderItemId: 10, itemDescripcion: 'Revisión de suspensión', horasEstimadas: 1, horasReales: 1.5, precioActualOt: 10000, precioActualCatalogo: null, precioSugerido: 18000, alcance: 'ot', motivo: 'Complejidad adicional', estado: 'pendiente', createdByName: 'Ana Jefa', reviewNote: null, reviewedAt: null, createdAt: new Date().toISOString() };
 const open = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}><MemoryRouter><WorkOrderQuickDetailModal workOrderId={order.id} initialView="execution" onClose={vi.fn()} onPreviewPdf={vi.fn()} /></MemoryRouter></QueryClientProvider>);
+const expandExecution = (task: HTMLElement) => {
+  const button = within(task).getByRole('button', { name: /^Ver ejecución de / });
+  if (button.getAttribute('aria-expanded') !== 'true') fireEvent.click(button);
+};
+const openDetails = (task: HTMLElement) => {
+  expandExecution(task);
+  fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+};
 let worksheet: WorkOrderWorksheet;
 let suggestions: WorkOrderPriceSuggestion[];
 const makeQuality = () => ({
@@ -36,7 +44,7 @@ describe('Work management without losing context', () => {
   it('keeps service notes across chief assignment, quality and request shortcuts without writing changes', async () => {
     open();
     const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
-    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    openDetails(task);
     fireEvent.change(within(task).getByLabelText('Nota técnica de Revisión de suspensión'), { target: { value: 'Diagnóstico pendiente del jefe' } });
     fireEvent.click(screen.getByRole('button', { name: /Asignar equipo/ }));
     fireEvent.click(within(screen.getByRole('group', { name: 'Filtrar trabajos' })).getByRole('button', { name: /^Todos/ }));
@@ -112,8 +120,9 @@ describe('Work management without losing context', () => {
     useAuthStore.setState({ user: { id: 9, nombre: 'Carlos Mecánico', email: 'qa@example.test', role: 'mecanico' } });
     open();
     const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    expandExecution(task);
     await waitFor(() => expect(within(task).getByRole('button', { name: 'Completar' })).toBeEnabled());
-    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    openDetails(task);
     fireEvent.change(within(task).getByLabelText('Nota técnica de Revisión de suspensión'), { target: { value: 'Revisión terminada sin fugas' } });
     vi.mocked(api.post).mockRejectedValueOnce(new Error('Sin conexión'));
     fireEvent.click(within(task).getByRole('button', { name: 'Completar' }));
@@ -142,6 +151,7 @@ describe('Work management without losing context', () => {
     vi.mocked(api.post).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
     open();
     const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    expandExecution(task);
     fireEvent.click(within(task).getByRole('button', { name: 'Completar' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith(`/work-orders/${order.id}/items/10/complete`, {}));
     expect(within(task).queryByText(/Trabajo completado. Sus horas/)).not.toBeInTheDocument();
@@ -165,10 +175,12 @@ describe('Work management without losing context', () => {
     useAuthStore.setState({ user: { id: 9, nombre: 'Carlos Mecánico', email: 'qa@example.test', role: 'mecanico' } });
     open();
     const mine = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
+    expandExecution(mine);
     await waitFor(() => expect(within(mine).getByRole('button', { name: 'Completar' })).toBeEnabled());
     expect(screen.queryByRole('article', { name: 'Trabajo: Alineación delantera' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Mis trabajos' }));
     const other = screen.getByRole('article', { name: 'Trabajo: Alineación delantera' });
+    expandExecution(other);
     expect(within(other).queryByRole('button', { name: 'Completar' })).not.toBeInTheDocument();
     expect(within(other).queryByRole('button', { name: 'Iniciar' })).not.toBeInTheDocument();
   });
@@ -176,7 +188,7 @@ describe('Work management without losing context', () => {
   it('restores hour validation comments and preserves them after a failed save', async () => {
     open();
     const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
-    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    openDetails(task);
     fireEvent.click(within(task).getByText('Administrar trabajo', { selector: 'summary' }));
     const note = within(task).getByLabelText('Comentario de validación de Revisión de suspensión');
     fireEvent.change(note, { target: { value: 'Horas revisadas con el mecánico' } });
@@ -200,7 +212,7 @@ describe('Work management without losing context', () => {
   it('keeps drafts and saved hours when workshop update permission is removed while open', async () => {
     open();
     const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
-    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    openDetails(task);
     fireEvent.change(within(task).getByLabelText('Nota técnica de Revisión de suspensión'), { target: { value: 'Diagnóstico pendiente de guardar' } });
     act(() => useAuthStore.setState({ user: { id: 7, nombre: 'Ana Jefa', email: 'qa@example.test', role: 'jefe', permissions: [{ modulo: 'taller', accion: 'read' }] } }));
     const preserved = screen.getByLabelText('Nota técnica de Revisión de suspensión');
@@ -215,7 +227,7 @@ describe('Work management without losing context', () => {
   it('retains several observation attachments and retries them without losing the text', async () => {
     open();
     const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
-    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    openDetails(task);
     const input = within(task).getByLabelText('Adjuntar imágenes o PDF');
     const first = new File(['foto'], 'diagnostico.jpg', { type: 'image/jpeg' });
     const second = new File(['pdf'], 'medicion.pdf', { type: 'application/pdf' });
@@ -243,7 +255,7 @@ describe('Work management without losing context', () => {
   it('blocks oversized observation files before requesting the API and keeps valid selections', async () => {
     open();
     const task = await screen.findByRole('article', { name: 'Trabajo: Revisión de suspensión' });
-    fireEvent.click(within(task).getByText('Ver detalle', { selector: 'summary' }));
+    openDetails(task);
     const valid = new File(['foto'], 'valida.jpg', { type: 'image/jpeg' });
     const huge = new File(['foto'], 'grande.jpg', { type: 'image/jpeg' });
     Object.defineProperty(huge, 'size', { value: 10 * 1024 * 1024 + 1 });
@@ -276,6 +288,8 @@ describe('Work management without losing context', () => {
   it('explains a pending warehouse delivery and keeps completion disabled until it arrives', async () => {
     worksheet.items[0] = { ...worksheet.items[0], tipoLinea: 'parte', awaitingWarehouseDelivery: true };
     open();
+    await screen.findByText('ACC:');
+    fireEvent.click(screen.getByText('Uso del repuesto, notas y adjuntos', { selector: 'summary' }));
     await screen.findByText(/Pendiente de entrega por bodega/);
     const task = screen.getByRole('article', { name: 'Trabajo: Revisión de suspensión' });
     expect(within(task).getByText(/Pendiente de entrega por bodega/)).toBeInTheDocument();

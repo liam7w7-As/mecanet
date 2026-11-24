@@ -5,6 +5,7 @@ import { formatChilePatente, isValidChilePatente, normalizeChilePatente } from '
 import { Op, col, fn, where as sqlWhere } from 'sequelize';
 import sharp from 'sharp';
 
+import { getDpConfiguration } from './dp-configuration.service.js';
 import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { Client } from '../models/Client.js';
 import { FleetVehicle } from '../models/FleetVehicle.js';
@@ -37,6 +38,8 @@ export interface VehiclePublic {
   kilometraje: number | null;
   combustible: string | null;
   transmision: string | null;
+  dpBodyTypeId: string | null;
+  dpSizeId: string | null;
   fotoUrl: string | null;
   clientId: number | null;
   createdAt: Date;
@@ -94,6 +97,8 @@ const toVehiclePublic = (vehicle: Vehicle): VehiclePublic => ({
   kilometraje: vehicle.kilometraje,
   combustible: vehicle.combustible,
   transmision: vehicle.transmision,
+  dpBodyTypeId: vehicle.dpBodyTypeId ?? null,
+  dpSizeId: vehicle.dpSizeId ?? null,
   fotoUrl: vehiclePhotoUrl('vehicles', vehicle.id, vehicle.fotoStorageKey),
   clientId: vehicle.clientId,
   createdAt: vehicle.createdAt,
@@ -220,9 +225,19 @@ export const getVehicleByPatente = async (patente: string): Promise<VehiclePubli
   return toVehiclePublic(vehicle);
 };
 
+async function assertDpClassification(bodyId: string | null, sizeId: string | null): Promise<void> {
+  if (!bodyId && !sizeId) return; // Legacy vehicles can be completed at reception.
+  const { configuration } = await getDpConfiguration();
+  const body = configuration.bodyTypes.find((entry) => entry.id === bodyId && entry.active);
+  if (!body || !body.sizes.some((entry) => entry.id === sizeId && entry.active)) {
+    throw ApiError.badRequest('Selecciona una carrocería y tamaño D&P válidos');
+  }
+}
+
 export const createVehicle = async (data: CreateVehicleInput): Promise<VehiclePublic> => {
   const patente = normalizePatente(data.patente);
   await assertPatenteAvailable(patente);
+  await assertDpClassification(data.dpBodyTypeId ?? null, data.dpSizeId ?? null);
 
   if (data.clientId !== undefined && data.clientId !== null) {
     await assertClientExists(data.clientId);
@@ -239,6 +254,8 @@ export const createVehicle = async (data: CreateVehicleInput): Promise<VehiclePu
     kilometraje: data.kilometraje ?? null,
     combustible: data.combustible ?? null,
     transmision: data.transmision ?? null,
+    dpBodyTypeId: data.dpBodyTypeId ?? null,
+    dpSizeId: data.dpSizeId ?? null,
     clientId: data.clientId ?? null,
   });
 
@@ -251,6 +268,13 @@ export const updateVehicle = async (
   data: UpdateVehicleInput,
 ): Promise<VehiclePublic> => {
   const vehicle = await findVehicleWithClient(id);
+
+  if (data.dpBodyTypeId !== undefined || data.dpSizeId !== undefined) {
+    await assertDpClassification(
+      data.dpBodyTypeId !== undefined ? data.dpBodyTypeId : vehicle.dpBodyTypeId,
+      data.dpSizeId !== undefined ? data.dpSizeId : vehicle.dpSizeId,
+    );
+  }
 
   if (data.clientId !== undefined && data.clientId !== null) {
     await assertClientExists(data.clientId);
@@ -269,6 +293,8 @@ export const updateVehicle = async (
       | 'kilometraje'
       | 'combustible'
       | 'transmision'
+      | 'dpBodyTypeId'
+      | 'dpSizeId'
       | 'clientId'
     >
   > = {};
@@ -290,6 +316,8 @@ export const updateVehicle = async (
   if (data.kilometraje !== undefined) updatePayload.kilometraje = data.kilometraje;
   if (data.combustible !== undefined) updatePayload.combustible = data.combustible;
   if (data.transmision !== undefined) updatePayload.transmision = data.transmision;
+  if (data.dpBodyTypeId !== undefined) updatePayload.dpBodyTypeId = data.dpBodyTypeId;
+  if (data.dpSizeId !== undefined) updatePayload.dpSizeId = data.dpSizeId;
   if (data.clientId !== undefined) updatePayload.clientId = data.clientId;
 
   await vehicle.update(updatePayload);

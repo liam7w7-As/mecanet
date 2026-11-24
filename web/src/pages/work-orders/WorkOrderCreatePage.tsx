@@ -40,13 +40,14 @@ import FormRecoveryBanner from '../../components/common/FormRecoveryBanner';
 import QuickVehicleSearch from '../../components/common/QuickVehicleSearch';
 import SavingOverlay from '../../components/common/SavingOverlay';
 import QuotationDiscountSummary from '../../components/quotations/QuotationDiscountSummary';
+import VehicleDpDetailsModal from '../../components/vehicles/VehicleDpDetailsModal';
 import VehicleFormModal from '../../components/vehicles/VehicleFormModal';
-import DraftItemTeamEditor from '../../components/work-orders/DraftItemTeamEditor';
 import PendingInspectionPhotos from '../../components/work-orders/PendingInspectionPhotos';
 import { RECEPTION_PHOTO_GUIDES } from '../../components/work-orders/reception-photo-guides';
 import ReceptionBillingFields from '../../components/work-orders/ReceptionBillingFields';
 import ReceptionPhotoCard from '../../components/work-orders/ReceptionPhotoCard';
 import WorkOrderItemsEditor from '../../components/work-orders/WorkOrderItemsEditor';
+import WorkOrderPrefillModal from '../../components/work-orders/WorkOrderPrefillModal';
 import WorkOrderReceptionNavigation, {
   WORK_ORDER_RECEPTION_STEPS as steps,
 } from '../../components/work-orders/WorkOrderReceptionNavigation';
@@ -74,6 +75,7 @@ import { notifyError, notifySuccess } from '../../stores/toast.store';
 import type { DiscountDraft } from '../../components/quotations/QuotationDiscountSummary';
 import type { PhotoTransferState } from '../../components/work-orders/PendingInspectionPhotos';
 import type { EditableWorkOrderItem } from '../../components/work-orders/WorkOrderItemsEditor';
+import type { WorkOrderPrefillData } from '../../components/work-orders/WorkOrderPrefillModal';
 import type { ReceptionStep as StepIndex } from '../../components/work-orders/WorkOrderReceptionNavigation';
 import type { WorkOrderRecovery } from '../../lib/form-recovery.schemas';
 import type { Client, QuickSearchClient, QuickSearchVehicle, Vehicle } from '../../types/entities';
@@ -184,6 +186,8 @@ const toQuickVehicle = (
   vehicle: Vehicle,
   fallbackClient: ClientOption | null,
 ): QuickSearchVehicle => ({
+  dpBodyTypeId: vehicle.dpBodyTypeId,
+  dpSizeId: vehicle.dpSizeId,
   id: vehicle.id,
   patente: vehicle.patente,
   marca: vehicle.marca,
@@ -493,6 +497,9 @@ const WorkOrderCreateForm = () => {
   const [vehicle, setVehicle] = useState<QuickSearchVehicle | null>(null);
   const [clientModalTarget, setClientModalTarget] = useState<ClientModalTarget | null>(null);
   const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
+  const [candidateVehicleId, setCandidateVehicleId] = useState<number | null>(null);
+  const [prefillOpen, setPrefillOpen] = useState(false);
+  const [pendingPrefill, setPendingPrefill] = useState<WorkOrderPrefillData | null>(null);
   const [choosingVehicle, setChoosingVehicle] = useState(false);
   const [kilometrajeIngreso, setKilometrajeIngreso] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -714,7 +721,8 @@ const WorkOrderCreateForm = () => {
       setBillingClient(selectedResponsible);
     }
     if (selectedVehicle) {
-      setVehicle(toQuickVehicle(selectedVehicle, null));
+      if (selectedVehicle.dpBodyTypeId && selectedVehicle.dpSizeId) setVehicle(toQuickVehicle(selectedVehicle, null));
+      else setCandidateVehicleId(selectedVehicle.id);
       if (selectedVehicle.kilometraje !== null) {
         setKilometrajeIngreso(String(selectedVehicle.kilometraje));
       }
@@ -775,13 +783,36 @@ const WorkOrderCreateForm = () => {
   };
 
   const selectVehicle = (selectedVehicle: QuickSearchVehicle): void => {
-    if (vehicle?.id !== selectedVehicle.id) setKilometrajeIngreso('');
+    if (selectedVehicle.dpBodyTypeId && selectedVehicle.dpSizeId) commitVehicle(selectedVehicle);
+    else setCandidateVehicleId(selectedVehicle.id);
+  };
+
+  const commitVehicle = (selectedVehicle: QuickSearchVehicle, kilometraje?: number | null): void => {
+    if (vehicle?.id !== selectedVehicle.id) setKilometrajeIngreso(kilometraje == null ? '' : String(kilometraje));
     setVehicle(selectedVehicle);
     setErrors((current) => {
       const next = { ...current };
       delete next.vehicleId;
       return next;
     });
+  };
+
+  const applyPrefill = (data: WorkOrderPrefillData): void => {
+    setClient(toClientOption(data.client));
+    setContactClient(toClientOption(data.contact));
+    setBillingClient(toClientOption(data.billing));
+    const savedBilling = data.order.billing;
+    setBillingDetails(savedBilling ? {
+      ...toClientOption(data.billing),
+      nombre: savedBilling.nombre ?? data.billing.nombre,
+      rut: savedBilling.rut, telefono: savedBilling.telefono, email: savedBilling.email,
+      tipo: savedBilling.tipo ?? data.billing.tipo, direccion: savedBilling.direccion,
+      region: savedBilling.region, comuna: savedBilling.comuna,
+    } : null);
+    commitVehicle(toQuickVehicle(data.vehicle, null), data.vehicle.kilometraje);
+    setPendingPrefill(null);
+    setErrors({});
+    notifySuccess(`Datos cargados desde ${data.order.codigo}. Revisa la recepción antes de continuar.`);
   };
 
   const updateInspection = <K extends keyof InspectionDraft>(
@@ -860,6 +891,11 @@ const WorkOrderCreateForm = () => {
     }
     if (step === 2 && !vehicle) {
       setErrors({ vehicleId: 'Seleccione o cree el vehículo que ingresa al taller.' });
+      return false;
+    }
+    if (step === 2 && vehicle && (!vehicle.dpBodyTypeId || !vehicle.dpSizeId)) {
+      setCandidateVehicleId(vehicle.id);
+      setErrors({ vehicleId: 'Completa carrocería y tamaño antes de continuar.' });
       return false;
     }
     setErrors({});
@@ -952,6 +988,14 @@ const WorkOrderCreateForm = () => {
       }
     }
     const result = buildPayload();
+    const invalidVehiclePricing = items.findIndex((item) => item.dpPricing && (
+      item.dpPricing.bodyTypeId !== vehicle?.dpBodyTypeId || item.dpPricing.sizeId !== vehicle?.dpSizeId
+    ));
+    if (invalidVehiclePricing >= 0) {
+      setActiveStep(4);
+      setErrors({ [`items.${invalidVehiclePricing}.dpPricing`]: 'El vehículo cambió. Edita este servicio D&P para recalcular su tarifa.' });
+      return;
+    }
     if (!result.success) {
       setErrors(getFieldErrors(result.error.issues));
       return;
@@ -1244,6 +1288,9 @@ const WorkOrderCreateForm = () => {
                 </div>
                 {activeStep === 0 && (
                   <div className="reception-selection-layout grid gap-5 lg:grid-cols-[360px_1fr]">
+                    {!isConversion && canReadWorkOrders && <div className="lg:col-span-2">
+                      <button type="button" className="service-primary-button" onClick={() => setPrefillOpen(true)}>Cargar desde una OT</button>
+                    </div>}
                     <ClientChoicePanel
                       title="Responsable del ingreso"
                       label="Buscar responsable"
@@ -1674,8 +1721,19 @@ const WorkOrderCreateForm = () => {
                       </section>
                     ) : (
                       <WorkOrderItemsEditor
+                        serviceWorkspace
+                        showEmptySummary={Boolean(discount.descuentoTipo)}
+                        vehicle={vehicle}
+                        onLoadFromOrder={canReadWorkOrders ? () => setPrefillOpen(true) : undefined}
+                        selectionFooter={<>
+                          <QuotationDiscountSummary items={items.filter((item) => item.descripcion.trim())} value={discount} onChange={setDiscount} testId="work-order-total" />
+                          {errors.descuentoValor && <p role="alert" className="text-sm text-brand-coralInk">{errors.descuentoValor}</p>}
+                        </>}
                         items={items}
-                        onChange={setItems}
+                        onChange={(next) => {
+                          setItems(next);
+                          setErrors((current) => Object.fromEntries(Object.entries(current).filter(([path]) => !path.startsWith('items.'))));
+                        }}
                         errors={errors}
                         presentation="reception"
                         showExecution={false}
@@ -1684,10 +1742,6 @@ const WorkOrderCreateForm = () => {
                         mechanics={undefined}
                       />
                     )}
-                    {!isConversion && <>
-                      <QuotationDiscountSummary items={items.filter((item) => item.descripcion.trim())} value={discount} onChange={setDiscount} testId="work-order-total" />
-                      {errors.descuentoValor && <p role="alert" className="text-sm text-brand-coralInk">{errors.descuentoValor}</p>}
-                    </>}
                   </div>
                 )}
               </motion.div>
@@ -1777,6 +1831,21 @@ const WorkOrderCreateForm = () => {
       {clientModalTarget && (
         <ClientFormModal onClose={() => setClientModalTarget(null)} onSaved={handleClientSaved} />
       )}
+
+      {prefillOpen && <WorkOrderPrefillModal currentClient={client?.nombre} currentVehicle={vehicle?.patente}
+        onClose={() => setPrefillOpen(false)} onConfirm={(data) => {
+          setPrefillOpen(false);
+          setPendingPrefill(data);
+          setCandidateVehicleId(data.vehicle.id);
+        }} />}
+      {candidateVehicleId !== null && <VehicleDpDetailsModal key={candidateVehicleId} vehicleId={candidateVehicleId}
+        onClose={() => { setCandidateVehicleId(null); setPendingPrefill(null); }}
+        onReady={(saved) => {
+          if (pendingPrefill) applyPrefill({ ...pendingPrefill, vehicle: saved });
+          else commitVehicle(toQuickVehicle(saved, null), saved.kilometraje);
+          setCandidateVehicleId(null);
+          setChoosingVehicle(false);
+        }} />}
 
       {vehicleModalOpen && (
         <VehicleFormModal

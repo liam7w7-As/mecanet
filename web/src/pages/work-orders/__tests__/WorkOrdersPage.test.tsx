@@ -209,6 +209,8 @@ const quickSearchResponse: QuickSearchResult = {
       marca: 'Toyota',
       modelo: 'Corolla',
       ano: 2020,
+      dpBodyTypeId: 'sedan',
+      dpSizeId: 'M',
       client: { id: 7, nombre: 'Cliente Demo', rut: '123456785' },
     },
   ],
@@ -670,6 +672,7 @@ describe('WorkOrdersPage', () => {
       if (url === '/clients/7') return Promise.resolve({ data: {client: clientsResponse.items[0]} } as AxiosResponse);
       if (url === '/vehicles/4') return Promise.resolve({data: {vehicle: {
         id: 4, patente: 'ABCD12', marca: 'Toyota', modelo: 'Corolla', ano: 2020,
+        dpBodyTypeId: 'sedan', dpSizeId: 'M',
         kilometraje: 42000, clientId: 99, client: {id: 99, nombre: 'Propietario original', rut: null},
       }}} as AxiosResponse);
       if (url === '/clients') return Promise.resolve({data: clientsResponse} as AxiosResponse);

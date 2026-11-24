@@ -193,6 +193,7 @@ export const WorkOrderQuickDetailModal = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="work-order-quick-detail-title"
+        data-work-view={view}
       >
         <header className="workshop-dialog-header">
           <ModalHeader
@@ -226,7 +227,7 @@ export const WorkOrderQuickDetailModal = ({
         <div ref={bodyRef} className="workshop-dialog-body">
 
         {workOrder && canOperate && hasOpenedExecution && (
-          <div className="workshop-execution-view p-4 sm:p-6" hidden={view === 'summary'}><WorkOrderMechanicPanel workOrder={workOrder} active={view !== 'summary'} section={view === 'prices' ? 'prices' : view === 'requests' ? 'requests' : 'execution'} priceRequest={priceRequest} onSuggestPrice={(itemId) => { setPriceRequest({ itemId }); setView('prices'); }} onNavigateSection={(section) => { if (!savePending) setView(section); }} onDirtyChange={setDirtyChanges} onPendingChange={setSavePending} /></div>
+          <div className="workshop-execution-view p-4 sm:p-6" hidden={view === 'summary'}><WorkOrderMechanicPanel compactWorkRows workOrder={workOrder} active={view !== 'summary'} section={view === 'prices' ? 'prices' : view === 'requests' ? 'requests' : 'execution'} priceRequest={priceRequest} onSuggestPrice={(itemId) => { setPriceRequest({ itemId }); setView('prices'); }} onNavigateSection={(section) => { if (!savePending) setView(section); }} onDirtyChange={setDirtyChanges} onPendingChange={setSavePending} /></div>
         )}
 
         {workOrderQuery.isPending && (

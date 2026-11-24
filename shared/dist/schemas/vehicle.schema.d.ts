@@ -15,6 +15,8 @@ export declare const createVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     kilometraje: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     combustible: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     transmision: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    dpBodyTypeId: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    dpSizeId: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     clientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     patente: string;
@@ -28,6 +30,8 @@ export declare const createVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }, {
     patente: string;
@@ -41,6 +45,8 @@ export declare const createVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }>, {
     patente: string;
@@ -54,6 +60,8 @@ export declare const createVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }, {
     patente: string;
@@ -67,6 +75,8 @@ export declare const createVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }>, {
     patente: string;
@@ -80,6 +90,8 @@ export declare const createVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }, {
     patente: string;
@@ -93,6 +105,8 @@ export declare const createVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }>;
 export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects<z.ZodObject<{
@@ -107,6 +121,8 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects
     kilometraje: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     combustible: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     transmision: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
+    dpBodyTypeId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
+    dpSizeId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     clientId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
 }, "strip", z.ZodTypeAny, {
     patente?: string | undefined;
@@ -120,6 +136,8 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }, {
     patente?: string | undefined;
@@ -133,6 +151,8 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }>, {
     patente?: string | undefined;
@@ -146,6 +166,8 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }, {
     patente?: string | undefined;
@@ -159,6 +181,8 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }>, {
     patente?: string | undefined;
@@ -172,6 +196,8 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }, {
     patente?: string | undefined;
@@ -185,6 +211,8 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }>, {
     patente?: string | undefined;
@@ -198,6 +226,8 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }, {
     patente?: string | undefined;
@@ -211,6 +241,8 @@ export declare const updateVehicleSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects
     kilometraje?: number | null | undefined;
     combustible?: string | null | undefined;
     transmision?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
 }>;
 export declare const vehicleQuerySchema: z.ZodObject<{

@@ -7,6 +7,8 @@ export interface VehicleOwner {
 }
 
 export interface Vehicle {
+  dpBodyTypeId?: string | null;
+  dpSizeId?: string | null;
   id: number;
   patente: string;
   marca: string | null;
@@ -152,6 +154,8 @@ export interface QuickSearchClient {
 }
 
 export interface QuickSearchVehicle {
+  dpBodyTypeId?: string | null;
+  dpSizeId?: string | null;
   id: number;
   patente: string;
   marca: string | null;

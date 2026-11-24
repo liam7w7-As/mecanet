@@ -19,6 +19,7 @@ import {
   Search,
   Sparkles,
   Package,
+  Pencil,
   Wrench,
   Trash2,
   Undo2,
@@ -27,16 +28,24 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from 'react';
 
+import AccItemConfigurator from './AccItemConfigurator';
+import AccItemSummary from './AccItemSummary';
 import DraftItemTeamEditor from './DraftItemTeamEditor';
+import MecItemConfigurator from './MecItemConfigurator';
+import MecItemSummary from './MecItemSummary';
 import { useCatalogItems } from '../../hooks/useWorkOrders';
 import { formatClp } from '../../lib/formatters';
 import CurrencyInput from '../common/CurrencyInput';
 
 import type { CatalogItem } from '../../types/entities';
 import type { DiscountType, ItemOperationalStatus, UnitMeasure } from '@unithor/shared';
+import type { ReactNode } from 'react';
+
+import './work-order-services.css';
 
 // Loaded on demand: D&P brings its own configuration hooks and styles.
 const DpCatalogPanel = lazy(() => import('../catalog/DpCatalogPanel'));
+const DpServiceConfigurator = lazy(() => import('./DpServiceConfigurator'));
 
 let itemSequence = 0;
 
@@ -88,6 +97,26 @@ export const createEmptyWorkOrderItem = (): EditableWorkOrderItem => ({
   assignedUserId: null,
 });
 
+const toEditableCatalogItem = (catalogItem: CatalogItem): EditableWorkOrderItem => {
+  const isACC = catalogItem.division === 'ACC' || catalogItem.tipo === 'parte';
+  const isDP = catalogItem.division === 'DP';
+  const subtipo = catalogItem.subtipo ?? (isACC ? 'en_stock' : isDP ? 'servicio_dp' : catalogItem.tipo === 'especifico' ? 'especifico' : 'estandar');
+  return {
+    ...createEmptyWorkOrderItem(),
+    catalogItemId: catalogItem.id,
+    catalogTipo: catalogItem.tipo,
+    catalogStock: catalogItem.stock,
+    division: catalogItem.division ?? (isACC ? 'ACC' : isDP ? 'DP' : 'MEC'),
+    subtipo,
+    esAPedido: isACC && (subtipo === 'a_pedido' || catalogItem.stock === 0),
+    descripcion: catalogItem.nombre,
+    tipoLinea: catalogItem.tipo,
+    unidadMedida: catalogItem.unidadMedida,
+    precioUnitario: String(catalogItem.precio),
+    horasHombreEstimadas: catalogItem.horasHombreEstandar == null ? '' : String(catalogItem.horasHombreEstandar),
+  };
+};
+
 /** Neto después del descuento por línea, antes de IVA. */
 export const getWorkOrderItemSubtotal = (item: EditableWorkOrderItem): number =>
   calculateQuotationPricing([item]).total;
@@ -107,6 +136,13 @@ const inputClass =
   'h-10 w-full min-w-0 rounded-lg border border-brand-line bg-white px-3 text-sm text-brand-ink outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15';
 
 interface WorkOrderItemsEditorProps {
+  /** Inline two-column builder used by step 5; other editors keep their existing layout. */
+  vehicle?: { id: number; dpBodyTypeId?: string | null; dpSizeId?: string | null } | null;
+  serviceWorkspace?: boolean;
+  onLoadFromOrder?: () => void;
+  selectionFooter?: ReactNode;
+  /** Allows clearing an existing general discount even when the selection is empty. */
+  showEmptySummary?: boolean;
   presentation?: 'default' | 'reception';
   items: EditableWorkOrderItem[];
   onChange: (items: EditableWorkOrderItem[]) => void;
@@ -139,14 +175,29 @@ export const WorkOrderItemsEditor = ({
   discountToggle = false,
   mechanics,
   isPriceReadOnly,
+  vehicle,
+  serviceWorkspace = false,
+  onLoadFromOrder,
+  selectionFooter,
+  showEmptySummary = true,
 }: WorkOrderItemsEditorProps) => {
   const headingId = useId();
+  const catalogSearch = useRef<HTMLInputElement>(null);
 
   // División activa para organizar el catálogo en 3 grupos: MEC, ACC, DP
-  const [activeDivision, setActiveDivision] = useState<CatalogDivision>('MEC');
+  const [activeDivision, setActiveDivision] = useState<CatalogDivision>(serviceWorkspace ? 'DP' : 'MEC');
   const [mecSubtype, setMecSubtype] = useState<'estandar' | 'especifico'>('estandar');
   const [accSubtype, setAccSubtype] = useState<'all' | 'en_stock' | 'a_pedido'>('all');
   const [dpPickerOpen, setDpPickerOpen] = useState(false);
+  const [dpScope, setDpScope] = useState<'piece' | 'global'>('piece');
+  const [editingDpKey, setEditingDpKey] = useState<string | null>(null);
+  const [builderVersion, setBuilderVersion] = useState(0);
+  const editingDp = items.find((item) => item.key === editingDpKey);
+  const [accDraft, setAccDraft] = useState<{ item: EditableWorkOrderItem; editing: boolean } | null>(null);
+  const [mecDraft, setMecDraft] = useState<{ item: EditableWorkOrderItem; editing: boolean } | null>(null);
+  const preparingAcc = serviceWorkspace && activeDivision === 'ACC';
+  const preparingMec = serviceWorkspace && activeDivision === 'MEC';
+  const emptyAccSelection = preparingAcc && items.length === 0;
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -203,10 +254,10 @@ export const WorkOrderItemsEditor = ({
       ? 'DP'
       : activeDivision === 'ACC'
         ? 'ACC'
-        : mecSubtype; // En MEC enviamos 'estandar' o 'especifico' para compatibilidad completa
+        : serviceWorkspace ? 'MEC' : mecSubtype;
 
   const querySubtipo =
-    activeDivision === 'ACC' && accSubtype !== 'all' ? accSubtype : undefined;
+    preparingMec ? mecSubtype : activeDivision === 'ACC' && accSubtype !== 'all' ? accSubtype : undefined;
 
   const catalogQuery = useCatalogItems(
     search,
@@ -224,6 +275,8 @@ export const WorkOrderItemsEditor = ({
   const removeItem = (key: string): void => {
     const index = items.findIndex((item) => item.key === key);
     if (index < 0) return;
+    if (accDraft?.item.key === key) setAccDraft(null);
+    if (mecDraft?.item.key === key) setMecDraft(null);
     setRemoved({ item: items[index], index });
     onChange(items.filter((item) => item.key !== key));
     const timer = freshTimers.current.get(key);
@@ -241,38 +294,7 @@ export const WorkOrderItemsEditor = ({
   const addCatalogItem = (catalogItem: CatalogItem): void => {
     if (items.some((item) => item.catalogItemId === catalogItem.id)) return;
 
-    const isDP = catalogItem.division === 'DP';
-    const isACC = catalogItem.division === 'ACC' || catalogItem.tipo === 'parte';
-    const division: CatalogDivision =
-      catalogItem.division ?? (isACC ? 'ACC' : isDP ? 'DP' : 'MEC');
-    const subtipo: CatalogSubtype =
-      catalogItem.subtipo ??
-      (isACC
-        ? 'en_stock'
-        : isDP
-          ? 'servicio_dp'
-          : catalogItem.tipo === 'especifico'
-            ? 'especifico'
-            : 'estandar');
-    const esAPedido = isACC && (subtipo === 'a_pedido' || catalogItem.stock === 0);
-
-    const row: EditableWorkOrderItem = {
-      ...createEmptyWorkOrderItem(),
-      catalogItemId: catalogItem.id,
-      catalogTipo: catalogItem.tipo,
-      catalogStock: catalogItem.stock,
-      division,
-      subtipo,
-      esAPedido,
-      descripcion: catalogItem.nombre,
-      tipoLinea: catalogItem.tipo,
-      unidadMedida: catalogItem.unidadMedida,
-      precioUnitario: String(catalogItem.precio),
-      horasHombreEstimadas:
-        catalogItem.horasHombreEstandar === null || catalogItem.horasHombreEstandar === undefined
-          ? ''
-          : String(catalogItem.horasHombreEstandar),
-    };
+    const row = toEditableCatalogItem(catalogItem);
 
     const emptyIndex = items.findIndex(
       (item) =>
@@ -292,6 +314,62 @@ export const WorkOrderItemsEditor = ({
     markFresh(row.key);
   };
 
+  const editAccItem = (item: EditableWorkOrderItem): void => {
+    setActiveDivision('ACC');
+    setEditingDpKey(null);
+    setMecDraft(null);
+    setAccDraft({ item: { ...item }, editing: true });
+  };
+  const prepareAccItem = (catalogItem: CatalogItem): void => {
+    const existing = items.find((item) => item.catalogItemId === catalogItem.id);
+    if (existing) editAccItem(existing);
+    else setAccDraft({ item: toEditableCatalogItem(catalogItem), editing: false });
+  };
+  const applyAccItem = (item: EditableWorkOrderItem): void => {
+    if (!accDraft) return;
+    if (accDraft.editing) {
+      // Never recreate a line removed elsewhere while its draft was open.
+      onChange(items.map((current) => current.key === item.key ? item : current));
+    } else if (!items.some((current) => current.key === item.key || (item.catalogItemId !== null && current.catalogItemId === item.catalogItemId))) {
+      onChange([...items, item]);
+    }
+    setAccDraft(null);
+    markFresh(item.key);
+    catalogSearch.current?.focus({ preventScroll: true });
+  };
+
+  const editMecItem = (item: EditableWorkOrderItem): void => {
+    setActiveDivision('MEC');
+    setMecSubtype(item.subtipo === 'especifico' || item.tipoLinea === 'especifico' ? 'especifico' : 'estandar');
+    setEditingDpKey(null);
+    setAccDraft(null);
+    setMecDraft({ item: { ...item }, editing: true });
+  };
+  const prepareMecItem = (catalogItem: CatalogItem): void => {
+    const existing = items.find((item) => item.catalogItemId === catalogItem.id);
+    if (existing) { editMecItem(existing); return; }
+    const specific = catalogItem.subtipo === 'especifico' || catalogItem.tipo === 'especifico';
+    setMecDraft({
+      editing: false,
+      item: {
+        ...toEditableCatalogItem(catalogItem), division: 'MEC', esAPedido: false,
+        tipoLinea: specific ? 'especifico' : 'estandar', subtipo: specific ? 'especifico' : 'estandar',
+        ...(specific ? { precioUnitario: '1', cantidad: '1', descuentoTipo: null, descuentoValor: '0' } : {}),
+      },
+    });
+  };
+  const applyMecItem = (item: EditableWorkOrderItem): void => {
+    if (!mecDraft) return;
+    if (mecDraft.editing) {
+      onChange(items.map((current) => current.key === item.key ? item : current));
+    } else if (!items.some((current) => current.key === item.key || (item.catalogItemId !== null && current.catalogItemId === item.catalogItemId))) {
+      onChange([...items, item]);
+    }
+    setMecDraft(null);
+    markFresh(item.key);
+    catalogSearch.current?.focus({ preventScroll: true });
+  };
+
   /** D&P services are priced from the live configuration, never from a catalog row. */
   const addDpService = (quote: DpWorkQuote): void => {
     const target = `${quote.bodyTypeLabel} ${quote.sizeLabel} · ${quote.pieceLabel ?? 'Vehículo completo'}${
@@ -299,7 +377,7 @@ export const WorkOrderItemsEditor = ({
     }`;
     const operations = quote.lines.map((line) => line.label).join(', ');
     const row: EditableWorkOrderItem = {
-      ...createEmptyWorkOrderItem(),
+      ...(editingDp ?? createEmptyWorkOrderItem()),
       division: 'DP',
       subtipo: 'servicio_dp',
       tipoLinea: 'estandar',
@@ -319,13 +397,17 @@ export const WorkOrderItemsEditor = ({
         item.estadoOperativo === 'pendiente' &&
         item.unidadMedida === 'unidad',
     );
-    if (emptyIndex >= 0) {
+    if (editingDp) {
+      onChange(items.map((item) => item.key === editingDp.key ? row : item));
+    } else if (emptyIndex >= 0) {
       onChange(items.map((item, index) => (index === emptyIndex ? row : item)));
     } else {
       onChange([row, ...items]);
     }
     markFresh(row.key);
     setDpPickerOpen(false);
+    setEditingDpKey(null);
+    setBuilderVersion((current) => current + 1);
   };
 
   const addFreeItem = (): void => {
@@ -338,6 +420,20 @@ export const WorkOrderItemsEditor = ({
       subtipo: isACC ? 'en_stock' : isDP ? 'servicio_dp' : mecSubtype,
       tipoLinea,
     };
+    if (serviceWorkspace && isACC) {
+      setEditingDpKey(null);
+      setAccDraft({ item: row, editing: false });
+      return;
+    }
+    if (preparingMec) {
+      setEditingDpKey(null);
+      setAccDraft(null);
+      setMecDraft({
+        item: mecSubtype === 'especifico' ? { ...row, precioUnitario: '1', descuentoTipo: null, descuentoValor: '0' } : row,
+        editing: false,
+      });
+      return;
+    }
     onChange([row, ...items]);
     markFresh(row.key);
   };
@@ -360,7 +456,7 @@ export const WorkOrderItemsEditor = ({
 
   return (
     <section
-      className={`${presentation === 'reception' ? 'reception-items ' : ''}min-w-0 space-y-4`}
+      className={`${serviceWorkspace ? 'service-workspace ' : ''}${presentation === 'reception' ? 'reception-items ' : ''}min-w-0 space-y-4`}
       aria-labelledby={headingId}
     >
       <h2 id={headingId} className="text-lg font-bold text-brand-primaryInk">
@@ -373,74 +469,38 @@ export const WorkOrderItemsEditor = ({
 
           {/* Tabs principales de división */}
           <div
-            className="flex flex-wrap gap-1 border-b border-brand-line"
+            className="service-division-tabs flex flex-wrap gap-1 border-b border-brand-line"
             role="group"
             aria-label="Tipo de catálogo"
           >
-            <button
-              type="button"
-              aria-label="Estándar"
-              aria-pressed={activeDivision === 'MEC'}
-              onClick={() => {
-                setActiveDivision('MEC');
-                setSearch('');
-                setPage(1);
-              }}
-              className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
-                activeDivision === 'MEC'
-                  ? 'border-brand-primaryInk text-brand-primaryInk'
-                  : 'border-transparent text-brand-muted hover:text-brand-ink'
-              }`}
-            >
-              <Wrench className="h-3.5 w-3.5 text-blue-600" aria-hidden="true" />
-              MEC · Mecánica
-            </button>
-            <button
-              type="button"
-              aria-label="D&P"
-              aria-pressed={activeDivision === 'DP'}
-              onClick={() => {
-                setActiveDivision('DP');
-                setSearch('');
-                setPage(1);
-              }}
-              className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
-                activeDivision === 'DP'
-                  ? 'border-purple-600 text-purple-700'
-                  : 'border-transparent text-brand-muted hover:text-brand-ink'
-              }`}
-            >
-              <Sparkles className="h-3.5 w-3.5 text-purple-600" aria-hidden="true" />
-              D&P · Carrocería
-            </button>
-            <button
-              type="button"
-              aria-label="Repuestos"
-              aria-pressed={activeDivision === 'ACC'}
-              onClick={() => {
-                setActiveDivision('ACC');
-                setSearch('');
-                setPage(1);
-              }}
-              className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
-                activeDivision === 'ACC'
-                  ? 'border-amber-600 text-amber-700'
-                  : 'border-transparent text-brand-muted hover:text-brand-ink'
-              }`}
-            >
-              <Package className="h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
-              ACC · Repuestos
-            </button>
+            {(serviceWorkspace ? ['DP', 'ACC', 'MEC'] as const : ['MEC', 'DP', 'ACC'] as const).map((division) => {
+              const Icon = division === 'DP' ? Sparkles : division === 'ACC' ? Package : Wrench;
+              return <button key={division} type="button"
+                aria-label={division === 'DP' ? 'D&P' : division === 'ACC' ? 'Repuestos' : 'Estándar'}
+                aria-pressed={activeDivision === division}
+                onClick={() => {
+                  setActiveDivision(division); setSearch(''); setPage(1);
+                  if (division !== activeDivision) { setAccDraft(null); setMecDraft(null); }
+                }}
+                className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+                  activeDivision === division ? 'border-brand-primaryInk text-brand-primaryInk' : 'border-transparent text-brand-muted hover:text-brand-ink'
+                }`}>
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                {division === 'DP' ? 'D&P · Carrocería' : division === 'ACC' ? 'ACC · Repuestos' : 'MEC · Mecánica'}
+              </button>;
+            })}
           </div>
 
           {/* Subfiltros según la división activa */}
           {activeDivision === 'MEC' && (
-            <div className="flex gap-1 border-b border-brand-line/60 bg-brand-pale/40 px-2 py-1.5 text-xs">
+            <div className="flex gap-1 border-b border-brand-line/60 bg-brand-pale/40 px-2 py-1.5 text-xs" role="group" aria-label="Modalidad MEC">
               <button
                 type="button"
                 aria-label="Estándar"
+                aria-pressed={mecSubtype === 'estandar'}
                 onClick={() => {
                   setMecSubtype('estandar');
+                  setMecDraft(null);
                   setSearch('');
                   setPage(1);
                 }}
@@ -455,8 +515,10 @@ export const WorkOrderItemsEditor = ({
               <button
                 type="button"
                 aria-label="Específicos"
+                aria-pressed={mecSubtype === 'especifico'}
                 onClick={() => {
                   setMecSubtype('especifico');
+                  setMecDraft(null);
                   setSearch('');
                   setPage(1);
                 }}
@@ -478,6 +540,7 @@ export const WorkOrderItemsEditor = ({
                 onClick={() => {
                   setAccSubtype('all');
                   setPage(1);
+                  setAccDraft(null);
                 }}
                 className={`rounded px-2.5 py-1 font-semibold transition ${
                   accSubtype === 'all'
@@ -492,6 +555,7 @@ export const WorkOrderItemsEditor = ({
                 onClick={() => {
                   setAccSubtype('en_stock');
                   setPage(1);
+                  setAccDraft(null);
                 }}
                 className={`rounded px-2.5 py-1 font-semibold transition ${
                   accSubtype === 'en_stock'
@@ -506,6 +570,7 @@ export const WorkOrderItemsEditor = ({
                 onClick={() => {
                   setAccSubtype('a_pedido');
                   setPage(1);
+                  setAccDraft(null);
                 }}
                 className={`rounded px-2.5 py-1 font-semibold transition ${
                   accSubtype === 'a_pedido'
@@ -518,7 +583,20 @@ export const WorkOrderItemsEditor = ({
             </div>
           )}
 
-          {activeDivision === 'DP' ? (
+          {activeDivision === 'DP' && serviceWorkspace ? <>
+            <div className="service-scope-tabs" role="group" aria-label="Alcance D&P">
+              {(['piece', 'global'] as const).map((scope) => <button type="button" key={scope}
+                aria-pressed={dpScope === scope} onClick={() => { setDpScope(scope); setEditingDpKey(null); setBuilderVersion((current) => current + 1); }}>
+                {scope === 'piece' ? 'Pieza' : 'Completo'}
+              </button>)}
+              {onLoadFromOrder && <button type="button" className="service-load-order" onClick={onLoadFromOrder}>Cargar desde una OT</button>}
+            </div>
+            {vehicle ? <Suspense fallback={<p role="status">Cargando configurador D&P…</p>}>
+              <DpServiceConfigurator key={`${vehicle.id}:${vehicle.dpBodyTypeId}:${vehicle.dpSizeId}:${builderVersion}:${editingDpKey ?? 'new'}`}
+                vehicle={vehicle} scope={dpScope} initial={editingDp?.dpPricing} editing={Boolean(editingDp)}
+                onApply={addDpService} onCancel={editingDp ? () => { setEditingDpKey(null); setBuilderVersion((current) => current + 1); } : undefined} />
+            </Suspense> : <p className="service-error" role="alert">Selecciona un vehículo antes de configurar D&P.</p>}
+          </> : activeDivision === 'DP' ? (
             <div className="mt-3 rounded-2xl border border-purple-200 bg-purple-50/60 p-4">
               <div className="flex items-start gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-700 text-white">
@@ -551,10 +629,13 @@ export const WorkOrderItemsEditor = ({
               aria-hidden="true"
             />
             <input
+              ref={catalogSearch}
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
                 setPage(1);
+                if (preparingAcc) setAccDraft(null);
+                if (preparingMec) setMecDraft(null);
               }}
               className={`${inputClass} pl-9 pr-16`}
               placeholder="Nombre o código"
@@ -577,6 +658,8 @@ export const WorkOrderItemsEditor = ({
                 onClick={() => {
                   setSearch('');
                   setPage(1);
+                  if (preparingAcc) setAccDraft(null);
+                  if (preparingMec) setMecDraft(null);
                 }}
               >
                 <X className="h-4 w-4" aria-hidden="true" />
@@ -584,6 +667,15 @@ export const WorkOrderItemsEditor = ({
             )}
           </div>
 
+          {preparingAcc && accDraft ? <AccItemConfigurator key={accDraft.item.key} initial={accDraft.item}
+            editing={accDraft.editing} showDiscounts={showDiscounts} priceReadOnly={isPriceReadOnly?.(accDraft.item)}
+            onApply={applyAccItem} onCancel={() => {
+              setAccDraft(null); catalogSearch.current?.focus({ preventScroll: true });
+            }} /> : preparingMec && mecDraft ? <MecItemConfigurator key={mecDraft.item.key} initial={mecDraft.item}
+              editing={mecDraft.editing} showDiscounts={showDiscounts} priceReadOnly={isPriceReadOnly?.(mecDraft.item)}
+              onApply={applyMecItem} onCancel={() => {
+                setMecDraft(null); catalogSearch.current?.focus({ preventScroll: true });
+              }} /> : <>
           <div
             className="max-h-64 divide-y divide-brand-line overflow-y-auto border-y border-brand-line xl:max-h-[28rem]"
             aria-label="Resultados del catálogo"
@@ -609,14 +701,15 @@ export const WorkOrderItemsEditor = ({
               const selected = items.find((item) => item.catalogItemId === catalogItem.id);
               const isDP = catalogItem.division === 'DP';
               const isACC = catalogItem.division === 'ACC' || catalogItem.tipo === 'parte';
+              const specific = catalogItem.subtipo === 'especifico' || catalogItem.tipo === 'especifico';
 
               return (
                 <button
                   key={catalogItem.id}
                   type="button"
                   aria-pressed={Boolean(selected)}
-                  aria-label={`${selected ? 'Quitar' : 'Agregar'} ${catalogItem.nombre}`}
-                  onClick={() => (selected ? removeItem(selected.key) : addCatalogItem(catalogItem))}
+                  aria-label={`${preparingAcc || preparingMec ? selected ? 'Editar' : 'Configurar' : selected ? 'Quitar' : 'Agregar'} ${catalogItem.nombre}`}
+                  onClick={() => preparingAcc ? prepareAccItem(catalogItem) : preparingMec ? prepareMecItem(catalogItem) : selected ? removeItem(selected.key) : addCatalogItem(catalogItem)}
                   className={`flex w-full items-center gap-3 px-2 py-3 text-left transition-colors focus-visible:outline-brand-primary ${
                     selected ? 'bg-brand-mintPale hover:bg-brand-mintPale' : 'hover:bg-brand-pale'
                   }`}
@@ -642,11 +735,13 @@ export const WorkOrderItemsEditor = ({
                       {catalogItem.codigo ?? 'SIN CÓDIGO'}
                       {isDP && catalogItem.horasHombreEstandar ? ` · ${catalogItem.horasHombreEstandar} HH` : ''}
                       {isACC && (catalogItem.subtipo === 'a_pedido' ? ' · A pedido' : ` · Stock: ${catalogItem.stock}`)}
-                      {catalogItem.subtipo === 'especifico' ? ' · Diagnóstico' : ''}
+                      {catalogItem.subtipo === 'especifico' || (preparingMec && specific) ? ' · Diagnóstico' : ''}
                     </span>
                   </span>
                   <span className="reception-catalog-price shrink-0 text-right text-xs font-bold text-brand-primaryInk">
-                    {formatClp(catalogItem.precio)}
+                    {formatClp(preparingMec && specific ? Number(selected?.precioUnitario ?? 1) : catalogItem.precio)}
+                    {preparingMec && specific && Number(selected?.precioUnitario ?? 1) === 1 &&
+                      <small className="mec-catalog-reference">Referencial</small>}
                     {selected && <span className="mt-1 block text-brand-mintInk">Agregado</span>}
                   </span>
                 </button>
@@ -683,6 +778,7 @@ export const WorkOrderItemsEditor = ({
               </div>
             </div>
           )}
+          </>}
           </>}
         </div>
 
@@ -731,7 +827,7 @@ export const WorkOrderItemsEditor = ({
             </div>
           )}
 
-          {items.length === 0 && (
+          {items.length === 0 && !emptyAccSelection && (
             <p className="py-10 text-center text-sm text-brand-muted">{emptyMessage}</p>
           )}
 
@@ -740,6 +836,59 @@ export const WorkOrderItemsEditor = ({
               const isFresh = freshKeys.has(item.key);
               const isDP = item.division === 'DP';
               const isACC = item.division === 'ACC' || item.tipoLinea === 'parte';
+
+              if (serviceWorkspace && isACC) {
+                return <AccItemSummary key={item.key} item={item} index={index} errors={errors}
+                  editing={accDraft?.editing === true && accDraft.item.key === item.key}
+                  onEdit={() => editAccItem(item)} onRemove={() => removeItem(item.key)} />;
+              }
+
+              if (serviceWorkspace && !isDP && !isACC) {
+                return <MecItemSummary key={item.key} item={item} index={index} errors={errors}
+                  editing={mecDraft?.editing === true && mecDraft.item.key === item.key}
+                  onEdit={() => editMecItem(item)} onRemove={() => removeItem(item.key)} />;
+              }
+
+              if (serviceWorkspace && isDP && item.dpPricingSnapshot) {
+                const quote = item.dpPricingSnapshot;
+                let subtotal: number | null = null;
+                try { subtotal = getWorkOrderItemSubtotal(item); } catch { /* Field errors appear in the card. */ }
+                return <article key={item.key} className={`service-summary-card${editingDpKey === item.key ? ' is-editing' : ''}`}
+                  data-item-type={item.tipoLinea} data-item-division="DP">
+                  <header>
+                    <div><span className="service-summary-kind">D&P · {quote.selection.scope === 'piece' ? 'Pieza' : 'Completo'}</span>
+                      <strong>{quote.bodyTypeLabel} · {quote.sizeLabel}</strong></div>
+                    <div className="service-summary-actions">
+                      <button type="button" className="service-icon-button" aria-label={`Editar servicio D&P ${index + 1}`} onClick={() => {
+                        setAccDraft(null);
+                        setMecDraft(null);
+                        setEditingDpKey(item.key); setActiveDivision('DP'); setDpScope(quote.selection.scope);
+                      }}><Pencil aria-hidden="true" /></button>
+                      <button type="button" className="service-icon-button" aria-label={`Eliminar ítem ${index + 1}`} onClick={() => {
+                        removeItem(item.key); if (editingDpKey === item.key) setEditingDpKey(null);
+                      }}><Trash2 aria-hidden="true" /></button>
+                    </div>
+                  </header>
+                  <h4>{quote.pieceLabel ? `${quote.pieceLabel} · ${quote.positionLabel ?? ''}` : 'Vehículo completo'}</h4>
+                  <ul>{quote.lines.map((line) => <li key={line.operationId}><span>{line.label}{line.formula === 'repair' && quote.damageLabel ? ` · ${quote.damageLabel}` : ''}</span>
+                    <span>{formatClp(line.subtotal, 2)}</span></li>)}</ul>
+                  <footer>
+                    {showDiscounts && <div className="service-card-discount">
+                      <label className="service-field"><span>Descuento del servicio</span><select aria-label={`Tipo de descuento ${index + 1}`}
+                        value={item.descuentoTipo ?? ''} onChange={(event) => updateItem(item.key, { descuentoTipo: event.target.value as DiscountType || null, descuentoValor: '0' })}>
+                        <option value="">Sin descuento</option><option value="porcentaje">Porcentaje (%)</option><option value="fijo">Monto fijo ($)</option>
+                      </select></label>
+                      {item.descuentoTipo && <label className="service-field"><span>{item.descuentoTipo === 'porcentaje' ? 'Porcentaje' : 'Monto'}</span>
+                        <input type="number" min="0" step="0.01" max={item.descuentoTipo === 'porcentaje' ? 100 : undefined}
+                          aria-label={`Descuento ${index + 1}`} value={item.descuentoValor ?? '0'} onChange={(event) => updateItem(item.key, { descuentoValor: event.target.value })} />
+                      </label>}
+                    </div>}
+                    <div className="service-card-price"><small>Precio neto{Number(item.cantidad) > 1 ? ` · ${item.cantidad} unidades` : ''}</small>
+                      <strong data-testid={`item-subtotal-${index}`}>{subtotal === null ? 'Revisa el descuento' : formatClp(subtotal, 2)}</strong></div>
+                  </footer>
+                  {Object.entries(errors).filter(([path]) => path.startsWith(`items.${index}.`)).map(([path, message]) => <p role="alert" className="service-error" key={path}>{message}</p>)}
+                </article>;
+              }
 
               return (
                 <motion.div
@@ -1108,7 +1257,8 @@ export const WorkOrderItemsEditor = ({
             })}
           </AnimatePresence>
 
-          {showTotal && (
+          {(!emptyAccSelection || showEmptySummary) && selectionFooter}
+          {showTotal && (!emptyAccSelection || showEmptySummary) && (
             <div className="reception-items-total flex flex-wrap items-center justify-between gap-2 border-t-2 border-brand-primaryInk bg-brand-line/40 px-3 py-4">
               <p className="text-sm font-semibold text-brand-muted">
                 {totalLabel} (IVA incluido)

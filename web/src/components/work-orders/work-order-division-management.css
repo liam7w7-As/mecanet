@@ -1,0 +1,91 @@
+/* Work management: one compact operational row per job, with persistent drafts
+   in collapsible execution panels. Detailed page layouts remain unchanged. */
+.workshop-manage-dialog[data-work-view="execution"] {
+  --reference-dialog-width: 1440px;
+  width: min(1440px, calc(100vw - 32px));
+  max-width: 1440px;
+  height: min(960px, calc(100dvh - 40px));
+}
+.workshop-manage-dialog[data-work-view="execution"] .workshop-dialog-body { min-width: 0; overflow-x: hidden; overflow-y: auto; }
+.work-order-divisions { min-width: 0; }
+.work-order-divisions [hidden] { display: none !important; }
+.work-order-divisions .work-order-division { min-width: 0; margin: 0 0 16px; padding: 16px; border: 1px solid #c7d9e9; border-radius: 19px; background: #edf4f9; box-shadow: none; }
+.work-order-divisions .work-order-division-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 10px; margin: 0 0 12px; padding: 0 0 12px; border-color: #d5e1ed; }
+.work-order-division-heading > div { min-width: 0; }
+.work-order-divisions .work-order-division-heading h3 { margin: 0; color: #45617f; font-size: .76rem; font-weight: 600; }
+.work-order-divisions .work-order-division-heading > span:first-child,
+.work-order-divisions .work-order-division-heading > div > span:first-child { display: inline-flex; align-items: center; min-height: 36px; padding: 8px 13px; border-radius: 10px; background: #1d396a; color: white; font-size: .86rem; font-weight: 700; letter-spacing: .02em; }
+.work-order-divisions .work-order-division-heading > .work-order-division-count { min-height: 0; margin-left: auto; padding: 0; background: transparent; color: #70849f; font-size: .68rem; font-weight: 400; }
+.work-order-divisions .division-job { min-width: 0; padding: 12px; border: 1px solid #d4e0ed; border-radius: 12px; background: #fff; box-shadow: none; }
+.work-order-divisions .division-job-main { min-width: 0; align-items: center; gap: 12px; }
+.work-order-divisions .division-dp-main { grid-template-columns: minmax(145px, .9fr) minmax(0, 3fr) minmax(90px, .5fr); }
+.work-order-divisions .division-job-name { min-width: 0; padding: 10px; overflow-wrap: anywhere; border: 1px solid #d9e4ef; border-radius: 9px; background: #f6f9fc; color: #284b79; font-size: .76rem; font-weight: 600; }
+.work-order-divisions .division-dp-stages { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.work-order-divisions .division-dp-stage { min-width: 0; padding: 8px 6px; border-radius: 9px; }
+.work-order-divisions .division-dp-stage select { min-width: 0; min-height: 34px; font-size: .68rem; }
+.work-order-divisions .division-dp-stage button { min-height: 28px; font-size: .65rem; }
+.work-order-divisions .division-dp-stage > div:first-child { font-size: .67rem; }
+.work-order-divisions .division-job-price { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; min-width: 0; padding: 0; text-align: right; }
+.work-order-divisions .division-job-price > small { color: #7b8fab; font-size: .62rem; font-weight: 400; }
+.work-order-divisions .division-job-price > span { color: #284b79; font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.work-order-divisions .division-job-price button { min-height: 30px; font-size: .7rem; }
+.work-order-divisions .division-dp-quality { gap: 8px; margin-top: 10px; padding-top: 10px; border-color: #e6edf5; }
+.work-order-divisions .division-dp-quality > button { min-height: 34px; font-size: .7rem; }
+.work-order-divisions .division-acc-main,
+.work-order-divisions .division-acc-table-heading { grid-template-columns: minmax(145px, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(90px, .55fr); }
+.work-order-divisions .division-acc-table-heading { padding: 0 12px; color: #6b819c; font-size: .65rem; }
+.work-order-divisions .division-acc-signature { min-width: 0; padding: 9px; border: 1px solid #d8e3ee; border-radius: 9px; background: #f6f9fc; }
+.work-order-divisions .division-acc-signature > small { display: block; margin-bottom: 6px; color: #70849f; font-size: .65rem; }
+.work-order-divisions .division-acc-signature > div { flex-wrap: wrap; }
+.work-order-divisions .division-acc-signature > time { display: block; margin-top: 6px; color: #607994; font-size: .66rem; }
+.work-order-divisions .division-acc-signature button { min-height: 32px; font-size: .7rem; }
+.division-acc-execution { margin-top: 10px; border-top: 1px solid #e6edf5; }
+.division-acc-execution > summary { padding: 10px 0 2px; color: #607994; font-size: .7rem; cursor: pointer; }
+.workshop-mec-table-heading, .workshop-mec-row { display: grid; grid-template-columns: minmax(160px, 1.6fr) minmax(145px, 1.1fr) minmax(105px, .75fr) minmax(105px, .8fr) auto; align-items: start; gap: 14px; }
+.workshop-mec-table-heading { padding: 0 12px 8px; color: #6b819c; font-size: .65rem; }
+.work-order-divisions .workshop-compact-task { padding: 12px; border: 1px solid #d4e0ed; border-radius: 12px; background: #fff; }
+.workshop-mec-service { min-width: 0; }
+.workshop-mec-service > small { display: block; margin-bottom: 5px; color: #70849f; font-size: .65rem; }
+.workshop-mec-service > h3 { margin: 0; overflow-wrap: anywhere; color: #284b79; font-size: .8rem; font-weight: 600; line-height: 1.5; }
+.workshop-reference-price { display: inline-block; margin-top: 7px; padding: 4px 6px; border-radius: 6px; background: #fff7e5; color: #856831; font-size: .64rem; line-height: 1.4; }
+.workshop-mec-assignee { min-width: 0; }
+.workshop-mec-assignee .workshop-labor-assignee { width: 100%; }
+.workshop-mec-assignee .workshop-labor-assigned-name { display: block; overflow-wrap: anywhere; color: #45617f; font-size: .75rem; }
+.workshop-mec-row :is(label, .workshop-labor-assignee label) { display: grid; gap: 5px; color: #7b8fab; font-size: .64rem; }
+.workshop-mec-row .workshop-labor-assignee label { min-width: 0; }
+.workshop-mec-row select { width: 100%; min-width: 0; max-width: 100%; height: 36px; padding: 6px 8px; border: 1px solid #d8e3ee; border-radius: 8px; background: #fff; color: #284b79; font-size: .72rem; }
+.workshop-mec-status { min-width: 0; }
+.workshop-mec-status .workshop-labor-state { margin-top: 18px; }
+.workshop-mec-price { display: grid; justify-items: end; gap: 5px; text-align: right; }
+.workshop-mec-price > small { color: #7b8fab; font-size: .64rem; }
+.workshop-mec-price > strong { color: #284b79; font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.work-order-divisions .workshop-mec-price > button, .work-order-divisions .workshop-mec-notes > button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 32px; padding: 5px 8px; border: 1px solid #d8e3ee; border-radius: 8px; background: #f6f9fc; color: #45678f; font-size: .68rem; white-space: nowrap; }
+.workshop-mec-price button svg, .workshop-mec-notes button svg { width: 13px; height: 13px; }
+.workshop-mec-row-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #edf1f7; color: #7b8fab; font-size: .66rem; }
+.work-order-divisions .workshop-mec-row-footer > button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 5px 9px; border: 1px solid #d8e3ee; border-radius: 8px; background: #fff; color: #45678f; font-size: .69rem; }
+.workshop-mec-row-footer > button svg { width: 13px; height: 13px; transition: transform .15s; }
+.workshop-mec-row-footer > button[aria-expanded="true"] svg { transform: rotate(180deg); }
+.workshop-compact-execution { min-width: 0; margin-top: 12px; padding-top: 4px; border-top: 1px solid #e6edf5; }
+.work-order-divisions :is(button, select, textarea, input):focus-visible { outline: 2px solid #8daed8; outline-offset: 2px; }
+.work-order-divisions button:disabled { cursor: not-allowed; opacity: .55; }
+@media (max-width: 1100px) {
+  .workshop-mec-row { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  .workshop-mec-table-heading { display: none; }
+  .workshop-mec-price { justify-items: start; text-align: left; }
+  .workshop-mec-notes { align-self: end; }
+  .work-order-divisions .division-dp-main { grid-template-columns: minmax(0, 1fr) auto; }
+  .work-order-divisions .division-dp-stages { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (max-width: 760px) {
+  .workshop-manage-dialog[data-work-view="execution"] { width: 100%; max-width: 100%; height: calc(100dvh - 24px); }
+  .work-order-divisions .work-order-division { padding: 12px; border-radius: 15px; }
+  .work-order-divisions .division-dp-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .work-order-divisions .division-acc-main { grid-template-columns: minmax(0, 1fr); }
+  .work-order-divisions .division-acc-table-heading { display: none; }
+  .work-order-divisions .division-job-price { align-items: flex-start; text-align: left; }
+  .workshop-mec-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workshop-mec-service { grid-column: 1 / -1; }
+  .workshop-mec-status .workshop-labor-state { margin-top: 0; }
+  .workshop-mec-price { min-width: 0; }
+  .workshop-mec-row select { font-size: 16px; }
+}

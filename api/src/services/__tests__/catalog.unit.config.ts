@@ -15,6 +15,7 @@ export default defineConfig({
       'src/services/__tests__/catalog-import.unit.test.ts',
       'src/services/__tests__/catalog-service.unit.test.ts',
       'src/services/__tests__/catalog-events.unit.test.ts',
+      'src/services/__tests__/vehicle-dp-migration.unit.test.ts',
     ],
   },
 });

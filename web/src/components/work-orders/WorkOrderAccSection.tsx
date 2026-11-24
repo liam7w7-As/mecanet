@@ -1,5 +1,6 @@
 import { Check, ChevronDown, Edit2, PackagePlus, Plus, Search, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useAddWorkOrderItemMutation, useCatalogItems, useUpdateWorkOrderAccCustodyMutation } from '../../hooks/useWorkOrders';
@@ -13,6 +14,7 @@ import type { CatalogItem, WorkOrderWorksheetItem } from '../../types/entities';
 import type { ReactNode } from 'react';
 
 interface Props {
+  compact?: boolean;
   workOrderId: number;
   items: WorkOrderWorksheetItem[];
   mechanics: Array<{ id: number; nombre: string }>;
@@ -35,10 +37,13 @@ export default function WorkOrderAccSection({
   assignedToOrder = false,
   visibleItemIds,
   renderExecution,
+  compact = false,
+  mechanics,
 }: Props) {
   const user = useAuthStore((state) => state.user);
   const canUpdate = Boolean(user && hasUserPermission(user, 'taller', 'update'));
   const canSupervise = Boolean(canManage && canUpdate && user && ['jefe', 'admin', 'desarrollador'].includes(user.role));
+  const canSeePrice = !compact || Boolean(user && ['jefe', 'admin', 'desarrollador'].includes(user.role));
   const canDeliver = user?.role === 'bodeguero' && canUpdate && !closed;
   const canReceive = (item: WorkOrderWorksheetItem) => !closed && canUpdate && user?.role === 'mecanico' && Boolean(
     item.canReceiveCustody ?? (assignedToOrder || item.canWork || item.assignedUser?.id === user.id || item.assignments?.some((entry) => entry.active && entry.userId === user.id)),
@@ -54,13 +59,12 @@ export default function WorkOrderAccSection({
   const [noteDraft, setNoteDraft] = useState('');
   const pending = custodyMutation.isPending || addItemMutation.isPending;
   const notePanel = useModalOverlay({ isOpen: Boolean(activeNoteModal), isPending: pending, onClose: () => setActiveNoteModal(null) });
-  useEffect(() => { onState?.(-2, Boolean(activeNoteModal), pending); }, [activeNoteModal, pending, onState]);
-  useEffect(() => () => onState?.(-2, false, false), [onState]);
-
   // + Nuevo autocomplete search state
   const [showAddSearch, setShowAddSearch] = useState(false);
   const [partSearch, setPartSearch] = useState('');
-  const partsQuery = useCatalogItems(partSearch, 'parte');
+  const partsQuery = useCatalogItems(partSearch, 'parte', 1, undefined, showAddSearch && canSupervise && !closed);
+  useEffect(() => { onState?.(-2, Boolean(activeNoteModal || (showAddSearch && partSearch.trim())), pending); }, [activeNoteModal, showAddSearch, partSearch, pending, onState]);
+  useEffect(() => () => onState?.(-2, false, false), [onState]);
 
   const handleToggleDelivered = (item: WorkOrderWorksheetItem) => {
     const isDelivered = Boolean(item.entregadoBodegaAt ?? item.custodyBodegueroDeliveredAt) || item.entregadoBodega === true;
@@ -155,21 +159,22 @@ export default function WorkOrderAccSection({
   };
 
   return (
-    <div className="rounded-2xl border border-sky-200 bg-[#edf4f9] p-4 sm:p-5 shadow-xs mb-5">
+    <section aria-label="ACC · Accesorios y repuestos" className={`${compact ? 'work-order-division work-order-division--acc ' : ''}rounded-2xl border border-sky-200 bg-[#edf4f9] p-4 sm:p-5 shadow-xs mb-5`}>
       {/* Header ACC */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-200/80 pb-3 mb-4">
+      <div className={`${compact ? 'work-order-division-heading ' : ''}flex flex-wrap items-center justify-between gap-3 border-b border-sky-200/80 pb-3 mb-4`}>
         <div className="flex items-center gap-2.5">
           <span className="rounded-md bg-[#1d396a] px-3 py-1 text-sm font-black tracking-wider text-white shadow-xs">
             ACC:
           </span>
-          <span className="text-xs font-semibold text-slate-700">
+          <h3 className="text-xs font-semibold text-slate-700">
             Accesorios y Repuestos
-          </span>
+          </h3>
         </div>
+        {compact && <span className="work-order-division-count">{items.filter((item) => visibleItemIds === undefined || visibleItemIds.includes(item.id)).length} repuestos</span>}
       </div>
 
       {/* Table Header: Bodeguero & Armador */}
-      <div className="hidden md:grid md:grid-cols-[14rem_1fr_1fr_auto] gap-3 px-3 py-1.5 text-xs font-bold text-slate-600 mb-2">
+      <div className={`${compact ? 'division-acc-table-heading ' : ''}hidden md:grid md:grid-cols-[14rem_1fr_1fr_auto] gap-3 px-3 py-1.5 text-xs font-bold text-slate-600 mb-2`} aria-hidden="true">
         <span>Ítem</span>
         <div className="flex items-center gap-1">
           <span>Bodeguero</span>
@@ -194,16 +199,19 @@ export default function WorkOrderAccSection({
             item.recibidoTallerAt ?? item.custodyArmadorReceivedAt ?? item.recibidoTaller,
           );
           const receptionNote = item.notaEntrega ?? item.custodyArmadorNote;
+          const delivererId = item.bodegueroUserId ?? item.custodyBodegueroId;
+          const receiverId = item.armadorUserId ?? item.custodyArmadorId;
+          const receivedAt = item.recibidoTallerAt ?? item.custodyArmadorReceivedAt;
 
           return (
             <div
               key={item.id}
               hidden={visibleItemIds !== undefined && !visibleItemIds.includes(item.id)}
-              className="rounded-xl border border-sky-300/60 bg-white/95 p-3.5 shadow-xs"
+              className={`${compact ? 'division-job ' : ''}rounded-xl border border-sky-300/60 bg-white/95 p-3.5 shadow-xs`}
             >
-              <div className="grid gap-3 md:grid-cols-[14rem_1fr_1fr_auto] md:items-center">
+              <div className={`${compact ? 'division-job-main division-acc-main ' : ''}grid gap-3 md:grid-cols-[14rem_1fr_1fr_auto] md:items-center`}>
                 {/* Item description & A Pedido badge */}
-                <div>
+                <div className={compact ? 'division-job-name' : undefined}>
                   <div className="font-bold text-sm text-slate-800">{item.descripcion}</div>
                   {item.esAPedido && (
                     <span className="inline-block mt-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
@@ -213,7 +221,8 @@ export default function WorkOrderAccSection({
                 </div>
 
                 {/* Bodeguero Delivery Column */}
-                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2.5">
+                <div className={`${compact ? 'division-acc-signature ' : ''}rounded-lg border border-slate-200 bg-slate-50/80 p-2.5`}>
+                  {compact && <small>Bodega · {delivererId ? `Usuario #${delivererId}` : 'Sin firma'}</small>}
                   <div className="flex items-center justify-between gap-2">
                     <button
                       type="button"
@@ -237,7 +246,8 @@ export default function WorkOrderAccSection({
                 </div>
 
                 {/* Armador Reception Column */}
-                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2.5">
+                <div className={`${compact ? 'division-acc-signature ' : ''}rounded-lg border border-slate-200 bg-slate-50/80 p-2.5`}>
+                  {compact && <small>Taller · {receiverId ? mechanics.find((entry) => entry.id === receiverId)?.nombre ?? `Técnico #${receiverId}` : 'Sin firma'}</small>}
                   <div className="flex items-center justify-between gap-2">
                     <button
                       type="button"
@@ -277,11 +287,13 @@ export default function WorkOrderAccSection({
                       {receptionNote ? 'Nota ✓' : 'Nota +'}
                     </button>
                   </div>
+                  {compact && receivedAt && <time dateTime={receivedAt}>{formatDateTime(String(receivedAt))}</time>}
                 </div>
 
                 {/* Price */}
-                <div className="flex items-center justify-between md:flex-col md:items-end gap-1 pl-2">
-                  {item.precioUnitario !== undefined && <span className="font-extrabold text-sm text-slate-800">
+                <div className={`${compact ? 'division-job-price ' : ''}flex items-center justify-between md:flex-col md:items-end gap-1 pl-2`}>
+                  {compact && canSeePrice && item.precioUnitario !== undefined && <small>Precio unitario neto</small>}
+                  {canSeePrice && item.precioUnitario !== undefined && <span className="font-extrabold text-sm text-slate-800">
                     {formatClp(item.precioUnitario ?? 0)}
                   </span>}
                   {onSuggestPrice && !closed && (canSupervise || canReceive(item)) && (
@@ -297,8 +309,8 @@ export default function WorkOrderAccSection({
                 </div>
               </div>
               {receptionNote && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-700">Recepción: {receptionNote}</p>}
-              {(item.recibidoTallerAt ?? item.custodyArmadorReceivedAt) && <p className="mt-1 text-[11px] text-slate-500">Recibido: {formatDateTime(String(item.recibidoTallerAt ?? item.custodyArmadorReceivedAt))}</p>}
-              {renderExecution?.(item)}
+              {!compact && receivedAt && <p className="mt-1 text-[11px] text-slate-500">Recibido: {formatDateTime(String(receivedAt))}</p>}
+              {renderExecution && (compact ? <details className="division-acc-execution"><summary>Uso del repuesto, notas y adjuntos</summary>{renderExecution(item)}</details> : renderExecution(item))}
             </div>
           );
         })}
@@ -384,7 +396,7 @@ export default function WorkOrderAccSection({
       )}
 
       {/* Reception Note Modal */}
-      {activeNoteModal && (
+      {activeNoteModal && createPortal(
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
           <div ref={notePanel} role="dialog" aria-modal="true" aria-label={activeNoteModal.title} tabIndex={-1} className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
             <h3 className="font-bold text-base text-slate-900 mb-2">
@@ -418,8 +430,8 @@ export default function WorkOrderAccSection({
               </button>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
-    </div>
+    </section>
   );
 }

@@ -34,6 +34,7 @@ import { up as ensureCatalogDivisionsAndDpWorkflow } from '../database/migration
 import { up as ensureDpTimeStage } from '../database/migrations/063-dp-time-stage.js';
 import { up as ensureDpConfiguration } from '../database/migrations/064-dp-configuration.js';
 import { up as ensureDpWorkSnapshots } from '../database/migrations/065-dp-work-snapshots.js';
+import { up as ensureVehicleDpClassification } from '../database/migrations/066-vehicle-dp-classification.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -123,6 +124,7 @@ beforeAll(async () => {
   await ensureDpTimeStage(sequelize.getQueryInterface());
   await ensureDpConfiguration(sequelize.getQueryInterface());
   await ensureDpWorkSnapshots(sequelize.getQueryInterface());
+  await ensureVehicleDpClassification(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
   await ensureImportPermissions();

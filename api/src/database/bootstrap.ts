@@ -14,6 +14,7 @@ import { up as ensureCatalogDivisionsAndDpWorkflow } from './migrations/062-cata
 import { up as ensureDpTimeStage } from './migrations/063-dp-time-stage.js';
 import { up as ensureDpConfiguration } from './migrations/064-dp-configuration.js';
 import { up as ensureDpWorkSnapshots } from './migrations/065-dp-work-snapshots.js';
+import { up as ensureVehicleDpClassification } from './migrations/066-vehicle-dp-classification.js';
 import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -242,6 +243,7 @@ async function ensureSchemaUpToDate(): Promise<void> {
   await ensureDpTimeStage(qi);
   await ensureDpConfiguration(qi);
   await ensureDpWorkSnapshots(qi);
+  await ensureVehicleDpClassification(qi);
   try {
     const woCols = await qi.describeTable('work_orders');
     if (!woCols.vehicle_owner_client_id) {

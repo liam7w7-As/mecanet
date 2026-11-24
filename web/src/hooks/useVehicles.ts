@@ -68,8 +68,10 @@ export const useUpdateVehicleMutation = () => {
       const response = await api.patch<VehicleResponse>(`/vehicles/${id}`, data);
       return response.data.vehicle;
     },
-    onSuccess: () => {
+    onSuccess: (vehicle) => {
+      queryClient.setQueryData(vehicleKeys.detail(vehicle.id), vehicle);
       void queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['search', 'quick'] });
       void queryClient.invalidateQueries({ queryKey: ['clients'] });
     },
   });

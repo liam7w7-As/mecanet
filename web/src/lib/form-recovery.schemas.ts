@@ -1,5 +1,9 @@
 import {
   CATALOG_TYPES,
+  CATALOG_DIVISIONS,
+  CATALOG_SUBTYPES,
+  dpQuoteInputSchema,
+  dpStageDefinitionSchema,
   FUEL_LEVELS,
   ITEM_OPERATIONAL_STATUS,
   QUOTATION_PAYMENT_METHODS,
@@ -26,6 +30,26 @@ const client = z.object({
   comuna: optionalText.optional(),
 });
 const item = z.object({
+  division: z.enum(CATALOG_DIVISIONS).optional(),
+  subtipo: z.enum(CATALOG_SUBTYPES).optional(),
+  esAPedido: z.boolean().optional(),
+  dpPricing: dpQuoteInputSchema.optional(),
+  dpPricingSnapshot: z.object({
+    configurationRevision: z.number(),
+    selection: dpQuoteInputSchema,
+    bodyTypeLabel: z.string(), sizeLabel: z.string(), pieceLabel: z.string().nullable(),
+    positionLabel: z.string().nullable(), damageLabel: z.string().nullable(), vehicleFactor: z.number(),
+    lines: z.array(z.object({
+      operationId: z.string(), label: z.string(), tableId: z.string(),
+      formula: z.enum(['painting', 'repair', 'dismantling', 'fixed']),
+      basePrice: z.number(), vehicleFactor: z.number(), pieceFactor: z.number(),
+      damageIncrement: z.number(), multiplier: z.number(), bruto: z.number(),
+      descuentoMonto: z.number(), subtotal: z.number(),
+    })),
+    subtotal: z.number(), descuentoOperaciones: z.number(), precioUnitario: z.number(),
+    neto: z.number(), iva: z.number(), total: z.number(),
+    stages: z.array(dpStageDefinitionSchema),
+  }).nullable().optional(),
   key: z.string(),
   id: z.number().nullable().optional(),
   catalogItemId: z.number().nullable(),
@@ -70,6 +94,8 @@ export const workOrderRecoverySchema = z.object({
   vehicle: z
     .object({
       id: z.number().int().positive(),
+      dpBodyTypeId: optionalText.optional(),
+      dpSizeId: optionalText.optional(),
       patente: z.string(),
       marca: optionalText,
       modelo: optionalText,

@@ -2009,6 +2009,8 @@ export async function getFleetReportPreview(filters: FleetReportFilters & SalesR
         combustible: vehicle.combustible,
         transmision: vehicle.transmision,
         fotoUrl: vehiclePhotoUrl('vehicles', vehicle.id, vehicle.fotoStorageKey),
+        dpBodyTypeId: vehicle.dpBodyTypeId ?? null,
+        dpSizeId: vehicle.dpSizeId ?? null,
         clientId: vehicle.clientId,
         createdAt: vehicle.createdAt,
         updatedAt: vehicle.updatedAt,

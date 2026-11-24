@@ -28,6 +28,8 @@ interface QuickSearchVehicle {
   marca: string | null;
   modelo: string | null;
   ano: number | null;
+  dpBodyTypeId: string | null;
+  dpSizeId: string | null;
   client: QuickSearchVehicleClient | null;
 }
 
@@ -106,6 +108,8 @@ const toQuickSearchVehicle = (vehicle: Vehicle): QuickSearchVehicle => ({
   marca: vehicle.marca,
   modelo: vehicle.modelo,
   ano: vehicle.ano,
+  dpBodyTypeId: vehicle.dpBodyTypeId ?? null,
+  dpSizeId: vehicle.dpSizeId ?? null,
   client: vehicle.client
     ? {
         id: vehicle.client.id,
@@ -177,7 +181,7 @@ export const quickSearch = async (term: string, limit = 10): Promise<QuickSearch
     }),
     Vehicle.findAll({
       where: vehicleWhere,
-      attributes: ['id', 'patente', 'marca', 'modelo', 'ano', 'clientId'],
+      attributes: ['id', 'patente', 'marca', 'modelo', 'ano', 'clientId', 'dpBodyTypeId', 'dpSizeId'],
       include: [vehicleClientInclude],
       limit,
       order: [['patente', 'ASC']],

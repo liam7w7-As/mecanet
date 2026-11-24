@@ -74,6 +74,8 @@ const baseVehicleSchema = z.object({
   kilometraje: z.coerce.number().int().min(0).nullable().optional(),
   combustible: optionalString(30),
   transmision: optionalString(30),
+  dpBodyTypeId: optionalString(60),
+  dpSizeId: optionalString(60),
   clientId: z.coerce.number().int().positive().nullable().optional(),
 });
 

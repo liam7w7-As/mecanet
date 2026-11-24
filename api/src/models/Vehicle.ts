@@ -99,6 +99,12 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   })
   declare fotoStorageKey: string | null;
 
+  @Column({ type: DataType.STRING(60), allowNull: true })
+  declare dpBodyTypeId: CreationOptional<string | null>;
+
+  @Column({ type: DataType.STRING(60), allowNull: true })
+  declare dpSizeId: CreationOptional<string | null>;
+
   @ForeignKey(() => Client)
   @Column({
     type: DataType.INTEGER,

@@ -18,7 +18,7 @@ vi.mock('../../../lib/api', () => ({ api: { get: vi.fn(), post: vi.fn(), patch: 
 const person = { id: 7, nombre: 'Cliente descuentos', rut: null, tipo: 'cliente' as const, email: null, telefono: null, direccion: null };
 const draft = () => workOrderRecoverySchema.parse({
   activeStep: 4, client: person, contactClient: person, billingClient: person,
-  vehicle: { id: 4, patente: 'ABCD12', marca: 'Toyota', modelo: 'Yaris', ano: 2024, client: null },
+  vehicle: { id: 4, patente: 'ABCD12', marca: 'Toyota', modelo: 'Yaris', ano: 2024, client: null, dpBodyTypeId: 'hatchback', dpSizeId: 'S' },
   assignedMechanicId: null, kilometrajeIngreso: '12345', descripcion: 'Revisión', fechaIngreso: '2026-11-12T10:00', fechaEntrega: '',
   items: [{ ...createEmptyWorkOrderItem(), descripcion: 'Servicio con descuento', cantidad: '2', precioUnitario: '10000', descuentoTipo: 'porcentaje', descuentoValor: '10' }],
   discount: { descuentoTipo: 'fijo', descuentoValor: '3000' },
@@ -45,7 +45,9 @@ describe('OT and commercial discount consistency', () => {
     await saveFormDraft(1, 'work-order:new', draft(), 'discount-draft');
     renderCreate();
     fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
-    expect(screen.getByLabelText('Descuento 1')).toHaveValue(10);
+    fireEvent.click(screen.getByRole('button', { name: 'Editar servicio MEC 1' }));
+    expect(screen.getByLabelText('Descuento MEC')).toHaveValue(10);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar edición' }));
     expect(screen.getByLabelText('Descuento general')).toHaveValue('3.000');
     expect(screen.getByTestId('work-order-total')).toHaveTextContent('$17.850');
     fireEvent.click(screen.getByRole('button', { name: 'Revisar y crear orden' }));

@@ -11,6 +11,17 @@
 .service-scope-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
 .service-scope-tabs button { min-height: 34px; padding: 6px 12px; border: 1px solid #d8e2ef; border-radius: 8px; background: #fff; color: #526b8c; font-size: .75rem; font-weight: 600; }
 .service-scope-tabs button[aria-pressed="true"] { background: #e8f0fa; border-color: #9ab6d9; color: #1d396a; }
+.service-scope-tabs button { display: inline-flex; align-items: center; gap: 5px; }
+.service-scope-tabs button svg { width: 14px; height: 14px; }
+.service-workspace .quotation-pricing-summary--controls { margin-top: 18px; padding-top: 14px; }
+.service-workspace .quotation-pricing-summary--totals { margin-top: 16px; padding-top: 14px; }
+.quotation-discount-paired-fields { max-width: 360px; margin: 0; padding: 0; border: 0; }
+.discount-input-affix { display: flex; align-items: center; min-width: 0; gap: 4px; padding-inline: 11px; border: 1px solid #cfdbeb; border-radius: 9px; background: #fff; }
+.discount-input-affix > span { flex: none; color: #637c9d; }
+.service-workspace .discount-input-affix input { height: 40px; padding-inline: 0; border: 0; background: transparent; }
+.discount-input-affix:focus-within { outline: 2px solid #759dce; outline-offset: 2px; }
+.service-workspace .discount-input-affix input:focus-visible { outline: none; box-shadow: none; }
+.discount-input-affix:has(input[aria-invalid="true"]) { border-color: #a13636; }
 .service-scope-tabs .service-load-order { margin-left: auto; border-style: dashed; }
 .dp-service-builder { padding: 18px; border: 1px solid #bed2e6; border-radius: 18px; background: #eef5fb; color: #284b79; }
 .dp-service-builder > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }

@@ -28,12 +28,12 @@ const authenticatedUser = {
 };
 
 const demoPrimaryPaths = ['/dashboard', '/work-orders', '/vehicles', '/warehouses'];
-const adminMorePaths = ['/reports', '/work-orders/journal', '/work-orders/daily-report', '/quotations', '/clients', '/catalog', '/purchases', '/finance', '/users', '/settings'];
+const adminMorePaths = ['/reports', '/work-orders/journal', '/work-orders/daily-report', '/quotations', '/quotations/new-dp', '/clients', '/catalog', '/purchases', '/finance', '/users', '/settings'];
 const mobileRoleCases: { role: Role; permissions?: PermissionDefinition[]; primary: string[]; more: string[] }[] = [
   { role: 'desarrollador', primary: demoPrimaryPaths, more: adminMorePaths },
   { role: 'admin', primary: demoPrimaryPaths, more: adminMorePaths },
   { role: 'jefe', primary: demoPrimaryPaths, more: adminMorePaths.filter((path) => path !== '/finance') },
-  { role: 'vendedor', primary: demoPrimaryPaths, more: ['/reports', '/quotations', '/clients', '/catalog'] },
+  { role: 'vendedor', primary: demoPrimaryPaths, more: ['/reports', '/quotations', '/quotations/new-dp', '/clients', '/catalog'] },
   { role: 'bodeguero', primary: demoPrimaryPaths, more: ['/reports', '/quotations', '/clients', '/catalog', '/purchases'] },
   { role: 'finanzas', primary: ['/dashboard', '/vehicles', '/quotations'], more: ['/reports', '/clients', '/catalog', '/purchases', '/finance'] },
   { role: 'mecanico', primary: ['/work-orders/mine', '/work-orders/journal'], more: [] },
@@ -286,10 +286,10 @@ describe('App routing and authentication', () => {
   it.each([
     ['desarrollador', 'Usuarios', 'Configuración'],
     ['admin', 'Usuarios', 'Finanzas / Contabilidad'],
-    ['jefe', 'Reporte diario', 'Compras'],
+    ['jefe', 'Reporte diario', 'Compras express'],
     ['vendedor', 'Cotizaciones', 'Clientes'],
     ['bodeguero', 'Almacenes', 'Catálogo'],
-    ['finanzas', 'Finanzas / Contabilidad', 'Compras'],
+    ['finanzas', 'Finanzas / Contabilidad', 'Compras express'],
     ['mecanico', 'Mi taller', 'Registro diario'],
   ] satisfies Array<[Role, string, string]>)('conserva la navegación autorizada de %s', (role, first, second) => {
     useAuthStore.setState({ user: { ...authenticatedUser, role }, isAuthenticated: true, isLoading: false });
@@ -373,7 +373,7 @@ describe('App routing and authentication', () => {
     expect(tabs.getByRole('button', { name: 'Abrir todas las secciones' })).toHaveClass('active');
     fireEvent.click(tabs.getByRole('button', { name: 'Abrir todas las secciones' }));
     expect(screen.getByRole('link', { name: path.endsWith('/journal') ? 'Registro diario' : 'Reporte diario' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Compras' })).toHaveAttribute('href', '/purchases');
+    expect(screen.getByRole('link', { name: 'Compras express' })).toHaveAttribute('href', '/purchases');
     expect(screen.getByRole('link', { name: 'Configuración' })).toHaveAttribute('href', '/settings');
   });
 

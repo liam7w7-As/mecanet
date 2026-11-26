@@ -22,7 +22,7 @@ interface PurchaseVoidModalProps {
 
 export const PurchaseVoidModal = ({ purchase, onClose, onVoided }: PurchaseVoidModalProps) => {
   const user = useAuthStore((state) => state.user);
-  const canVoid = Boolean(user && (user.role === 'admin' || user.role === 'desarrollador') && hasUserPermission(user, 'compras', 'delete')) && purchase.estado === 'registrada';
+  const canVoid = Boolean(user && (user.role === 'admin' || user.role === 'desarrollador') && hasUserPermission(user, 'compras', 'delete')) && purchase.estado === 'registrada' && !purchase.express;
   const mutation = useVoidPurchaseMutation();
   const [motivo, setMotivo] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});

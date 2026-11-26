@@ -19,6 +19,7 @@ import { Op, Transaction } from 'sequelize';
 import { readStoredFile, removeStoredFile, storeFile } from './file-storage.service.js';
 import { registerMovement } from './warehouse.service.js';
 import { sequelize } from '../config/database.js';
+import { CashClosure } from '../models/CashClosure.js';
 import { CashMovement } from '../models/CashMovement.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { FleetVehicle } from '../models/FleetVehicle.js';
@@ -87,6 +88,10 @@ export interface PurchaseItemPublic {
   warehouseId: number | null;
   catalogItem: PurchaseCatalogPublic | null;
   warehouse: PurchaseWarehousePublic | null;
+  workOrderItemId?: number | null;
+  ventaUnitario?: number | null;
+  stockReturnedAt?: Date | null;
+  stockReturnReason?: string | null;
 }
 
 export interface PurchaseSupplierPublic {
@@ -120,6 +125,7 @@ export interface PurchaseCashMovementPublic {
   metodo: PaymentMethod;
   fecha: Date;
   voidedAt: Date | null;
+  afterClosureId?: number | null;
 }
 
 export interface PurchasePublic {
@@ -163,6 +169,7 @@ export interface PurchasePublic {
   voider: { id: number; nombre: string } | null;
   cashMovement: PurchaseCashMovementPublic | null;
   items: PurchaseItemPublic[];
+  express?: boolean;
 }
 
 export interface PurchaseSummary {
@@ -234,7 +241,7 @@ const cashMovementInclude = {
   model: CashMovement,
   as: 'cashMovement',
   required: false,
-  attributes: ['id', 'descripcion', 'monto', 'metodo', 'fecha', 'voidedAt'],
+  attributes: ['id', 'descripcion', 'monto', 'metodo', 'fecha', 'voidedAt', 'afterClosureId'],
 };
 
 const itemsInclude: Includeable = {
@@ -296,6 +303,10 @@ const toItemPublic = (item: PurchaseItem): PurchaseItemPublic => ({
   precioUnitario: moneyValue(item.precioUnitario),
   subtotal: moneyValue(item.subtotal),
   afectaStock: item.afectaStock,
+  workOrderItemId: item.workOrderItemId ?? null,
+  ventaUnitario: item.ventaUnitario == null ? null : moneyValue(item.ventaUnitario),
+  stockReturnedAt: item.stockReturnedAt ?? null,
+  stockReturnReason: item.stockReturnReason ?? null,
   warehouseId: item.warehouseId,
   catalogItem: item.catalogItem
     ? { id: item.catalogItem.id, codigo: item.catalogItem.codigo, nombre: item.catalogItem.nombre }
@@ -312,6 +323,7 @@ const toPurchasePublic = (purchase: Purchase): PurchasePublic => {
 
   return {
     id: purchase.id,
+    express: Boolean(purchase.expressKey),
     codigo: purchase.codigo,
     supplierId: purchase.supplierId,
     vehicleId: purchase.vehicleId,
@@ -379,6 +391,7 @@ const toPurchasePublic = (purchase: Purchase): PurchasePublic => {
           metodo: purchase.cashMovement.metodo,
           fecha: purchase.cashMovement.fecha,
           voidedAt: purchase.cashMovement.voidedAt,
+          afterClosureId: purchase.cashMovement.afterClosureId ?? null,
         }
       : null,
     items: (purchase.items ?? []).map(toItemPublic),
@@ -566,7 +579,7 @@ export const getPurchasesForReport = async (
   return purchases.map(toPurchasePublic);
 };
 
-const resolveSupplier = async (
+export const resolveSupplier = async (
   data: CreatePurchaseInput,
   transaction: Transaction,
 ): Promise<Supplier> => {
@@ -653,7 +666,7 @@ const resolveVehicle = async (
   };
 };
 
-const storePurchaseReceipt = async (
+export const storePurchaseReceipt = async (
   file: Express.Multer.File,
 ): Promise<{
   storageKey: string;
@@ -679,7 +692,7 @@ const storePurchaseReceipt = async (
   };
 };
 
-const createCashMovement = async (
+export const createCashMovement = async (
   args: {
     categoria: 'compra_repuesto' | 'pago_proveedor';
     monto: number;
@@ -690,8 +703,15 @@ const createCashMovement = async (
     fecha?: Date;
   },
   transaction: Transaction,
-): Promise<CashMovement> =>
-  CashMovement.create(
+): Promise<CashMovement> => {
+  const fecha = args.fecha ?? new Date();
+  // A later purchase is an additional expense, never a rewrite of the stored closure.
+  const closure = await CashClosure.findOne({
+    where: { fecha: fecha.toISOString().slice(0, 10) },
+    transaction,
+    lock: Transaction.LOCK.SHARE,
+  });
+  return CashMovement.create(
     {
       tipo: 'egreso',
       categoria: args.categoria,
@@ -699,7 +719,8 @@ const createCashMovement = async (
       metodo: args.metodo,
       descripcion: args.descripcion.slice(0, 255),
       referencia: args.referencia.slice(0, 120),
-      fecha: args.fecha ?? new Date(),
+      fecha,
+      afterClosureId: closure?.id ?? null,
       createdBy: args.userId,
       voidedAt: null,
       voidedBy: null,
@@ -707,6 +728,7 @@ const createCashMovement = async (
     },
     { transaction },
   );
+};
 
 const receptionMotivo = (codigo: string): string => `Recepción de compra ${codigo}`;
 
@@ -896,6 +918,9 @@ export const voidPurchase = async (
     });
     if (!purchase) throw ApiError.notFound('Compra no encontrada');
     if (purchase.estado === 'anulada') throw ApiError.conflict('La compra ya está anulada');
+    if (purchase.expressKey) {
+      throw ApiError.badRequest('La compra express conserva su egreso. Si el accesorio no se utilizó, envíalo al stock general desde el detalle de la compra.');
+    }
 
     for (const item of purchase.items ?? []) {
       if (!item.afectaStock) continue;
@@ -944,6 +969,7 @@ export const getPurchaseReceipt = async (id: number): Promise<PurchaseReceipt> =
     attributes: ['id', 'codigo', 'comprobanteStorageKey', 'comprobanteNombre'],
   });
   if (!stored) throw ApiError.notFound('Compra no encontrada');
+  if (!stored.comprobanteStorageKey) throw ApiError.notFound('Esta compra express se registró manualmente, sin fotografía');
 
   const bytes = await readStoredFile(
     stored.comprobanteStorageKey,

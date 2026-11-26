@@ -1,6 +1,7 @@
 import { Op, Transaction } from 'sequelize';
 
 import { getSalesScope } from './sales-access.service.js';
+import { withWorkshopTransaction } from './workshop-transaction.js';
 import { sequelize } from '../config/database.js';
 import { CatalogItem } from '../models/CatalogItem.js';
 import { Client } from '../models/Client.js';
@@ -90,6 +91,7 @@ export interface ListStockMovementsResult {
 }
 
 export interface WarehouseWorkOrderRequestPublic {
+  directPurchase?: boolean;
   id: number;
   workOrderId: number;
   workOrderItemId: number | null;
@@ -667,6 +669,7 @@ export const listMovements = async (
 };
 
 const warehouseRequestInclude = [
+  { model: WorkOrderItem, as: 'workOrderItem', attributes: ['id', 'expressPurchaseId'], required: false },
   {
     model: WorkOrder,
     as: 'workOrder',
@@ -699,6 +702,7 @@ const toWarehouseRequestPublic = (
 
   return {
     id: request.id,
+    directPurchase: request.workOrderItem?.expressPurchaseId != null,
     workOrderId: request.workOrderId,
     workOrderItemId: request.workOrderItemId,
     catalogItemId: request.catalogItemId,
@@ -816,7 +820,13 @@ export const deliverWorkOrderRequest = async (
   data: DeliverWarehouseRequestInput,
   userId: number,
 ): Promise<WarehouseWorkOrderRequestPublic> => {
-  await sequelize.transaction(async (transaction) => {
+  const source = await WorkOrderRequest.findByPk(requestId, { attributes: ['workOrderId'] });
+  if (!source) throw ApiError.notFound('Solicitud de repuesto no encontrada');
+  await withWorkshopTransaction(async (transaction) => {
+    const workOrder = await WorkOrder.findByPk(source.workOrderId, {
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
     const request = await WorkOrderRequest.findByPk(requestId, {
       transaction,
       lock: Transaction.LOCK.UPDATE,
@@ -824,6 +834,7 @@ export const deliverWorkOrderRequest = async (
     if (!request || request.tipo !== 'repuesto') {
       throw ApiError.notFound('Solicitud de repuesto no encontrada');
     }
+    if (request.workOrderId !== source.workOrderId) throw ApiError.conflict('La solicitud cambió de OT. Actualiza la vista antes de entregarla');
     if (request.estado !== 'aprobada') {
       throw ApiError.badRequest('La solicitud debe estar aprobada y pendiente de entrega');
     }
@@ -835,17 +846,11 @@ export const deliverWorkOrderRequest = async (
       throw ApiError.badRequest('La solicitud aprobada no tiene un repuesto asociado a la OT');
     }
 
-    const [workOrder, item] = await Promise.all([
-      WorkOrder.findByPk(request.workOrderId, {
-        transaction,
-        lock: Transaction.LOCK.UPDATE,
-      }),
-      WorkOrderItem.findOne({
-        where: { id: request.workOrderItemId, workOrderId: request.workOrderId },
-        transaction,
-        lock: Transaction.LOCK.UPDATE,
-      }),
-    ]);
+    const item = await WorkOrderItem.findOne({
+      where: { id: request.workOrderItemId, workOrderId: request.workOrderId },
+      transaction,
+      lock: Transaction.LOCK.UPDATE,
+    });
     if (!workOrder || !item) {
       throw ApiError.badRequest('La Orden de Trabajo o su repuesto asociado ya no existe');
     }
@@ -875,7 +880,10 @@ export const deliverWorkOrderRequest = async (
       );
     }
 
-    const consumption = await consumeForWorkOrder(
+    if (item.expressPurchaseId == null && data.warehouseId === undefined) {
+      throw ApiError.badRequest('Selecciona el almacén de salida para un repuesto de inventario');
+    }
+    const consumption = item.expressPurchaseId != null ? null : await consumeForWorkOrder(
       {
         catalogItemId: request.catalogItemId,
         cantidad: quantity,
@@ -889,10 +897,10 @@ export const deliverWorkOrderRequest = async (
     const deliveredAt = new Date();
     await item.update(
       {
-        stockConsumido: true,
-        stockConsumidoCantidad: quantity,
-        stockConsumidoAt: deliveredAt,
-        stockConsumidoWarehouseId: consumption.warehouseId,
+        stockConsumido: consumption !== null,
+        stockConsumidoCantidad: consumption ? quantity : 0,
+        stockConsumidoAt: consumption ? deliveredAt : null,
+        stockConsumidoWarehouseId: consumption?.warehouseId ?? null,
         entregadoBodega: true,
         entregadoBodegaAt: deliveredAt,
         bodegueroUserId: userId,
@@ -902,7 +910,7 @@ export const deliverWorkOrderRequest = async (
     await request.update(
       {
         estado: 'entregada',
-        deliveredWarehouseId: consumption.warehouseId,
+        deliveredWarehouseId: consumption?.warehouseId ?? null,
         deliveredBy: userId,
         deliveredAt,
         deliveryNote: data.comentario?.trim() || null,
@@ -919,7 +927,8 @@ export const deliverWorkOrderRequest = async (
           requestId: request.id,
           workOrderItemId: item.id,
           catalogItemId: request.catalogItemId,
-          warehouseId: consumption.warehouseId,
+          warehouseId: consumption?.warehouseId ?? null,
+          expressPurchaseId: item.expressPurchaseId ?? null,
           cantidad: quantity,
         },
       },

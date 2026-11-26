@@ -104,6 +104,26 @@ describe('Configuración D&P', () => {
     await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Precio base de Pintura por pieza' })).toHaveValue(90000));
   });
 
+  it('cancela la edición desde las carrocerías y restaura los datos sin cerrar el modal', async () => {
+    const { onClose } = renderPanel();
+    await screen.findByRole('spinbutton', { name: 'Precio base de Pintura por pieza' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Carrocerías y tamaños' }));
+    const factor = record().configuration.bodyTypes[0];
+    const factorLabel = `Factor ${factor.label} ${factor.sizes[0].label}`;
+    fireEvent.change(screen.getByRole('spinbutton', { name: factorLabel }), { target: { value: '1.25' } });
+    fireEvent.click(within(screen.getByRole('tabpanel')).getByRole('button', { name: 'Cancelar' }));
+    const confirmation = screen.getByRole('alertdialog', { name: 'Descartar configuración D&P' });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('spinbutton', { name: factorLabel })).toHaveValue(1.25);
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Descartar y cargar' }));
+    await waitFor(() => expect(screen.getByRole('spinbutton', { name: factorLabel })).toHaveValue(factor.sizes[0].factor));
+    expect(screen.getByRole('dialog', { name: 'Configuración D&P' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Carrocerías y tamaños' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('button', { name: 'Guardar configuración' })).toBeDisabled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(api.put).not.toHaveBeenCalled();
+  });
+
   it('conserva los cinco pasos e identidades al reordenarlos y consulta el historial a demanda', async () => {
     renderPanel();
     await screen.findByRole('spinbutton', { name: 'Precio base de Pintura por pieza' });

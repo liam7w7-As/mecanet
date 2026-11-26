@@ -1,5 +1,5 @@
 import { getQuotationGrossTotal, QUOTATION_ARCHIVE_DAYS } from '@unithor/shared';
-import { Archive, ArchiveRestore, CalendarDays, CheckCheck, ChevronRight, CircleDollarSign, Clock3, DollarSign, Download, FileText, LayoutGrid, Link2Off, LoaderCircle, Pencil, Plus, Search, Wrench, X } from 'lucide-react';
+import { Archive, ArchiveRestore, CalendarDays, CheckCheck, ChevronRight, CircleDollarSign, Clock3, DollarSign, Download, FileText, LayoutGrid, Link2Off, LoaderCircle, Pencil, Plus, Search, Sparkles, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
@@ -147,7 +147,18 @@ export const QuotationsPage = () => {
 
   return (
     <div className="commercial-board commercial-reference-board min-w-0 space-y-5">
-      <header className="commercial-heading"><h1>Comercial y Cotizaciones</h1></header>
+      <header className="commercial-heading flex flex-wrap items-center justify-between gap-3">
+        <h1>Comercial y Cotizaciones</h1>
+        {canCreate && (
+          <Link
+            to="/quotations/new-dp"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-3.5 text-xs font-bold text-purple-800 transition hover:bg-purple-100"
+          >
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            Cotización D&amp;P
+          </Link>
+        )}
+      </header>
       <div className="commercial-toolbar">
         <label className="commercial-search"><Search aria-hidden="true" /><span className="sr-only">Buscar cotizaciones</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="COT o nombre del cliente" />{search && <button type="button" aria-label="Limpiar búsqueda" onClick={() => setSearch('')}><X aria-hidden="true" /></button>}</label>
         <QuotationDateFilter from={fechaDesde} to={fechaHasta} onApply={(from, to) => { setFechaDesde(from); setFechaHasta(to); setPage(1); }} />

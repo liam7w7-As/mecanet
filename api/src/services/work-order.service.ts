@@ -12,6 +12,7 @@ import { col, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 import { enqueueCustomerEmail, enqueueWorkOrderProgress } from './customer-email-queue.service.js';
 import { calculateDpWorkPricing } from './dp-configuration.service.js';
 import { notifyByType, notifyUsers } from './notification.service.js';
+import { assertPurchaseSaleFloors } from './purchase-sale-floor.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { getSalesScope, scopeSalesAssociations, workOrderWhere, type SalesScope } from './sales-access.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
@@ -1288,6 +1289,7 @@ export const consumeCompletedPartStock = async (
     if (
       item.estadoOperativo !== 'completado' ||
       item.catalogItemId === null ||
+      item.expressPurchaseId != null ||
       item.stockConsumido
     ) {
       continue;
@@ -1446,6 +1448,7 @@ export const syncMirrorQuotationFromWorkOrder = async (
     descuentoValor: discounts.descuentoValor === undefined ? quotation.descuentoValor : discounts.descuentoValor,
   };
   const pricing = priceQuotation(nextItems, discount);
+  assertPurchaseSaleFloors(workOrderItems, pricing);
   const { total } = pricing;
   const paid = toNumber(quotation.pagado);
   if (getQuotationGrossTotal(total) < paid) {
@@ -2231,6 +2234,15 @@ export const updateWorkOrder = async (
         const precioUnitario = Number(item.precioUnitario);
         const previousStatus = existing.estadoOperativo;
         const metadata = normalizeDivisionMetadata(item, existing);
+        if (existing.expressStockReturnedAt && (cantidad !== Number(existing.cantidad) || existing.catalogItemId !== (item.catalogItemId ?? null) || item.tipoLinea !== existing.tipoLinea || metadata.division !== 'ACC' || precioUnitario !== 0 || (item.estadoOperativo ?? existing.estadoOperativo) !== 'omitido')) {
+          throw ApiError.badRequest('El accesorio fue enviado al stock general. Conserva esta línea sin cobro y agrega otra si necesitas un repuesto');
+        }
+        if (existing.minimumSalePrice != null && (
+          cantidad !== Number(existing.cantidad) || existing.catalogItemId !== (item.catalogItemId ?? null) ||
+          existing.tipoLinea !== item.tipoLinea || metadata.division !== 'ACC'
+        )) {
+          throw ApiError.badRequest('El accesorio tiene una compra express: no cambies su cantidad ni su identidad sin regularizar la compra');
+        }
         if (metadata.division === 'DP' && existing.division !== 'DP' && (existing.estadoOperativo !== 'pendiente' || Number(existing.horasHombreReales) > 0)) {
           throw ApiError.badRequest('Conserva el historial de este trabajo y agrega una nueva línea D&P');
         }
@@ -2968,6 +2980,9 @@ export const updateWorkOrderExecution = async (
         );
       }
 
+      if (item.expressStockReturnedAt && itemUpdate.estadoOperativo !== 'omitido') {
+        throw ApiError.badRequest('El accesorio fue enviado al stock general y no puede marcarse como utilizado en esta OT');
+      }
       if (actorRole === 'mecanico' && itemUpdate.estadoOperativo === 'completado') {
         const team = await WorkOrderItemAssignment.findAll({ where: { workOrderItemId: item.id, active: true }, transaction });
         if (team.length > 0) throw ApiError.badRequest('Termina tu parte desde Gestionar trabajo para conservar el avance de cada integrante');

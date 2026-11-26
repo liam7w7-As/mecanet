@@ -468,6 +468,8 @@ export interface QuotationVehicle {
   patente: string;
   marca: string | null;
   modelo: string | null;
+  dpBodyTypeId?: string | null;
+  dpSizeId?: string | null;
 }
 
 export interface QuotationAdvisor {
@@ -503,6 +505,7 @@ export interface QuotationItem {
   unidadMedida: import('@unithor/shared').UnitMeasure;
   cantidad: number;
   precioUnitario: number;
+  dpPricingSnapshot?: import('@unithor/shared').DpWorkQuote | null;
   subtotal: number;
   descuentoTipo?: import('@unithor/shared').DiscountType | null;
   descuentoValor?: number;
@@ -518,6 +521,9 @@ export interface Quotation {
   workOrderId: number | null;
   clientId: number | null;
   vehicleId: number | null;
+  dpBodyTypeId?: string | null;
+  dpSizeId?: string | null;
+  dpVehicleRef?: string | null;
   asesorId: number | null;
   estadoPago: import('@unithor/shared').QuotationStatus;
   subtotal: number;
@@ -579,6 +585,7 @@ export interface StockMovement {
 }
 
 export interface WarehouseWorkOrderRequest {
+  directPurchase?: boolean;
   id: number;
   workOrderId: number;
   workOrderItemId: number | null;
@@ -698,6 +705,10 @@ export interface PurchaseWarehouseSummary {
 }
 
 export interface PurchaseItem {
+  stockReturnedAt?: string | null;
+  stockReturnReason?: string | null;
+  workOrderItemId?: number | null;
+  ventaUnitario?: number | null;
   id: number;
   catalogItemId: number | null;
   descripcion: string;
@@ -735,6 +746,7 @@ export interface PurchaseWorkOrderSummary {
 }
 
 export interface PurchaseCashMovementSummary {
+  afterClosureId?: number | null;
   id: number;
   descripcion?: string;
   monto: number;
@@ -749,6 +761,7 @@ export interface PurchaseCreator {
 }
 
 export interface Purchase {
+  express?: boolean;
   id: number;
   codigo: string;
   supplierId: number;
@@ -796,6 +809,7 @@ export interface PurchaseListResponse extends PaginatedResponse<Purchase> {
 }
 
 export interface WorkOrderWorksheetItem {
+  expressStockReturnedAt?: string | null;
   qualityStatus?: 'pendiente' | 'aprobado' | 'rechazado';
   qualityReviewedAt?: string | null;
   qualityReviewedBy?: number | null;

@@ -667,6 +667,12 @@ export const FinancePage = () => {
                     )}
                     {daily.closure ? (
                       <div className="mt-4 space-y-2 border-t border-brand-line pt-4 text-sm">
+                        {Boolean(daily.postClosureExpenses?.count) && (
+                          <p role="status" className="rounded-lg bg-brand-goldPale px-3 py-2 text-brand-goldInk">
+                            {daily.postClosureExpenses?.count} egreso(s) posteriores al cierre: {formatClp(daily.postClosureExpenses?.total ?? 0)}.
+                            {' '}Incluidos en los movimientos del día. El cierre original se conserva sin cambios.
+                          </p>
+                        )}
                         <div className="flex justify-between">
                           <span className="text-brand-muted">Efectivo declarado</span>
                           <strong>{formatClp(daily.closure.efectivoDeclarado)}</strong>

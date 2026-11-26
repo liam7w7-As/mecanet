@@ -43,6 +43,8 @@ const envSchema = z
     UPLOAD_DIR: z.string().min(1).default('./storage/uploads'),
     MAX_INSPECTION_PHOTO_SIZE_MB: z.coerce.number().int().min(1).max(20).default(8),
     MAX_FLEET_DOCUMENT_SIZE_MB: z.coerce.number().int().min(1).max(25).default(10),
+    OPENAI_API_KEY: z.string().optional(),
+    OPENAI_PURCHASE_MODEL: z.string().min(1).default('gpt-6-luna'),
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),

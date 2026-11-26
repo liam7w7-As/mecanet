@@ -477,4 +477,76 @@ describe('Quotation to Work Order Conversion (E2E)', () => {
     expect(responses.map((response) => response.status).sort()).toEqual([201, 400]);
     expect(await WorkOrder.count({ where: { descripcion: 'Concurrente cotización fase 52' } })).toBe(1);
   });
+
+  it('permite cotizar D&P sin patente y exige vehículo al convertir a OT inicializando 5 etapas', async () => {
+    const cookies = await loginAs('dev@unithor.local');
+    const dpRes = await request(app).get('/api/catalog/dp').set('Cookie', authCookie(cookies));
+    expect(dpRes.status).toBe(200);
+    const revision = dpRes.body.revision as number;
+
+    const createRes = await request(app)
+      .post('/api/quotations')
+      .set('Cookie', authCookie(cookies))
+      .set('X-CSRF-Token', cookies.csrfToken)
+      .send({
+        clientId,
+        vehicleId: null,
+        dpBodyTypeId: 'suv',
+        dpSizeId: 'L',
+        dpVehicleRef: 'Toyota RAV4',
+        notas: 'Cotización D&P sin patente cotización fase 52',
+        items: [
+          {
+            division: 'DP',
+            subtipo: 'servicio_dp',
+            tipoLinea: 'estandar',
+            unidadMedida: 'unidad',
+            cantidad: 1,
+            precioUnitario: 0,
+            descripcion: 'SUV L · Puerta Delantera izquierda — Pintura completa de la pieza',
+            dpPricing: {
+              configurationRevision: revision,
+              bodyTypeId: 'suv',
+              sizeId: 'L',
+              scope: 'piece',
+              pieceId: 'puerta',
+              positionId: 'FL',
+              operations: [{ operationId: 'painting_full' }],
+            },
+          },
+        ],
+      });
+
+    expect(createRes.status).toBe(201);
+    const createdQuotation = createRes.body.quotation;
+    expect(createdQuotation.vehicleId).toBeNull();
+    expect(createdQuotation.dpBodyTypeId).toBe('suv');
+    expect(createdQuotation.dpSizeId).toBe('L');
+    expect(createdQuotation.dpVehicleRef).toBe('Toyota RAV4');
+    expect(createdQuotation.items[0].dpPricingSnapshot).toBeTruthy();
+
+    const failConvert = await request(app)
+      .post(`/api/quotations/${createdQuotation.id}/convert-to-ot`)
+      .set('Cookie', authCookie(cookies))
+      .set('X-CSRF-Token', cookies.csrfToken)
+      .send({ clientId, vehicleId: null });
+    expect(failConvert.status).toBe(400);
+
+    const okConvert = await request(app)
+      .post(`/api/quotations/${createdQuotation.id}/convert-to-ot`)
+      .set('Cookie', authCookie(cookies))
+      .set('X-CSRF-Token', cookies.csrfToken)
+      .send({ clientId, vehicleId, descripcion: 'Conversión D&P cotización fase 52' });
+    expect(okConvert.status).toBe(201);
+    expect(okConvert.body.quotation.vehicleId).toBe(vehicleId);
+    expect(okConvert.body.workOrder.vehicleId).toBe(vehicleId);
+    expect(okConvert.body.workOrder.items[0].division).toBe('DP');
+    expect(okConvert.body.workOrder.items[0].dpStages).toHaveLength(5);
+
+    // Cleanup
+    await WorkOrderItem.destroy({ where: { workOrderId: okConvert.body.workOrder.id } });
+    await WorkOrder.destroy({ where: { id: okConvert.body.workOrder.id }, force: true });
+    await QuotationItem.destroy({ where: { quotationId: createdQuotation.id } });
+    await Quotation.destroy({ where: { id: createdQuotation.id }, force: true });
+  });
 });

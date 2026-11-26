@@ -7,10 +7,10 @@
 .reception-create-page .reception-page-heading a { margin: 0; border: 0; border-radius: 12px; }
 .reception-create-page .reception-form { border: 0; border-radius: 20px; overflow: hidden; }
 .reception-create-page .reception-navigation { padding: 19px 22px 15px; border: 0; border-radius: 20px 20px 0 0; background: #1d396a; }
-.reception-create-page .reception-navigation ol { position: relative; gap: 0; align-items: start; }
-.reception-create-page .reception-navigation ol::before, .reception-create-page .reception-navigation ol::after { content: ''; position: absolute; top: 14px; left: 10%; height: 3px; border-radius: 99px; pointer-events: none; }
-.reception-create-page .reception-navigation ol::before { width: 80%; background: #ffffff18; }
-.reception-create-page .reception-navigation ol::after { width: calc(80% * var(--reception-progress, 0)); background: #a9cbf5; transition: width .3s ease; }
+.reception-create-page .reception-navigation ol { position: relative; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; align-items: start; }
+.reception-create-page .reception-navigation ol::before, .reception-create-page .reception-navigation ol::after { content: ''; position: absolute; top: 14px; left: 12.5%; height: 3px; border-radius: 99px; pointer-events: none; }
+.reception-create-page .reception-navigation ol::before { width: 75%; background: #ffffff18; }
+.reception-create-page .reception-navigation ol::after { width: calc(75% * var(--reception-progress, 0)); background: #a9cbf5; transition: width .3s ease; }
 .reception-create-page .reception-navigation button { z-index: 1; flex-direction: column; justify-content: flex-start; gap: 9px; min-height: 60px; padding: 0 3px; border: 0; border-radius: 8px; color: #90a8cd; background: transparent; text-align: center; box-shadow: none; }
 .reception-create-page .reception-step-icon { position: relative; width: 31px; height: 31px; background: #294775; color: #9eb7da; font-size: 13px; font-weight: 500; }
 .reception-create-page .reception-step-label strong { color: inherit; font-size: 13px; font-weight: 400; white-space: nowrap; }
@@ -47,10 +47,6 @@
 .reception-create-page .reception-client-results > p { grid-column: 1 / -1; }
 .reception-create-page .reception-selection-layout .reception-client-results { max-height: none; overflow: visible; }
 .reception-create-page .reception-client-card { padding: 16px; border: 0; border-radius: 15px; background: #fff; }
-.reception-create-page .reception-client-card > div:first-child p { color: #3c608c; font-size: 13px; font-weight: 500; text-transform: none; }
-.reception-create-page .reception-client-card > div:nth-child(2) > span { display: none; }
-.reception-create-page .reception-client-card > div:nth-child(2) p:first-child { color: #294d7b; font-size: 14px; font-weight: 500; }
-.reception-create-page .reception-client-card > div:nth-child(2) p:not(:first-child) { color: #8b9db8; font-size: 12px; overflow-wrap: anywhere; white-space: normal; }
 .reception-create-page .reception-change-action, .reception-create-page .reception-copy-action, .reception-create-page .reception-choice-context button { min-height: 40px; color: #587ba5; font-size: 12px; font-weight: 400; }
 .reception-create-page .reception-copy-action { margin-top: 8px; }
 .reception-create-page .reception-choice-context { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; color: #8b9db8; font-size: 12px; }

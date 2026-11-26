@@ -1,4 +1,5 @@
 import {
+  getQuotationGrossTotal,
   PURCHASE_DOCUMENT_TYPE_LABELS,
   PURCHASE_PAYMENT_TYPE_LABELS,
   PURCHASE_STATUS_LABELS,
@@ -24,6 +25,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import PurchasePaymentModal from '../../components/purchases/PurchasePaymentModal';
+import PurchaseReturnToStockModal from '../../components/purchases/PurchaseReturnToStockModal';
 import PurchaseVoidModal from '../../components/purchases/PurchaseVoidModal';
 import SupplierFormModal from '../../components/purchases/SupplierFormModal';
 import { usePurchase, useSupplier } from '../../hooks/usePurchases';
@@ -69,6 +71,7 @@ export const PurchaseDetailPage = () => {
   const purchase = purchaseQuery.data;
   const supplierQuery = useSupplier(purchase?.supplierId ?? null);
   const [showVoid, setShowVoid] = useState(false);
+  const [showReturnStock, setShowReturnStock] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
 
@@ -98,6 +101,8 @@ export const PurchaseDetailPage = () => {
   }
 
   const canUpdate = Boolean(user && hasUserPermission(user, 'compras', 'update'));
+  const returnedToStock = Boolean(purchase.express && purchase.items.length && purchase.items.every((item) => item.stockReturnedAt));
+  const canReturnStock = Boolean(canUpdate && user && ['jefe', 'admin', 'desarrollador'].includes(user.role) && purchase.express && !returnedToStock && purchase.estado === 'registrada');
   const canVoid = Boolean(
     user &&
       (user.role === 'admin' || user.role === 'desarrollador') &&
@@ -162,6 +167,7 @@ export const PurchaseDetailPage = () => {
 
         <div className="purchases-detail-actions flex flex-wrap gap-2 sm:justify-end">
           <a
+            hidden={purchase.comprobanteSizeBytes <= 0}
             href={`/api/purchases/${purchase.id}/receipt`}
             target="_blank"
             rel="noreferrer"
@@ -171,6 +177,7 @@ export const PurchaseDetailPage = () => {
             Ver comprobante
           </a>
           <a
+            hidden={purchase.comprobanteSizeBytes <= 0}
             href={`/api/purchases/${purchase.id}/receipt?download=1`}
             className="secondary-button"
           >
@@ -187,7 +194,10 @@ export const PurchaseDetailPage = () => {
               Registrar pago
             </button>
           )}
-          {canVoid && purchase.estado === 'registrada' && (
+          {canReturnStock && <button type="button" className="secondary-button" onClick={() => setShowReturnStock(true)}>
+            <Boxes className="h-4 w-4" aria-hidden="true" /> Enviar a stock general
+          </button>}
+          {canVoid && !purchase.express && purchase.estado === 'registrada' && (
             <button
               type="button"
               className="danger-button"
@@ -199,6 +209,13 @@ export const PurchaseDetailPage = () => {
           )}
         </div>
       </header>
+
+      {returnedToStock && <p role="status" className="rounded-xl border border-brand-line bg-brand-mintPale px-4 py-3 text-sm text-brand-mintInk">
+        Accesorio enviado al stock general. El cobro fue retirado de la OT/COT y la compra y su egreso se conservan.
+      </p>}
+      {purchase.cashMovement?.afterClosureId && <p role="status" className="rounded-xl bg-brand-goldPale px-4 py-3 text-sm text-brand-goldInk">
+        Egreso registrado después del cierre de caja. El cierre original se conserva sin cambios.
+      </p>}
 
       {purchase.estado === 'anulada' && (
         <div
@@ -328,6 +345,9 @@ export const PurchaseDetailPage = () => {
                       </td>
                       <td role="cell" data-label="Subtotal" className="whitespace-nowrap px-4 py-3 text-right font-semibold text-brand-primaryInk">
                         {formatClp(item.subtotal)}
+                        {item.ventaUnitario != null && <span className="mt-1 block text-xs font-normal text-brand-muted">
+                          Venta al cliente: {formatClp(getQuotationGrossTotal(item.ventaUnitario * item.cantidad))}
+                        </span>}
                       </td>
                       <td role="cell" data-label="Stock" className="px-4 py-3 text-xs">
                         {item.afectaStock ? (
@@ -412,6 +432,7 @@ export const PurchaseDetailPage = () => {
               </div>
               <div className="flex shrink-0 gap-2">
                 <a
+                  hidden={purchase.comprobanteSizeBytes <= 0}
                   href={`/api/purchases/${purchase.id}/receipt`}
                   target="_blank"
                   rel="noreferrer"
@@ -421,6 +442,7 @@ export const PurchaseDetailPage = () => {
                   Ver
                 </a>
                 <a
+                  hidden={purchase.comprobanteSizeBytes <= 0}
                   href={`/api/purchases/${purchase.id}/receipt?download=1`}
                   className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-brand-line bg-white px-3 text-xs font-semibold text-brand-primaryInk hover:bg-brand-pale"
                 >
@@ -635,6 +657,7 @@ export const PurchaseDetailPage = () => {
       {showVoid && (
         <PurchaseVoidModal key={purchase.id} purchase={purchase} onClose={() => setShowVoid(false)} />
       )}
+      {showReturnStock && <PurchaseReturnToStockModal purchase={purchase} onClose={() => setShowReturnStock(false)} />}
       {showPayment && (
         <PurchasePaymentModal key={purchase.id} purchase={purchase} onClose={() => setShowPayment(false)} />
       )}

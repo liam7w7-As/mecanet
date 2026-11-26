@@ -21,16 +21,22 @@ export default function DpPiecesEditor({ configuration: config, edit, disabled }
     positionLabel: '', paintingFactor: 1, repairFactor: 1, dismantlingFactor: 1, active: true,
   }));
 
-  return <fieldset disabled={disabled} className="dp-editor-fields">
-    <div className="dp-section-title"><div><h3>Piezas disponibles</h3><p>Desactiva una pieza para nuevas selecciones. Su historial se conserva.</p></div>
+  return <fieldset disabled={disabled} className="dp-editor-fields dp-pieces-layout">
+    <section className="dp-piece-section" aria-labelledby="dp-pieces-heading">
+    <div className="dp-section-title"><h3 id="dp-pieces-heading">Piezas</h3>
       <button type="button" className="dp-secondary" onClick={() => edit((c) => c.pieces.push({ id: nextDpId('pieza', c.pieces), label: '', active: true }))}><Plus aria-hidden="true" />Nueva pieza</button>
     </div>
-    <div className="dp-piece-list">{config.pieces.map((piece, index) => <div className="dp-inline-fields" key={piece.id}>
-      <DpField label="Nombre de pieza"><input value={piece.label} onChange={(e) => edit((c) => { c.pieces[index].label = e.target.value; })} /></DpField>
-      <DpActiveField label={`Activar pieza ${piece.label}`} active={piece.active} onChange={(value) => edit((c) => { c.pieces[index].active = value; })} />
-    </div>)}</div>
-    <div className="dp-section-title"><div><h3>Ubicaciones y matriz de factores</h3><p>Cada ubicación se configura por carrocería. Pintura, reparación y desmontaje tienen factores independientes.</p></div></div>
-    <div className="dp-filter-grid">
+    <div className="dp-rate-table-wrapper"><table className="dp-table dp-pieces-table"><caption className="sr-only">Piezas disponibles</caption>
+      <thead><tr><th scope="col">Pieza</th><th scope="col">Estado</th></tr></thead>
+      <tbody>{config.pieces.map((piece, index) => <tr key={piece.id}>
+        <td><DpField label="Nombre de pieza"><input maxLength={180} placeholder="Nombre de pieza" value={piece.label} onChange={(e) => edit((c) => { c.pieces[index].label = e.target.value; })} /></DpField></td>
+        <td><DpActiveField label={`Activar pieza ${piece.label}`} active={piece.active} onChange={(value) => edit((c) => { c.pieces[index].active = value; })} /></td>
+      </tr>)}</tbody>
+    </table></div>
+    </section>
+    <section className="dp-location-section" aria-labelledby="dp-locations-heading">
+    <div className="dp-section-title"><h3 id="dp-locations-heading">Ubicaciones y factores</h3></div>
+    <div className="dp-filter-grid dp-location-filters">
       <DpField label="Carrocería de las tarifas"><select value={bodyId} onChange={(e) => { setBodyId(e.target.value); setSearch(''); }}>
         {config.bodyTypes.map((body) => <option key={body.id} value={body.id}>{body.label || 'Carrocería sin nombre'}{!body.active ? ' (inactiva)' : ''}</option>)}
       </select></DpField>
@@ -41,7 +47,7 @@ export default function DpPiecesEditor({ configuration: config, edit, disabled }
       <button type="button" className="dp-secondary" disabled={!bodyId} onClick={() => { setSearch(''); addRate(); }}><Plus aria-hidden="true" />Nueva ubicación</button>
     </div>
     <div className="dp-rate-table-wrapper"><table className="dp-table dp-rate-table"><caption className="sr-only">Factores por pieza y ubicación</caption>
-      <thead><tr><th>Pieza</th><th>Ubicación</th><th>Pintura</th><th>Reparación</th><th>Desmontaje / montaje</th><th>Estado</th></tr></thead>
+      <thead><tr><th scope="col">Pieza</th><th scope="col">Ubicación</th><th scope="col">Pintura</th><th scope="col">Reparación</th><th scope="col">Desmontaje / montaje</th><th scope="col">Estado</th></tr></thead>
       <tbody>{rows.map(({ rate, index }) => {
         const name = `${config.pieces.find((piece) => piece.id === rate.pieceId)?.label ?? ''} ${rate.positionLabel}`;
         return <tr key={`${rate.bodyTypeId}:${rate.pieceId}:${rate.positionId}`}>
@@ -56,6 +62,7 @@ export default function DpPiecesEditor({ configuration: config, edit, disabled }
         </tr>;
       })}</tbody>
     </table></div>
-    {rows.length === 0 && <p className="dp-empty">No hay ubicaciones para estos filtros. Agrega una ubicación para definir sus factores.</p>}
+    {rows.length === 0 && <p className="dp-empty">Sin ubicaciones para estos filtros.</p>}
+    </section>
   </fieldset>;
 }

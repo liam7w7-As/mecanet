@@ -3,6 +3,7 @@ import { Transaction } from 'sequelize';
 
 import { enqueueCustomerEmail } from './customer-email-queue.service.js';
 import { notifyRoles, notifyUsers } from './notification.service.js';
+import { assertPurchaseSaleFloors } from './purchase-sale-floor.js';
 import { priceQuotation } from './quotation-pricing.js';
 import { ensureQuotationItemLinks } from './work-order-item-links.js';
 import { assertOpenPriceOrder, getPriceActor } from './work-order-price-policy.js';
@@ -55,7 +56,7 @@ async function priceContext(order: WorkOrder, itemId: number, transaction: Trans
   if (!item) throw ApiError.notFound('Trabajo no encontrado en esta orden');
   const line = linked?.quotationItems.find((candidate) => candidate.workOrderItemId === item.id);
   if (quotation && !line) throw ApiError.badRequest('El servicio no está vinculado a una línea de la cotización');
-  return { item, quotation, line, current: Number(line?.precioUnitario ?? item.precioUnitario) };
+  return { item, quotation, line, workOrderItems: linked?.workOrderItems ?? [], current: Number(line?.precioUnitario ?? item.precioUnitario) };
 }
 
 export async function listPriceSuggestions(workOrderId: number, userId: number): Promise<PriceSuggestionPublic[]> {
@@ -75,13 +76,18 @@ async function applyPrice(order: WorkOrder, suggestion: WorkOrderPriceSuggestion
   if (applyCatalog && (!catalog || Number(catalog.precio) !== Number(suggestion.precioActualCatalogo))) throw ApiError.conflict('El precio del catálogo cambió desde la propuesta o el item ya no está disponible');
   const price = Number(suggestion.precioSugerido);
   if (applyOrder) {
-    const { item, quotation, line } = context;
+    const { item, quotation, line, workOrderItems } = context;
     if (quotation?.estadoPago === 'total') throw ApiError.badRequest('No se pueden modificar los precios de una cotización pagada en su totalidad');
     await item.update({ precioUnitario: price, subtotal: Math.round(price * Number(item.cantidad) * 100) / 100 }, { transaction });
     if (quotation && line) {
       await line.update({ precioUnitario: price }, { transaction });
-      const lines = await QuotationItem.findAll({ where: { quotationId: quotation.id }, order: [['id', 'ASC']], transaction });
+      const lines = await QuotationItem.findAll({ where: { quotationId: quotation.id }, order: [['id', 'ASC']], transaction, lock: Transaction.LOCK.UPDATE });
       const pricing = priceQuotation(lines, quotation);
+      assertPurchaseSaleFloors(lines.map((entry) => ({
+        descripcion: entry.descripcion,
+        cantidad: entry.cantidad,
+        minimumSalePrice: workOrderItems.find((workItem) => workItem.id === entry.workOrderItemId)?.minimumSalePrice ?? null,
+      })), pricing);
       const gross = getQuotationGrossTotal(pricing.total);
       const paid = Number(quotation.pagado);
       if (gross < paid) throw ApiError.badRequest('El nuevo total no puede ser inferior al monto ya pagado');

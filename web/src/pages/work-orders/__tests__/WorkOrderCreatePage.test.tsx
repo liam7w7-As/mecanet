@@ -75,7 +75,92 @@ describe('WorkOrderCreatePage vehicle validation', () => {
     }));
   });
 
-  it('recovers editable billing, validates it in step 2 and submits the snapshot without changing the shared client', async () => {
+  it('keeps both panels and edits contact and billing independently without changing the shared client', async () => {
+    const baseGet = vi.mocked(api.get).getMockImplementation()!;
+    const contact = { ...person, id: 8, nombre: 'Contacto del taller', telefono: '912345678' };
+    vi.mocked(api.get).mockImplementation((url, config) => url === '/clients'
+      ? Promise.resolve({ data: { items: [person, contact] } }) : baseGet(url, config));
+    renderCreate();
+    expect(screen.getByRole('region', { name: 'Responsable del ingreso' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Contacto y facturación' })).toBeInTheDocument();
+    const responsible = await screen.findByRole('button', { name: /Cliente recepción Sin RUT/ });
+    await waitFor(() => expect(responsible).not.toBeDisabled());
+    fireEvent.click(responsible);
+
+    const billing = screen.getByRole('button', { name: 'Editar facturación' });
+    const contactToggle = screen.getByRole('button', { name: 'Cambiar contacto' });
+    expect(billing).toHaveAttribute('aria-expanded', 'false');
+    expect(contactToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('textbox', { name: 'Nombre o razón social' })).not.toBeInTheDocument();
+
+    fireEvent.click(billing);
+    fireEvent.change(screen.getByLabelText('Nombre o razón social'), { target: { value: 'Razón social de esta OT' } });
+    fireEvent.click(contactToggle);
+    expect(billing).toHaveAttribute('aria-expanded', 'false');
+    const picker = within(screen.getByRole('region', { name: 'Datos de contacto' }));
+    expect(picker.getByRole('textbox', { name: 'Datos de contacto' })).toHaveFocus();
+    fireEvent.click(await picker.findByRole('button', { name: /Contacto del taller/ }));
+    expect(contactToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(contactToggle).toHaveTextContent('Contacto del taller');
+    expect(contactToggle).toHaveFocus();
+    expect(billing).toHaveTextContent('Razón social de esta OT');
+    expect(within(screen.getByRole('region', { name: 'Responsable del ingreso' })).getByText(person.nombre)).toBeInTheDocument();
+
+    fireEvent.click(billing);
+    expect(screen.getByLabelText('Nombre o razón social')).toHaveValue('Razón social de esta OT');
+    fireEvent.click(screen.getByRole('button', { name: /^Listo$/ }));
+    expect(billing).toHaveAttribute('aria-expanded', 'false');
+    expect(billing).toHaveFocus();
+    fireEvent.click(billing);
+    fireEvent.click(screen.getByRole('button', { name: 'Usar datos del responsable' }));
+    expect(billing).toHaveTextContent('Se factura al responsable');
+    expect(contactToggle).toHaveTextContent('Contacto del taller');
+    expect(person.nombre).toBe('Cliente recepción');
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('reopens a collapsed billing editor when validation fails without losing edits', async () => {
+    renderCreate();
+    const responsible = await screen.findByRole('button', { name: /Cliente recepción Sin RUT/ });
+    await waitFor(() => expect(responsible).not.toBeDisabled());
+    fireEvent.click(responsible);
+    const billing = screen.getByRole('button', { name: 'Editar facturación' });
+    fireEvent.click(billing);
+    fireEvent.change(screen.getByLabelText('Nombre o razón social'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar contacto' }));
+    expect(billing).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(billing).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('textbox', { name: 'Nombre o razón social' })).toHaveValue('');
+    expect(screen.getByRole('textbox', { name: 'Nombre o razón social' })).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('button', { name: '1. Cliente y facturación' })).toHaveAttribute('aria-current', 'step');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('expands secondary billing details on error and retains them when the editor is collapsed', async () => {
+    renderCreate();
+    const responsible = await screen.findByRole('button', { name: /Cliente recepción Sin RUT/ });
+    await waitFor(() => expect(responsible).not.toBeDisabled());
+    fireEvent.click(responsible);
+    const billing = screen.getByRole('button', { name: 'Editar facturación' });
+    fireEvent.click(billing);
+    const details = screen.getByText('Contacto y dirección de facturación').closest('details')!;
+    expect(details).not.toHaveAttribute('open');
+    fireEvent.click(screen.getByText('Contacto y dirección de facturación'));
+    fireEvent.change(screen.getByLabelText('Correo de facturación'), { target: { value: 'correo inválido' } });
+    fireEvent.change(screen.getByLabelText('Dirección de facturación'), { target: { value: 'Dirección de esta OT' } });
+    fireEvent.click(screen.getByText('Contacto y dirección de facturación'));
+    fireEvent.click(billing);
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(billing).toHaveAttribute('aria-expanded', 'true');
+    expect(details).toHaveAttribute('open');
+    expect(screen.getByLabelText('Dirección de facturación')).toHaveValue('Dirección de esta OT');
+    expect(screen.getByRole('alert')).toHaveTextContent('Email inválido');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('recovers editable billing, validates it in the combined step and submits the snapshot without changing the shared client', async () => {
     const baseGet = vi.mocked(api.get).getMockImplementation()!;
     vi.mocked(api.get).mockImplementation((url, config) => url === '/catalog'
       ? Promise.resolve({ data: { items: [], total: 0, totalPages: 0 } }) : baseGet(url, config));
@@ -98,7 +183,7 @@ describe('WorkOrderCreatePage vehicle validation', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Email inválido');
     expect(screen.getByLabelText('Nombre o razón social')).toHaveValue('Factura recuperada');
     fireEvent.change(screen.getByLabelText('Correo de facturación'), { target: { value: 'FACTURA@EXAMPLE.COM' } });
-    fireEvent.click(screen.getByRole('button', { name: '5. Servicios' }));
+    fireEvent.click(screen.getByRole('button', { name: '4. Servicios' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Revisar y crear orden' }));
     const review = await screen.findByRole('dialog', { name: 'Confirmar recepción de OT' });
     expect(within(review).getByText('Factura recuperada')).toBeInTheDocument();
@@ -143,7 +228,26 @@ describe('WorkOrderCreatePage vehicle validation', () => {
     expect(screen.getByRole('heading', { name: '¿Qué vehículo ingresa?' })).toBeInTheDocument();
   });
 
-  it.each([null, 4])('abre la conversión de COT en recepción paso 3, con vehículo %s, sin crear una OT', async (vehicleId) => {
+  it('restaura Servicios desde un borrador nuevo sin remapearlo como legado', async () => {
+    const baseGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((url, config) => url === '/catalog'
+      ? Promise.resolve({ data: { items: [], total: 0, totalPages: 0 } }) : baseGet(url, config));
+    await saveFormDraft(1, 'work-order:new', workOrderRecoverySchema.parse({
+      activeStep: 3, stepVersion: 2, client: person, contactClient: person, billingClient: person,
+      vehicle: savedVehicle, assignedMechanicId: null, kilometrajeIngreso: '', descripcion: '',
+      fechaIngreso: '2026-11-12T10:00', fechaEntrega: '', items: [],
+      inspection: { nivelCombustible: '', llantaDelanteraIzquierda: '', llantaDelanteraDerecha: '',
+        llantaTraseraIzquierda: '', llantaTraseraDerecha: '', inventario: [], objetosValor: '', observaciones: '' },
+      photos: [], createdOrder: null, uploadedSlots: [],
+    }), 'services-new-version');
+    renderCreate();
+    fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
+    expect(await screen.findByRole('heading', { name: '¿Qué trabajos vamos a realizar?' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '4. Servicios' })).toHaveAttribute('aria-current', 'step');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it.each([null, 4])('abre la conversión de COT en recepción paso 2, con vehículo %s, sin crear una OT', async (vehicleId) => {
     const quotation = { id: 10, codigo: 'COT-26-10', clientId: 7, vehicleId, workOrderId: null,
       total: 10000, notas: 'Trabajo cotizado', items: [] };
     const baseGet = vi.mocked(api.get).getMockImplementation()!;
@@ -154,7 +258,7 @@ describe('WorkOrderCreatePage vehicle validation', () => {
     });
     renderCreate('/quotations/10/convert-to-ot');
     expect(await screen.findByRole('heading', { name: '¿Qué vehículo ingresa?' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '3. Vehículo' })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('button', { name: '2. Vehículo' })).toHaveAttribute('aria-current', 'step');
     await waitFor(() => expect(screen.queryByText('Cargando cotización...')).not.toBeInTheDocument());
     if (vehicleId) expect(screen.getByText('ABCD12')).toBeInTheDocument();
     else expect(screen.getByRole('button', { name: 'Crear vehículo' })).toBeInTheDocument();

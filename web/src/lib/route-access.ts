@@ -54,6 +54,10 @@ export const APP_ROUTES = {
     path: '/quotations/new',
     requiredAnyPermission: [{ modulo: 'comercial', accion: 'create' }],
   },
+  quotationDpCreate: {
+    path: '/quotations/new-dp',
+    requiredAnyPermission: [{ modulo: 'comercial', accion: 'create' }],
+  },
   quotationConvert: {
     path: '/quotations/:quotationId/convert-to-ot',
     requiredAnyPermission: [{ modulo: 'comercial', accion: 'update' }, { modulo: 'taller', accion: 'create' }],
@@ -69,6 +73,10 @@ export const APP_ROUTES = {
   purchaseCreate: {
     path: '/purchases/new',
     requiredAnyPermission: [{ modulo: 'compras', accion: 'create' }],
+  },
+  purchaseHistory: {
+    path: '/purchases/history',
+    requiredAnyPermission: [{ modulo: 'compras', accion: 'read' }],
   },
   purchaseDetail: {
     path: '/purchases/:id',

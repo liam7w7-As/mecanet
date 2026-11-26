@@ -105,6 +105,7 @@ describe('quotation division synchronization without a database', () => {
     vi.mocked(Quotation.findOne).mockResolvedValue(quotation);
     vi.mocked(Quotation.create).mockResolvedValue(quotation);
     vi.mocked(QuotationItem.findAll).mockResolvedValue([]);
+    vi.mocked(WorkOrderItem.findAll).mockResolvedValue([]);
     vi.mocked(CatalogItem.findAll).mockResolvedValue([]);
     vi.mocked(Client.findByPk).mockResolvedValue({ id: 1, nombre: 'Cliente', email: null } as Client);
     vi.mocked(User.findByPk).mockResolvedValue({ nombre: 'Asesor' } as User);

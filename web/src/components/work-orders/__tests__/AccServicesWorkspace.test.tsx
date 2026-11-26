@@ -31,7 +31,8 @@ function Harness({ initial = [], readOnly = false }: { initial?: EditableWorkOrd
       <WorkOrderItemsEditor serviceWorkspace presentation="reception" vehicle={null} items={selected} onChange={setSelected}
         showEmptySummary={Boolean(discount.descuentoTipo)}
         showDiscounts showTotal={false} showExecution={false} isPriceReadOnly={() => readOnly}
-        selectionFooter={<QuotationDiscountSummary items={selected} value={discount} onChange={setDiscount} testId="acc-total" />} />
+        catalogFooter={<QuotationDiscountSummary variant="controls" items={selected} value={discount} onChange={setDiscount} />}
+        selectionFooter={<QuotationDiscountSummary variant="totals" items={selected} value={discount} onChange={setDiscount} testId="acc-total" />} />
       <output data-testid="acc-items">{JSON.stringify(selected)}</output>
     </div>
   </QueryClientProvider>;
@@ -39,7 +40,7 @@ function Harness({ initial = [], readOnly = false }: { initial?: EditableWorkOrd
 
 async function mount(initial: EditableWorkOrderItem[] = [], readOnly = false) {
   render(<Harness initial={initial} readOnly={readOnly} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Repuestos' }));
+  fireEvent.click(within(screen.getByRole('group', { name: 'Tipo de catálogo' })).getByRole('button', { name: 'ACC' }));
   await screen.findByRole('button', { name: `Configurar ${oil.nombre}` });
 }
 async function prepareOil() {
@@ -64,20 +65,25 @@ describe('ACC in the step 5 workspace', () => {
     expect(draft.getByText('Litro')).toBeInTheDocument();
     fireEvent.change(draft.getByLabelText('Cantidad ACC'), { target: { value: '2' } });
     fireEvent.change(draft.getByLabelText('Precio unitario ACC'), { target: { value: '20000' } });
-    fireEvent.change(draft.getByLabelText('Tipo de descuento ACC'), { target: { value: 'porcentaje' } });
-    fireEvent.change(draft.getByLabelText('Descuento ACC'), { target: { value: '10' } });
+    expect(draft.queryByLabelText('Tipo de descuento ACC')).not.toBeInTheDocument();
+    expect(draft.queryByLabelText('Descuento ACC')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Descuento general en pesos')).toBeInTheDocument();
+    expect(screen.getByLabelText('Descuento general en porcentaje')).toHaveValue(0);
     expect(items()).toEqual([]);
     expect(screen.queryByRole('article', { name: /Repuesto ACC/ })).not.toBeInTheDocument();
     expect(screen.queryByTestId('acc-total')).not.toBeInTheDocument();
-    expect(draft.getByText('$36.000')).toBeInTheDocument();
+    expect(draft.getByText('$40.000')).toBeInTheDocument();
     fireEvent.click(draft.getByRole('button', { name: 'Agregar' }));
     const card = within(await screen.findByRole('article', { name: 'Repuesto ACC 1' }));
     expect(items()).toHaveLength(1);
     expect(items()[0]).toMatchObject({ catalogItemId: 71, division: 'ACC', subtipo: 'en_stock',
-      tipoLinea: 'parte', cantidad: '2', precioUnitario: '20000', descuentoTipo: 'porcentaje', descuentoValor: '10', unidadMedida: 'litro' });
-    expect(card.getByText('10% · −$4.000')).toBeInTheDocument();
-    expect(card.getByTestId('item-subtotal-0')).toHaveTextContent('$36.000');
-    expect(screen.getByTestId('acc-total')).toHaveTextContent('$42.840');
+      tipoLinea: 'parte', cantidad: '2', precioUnitario: '20000', unidadMedida: 'litro' });
+    expect(items()[0].descuentoTipo ?? null).toBeNull();
+    expect(Number(items()[0].descuentoValor ?? 0)).toBe(0);
+    expect(card.getByText('Sin descuento')).toBeInTheDocument();
+    expect(card.getByTestId('item-subtotal-0')).toHaveTextContent('$40.000');
+    expect(screen.getByTestId('acc-total')).toHaveTextContent('$47.600');
+    expect(screen.queryByLabelText('Tipo de descuento general')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: `Editar ${oil.nombre}` })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('region', { name: 'Preparar repuesto ACC' })).not.toBeInTheDocument();
   });
@@ -88,30 +94,30 @@ describe('ACC in the step 5 workspace', () => {
     const original = items()[0];
     fireEvent.click(screen.getByRole('button', { name: 'Editar repuesto ACC 1' }));
     fireEvent.change(screen.getByLabelText('Cantidad ACC'), { target: { value: '3' } });
-    fireEvent.change(screen.getByLabelText('Tipo de descuento ACC'), { target: { value: 'fijo' } });
-    fireEvent.change(screen.getByLabelText('Descuento ACC'), { target: { value: '3000' } });
+    fireEvent.change(screen.getByLabelText('Precio unitario ACC'), { target: { value: '30000' } });
     expect(items()[0]).toEqual(original);
     expect(screen.getByTestId('acc-total')).toHaveTextContent('$11.900');
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar edición' }));
     expect(items()[0]).toEqual(original);
     fireEvent.click(screen.getByRole('button', { name: 'Editar repuesto ACC 1' }));
     expect(screen.getByLabelText('Cantidad ACC')).toHaveValue(1);
-    expect(screen.getByLabelText('Tipo de descuento ACC')).toHaveValue('');
+    expect(screen.getByLabelText('Precio unitario ACC')).toHaveValue('10.000');
+    expect(screen.queryByLabelText('Tipo de descuento ACC')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Cantidad ACC'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Precio unitario ACC'), { target: { value: '20000' } });
-    fireEvent.change(screen.getByLabelText('Tipo de descuento ACC'), { target: { value: 'fijo' } });
-    fireEvent.change(screen.getByLabelText('Descuento ACC'), { target: { value: '5000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     expect(items()).toHaveLength(1);
-    expect(items()[0]).toMatchObject({ key: original.key, catalogItemId: original.catalogItemId, cantidad: '2', descuentoValor: '5000' });
-    expect(screen.getByTestId('acc-total')).toHaveTextContent('$41.650');
+    expect(items()[0]).toMatchObject({ key: original.key, catalogItemId: original.catalogItemId, cantidad: '2', precioUnitario: '20000' });
+    expect(items()[0].descuentoTipo ?? null).toBeNull();
+    expect(Number(items()[0].descuentoValor ?? 0)).toBe(0);
+    expect(screen.getByTestId('acc-total')).toHaveTextContent('$47.600');
     // An added catalogue result reopens its editor; it never toggles removal.
     fireEvent.click(screen.getByRole('button', { name: `Editar ${oil.nombre}` }));
     expect(items()).toHaveLength(1);
     expect(screen.getByLabelText('Cantidad ACC')).toHaveValue(2);
   });
 
-  it('rejects zero/fractional quantities and excess discounts without committing anything', async () => {
+  it('rejects zero/fractional quantities and missing prices without committing anything', async () => {
     await mount();
     await prepareOil();
     for (const quantity of ['0', '1.5']) {
@@ -121,41 +127,51 @@ describe('ACC in the step 5 workspace', () => {
       expect(items()).toHaveLength(0);
     }
     fireEvent.change(screen.getByLabelText('Cantidad ACC'), { target: { value: '1' } });
-    fireEvent.change(screen.getByLabelText('Tipo de descuento ACC'), { target: { value: 'porcentaje' } });
-    fireEvent.change(screen.getByLabelText('Descuento ACC'), { target: { value: '101' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('100%');
-    fireEvent.change(screen.getByLabelText('Tipo de descuento ACC'), { target: { value: 'fijo' } });
-    fireEvent.change(screen.getByLabelText('Descuento ACC'), { target: { value: '10001' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('no puede superar el importe');
-    expect(items()).toHaveLength(0);
-    fireEvent.change(screen.getByLabelText('Descuento ACC'), { target: { value: '2000' } });
     fireEvent.change(screen.getByLabelText('Precio unitario ACC'), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Indica el precio unitario');
     expect(items()).toHaveLength(0);
   });
 
-  it('applies fixed and general discounts once, and removal/undo retains the item identity', async () => {
+  it('only exposes the general discount, applies it once, and keeps identity on removal/undo', async () => {
     await mount();
     await prepareOil();
     fireEvent.change(screen.getByLabelText('Cantidad ACC'), { target: { value: '2' } });
-    fireEvent.change(screen.getByLabelText('Tipo de descuento ACC'), { target: { value: 'fijo' } });
-    fireEvent.change(screen.getByLabelText('Descuento ACC'), { target: { value: '5000' } });
+    expect(screen.queryByLabelText('Tipo de descuento ACC')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Descuento ACC')).not.toBeInTheDocument();
+    expect(screen.queryByText('Descuento por línea')).not.toBeInTheDocument();
     const add = screen.getByRole('button', { name: 'Agregar' });
     fireEvent.click(add); fireEvent.click(add);
     expect(items()).toHaveLength(1);
     const original = items()[0];
-    fireEvent.change(screen.getByLabelText('Tipo de descuento general'), { target: { value: 'porcentaje' } });
-    fireEvent.change(screen.getByLabelText('Descuento general'), { target: { value: '10' } });
-    expect(screen.getByTestId('acc-total')).toHaveTextContent('$16.065');
+    fireEvent.change(screen.getByLabelText('Descuento general en porcentaje'), { target: { value: '10' } });
+    expect(screen.getByLabelText('Descuento general en pesos')).toHaveValue('2.000');
+    expect(screen.getAllByLabelText('Descuento general en porcentaje')).toHaveLength(1);
+    expect(screen.getByTestId('acc-total')).toHaveTextContent('$21.420');
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar ítem 1' }));
     expect(items()).toEqual([]);
-    expect(screen.getByLabelText('Tipo de descuento general')).toBeInTheDocument();
+    expect(screen.getByLabelText('Descuento general en porcentaje')).toHaveValue(10);
     fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }));
     expect(items()).toEqual([original]);
-    expect(screen.getByTestId('acc-total')).toHaveTextContent('$16.065');
+    expect(screen.getByTestId('acc-total')).toHaveTextContent('$21.420');
+  });
+
+  it('validates excess general discounts while retaining the committed selection', async () => {
+    await mount();
+    await addOil();
+    const original = items()[0];
+    fireEvent.change(screen.getByLabelText('Descuento general en porcentaje'), { target: { value: '101' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('100%');
+    expect(screen.getByTestId('acc-total')).toHaveTextContent('-');
+    expect(items()).toEqual([original]);
+    fireEvent.change(screen.getByLabelText('Descuento general en pesos'), { target: { value: '10001' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('no puede superar el importe');
+    expect(items()).toEqual([original]);
+    fireEvent.change(screen.getByLabelText('Descuento general en pesos'), { target: { value: '2000' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Descuento general en porcentaje')).toHaveValue(20);
+    expect(screen.getByTestId('acc-total')).toHaveTextContent('$9.520');
+    expect(items()).toEqual([original]);
   });
 
   it('preserves selected MEC work and marks ordered ACC correctly', async () => {
@@ -166,7 +182,7 @@ describe('ACC in the step 5 workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
     expect(items()[0]).toEqual(service);
     expect(items()[1]).toMatchObject({ catalogItemId: 72, esAPedido: true, subtipo: 'a_pedido' });
-    fireEvent.click(screen.getByRole('button', { name: 'Estándar' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tipo de catálogo' })).getByRole('button', { name: 'MEC' }));
     expect(items()).toHaveLength(2);
     expect(screen.getByRole('article', { name: 'Repuesto ACC 2' })).toBeInTheDocument();
   });
@@ -182,16 +198,25 @@ describe('ACC in the step 5 workspace', () => {
     expect(items()[0]).toMatchObject({ division: 'ACC', tipoLinea: 'parte', catalogItemId: null, unidadMedida: 'juego', precioUnitario: '20000' });
   });
 
-  it('retains IDs and operational metadata on editing and respects read-only prices', async () => {
+  it('retains historical discounts, IDs and operational metadata when editing read-only prices', async () => {
     const original: EditableWorkOrderItem = { ...createEmptyWorkOrderItem(), id: 88, key: 'existing-acc-88', catalogItemId: null,
       descripcion: 'Repuesto histórico', division: 'ACC', subtipo: 'a_pedido', tipoLinea: 'parte', esAPedido: true,
-      cantidad: '2', precioUnitario: '12500', estadoOperativo: 'en_proceso', notasOperativas: 'Nota a conservar' };
+      cantidad: '2', precioUnitario: '12500', descuentoTipo: 'fijo', descuentoValor: '5000',
+      estadoOperativo: 'en_proceso', notasOperativas: 'Nota a conservar' };
     await mount([original], true);
+    expect(screen.getByTestId('item-subtotal-0')).toHaveTextContent('$20.000');
+    expect(screen.getByTestId('acc-total')).toHaveTextContent('$23.800');
+    const summary = screen.getByRole('region', { name: 'Resumen de importes' });
+    expect(within(summary).getByText('Descuentos por ítem').closest('div')).toHaveTextContent('- $5.000');
     fireEvent.click(screen.getByRole('button', { name: 'Editar repuesto ACC 1' }));
     expect(screen.getByLabelText('Precio unitario ACC')).toBeDisabled();
+    expect(screen.queryByLabelText('Tipo de descuento ACC')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Cantidad ACC'), { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     expect(items()[0]).toEqual({ ...original, cantidad: '3' });
+    expect(screen.getByTestId('item-subtotal-0')).toHaveTextContent('$32.500');
+    expect(screen.getByTestId('acc-total')).toHaveTextContent('$38.675');
+    expect(within(summary).getByText('Descuentos por ítem').closest('div')).toHaveTextContent('- $5.000');
   });
 
   it('searches without committing a draft and leaves existing selections intact', async () => {

@@ -1,28 +1,21 @@
-import { Building2, Camera, Car, ListChecks, UserRound } from 'lucide-react';
+import { Camera, Car, ListChecks, UserRound } from 'lucide-react';
 
 import type { CSSProperties } from 'react';
 
-export type ReceptionStep = 0 | 1 | 2 | 3 | 4;
+export type ReceptionStep = 0 | 1 | 2 | 3;
 
 export const WORK_ORDER_RECEPTION_STEPS = [
   {
     id: 0,
-    title: 'Responsable',
-    heading: '¿Quién entrega el vehículo?',
-    description: 'Busca al responsable del ingreso o registra un cliente nuevo.',
+    title: 'Cliente y facturación',
+    heading: '¿Quién entrega y a quién facturamos?',
+    description:
+      'Selecciona al responsable del ingreso. La facturación usa sus datos salvo que indiques otros.',
     short: 'Cliente',
     icon: UserRound,
   },
   {
     id: 1,
-    title: 'Facturación',
-    heading: '¿A quién contactamos y facturamos?',
-    description: 'Usaremos los datos del responsable. Puedes cambiarlos si corresponde.',
-    short: 'Factura',
-    icon: Building2,
-  },
-  {
-    id: 2,
     title: 'Vehículo',
     heading: '¿Qué vehículo ingresa?',
     description: 'Selecciona el vehículo que ingresa al taller.',
@@ -30,7 +23,7 @@ export const WORK_ORDER_RECEPTION_STEPS = [
     icon: Car,
   },
   {
-    id: 3,
+    id: 2,
     title: 'Inspección',
     heading: '¿Cómo ingresa el vehículo?',
     description: 'Registra los datos de recepción. Los detalles adicionales son opcionales.',
@@ -38,7 +31,7 @@ export const WORK_ORDER_RECEPTION_STEPS = [
     icon: Camera,
   },
   {
-    id: 4,
+    id: 3,
     title: 'Servicios',
     heading: '¿Qué trabajos vamos a realizar?',
     description:
@@ -55,9 +48,10 @@ export default function WorkOrderReceptionNavigation({
   activeStep: ReceptionStep;
   onStep: (step: ReceptionStep) => void;
 }) {
+  const lastStep = WORK_ORDER_RECEPTION_STEPS.length - 1;
   return (
     <nav className="reception-navigation" aria-label="Línea de tiempo de orden de trabajo">
-      <ol style={{ '--reception-progress': activeStep / 4 } as CSSProperties}>
+      <ol style={{ '--reception-progress': activeStep / lastStep } as CSSProperties}>
         {WORK_ORDER_RECEPTION_STEPS.map((step) => {
           return (
             <li key={step.id}>

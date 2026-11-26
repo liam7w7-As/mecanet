@@ -58,21 +58,8 @@
 }
 .reception-create-page .reception-selection-layout .reception-client-results { max-height: 360px; overflow-y: auto; }
 .reception-create-page .reception-client-results > button { border: 0; box-shadow: none; }
-.reception-create-page .reception-client-picker[data-search-active='false'] > .reception-client-results { display: none; }
+.reception-create-page .reception-client-picker[data-open='false'] > .reception-client-results { display: none; }
 .reception-create-page .reception-client-results > button:hover:not([aria-pressed='true']) { background: #eaf1fb; }
-.reception-create-page [data-reception-step='0'] .reception-client-card[data-selected='true'] { background: #1d396a; color: #fff; }
-.reception-create-page [data-reception-step='0'] .reception-client-card[data-selected='true'] p,
-.reception-create-page [data-reception-step='0'] .reception-client-card[data-selected='true'] .reception-change-action { color: #fff; }
-.reception-create-page [data-reception-step='0'] .reception-client-card[data-selected='true'] p:not(:first-child) { color: #d6e3f7; }
-.reception-create-page [data-reception-step='0'] .reception-client-card[data-selected='true'] :is(.reception-client-name, strong, b) { color: #fff !important; }
-.reception-create-page [data-reception-step='0'] .reception-client-card[data-selected='true'] button {
-  min-height: 36px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  background: #ffffff18;
-}
-.reception-create-page [data-reception-step='0'] .reception-client-card[data-selected='true'] button:hover { background: #ffffff30; }
-.reception-create-page [data-reception-step='0'] .reception-client-card[data-selected='true'] button:focus-visible { outline-color: #c5d9f7; }
 .reception-create-page .reception-billing-grid { gap: 14px; }
 .reception-create-page .reception-client-card p { overflow-wrap: anywhere; }
 
@@ -89,23 +76,23 @@
 }
 .reception-create-page .reception-footer { position: sticky; bottom: 0; z-index: 10; background: #fff; }
 
-.reception-create-page .reception-billing-editor { min-width: 0; padding: 20px; border-radius: 16px; background: var(--reception-primary); color: #fff; }
+.reception-create-page .reception-billing-editor { min-width: 0; padding: 0; border-radius: 0; background: transparent; color: #294d7b; }
 .reception-create-page .reception-billing-editor > header { display: flex; align-items: start; gap: 10px; margin-bottom: 20px; }
-.reception-create-page .reception-billing-editor > header > svg { flex: none; width: 22px; height: 22px; margin-top: 2px; color: #d5e5ff; }
+.reception-create-page .reception-billing-editor > header > svg { display: none; }
 .reception-create-page .reception-billing-editor > header > div { flex: 1; min-width: 0; }
-.reception-create-page .reception-billing-editor h3 { color: #fff; font-size: 16px; font-weight: 600; }
+.reception-create-page .reception-billing-editor h3 { color: #294d7b; font-size: 14px; font-weight: 600; }
 .reception-create-page .reception-billing-editor > header p,
-.reception-create-page .reception-billing-editor > footer p { margin-top: 5px; color: #dce7f8; font-size: 12px; line-height: 1.5; }
-.reception-create-page .reception-billing-editor button { min-height: 36px; padding: 7px 10px; border: 1px solid #ffffff50; border-radius: 9px; background: #ffffff10; color: #fff; font-size: 12px; }
-.reception-create-page .reception-billing-editor button:hover { background: #ffffff25; }
+.reception-create-page .reception-billing-editor > footer p { margin-top: 5px; color: #60758f; font-size: 12px; line-height: 1.5; }
+.reception-create-page .reception-billing-editor > :is(header, footer) button { min-height: 40px; padding: 7px 10px; border: 1px solid #d2deed; border-radius: 9px; background: #fff; color: #294d7b; font-size: 12px; }
+.reception-create-page .reception-billing-editor > :is(header, footer) button:hover { background: #eaf1fb; }
 .reception-create-page .reception-billing-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
 .reception-create-page .reception-billing-field { min-width: 0; }
 .reception-create-page .reception-billing-wide { grid-column: 1 / -1; }
-.reception-create-page .reception-billing-field > label { display: block; margin-bottom: 6px; color: #edf4ff; font-size: 12px; font-weight: 500; }
+.reception-create-page .reception-billing-field > label { display: block; margin-bottom: 6px; color: #506780; font-size: 12px; font-weight: 500; }
 .reception-create-page .reception-billing-field :is(input, select) { width: 100%; min-height: 44px; margin: 0; padding: 9px 11px; border: 1px solid #d7e2f3; border-radius: 9px; background: #fff; color: #203e69; font-size: 14px; }
-.reception-create-page .reception-billing-field :is(input, select):focus { border-color: #ffd600; outline: 2px solid #ffd600; outline-offset: 2px; }
+.reception-create-page .reception-billing-field :is(input, select):focus { border-color: #7798c4; outline: 2px solid #b9d0ef; outline-offset: 2px; }
 .reception-create-page .reception-billing-field > [role='alert'] { margin-top: 6px; padding: 5px 8px; border-radius: 6px; background: #fff0ef; color: #a23436; font-size: 12px; }
-.reception-create-page .reception-billing-editor > footer { margin-top: 18px; padding-top: 12px; border-top: 1px solid #ffffff30; }
+.reception-create-page .reception-billing-editor > footer { margin-top: 18px; padding-top: 12px; border-top: 1px solid #dfe7f1; }
 .reception-create-page .reception-billing-editor > footer button { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; }
 .reception-create-page .reception-billing-editor > footer svg { width: 14px; height: 14px; }
 
@@ -370,4 +357,109 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .reception-create-page .reception-navigation [aria-current='step'] .reception-step-icon::after { animation: none; opacity: .45; transform: none; }
+}
+/* Two panels, with independent contact and billing editors. */
+.reception-create-page .reception-identity-step { min-width: 0; }
+.reception-create-page .reception-identity-grid { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(0, 1.1fr); gap: 20px; align-items: start; transition: grid-template-columns .2s ease; }
+.reception-create-page .reception-identity-grid[data-editing='true'] { grid-template-columns: minmax(260px, .7fr) minmax(0, 1.3fr); }
+.reception-create-page :is(.reception-responsible, .reception-contact-billing) { min-width: 0; padding: 20px; border: 1px solid #dfe7f1; border-radius: 16px; background: #fff; }
+.reception-create-page .reception-identity-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.reception-create-page .reception-identity-heading > div { min-width: 0; }
+.reception-create-page .reception-identity-heading h3 { color: #294d7b; font-size: 15px; font-weight: 600; }
+.reception-create-page .reception-identity-heading p { margin-top: 3px; color: #687d97; font-size: 12px; line-height: 1.5; }
+.reception-create-page .reception-identity-icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 11px; background: #edf3fc; color: #436894; }
+.reception-create-page .reception-identity-icon svg { width: 18px; height: 18px; }
+.reception-create-page .reception-identity-reuse { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #e6edf5; }
+.reception-create-page .reception-identity-reuse > span { color: #60758f; font-size: 12px; }
+.reception-create-page .reception-identity-reuse p { flex-basis: 100%; color: #687d97; font-size: 11px; line-height: 1.5; }
+.reception-create-page .reception-prefill-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 6px 8px; border-radius: 8px; color: #294d7b; font-size: 12px; font-weight: 600; }
+.reception-create-page .reception-prefill-action svg { width: 15px; height: 15px; }
+.reception-create-page .reception-prefill-action:hover { background: #edf3fc; }
+.reception-create-page .reception-identity-default { display: grid; justify-items: center; gap: 10px; padding: 28px 12px; border-radius: 12px; background: #f6f9fd; text-align: center; }
+.reception-create-page .reception-identity-default-icon { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 18px; background: #e8eff9; color: #7291b7; }
+.reception-create-page .reception-identity-default-icon svg { width: 26px; height: 26px; }
+.reception-create-page .reception-identity-default h4 { color: #294d7b; font-size: 15px; font-weight: 600; }
+.reception-create-page .reception-identity-default p { max-width: 34ch; color: #60758f; font-size: 13px; line-height: 1.7; }
+.reception-create-page .reception-identity-default small { color: #687d97; font-size: 12px; }
+.reception-create-page .reception-identity-ready { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 16px; padding: 10px 12px; border-radius: 10px; background: #edf7f3; color: #2b6c58; }
+.reception-create-page .reception-identity-ready > svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.reception-create-page .reception-identity-ready p { font-size: 12px; line-height: 1.6; }
+.reception-create-page .reception-identity-setting { min-width: 0; margin-top: 10px; border: 1px solid #dfe7f1; border-radius: 12px; background: #fff; }
+.reception-create-page .reception-identity-setting[data-open='true'] { border-color: #a8c0df; }
+.reception-create-page .reception-identity-toggle { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 78px; padding: 12px; border-radius: 12px; text-align: left; transition: background .15s; }
+.reception-create-page .reception-identity-toggle:hover { background: #f3f7fc; }
+.reception-create-page .reception-identity-toggle-copy { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.reception-create-page .reception-identity-toggle-copy strong { color: #294d7b; font-size: 13px; font-weight: 600; }
+.reception-create-page .reception-identity-toggle-copy > span { color: #60758f; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.reception-create-page .reception-identity-toggle-action { display: inline-flex; align-items: center; gap: 5px; flex: none; color: #436894; font-size: 12px; }
+.reception-create-page .reception-identity-toggle-action svg { width: 15px; height: 15px; transition: transform .2s; }
+.reception-create-page .reception-identity-toggle[aria-expanded='true'] .reception-identity-toggle-action svg { transform: rotate(180deg); }
+.reception-create-page .reception-identity-editor { min-width: 0; padding: 16px; border-top: 1px solid #e0e8f2; border-radius: 0 0 12px 12px; background: #f7f9fd; }
+.reception-create-page .reception-identity-editor:focus { outline: none; }
+.reception-create-page .reception-identity-editor-note { margin-bottom: 16px; color: #60758f; font-size: 12px; line-height: 1.6; }
+.reception-create-page .reception-identity-editor-footer { display: flex; justify-content: flex-end; margin-top: 16px; }
+.reception-create-page .reception-identity-done { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 18px; border-radius: 9px; background: #1d396a; color: #fff; font-size: 13px; font-weight: 600; }
+.reception-create-page .reception-identity-done:hover { background: #294d7b; }
+.reception-create-page .reception-identity-done svg { width: 16px; height: 16px; }
+.reception-create-page .reception-contact-explanation { margin-bottom: 14px; color: #60758f; font-size: 12px; line-height: 1.6; }
+.reception-create-page .reception-contact-cancel { display: block; min-height: 40px; margin-top: 8px; color: #436894; font-size: 12px; }
+.reception-create-page .reception-identity-error { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: #fff0ef; color: #a23436; font-size: 12px; }
+.reception-create-page .reception-client-card { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; padding: 16px; border-radius: 12px; background: #edf3fc; }
+.reception-create-page .reception-client-avatar { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 12px; background: #1d396a; color: #fff; font-size: 15px; font-weight: 600; }
+.reception-create-page .reception-client-avatar svg { width: 20px; height: 20px; }
+.reception-create-page .reception-client-card-main { flex: 1; min-width: 120px; }
+.reception-create-page .reception-client-kicker { display: none; }
+.reception-create-page .reception-client-card-main .reception-client-name { color: #1d396a; font-size: 16px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.reception-create-page .reception-client-meta { margin-top: 5px; color: #506780; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.reception-create-page .reception-client-card-actions { display: flex; justify-content: flex-end; width: 100%; }
+.reception-create-page .reception-client-card-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 6px 10px; border: 1px solid #c5d5eb; border-radius: 8px; background: #fff; color: #294d7b; font-size: 12px; font-weight: 500; }
+.reception-create-page .reception-client-card-actions button:hover { background: #e2ebf9; }
+.reception-create-page .reception-client-card-actions svg { width: 14px; height: 14px; }
+.reception-create-page .reception-client-picker { display: flex; flex-direction: column; gap: 12px; }
+.reception-create-page .reception-client-picker > .reception-client-picker-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.reception-create-page .reception-client-picker-head > div { display: none; }
+.reception-create-page .reception-client-picker > .reception-client-picker-head > .reception-client-picker-create { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 10px; border: 1px solid #d2deed; border-radius: 9px; background: #fff; color: #294d7b; }
+.reception-create-page .reception-client-picker-create svg { width: 15px; height: 15px; }
+.reception-create-page .reception-client-picker > div.relative { order: -1; width: 100%; }
+.reception-create-page .reception-client-picker input { width: 100%; padding-right: 10px; border: 1px solid #c5d5e8; border-radius: 10px; background: #fff; font-size: 13px; }
+.reception-create-page .reception-client-picker input:focus { outline: 2px solid #b9d0ef; outline-offset: 2px; }
+.reception-create-page .reception-client-picker .reception-client-results { grid-template-columns: minmax(0, 1fr); gap: 6px; width: 100%; padding: 0; }
+.reception-create-page .reception-client-picker .reception-client-results > button { display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 10px; border: 1px solid #e5ecf5; border-radius: 10px; background: #fff; text-align: left; }
+.reception-create-page .reception-client-picker .reception-client-results > button[aria-pressed='true'] { border-color: #a8c0df; background: #edf3fc; color: #294d7b; }
+.reception-create-page .reception-client-picker .reception-client-results > button[aria-pressed='true'] .reception-client-result-meta { color: #506780; }
+.reception-create-page .reception-client-results > button .reception-client-result-avatar { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 10px; background: #edf3fc; color: #577aa6; font-size: 12px; font-weight: 600; }
+.reception-create-page .reception-client-result-copy { flex: 1; min-width: 0; }
+.reception-create-page .reception-client-result-copy > span { display: block; overflow-wrap: anywhere; }
+.reception-create-page .reception-client-result-name { color: #294d7b; font-size: 13px; font-weight: 500; }
+.reception-create-page .reception-client-result-meta { margin-top: 3px; color: #687d97; font-size: 11px; }
+.reception-create-page .reception-client-result-check { flex: none; width: 16px; height: 16px; color: #2b6c58; }
+.reception-create-page .reception-client-results-label { padding: 0 2px 4px; color: #60758f; font-size: 11px; font-weight: 500; }
+.reception-create-page :is(.reception-client-results-message, .reception-client-results-more) { padding: 10px 2px; color: #60758f; font-size: 12px; line-height: 1.6; }
+.reception-create-page .reception-client-results-error { color: #a23436; }
+.reception-create-page .reception-identity-editor .reception-billing-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.reception-create-page .reception-billing-details { margin-top: 18px; border-top: 1px solid #dfe7f1; }
+.reception-create-page .reception-billing-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 58px; padding-block: 12px; cursor: pointer; list-style: none; }
+.reception-create-page .reception-billing-details > summary::-webkit-details-marker { display: none; }
+.reception-create-page .reception-billing-details > summary > span { display: grid; gap: 4px; min-width: 0; }
+.reception-create-page .reception-billing-details strong { color: #294d7b; font-size: 12px; font-weight: 500; }
+.reception-create-page .reception-billing-details small { overflow-wrap: anywhere; color: #60758f; font-size: 11px; line-height: 1.5; }
+.reception-create-page .reception-billing-details > summary > svg { flex: none; width: 16px; height: 16px; color: #60758f; }
+.reception-create-page .reception-billing-details[open] > summary > svg { transform: rotate(180deg); }
+.reception-create-page .reception-billing-details > .reception-billing-fields { padding-top: 8px; }
+@container reception (max-width: 760px) {
+  .reception-create-page .reception-identity-grid,
+  .reception-create-page .reception-identity-grid[data-editing='true'] { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+}
+@container reception (max-width: 540px) {
+  .reception-create-page :is(.reception-responsible, .reception-contact-billing) { padding: 14px; }
+  .reception-create-page .reception-identity-heading { margin-bottom: 16px; }
+  .reception-create-page .reception-identity-editor { padding: 12px; }
+  .reception-create-page .reception-identity-editor .reception-billing-fields { grid-template-columns: minmax(0, 1fr); }
+  .reception-create-page .reception-client-picker input { font-size: 16px; }
+  .reception-create-page .reception-identity-toggle { flex-wrap: wrap; gap: 8px; }
+  .reception-create-page .reception-identity-toggle-copy { flex-basis: calc(100% - 46px); }
+  .reception-create-page .reception-identity-toggle-action { margin-left: 44px; min-height: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reception-create-page :is(.reception-identity-grid, .reception-identity-toggle, .reception-identity-toggle-action svg) { transition: none; }
 }

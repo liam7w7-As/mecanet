@@ -159,14 +159,14 @@ export declare const warehouseRequestQuerySchema: z.ZodObject<{
     estado?: "entregada" | "cancelada" | "pendiente" | "aprobada" | "rechazada" | undefined;
 }>;
 export declare const deliverWarehouseRequestSchema: z.ZodObject<{
-    warehouseId: z.ZodNumber;
+    warehouseId: z.ZodOptional<z.ZodNumber>;
     comentario: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    warehouseId: number;
     comentario?: string | undefined;
+    warehouseId?: number | undefined;
 }, {
-    warehouseId: number;
     comentario?: string | undefined;
+    warehouseId?: number | undefined;
 }>;
 export type CreateWarehouseInput = z.infer<typeof createWarehouseSchema>;
 export type UpdateWarehouseInput = z.infer<typeof updateWarehouseSchema>;

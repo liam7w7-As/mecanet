@@ -151,6 +151,7 @@ export interface CashClosure {
 export interface DailyCashSummary {
   fecha: string;
   isClosed: boolean;
+  postClosureExpenses?: { count: number; total: number };
   totals: {
     confirmedTotal: number;
     manualIncomeTotal: number;

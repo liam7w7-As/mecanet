@@ -38,7 +38,7 @@ export function getQuotationDocumentPages(quotation: Quotation): DocumentPage[] 
   const estimateRowHeight = (item: QuotationItem) => {
     const rawLines = item.descripcion.split('\n');
     const visualLines = rawLines.reduce((acc, l) => acc + Math.max(1, Math.ceil(l.length / 40)), 0);
-    return 14 + visualLines * 16;
+    return 14 + visualLines * 16 + (item.dpPricingSnapshot ? 16 : 0);
   };
 
   // Reserve the final sheet for conditions, totals and banks. Count division
@@ -130,7 +130,7 @@ export default function QuotationDocument({ quotation, totalPages }: { quotation
           {quotation.workOrder && <p className="mt-1 text-[10px]">Según OT: {quotation.workOrder.codigo}</p>}
         </div>
       </header>
-      <section className={`grid gap-5 border-b border-slate-200 py-3 text-[11px] leading-[17px] ${quotation.vehicle ? 'grid-cols-3' : 'grid-cols-2'}`}>
+      <section className={`grid gap-5 border-b border-slate-200 py-3 text-[11px] leading-[17px] ${(quotation.vehicle || quotation.dpBodyTypeId || quotation.dpVehicleRef) ? 'grid-cols-3' : 'grid-cols-2'}`}>
         <div className="min-w-0 break-words">
           <h2 className="mb-1 text-[9px] font-bold text-slate-500">DATOS DEL CLIENTE</h2>
           <p className="text-[12px] font-bold text-[#0E2B4E]">{quotation.client?.nombre ?? 'Sin cliente asignado'}</p>
@@ -147,11 +147,15 @@ export default function QuotationDocument({ quotation, totalPages }: { quotation
           {billingEmail && <p>Correo: {billingEmail}</p>}
           {billingDireccion && <p>Dirección: {billingDireccion}</p>}
         </div>
-        {quotation.vehicle && <div className="min-w-0 break-words">
+        {quotation.vehicle ? <div className="min-w-0 break-words">
           <h2 className="mb-1 text-[9px] font-bold text-slate-500">DATOS DEL VEHÍCULO</h2>
           <p className="text-[14px] font-bold text-[#0E2B4E]">{formatChilePatente(quotation.vehicle.patente)}</p>
           <p>{[quotation.vehicle.marca, quotation.vehicle.modelo].filter(Boolean).join(' ')}</p>
-        </div>}
+        </div> : (quotation.dpBodyTypeId || quotation.dpVehicleRef) ? <div className="min-w-0 break-words">
+          <h2 className="mb-1 text-[9px] font-bold text-slate-500">DATOS DEL VEHÍCULO</h2>
+          <p className="text-[12px] font-bold text-[#0E2B4E]">Patente pendiente</p>
+          <p>{quotation.dpVehicleRef || [quotation.dpBodyTypeId, quotation.dpSizeId].filter(Boolean).join(' · ')}</p>
+        </div> : null}
       </section>
       {page.notesOnly ? <section className="mt-5"><h2 className="text-xs font-bold text-[#0E2B4E]">OBSERVACIONES / CONTINUACIÓN</h2><p className="mt-3 whitespace-pre-wrap break-words text-[11px] leading-[18px]">{page.notes}</p></section> : <>
         <table className="mt-4 w-full table-fixed border-collapse text-[10.5px] leading-[15px]">
@@ -182,7 +186,15 @@ export default function QuotationDocument({ quotation, totalPages }: { quotation
             const { item } = row;
             return <tr key={item.id ?? index} data-document-item className="border-b border-slate-200 align-top even:bg-slate-50">
             <td className="py-2 text-center text-slate-500">{row.number}</td>
-            <td className="break-words px-2 py-2 font-medium whitespace-pre-wrap" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{item.descripcion}</td>
+            <td className="break-words px-2 py-2 font-medium whitespace-pre-wrap" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+              {item.descripcion}
+              {item.dpPricingSnapshot && (
+                <div className="mt-0.5 text-[9.5px] font-normal text-slate-600">
+                  {item.dpPricingSnapshot.lines.map((line) => line.label).join(' + ')}
+                  {item.dpPricingSnapshot.damageLabel ? ` · Daño ${item.dpPricingSnapshot.damageLabel}` : ''}
+                </div>
+              )}
+            </td>
             <td className="py-2 text-center whitespace-nowrap">{item.cantidad}</td>
             <td className="px-2 py-2 text-right tabular-nums whitespace-nowrap">{formatClp(item.precioUnitario)}</td>
             <td className="px-2 py-2 text-right tabular-nums whitespace-nowrap">{item.descuentoTipo && Number(item.descuentoValor) > 0 ? discountLabel(item.descuentoTipo, item.descuentoValor) : '-'}</td>

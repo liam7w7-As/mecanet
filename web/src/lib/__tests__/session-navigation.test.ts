@@ -163,6 +163,7 @@ describe('route access matching', () => {
     expect(getRouteAccess('/work-orders/daily-report')).toBe(APP_ROUTES.dailyReport);
     expect(getRouteAccess('/work-orders/journal')).toBe(APP_ROUTES.workshopJournal);
     expect(getRouteAccess('/quotations/new')).toBe(APP_ROUTES.quotationCreate);
+    expect(getRouteAccess('/quotations/new-dp')).toBe(APP_ROUTES.quotationDpCreate);
     expect(getRouteAccess('/purchases/new')).toBe(APP_ROUTES.purchaseCreate);
     expect(getRouteAccess('/vehicles/42')).toBe(APP_ROUTES.vehicleDetail);
     expect(getRouteAccess('/vehicles/42/extra')).toBeUndefined();

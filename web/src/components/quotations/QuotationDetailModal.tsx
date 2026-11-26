@@ -421,7 +421,11 @@ export const QuotationDetailModal = ({
               </div>
               <div className="commercial-detail-identity">
                 <div><span className="commercial-client-avatar">{getInitials(quotation.client?.nombre)}</span><div><small>Cliente</small><strong>{quotation.client?.nombre ?? 'Sin cliente registrado'}</strong><span>{quotation.client?.rut || quotation.client?.telefono || 'Sin identificación'}</span></div></div>
-                {quotation.vehicle && <div><div><small>Vehículo</small><strong>{quotation.vehicle.patente}</strong><span>{[quotation.vehicle.marca, quotation.vehicle.modelo].filter(Boolean).join(' · ')}</span></div></div>}
+                {quotation.vehicle ? (
+                  <div><div><small>Vehículo</small><strong>{quotation.vehicle.patente}</strong><span>{[quotation.vehicle.marca, quotation.vehicle.modelo].filter(Boolean).join(' · ')}</span></div></div>
+                ) : (quotation.dpBodyTypeId || quotation.dpVehicleRef) ? (
+                  <div><div><small>Vehículo D&amp;P</small><strong>Patente pendiente</strong><span>{quotation.dpVehicleRef || [quotation.dpBodyTypeId, quotation.dpSizeId].filter(Boolean).join(' · ')}</span></div></div>
+                ) : null}
               </div>
               <div className="commercial-detail-metrics" aria-label="Resumen financiero">
                 <div><span>Total cotizado</span><strong>{formatClp(total)}</strong></div>
@@ -755,6 +759,17 @@ export const QuotationDetailModal = ({
                                       </span>
                                     )}
                                   </div>
+
+                                  {item.dpPricingSnapshot && (
+                                    <p className="text-[11px] text-purple-800">
+                                      {item.dpPricingSnapshot.pieceLabel
+                                        ? `${item.dpPricingSnapshot.pieceLabel}${item.dpPricingSnapshot.positionLabel ? ` · ${item.dpPricingSnapshot.positionLabel}` : ''}`
+                                        : 'Vehículo completo'}
+                                      {item.dpPricingSnapshot.damageLabel ? ` (${item.dpPricingSnapshot.damageLabel})` : ''}
+                                      {' — '}
+                                      {item.dpPricingSnapshot.lines.map((line) => line.label).join(' + ')}
+                                    </p>
+                                  )}
 
                                   {/* Custom Note or Justification */}
                                   {item.cleanNote && (

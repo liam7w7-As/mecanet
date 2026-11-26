@@ -61,6 +61,9 @@ export const createQuotationSchema = z
     workOrderId: nullablePositiveId,
     clientId: nullablePositiveId,
     vehicleId: nullablePositiveId,
+    dpBodyTypeId: optionalText(60),
+    dpSizeId: optionalText(60),
+    dpVehicleRef: optionalText(140),
     notas: optionalText(),
     items: z.array(quotationItemInputSchema).default([]),
 })
@@ -68,6 +71,10 @@ export const createQuotationSchema = z
     data.clientId != null ||
     data.vehicleId != null, {
     message: 'Debe informar una orden de trabajo, cliente o vehículo',
+})
+    .refine((data) => !data.dpSizeId || Boolean(data.dpBodyTypeId), {
+    message: 'Selecciona la carrocería antes del tamaño',
+    path: ['dpBodyTypeId'],
 }).superRefine((data, context) => {
     if (data.items.some((item) => item.dpPricing))
         return;
@@ -81,6 +88,9 @@ export const createQuotationSchema = z
 export const updateQuotationSchema = z
     .object({
     ...commercialFields,
+    dpBodyTypeId: optionalText(60),
+    dpSizeId: optionalText(60),
+    dpVehicleRef: optionalText(140),
     notas: optionalText(),
     items: z.array(quotationItemInputSchema).optional(),
     estadoPago: z.enum(QUOTATION_STATUS).optional(),

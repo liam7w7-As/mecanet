@@ -35,6 +35,7 @@ export const MobileTabBar = ({ onOpenMenu, isMenuOpen = false }: MobileTabBarPro
   // pestaña, para que el usuario siempre sepa dónde está parado.
   const moreIsActive = !tabs.some(
     (tab) => !(tab.path === '/work-orders' && ['/work-orders/daily-report', '/work-orders/journal'].includes(pathname))
+      && !(tab.path === '/quotations' && pathname === '/quotations/new-dp')
       && (pathname === tab.path || pathname.startsWith(`${tab.path}/`)),
   );
 
@@ -51,7 +52,7 @@ export const MobileTabBar = ({ onOpenMenu, isMenuOpen = false }: MobileTabBarPro
               to={tab.path}
               aria-label={tab.label}
               aria-describedby={badgeCount > 0 ? badgeId : undefined}
-              end={tab.path === '/work-orders' && ['/work-orders/mine', '/work-orders/daily-report', '/work-orders/journal'].includes(pathname)}
+              end={(tab.path === '/work-orders' && ['/work-orders/mine', '/work-orders/daily-report', '/work-orders/journal'].includes(pathname)) || (tab.path === '/quotations' && pathname === '/quotations/new-dp')}
               className={({ isActive }) => cn('tab-item', isActive && 'active')}
             >
               <span className="tab-icon">

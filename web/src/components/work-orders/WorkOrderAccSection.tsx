@@ -45,7 +45,7 @@ export default function WorkOrderAccSection({
   const canSupervise = Boolean(canManage && canUpdate && user && ['jefe', 'admin', 'desarrollador'].includes(user.role));
   const canSeePrice = !compact || Boolean(user && ['jefe', 'admin', 'desarrollador'].includes(user.role));
   const canDeliver = user?.role === 'bodeguero' && canUpdate && !closed;
-  const canReceive = (item: WorkOrderWorksheetItem) => !closed && canUpdate && user?.role === 'mecanico' && Boolean(
+  const canReceive = (item: WorkOrderWorksheetItem) => !item.expressStockReturnedAt && !closed && canUpdate && user?.role === 'mecanico' && Boolean(
     item.canReceiveCustody ?? (assignedToOrder || item.canWork || item.assignedUser?.id === user.id || item.assignments?.some((entry) => entry.active && entry.userId === user.id)),
   );
   const custodyMutation = useUpdateWorkOrderAccCustodyMutation();
@@ -68,7 +68,7 @@ export default function WorkOrderAccSection({
 
   const handleToggleDelivered = (item: WorkOrderWorksheetItem) => {
     const isDelivered = Boolean(item.entregadoBodegaAt ?? item.custodyBodegueroDeliveredAt) || item.entregadoBodega === true;
-    if (!canDeliver || pending || isDelivered) return;
+    if (!canDeliver || pending || isDelivered || item.expressStockReturnedAt) return;
     custodyMutation.mutate(
       {
         workOrderId,
@@ -213,6 +213,7 @@ export default function WorkOrderAccSection({
                 {/* Item description & A Pedido badge */}
                 <div className={compact ? 'division-job-name' : undefined}>
                   <div className="font-bold text-sm text-slate-800">{item.descripcion}</div>
+                  {item.expressStockReturnedAt && <span className="text-xs font-semibold text-brand-mintInk">Enviado a stock general</span>}
                   {item.esAPedido && (
                     <span className="inline-block mt-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                       ★ Por pedido a proveedor
@@ -226,7 +227,7 @@ export default function WorkOrderAccSection({
                   <div className="flex items-center justify-between gap-2">
                     <button
                       type="button"
-                      disabled={!canDeliver || pending || isDelivered}
+                      disabled={!canDeliver || pending || isDelivered || Boolean(item.expressStockReturnedAt)}
                       onClick={() => handleToggleDelivered(item)}
                       className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition shadow-2xs ${
                         isDelivered
@@ -296,7 +297,7 @@ export default function WorkOrderAccSection({
                   {canSeePrice && item.precioUnitario !== undefined && <span className="font-extrabold text-sm text-slate-800">
                     {formatClp(item.precioUnitario ?? 0)}
                   </span>}
-                  {onSuggestPrice && !closed && (canSupervise || canReceive(item)) && (
+                  {onSuggestPrice && !item.expressStockReturnedAt && !closed && (canSupervise || canReceive(item)) && (
                     <button
                       type="button"
                       onClick={() => onSuggestPrice(item.id)}
@@ -310,7 +311,7 @@ export default function WorkOrderAccSection({
               </div>
               {receptionNote && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-700">Recepción: {receptionNote}</p>}
               {!compact && receivedAt && <p className="mt-1 text-[11px] text-slate-500">Recibido: {formatDateTime(String(receivedAt))}</p>}
-              {renderExecution && (compact ? <details className="division-acc-execution"><summary>Uso del repuesto, notas y adjuntos</summary>{renderExecution(item)}</details> : renderExecution(item))}
+              {renderExecution && !item.expressStockReturnedAt && (compact ? <details className="division-acc-execution"><summary>Uso del repuesto, notas y adjuntos</summary>{renderExecution(item)}</details> : renderExecution(item))}
             </div>
           );
         })}

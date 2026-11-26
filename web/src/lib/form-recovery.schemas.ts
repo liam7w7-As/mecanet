@@ -87,6 +87,8 @@ const photo = z.object({
 });
 export const workOrderRecoverySchema = z.object({
   activeStep: z.number().int().min(0).max(4),
+  /** Version 2 stores the four-step reception indexes. */
+  stepVersion: z.literal(2).optional(),
   client: client.nullable(),
   contactClient: client.nullable(),
   billingClient: client.nullable(),

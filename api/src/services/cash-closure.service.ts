@@ -41,6 +41,7 @@ export interface CashClosurePublic {
 export interface DailyCashSummary {
   fecha: string;
   isClosed: boolean;
+  postClosureExpenses: { count: number; total: number };
   totals: {
     confirmedTotal: number;
     manualIncomeTotal: number;
@@ -211,9 +212,15 @@ export const getDailyCashSummary = async (fecha: string): Promise<DailyCashSumma
     CashClosure.findOne({ where: { fecha }, include: [closerInclude] }),
   ]);
 
+  const lateWhere = { afterClosureId: closure?.id ?? 0, tipo: 'egreso' as const, voidedAt: null };
+  const [lateCount, lateTotal] = closure ? await Promise.all([
+    CashMovement.count({ where: lateWhere }),
+    CashMovement.sum('monto', { where: lateWhere }),
+  ]) : [0, 0];
   return {
     fecha,
     isClosed: closure !== null,
+    postClosureExpenses: { count: lateCount, total: moneyValue(Number(lateTotal ?? 0)) },
     totals,
     closure: closure ? toClosurePublic(closure) : null,
   };

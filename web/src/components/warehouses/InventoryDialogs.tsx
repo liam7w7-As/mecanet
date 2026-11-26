@@ -653,10 +653,10 @@ export function WarehouseDeliveryModal({
   const stock =
     balances.data?.find((balance) => balance.catalogItemId === request.catalogItemId)?.cantidad ??
     0;
-  const insufficient = !balances.isPending && stock < request.cantidad;
+  const insufficient = !request.directPurchase && !balances.isPending && stock < request.cantidad;
   const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === warehouseId && warehouse.activo);
   const closedOrder = ['finalizada', 'entregada', 'cancelada'].includes(request.workOrder.estado);
-  const unavailable = !canDeliver || !selectedWarehouse || balances.isPending || balances.isError || insufficient || request.estado !== 'aprobada' || closedOrder;
+  const unavailable = !canDeliver || (!request.directPurchase && (!selectedWarehouse || balances.isPending || balances.isError || insufficient)) || request.estado !== 'aprobada' || closedOrder;
   return (
     <FormDialog
       id="warehouse-delivery-title"
@@ -674,9 +674,9 @@ export function WarehouseDeliveryModal({
       }
       onSubmit={(event) => {
         event.preventDefault();
-        if (warehouseId === null || unavailable || mutation.isPending) return;
+        if ((!request.directPurchase && warehouseId === null) || unavailable || mutation.isPending) return;
         mutation.mutate(
-          { requestId: request.id, warehouseId, comentario: comentario.trim() || undefined },
+          { requestId: request.id, warehouseId: request.directPurchase ? undefined : warehouseId ?? undefined, comentario: comentario.trim() || undefined },
           {
             onSuccess: (delivered) => {
               notifySuccess(
@@ -701,7 +701,7 @@ export function WarehouseDeliveryModal({
           </div>
         </div>
         <p className="inventory-field-hint">{request.motivo}</p>
-        <label>
+        {request.directPurchase ? <p className="inventory-field-hint">Compra express ya registrada. Confirma la entrega física; no se descontará inventario del almacén.</p> : <><label>
           Almacén de salida
           <select
             className={inputClass}
@@ -724,6 +724,7 @@ export function WarehouseDeliveryModal({
           current={stock}
           next={stock - request.cantidad}
         />
+        </>}
         <label>
           Observación de entrega (opcional)
           <textarea

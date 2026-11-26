@@ -59,22 +59,31 @@ export function DpPricesEditor({ configuration: config, edit, disabled }: DpEdit
   </fieldset>;
 }
 
-export function DpVehiclesEditor({ configuration: config, edit, disabled }: DpEditorProps) {
+export function DpVehiclesEditor({ configuration: config, edit, disabled, onCancel, cancelDisabled }: DpEditorProps & {
+  onCancel: () => void;
+  cancelDisabled: boolean;
+}) {
   return <fieldset disabled={disabled} className="dp-editor-fields">
-    <div className="dp-section-title"><div><h3>Carrocerías y factores por tamaño</h3><p>Un tamaño M puede tener factores distintos en cada carrocería.</p></div>
-      <button type="button" className="dp-secondary" onClick={() => edit((c) => c.bodyTypes.push({ id: nextDpId('carroceria', c.bodyTypes), label: '', active: true, sizes: [{ id: 'm', label: 'M', factor: 1, active: true }] }))}><Plus aria-hidden="true" />Nueva carrocería</button>
-    </div>
-    {config.bodyTypes.map((body, index) => <article className="dp-subpanel" key={body.id}>
-      <div className="dp-inline-fields"><DpField label="Nombre de carrocería"><input value={body.label} onChange={(e) => edit((c) => { c.bodyTypes[index].label = e.target.value; })} /></DpField>
-        <DpActiveField label={`Activar carrocería ${body.label}`} active={body.active} onChange={(value) => edit((c) => { c.bodyTypes[index].active = value; })} />
-        <button type="button" className="dp-secondary" onClick={() => edit((c) => c.bodyTypes[index].sizes.push({ id: nextDpId('tamano', body.sizes), label: '', factor: 1, active: true }))}><Plus aria-hidden="true" />Agregar tamaño</button>
+    <div className="dp-section-title"><h3>Carrocerías y tamaños</h3>
+      <div className="dp-section-actions">
+        <button type="button" className="dp-secondary" disabled={cancelDisabled} onClick={onCancel}>Cancelar</button>
+        <button type="button" className="dp-secondary" onClick={() => edit((c) => c.bodyTypes.push({ id: nextDpId('carroceria', c.bodyTypes), label: '', active: true, sizes: [{ id: 'm', label: 'M', factor: 1, active: true }] }))}><Plus aria-hidden="true" />Nueva carrocería</button>
       </div>
-      <div className="dp-size-grid">{body.sizes.map((size, sizeIndex) => <div className="dp-size-row" key={size.id}>
-        <DpField label={`Tamaño de ${body.label}`}><input value={size.label} onChange={(e) => edit((c) => { c.bodyTypes[index].sizes[sizeIndex].label = e.target.value; })} /></DpField>
-        <DpNumberField label={`Factor ${body.label} ${size.label}`} value={size.factor} min={0.0001} step="any" onChange={(value) => edit((c) => { c.bodyTypes[index].sizes[sizeIndex].factor = value ?? Number.NaN; })} />
-        <DpActiveField label={`Activar tamaño ${body.label} ${size.label}`} active={size.active} onChange={(value) => edit((c) => { c.bodyTypes[index].sizes[sizeIndex].active = value; })} />
-      </div>)}</div>
-    </article>)}
+    </div>
+    <div className="dp-vehicle-grid">{config.bodyTypes.map((body, index) => <article className="dp-vehicle-card" aria-label={body.label || 'Nueva carrocería'} key={body.id}>
+      <header className="dp-vehicle-heading"><DpField label="Nombre de carrocería"><input maxLength={180} placeholder="Carrocería" value={body.label} onChange={(e) => edit((c) => { c.bodyTypes[index].label = e.target.value; })} /></DpField>
+        <DpActiveField label={`Activar carrocería ${body.label}`} active={body.active} onChange={(value) => edit((c) => { c.bodyTypes[index].active = value; })} />
+      </header>
+      <table className="dp-table dp-size-table"><caption className="sr-only">Tamaños de {body.label || 'nueva carrocería'}</caption>
+        <thead><tr><th scope="col">Tamaño</th><th scope="col">Factor</th><th scope="col">Estado</th></tr></thead>
+        <tbody>{body.sizes.map((size, sizeIndex) => <tr key={size.id}>
+          <td><DpField label={`Tamaño de ${body.label}`}><input maxLength={180} placeholder="M" value={size.label} onChange={(e) => edit((c) => { c.bodyTypes[index].sizes[sizeIndex].label = e.target.value; })} /></DpField></td>
+          <td><DpNumberField label={`Factor ${body.label} ${size.label}`} value={size.factor} min={0.0001} step="any" onChange={(value) => edit((c) => { c.bodyTypes[index].sizes[sizeIndex].factor = value ?? Number.NaN; })} /></td>
+          <td><DpActiveField label={`Activar tamaño ${body.label} ${size.label}`} active={size.active} onChange={(value) => edit((c) => { c.bodyTypes[index].sizes[sizeIndex].active = value; })} /></td>
+        </tr>)}</tbody>
+      </table>
+      <footer><button type="button" className="dp-secondary" onClick={() => edit((c) => c.bodyTypes[index].sizes.push({ id: nextDpId('tamano', body.sizes), label: '', factor: 1, active: true }))}><Plus aria-hidden="true" />Agregar tamaño</button></footer>
+    </article>)}</div>
   </fieldset>;
 }
 

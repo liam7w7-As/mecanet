@@ -12,6 +12,7 @@ import {
 import {
   AlertCircle,
   ArrowLeft,
+  Building2,
   Camera,
   Car,
   Check,
@@ -22,6 +23,7 @@ import {
   LoaderCircle,
   NotebookPen,
   PackageCheck,
+  Pencil,
   Plus,
   Save,
   Search,
@@ -29,7 +31,7 @@ import {
   X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -90,7 +92,8 @@ import type { ReactNode } from 'react';
 type ClientOption = Pick<
   Client,
   'id' | 'rut' | 'nombre' | 'tipo' | 'telefono' | 'email' | 'direccion'
-> & Partial<Pick<Client, 'region' | 'comuna'>>;
+> &
+  Partial<Pick<Client, 'region' | 'comuna'>>;
 type ClientModalTarget = 'primary' | 'contact' | 'billing';
 
 interface InspectionDraft {
@@ -117,6 +120,9 @@ const fuelLabels: Record<FuelLevel, string> = {
   tres_cuartos: '3/4',
   lleno: 'Lleno',
 };
+
+/** Drafts created before identity and billing were merged stored five step indexes. */
+const LEGACY_STEP_MAP: Record<number, StepIndex> = { 0: 0, 1: 0, 2: 1, 3: 2, 4: 3 };
 
 const tireLabels: Record<TireCondition, string> = {
   no_revisado: 'No revisado',
@@ -203,6 +209,14 @@ const toQuickVehicle = (
 const clientSubtitle = (client: ClientOption): string =>
   [client.rut ? formatRut(client.rut) : 'Sin RUT', client.telefono ?? 'Sin teléfono'].join(' · ');
 
+const clientInitials = (name: string): string => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  const first = parts[0]?.[0] ?? '';
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
+  return `${first}${last}`.toUpperCase();
+};
+
 interface SelectedClientCardProps {
   title: string;
   client: ClientOption | null;
@@ -211,48 +225,45 @@ interface SelectedClientCardProps {
 }
 
 const SelectedClientCard = ({ title, client, onClear, onChange }: SelectedClientCardProps) => (
-  <div className="reception-client-card rounded-lg border border-brand-line bg-white p-3" data-selected={Boolean(client)}>
-    <div className="flex items-start justify-between gap-3">
-      <p className="text-xs font-bold uppercase text-brand-muted">{title}</p>
-      {client && onChange && (
-        <button
-          type="button"
-          className="reception-change-action"
-          onClick={onChange}
-          aria-label={`Cambiar ${title.toLowerCase()}`}
-        >
-          Cambiar
-        </button>
-      )}
-      {client && onClear && (
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-pale hover:text-brand-primaryInk"
-          onClick={onClear}
-          aria-label={`Quitar ${title.toLowerCase()}`}
-          title="Quitar"
-        >
-          <X className="h-4 w-4" aria-hidden="true" />
-        </button>
+  <div className="reception-client-card" data-selected={Boolean(client)}>
+    <span className="reception-client-avatar" aria-hidden="true">
+      {client ? clientInitials(client.nombre) : <UserRound />}
+    </span>
+    <div className="reception-client-card-main">
+      <p className="reception-client-kicker">{title}</p>
+      {client ? (
+        <>
+          <p className="reception-client-name">{client.nombre}</p>
+          <p className="reception-client-meta">{clientSubtitle(client)}</p>
+          {client.email && <p className="reception-client-meta">{client.email}</p>}
+        </>
+      ) : (
+        <p className="reception-client-name">Sin selección</p>
       )}
     </div>
-    {client ? (
-      <div className="mt-3 flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-line/40 text-brand-primaryInk">
-          <UserRound className="h-5 w-5" aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <p className="reception-client-name break-words font-bold text-brand-primaryInk">{client.nombre}</p>
-          <p className="mt-1 text-sm text-brand-muted">{clientSubtitle(client)}</p>
-          {client.email && <p className="mt-1 truncate text-xs text-brand-muted">{client.email}</p>}
-        </div>
-      </div>
-    ) : (
-      <div className="mt-4 flex items-center gap-3 text-sm text-brand-muted">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-pale">
-          <UserRound className="h-5 w-5" aria-hidden="true" />
-        </span>
-        Sin selección
+    {client && (
+      <div className="reception-client-card-actions">
+        {onChange && (
+          <button
+            type="button"
+            className="reception-change-action"
+            onClick={onChange}
+            aria-label={`Cambiar ${title.toLowerCase()}`}
+          >
+            <Pencil aria-hidden="true" /> Cambiar
+          </button>
+        )}
+        {onClear && (
+          <button
+            type="button"
+            className="reception-client-clear"
+            onClick={onClear}
+            aria-label={`Quitar ${title.toLowerCase()}`}
+            title="Quitar"
+          >
+            <X aria-hidden="true" />
+          </button>
+        )}
       </div>
     )}
   </div>
@@ -264,6 +275,7 @@ interface ClientSearchPickerProps {
   onSelect: (client: ClientOption) => void;
   onCreate: () => void;
   placeholder?: string;
+  autoFocus?: boolean;
 }
 
 const ClientSearchPicker = ({
@@ -272,89 +284,154 @@ const ClientSearchPicker = ({
   onSelect,
   onCreate,
   placeholder = 'Buscar por nombre, RUT o teléfono',
+  autoFocus = false,
 }: ClientSearchPickerProps) => {
   const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(true);
   const debouncedSearch = useDebouncedValue(search.trim(), 250);
   const clientsQuery = useClients({ page: 1, pageSize: 12, search: debouncedSearch || undefined });
+  const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const resultsId = useId();
+  const clients = clientsQuery.data?.items ?? [];
+  const visibleClients = search.trim() ? clients : clients.slice(0, 4);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    inputRef.current?.focus();
+    setOpen(true);
+  }, [autoFocus]);
 
   return (
     <section
-      className="reception-client-picker rounded-lg border border-brand-line bg-white p-4"
+      className="reception-client-picker"
       aria-label={label}
-      data-search-active={search.trim().length > 0}
+      data-open={open}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="reception-client-picker-head">
         <div>
-          <h3 className="font-bold text-brand-primaryInk">{label}</h3>
-          {selectedClient && (
-            <p className="mt-1 text-sm text-brand-muted">{selectedClient.nombre}</p>
-          )}
+          <h3>{label}</h3>
+          <p className="reception-client-picker-hint">Escribe un nombre, RUT o teléfono.</p>
         </div>
-        <button
-          type="button"
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-brand-primaryInk px-3 text-sm font-semibold text-brand-primaryInk hover:bg-brand-primaryInkHover hover:text-white"
-          onClick={onCreate}
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" /> Crear cliente
+        <button type="button" className="reception-client-picker-create" onClick={onCreate}>
+          <Plus aria-hidden="true" /> Crear cliente
         </button>
       </div>
 
-      <div className="relative mt-4">
+      <div className="relative">
         <Search
-          className="pointer-events-none absolute left-3 top-5 h-4 w-4 text-brand-muted"
+          className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-brand-muted"
           aria-hidden="true"
         />
         <input
+          ref={inputRef}
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setOpen(false);
+              return;
+            }
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              setOpen(true);
+              window.requestAnimationFrame(() => {
+                resultsRef.current
+                  ?.querySelector<HTMLButtonElement>('[data-client-result]')
+                  ?.focus();
+              });
+            }
+          }}
           className={`${inputClassName} pl-9`}
           placeholder={placeholder}
           aria-label={label}
+          aria-expanded={open}
+          aria-controls={resultsId}
+          autoComplete="off"
         />
       </div>
 
       <div
-        className="reception-client-results mt-3 max-h-40 overflow-y-auto rounded-lg border border-brand-line"
+        ref={resultsRef}
+        id={resultsId}
+        className="reception-client-results"
         aria-busy={clientsQuery.isFetching}
+        onKeyDown={(event) => {
+          const results = Array.from(
+            resultsRef.current?.querySelectorAll<HTMLButtonElement>('[data-client-result]') ?? [],
+          );
+          const index = results.indexOf(document.activeElement as HTMLButtonElement);
+          if (event.key === 'Escape') {
+            inputRef.current?.focus();
+            setOpen(false);
+          } else if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            results[Math.min(index + 1, results.length - 1)]?.focus();
+          } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (index <= 0) inputRef.current?.focus();
+            else results[index - 1]?.focus();
+          }
+        }}
       >
-        {clientsQuery.isFetching && (
-          <p className="px-3 py-3 text-sm text-brand-muted">Buscando clientes...</p>
+        {open && !search.trim() && clients.length > 0 && (
+          <p className="reception-client-results-label">Clientes recientes</p>
         )}
-        {!clientsQuery.isFetching && clientsQuery.data?.items.length === 0 && (
-          <p className="px-3 py-5 text-center text-sm text-brand-muted">
-            No se encontraron clientes
+        {clientsQuery.isFetching && (
+          <p className="reception-client-results-message">Buscando clientes...</p>
+        )}
+        {!clientsQuery.isFetching && clients.length === 0 && (
+          <p className="reception-client-results-message">
+            {search.trim()
+              ? 'No se encontraron clientes'
+              : 'Aún no hay clientes registrados. Crea el primero.'}
           </p>
         )}
         {clientsQuery.isError && (
-          <p role="alert" className="p-3 text-sm text-brand-coralInk">
+          <p
+            role="alert"
+            className="reception-client-results-message reception-client-results-error"
+          >
             No se pudo cargar la lista.{' '}
             <button type="button" className="underline" onClick={() => void clientsQuery.refetch()}>
               Reintentar
             </button>
           </p>
         )}
-        {clientsQuery.data?.items.map((client) => {
+        {visibleClients.map((client) => {
           const selected = selectedClient?.id === client.id;
           return (
             <button
               key={client.id}
               type="button"
+              data-client-result
               aria-pressed={selected}
-              className={`flex w-full items-center justify-between gap-3 border-b border-brand-line px-3 py-1.5 text-left last:border-0 hover:bg-brand-pale ${
-                selected ? 'bg-brand-line/40' : ''
-              }`}
-              onClick={() => onSelect(toClientOption(client))}
+              aria-label={`${client.nombre} ${clientSubtitle(client)}`}
+              onClick={() => {
+                setOpen(false);
+                onSelect(toClientOption(client));
+              }}
             >
-              <span className="min-w-0">
-                <span className="block break-words text-sm font-semibold text-brand-ink">
-                  {client.nombre}
-                </span>
-                <span className="block text-xs text-brand-muted">{clientSubtitle(client)}</span>
+              <span className="reception-client-result-avatar" aria-hidden="true">
+                {clientInitials(client.nombre)}
               </span>
-              {selected && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
+              <span className="reception-client-result-copy">
+                <span className="reception-client-result-name">{client.nombre}</span>
+                <span className="reception-client-result-meta">{clientSubtitle(client)}</span>
+              </span>
+              {selected && <Check className="reception-client-result-check" aria-hidden="true" />}
             </button>
           );
         })}
+        {open && !search.trim() && clients.length > visibleClients.length && (
+          <p className="reception-client-results-more">
+            Escribe para buscar entre todos los clientes.
+          </p>
+        )}
       </div>
     </section>
   );
@@ -384,11 +461,15 @@ const ClientChoicePanel = ({
   return (
     <div className="reception-person-panel">
       {selectedClient && !choosing ? (
-        renderSelected ? renderSelected(() => setChoosing(true)) : <SelectedClientCard
-          title={title}
-          client={selectedClient}
-          onChange={() => setChoosing(true)}
-        />
+        renderSelected ? (
+          renderSelected(() => setChoosing(true))
+        ) : (
+          <SelectedClientCard
+            title={title}
+            client={selectedClient}
+            onChange={() => setChoosing(true)}
+          />
+        )
       ) : (
         <>
           {selectedClient && (
@@ -402,6 +483,7 @@ const ClientChoicePanel = ({
           <ClientSearchPicker
             label={label}
             selectedClient={selectedClient}
+            autoFocus={Boolean(selectedClient)}
             onSelect={(next) => {
               onSelect(next);
               setChoosing(false);
@@ -440,7 +522,9 @@ const InspectionDisclosure = ({
   children: ReactNode;
 }) => {
   const [open, setOpen] = useState(initiallyOpen);
-  const Icon = { tires: CircleDot, photos: Camera, inventory: PackageCheck, notes: NotebookPen }[kind];
+  const Icon = { tires: CircleDot, photos: Camera, inventory: PackageCheck, notes: NotebookPen }[
+    kind
+  ];
   return (
     <details
       className="reception-disclosure"
@@ -449,7 +533,9 @@ const InspectionDisclosure = ({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>
-        <span className="reception-disclosure-icon" aria-hidden="true"><Icon /></span>
+        <span className="reception-disclosure-icon" aria-hidden="true">
+          <Icon />
+        </span>
         <span>{title}</span>
         <small>{summary}</small>
         <ChevronDown aria-hidden="true" />
@@ -487,13 +573,24 @@ const WorkOrderCreateForm = () => {
   const canReadWorkOrders = Boolean(user && hasUserPermission(user, 'taller', 'read'));
   const mechanicsQuery = useMechanics(canAssignMechanic);
   const [assignedMechanicId, setAssignedMechanicId] = useState<number | null>(null);
-  const [discount, setDiscount] = useState<DiscountDraft>({ descuentoTipo: null, descuentoValor: '0' });
+  const [discount, setDiscount] = useState<DiscountDraft>({
+    descuentoTipo: null,
+    descuentoValor: '0',
+  });
   const [activeStep, setActiveStep] = useState<StepIndex>(0);
   const [client, setClient] = useState<ClientOption | null>(null);
   const [contactClient, setContactClient] = useState<ClientOption | null>(null);
   const [billingClient, setBillingClient] = useState<ClientOption | null>(null);
   const [billingDetails, setBillingDetails] = useState<ClientOption | null>(null);
-  const effectiveBillingClient = billingDetails?.id === billingClient?.id ? billingDetails : billingClient;
+  const [billingEditing, setBillingEditing] = useState(false);
+  const [contactEditing, setContactEditing] = useState(false);
+  const effectiveBillingClient =
+    billingDetails?.id === billingClient?.id ? billingDetails : billingClient;
+  const billingUsesResponsible = Boolean(
+    client &&
+      billingClient?.id === client.id &&
+      (!billingDetails || billingDetails.id !== billingClient?.id),
+  );
   const [vehicle, setVehicle] = useState<QuickSearchVehicle | null>(null);
   const [clientModalTarget, setClientModalTarget] = useState<ClientModalTarget | null>(null);
   const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
@@ -556,6 +653,7 @@ const WorkOrderCreateForm = () => {
   const draftValue = useMemo<WorkOrderRecovery>(
     () => ({
       activeStep,
+      stepVersion: 2,
       client,
       contactClient,
       billingClient,
@@ -630,21 +728,33 @@ const WorkOrderCreateForm = () => {
     ),
     onRestore: (draft): void => {
       prefillApplied.current = true;
-      setActiveStep(draft.activeStep as StepIndex);
+      setActiveStep(
+        draft.stepVersion === 2
+          ? (Math.min(draft.activeStep, 3) as StepIndex)
+          : (LEGACY_STEP_MAP[draft.activeStep] ?? 0),
+      );
       setClient(draft.client);
       setContactClient(draft.contactClient);
       setBillingClient(draft.billingClient);
       setBillingDetails(draft.billingDetails ?? null);
+      setBillingEditing(Boolean(draft.billingDetails));
       setVehicle(draft.vehicle);
       setAssignedMechanicId(canAssignMechanic ? draft.assignedMechanicId : null);
       setKilometrajeIngreso(draft.kilometrajeIngreso);
       setDescripcion(draft.descripcion);
       setFechaIngreso(draft.fechaIngreso);
       setFechaEntrega(draft.fechaEntrega);
-      setItems(draft.items.map((item) => {
-        const sourceId = item.id ?? (isConversion ? Number(item.key.replace('quotation-item-', '')) : null);
-        return { ...item, id: sourceId && Number.isSafeInteger(sourceId) ? sourceId : null, key: 'recovered-' + crypto.randomUUID() };
-      }));
+      setItems(
+        draft.items.map((item) => {
+          const sourceId =
+            item.id ?? (isConversion ? Number(item.key.replace('quotation-item-', '')) : null);
+          return {
+            ...item,
+            id: sourceId && Number.isSafeInteger(sourceId) ? sourceId : null,
+            key: 'recovered-' + crypto.randomUUID(),
+          };
+        }),
+      );
       setDiscount(draft.discount);
       setInspection(draft.inspection);
       setPhotos(
@@ -668,6 +778,10 @@ const WorkOrderCreateForm = () => {
     conversionMutation.isPending ||
     uploadPhotosMutation.isPending;
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const billingPanelRef = useRef<HTMLDivElement>(null);
+  const billingToggleRef = useRef<HTMLButtonElement>(null);
+  const contactToggleRef = useRef<HTMLButtonElement>(null);
+  const identityId = useId();
   const setConfirmPanel = useModalOverlay({
     isOpen: showConfirm,
     onClose: () => setShowConfirm(false),
@@ -676,6 +790,10 @@ const WorkOrderCreateForm = () => {
   useEffect(() => {
     stepHeadingRef.current?.focus();
   }, [activeStep]);
+  useEffect(() => {
+    if (!billingEditing) return;
+    billingPanelRef.current?.focus({ preventScroll: true });
+  }, [billingEditing]);
   const submissionError = isConversion ? conversionMutation.error : createMutation.error;
   const returnPath = isConversion ? `/quotations/${quotationId}` : '/work-orders';
   const vehicleOwnerIsDifferent = Boolean(
@@ -692,9 +810,26 @@ const WorkOrderCreateForm = () => {
       );
       return selectedClient;
     });
+    setBillingEditing(false);
+    setContactEditing(false);
     setErrors((current) => {
       const next = { ...current };
       delete next.clientId;
+      return next;
+    });
+  };
+
+  const useResponsibleForBilling = (): void => {
+    if (!client) return;
+    setBillingClient(client);
+    setBillingDetails(null);
+    setBillingEditing(false);
+    setErrors((current) => {
+      const next = { ...current };
+      delete next.billing;
+      for (const key of Object.keys(next)) {
+        if (key.startsWith('billing.')) delete next[key];
+      }
       return next;
     });
   };
@@ -721,7 +856,8 @@ const WorkOrderCreateForm = () => {
       setBillingClient(selectedResponsible);
     }
     if (selectedVehicle) {
-      if (selectedVehicle.dpBodyTypeId && selectedVehicle.dpSizeId) setVehicle(toQuickVehicle(selectedVehicle, null));
+      if (selectedVehicle.dpBodyTypeId && selectedVehicle.dpSizeId)
+        setVehicle(toQuickVehicle(selectedVehicle, null));
       else setCandidateVehicleId(selectedVehicle.id);
       if (selectedVehicle.kilometraje !== null) {
         setKilometrajeIngreso(String(selectedVehicle.kilometraje));
@@ -729,7 +865,10 @@ const WorkOrderCreateForm = () => {
     }
     if (isConversion && quotationQuery.data) {
       setDescripcion(quotationQuery.data.notas ?? '');
-      setDiscount({ descuentoTipo: quotationQuery.data.descuentoTipo ?? null, descuentoValor: String(quotationQuery.data.descuentoValor ?? 0) });
+      setDiscount({
+        descuentoTipo: quotationQuery.data.descuentoTipo ?? null,
+        descuentoValor: String(quotationQuery.data.descuentoValor ?? 0),
+      });
       setItems(
         (quotationQuery.data.items ?? []).map((item) => ({
           key: `quotation-item-${item.id}`,
@@ -749,9 +888,15 @@ const WorkOrderCreateForm = () => {
           horasHombreEstimadas: '',
           estadoOperativo: item.estadoOperativo,
           notasOperativas: item.notasOperativas ?? '',
+          ...(item.dpPricingSnapshot
+            ? {
+                dpPricing: item.dpPricingSnapshot.selection,
+                dpPricingSnapshot: item.dpPricingSnapshot,
+              }
+            : {}),
         })),
       );
-      setActiveStep(selectedResponsible ? 2 : 0);
+      setActiveStep(selectedResponsible ? 1 : 0);
     }
     prefillApplied.current = true;
   }, [
@@ -775,6 +920,7 @@ const WorkOrderCreateForm = () => {
     }
     if (clientModalTarget === 'contact') {
       setContactClient(selectedClient);
+      setContactEditing(false);
     }
     if (clientModalTarget === 'billing') {
       setBillingClient(selectedClient);
@@ -787,8 +933,12 @@ const WorkOrderCreateForm = () => {
     else setCandidateVehicleId(selectedVehicle.id);
   };
 
-  const commitVehicle = (selectedVehicle: QuickSearchVehicle, kilometraje?: number | null): void => {
-    if (vehicle?.id !== selectedVehicle.id) setKilometrajeIngreso(kilometraje == null ? '' : String(kilometraje));
+  const commitVehicle = (
+    selectedVehicle: QuickSearchVehicle,
+    kilometraje?: number | null,
+  ): void => {
+    if (vehicle?.id !== selectedVehicle.id)
+      setKilometrajeIngreso(kilometraje == null ? '' : String(kilometraje));
     setVehicle(selectedVehicle);
     setErrors((current) => {
       const next = { ...current };
@@ -802,17 +952,28 @@ const WorkOrderCreateForm = () => {
     setContactClient(toClientOption(data.contact));
     setBillingClient(toClientOption(data.billing));
     const savedBilling = data.order.billing;
-    setBillingDetails(savedBilling ? {
-      ...toClientOption(data.billing),
-      nombre: savedBilling.nombre ?? data.billing.nombre,
-      rut: savedBilling.rut, telefono: savedBilling.telefono, email: savedBilling.email,
-      tipo: savedBilling.tipo ?? data.billing.tipo, direccion: savedBilling.direccion,
-      region: savedBilling.region, comuna: savedBilling.comuna,
-    } : null);
+    setBillingDetails(
+      savedBilling
+        ? {
+            ...toClientOption(data.billing),
+            nombre: savedBilling.nombre ?? data.billing.nombre,
+            rut: savedBilling.rut,
+            telefono: savedBilling.telefono,
+            email: savedBilling.email,
+            tipo: savedBilling.tipo ?? data.billing.tipo,
+            direccion: savedBilling.direccion,
+            region: savedBilling.region,
+            comuna: savedBilling.comuna,
+          }
+        : null,
+    );
+    setBillingEditing(false);
     commitVehicle(toQuickVehicle(data.vehicle, null), data.vehicle.kilometraje);
     setPendingPrefill(null);
     setErrors({});
-    notifySuccess(`Datos cargados desde ${data.order.codigo}. Revisa la recepción antes de continuar.`);
+    notifySuccess(
+      `Datos cargados desde ${data.order.codigo}. Revisa la recepción antes de continuar.`,
+    );
   };
 
   const updateInspection = <K extends keyof InspectionDraft>(
@@ -878,22 +1039,33 @@ const WorkOrderCreateForm = () => {
       setErrors({ clientId: 'Seleccione o cree el responsable que entrega el vehículo.' });
       return false;
     }
-    if (step === 1 && (!contactClient || !billingClient)) {
+    if (step === 0 && (!contactClient || !billingClient)) {
+      setContactEditing(!contactClient);
+      setBillingEditing(Boolean(contactClient && !billingClient));
       setErrors({ billing: 'Seleccione datos de contacto y facturación.' });
       return false;
     }
-    if (step === 1 && billingDetails && billingDetails.id === billingClient?.id) {
+    if (step === 0 && billingDetails && billingDetails.id === billingClient?.id) {
       const validation = createWorkOrderSchema.shape.billing.safeParse(billingDetails);
       if (!validation.success) {
-        setErrors(getFieldErrors(validation.error.issues.map((issue) => ({ ...issue, path: ['billing', ...issue.path] }))));
+        setBillingEditing(true);
+        setContactEditing(false);
+        setErrors(
+          getFieldErrors(
+            validation.error.issues.map((issue) => ({
+              ...issue,
+              path: ['billing', ...issue.path],
+            })),
+          ),
+        );
         return false;
       }
     }
-    if (step === 2 && !vehicle) {
+    if (step === 1 && !vehicle) {
       setErrors({ vehicleId: 'Seleccione o cree el vehículo que ingresa al taller.' });
       return false;
     }
-    if (step === 2 && vehicle && (!vehicle.dpBodyTypeId || !vehicle.dpSizeId)) {
+    if (step === 1 && vehicle && (!vehicle.dpBodyTypeId || !vehicle.dpSizeId)) {
       setCandidateVehicleId(vehicle.id);
       setErrors({ vehicleId: 'Completa carrocería y tamaño antes de continuar.' });
       return false;
@@ -915,13 +1087,13 @@ const WorkOrderCreateForm = () => {
   };
 
   const goNext = (): void => {
-    // Avance explícito 3 Inspección -> 4 Servicios. validateStep(3) siempre
+    // Avance explícito 3 Inspección -> 4 Servicios. validateStep(2) siempre
     // permite avanzar (la inspección es opcional), se usa update funcional
     // para evitar cierre stale.
-    if (activeStep >= 4 || !validateStep(activeStep)) {
+    if (activeStep >= 3 || !validateStep(activeStep)) {
       return;
     }
-    setActiveStep((previous) => (previous < 4 ? ((previous + 1) as StepIndex) : previous));
+    setActiveStep((previous) => (previous < 3 ? ((previous + 1) as StepIndex) : previous));
   };
 
   const buildPayload = (): ReturnType<typeof createWorkOrderSchema.safeParse> => {
@@ -961,13 +1133,20 @@ const WorkOrderCreateForm = () => {
           subtipo: item.subtipo,
           esAPedido: item.esAPedido,
           ...(item.dpPricing ? { dpPricing: item.dpPricing } : {}),
-          ...(canAssignMechanic ? { assignedUserId: item.assignedUserId ?? null, teamMembers: item.teamMembers } : {}),
+          ...(canAssignMechanic
+            ? { assignedUserId: item.assignedUserId ?? null, teamMembers: item.teamMembers }
+            : {}),
           descripcion: item.descripcion,
           tipoLinea: item.tipoLinea,
           unidadMedida: item.unidadMedida,
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
-          ...(!isConversion ? { descuentoTipo: item.descuentoTipo ?? null, descuentoValor: item.descuentoValor ?? 0 } : {}),
+          ...(!isConversion
+            ? {
+                descuentoTipo: item.descuentoTipo ?? null,
+                descuentoValor: item.descuentoValor ?? 0,
+              }
+            : {}),
           horasHombreEstimadas: item.horasHombreEstimadas,
           estadoOperativo: item.estadoOperativo,
           notasOperativas: item.notasOperativas,
@@ -981,19 +1160,25 @@ const WorkOrderCreateForm = () => {
       return;
     }
     // Validar pasos base antes de mostrar el resumen
-    for (const step of [0, 1, 2] as const) {
+    for (const step of [0, 1] as const) {
       if (!validateStep(step)) {
         setActiveStep(step);
         return;
       }
     }
     const result = buildPayload();
-    const invalidVehiclePricing = items.findIndex((item) => item.dpPricing && (
-      item.dpPricing.bodyTypeId !== vehicle?.dpBodyTypeId || item.dpPricing.sizeId !== vehicle?.dpSizeId
-    ));
+    const invalidVehiclePricing = items.findIndex(
+      (item) =>
+        item.dpPricing &&
+        (item.dpPricing.bodyTypeId !== vehicle?.dpBodyTypeId ||
+          item.dpPricing.sizeId !== vehicle?.dpSizeId),
+    );
     if (invalidVehiclePricing >= 0) {
-      setActiveStep(4);
-      setErrors({ [`items.${invalidVehiclePricing}.dpPricing`]: 'El vehículo cambió. Edita este servicio D&P para recalcular su tarifa.' });
+      setActiveStep(3);
+      setErrors({
+        [`items.${invalidVehiclePricing}.dpPricing`]:
+          'El vehículo cambió. Edita este servicio D&P para recalcular su tarifa.',
+      });
       return;
     }
     if (!result.success) {
@@ -1001,10 +1186,13 @@ const WorkOrderCreateForm = () => {
       return;
     }
     if (!isConversion) {
-      try { calculateQuotationPricing(result.data.items, discount); }
-      catch (error) {
-        setErrors({ descuentoValor: error instanceof Error ? error.message : 'Descuento inválido' });
-        setActiveStep(4);
+      try {
+        calculateQuotationPricing(result.data.items, discount);
+      } catch (error) {
+        setErrors({
+          descuentoValor: error instanceof Error ? error.message : 'Descuento inválido',
+        });
+        setActiveStep(3);
         return;
       }
     }
@@ -1100,8 +1288,18 @@ const WorkOrderCreateForm = () => {
           ? (
               await conversionMutation.mutateAsync({
                 id: quotationId,
-                data: convertQuotationToWorkOrderSchema.strip().parse({ ...result.data,
-                  ...(canAssignMechanic ? { itemAssignments: items.map((item) => ({ quotationItemId: item.id ?? Number(item.key.replace('quotation-item-', '')), assignedUserId: item.assignedUserId ?? null, teamMembers: item.teamMembers })) } : {}),
+                data: convertQuotationToWorkOrderSchema.strip().parse({
+                  ...result.data,
+                  ...(canAssignMechanic
+                    ? {
+                        itemAssignments: items.map((item) => ({
+                          quotationItemId:
+                            item.id ?? Number(item.key.replace('quotation-item-', '')),
+                          assignedUserId: item.assignedUserId ?? null,
+                          teamMembers: item.teamMembers,
+                        })),
+                      }
+                    : {}),
                 }),
               })
             ).workOrder
@@ -1185,9 +1383,18 @@ const WorkOrderCreateForm = () => {
     >
       {isSubmitting && (
         <SavingOverlay
-          progress={uploadPhotosMutation.isPending && photos.length
-            ? photos.reduce((sum, photo) => sum + (uploadedSlots.includes(photo.slot) ? 100 : photoTransfers[photo.slot]?.percent ?? 0), 0) / photos.length
-            : undefined}
+          progress={
+            uploadPhotosMutation.isPending && photos.length
+              ? photos.reduce(
+                  (sum, photo) =>
+                    sum +
+                    (uploadedSlots.includes(photo.slot)
+                      ? 100
+                      : (photoTransfers[photo.slot]?.percent ?? 0)),
+                  0,
+                ) / photos.length
+              : undefined
+          }
           message={
             uploadPhotosMutation.isPending
               ? 'Guardando fotos de la OT…'
@@ -1280,71 +1487,280 @@ const WorkOrderCreateForm = () => {
                 data-reception-step={activeStep}
               >
                 <div className="reception-step-heading">
-                  <span>Paso {activeStep + 1} de 5</span>
+                  <span>
+                    Paso {activeStep + 1} de {steps.length}
+                  </span>
                   <h2 ref={stepHeadingRef} tabIndex={-1}>
                     {steps[activeStep].heading}
                   </h2>
                   <p>{steps[activeStep].description}</p>
                 </div>
                 {activeStep === 0 && (
-                  <div className="reception-selection-layout grid gap-5 lg:grid-cols-[360px_1fr]">
-                    {!isConversion && canReadWorkOrders && <div className="lg:col-span-2">
-                      <button type="button" className="service-primary-button" onClick={() => setPrefillOpen(true)}>Cargar desde una OT</button>
-                    </div>}
-                    <ClientChoicePanel
-                      title="Responsable del ingreso"
-                      label="Buscar responsable"
-                      selectedClient={client}
-                      onSelect={setPrimaryClient}
-                      onCreate={() => setClientModalTarget('primary')}
-                    />
-                    {errors.clientId && (
-                      <p className="text-sm text-brand-coralInk lg:col-span-2">{errors.clientId}</p>
-                    )}
+                  <div
+                    className="reception-identity-step reception-identity-grid"
+                    data-editing={billingEditing || contactEditing}
+                  >
+                    <section className="reception-responsible" aria-label="Responsable del ingreso">
+                      <header className="reception-identity-heading">
+                        <span className="reception-identity-icon" aria-hidden="true">
+                          <UserRound />
+                        </span>
+                        <div>
+                          <h3>Responsable del ingreso</h3>
+                          <p>La persona o empresa que entrega el vehículo.</p>
+                        </div>
+                      </header>
+                      <ClientChoicePanel
+                        title="Responsable del ingreso"
+                        label="Buscar responsable"
+                        selectedClient={client}
+                        onSelect={setPrimaryClient}
+                        onCreate={() => setClientModalTarget('primary')}
+                      />
+                      {errors.clientId && (
+                        <p role="alert" className="reception-identity-error">
+                          {errors.clientId}
+                        </p>
+                      )}
+                      {!isConversion && canReadWorkOrders && (
+                        <div className="reception-identity-reuse">
+                          <span>¿Ya lo recibiste antes?</span>
+                          <button
+                            type="button"
+                            className="reception-prefill-action"
+                            onClick={() => setPrefillOpen(true)}
+                          >
+                            <NotebookPen aria-hidden="true" /> Cargar desde una OT
+                          </button>
+                          <p>Reutiliza cliente y vehículo, sin copiar los trabajos.</p>
+                        </div>
+                      )}
+                    </section>
+
+                    <section
+                      className="reception-contact-billing"
+                      aria-label="Contacto y facturación"
+                    >
+                      <header className="reception-identity-heading">
+                        <span className="reception-identity-icon" aria-hidden="true">
+                          <Building2 />
+                        </span>
+                        <div>
+                          <h3>Contacto y facturación</h3>
+                          <p>Usa los mismos datos o personaliza solo lo necesario.</p>
+                        </div>
+                      </header>
+                      {client ? (
+                        <div className="reception-identity-settings">
+                          <div className="reception-identity-ready" role="status">
+                            <Check aria-hidden="true" />
+                            <p>
+                              Responsable listo.{' '}
+                              {billingUsesResponsible && contactClient?.id === client.id
+                                ? 'Usaremos sus datos para el contacto y la facturación.'
+                                : 'Revisa los datos de contacto y facturación de esta OT.'}
+                            </p>
+                          </div>
+
+                          <section
+                            className="reception-identity-setting"
+                            data-open={billingEditing}
+                            aria-label="Facturación"
+                          >
+                            <button
+                              ref={billingToggleRef}
+                              type="button"
+                              className="reception-identity-toggle"
+                              aria-label="Editar facturación"
+                              aria-expanded={billingEditing}
+                              aria-controls={`${identityId}-billing`}
+                              onClick={() => {
+                                setBillingEditing(!billingEditing);
+                                setContactEditing(false);
+                              }}
+                            >
+                              <span className="reception-identity-icon" aria-hidden="true">
+                                <Building2 />
+                              </span>
+                              <span className="reception-identity-toggle-copy">
+                                <strong>
+                                  {billingUsesResponsible
+                                    ? 'Se factura al responsable'
+                                    : 'Facturación personalizada'}
+                                </strong>
+                                <span>
+                                  {effectiveBillingClient
+                                    ? `${effectiveBillingClient.nombre} · ${effectiveBillingClient.rut ? formatRut(effectiveBillingClient.rut) : 'Sin RUT'}`
+                                    : 'Selecciona a quién se factura'}
+                                </span>
+                              </span>
+                              <span className="reception-identity-toggle-action">
+                                {billingEditing ? 'Cerrar' : 'Editar'}{' '}
+                                <ChevronDown aria-hidden="true" />
+                              </span>
+                            </button>
+                            <div id={`${identityId}-billing`} hidden={!billingEditing}>
+                              <div
+                                className="reception-identity-editor"
+                                ref={billingPanelRef}
+                                tabIndex={-1}
+                              >
+                                {!billingUsesResponsible && (
+                                  <div className="reception-identity-editor-note">
+                                    <button
+                                      type="button"
+                                      className="reception-copy-action"
+                                      onClick={useResponsibleForBilling}
+                                    >
+                                      Usar datos del responsable
+                                    </button>
+                                  </div>
+                                )}
+                                <ClientChoicePanel
+                                  title="Datos de facturación"
+                                  label="Datos de facturación"
+                                  selectedClient={billingClient}
+                                  onSelect={(next) => {
+                                    setBillingClient(next);
+                                    setBillingDetails(null);
+                                  }}
+                                  onCreate={() => setClientModalTarget('billing')}
+                                  responsible={client}
+                                  copyLabel="Facturar al cliente de recepción"
+                                  renderSelected={(onChangeClient) =>
+                                    effectiveBillingClient && (
+                                      <ReceptionBillingFields
+                                        value={effectiveBillingClient}
+                                        errors={errors}
+                                        edited={billingDetails?.id === billingClient?.id}
+                                        onChange={setBillingDetails}
+                                        onChangeClient={onChangeClient}
+                                        onReset={() => setBillingDetails(null)}
+                                      />
+                                    )
+                                  }
+                                />
+                                <div className="reception-identity-editor-footer">
+                                  <button
+                                    type="button"
+                                    className="reception-identity-done"
+                                    onClick={() => {
+                                      if (!validateStep(0)) return;
+                                      setBillingEditing(false);
+                                      billingToggleRef.current?.focus();
+                                    }}
+                                  >
+                                    <Check aria-hidden="true" /> Listo
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </section>
+
+                          <section
+                            className="reception-identity-setting"
+                            data-open={contactEditing}
+                            aria-label="Contacto de la OT"
+                          >
+                            <button
+                              ref={contactToggleRef}
+                              type="button"
+                              className="reception-identity-toggle"
+                              aria-label="Cambiar contacto"
+                              aria-expanded={contactEditing}
+                              aria-controls={`${identityId}-contact`}
+                              onClick={() => {
+                                setContactEditing(!contactEditing);
+                                setBillingEditing(false);
+                              }}
+                            >
+                              <span className="reception-identity-icon" aria-hidden="true">
+                                <UserRound />
+                              </span>
+                              <span className="reception-identity-toggle-copy">
+                                <strong>Contacto de la OT</strong>
+                                <span>
+                                  {contactClient?.id === client.id
+                                    ? `Mismo responsable · ${contactClient.telefono || 'Sin teléfono registrado'}`
+                                    : contactClient
+                                      ? `${contactClient.nombre} · ${contactClient.telefono || 'Sin teléfono registrado'}`
+                                      : 'Selecciona un contacto'}
+                                </span>
+                              </span>
+                              <span className="reception-identity-toggle-action">
+                                {contactEditing ? 'Cerrar' : 'Cambiar'}{' '}
+                                <ChevronDown aria-hidden="true" />
+                              </span>
+                            </button>
+                            <div id={`${identityId}-contact`} hidden={!contactEditing}>
+                              {contactEditing && (
+                                <div className="reception-identity-editor">
+                                  <p className="reception-contact-explanation">
+                                    ¿A quién contactamos sobre los trabajos? No cambia al
+                                    responsable ni a quién se factura.
+                                  </p>
+                                  <ClientSearchPicker
+                                    label="Datos de contacto"
+                                    selectedClient={contactClient}
+                                    autoFocus
+                                    onSelect={(next) => {
+                                      setContactClient(next);
+                                      setContactEditing(false);
+                                      contactToggleRef.current?.focus();
+                                    }}
+                                    onCreate={() => setClientModalTarget('contact')}
+                                  />
+                                  {contactClient?.id !== client.id && (
+                                    <button
+                                      type="button"
+                                      className="reception-copy-action"
+                                      onClick={() => {
+                                        setContactClient(client);
+                                        setContactEditing(false);
+                                        contactToggleRef.current?.focus();
+                                      }}
+                                    >
+                                      Usar al responsable como contacto
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="reception-contact-cancel"
+                                    onClick={() => {
+                                      setContactEditing(false);
+                                      contactToggleRef.current?.focus();
+                                    }}
+                                  >
+                                    Conservar selección
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </section>
+                          {errors.billing && (
+                            <p role="alert" className="reception-identity-error">
+                              {errors.billing}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="reception-identity-default">
+                          <span className="reception-identity-default-icon" aria-hidden="true">
+                            <Building2 />
+                          </span>
+                          <h4>Un cliente, todo listo</h4>
+                          <p>
+                            Elige al responsable y completaremos sus datos de contacto y facturación
+                            automáticamente.
+                          </p>
+                          <small>Si son distintos, podrás cambiarlos aquí.</small>
+                        </div>
+                      )}
+                    </section>
                   </div>
                 )}
 
                 {activeStep === 1 && (
-                  <div className="space-y-5">
-                    <div className="reception-responsible-strip">
-                      <SelectedClientCard title="Responsable de recepción" client={client} />
-                    </div>
-
-                    <div className="reception-billing-grid">
-                      <ClientChoicePanel
-                        title="Datos de contacto"
-                        label="Datos de contacto"
-                        selectedClient={contactClient}
-                        onSelect={setContactClient}
-                        onCreate={() => setClientModalTarget('contact')}
-                        responsible={client}
-                        copyLabel="Usar cliente de recepción"
-                      />
-                      <ClientChoicePanel
-                        title="Datos de facturación"
-                        label="Datos de facturación"
-                        selectedClient={billingClient}
-                        onSelect={(next) => { setBillingClient(next); setBillingDetails(null); }}
-                        onCreate={() => setClientModalTarget('billing')}
-                        responsible={client}
-                        copyLabel="Facturar al cliente de recepción"
-                        renderSelected={(onChangeClient) => effectiveBillingClient && <ReceptionBillingFields
-                          value={effectiveBillingClient}
-                          errors={errors}
-                          edited={billingDetails?.id === billingClient?.id}
-                          onChange={setBillingDetails}
-                          onChangeClient={onChangeClient}
-                          onReset={() => setBillingDetails(null)}
-                        />}
-                      />
-                    </div>
-                    {errors.billing && (
-                      <p className="text-sm text-brand-coralInk">{errors.billing}</p>
-                    )}
-                  </div>
-                )}
-
-                {activeStep === 2 && (
                   <div className="reception-vehicle-layout" data-selected={!vehicleSelectionOpen}>
                     {!vehicleSelectionOpen && (
                       <div className="reception-vehicle-card rounded-lg border border-brand-line bg-white p-4">
@@ -1383,14 +1799,23 @@ const WorkOrderCreateForm = () => {
                           </div>
                         ) : (
                           <div className="mt-4 rounded-lg border border-dashed border-brand-line px-4 py-8 text-center text-sm text-brand-muted">
-                            Seleccione o registre el vehículo que ingresa.
+                            <p>Seleccione o registre el vehículo que ingresa.</p>
+                            {isConversion &&
+                              (quotationQuery.data?.dpBodyTypeId ||
+                                quotationQuery.data?.dpVehicleRef) && (
+                                <p className="mt-2 inline-block rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-800">
+                                  Cotizado D&amp;P sin patente:{' '}
+                                  {quotationQuery.data.dpVehicleRef ||
+                                    [quotationQuery.data.dpBodyTypeId, quotationQuery.data.dpSizeId]
+                                      .filter(Boolean)
+                                      .join(' · ')}
+                                </p>
+                              )}
                           </div>
                         )}
                       </div>
                     )}
-                    {(vehicleSelectionOpen ||
-                      vehicleOwnerIsDifferent ||
-                      errors.vehicleId) && (
+                    {(vehicleSelectionOpen || vehicleOwnerIsDifferent || errors.vehicleId) && (
                       <section className="reception-vehicle-panel rounded-lg border border-brand-line bg-white p-4">
                         <div hidden={!vehicleSelectionOpen} className="reception-vehicle-tools">
                           <div>
@@ -1399,22 +1824,22 @@ const WorkOrderCreateForm = () => {
                         </div>
                         <div hidden={!vehicleSelectionOpen} className="mt-4">
                           <div className="reception-vehicle-search-row">
-                          <QuickVehicleSearch
-                            presentation="reception"
-                            onSelectVehicle={(next) => {
-                              selectVehicle(next);
-                              setChoosingVehicle(false);
-                            }}
-                            suggestedClient={client}
-                            placeholder="Buscar por patente, marca o modelo"
-                          />
-                          <button
-                            type="button"
-                            className="reception-create-vehicle-action"
-                            onClick={() => setVehicleModalOpen(true)}
-                          >
-                            <Plus aria-hidden="true" /> Crear vehículo
-                          </button>
+                            <QuickVehicleSearch
+                              presentation="reception"
+                              onSelectVehicle={(next) => {
+                                selectVehicle(next);
+                                setChoosingVehicle(false);
+                              }}
+                              suggestedClient={client}
+                              placeholder="Buscar por patente, marca o modelo"
+                            />
+                            <button
+                              type="button"
+                              className="reception-create-vehicle-action"
+                              onClick={() => setVehicleModalOpen(true)}
+                            >
+                              <Plus aria-hidden="true" /> Crear vehículo
+                            </button>
                           </div>
                           {vehicle && (
                             <button
@@ -1445,7 +1870,7 @@ const WorkOrderCreateForm = () => {
                   </div>
                 )}
 
-                {activeStep === 3 && (
+                {activeStep === 2 && (
                   <div className="reception-inspection-grid">
                     {/* Fechas y motivo de ingreso */}
                     <section className="reception-basic-card rounded-lg border border-brand-line bg-brand-line/60 p-4">
@@ -1595,12 +2020,20 @@ const WorkOrderCreateForm = () => {
                         <p className="reception-photo-guide-intro">
                           Izquierda y derecha se consideran desde el asiento del conductor.
                         </p>
-                        <p className="reception-photo-upload-note">Las fotos se subirán al confirmar la OT.</p>
+                        <p className="reception-photo-upload-note">
+                          Las fotos se subirán al confirmar la OT.
+                        </p>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           {RECEPTION_PHOTO_GUIDES.map(({ slot, image, hint }) => (
-                            <ReceptionPhotoCard key={slot} label={photoSlotLabels[slot]} guideImage={image} hint={hint}
-                              photo={photoMap.get(slot)} canUpload={canUploadPhotos}
-                              onSelect={(file) => setInspectionPhoto(slot, file)} />
+                            <ReceptionPhotoCard
+                              key={slot}
+                              label={photoSlotLabels[slot]}
+                              guideImage={image}
+                              hint={hint}
+                              photo={photoMap.get(slot)}
+                              canUpload={canUploadPhotos}
+                              onSelect={(file) => setInspectionPhoto(slot, file)}
+                            />
                           ))}
                         </div>
                       </section>
@@ -1628,7 +2061,9 @@ const WorkOrderCreateForm = () => {
                                 onChange={() => toggleInventory(item)}
                                 className="h-4 w-4 rounded border-brand-line text-brand-primaryInk focus:ring-brand-primary"
                               />
-                              <span className="reception-inventory-name">{inventoryLabels[item]}</span>
+                              <span className="reception-inventory-name">
+                                {inventoryLabels[item]}
+                              </span>
                             </label>
                           ))}
                         </div>
@@ -1670,7 +2105,7 @@ const WorkOrderCreateForm = () => {
                   </div>
                 )}
 
-                {activeStep === 4 && (
+                {activeStep === 3 && (
                   <div className="reception-services-step space-y-4">
                     {isConversion ? (
                       <section
@@ -1697,14 +2132,24 @@ const WorkOrderCreateForm = () => {
                                     {item.descripcion}
                                     <small className="reception-imported-unit">
                                       {UNIT_MEASURE_LABELS[item.unidadMedida]}
-                                      {item.horasHombreEstimadas ? ` · ${item.horasHombreEstimadas} h / unidad` : ''}
+                                      {item.horasHombreEstimadas
+                                        ? ` · ${item.horasHombreEstimadas} h / unidad`
+                                        : ''}
                                     </small>
                                   </td>
-                                  <td className="p-3 text-right" data-column="Cantidad">{item.cantidad}</td>
-                                  <td className="whitespace-nowrap p-3 text-right" data-column="Precio unitario">
+                                  <td className="p-3 text-right" data-column="Cantidad">
+                                    {item.cantidad}
+                                  </td>
+                                  <td
+                                    className="whitespace-nowrap p-3 text-right"
+                                    data-column="Precio unitario"
+                                  >
                                     {formatClp(Number(item.precioUnitario))}
                                   </td>
-                                  <td className="whitespace-nowrap p-3 text-right" data-column="Subtotal">
+                                  <td
+                                    className="whitespace-nowrap p-3 text-right"
+                                    data-column="Subtotal"
+                                  >
                                     {formatClp(calculateQuotationPricing([item]).total)}
                                   </td>
                                 </tr>
@@ -1717,7 +2162,13 @@ const WorkOrderCreateForm = () => {
                             Sin servicios ni repuestos cotizados.
                           </p>
                         )}
-                        <QuotationDiscountSummary items={items} value={discount} onChange={setDiscount} readOnly testId="conversion-total" />
+                        <QuotationDiscountSummary
+                          items={items}
+                          value={discount}
+                          onChange={setDiscount}
+                          readOnly
+                          testId="conversion-total"
+                        />
                       </section>
                     ) : (
                       <WorkOrderItemsEditor
@@ -1725,14 +2176,40 @@ const WorkOrderCreateForm = () => {
                         showEmptySummary={Boolean(discount.descuentoTipo)}
                         vehicle={vehicle}
                         onLoadFromOrder={canReadWorkOrders ? () => setPrefillOpen(true) : undefined}
-                        selectionFooter={<>
-                          <QuotationDiscountSummary items={items.filter((item) => item.descripcion.trim())} value={discount} onChange={setDiscount} testId="work-order-total" />
-                          {errors.descuentoValor && <p role="alert" className="text-sm text-brand-coralInk">{errors.descuentoValor}</p>}
-                        </>}
+                        catalogFooter={
+                          <>
+                            <QuotationDiscountSummary
+                              variant="controls"
+                              items={items.filter((item) => item.descripcion.trim())}
+                              value={discount}
+                              onChange={setDiscount}
+                            />
+                            {errors.descuentoValor && (
+                              <p role="alert" className="text-sm text-brand-coralInk">{errors.descuentoValor}</p>
+                            )}
+                          </>
+                        }
+                        selectionFooter={
+                          <>
+                            <QuotationDiscountSummary
+                              variant="totals"
+                              items={items.filter((item) => item.descripcion.trim())}
+                              value={discount}
+                              onChange={setDiscount}
+                              testId="work-order-total"
+                            />
+                          </>
+                        }
                         items={items}
                         onChange={(next) => {
                           setItems(next);
-                          setErrors((current) => Object.fromEntries(Object.entries(current).filter(([path]) => !path.startsWith('items.'))));
+                          setErrors((current) =>
+                            Object.fromEntries(
+                              Object.entries(current).filter(
+                                ([path]) => !path.startsWith('items.'),
+                              ),
+                            ),
+                          );
                         }}
                         errors={errors}
                         presentation="reception"
@@ -1767,9 +2244,9 @@ const WorkOrderCreateForm = () => {
               <p className="reception-footer-hint" role="status">
                 {activeStep === 0 && !client
                   ? 'Selecciona al responsable para continuar.'
-                  : activeStep === 1 && (!contactClient || !billingClient)
+                  : activeStep === 0 && (!contactClient || !billingClient)
                     ? 'Completa contacto y facturación.'
-                    : activeStep === 2 && !vehicle
+                    : activeStep === 1 && !vehicle
                       ? 'Selecciona el vehículo que ingresa.'
                       : null}
               </p>
@@ -1788,7 +2265,7 @@ const WorkOrderCreateForm = () => {
                     <span className="reception-back-label">Anterior</span>
                   </button>
                 )}
-                {activeStep < 4 ? (
+                {activeStep < 3 ? (
                   <button
                     type="button"
                     className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-primaryInk px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-primaryInkHover hover:shadow"
@@ -1832,24 +2309,40 @@ const WorkOrderCreateForm = () => {
         <ClientFormModal onClose={() => setClientModalTarget(null)} onSaved={handleClientSaved} />
       )}
 
-      {prefillOpen && <WorkOrderPrefillModal currentClient={client?.nombre} currentVehicle={vehicle?.patente}
-        onClose={() => setPrefillOpen(false)} onConfirm={(data) => {
-          setPrefillOpen(false);
-          setPendingPrefill(data);
-          setCandidateVehicleId(data.vehicle.id);
-        }} />}
-      {candidateVehicleId !== null && <VehicleDpDetailsModal key={candidateVehicleId} vehicleId={candidateVehicleId}
-        onClose={() => { setCandidateVehicleId(null); setPendingPrefill(null); }}
-        onReady={(saved) => {
-          if (pendingPrefill) applyPrefill({ ...pendingPrefill, vehicle: saved });
-          else commitVehicle(toQuickVehicle(saved, null), saved.kilometraje);
-          setCandidateVehicleId(null);
-          setChoosingVehicle(false);
-        }} />}
+      {prefillOpen && (
+        <WorkOrderPrefillModal
+          currentClient={client?.nombre}
+          currentVehicle={vehicle?.patente}
+          onClose={() => setPrefillOpen(false)}
+          onConfirm={(data) => {
+            setPrefillOpen(false);
+            setPendingPrefill(data);
+            setCandidateVehicleId(data.vehicle.id);
+          }}
+        />
+      )}
+      {candidateVehicleId !== null && (
+        <VehicleDpDetailsModal
+          key={candidateVehicleId}
+          vehicleId={candidateVehicleId}
+          onClose={() => {
+            setCandidateVehicleId(null);
+            setPendingPrefill(null);
+          }}
+          onReady={(saved) => {
+            if (pendingPrefill) applyPrefill({ ...pendingPrefill, vehicle: saved });
+            else commitVehicle(toQuickVehicle(saved, null), saved.kilometraje);
+            setCandidateVehicleId(null);
+            setChoosingVehicle(false);
+          }}
+        />
+      )}
 
       {vehicleModalOpen && (
         <VehicleFormModal
           suggestedClient={client}
+          initialDpBodyTypeId={isConversion ? quotationQuery.data?.dpBodyTypeId : null}
+          initialDpSizeId={isConversion ? quotationQuery.data?.dpSizeId : null}
           onClose={() => setVehicleModalOpen(false)}
           onSaved={(savedVehicle) => {
             selectVehicle(toQuickVehicle(savedVehicle, client));

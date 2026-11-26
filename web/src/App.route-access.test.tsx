@@ -24,6 +24,7 @@ vi.mock('./pages/quotations/QuotationCreatePage', () => ({ default: () => <div d
 vi.mock('./pages/quotations/QuotationDetailPage', () => ({ default: () => <div data-testid="route-page">quotationDetail</div> }));
 vi.mock('./pages/purchases/PurchasesPage', () => ({ default: () => <div data-testid="route-page">purchases</div> }));
 vi.mock('./pages/purchases/PurchaseCreatePage', () => ({ default: () => <div data-testid="route-page">purchaseCreate</div> }));
+vi.mock('./pages/purchases/PurchasesExpressPage', () => ({ default: ({ initiallyOpen }: { initiallyOpen?: boolean }) => <div data-testid="route-page">{initiallyOpen ? 'purchaseCreate' : 'purchases'}</div> }));
 vi.mock('./pages/purchases/PurchaseDetailPage', () => ({ default: () => <div data-testid="route-page">purchaseDetail</div> }));
 vi.mock('./pages/finance/FinancePage', () => ({ default: () => <div data-testid="route-page">finance</div> }));
 vi.mock('./pages/reports/ReportsPage', () => ({ default: () => <div data-testid="route-page">reports</div> }));
@@ -74,6 +75,7 @@ const guards: Array<{ path: string; page: string; permissions: PermissionDefinit
   { path: '/quotations/42', page: 'quotationDetail', permissions: [{ modulo: 'comercial', accion: 'read' }] },
   { path: '/purchases', page: 'purchases', permissions: [{ modulo: 'compras', accion: 'read' }] },
   { path: '/purchases/new', page: 'purchaseCreate', permissions: [{ modulo: 'compras', accion: 'create' }] },
+  { path: '/purchases/history', page: 'purchases', permissions: [{ modulo: 'compras', accion: 'read' }] },
   { path: '/purchases/42', page: 'purchaseDetail', permissions: [{ modulo: 'compras', accion: 'read' }] },
   { path: '/finance', page: 'finance', permissions: [{ modulo: 'finanzas', accion: 'read' }] },
   { path: '/reports', page: 'reports', permissions: [{ modulo: 'almacen', accion: 'read' }] },

@@ -13,11 +13,12 @@ import DashboardPage from './pages/dashboard/DashboardPage';
 import FinancePage from './pages/finance/FinancePage';
 import ForbiddenPage from './pages/ForbiddenPage';
 import NotFoundPage from './pages/NotFoundPage';
-import PurchaseCreatePage from './pages/purchases/PurchaseCreatePage';
 import PurchaseDetailPage from './pages/purchases/PurchaseDetailPage';
+import PurchasesExpressPage from './pages/purchases/PurchasesExpressPage';
 import PurchasesPage from './pages/purchases/PurchasesPage';
 import QuotationCreatePage from './pages/quotations/QuotationCreatePage';
 import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
+import QuotationDpCreatePage from './pages/quotations/QuotationDpCreatePage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
@@ -140,6 +141,14 @@ export const App = () => (
           }
         />
         <Route
+          path={APP_ROUTES.quotationDpCreate.path}
+          element={
+            <ProtectedRoute access={APP_ROUTES.quotationDpCreate}>
+              <QuotationDpCreatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path={APP_ROUTES.quotationConvert.path}
           element={
             <ProtectedRoute access={APP_ROUTES.quotationConvert}>
@@ -159,7 +168,7 @@ export const App = () => (
           path={APP_ROUTES.purchases.path}
           element={
             <ProtectedRoute access={APP_ROUTES.purchases}>
-              <PurchasesPage />
+              <PurchasesExpressPage />
             </ProtectedRoute>
           }
         />
@@ -167,7 +176,15 @@ export const App = () => (
           path={APP_ROUTES.purchaseCreate.path}
           element={
             <ProtectedRoute access={APP_ROUTES.purchaseCreate}>
-              <PurchaseCreatePage />
+              <PurchasesExpressPage initiallyOpen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={APP_ROUTES.purchaseHistory.path}
+          element={
+            <ProtectedRoute access={APP_ROUTES.purchaseHistory}>
+              <PurchasesPage />
             </ProtectedRoute>
           }
         />

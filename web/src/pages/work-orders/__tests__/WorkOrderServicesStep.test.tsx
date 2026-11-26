@@ -125,7 +125,7 @@ describe('New OT step 5 integration', () => {
     expect(await screen.findByRole('dialog', { name: 'Confirmar recepción de OT' })).toBeInTheDocument();
   });
 
-  it('submits only committed ACC values and applies the line discount once', async () => {
+  it('submits only committed ACC values and applies the general discount once', async () => {
     const baseGet = vi.mocked(api.get).getMockImplementation()!;
     vi.mocked(api.get).mockImplementation((url, config) => {
       if (url === '/catalog') return Promise.resolve({ data: { items: [{
@@ -136,16 +136,18 @@ describe('New OT step 5 integration', () => {
       return baseGet(url, config);
     });
     await mount();
-    fireEvent.click(screen.getByRole('button', { name: 'Repuestos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ACC' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Configurar Aceite 10W40 1L' }));
     fireEvent.change(screen.getByLabelText('Cantidad ACC'), { target: { value: '2' } });
-    fireEvent.change(screen.getByLabelText('Tipo de descuento ACC'), { target: { value: 'fijo' } });
-    fireEvent.change(screen.getByLabelText('Descuento ACC'), { target: { value: '5000' } });
+    expect(screen.queryByLabelText('Tipo de descuento ACC')).not.toBeInTheDocument();
     expect(screen.queryByTestId('work-order-total')).not.toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
+    fireEvent.change(screen.getByLabelText('Descuento general en pesos'), { target: { value: '5000' } });
+    expect(screen.getByLabelText('Descuento general en porcentaje')).toHaveValue(25);
     const card = within(await screen.findByRole('article', { name: 'Repuesto ACC 1' }));
-    expect(card.getByTestId('item-subtotal-0')).toHaveTextContent('$15.000');
+    expect(card.getByTestId('item-subtotal-0')).toHaveTextContent('$20.000');
+    expect(card.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.getByTestId('work-order-total')).toHaveTextContent('$17.850');
     fireEvent.click(screen.getByRole('button', { name: 'Editar repuesto ACC 1' }));
     fireEvent.change(screen.getByLabelText('Precio unitario ACC'), { target: { value: '20000' } });
@@ -157,9 +159,10 @@ describe('New OT step 5 integration', () => {
     await screen.findByText('OT guardada');
     expect(api.post).toHaveBeenCalledTimes(1);
     expect(api.post).toHaveBeenCalledWith('/work-orders', expect.objectContaining({
+      descuentoTipo: 'fijo', descuentoValor: 5000,
       items: [expect.objectContaining({
         catalogItemId: 71, tipoLinea: 'parte', division: 'ACC', subtipo: 'en_stock',
-        cantidad: 2, unidadMedida: 'litro', precioUnitario: 10000, descuentoTipo: 'fijo', descuentoValor: 5000,
+        cantidad: 2, unidadMedida: 'litro', precioUnitario: 10000, descuentoTipo: null, descuentoValor: 0,
       })],
     }));
   });
@@ -175,7 +178,7 @@ describe('New OT step 5 integration', () => {
       return baseGet(url, config);
     });
     await mount();
-    fireEvent.click(within(screen.getByRole('group', { name: 'Tipo de catálogo' })).getByRole('button', { name: 'Estándar' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tipo de catálogo' })).getByRole('button', { name: 'MEC' }));
     if (specific) fireEvent.click(screen.getByRole('button', { name: 'Específicos' }));
     fireEvent.click(await screen.findByRole('button', { name: `Configurar ${service.nombre}` }));
     if (specific) {
@@ -183,12 +186,12 @@ describe('New OT step 5 integration', () => {
       fireEvent.change(screen.getByLabelText('Descripción MEC'), { target: { value: 'Diagnóstico eléctrico: falla de arranque' } });
     } else {
       fireEvent.change(screen.getByLabelText('Cantidad MEC'), { target: { value: '2' } });
-      fireEvent.change(screen.getByLabelText('Tipo de descuento MEC'), { target: { value: 'porcentaje' } });
-      fireEvent.change(screen.getByLabelText('Descuento MEC'), { target: { value: '10' } });
+      expect(screen.queryByLabelText('Tipo de descuento MEC')).not.toBeInTheDocument();
     }
     expect(api.post).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
     await screen.findByRole('article', { name: 'Servicio MEC 1' });
+    if (!specific) fireEvent.change(screen.getByLabelText('Descuento general en porcentaje'), { target: { value: '10' } });
     expect(screen.getByTestId('work-order-total')).toHaveTextContent(specific ? '$1' : '$32.130');
     await act(async () => { await flushFormDrafts(); });
     const saved = await loadFormDraft(1, 'work-order:new', workOrderRecoverySchema);
@@ -201,10 +204,11 @@ describe('New OT step 5 integration', () => {
     await screen.findByText('OT guardada');
     expect(api.post).toHaveBeenCalledTimes(1);
     expect(api.post).toHaveBeenCalledWith('/work-orders', expect.objectContaining({
+      descuentoTipo: specific ? null : 'porcentaje', descuentoValor: specific ? 0 : 10,
       items: [expect.objectContaining({
         catalogItemId: service.id, division: 'MEC', tipoLinea: subtype, subtipo: subtype,
         cantidad: specific ? 1 : 2, precioUnitario: specific ? 1 : 15000,
-        descuentoTipo: specific ? null : 'porcentaje', descuentoValor: specific ? 0 : 10,
+        descuentoTipo: null, descuentoValor: 0,
       })],
     }));
     expect(api.patch).not.toHaveBeenCalled();

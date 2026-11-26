@@ -43,7 +43,7 @@ const replaceCatalogItem = (
   };
 };
 
-export const useCatalogItems = (queryParams: CatalogQueryParams) => {
+export const useCatalogItems = (queryParams: CatalogQueryParams, enabled = true) => {
   useCatalogEvents();
   return useQuery({
     queryKey: catalogKeys.list(queryParams),
@@ -53,6 +53,7 @@ export const useCatalogItems = (queryParams: CatalogQueryParams) => {
       });
       return response.data;
     },
+    enabled,
     placeholderData: keepPreviousData,
   });
 };

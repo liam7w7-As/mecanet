@@ -1,5 +1,7 @@
 import {
   createPurchaseSchema,
+  createExpressPurchaseSchema,
+  expressSearchSchema,
   purchaseQuerySchema,
   purchaseReportQuerySchema,
   registerPurchasePaymentSchema,
@@ -10,6 +12,7 @@ import {
 import { Router } from 'express';
 import { z } from 'zod';
 
+import { expressCreateHandler, expressOrdersHandler, expressRequestsHandler, expressReturnToStockHandler, expressScanHandler } from '../controllers/purchase-express.controller.js';
 import {
   createPurchaseHandler,
   getPurchaseHandler,
@@ -43,6 +46,14 @@ const receiptQuerySchema = z.object({
 });
 
 purchaseRouter.use(authenticate);
+
+purchaseRouter.get('/express/requests', authorize('compras', 'read'), validate({ query: expressSearchSchema }), expressRequestsHandler);
+purchaseRouter.get('/express/orders', authorize('compras', 'create'), validate({ query: expressSearchSchema }), expressOrdersHandler);
+purchaseRouter.post('/express/scan', authorize('compras', 'create'), purchaseUpload, expressScanHandler);
+purchaseRouter.post('/express', authorize('compras', 'create'), purchaseUpload, validate({ body: createExpressPurchaseSchema }), expressCreateHandler);
+
+purchaseRouter.post('/:id/return-to-stock', authorize('compras', 'update'), authorizeRoles('jefe', 'admin', 'desarrollador'),
+  validate({ params: idParamSchema, body: voidPurchaseSchema }), expressReturnToStockHandler);
 
 purchaseRouter.get(
   '/report/pdf',

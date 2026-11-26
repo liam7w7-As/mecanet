@@ -45,6 +45,9 @@ const invalidatePurchaseSideEffects = (queryClient: ReturnType<typeof useQueryCl
   void queryClient.invalidateQueries({ queryKey: ['finance'] });
   void queryClient.invalidateQueries({ queryKey: ['warehouses'] });
   void queryClient.invalidateQueries({ queryKey: ['catalog'] });
+  for (const key of ['work-orders', 'work-order-labor', 'quotations', 'quotation-payments', 'work-order-quality']) {
+    void queryClient.invalidateQueries({ queryKey: [key] });
+  }
 };
 
 const cachePurchase = (queryClient: ReturnType<typeof useQueryClient>, purchase: Purchase): void => {
@@ -143,6 +146,18 @@ export const useVoidPurchaseMutation = () => {
       const response = await api.patch<PurchaseResponse>(`/purchases/${purchaseId}/void`, {
         motivo,
       });
+      return response.data.purchase;
+    },
+    onSuccess: (purchase) => cachePurchase(queryClient, purchase),
+  });
+};
+
+export const useReturnPurchaseToStockMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    retry: false,
+    mutationFn: async ({ purchaseId, motivo }: { purchaseId: number; motivo: string }) => {
+      const response = await api.post<PurchaseResponse>(`/purchases/${purchaseId}/return-to-stock`, { motivo });
       return response.data.purchase;
     },
     onSuccess: (purchase) => cachePurchase(queryClient, purchase),

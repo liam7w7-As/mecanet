@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { calculateDpWorkQuote, createDefaultDpConfiguration } from '@unithor/shared';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -14,6 +15,7 @@ import type {
   StockMovement,
   Warehouse,
 } from '../../../types/entities';
+import type { DpConfigurationRecord } from '@unithor/shared';
 import type { AxiosResponse } from 'axios';
 
 const { listExportSpy } = vi.hoisted(() => ({ listExportSpy: vi.fn() }));
@@ -167,6 +169,16 @@ describe('CatalogPage', () => {
           data: { items: [movement], total: 1, page: 1, pageSize: 12, totalPages: 1 },
         } as AxiosResponse<PaginatedResponse<StockMovement>>);
       }
+      if (url === '/catalog/dp') {
+        return Promise.resolve({
+          data: {
+            revision: 3,
+            configuration: createDefaultDpConfiguration(),
+            updatedAt: '2026-11-24T10:00:00.000Z',
+            lastEditor: null,
+          },
+        } as AxiosResponse<DpConfigurationRecord>);
+      }
       return Promise.reject(new Error(`GET inesperado: ${url}`));
     });
   });
@@ -227,29 +239,59 @@ describe('CatalogPage', () => {
     });
   });
 
-  it('deshabilita stock al crear un Servicio Estándar', async () => {
+  it('oculta campos de stock al crear un Servicio MEC y no ofrece crear D&P suelto', async () => {
     renderPage();
     await screen.findByText('Cambio de aceite');
 
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo item' }));
-    fireEvent.click(screen.getByRole('button', { name: 'MEC · Mecánica' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Servicio estándar' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Nuevo item de catálogo' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'MEC · Mecánica' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Servicio estándar' }));
 
-    expect(screen.getByLabelText('Stock inicial')).toBeDisabled();
+    expect(dialog.queryByLabelText('Stock inicial')).not.toBeInTheDocument();
+    expect(dialog.queryByLabelText('Stock mínimo')).not.toBeInTheDocument();
+    expect(dialog.queryByRole('button', { name: /D&P/i })).not.toBeInTheDocument();
   });
 
-  it('permite filtrar por D&P sin banner decorativo de flujo', async () => {
+  it('oculta stock y HH cuando el repuesto ACC es A pedido', async () => {
+    renderPage();
+    await screen.findByText('Filtro de aceite');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo item' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Nuevo item de catálogo' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Repuesto' }));
+    expect(dialog.queryByLabelText('Horas hombre estándar por unidad')).not.toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'A pedido' }));
+    expect(dialog.queryByLabelText('Stock inicial')).not.toBeInTheDocument();
+    expect(dialog.queryByLabelText('Stock mínimo')).not.toBeInTheDocument();
+  });
+
+  it('muestra el explorador visual de tarifas D&P en la pestaña D&P sin banners decorativos', async () => {
     renderPage();
     await screen.findByText('Cambio de aceite');
 
     fireEvent.click(screen.getByRole('tab', { name: 'D&P (Carrocería / Pintura)' }));
 
-    await waitFor(() => {
-      expect(api.get).toHaveBeenCalledWith('/catalog', {
-        params: expect.objectContaining({ division: 'DP' }),
-      });
-    });
+    expect(await screen.findByTestId('dp-catalog-explorer')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/catalog/dp');
+    expect(screen.getByRole('heading', { name: 'Zona Frontal' })).toBeInTheDocument();
+    expect(screen.getByText('Versión 3')).toBeInTheDocument();
     expect(screen.queryByText(/Flujo quirúrgico de 5 etapas/i)).not.toBeInTheDocument();
+    // Verifica cálculo en vivo para Hatchback S Parachoque Delantero (Pintura = 90000 * 0.85 * 1.1 = 84.150)
+    const expectedPaint = calculateDpWorkQuote(
+      createDefaultDpConfiguration(),
+      {
+        configurationRevision: 3,
+        bodyTypeId: 'hatchback',
+        sizeId: 'S',
+        scope: 'piece',
+        pieceId: 'parachoque',
+        positionId: 'F',
+        operations: [{ operationId: 'painting_full' }],
+      },
+      3,
+    ).precioUnitario;
+    expect(screen.getAllByText(new RegExp(expectedPaint.toLocaleString('es-CL'))).length).toBeGreaterThan(0);
   });
 
   it('permite filtrar ACC por subtipo a pedido', async () => {

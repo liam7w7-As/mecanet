@@ -145,10 +145,14 @@ const findItem = async (
   if (!item) {
     throw ApiError.notFound('Trabajo no encontrado en esta orden');
   }
+  if (lock && item.expressStockReturnedAt) {
+    throw ApiError.badRequest('El accesorio fue enviado al stock general. Su historial se conserva y no puede reabrirse en esta OT');
+  }
   return item;
 };
 
 export interface WorksheetItem {
+  expressStockReturnedAt?: Date | null;
   qualityStatus: 'pendiente' | 'aprobado' | 'rechazado';
   qualityReviewedAt: Date | null;
   qualityReviewedBy: number | null;
@@ -440,12 +444,13 @@ export const getWorkOrderWorksheet = async (
         : null,
       totalMinutes,
       observationsCount: observationsByItem.get(item.id) ?? 0,
-      canWork: workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada' && (role !== 'mecanico' || permitted(item)),
+      canWork: !item.expressStockReturnedAt && workOrder.estado !== 'entregada' && workOrder.estado !== 'cancelada' && (role !== 'mecanico' || permitted(item)),
+      expressStockReturnedAt: item.expressStockReturnedAt ?? null,
       awaitingWarehouseDelivery: item.tipoLinea === 'parte' && !item.stockConsumido && requests.some(
         (request) => request.tipo === 'repuesto' && request.estado === 'aprobada' && request.workOrderItemId === item.id,
       ),
       division: item.division ?? (item.tipoLinea === 'parte' ? 'ACC' : 'MEC'),
-      canReceiveCustody: role === 'mecanico' && (items.some((line) => line.division === 'DP')
+      canReceiveCustody: !item.expressStockReturnedAt && role === 'mecanico' && (items.some((line) => line.division === 'DP')
         ? items.some((line) => line.dpStages?.some((stage) => stage.assignedUserId === userId && ['armador_desarme', 'armador_montaje'].includes(stage.stageKey)))
         : items.some(permitted)),
       subtipo: item.subtipo ?? null,

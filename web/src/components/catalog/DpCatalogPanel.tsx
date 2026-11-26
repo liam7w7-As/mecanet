@@ -33,19 +33,26 @@ interface DpCatalogPanelProps {
   onClose: () => void;
   /** When provided, the calculated quote can be added to the caller's selection. */
   onAdd?: (quote: DpWorkQuote) => void;
+  initialSelection?: {
+    bodyId?: string;
+    sizeId?: string;
+    pieceId?: string;
+    positionId?: string;
+    damageId?: string;
+  };
 }
 
 /** Configurable D&P catalogue. In sandbox mode it never writes work-order items. */
-export default function DpCatalogPanel({ onClose, onAdd }: DpCatalogPanelProps) {
+export default function DpCatalogPanel({ onClose, onAdd, initialSelection }: DpCatalogPanelProps) {
   const user = useAuthStore((state) => state.user);
   const allowed = canReadDpCatalog(user);
   const query = useDpConfiguration('catalog', allowed);
   const preview = useDpQuotePreview();
-  const [bodyId, setBodyId] = useState('');
-  const [sizeId, setSizeId] = useState('');
-  const [pieceId, setPieceId] = useState('');
-  const [positionId, setPositionId] = useState('');
-  const [damageId, setDamageId] = useState('');
+  const [bodyId, setBodyId] = useState(initialSelection?.bodyId ?? '');
+  const [sizeId, setSizeId] = useState(initialSelection?.sizeId ?? '');
+  const [pieceId, setPieceId] = useState(initialSelection?.pieceId ?? '');
+  const [positionId, setPositionId] = useState(initialSelection?.positionId ?? '');
+  const [damageId, setDamageId] = useState(initialSelection?.damageId ?? '');
   const [scope, setScope] = useState<'piece' | 'global'>('piece');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<OperationSelection[]>([]);

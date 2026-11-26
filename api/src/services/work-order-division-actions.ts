@@ -44,6 +44,7 @@ async function actorContext(id: number, userId: number, transaction: Transaction
 async function findItem(id: number, itemId: number, transaction: Transaction) {
   const item = await WorkOrderItem.findOne({ where: { id: itemId, workOrderId: id }, transaction, lock: transaction.LOCK.UPDATE });
   if (!item) throw ApiError.notFound('Trabajo no encontrado');
+  if (item.expressStockReturnedAt) throw ApiError.badRequest('Este accesorio fue enviado al stock general. Su historial se conserva y no puede reutilizarse en esta OT');
   return item;
 }
 async function assertStageWorker(stage: WorkOrderDpStage, userId: number, transaction: Transaction) {
@@ -130,7 +131,7 @@ export async function updateWorkOrderAccCustody(id: number, itemId: number, data
       if (!(await hasPermission(userId, 'almacen', 'update'))) throw ApiError.forbidden('No tienes permiso para registrar la salida de inventario');
       if (!data.entregado) throw ApiError.badRequest('Para revertir una entrega utiliza una devolución de inventario');
       if (!item.entregadoBodega) {
-        if (item.catalogItemId !== null && !item.stockConsumido) {
+        if (item.catalogItemId !== null && !item.stockConsumido && item.expressPurchaseId == null) {
           const quantity = Number(item.cantidad);
           const consumption = await consumeForWorkOrder({ catalogItemId: item.catalogItemId, cantidad: quantity, referencia: order.codigo,
             motivo: `Entrega de bodega para ${order.codigo}`, userId, warehouseId: data.warehouseId }, transaction);

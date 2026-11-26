@@ -1,3 +1,7 @@
+@import './purchases-express.css';
+
+.workspace-purchases [hidden] { display: none !important; }
+
 /* Compras/Proveedores — adaptation of the Nov 2026 UNITHOR design system.
    The supplied prototype has no dedicated Compras screen. Existing purchasing
    fields and workflows are retained; selectors never reach documents/PDFs. */

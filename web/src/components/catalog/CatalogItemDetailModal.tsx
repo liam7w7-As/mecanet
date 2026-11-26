@@ -1,7 +1,6 @@
 import { UNIT_MEASURE_LABELS } from '@unithor/shared';
 import {
   ArrowDownToLine,
-  ArrowRight,
   ArrowUpFromLine,
   Boxes,
   History,
@@ -15,7 +14,6 @@ import {
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
 
 import { useModalOverlay } from '../../hooks/useModalOverlay';
 import { useCatalogItemInventory, useStockMovements } from '../../hooks/useWarehouses';
@@ -43,11 +41,11 @@ const DIVISION_LABELS = {
 } as const;
 
 const SUBTYPE_LABELS = {
-  servicio_dp: 'Servicio D&P (5 etapas con CCF)',
-  en_stock: 'En stock físico (inventario almacén)',
-  a_pedido: 'A pedido (por encargo sin inventario)',
-  estandar: 'Servicio estándar (precio y HH definidos)',
-  especifico: 'Servicio específico (diagnóstico previo / $1 ref)',
+  servicio_dp: 'Servicio D&P',
+  en_stock: 'En stock',
+  a_pedido: 'A pedido',
+  estandar: 'Estándar',
+  especifico: 'Diagnóstico',
 } as const;
 
 const MOVEMENT_LABELS: Record<StockMovement['tipo'], string> = {

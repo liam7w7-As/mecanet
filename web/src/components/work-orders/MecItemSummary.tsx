@@ -17,14 +17,15 @@ interface Props {
 export default function MecItemSummary({ item, index, editing, errors, onEdit, onRemove }: Props) {
   const specific = item.subtipo === 'especifico' || item.tipoLinea === 'especifico';
   const reference = specific && Number(item.precioUnitario) === 1;
+  const divisionLabel = item.division === 'DP' ? 'D&P' : 'MEC';
   let pricing: ReturnType<typeof calculateQuotationPricing> | null = null;
   try { pricing = calculateQuotationPricing([item]); } catch { /* Historical data remains editable. */ }
   return <article className={`service-summary-card mec-summary-card${editing ? ' is-editing' : ''}`}
-    aria-label={`Servicio MEC ${index + 1}`} data-item-type={item.tipoLinea} data-item-division="MEC">
-    <header><div><span className="service-summary-kind">MEC · {specific ? 'Específico' : 'Estándar'}</span>
+    aria-label={`Servicio ${divisionLabel} ${index + 1}`} data-item-type={item.tipoLinea} data-item-division={item.division ?? 'MEC'}>
+    <header><div><span className="service-summary-kind">{divisionLabel} · {item.division === 'DP' ? 'Ítem libre' : specific ? 'Específico' : 'Estándar'}</span>
       <h4>{item.descripcion || 'Servicio libre'}</h4></div>
       <div className="service-summary-actions">
-        <button type="button" className="service-icon-button" aria-label={`Editar servicio MEC ${index + 1}`}
+        <button type="button" className="service-icon-button" aria-label={`Editar servicio ${divisionLabel} ${index + 1}`}
           title="Editar servicio" onClick={onEdit}><Pencil aria-hidden="true" /></button>
         <button type="button" className="service-icon-button" aria-label={`Eliminar ítem ${index + 1}`}
           title="Quitar servicio" onClick={onRemove}><Trash2 aria-hidden="true" /></button>

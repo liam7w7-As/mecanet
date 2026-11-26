@@ -321,6 +321,27 @@ describe('WarehousesPage', () => {
     },
   );
 
+  it('confirma la entrega física de una compra express sin exigir stock del almacén', async () => {
+    const baseGet = vi.mocked(api.get).getMockImplementation();
+    vi.mocked(api.get).mockImplementation((url, config) => {
+      if (url === '/warehouses/requests') return Promise.resolve({
+        data: { ...emptyRequests, items: [{ ...approvedRequest, directPurchase: true }], total: 1, totalPages: 1 },
+      } as AxiosResponse);
+      if (url === '/warehouses/1/balances') return Promise.resolve({ data: { balances: [] } } as AxiosResponse);
+      return baseGet?.(url, config) ?? Promise.reject(new Error(`GET inesperado: ${url}`));
+    });
+    vi.mocked(api.post).mockResolvedValue({ data: { request: { ...approvedRequest, directPurchase: true, estado: 'entregada' } } });
+    renderPage('/warehouses?tab=requests');
+    fireEvent.click(await screen.findByRole('button', { name: 'Entregar' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Confirmar entrega de repuesto' }));
+    expect(dialog.queryByRole('combobox', { name: 'Almacén de salida' })).not.toBeInTheDocument();
+    expect(dialog.getByText(/Compra express ya registrada/)).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Confirmar entrega' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/warehouses/requests/41/deliver', {
+      warehouseId: undefined, comentario: undefined,
+    }));
+  });
+
   it('entrega una solicitud aprobada desde la segunda bodega seleccionada', async () => {
     const second: Warehouse = { ...warehouse, id: 2, codigo: 'NORTE', nombre: 'Bodega Norte' };
     useAuthStore.setState({

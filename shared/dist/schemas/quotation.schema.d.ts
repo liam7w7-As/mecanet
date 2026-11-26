@@ -200,10 +200,13 @@ export declare const quotationItemInputSchema: z.ZodEffects<z.ZodObject<{
     tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
     notasOperativas?: string | null | undefined;
 }>;
-export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
+export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects<z.ZodObject<{
     workOrderId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     clientId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     vehicleId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    dpBodyTypeId: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    dpSizeId: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    dpVehicleRef: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     notas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     items: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodObject<{
         dpPricing: z.ZodOptional<z.ZodEffects<z.ZodObject<{
@@ -444,9 +447,12 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
     notas?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
     vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
+    dpVehicleRef?: string | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
     validezDias?: number | undefined;
@@ -483,9 +489,12 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
     vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
+    dpVehicleRef?: string | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
     validezDias?: number | undefined;
@@ -522,9 +531,12 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
     notas?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
     vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
+    dpVehicleRef?: string | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
     validezDias?: number | undefined;
@@ -561,9 +573,12 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
     vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
+    dpVehicleRef?: string | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
     validezDias?: number | undefined;
@@ -600,9 +615,12 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
     descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
     descuentoValor?: number | undefined;
     notas?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
     vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
+    dpVehicleRef?: string | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
     validezDias?: number | undefined;
@@ -639,14 +657,104 @@ export declare const createQuotationSchema: z.ZodEffects<z.ZodEffects<z.ZodObjec
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
     clientId?: number | null | undefined;
     vehicleId?: number | null | undefined;
     workOrderId?: number | null | undefined;
+    dpVehicleRef?: string | null | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
+}>, {
+    items: {
+        cantidad: number;
+        precioUnitario: number;
+        estadoOperativo: "pendiente" | "completado" | "omitido" | "en_proceso";
+        descripcion: string;
+        unidadMedida: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio";
+        tipoLinea: "parte" | "estandar" | "especifico";
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
+        id?: number | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            scope: "piece" | "global";
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        notasOperativas?: string | null | undefined;
+    }[];
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
+    notas?: string | null | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
+    clientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
+    workOrderId?: number | null | undefined;
+    dpVehicleRef?: string | null | undefined;
+    formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
+    disponibilidadTrabajo?: string | null | undefined;
+    validezDias?: number | undefined;
+}, {
+    descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+    descuentoValor?: number | undefined;
+    notas?: string | null | undefined;
+    items?: {
+        descripcion: string;
+        cantidad?: number | undefined;
+        precioUnitario?: number | undefined;
+        division?: "DP" | "ACC" | "MEC" | undefined;
+        subtipo?: "estandar" | "especifico" | "servicio_dp" | "en_stock" | "a_pedido" | undefined;
+        id?: number | undefined;
+        descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+        descuentoValor?: number | undefined;
+        estadoOperativo?: "pendiente" | "completado" | "omitido" | "en_proceso" | undefined;
+        unidadMedida?: "unidad" | "litro" | "mililitro" | "kilogramo" | "juego" | "servicio" | undefined;
+        dpPricing?: {
+            bodyTypeId: string;
+            operations: {
+                operationId: string;
+                descuentoTipo?: "porcentaje" | "fijo" | null | undefined;
+                descuentoValor?: number | undefined;
+            }[];
+            configurationRevision: number;
+            sizeId: string;
+            pieceId?: string | undefined;
+            positionId?: string | undefined;
+            scope?: "piece" | "global" | undefined;
+            damageLevelId?: string | undefined;
+        } | undefined;
+        catalogItemId?: number | null | undefined;
+        tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
+        notasOperativas?: string | null | undefined;
+    }[] | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
+    clientId?: number | null | undefined;
+    vehicleId?: number | null | undefined;
+    workOrderId?: number | null | undefined;
+    dpVehicleRef?: string | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
     validezDias?: number | undefined;
 }>;
 export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
+    dpBodyTypeId: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    dpSizeId: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
+    dpVehicleRef: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     notas: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     items: z.ZodOptional<z.ZodArray<z.ZodEffects<z.ZodObject<{
         dpPricing: z.ZodOptional<z.ZodEffects<z.ZodObject<{
@@ -889,6 +997,9 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
+    dpVehicleRef?: string | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
     validezDias?: number | undefined;
@@ -926,6 +1037,9 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
+    dpVehicleRef?: string | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
     validezDias?: number | undefined;
@@ -963,6 +1077,9 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         catalogItemId?: number | null | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
+    dpVehicleRef?: string | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
     validezDias?: number | undefined;
@@ -1000,6 +1117,9 @@ export declare const updateQuotationSchema: z.ZodEffects<z.ZodObject<{
         tipoLinea?: "parte" | "estandar" | "especifico" | undefined;
         notasOperativas?: string | null | undefined;
     }[] | undefined;
+    dpBodyTypeId?: string | null | undefined;
+    dpSizeId?: string | null | undefined;
+    dpVehicleRef?: string | null | undefined;
     formaPago?: "transferencia" | "efectivo" | "efectivo_transferencia" | "a_convenir" | undefined;
     disponibilidadTrabajo?: string | null | undefined;
     validezDias?: number | undefined;

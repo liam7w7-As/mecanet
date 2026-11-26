@@ -46,9 +46,11 @@ describe('OT and commercial discount consistency', () => {
     renderCreate();
     fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
     fireEvent.click(screen.getByRole('button', { name: 'Editar servicio MEC 1' }));
-    expect(screen.getByLabelText('Descuento MEC')).toHaveValue(10);
+    expect(screen.queryByLabelText('Descuento MEC')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar edición' }));
-    expect(screen.getByLabelText('Descuento general')).toHaveValue('3.000');
+    expect(screen.getByLabelText('Descuento general en pesos')).toHaveValue('3.000');
+    expect(screen.getByLabelText('Descuento general en porcentaje')).toHaveValue(16.67);
+    expect(screen.getByTestId('work-order-total').closest('.reception-selected-items')?.querySelector('input,select,textarea')).toBeNull();
     expect(screen.getByTestId('work-order-total')).toHaveTextContent('$17.850');
     fireEvent.click(screen.getByRole('button', { name: 'Revisar y crear orden' }));
     const review = within(await screen.findByRole('dialog', { name: 'Confirmar recepción de OT' }));
@@ -71,7 +73,7 @@ describe('OT and commercial discount consistency', () => {
     await saveFormDraft(1, 'work-order:new', draft(), 'invalid-discount');
     renderCreate();
     fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
-    fireEvent.change(screen.getByLabelText('Descuento general'), { target: { value: '19000' } });
+    fireEvent.change(screen.getByLabelText('Descuento general en pesos'), { target: { value: '19000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Revisar y crear orden' }));
     expect(screen.queryByRole('dialog', { name: 'Confirmar recepción de OT' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('descuento'))).toBe(true);

@@ -29,14 +29,15 @@ function Harness({ initial = [], readOnly = false }: { initial?: EditableWorkOrd
   return <QueryClientProvider client={client}><div className="reception-create-page">
     <WorkOrderItemsEditor serviceWorkspace presentation="reception" vehicle={null} items={items} onChange={setItems}
       showDiscounts showTotal={false} showExecution={false} isPriceReadOnly={() => readOnly}
-      selectionFooter={<QuotationDiscountSummary items={items} value={discount} onChange={setDiscount} testId="mec-total" />} />
+      catalogFooter={<QuotationDiscountSummary variant="controls" items={items} value={discount} onChange={setDiscount} />}
+      selectionFooter={<QuotationDiscountSummary variant="totals" items={items} value={discount} onChange={setDiscount} testId="mec-total" />} />
     <output data-testid="mec-items">{JSON.stringify(items)}</output>
   </div></QueryClientProvider>;
 }
 
 async function mount(initial: EditableWorkOrderItem[] = [], readOnly = false) {
   render(<Harness initial={initial} readOnly={readOnly} />);
-  fireEvent.click(within(screen.getByRole('group', { name: 'Tipo de catálogo' })).getByRole('button', { name: 'Estándar' }));
+  fireEvent.click(within(screen.getByRole('group', { name: 'Tipo de catálogo' })).getByRole('button', { name: 'MEC' }));
   await screen.findByRole('button', { name: new RegExp(`(?:Configurar|Editar) ${standard.nombre}`) });
 }
 async function chooseSpecific() {
@@ -53,14 +54,17 @@ describe('MEC in step 5', () => {
     }) as AxiosResponse);
   });
 
-  it('filters standard MEC, prepares locally and adds quantity, discount and estimated hours once', async () => {
+  it('filters standard MEC and adds quantity, price and estimated hours once without line-discount controls', async () => {
     await mount();
     expect(api.get).toHaveBeenCalledWith('/catalog', expect.objectContaining({ params: expect.objectContaining({ division: 'MEC', subtipo: 'estandar' }) }));
     fireEvent.click(screen.getByRole('button', { name: `Configurar ${standard.nombre}` }));
     fireEvent.change(screen.getByLabelText('Cantidad MEC'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Precio unitario MEC'), { target: { value: '20000' } });
-    fireEvent.change(screen.getByLabelText('Tipo de descuento MEC'), { target: { value: 'porcentaje' } });
-    fireEvent.change(screen.getByLabelText('Descuento MEC'), { target: { value: '10' } });
+    expect(screen.queryByLabelText('Tipo de descuento MEC')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Descuento MEC')).not.toBeInTheDocument();
+    expect(screen.queryByText('Descuento por línea')).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText('Descuento general en porcentaje')).toHaveLength(1);
+    expect(screen.getByLabelText('Descuento general en pesos')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Tiempo estimado (opcional)'));
     fireEvent.change(screen.getByLabelText('Horas hombre MEC'), { target: { value: '0.75' } });
     expect(selected()).toEqual([]);
@@ -70,11 +74,14 @@ describe('MEC in step 5', () => {
     fireEvent.click(add); fireEvent.click(add);
     expect(selected()).toHaveLength(1);
     expect(selected()[0]).toMatchObject({ division: 'MEC', subtipo: 'estandar', tipoLinea: 'estandar',
-      catalogItemId: 81, cantidad: '2', precioUnitario: '20000', descuentoValor: '10', horasHombreEstimadas: '0.75' });
+      catalogItemId: 81, cantidad: '2', precioUnitario: '20000', horasHombreEstimadas: '0.75' });
+    expect(selected()[0].descuentoTipo ?? null).toBeNull();
+    expect(Number(selected()[0].descuentoValor ?? 0)).toBe(0);
     const card = within(screen.getByRole('article', { name: 'Servicio MEC 1' }));
     expect(card.getByText('MEC · Estándar')).toBeInTheDocument();
-    expect(card.getByTestId('item-subtotal-0')).toHaveTextContent('$36.000');
-    expect(screen.getByTestId('mec-total')).toHaveTextContent('$42.840');
+    expect(card.getByText('Sin descuento')).toBeInTheDocument();
+    expect(card.getByTestId('item-subtotal-0')).toHaveTextContent('$40.000');
+    expect(screen.getByTestId('mec-total')).toHaveTextContent('$47.600');
     expect(standard.precio).toBe(15000);
   });
 
@@ -115,12 +122,13 @@ describe('MEC in step 5', () => {
     fireEvent.click(screen.getByRole('button', { name: `Editar ${standard.nombre}` }));
     expect(screen.getByLabelText('Cantidad MEC')).toHaveValue(1);
     fireEvent.change(screen.getByLabelText('Cantidad MEC'), { target: { value: '2' } });
-    fireEvent.change(screen.getByLabelText('Tipo de descuento MEC'), { target: { value: 'fijo' } });
-    fireEvent.change(screen.getByLabelText('Descuento MEC'), { target: { value: '5000' } });
+    expect(screen.queryByLabelText('Tipo de descuento MEC')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     expect(selected()).toHaveLength(1);
-    expect(selected()[0]).toMatchObject({ key: original.key, catalogItemId: 81, cantidad: '2', descuentoTipo: 'fijo', descuentoValor: '5000' });
-    expect(screen.getByTestId('mec-total')).toHaveTextContent('$29.750');
+    expect(selected()[0]).toMatchObject({ key: original.key, catalogItemId: 81, cantidad: '2' });
+    expect(selected()[0].descuentoTipo ?? null).toBeNull();
+    expect(Number(selected()[0].descuentoValor ?? 0)).toBe(0);
+    expect(screen.getByTestId('mec-total')).toHaveTextContent('$35.700');
   });
 
   it('does not reset an already valued specific service when editing its description', async () => {
@@ -129,13 +137,21 @@ describe('MEC in step 5', () => {
       descripcion: 'Diagnóstico ya valorado', precioUnitario: '45000', cantidad: '2', descuentoTipo: 'fijo', descuentoValor: '5000',
       estadoOperativo: 'en_proceso', notasOperativas: 'Conservar diagnóstico', assignedUserId: 9, horasHombreEstimadas: '1.5' };
     await mount([original]);
+    const summary = screen.getByRole('region', { name: 'Resumen de importes' });
+    expect(within(summary).getByText('Descuentos por ítem').closest('div')).toHaveTextContent('- $5.000');
+    expect(screen.getByTestId('item-subtotal-0')).toHaveTextContent('$85.000');
+    expect(screen.getByTestId('mec-total')).toHaveTextContent('$101.150');
     fireEvent.click(screen.getByRole('button', { name: 'Editar servicio MEC 1' }));
     expect(screen.getByRole('button', { name: 'Específicos' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByLabelText('Precio unitario MEC')).toHaveValue('45.000');
+    expect(screen.getByLabelText('Precio unitario MEC')).toBeDisabled();
+    expect(screen.queryByLabelText('Tipo de descuento MEC')).not.toBeInTheDocument();
     expect(screen.queryByText(/Pendiente de diagnóstico y valoración/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Descripción MEC'), { target: { value: 'Descripción actualizada' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     expect(selected()).toEqual([{ ...original, descripcion: 'Descripción actualizada' }]);
+    expect(screen.getByTestId('mec-total')).toHaveTextContent('$101.150');
+    expect(within(summary).getByText('Descuentos por ítem').closest('div')).toHaveTextContent('- $5.000');
   });
 
   it('keeps the specific price/reference on edit and supports removal/undo', async () => {
@@ -158,7 +174,7 @@ describe('MEC in step 5', () => {
     expect(selected()).toEqual([edited]);
   });
 
-  it('rejects invalid standard quantities and discounts before committing', async () => {
+  it('rejects invalid standard quantities and missing prices before committing', async () => {
     await mount();
     fireEvent.click(screen.getByRole('button', { name: `Configurar ${standard.nombre}` }));
     for (const quantity of ['0', '1.5']) {
@@ -168,11 +184,33 @@ describe('MEC in step 5', () => {
       expect(selected()).toEqual([]);
     }
     fireEvent.change(screen.getByLabelText('Cantidad MEC'), { target: { value: '1' } });
-    fireEvent.change(screen.getByLabelText('Tipo de descuento MEC'), { target: { value: 'porcentaje' } });
-    fireEvent.change(screen.getByLabelText('Descuento MEC'), { target: { value: '101' } });
+    fireEvent.change(screen.getByLabelText('Precio unitario MEC'), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('100%');
+    expect(screen.getByRole('alert')).toHaveTextContent('Indica el precio unitario');
     expect(selected()).toEqual([]);
+  });
+
+  it('validates only the general discount and recalculates both inputs without changing service prices', async () => {
+    await mount();
+    fireEvent.click(screen.getByRole('button', { name: `Configurar ${standard.nombre}` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
+    const original = selected()[0];
+    fireEvent.change(screen.getByLabelText('Descuento general en porcentaje'), { target: { value: '101' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('100%');
+    expect(screen.getByTestId('mec-total')).toHaveTextContent('-');
+    expect(selected()).toEqual([original]);
+    fireEvent.change(screen.getByLabelText('Descuento general en pesos'), { target: { value: '15001' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('no puede superar el importe');
+    expect(selected()).toEqual([original]);
+    fireEvent.change(screen.getByLabelText('Descuento general en pesos'), { target: { value: '3000' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Descuento general en porcentaje')).toHaveValue(20);
+    expect(screen.getByTestId('mec-total')).toHaveTextContent('$14.280');
+    fireEvent.change(screen.getByLabelText('Descuento general en porcentaje'), { target: { value: '10' } });
+    expect(screen.getByLabelText('Descuento general en pesos')).toHaveValue('1.500');
+    expect(screen.getByTestId('mec-total')).toHaveTextContent('$16.065');
+    expect(selected()).toEqual([original]);
+    expect(screen.queryByLabelText('Tipo de descuento general')).not.toBeInTheDocument();
   });
 
   it('retains selections when changing mode/division and respects read-only standard prices', async () => {
@@ -184,7 +222,7 @@ describe('MEC in step 5', () => {
     await chooseSpecific();
     fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
     expect(selected()).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Repuestos' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tipo de catálogo' })).getByRole('button', { name: 'ACC' }));
     expect(selected()[0]).toEqual(original);
     expect(screen.getAllByRole('article', { name: /Servicio MEC/ })).toHaveLength(2);
   });

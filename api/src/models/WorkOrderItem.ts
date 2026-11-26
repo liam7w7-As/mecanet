@@ -113,6 +113,15 @@ export class WorkOrderItem extends Model<
   })
   declare precioUnitario: CreationOptional<number>;
 
+  @Column({ type: DataType.DECIMAL(12, 2), allowNull: true })
+  declare minimumSalePrice: CreationOptional<number | null>;
+
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare expressPurchaseId: CreationOptional<number | null>;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare expressStockReturnedAt: CreationOptional<Date | null>;
+
   @Column({ type: DataType.JSON, allowNull: true, get(this: WorkOrderItem): DpWorkQuote | null {
     const value: unknown = this.getDataValue('dpPricingSnapshot');
     return (typeof value === 'string' ? JSON.parse(value) : value ?? null) as DpWorkQuote | null;

@@ -35,6 +35,9 @@ import { up as ensureDpTimeStage } from '../database/migrations/063-dp-time-stag
 import { up as ensureDpConfiguration } from '../database/migrations/064-dp-configuration.js';
 import { up as ensureDpWorkSnapshots } from '../database/migrations/065-dp-work-snapshots.js';
 import { up as ensureVehicleDpClassification } from '../database/migrations/066-vehicle-dp-classification.js';
+import { up as ensureQuotationDpVehicleContext } from '../database/migrations/067-quotation-dp-vehicle-context.js';
+import { up as ensurePurchasesExpress } from '../database/migrations/068-purchases-express.js';
+import { up as ensureExpressStockReturns } from '../database/migrations/069-express-stock-returns-and-late-expenses.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -125,6 +128,9 @@ beforeAll(async () => {
   await ensureDpConfiguration(sequelize.getQueryInterface());
   await ensureDpWorkSnapshots(sequelize.getQueryInterface());
   await ensureVehicleDpClassification(sequelize.getQueryInterface());
+  await ensureQuotationDpVehicleContext(sequelize.getQueryInterface());
+  await ensurePurchasesExpress(sequelize.getQueryInterface());
+  await ensureExpressStockReturns(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
   await ensureImportPermissions();

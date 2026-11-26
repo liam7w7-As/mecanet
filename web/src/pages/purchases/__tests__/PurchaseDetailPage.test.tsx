@@ -70,6 +70,57 @@ describe('PurchaseDetailPage', () => {
     });
   });
 
+  const mockExpress = () => {
+    const purchase = { ...purchaseFixture, express: true, formaPago: 'contado' as const, items: purchaseFixture.items.map((item) => ({ ...item, stockReturnedAt: null as string | null })) };
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/purchases/7' ? { purchase } : { supplier: supplierFixture } }) as AxiosResponse);
+    return purchase;
+  };
+
+  it.each(['jefe', 'admin', 'desarrollador'] as const)('permite enviar una express a stock general sin anular su egreso: %s', async (role) => {
+    mockExpress();
+    renderPage(role);
+    expect(await screen.findByRole('button', { name: 'Enviar a stock general' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Anular compra' })).not.toBeInTheDocument();
+  });
+
+  it('envía a stock general, actualiza la ficha y conserva la compra registrada', async () => {
+    const purchase = mockExpress();
+    vi.mocked(api.post).mockImplementation(async () => {
+      purchase.items[0].stockReturnedAt = new Date().toISOString();
+      return { data: { purchase } } as AxiosResponse;
+    });
+    renderPage('jefe');
+    fireEvent.click(await screen.findByRole('button', { name: 'Enviar a stock general' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Enviar a stock general' }));
+    fireEvent.change(dialog.getByLabelText('Motivo'), { target: { value: 'El cliente no necesitó el accesorio' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Enviar a stock general' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/purchases/7/return-to-stock', { motivo: 'El cliente no necesitó el accesorio' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Enviar a stock general' })).not.toBeInTheDocument());
+    expect(screen.getByText(/Accesorio enviado al stock general/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Enviar a stock general' })).not.toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('conserva el motivo y muestra el fallo si el accesorio no admite devolución', async () => {
+    mockExpress();
+    vi.mocked(api.post).mockRejectedValue(new Error('Accesorio utilizado'));
+    renderPage('jefe');
+    fireEvent.click(await screen.findByRole('button', { name: 'Enviar a stock general' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Enviar a stock general' }));
+    fireEvent.change(dialog.getByLabelText('Motivo'), { target: { value: 'Conservar motivo de devolución' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Enviar a stock general' }));
+    await waitFor(() => expect(dialog.getByRole('alert')).toBeInTheDocument());
+    expect(dialog.getByLabelText('Motivo')).toHaveValue('Conservar motivo de devolución');
+    expect(dialog.getByRole('button', { name: 'Enviar a stock general' })).toBeEnabled();
+  });
+
+  it('oculta la devolución de stock al perder el permiso de compras', async () => {
+    mockExpress();
+    renderPage('jefe', [{ modulo: 'compras', accion: 'read' }]);
+    await screen.findByRole('heading', { name: 'COMP-000007' });
+    expect(screen.queryByRole('button', { name: 'Enviar a stock general' })).not.toBeInTheDocument();
+  });
+
   it('muestra comprobante, ítems con stock, asociación y pago pendiente', async () => {
     renderPage('jefe');
 

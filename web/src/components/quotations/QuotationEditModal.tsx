@@ -33,6 +33,10 @@ const toEditableItems = (quotation: Quotation): EditableWorkOrderItem[] =>
     notasOperativas: item.notasOperativas ?? '',
     descuentoTipo: item.descuentoTipo ?? null,
     descuentoValor: String(item.descuentoValor ?? 0),
+    ...(item.dpPricingSnapshot ? {
+      dpPricing: item.dpPricingSnapshot.selection,
+      dpPricingSnapshot: item.dpPricingSnapshot,
+    } : {}),
   })) ?? [];
 
 interface QuotationEditModalProps {

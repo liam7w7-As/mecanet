@@ -74,7 +74,7 @@ export const warehouseRequestQuerySchema = paginationSchema.extend({
 });
 
 export const deliverWarehouseRequestSchema = z.object({
-  warehouseId: z.number().int().positive('Almacén inválido'),
+  warehouseId: z.number().int().positive('Almacén inválido').optional(),
   comentario: z.string().trim().max(500).optional(),
 });
 

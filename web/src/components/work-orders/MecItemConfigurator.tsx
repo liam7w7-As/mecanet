@@ -24,6 +24,7 @@ export default function MecItemConfigurator({ initial, editing, showDiscounts, p
   const [errors, setErrors] = useState<Record<string, string>>({});
   const applied = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
+  const divisionLabel = initial.division === 'DP' ? 'D&P' : 'MEC';
   const specific = initial.subtipo === 'especifico' || initial.tipoLinea === 'especifico';
   const reference = specific && Number(initial.precioUnitario) === 1;
   const lockedPrice = specific || priceReadOnly;
@@ -55,30 +56,30 @@ export default function MecItemConfigurator({ initial, editing, showDiscounts, p
       precioUnitario: lockedPrice ? initial.precioUnitario : String(parsed.data.precioUnitario),
     });
   };
-  return <section className="mec-item-builder" aria-label={editing ? 'Editar servicio MEC' : 'Preparar servicio MEC'}>
-    <header><div><small>MEC · {specific ? 'Específico' : 'Estándar'}</small>
+  return <section className="mec-item-builder" aria-label={`${editing ? 'Editar' : 'Preparar'} servicio ${divisionLabel}`}>
+    <header><div><small>{divisionLabel} · {initial.division === 'DP' ? 'Ítem libre' : specific ? 'Específico' : 'Estándar'}</small>
       <h4 ref={heading} tabIndex={-1}>{initial.descripcion || 'Servicio libre'}</h4></div>
-      <button type="button" className="service-icon-button" aria-label={editing ? 'Cancelar edición MEC' : 'Cancelar selección MEC'}
+      <button type="button" className="service-icon-button" aria-label={`${editing ? 'Cancelar edición' : 'Cancelar selección'} ${divisionLabel}`}
         title="Volver al catálogo sin guardar" onClick={onCancel}><X aria-hidden="true" /></button>
     </header>
     <p className="mec-item-context"><span>Unidad: <strong>{UNIT_MEASURE_LABELS[draft.unidadMedida]}</strong></span>
       {draft.horasHombreEstimadas && <span>{draft.horasHombreEstimadas} h estimadas por unidad</span>}
     </p>
     {(specific || !draft.catalogItemId) && <label className="service-field"><span>Descripción del trabajo</span>
-      <textarea aria-label="Descripción MEC" maxLength={255} value={draft.descripcion} aria-invalid={Boolean(errors.descripcion)}
+      <textarea aria-label={`Descripción ${divisionLabel}`} maxLength={255} value={draft.descripcion} aria-invalid={Boolean(errors.descripcion)}
         onChange={(event) => change({ descripcion: event.target.value })} placeholder="Describe el servicio y lo que se debe revisar" />
     </label>}
     {!draft.catalogItemId && !specific && <label className="service-field"><span>Unidad</span>
-      <select aria-label="Unidad MEC" value={draft.unidadMedida} onChange={(event) => change({ unidadMedida: event.target.value as UnitMeasure })}>
+      <select aria-label={`Unidad ${divisionLabel}`} value={draft.unidadMedida} onChange={(event) => change({ unidadMedida: event.target.value as UnitMeasure })}>
         {UNIT_MEASURES.map((unit) => <option key={unit} value={unit}>{UNIT_MEASURE_LABELS[unit]}</option>)}
       </select></label>}
     <div className={specific ? 'mec-specific-price' : 'mec-item-fields'}>
       {!specific && <label className="service-field"><span>Cantidad</span>
-        <input type="number" min="1" step="1" aria-label="Cantidad MEC" value={draft.cantidad} aria-invalid={Boolean(errors.cantidad)}
+        <input type="number" min="1" step="1" aria-label={`Cantidad ${divisionLabel}`} value={draft.cantidad} aria-invalid={Boolean(errors.cantidad)}
           onChange={(event) => change({ cantidad: event.target.value })} />
       </label>}
       <label className="service-field"><span>{reference ? 'Precio referencial' : 'Precio unitario neto'}</span>
-        <CurrencyInput allowDecimals aria-label="Precio unitario MEC" value={draft.precioUnitario}
+        <CurrencyInput allowDecimals aria-label={`Precio unitario ${divisionLabel}`} value={draft.precioUnitario}
           disabled={lockedPrice} aria-invalid={Boolean(errors.precioUnitario)} onChange={(value) => change({ precioUnitario: value })} />
       </label>
     </div>
@@ -102,7 +103,7 @@ export default function MecItemConfigurator({ initial, editing, showDiscounts, p
     {!specific && draft.descuentoTipo === 'fijo' && <p className="mec-item-help">El monto fijo se descuenta una vez del importe del servicio, no por unidad.</p>}
     {!specific && <details className="mec-time-details"><summary>Tiempo estimado (opcional)</summary>
       <label className="service-field"><span>Horas por unidad</span><input type="number" min="0" step="0.25"
-        aria-label="Horas hombre MEC" value={draft.horasHombreEstimadas} onChange={(event) => change({ horasHombreEstimadas: event.target.value })} /></label>
+        aria-label={`Horas hombre ${divisionLabel}`} value={draft.horasHombreEstimadas} onChange={(event) => change({ horasHombreEstimadas: event.target.value })} /></label>
     </details>}
     {Object.keys(errors).length > 0 && <div role="alert" className="service-error"><ul>
       {[...new Set(Object.values(errors))].map((message) => <li key={message}>{message}</li>)}

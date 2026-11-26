@@ -107,9 +107,8 @@ export default function DpConfigurationPanel({ onClose }: DpConfigurationPanelPr
               <div className="dp-settings-meta">
                 <strong>{record.lastEditor ? `Última edición: ${record.lastEditor.nombre}` : `Versión ${record.revision} · Configuración inicial`}</strong>
                 {record.lastEditor && <span>{formatDateTime(record.updatedAt)}</span>}
-                <small>Los cambios crean una nueva versión; los documentos emitidos conservan su cálculo.</small>
               </div>
-              <button type="button" className="dp-secondary" disabled={!dirty || busy} onClick={requestReload}><RotateCcw aria-hidden="true" />Descartar edición</button>
+              {tab !== 'vehicles' && <button type="button" className="dp-secondary" disabled={!dirty || busy} onClick={requestReload}><RotateCcw aria-hidden="true" />Descartar edición</button>}
             </div>
             <div className="dp-tabs" role="tablist" aria-label="Secciones de configuración D&P">{DP_SETTINGS_TABS.map((entry) =>
               <button key={entry.id} id={`dp-settings-tab-${entry.id}`} type="button" role="tab" aria-selected={tab === entry.id} aria-controls={`dp-settings-panel-${entry.id}`}
@@ -129,7 +128,7 @@ export default function DpConfigurationPanel({ onClose }: DpConfigurationPanelPr
               {errors.length > 0 && <div role="alert" className="dp-alert"><div><strong>Revisa estos campos antes de guardar:</strong><ul>{errors.map((error, index) => <li key={index}>{error}</li>)}</ul></div></div>}
               <section role="tabpanel" aria-labelledby={`dp-settings-tab-${tab}`} id={`dp-settings-panel-${tab}`}>
                 {tab === 'prices' && <DpPricesEditor configuration={record.configuration} edit={edit} disabled={!canEdit || busy} />}
-                {tab === 'vehicles' && <DpVehiclesEditor configuration={record.configuration} edit={edit} disabled={!canEdit || busy} />}
+                {tab === 'vehicles' && <DpVehiclesEditor configuration={record.configuration} edit={edit} disabled={!canEdit || busy} onCancel={requestReload} cancelDisabled={!dirty || busy} />}
                 {tab === 'pieces' && <DpPiecesEditor configuration={record.configuration} edit={edit} disabled={!canEdit || busy} />}
                 {tab === 'damage' && <DpDamageEditor configuration={record.configuration} edit={edit} disabled={!canEdit || busy} />}
                 {tab === 'stages' && <DpStagesEditor configuration={record.configuration} edit={edit} disabled={!canEdit || busy} />}

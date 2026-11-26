@@ -151,7 +151,7 @@ export const useDeliverWarehouseRequestMutation = () => {
       comentario,
     }: {
       requestId: number;
-      warehouseId: number;
+      warehouseId?: number;
       comentario?: string;
     }) => {
       const response = await api.post<{ request: WarehouseWorkOrderRequest }>(

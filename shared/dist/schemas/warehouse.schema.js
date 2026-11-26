@@ -63,6 +63,6 @@ export const warehouseRequestQuerySchema = paginationSchema.extend({
     search: z.string().trim().max(100).optional(),
 });
 export const deliverWarehouseRequestSchema = z.object({
-    warehouseId: z.number().int().positive('Almacén inválido'),
+    warehouseId: z.number().int().positive('Almacén inválido').optional(),
     comentario: z.string().trim().max(500).optional(),
 });

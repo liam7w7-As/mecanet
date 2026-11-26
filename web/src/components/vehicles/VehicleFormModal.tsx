@@ -26,6 +26,8 @@ import type { Client, Vehicle } from '../../types/entities';
 interface VehicleFormModalProps {
   vehicle?: Vehicle | null;
   initialPatente?: string;
+  initialDpBodyTypeId?: string | null;
+  initialDpSizeId?: string | null;
   suggestedClient?: Pick<Client, 'id' | 'nombre' | 'rut'> | null;
   onClose: () => void;
   onSaved?: (vehicle: Vehicle) => void;
@@ -78,6 +80,8 @@ const inputClassName =
 export const VehicleFormModal = ({
   vehicle,
   initialPatente = '',
+  initialDpBodyTypeId = null,
+  initialDpSizeId = null,
   suggestedClient = null,
   onClose,
   onSaved,
@@ -176,6 +180,10 @@ export const VehicleFormModal = ({
       ano: form.ano === '' ? null : Number(form.ano),
       kilometraje: form.kilometraje === '' ? null : Number(form.kilometraje),
       clientId: withoutOwner ? null : selectedClient?.id,
+      ...(vehicle ? {} : {
+        ...(initialDpBodyTypeId ? { dpBodyTypeId: initialDpBodyTypeId } : {}),
+        ...(initialDpSizeId ? { dpSizeId: initialDpSizeId } : {}),
+      }),
     };
     const result = createVehicleSchema.safeParse(candidate);
     if (!result.success) {

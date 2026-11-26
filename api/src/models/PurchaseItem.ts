@@ -40,6 +40,30 @@ export class PurchaseItem extends Model<
   })
   declare purchaseId: number;
 
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare sourceRequestId: CreationOptional<number | null>;
+
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare workOrderItemId: CreationOptional<number | null>;
+
+  @Column({ type: DataType.DECIMAL(12, 2), allowNull: true })
+  declare ventaUnitario: CreationOptional<number | null>;
+
+  @Column({ type: DataType.DECIMAL(12, 2), allowNull: true })
+  declare previousSalePrice: CreationOptional<number | null>;
+
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare expressCreatedItem: CreationOptional<boolean>;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare stockReturnedAt: CreationOptional<Date | null>;
+
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare stockReturnedBy: CreationOptional<number | null>;
+
+  @Column({ type: DataType.STRING(500), allowNull: true })
+  declare stockReturnReason: CreationOptional<string | null>;
+
   @ForeignKey(() => CatalogItem)
   @Column({
     type: DataType.INTEGER,

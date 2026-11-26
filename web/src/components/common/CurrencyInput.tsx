@@ -9,6 +9,7 @@ const formatInputValue = (value: string, allowDecimals: boolean): string => {
 };
 
 interface CurrencyInputProps {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   className?: string;
@@ -21,6 +22,7 @@ interface CurrencyInputProps {
 }
 
 export const CurrencyInput = ({
+  id,
   value,
   onChange,
   className,
@@ -63,6 +65,7 @@ export const CurrencyInput = ({
 
   return (
     <input
+      id={id}
       type="text"
       inputMode={allowDecimals ? 'decimal' : 'numeric'}
       value={displayValue}

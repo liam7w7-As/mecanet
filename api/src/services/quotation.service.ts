@@ -7,6 +7,7 @@ import { col, literal, Op, Transaction, where as sequelizeWhere } from 'sequeliz
 import { enqueueCustomerEmail, enqueueWorkOrderProgress } from './customer-email-queue.service.js';
 import { calculateDpWorkPricing } from './dp-configuration.service.js';
 import { notifyByType } from './notification.service.js';
+import { assertPurchaseSaleFloors } from './purchase-sale-floor.js';
 import { preserveLineDiscounts, priceQuotation } from './quotation-pricing.js';
 import { propagateLinkedSalesAccess } from './sales-access-grant.service.js';
 import { assertSalesWorkOrderAccess, getSalesScope, quotationWhere, scopeSalesAssociations, type SalesScope } from './sales-access.service.js';
@@ -74,6 +75,8 @@ interface QuotationVehiclePublic {
   patente: string;
   marca: string | null;
   modelo: string | null;
+  dpBodyTypeId?: string | null;
+  dpSizeId?: string | null;
 }
 
 interface QuotationUserPublic {
@@ -123,6 +126,9 @@ export interface QuotationPublic {
   workOrderId: number | null;
   clientId: number | null;
   vehicleId: number | null;
+  dpBodyTypeId: string | null;
+  dpSizeId: string | null;
+  dpVehicleRef: string | null;
   asesorId: number | null;
   estadoPago: QuotationStatus;
   subtotal: number;
@@ -170,7 +176,7 @@ const clientInclude = {
 
 const vehicleInclude = {
   model: Vehicle,
-  attributes: ['id', 'patente', 'marca', 'modelo'],
+  attributes: ['id', 'patente', 'marca', 'modelo', 'dpBodyTypeId', 'dpSizeId'],
 };
 
 const asesorInclude = {
@@ -233,6 +239,9 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
   workOrderId: quotation.workOrderId,
   clientId: quotation.clientId,
   vehicleId: quotation.vehicleId,
+  dpBodyTypeId: quotation.dpBodyTypeId ?? null,
+  dpSizeId: quotation.dpSizeId ?? null,
+  dpVehicleRef: quotation.dpVehicleRef ?? null,
   asesorId: quotation.asesorId,
   estadoPago: quotation.estadoPago,
   archivedAt: quotation.archivedAt ?? null,
@@ -265,6 +274,8 @@ const toQuotationPublic = (quotation: Quotation): QuotationPublic => ({
         patente: quotation.vehicle.patente,
         marca: quotation.vehicle.marca,
         modelo: quotation.vehicle.modelo,
+        dpBodyTypeId: quotation.vehicle.dpBodyTypeId ?? null,
+        dpSizeId: quotation.vehicle.dpSizeId ?? null,
       }
     : quotation.vehicleId === null
       ? null
@@ -462,6 +473,7 @@ const consumeCompletedWorkOrderPartStock = async (
     if (
       item.estadoOperativo !== 'completado' ||
       item.catalogItemId === null ||
+      item.expressPurchaseId != null ||
       item.stockConsumido
     ) {
       continue;
@@ -550,6 +562,12 @@ const syncLinkedWorkOrderFromQuotation = async (
     if (existing) {
       if (payload.division !== 'DP') payload.dpPricingSnapshot = null;
       const stockChanged = existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea || Number(existing.cantidad) !== Number(payload.cantidad);
+      if (existing.expressStockReturnedAt && (stockChanged || payload.division !== 'ACC' || Number(payload.precioUnitario) !== 0 || payload.estadoOperativo !== 'omitido')) {
+        throw ApiError.badRequest('El accesorio fue enviado al stock general. Conserva esta línea sin cobro y agrega otra si necesitas un repuesto');
+      }
+      if (existing.minimumSalePrice != null && (stockChanged || payload.division !== 'ACC')) {
+        throw ApiError.badRequest('El accesorio tiene una compra express: no cambies su cantidad ni su identidad sin regularizar la compra');
+      }
       if (stockChanged && (existing.entregadoBodega || existing.recibidoTaller)) {
         throw ApiError.badRequest('No se puede cambiar el repuesto ni la cantidad de una entrega física sin registrar antes su devolución');
       }
@@ -889,10 +907,13 @@ export const createQuotation = async (
     }
 
     const emailClient = clientId === null ? null : await assertClientExists(clientId, transaction);
-    if (vehicleId !== null) {
-      await assertVehicleExists(vehicleId, transaction);
-    }
+    const vehicleRecord = vehicleId === null ? null : await assertVehicleExists(vehicleId, transaction);
     items = await normalizeQuotationItems(items, transaction);
+
+    const dpSelectionFromItems = items.find((item) => item.dpPricingSnapshot)?.dpPricingSnapshot?.selection;
+    const dpBodyTypeId = data.dpBodyTypeId ?? vehicleRecord?.dpBodyTypeId ?? dpSelectionFromItems?.bodyTypeId ?? null;
+    const dpSizeId = data.dpSizeId ?? vehicleRecord?.dpSizeId ?? dpSelectionFromItems?.sizeId ?? null;
+    const dpVehicleRef = data.dpVehicleRef ?? null;
 
     const pricing = priceQuotation(items, data);
     const { total } = pricing;
@@ -903,6 +924,9 @@ export const createQuotation = async (
         workOrderId: data.workOrderId ?? null,
         clientId,
         vehicleId,
+        dpBodyTypeId,
+        dpSizeId,
+        dpVehicleRef,
         asesorId,
         estadoPago: 'por_pagar',
         subtotal: pricing.subtotal,
@@ -963,7 +987,8 @@ export const updateQuotation = async (
     }
 
     const updatePayload: Partial<Pick<Quotation, 'notas' | 'estadoPago' | 'subtotal' | 'total' |
-      'formaPago' | 'disponibilidadTrabajo' | 'validezDias' | 'descuentoTipo' | 'descuentoValor'>> = {};
+      'formaPago' | 'disponibilidadTrabajo' | 'validezDias' | 'descuentoTipo' | 'descuentoValor' |
+      'dpBodyTypeId' | 'dpSizeId' | 'dpVehicleRef'>> = {};
     let nextTotal = numberValue(quotation.total);
     const changesPricing = data.items !== undefined || data.descuentoTipo !== undefined || data.descuentoValor !== undefined;
 
@@ -988,6 +1013,14 @@ export const updateQuotation = async (
         descuentoValor: data.descuentoValor ?? Number(quotation.descuentoValor),
       };
       const pricing = priceQuotation(items, discount);
+      if (quotation.workOrderId !== null) {
+        const protectedItems = await WorkOrderItem.findAll({ where: { workOrderId: quotation.workOrderId }, transaction });
+        assertPurchaseSaleFloors(items.map((line) => {
+          const original = previous.find((old) => line.id !== undefined ? old.id === line.id : itemIdentity(old) === itemIdentity(line));
+          return { descripcion: line.descripcion, cantidad: line.cantidad,
+            minimumSalePrice: protectedItems.find((item) => item.id === original?.workOrderItemId)?.minimumSalePrice ?? null };
+        }), pricing);
+      }
       const { total } = pricing;
       if (getQuotationGrossTotal(total) < numberValue(quotation.pagado)) {
         throw ApiError.badRequest('El nuevo total no puede ser inferior al monto ya pagado');
@@ -1033,6 +1066,9 @@ export const updateQuotation = async (
     if (data.notas !== undefined) {
       updatePayload.notas = data.notas;
     }
+    if (data.dpBodyTypeId !== undefined) updatePayload.dpBodyTypeId = data.dpBodyTypeId;
+    if (data.dpSizeId !== undefined) updatePayload.dpSizeId = data.dpSizeId;
+    if (data.dpVehicleRef !== undefined) updatePayload.dpVehicleRef = data.dpVehicleRef;
     if (data.formaPago !== undefined) updatePayload.formaPago = data.formaPago;
     if (data.disponibilidadTrabajo !== undefined) updatePayload.disponibilidadTrabajo = data.disponibilidadTrabajo;
     if (data.validezDias !== undefined) updatePayload.validezDias = data.validezDias;

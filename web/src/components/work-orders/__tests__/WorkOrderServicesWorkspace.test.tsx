@@ -65,7 +65,7 @@ describe('Step 5 service workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() => expect(selected()[0].dpPricing?.damageLevelId).toBe('D3'));
     expect(selected()).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Repuestos' }));
+    fireEvent.click(screen.getByRole('button', { name: /^ACC$/ }));
     fireEvent.click(screen.getByRole('button', { name: 'D&P' }));
     expect(selected()).toHaveLength(1);
     // Recovery keeps the selection and quote, not just the description and price.
@@ -92,5 +92,30 @@ describe('Step 5 service workspace', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Completa la carrocería');
     expect(screen.queryByLabelText('Pieza y ubicación')).not.toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('keeps free D&P inputs on the left and the selection read-only', async () => {
+    const { container } = render(<Harness />);
+    await screen.findByText('SUV · XL');
+    expect(screen.getByRole('button', { name: /^D&P$/ })).toHaveTextContent(/^D&P$/);
+    expect(screen.getByRole('button', { name: /^ACC$/ })).toHaveTextContent(/^ACC$/);
+    expect(screen.getByRole('button', { name: /^MEC$/ })).toHaveTextContent(/^MEC$/);
+    const left = within(container.querySelector('.reception-catalog') as HTMLElement);
+    const right = container.querySelector('.reception-selected-items') as HTMLElement;
+    expect(within(right).queryByRole('button', { name: 'Ítem libre' })).not.toBeInTheDocument();
+    fireEvent.click(left.getByRole('button', { name: 'Ítem libre' }));
+    fireEvent.change(left.getByLabelText('Descripción D&P'), { target: { value: 'Ajuste manual de puerta' } });
+    fireEvent.change(left.getByLabelText('Precio unitario D&P'), { target: { value: '20000' } });
+    expect(selected()).toHaveLength(0);
+    fireEvent.click(left.getByRole('button', { name: 'Agregar' }));
+    await waitFor(() => expect(selected()).toHaveLength(1));
+    expect(selected()[0]).toMatchObject({ descripcion: 'Ajuste manual de puerta', division: 'DP', precioUnitario: '20000' });
+    expect(right.querySelector('input,select,textarea')).toBeNull();
+    expect(within(right).getByText('Ajuste manual de puerta')).toBeInTheDocument();
+    fireEvent.click(within(right).getByRole('button', { name: 'Editar servicio D&P 1' }));
+    fireEvent.change(left.getByLabelText('Descripción D&P'), { target: { value: 'Texto que se cancela' } });
+    fireEvent.click(left.getByRole('button', { name: 'Cancelar edición' }));
+    expect(selected()[0].descripcion).toBe('Ajuste manual de puerta');
+    expect(right.querySelector('input,select,textarea')).toBeNull();
   });
 });

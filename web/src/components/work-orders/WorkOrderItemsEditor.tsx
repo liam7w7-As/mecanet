@@ -140,6 +140,7 @@ interface WorkOrderItemsEditorProps {
   vehicle?: { id: number; dpBodyTypeId?: string | null; dpSizeId?: string | null } | null;
   serviceWorkspace?: boolean;
   onLoadFromOrder?: () => void;
+  catalogFooter?: ReactNode;
   selectionFooter?: ReactNode;
   /** Allows clearing an existing general discount even when the selection is empty. */
   showEmptySummary?: boolean;
@@ -178,6 +179,7 @@ export const WorkOrderItemsEditor = ({
   vehicle,
   serviceWorkspace = false,
   onLoadFromOrder,
+  catalogFooter,
   selectionFooter,
   showEmptySummary = true,
 }: WorkOrderItemsEditorProps) => {
@@ -190,6 +192,7 @@ export const WorkOrderItemsEditor = ({
   const [accSubtype, setAccSubtype] = useState<'all' | 'en_stock' | 'a_pedido'>('all');
   const [dpPickerOpen, setDpPickerOpen] = useState(false);
   const [dpScope, setDpScope] = useState<'piece' | 'global'>('piece');
+  const [dpFreeMode, setDpFreeMode] = useState(false);
   const [editingDpKey, setEditingDpKey] = useState<string | null>(null);
   const [builderVersion, setBuilderVersion] = useState(0);
   const editingDp = items.find((item) => item.key === editingDpKey);
@@ -366,6 +369,7 @@ export const WorkOrderItemsEditor = ({
       onChange([...items, item]);
     }
     setMecDraft(null);
+    setDpFreeMode(false);
     markFresh(item.key);
     catalogSearch.current?.focus({ preventScroll: true });
   };
@@ -434,6 +438,13 @@ export const WorkOrderItemsEditor = ({
       });
       return;
     }
+    if (serviceWorkspace && isDP) {
+      setEditingDpKey(null);
+      setAccDraft(null);
+      setDpFreeMode(true);
+      setMecDraft({ item: row, editing: false });
+      return;
+    }
     onChange([row, ...items]);
     markFresh(row.key);
   };
@@ -476,17 +487,17 @@ export const WorkOrderItemsEditor = ({
             {(serviceWorkspace ? ['DP', 'ACC', 'MEC'] as const : ['MEC', 'DP', 'ACC'] as const).map((division) => {
               const Icon = division === 'DP' ? Sparkles : division === 'ACC' ? Package : Wrench;
               return <button key={division} type="button"
-                aria-label={division === 'DP' ? 'D&P' : division === 'ACC' ? 'Repuestos' : 'Estándar'}
+                aria-label={division === 'DP' ? 'D&P' : serviceWorkspace ? division : division === 'ACC' ? 'Repuestos' : 'Estándar'}
                 aria-pressed={activeDivision === division}
                 onClick={() => {
                   setActiveDivision(division); setSearch(''); setPage(1);
-                  if (division !== activeDivision) { setAccDraft(null); setMecDraft(null); }
+                  if (division !== activeDivision) { setAccDraft(null); setMecDraft(null); setDpFreeMode(false); }
                 }}
                 className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
                   activeDivision === division ? 'border-brand-primaryInk text-brand-primaryInk' : 'border-transparent text-brand-muted hover:text-brand-ink'
                 }`}>
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                {division === 'DP' ? 'D&P · Carrocería' : division === 'ACC' ? 'ACC · Repuestos' : 'MEC · Mecánica'}
+                {division === 'DP' ? 'D&P' : division}
               </button>;
             })}
           </div>
@@ -586,12 +597,15 @@ export const WorkOrderItemsEditor = ({
           {activeDivision === 'DP' && serviceWorkspace ? <>
             <div className="service-scope-tabs" role="group" aria-label="Alcance D&P">
               {(['piece', 'global'] as const).map((scope) => <button type="button" key={scope}
-                aria-pressed={dpScope === scope} onClick={() => { setDpScope(scope); setEditingDpKey(null); setBuilderVersion((current) => current + 1); }}>
+                aria-pressed={!dpFreeMode && dpScope === scope} onClick={() => { setDpScope(scope); setDpFreeMode(false); setMecDraft(null); setEditingDpKey(null); setBuilderVersion((current) => current + 1); }}>
                 {scope === 'piece' ? 'Pieza' : 'Completo'}
               </button>)}
+              <button type="button" aria-pressed={dpFreeMode} onClick={addFreeItem}><Plus aria-hidden="true" />Ítem libre</button>
               {onLoadFromOrder && <button type="button" className="service-load-order" onClick={onLoadFromOrder}>Cargar desde una OT</button>}
             </div>
-            {vehicle ? <Suspense fallback={<p role="status">Cargando configurador D&P…</p>}>
+            {dpFreeMode && mecDraft ? <MecItemConfigurator key={mecDraft.item.key} initial={mecDraft.item}
+              editing={mecDraft.editing} showDiscounts={false} priceReadOnly={isPriceReadOnly?.(mecDraft.item)}
+              onApply={applyMecItem} onCancel={() => { setMecDraft(null); setDpFreeMode(false); }} /> : vehicle ? <Suspense fallback={<p role="status">Cargando configurador D&P…</p>}>
               <DpServiceConfigurator key={`${vehicle.id}:${vehicle.dpBodyTypeId}:${vehicle.dpSizeId}:${builderVersion}:${editingDpKey ?? 'new'}`}
                 vehicle={vehicle} scope={dpScope} initial={editingDp?.dpPricing} editing={Boolean(editingDp)}
                 onApply={addDpService} onCancel={editingDp ? () => { setEditingDpKey(null); setBuilderVersion((current) => current + 1); } : undefined} />
@@ -623,6 +637,10 @@ export const WorkOrderItemsEditor = ({
               </p>
             </div>
           ) : <>
+          {serviceWorkspace && <div className="service-scope-tabs">
+            <button type="button" onClick={addFreeItem}><Plus aria-hidden="true" />Ítem libre</button>
+            {onLoadFromOrder && <button type="button" className="service-load-order" onClick={onLoadFromOrder}>Cargar desde una OT</button>}
+          </div>}
           <div className="relative my-3">
             <Search
               className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-brand-muted"
@@ -668,11 +686,11 @@ export const WorkOrderItemsEditor = ({
           </div>
 
           {preparingAcc && accDraft ? <AccItemConfigurator key={accDraft.item.key} initial={accDraft.item}
-            editing={accDraft.editing} showDiscounts={showDiscounts} priceReadOnly={isPriceReadOnly?.(accDraft.item)}
+            editing={accDraft.editing} showDiscounts={showDiscounts && !serviceWorkspace} priceReadOnly={isPriceReadOnly?.(accDraft.item)}
             onApply={applyAccItem} onCancel={() => {
               setAccDraft(null); catalogSearch.current?.focus({ preventScroll: true });
             }} /> : preparingMec && mecDraft ? <MecItemConfigurator key={mecDraft.item.key} initial={mecDraft.item}
-              editing={mecDraft.editing} showDiscounts={showDiscounts} priceReadOnly={isPriceReadOnly?.(mecDraft.item)}
+              editing={mecDraft.editing} showDiscounts={showDiscounts && !serviceWorkspace} priceReadOnly={isPriceReadOnly?.(mecDraft.item)}
               onApply={applyMecItem} onCancel={() => {
                 setMecDraft(null); catalogSearch.current?.focus({ preventScroll: true });
               }} /> : <>
@@ -780,13 +798,14 @@ export const WorkOrderItemsEditor = ({
           )}
           </>}
           </>}
+          {catalogFooter}
         </div>
 
         {/* Columna derecha: items seleccionados con scroll interno en xl */}
         <div className="reception-selected-items min-w-0 xl:max-h-[calc(100dvh-14rem)] xl:overflow-y-auto xl:pr-1">
           <div className="reception-selection-heading flex flex-wrap items-center justify-between gap-2 border-b border-brand-line pb-3">
             <h3 className="text-sm font-bold text-brand-ink">Selección ({items.length})</h3>
-            <div className="flex flex-wrap items-center gap-2">
+            {!serviceWorkspace && <div className="flex flex-wrap items-center gap-2">
               {showDiscounts && discountToggle && (
                 <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-brand-line px-3 text-xs font-semibold text-brand-muted transition-colors hover:bg-brand-pale has-[:checked]:border-brand-primaryInk has-[:checked]:bg-brand-pale has-[:checked]:text-brand-primaryInk">
                   <input
@@ -805,7 +824,7 @@ export const WorkOrderItemsEditor = ({
               >
                 <Plus className="h-4 w-4" aria-hidden="true" /> Ítem libre
               </button>
-            </div>
+            </div>}
           </div>
 
           {removed && (
@@ -861,7 +880,7 @@ export const WorkOrderItemsEditor = ({
                     <div className="service-summary-actions">
                       <button type="button" className="service-icon-button" aria-label={`Editar servicio D&P ${index + 1}`} onClick={() => {
                         setAccDraft(null);
-                        setMecDraft(null);
+                        setMecDraft(null); setDpFreeMode(false);
                         setEditingDpKey(item.key); setActiveDivision('DP'); setDpScope(quote.selection.scope);
                       }}><Pencil aria-hidden="true" /></button>
                       <button type="button" className="service-icon-button" aria-label={`Eliminar ítem ${index + 1}`} onClick={() => {
@@ -873,21 +892,20 @@ export const WorkOrderItemsEditor = ({
                   <ul>{quote.lines.map((line) => <li key={line.operationId}><span>{line.label}{line.formula === 'repair' && quote.damageLabel ? ` · ${quote.damageLabel}` : ''}</span>
                     <span>{formatClp(line.subtotal, 2)}</span></li>)}</ul>
                   <footer>
-                    {showDiscounts && <div className="service-card-discount">
-                      <label className="service-field"><span>Descuento del servicio</span><select aria-label={`Tipo de descuento ${index + 1}`}
-                        value={item.descuentoTipo ?? ''} onChange={(event) => updateItem(item.key, { descuentoTipo: event.target.value as DiscountType || null, descuentoValor: '0' })}>
-                        <option value="">Sin descuento</option><option value="porcentaje">Porcentaje (%)</option><option value="fijo">Monto fijo ($)</option>
-                      </select></label>
-                      {item.descuentoTipo && <label className="service-field"><span>{item.descuentoTipo === 'porcentaje' ? 'Porcentaje' : 'Monto'}</span>
-                        <input type="number" min="0" step="0.01" max={item.descuentoTipo === 'porcentaje' ? 100 : undefined}
-                          aria-label={`Descuento ${index + 1}`} value={item.descuentoValor ?? '0'} onChange={(event) => updateItem(item.key, { descuentoValor: event.target.value })} />
-                      </label>}
-                    </div>}
                     <div className="service-card-price"><small>Precio neto{Number(item.cantidad) > 1 ? ` · ${item.cantidad} unidades` : ''}</small>
                       <strong data-testid={`item-subtotal-${index}`}>{subtotal === null ? 'Revisa el descuento' : formatClp(subtotal, 2)}</strong></div>
                   </footer>
                   {Object.entries(errors).filter(([path]) => path.startsWith(`items.${index}.`)).map(([path, message]) => <p role="alert" className="service-error" key={path}>{message}</p>)}
                 </article>;
+              }
+
+              if (serviceWorkspace && isDP) {
+                return <MecItemSummary key={item.key} item={item} index={index} errors={errors}
+                  editing={dpFreeMode && mecDraft?.editing === true && mecDraft.item.key === item.key}
+                  onEdit={() => {
+                    setActiveDivision('DP'); setDpFreeMode(true); setEditingDpKey(null); setAccDraft(null);
+                    setMecDraft({ item: { ...item }, editing: true });
+                  }} onRemove={() => removeItem(item.key)} />;
               }
 
               return (

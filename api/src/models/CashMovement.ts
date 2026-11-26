@@ -53,6 +53,9 @@ export class CashMovement extends Model<
   @Column({ type: DataType.STRING(120), allowNull: true })
   declare referencia: CreationOptional<string | null>;
 
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare afterClosureId: CreationOptional<number | null>;
+
   @Column({ type: DataType.DATE, allowNull: false })
   declare fecha: Date;
 

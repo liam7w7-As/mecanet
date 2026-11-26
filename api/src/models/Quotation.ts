@@ -132,6 +132,15 @@ export class Quotation extends Model<
   @Column({ type: DataType.DECIMAL(12, 2), allowNull: false, defaultValue: 0 })
   declare descuentoValor: CreationOptional<number>;
 
+  @Column({ type: DataType.STRING(60), allowNull: true })
+  declare dpBodyTypeId: CreationOptional<string | null>;
+
+  @Column({ type: DataType.STRING(60), allowNull: true })
+  declare dpSizeId: CreationOptional<string | null>;
+
+  @Column({ type: DataType.STRING(140), allowNull: true })
+  declare dpVehicleRef: CreationOptional<string | null>;
+
   @Column({ type: DataType.DATE, allowNull: true })
   declare archivedAt: CreationOptional<Date | null>;
 

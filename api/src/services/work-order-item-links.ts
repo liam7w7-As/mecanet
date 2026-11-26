@@ -77,8 +77,13 @@ export const ensureQuotationItemLinks = async (
 export const assertWorkItemsRemovable = async (
   items: WorkOrderItem[],
   transaction: Transaction,
+  allowPurchased = false,
 ): Promise<void> => {
   for (const item of items) {
+    if (item.expressStockReturnedAt) throw ApiError.badRequest(`Conserva el historial de "${item.descripcion}": su accesorio fue enviado al stock general`);
+    if (!allowPurchased && item.minimumSalePrice != null) {
+      throw ApiError.badRequest(`No se puede quitar "${item.descripcion}": si no se utilizó, envíalo al stock general desde su compra express`);
+    }
     const where = { workOrderItemId: item.id };
     const counts = await Promise.all([
       WorkOrderQualityReview.count({ where, transaction }),

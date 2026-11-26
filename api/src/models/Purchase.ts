@@ -52,6 +52,12 @@ export class Purchase extends Model<InferAttributes<Purchase>, InferCreationAttr
   @Column({ type: DataType.STRING(30), allowNull: false, unique: true })
   declare codigo: string;
 
+  @Column({ type: DataType.STRING(36), allowNull: true, unique: true })
+  declare expressKey: CreationOptional<string | null>;
+
+  @Column({ type: DataType.STRING(64), allowNull: true })
+  declare expressFingerprint: CreationOptional<string | null>;
+
   @ForeignKey(() => Supplier)
   @Column({
     type: DataType.INTEGER,

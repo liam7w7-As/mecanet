@@ -1,4 +1,4 @@
-import { BookOpen, Car, ClipboardList, FileBarChart2, Gauge, Landmark, ReceiptText, Settings, ShoppingCart, Timer, UserCog, Users, Warehouse } from 'lucide-react';
+import { BookOpen, Car, ClipboardList, FileBarChart2, Gauge, Landmark, ReceiptText, Settings, ShoppingCart, Sparkles, Timer, UserCog, Users, Warehouse } from 'lucide-react';
 
 import { hasUserPermission } from '../../lib/permissions';
 
@@ -51,6 +51,7 @@ export const navigationGroups: NavigationGroup[] = [
     heading: 'Comercial',
     items: [
       { label: 'Cotizaciones', path: '/quotations', icon: ReceiptText, variant: 'slide-right', badge: 'quotations', permissions: [{ modulo: 'comercial', accion: 'read' }] },
+      { label: 'Cotización D&P', path: '/quotations/new-dp', icon: Sparkles, variant: 'pulse', permissions: [{ modulo: 'comercial', accion: 'create' }] },
       { label: 'Clientes', path: '/clients', icon: Users, variant: 'hover-lift', permissions: [{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }] },
       { label: 'Catálogo', path: '/catalog', icon: BookOpen, variant: 'wiggle', permissions: [{ modulo: 'taller', accion: 'read' }, { modulo: 'comercial', accion: 'read' }] },
     ],
@@ -58,7 +59,7 @@ export const navigationGroups: NavigationGroup[] = [
   {
     heading: 'Administración',
     items: [
-      { label: 'Compras', path: '/purchases', icon: ShoppingCart, variant: 'bounce', permissions: [{ modulo: 'compras', accion: 'read' }] },
+      { label: 'Compras express', path: '/purchases', icon: ShoppingCart, variant: 'bounce', permissions: [{ modulo: 'compras', accion: 'read' }] },
       { label: 'Finanzas / Contabilidad', path: '/finance', icon: Landmark, variant: 'pulse', badge: 'finance', permissions: [{ modulo: 'finanzas', accion: 'read' }] },
       { label: 'Usuarios', path: '/users', icon: UserCog, variant: 'spin', permissions: [{ modulo: 'admin', accion: 'read' }] },
       { label: 'Configuración', path: '/settings', icon: Settings, variant: 'hover-lift', permissions: [{ modulo: 'admin', accion: 'read' }] },

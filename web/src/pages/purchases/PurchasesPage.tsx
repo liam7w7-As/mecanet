@@ -425,6 +425,7 @@ export const PurchasesPage = () => {
                             Ver
                           </Link>
                           <a
+                            hidden={purchase.comprobanteSizeBytes <= 0}
                             href={`/api/purchases/${purchase.id}/receipt`}
                             target="_blank"
                             rel="noreferrer"

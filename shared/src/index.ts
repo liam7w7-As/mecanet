@@ -31,6 +31,7 @@ export * from './utils/rut.js';
 export * from './utils/fleet-expiry.js';
 export * from './utils/fleet-documents.js';
 export * from './utils/purchase-pricing.js';
+export * from './utils/purchase-express.js';
 
 export * from './schemas/workshop-personnel.schema.js';
 export * from './schemas/workshop-time.schema.js';

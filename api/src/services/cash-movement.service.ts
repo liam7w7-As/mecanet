@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import { assertAccountingDateOpen, getAccountingDate, withAccountingTransaction } from './cash-closure.service.js';
 import { CashMovement } from '../models/CashMovement.js';
 import { Payment } from '../models/Payment.js';
+import { Purchase } from '../models/Purchase.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 
@@ -25,6 +26,7 @@ export interface CashMovementPublic {
   fecha: Date;
   createdBy: number | null;
   voidedAt: Date | null;
+  afterClosureId?: number | null;
   voidedBy: number | null;
   voidReason: string | null;
   createdAt: Date;
@@ -51,6 +53,7 @@ const toPublic = (movement: CashMovement): CashMovementPublic => ({
   fecha: movement.fecha,
   createdBy: movement.createdBy,
   voidedAt: movement.voidedAt,
+  afterClosureId: movement.afterClosureId ?? null,
   voidedBy: movement.voidedBy,
   voidReason: movement.voidReason,
   createdAt: movement.createdAt,
@@ -185,6 +188,10 @@ export const voidCashMovement = async (
       });
       if (!movement) throw ApiError.notFound('Movimiento de caja no encontrado');
       if (movement.voidedAt) throw ApiError.conflict('El movimiento ya fue anulado');
+      const expressPurchase = await Purchase.findOne({
+        where: { cashMovementId: id, estado: 'registrada', expressKey: { [Op.ne]: null } }, transaction,
+      });
+      if (expressPurchase) throw ApiError.conflict('Este egreso pertenece a una compra express. Anula la compra para regularizar también la OT y su cotización.');
 
       await assertAccountingDateOpen(movement.fecha, transaction);
       await movement.update(

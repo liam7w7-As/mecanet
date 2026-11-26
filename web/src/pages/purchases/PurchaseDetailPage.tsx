@@ -101,8 +101,10 @@ export const PurchaseDetailPage = () => {
   }
 
   const canUpdate = Boolean(user && hasUserPermission(user, 'compras', 'update'));
-  const returnedToStock = Boolean(purchase.express && purchase.items.length && purchase.items.every((item) => item.stockReturnedAt));
-  const canReturnStock = Boolean(canUpdate && user && ['jefe', 'admin', 'desarrollador'].includes(user.role) && purchase.express && !returnedToStock && purchase.estado === 'registrada');
+  const returnedCount = purchase.express ? purchase.items.filter((item) => item.stockReturnedAt).length : 0;
+  const returnedToStock = returnedCount > 0 && returnedCount === purchase.items.length;
+  const canReturnStock = Boolean(canUpdate && user && ['jefe', 'admin', 'desarrollador'].includes(user.role) && purchase.express && returnedCount < purchase.items.length && purchase.estado === 'registrada');
+  const usesHeaderAssociation = !purchase.express || purchase.items.every((item) => (item.workOrderId ?? purchase.workOrderId) === purchase.workOrderId);
   const canVoid = Boolean(
     user &&
       (user.role === 'admin' || user.role === 'desarrollador') &&
@@ -210,8 +212,11 @@ export const PurchaseDetailPage = () => {
         </div>
       </header>
 
-      {returnedToStock && <p role="status" className="rounded-xl border border-brand-line bg-brand-mintPale px-4 py-3 text-sm text-brand-mintInk">
-        Accesorio enviado al stock general. El cobro fue retirado de la OT/COT y la compra y su egreso se conservan.
+      {returnedCount > 0 && <p role="status" className="rounded-xl border border-brand-line bg-brand-mintPale px-4 py-3 text-sm text-brand-mintInk">
+        {returnedToStock
+          ? purchase.items.length === 1 ? 'Accesorio enviado al stock general.' : 'Todos los productos fueron enviados al stock general.'
+          : `Devolución parcial a stock: ${returnedCount} de ${purchase.items.length} productos.`}
+        {' '}Se retiró de sus OT/COT solo el cobro de los productos devueltos. La compra y su egreso se conservan.
       </p>}
       {purchase.cashMovement?.afterClosureId && <p role="status" className="rounded-xl bg-brand-goldPale px-4 py-3 text-sm text-brand-goldInk">
         Egreso registrado después del cierre de caja. El cierre original se conserva sin cambios.
@@ -324,13 +329,20 @@ export const PurchaseDetailPage = () => {
                   </tr>
                 </thead>
                 <tbody role="rowgroup">
-                  {purchase.items.map((item, index) => (
-                    <tr role="row" key={item.id} className="border-t border-brand-line align-top">
+                  {purchase.items.map((item, index) => {
+                    const orderId = item.workOrderId ?? purchase.workOrderId;
+                    const order = item.workOrder ?? (purchase.workOrder?.id === orderId ? purchase.workOrder : null);
+                    return <tr role="row" key={item.id} className="border-t border-brand-line align-top">
                       <td role="cell" data-label="#" className="px-4 py-3 text-xs text-brand-muted">{index + 1}</td>
                       <td role="cell" data-label="Descripción" className="px-4 py-3">
                         <span className="block font-semibold text-brand-ink">
                           {item.descripcion}
                         </span>
+                        {purchase.express && (orderId ? <Link to={`/work-orders/${orderId}`}
+                          className="mt-1 inline-flex items-center gap-1 font-mono text-xs font-bold text-brand-primaryInk hover:underline">
+                          <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
+                          OT: {order?.codigo ?? `#${orderId}`}
+                        </Link> : <span className="mt-1 block text-xs text-brand-muted">Sin OT asociada</span>)}
                         {item.catalogItem && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded bg-brand-pale px-1.5 py-0.5 font-mono text-[10px] font-bold text-brand-primaryInk">
                             {item.catalogItem.codigo ?? 'Sin código'} · {item.catalogItem.nombre}
@@ -350,7 +362,13 @@ export const PurchaseDetailPage = () => {
                         </span>}
                       </td>
                       <td role="cell" data-label="Stock" className="px-4 py-3 text-xs">
-                        {item.afectaStock ? (
+                        {item.stockReturnedAt ? <div className="space-y-1">
+                          <span className="inline-flex items-center gap-1 rounded bg-brand-mintPale px-2 py-1 font-semibold text-brand-mintInk">
+                            <Boxes className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Devuelto a stock general
+                          </span>
+                          <span className="block text-brand-muted">{formatDateTime(item.stockReturnedAt)}</span>
+                          {item.stockReturnReason && <span className="block text-brand-muted">{item.stockReturnReason}</span>}
+                        </div> : purchase.express ? <span className="text-brand-muted">En OT</span> : item.afectaStock ? (
                           <span className="inline-flex items-start gap-1 rounded bg-brand-mintPale px-2 py-1 font-semibold text-brand-mintInk">
                             <Boxes className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                             <span>
@@ -362,8 +380,8 @@ export const PurchaseDetailPage = () => {
                           <span className="text-brand-muted">Sin ingreso a stock</span>
                         )}
                       </td>
-                    </tr>
-                  ))}
+                    </tr>;
+                  })}
                 </tbody>
                 <tfoot role="rowgroup" className="border-t border-brand-line bg-brand-pale/30">
                   <tr role="row">
@@ -520,7 +538,7 @@ export const PurchaseDetailPage = () => {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h2 className="font-bold text-brand-primaryInk">Asociación</h2>
-                <p className="mt-0.5 text-xs text-brand-muted">Vehículo y orden de trabajo</p>
+                <p className="mt-0.5 text-xs text-brand-muted">{usesHeaderAssociation ? 'Vehículo y orden de trabajo' : 'Órdenes de trabajo por producto'}</p>
               </div>
               {isFleet ? (
                 <Truck className="h-5 w-5 text-brand-muted" aria-hidden="true" />
@@ -529,7 +547,9 @@ export const PurchaseDetailPage = () => {
               )}
             </div>
 
-            {vehicle ? (
+            {!usesHeaderAssociation ? (
+              <p className="mt-3 text-sm text-brand-muted">Consulta la OT indicada en cada producto de esta compra.</p>
+            ) : vehicle ? (
               <dl className="mt-3 space-y-2.5">
                 <DetailItem label={isFleet ? 'Vehículo de flota' : 'Vehículo de taller'}>
                   <span className="font-mono uppercase">{vehicle.patente}</span>

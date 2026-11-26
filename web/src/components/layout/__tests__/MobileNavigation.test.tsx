@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '../../../stores/auth.store';
+import { usePwaUpdateStore } from '../../../stores/pwa-update.store';
 import AppLayout from '../AppLayout';
 
 // Keep real layout, navigation, modal stack, install hook and draft state.
@@ -27,6 +28,7 @@ describe('mobile More navigation', () => {
     useAuthStore.setState({ user: { id: 1, nombre: 'Jefe', email: 'qa@example.test', role: 'jefe' }, isAuthenticated: true });
     vi.stubGlobal('isSecureContext', true);
     Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: {} });
+    usePwaUpdateStore.setState({ check: null, checking: false });
   });
 
   afterEach(() => {
@@ -56,6 +58,18 @@ describe('mobile More navigation', () => {
     expect(notes).toHaveValue('OT sin guardar');
     expect(more).toHaveFocus();
     expect(document.body.style.overflow).not.toBe('hidden');
+  });
+
+  it('provides an update check in More without discarding the active form', async () => {
+    const check = vi.fn().mockResolvedValue('current');
+    usePwaUpdateStore.setState({ check });
+    renderLayout();
+    fireEvent.change(screen.getByLabelText('Notas de recepción'), { target: { value: 'No perder este trabajo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir todas las secciones' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Más opciones' })).getByRole('button', { name: 'Buscar actualizaciones' }));
+    await waitFor(() => expect(check).toHaveBeenCalledOnce());
+    expect(screen.queryByRole('dialog', { name: 'Más opciones' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Notas de recepción')).toHaveValue('No perder este trabajo');
   });
 
   it('opens installation above More and closes only the top modal on Escape', async () => {

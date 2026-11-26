@@ -7,7 +7,7 @@ import {
 import { scanPurchaseReceipt } from '../services/purchase-scan.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
-import type { CreateExpressPurchaseInput } from '@unithor/shared';
+import type { CreateExpressPurchaseSubmission, ReturnExpressPurchaseInput } from '@unithor/shared';
 
 export const expressRequestsHandler = asyncHandler(async (req, res) => {
   const { search } = res.locals.validatedQuery as { search?: string };
@@ -22,7 +22,7 @@ export const expressScanHandler = asyncHandler(async (req, res) => {
 });
 export const expressCreateHandler = asyncHandler(async (req, res) => {
   const purchase = await createExpressPurchase(
-    req.body as CreateExpressPurchaseInput,
+    req.body as CreateExpressPurchaseSubmission,
     req.user!.id,
     req.file,
   );
@@ -30,7 +30,7 @@ export const expressCreateHandler = asyncHandler(async (req, res) => {
 });
 
 export const expressReturnToStockHandler = asyncHandler(async (req, res) => {
-  const { motivo } = req.body as { motivo: string };
-  const purchase = await returnExpressPurchaseToStock(Number(req.params.id), motivo, req.user!.id);
+  const { motivo, itemIds } = req.body as ReturnExpressPurchaseInput;
+  const purchase = await returnExpressPurchaseToStock(Number(req.params.id), motivo, req.user!.id, itemIds);
   res.json({ purchase });
 });

@@ -13,6 +13,7 @@ import { useAuthStore } from '../../stores/auth.store';
 import { AnimateIcon } from '../animate-ui/animate-icon';
 import UserProfileModal, { getRoleLabel } from '../auth/UserProfileModal';
 import UserAvatar from '../common/UserAvatar';
+import PwaUpdateButton from '../pwa/PwaUpdateButton';
 
 interface UserMenuProps {
   placement?: 'header' | 'sidebar';
@@ -126,6 +127,7 @@ export const UserMenu = ({ placement = 'header' }: UserMenuProps) => {
                 <span className="text-[10px] font-semibold uppercase">Próximo</span>
               </button>
               <div className="my-2 border-t border-brand-line" />
+              <PwaUpdateButton menuItem onClick={() => setOpen(false)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-brand-ink hover:bg-brand-pale disabled:opacity-50" />
               <button
                 type="button"
                 className="group flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-brand-coralInk transition-colors hover:bg-brand-coralPale disabled:cursor-not-allowed disabled:opacity-60"

@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { purchaseFixture } from './fixtures';
 import { api } from '../../../lib/api';
-import { flushFormDrafts, loadFormDraft } from '../../../lib/form-recovery';
+import { flushFormDrafts, loadFormDraft, saveFormDraft } from '../../../lib/form-recovery';
 import { expressRecoverySchema } from '../../../lib/purchase-express-recovery';
 import { useAuthStore } from '../../../stores/auth.store';
 import PurchasesExpressPage from '../PurchasesExpressPage';
@@ -61,6 +61,8 @@ const multipleReading: ExpressScanResult = {
 const saved = { ...purchaseFixture, id: 45, codigo: 'COMP-000045', express: true, total: 23800 };
 let scannerConfigured = true;
 let requestItems: ExpressPurchaseRequest[] = [];
+let orderItems = [order];
+const product = (index = 0) => within(screen.getByRole('group', { name: `Producto ${index + 1}` }));
 const setup = (initiallyOpen = false) => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -104,6 +106,7 @@ describe('Compras express mobile flow', () => {
     vi.clearAllMocks();
     scannerConfigured = true;
     requestItems = [];
+    orderItems = [order];
     useAuthStore.setState({
       user: { id: 1, nombre: 'Jefe', email: 'jefe@test.local', role: 'jefe' },
       isAuthenticated: true,
@@ -120,7 +123,7 @@ describe('Compras express mobile flow', () => {
           data:
             url === '/purchases/express/requests'
               ? { items: requestItems, scannerConfigured }
-              : { items: [order] },
+              : { items: orderItems },
         }) as AxiosResponse,
     );
     vi.mocked(api.post).mockImplementation(
@@ -166,9 +169,7 @@ describe('Compras express mobile flow', () => {
     expect(await screen.findByRole('heading', { name: 'Compra registrada' })).toBeInTheDocument();
     expect(parsedBody()).toMatchObject({
       workOrderId: 7,
-      costoUnitario: 11900,
-      ventaUnitario: 14875,
-      cantidad: 1,
+      items: [{ costoUnitario: 11900, ventaUnitario: 14875, cantidad: 1 }],
       metodoPago: 'efectivo',
     });
     expect((vi.mocked(api.post).mock.calls[0][1] as FormData).get('comprobante')).toBeNull();
@@ -285,26 +286,44 @@ describe('Compras express mobile flow', () => {
     expect(api.post).toHaveBeenCalledTimes(1);
   });
 
-  it('asks which product to use when a receipt contains several products', async () => {
-    vi.mocked(api.post).mockResolvedValue({
-      data: {
-        ...reading,
-        items: [
-          ...reading.items,
-          { ...reading.items[0], descripcion: 'Espejo', costoUnitario: 20000 },
-        ],
-      },
-    });
+  it('retains every OCR product as an editable line before confirming', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: multipleReading });
     setup();
     await openNew();
-    fireEvent.change(screen.getByLabelText('Elegir foto del recibo'), {
-      target: { files: [new File(['image'], 'recibo.png', { type: 'image/png' })] },
+    choosePhoto();
+    await waitFor(() =>
+      expect(screen.getAllByLabelText('Accesorio', { exact: true })).toHaveLength(2),
+    );
+    expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue('Bujía');
+    expect(product(1).getByLabelText('Accesorio', { exact: true })).toHaveValue('Espejo');
+    fireEvent.change(product().getByLabelText('Accesorio', { exact: true }), {
+      target: { value: 'Bujía corregida' },
     });
-    fireEvent.click(await screen.findByRole('button', { name: /Espejo/ }));
-    expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue('Espejo');
-    expect(screen.getByLabelText('Compra por unidad')).toHaveValue('20.000');
+    fireEvent.change(product().getByLabelText('Cantidad'), { target: { value: '3' } });
+    fireEvent.change(product().getByLabelText('Compra por unidad'), { target: { value: '9000' } });
+    fireEvent.change(product(1).getByLabelText('Venta por unidad al cliente'), {
+      target: { value: '30000' },
+    });
+    expect(product().getByLabelText('Venta por unidad al cliente')).toHaveValue('11.250');
+    expect(screen.getByRole('region', { name: 'Resumen express' })).toHaveTextContent('107.000');
+    expect(screen.getByRole('region', { name: 'Resumen express' })).toHaveTextContent('153.750');
+    expect(api.post).toHaveBeenCalledTimes(1);
+    await selectOrder();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+    await screen.findByRole('heading', { name: 'Compra registrada' });
+    expect(parsedBody(1)).toMatchObject({
+      workOrderId: 7,
+      proveedorNombre: 'Otro proveedor',
+      items: [
+        { descripcion: 'Bujía corregida', cantidad: 3, costoUnitario: 9000, ventaUnitario: 11250 },
+        { descripcion: 'Espejo', cantidad: 4, costoUnitario: 20000, ventaUnitario: 30000 },
+      ],
+    });
+    expect((vi.mocked(api.post).mock.calls[1][1] as FormData).get('comprobante')).toBeInstanceOf(
+      File,
+    );
   });
-  it('replaces automatic data from photo 1 with the selected product from photo 2', async () => {
+  it('replaces automatic data from photo 1 with all products from photo 2', async () => {
     vi.mocked(api.post)
       .mockResolvedValueOnce({ data: reading })
       .mockResolvedValueOnce({ data: multipleReading });
@@ -315,14 +334,13 @@ describe('Compras express mobile flow', () => {
       expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue('Filtro escaneado'),
     );
     choosePhoto('foto2.png');
-    const product = await screen.findByRole('button', { name: /Espejo/ });
-    expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue('Filtro escaneado');
-    expect(screen.getByLabelText('Compra por unidad')).toHaveValue('11.900');
-    fireEvent.click(product);
-    expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue('Espejo');
-    expect(screen.getByLabelText('Cantidad')).toHaveValue(4);
-    expect(screen.getByLabelText('Compra por unidad')).toHaveValue('20.000');
-    expect(screen.getByLabelText('Venta por unidad al cliente')).toHaveValue('25.000');
+    await waitFor(() =>
+      expect(screen.getAllByLabelText('Accesorio', { exact: true })).toHaveLength(2),
+    );
+    expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue('Bujía');
+    expect(product(1).getByLabelText('Cantidad')).toHaveValue(4);
+    expect(product(1).getByLabelText('Compra por unidad')).toHaveValue('20.000');
+    expect(product(1).getByLabelText('Venta por unidad al cliente')).toHaveValue('25.000');
     expect(screen.getByLabelText('Proveedor', { exact: false })).toHaveValue('Otro proveedor');
     expect(screen.getByLabelText('Folio', { exact: false })).toHaveValue('F456');
     expect(screen.getByLabelText('Fecha de compra')).toHaveValue('2026-11-25');
@@ -332,7 +350,7 @@ describe('Compras express mobile flow', () => {
     expect(api.post).toHaveBeenCalledTimes(2);
   });
   it.each(['Aceptar nuevos datos', 'Conservar mis datos'])(
-    'confirms selected product replacements before changing manual fields: %s',
+    'confirms whole receipt replacements before changing manual fields: %s',
     async (decision) => {
       vi.mocked(api.post)
         .mockResolvedValueOnce({ data: reading })
@@ -341,13 +359,17 @@ describe('Compras express mobile flow', () => {
       await openNew();
       await selectOrder();
       choosePhoto('foto1.png');
-      await waitFor(() => expect(screen.getByLabelText('Compra por unidad')).toHaveValue('11.900'));
-      fireEvent.change(screen.getByLabelText('Accesorio', { exact: true }), {
+      await waitFor(() =>
+        expect(product().getByLabelText('Compra por unidad')).toHaveValue('11.900'),
+      );
+      fireEvent.change(product().getByLabelText('Accesorio', { exact: true }), {
         target: { value: 'Mi accesorio' },
       });
-      fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '3' } });
-      fireEvent.change(screen.getByLabelText('Compra por unidad'), { target: { value: '15000' } });
-      fireEvent.change(screen.getByLabelText('Venta por unidad al cliente'), {
+      fireEvent.change(product().getByLabelText('Cantidad'), { target: { value: '3' } });
+      fireEvent.change(product().getByLabelText('Compra por unidad'), {
+        target: { value: '15000' },
+      });
+      fireEvent.change(product().getByLabelText('Venta por unidad al cliente'), {
         target: { value: '40000' },
       });
       fireEvent.change(screen.getByLabelText('Proveedor', { exact: false }), {
@@ -365,23 +387,23 @@ describe('Compras express mobile flow', () => {
       });
       const before = (await loadFormDraft(1, 'purchase:express', expressRecoverySchema))!.payload;
       choosePhoto('foto2.png');
-      fireEvent.click(await screen.findByRole('button', { name: /Espejo/ }));
+      await screen.findByRole('alertdialog');
       expect(screen.getByRole('alertdialog')).toHaveFocus();
-      expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue('Mi accesorio');
-      expect(screen.getByLabelText('Cantidad')).toHaveValue(3);
-      expect(screen.getByLabelText('Compra por unidad')).toHaveValue('15.000');
+      expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue('Mi accesorio');
+      expect(product().getByLabelText('Cantidad')).toHaveValue(3);
+      expect(product().getByLabelText('Compra por unidad')).toHaveValue('15.000');
       expect(screen.getByLabelText('Proveedor', { exact: false })).toHaveValue('Mi proveedor');
       expect(screen.getByLabelText('Folio', { exact: false })).toHaveValue('MANUAL');
       expect(screen.getByLabelText('Fecha de compra')).toHaveValue('2026-11-20');
       expect(screen.getByLabelText('El importe de compra ya incluye IVA')).not.toBeChecked();
       fireEvent.click(screen.getByRole('button', { name: decision }));
       const accepted = decision === 'Aceptar nuevos datos';
-      expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue(
-        accepted ? 'Espejo' : 'Mi accesorio',
+      expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue(
+        accepted ? 'Bujía' : 'Mi accesorio',
       );
-      expect(screen.getByLabelText('Cantidad')).toHaveValue(accepted ? 4 : 3);
-      expect(screen.getByLabelText('Compra por unidad')).toHaveValue(
-        accepted ? '20.000' : '15.000',
+      expect(product().getByLabelText('Cantidad')).toHaveValue(accepted ? 2 : 3);
+      expect(product().getByLabelText('Compra por unidad')).toHaveValue(
+        accepted ? '8.000' : '15.000',
       );
       expect(screen.getByLabelText('Proveedor', { exact: false })).toHaveValue(
         accepted ? 'Otro proveedor' : 'Mi proveedor',
@@ -396,7 +418,7 @@ describe('Compras express mobile flow', () => {
         'checked',
         accepted,
       );
-      expect(screen.getByLabelText('Venta por unidad al cliente')).toHaveValue('40.000');
+      expect(product().getByLabelText('Venta por unidad al cliente')).toHaveValue('40.000');
       expect(screen.getByRole('img', { name: 'Foto de la etiqueta o recibo' })).toBeInTheDocument();
       expect(screen.getByText('foto2.png')).toBeInTheDocument();
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -411,11 +433,13 @@ describe('Compras express mobile flow', () => {
         vi.mocked(api.post).mockResolvedValueOnce({ data: reading });
         choosePhoto('foto3.png');
         await waitFor(() =>
-          expect(screen.getByLabelText('Compra por unidad')).toHaveValue('11.900'),
+          expect(product().getByLabelText('Compra por unidad')).toHaveValue('11.900'),
         );
-        expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue('Filtro escaneado');
+        expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue(
+          'Filtro escaneado',
+        );
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-        expect(screen.getByLabelText('Venta por unidad al cliente')).toHaveValue('40.000');
+        expect(product().getByLabelText('Venta por unidad al cliente')).toHaveValue('40.000');
       }
     },
   );
@@ -433,7 +457,9 @@ describe('Compras express mobile flow', () => {
     setup();
     await openNew();
     choosePhoto('foto1.png');
-    fireEvent.click(await screen.findByRole('button', { name: /Espejo/ }));
+    await waitFor(() =>
+      expect(screen.getAllByLabelText('Accesorio', { exact: true })).toHaveLength(2),
+    );
     choosePhoto('foto2.png');
     await waitFor(() =>
       expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue('Filtro escaneado'),
@@ -455,23 +481,34 @@ describe('Compras express mobile flow', () => {
       await waitFor(() => expect(register).not.toBeDisabled());
       fireEvent.click(register);
       choosePhoto();
-      if (multiple) fireEvent.click(await screen.findByRole('button', { name: /Espejo/ }));
+      if (multiple)
+        await waitFor(() =>
+          expect(screen.getAllByLabelText('Accesorio', { exact: true })).toHaveLength(2),
+        );
       else
         await waitFor(() =>
           expect(screen.getByLabelText('Compra por unidad')).toHaveValue('11.900'),
         );
-      expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue(source.descripcion);
-      expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveAttribute('readonly');
-      expect(screen.getByLabelText('Cantidad')).toHaveValue(source.cantidad);
-      expect(screen.getByLabelText('Cantidad')).toHaveAttribute('readonly');
+      expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue(
+        source.descripcion,
+      );
+      expect(product().getByLabelText('Accesorio', { exact: true })).toHaveAttribute('readonly');
+      expect(product().getByLabelText('Cantidad')).toHaveValue(source.cantidad);
+      expect(product().getByLabelText('Cantidad')).toHaveAttribute('readonly');
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
       await screen.findByRole('heading', { name: 'Compra registrada' });
       expect(parsedBody(1)).toMatchObject({
-        requestId: source.id,
-        descripcion: source.descripcion,
-        cantidad: source.cantidad,
-        costoUnitario: multiple ? 20000 : 11900,
+        items: [
+          expect.objectContaining({
+            requestId: source.id,
+            workOrderId: source.order.id,
+            descripcion: source.descripcion,
+            cantidad: source.cantidad,
+            costoUnitario: multiple ? 8000 : 11900,
+          }),
+          ...(multiple ? [expect.objectContaining({ descripcion: 'Espejo', cantidad: 4 })] : []),
+        ],
       });
     },
   );
@@ -489,13 +526,15 @@ describe('Compras express mobile flow', () => {
     choosePhoto('foto1.png');
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
     choosePhoto('foto2.png');
-    fireEvent.click(await screen.findByRole('button', { name: /Espejo/ }));
+    await waitFor(() =>
+      expect(screen.getAllByLabelText('Accesorio', { exact: true })).toHaveLength(2),
+    );
     expect(vi.mocked(api.post).mock.calls[0][2]?.signal?.aborted).toBe(true);
     await act(async () => {
       resolve({ data: reading } as AxiosResponse);
     });
-    expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue('Espejo');
-    expect(screen.getByLabelText('Compra por unidad')).toHaveValue('20.000');
+    expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue('Bujía');
+    expect(product(1).getByLabelText('Compra por unidad')).toHaveValue('20.000');
     expect(screen.getByText('foto2.png')).toBeInTheDocument();
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(screen.queryByText('Filtro escaneado', { exact: false })).not.toBeInTheDocument();
@@ -580,6 +619,14 @@ describe('Compras express mobile flow', () => {
     const first = setup();
     await openNew();
     await fill();
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }));
+    fireEvent.change(product(1).getByLabelText('Accesorio', { exact: true }), {
+      target: { value: 'Segundo producto' },
+    });
+    fireEvent.change(product(1).getByLabelText('Compra por unidad'), { target: { value: '5000' } });
+    fireEvent.change(product(1).getByLabelText('Venta por unidad al cliente'), {
+      target: { value: '8000' },
+    });
     fireEvent.change(screen.getByLabelText('Elegir foto del recibo'), {
       target: { files: [new File(['image'], 'guardada.png', { type: 'image/png' })] },
     });
@@ -592,7 +639,9 @@ describe('Compras express mobile flow', () => {
     first.unmount();
     setup();
     fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
-    expect(await screen.findByLabelText('Accesorio', { exact: true })).toHaveValue('Filtro manual');
+    expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue('Filtro manual');
+    expect(product(1).getByLabelText('Accesorio', { exact: true })).toHaveValue('Segundo producto');
+    expect(product(1).getByLabelText('Venta por unidad al cliente')).toHaveValue('8.000');
     expect(screen.getByRole('img', { name: 'Foto de la etiqueta o recibo' })).toBeInTheDocument();
     await act(async () => {
       await flushFormDrafts();
@@ -633,7 +682,166 @@ describe('Compras express mobile flow', () => {
       await flushFormDrafts();
     });
     const recovered = await loadFormDraft(1, 'purchase:express', expressRecoverySchema);
-    expect(recovered?.payload.descripcion).toBe('Segunda compra');
+    expect(recovered?.payload.items[0].descripcion).toBe('Segunda compra');
     expect(recovered?.payload.operationKey).not.toBe(parsedBody().operationKey);
   });
+  it('adds, edits and removes manual products without changing the surviving line', async () => {
+    setup();
+    await openNew();
+    await fill();
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }));
+    fireEvent.change(product(1).getByLabelText('Accesorio', { exact: true }), {
+      target: { value: 'Aceite manual' },
+    });
+    fireEvent.change(product(1).getByLabelText('Cantidad'), { target: { value: '3' } });
+    fireEvent.change(product(1).getByLabelText('Compra por unidad'), { target: { value: '2000' } });
+    fireEvent.change(product(1).getByLabelText('Venta por unidad al cliente'), {
+      target: { value: '3000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar producto 1' }));
+    expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue('Aceite manual');
+    expect(product().getByLabelText('Venta por unidad al cliente')).toHaveValue('3.000');
+    expect(screen.getByRole('button', { name: 'Quitar producto 1' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }));
+    expect(product(1).getByLabelText('Accesorio', { exact: true })).toHaveValue('');
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar producto 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+    await screen.findByRole('heading', { name: 'Compra registrada' });
+    expect(parsedBody().items).toEqual([
+      expect.objectContaining({
+        descripcion: 'Aceite manual',
+        cantidad: 3,
+        costoUnitario: 2000,
+        ventaUnitario: 3000,
+      }),
+    ]);
+  });
+  it('changes only inherited OTs and searches explicit per-product overrides', async () => {
+    const other = { ...order, id: 8, codigo: 'OT-26-8', patente: 'OTRA88' };
+    const header = { ...order, id: 10, codigo: 'OT-26-10', patente: 'NUEVA10' };
+    orderItems = [order, other, header];
+    setup();
+    await openNew();
+    await fill();
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }));
+    fireEvent.change(product(1).getByLabelText('Accesorio', { exact: true }), {
+      target: { value: 'Espejo' },
+    });
+    fireEvent.change(product(1).getByLabelText('Compra por unidad'), { target: { value: '8000' } });
+    fireEvent.click(product(1).getByRole('button', { name: 'Asignar otra OT' }));
+    fireEvent.change(screen.getByLabelText('Buscar OT del producto 2'), {
+      target: { value: 'OTRA' },
+    });
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/purchases/express/orders', {
+        params: { search: 'OTRA' },
+      }),
+    );
+    fireEvent.click(
+      await within(screen.getByRole('region', { name: 'Órdenes para producto 2' })).findByRole(
+        'button',
+        {
+          name: /OTRA88/,
+        },
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
+    fireEvent.click(
+      within(await screen.findByRole('region', { name: 'Órdenes disponibles' })).getByRole(
+        'button',
+        { name: /NUEVA10/ },
+      ),
+    );
+    expect(product().getByText(/OT del encabezado:.*OT-26-10/)).toBeInTheDocument();
+    expect(product(1).getByText(/OT asignada:.*OT-26-8/)).toBeInTheDocument();
+    fireEvent.click(product(1).getByRole('button', { name: 'Usar OT del encabezado' }));
+    expect(product(1).getByText(/OT del encabezado:.*OT-26-10/)).toBeInTheDocument();
+    fireEvent.click(product(1).getByRole('button', { name: 'Asignar otra OT' }));
+    fireEvent.click(
+      within(await screen.findByRole('region', { name: 'Órdenes para producto 2' })).getByRole(
+        'button',
+        { name: /OTRA88/ },
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+    await screen.findByRole('heading', { name: 'Compra registrada' });
+    expect(parsedBody().workOrderId).toBe(header.id);
+    expect(parsedBody().items[0]).not.toHaveProperty('workOrderId');
+    expect(parsedBody().items[1].workOrderId).toBe(other.id);
+  });
+  it('enforces the 30-product limit while allowing removal and manual additions', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({
+      data: {
+        ...reading,
+        items: Array.from({ length: 30 }, (_, i) => ({
+          ...reading.items[0],
+          descripcion: `Producto OCR ${i + 1}`,
+        })),
+      },
+    });
+    setup();
+    await openNew();
+    choosePhoto();
+    await waitFor(() =>
+      expect(screen.getAllByRole('group', { name: /^Producto / })).toHaveLength(30),
+    );
+    expect(screen.getByRole('button', { name: 'Agregar producto' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar producto 30' }));
+    expect(screen.getByRole('button', { name: 'Agregar producto' })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }));
+    expect(product(29).getByLabelText('Accesorio', { exact: true })).toHaveValue('');
+  });
+  it.each([null, 9])(
+    'safely migrates a legacy draft, evidence and identity (request: %s)',
+    async (requestId) => {
+      const operationKey = crypto.randomUUID();
+      const legacy = {
+        operationKey,
+        order,
+        requestId,
+        descripcion: 'Producto recuperado',
+        cantidad: '2',
+        costoUnitario: '1000',
+        ventaUnitario: '2000',
+        saleEdited: true,
+        conIva: false,
+        metodoPago: 'efectivo',
+        proveedorNombre: 'Proveedor manual',
+        folio: 'ANTERIOR',
+        fechaEmision: '2026-11-20',
+        detalle: 'Nota manual',
+        tipoDocumento: 'otro',
+        file: {
+          blob: new Blob(['foto'], { type: 'image/png' }),
+          name: 'anterior.png',
+          lastModified: 1000,
+        },
+      };
+      await saveFormDraft(1, 'purchase:express', legacy, crypto.randomUUID());
+      setup();
+      fireEvent.click(await screen.findByRole('button', { name: 'Recuperar formulario' }));
+      expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue(
+        'Producto recuperado',
+      );
+      expect(product().getByLabelText('Cantidad')).toHaveValue(2);
+      expect(product().getByLabelText('Venta por unidad al cliente')).toHaveValue('2.000');
+      expect(product().getByLabelText('Detalle')).toHaveValue('Nota manual');
+      expect(screen.getByText('anterior.png')).toBeInTheDocument();
+      expect(api.post).not.toHaveBeenCalled();
+      await act(async () => {
+        await flushFormDrafts();
+      });
+      const recovered = (await loadFormDraft(1, 'purchase:express', expressRecoverySchema))!
+        .payload;
+      expect(recovered.operationKey).toBe(operationKey);
+      expect(recovered.items[0].order?.id ?? recovered.order?.id).toBe(order.id);
+      expect(recovered.items[0].requestId).toBe(requestId);
+      choosePhoto('nueva.png');
+      await screen.findByRole('alertdialog');
+      fireEvent.click(screen.getByRole('button', { name: 'Conservar mis datos' }));
+      expect(product().getByLabelText('Accesorio', { exact: true })).toHaveValue(
+        'Producto recuperado',
+      );
+    },
+  );
 });

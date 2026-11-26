@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { expressMinimumSale, expressNetSale } from '../../utils/purchase-express.js';
 import { getQuotationGrossTotal } from '../../utils/quotation-pricing.js';
-import { createExpressPurchaseSchema } from '../purchase-express.schema.js';
+import { createExpressPurchaseBatchSchema, createExpressPurchaseSchema, createExpressPurchaseSubmissionSchema, returnExpressPurchaseSchema } from '../purchase-express.schema.js';
 const draft = () => ({
     operationKey: '12345678-1234-4234-8234-123456789abc',
     workOrderId: 3,
@@ -9,6 +9,40 @@ const draft = () => ({
     cantidad: 2,
     costoUnitario: 11900,
     ventaUnitario: 14875,
+});
+describe('Compras express con varios productos', () => {
+    const batch = () => {
+        const { operationKey, workOrderId, ...line } = draft();
+        return { operationKey, workOrderId, items: [line, { ...line, descripcion: 'Ampolleta', workOrderId: 9 }] };
+    };
+    it('hereda la OT inicial y permite otra OT por producto', () => {
+        const parsed = createExpressPurchaseBatchSchema.parse(batch());
+        expect(parsed.items[0].workOrderId).toBeUndefined();
+        expect(parsed.items[1].workOrderId).toBe(9);
+        expect(parsed.workOrderId).toBe(3);
+        expect(createExpressPurchaseSubmissionSchema.safeParse(draft()).success).toBe(true);
+    });
+    it('valida el margen de cada producto, sin compensarlo con el margen de otro', () => {
+        const data = batch();
+        data.items[1].ventaUnitario = 14874.99;
+        const result = createExpressPurchaseBatchSchema.safeParse(data);
+        expect(result.success).toBe(false);
+        if (!result.success)
+            expect(result.error.issues[0].path).toEqual(['items', 1, 'ventaUnitario']);
+    });
+    it('rechaza listas vacías, repetición de solicitudes y totales acumulados excesivos', () => {
+        expect(createExpressPurchaseBatchSchema.safeParse({ ...batch(), items: [] }).success).toBe(false);
+        expect(createExpressPurchaseBatchSchema.safeParse({ ...batch(), items: batch().items.map((line) => ({ ...line, requestId: 8 })) }).success).toBe(false);
+        expect(createExpressPurchaseBatchSchema.safeParse({ ...batch(), items: batch().items.map((line) => ({ ...line, cantidad: 9999, costoUnitario: 60000, ventaUnitario: 75000 })) }).success).toBe(false);
+    });
+    it('no degrada una lista inválida a una compra de un solo producto', () => {
+        expect(createExpressPurchaseSubmissionSchema.safeParse({ ...draft(), items: [] }).success).toBe(false);
+    });
+    it('permite seleccionar productos para devolver e impide selecciones vacías o repetidas', () => {
+        expect(returnExpressPurchaseSchema.parse({ motivo: 'No se usó', itemIds: [2, 3] }).itemIds).toEqual([2, 3]);
+        expect(returnExpressPurchaseSchema.safeParse({ motivo: 'No se usó', itemIds: [] }).success).toBe(false);
+        expect(returnExpressPurchaseSchema.safeParse({ motivo: 'No se usó', itemIds: [2, 2] }).success).toBe(false);
+    });
 });
 describe('Compras express: precios y validaciones', () => {
     it('acepta captura manual sin inventar datos bancarios ni comprobantes', () => {

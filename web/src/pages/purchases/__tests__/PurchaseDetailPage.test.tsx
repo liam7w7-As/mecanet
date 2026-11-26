@@ -8,6 +8,7 @@ import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
 import PurchaseDetailPage from '../PurchaseDetailPage';
 
+import type { Purchase } from '../../../types/entities';
 import type { PermissionDefinition, Role } from '@unithor/shared';
 import type { AxiosResponse } from 'axios';
 
@@ -71,8 +72,19 @@ describe('PurchaseDetailPage', () => {
   });
 
   const mockExpress = () => {
-    const purchase = { ...purchaseFixture, express: true, formaPago: 'contado' as const, items: purchaseFixture.items.map((item) => ({ ...item, stockReturnedAt: null as string | null })) };
+    const purchase: Purchase = { ...purchaseFixture, express: true, formaPago: 'contado', items: purchaseFixture.items.map((item) => ({ ...item, stockReturnedAt: null })) };
     vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/purchases/7' ? { purchase } : { supplier: supplierFixture } }) as AxiosResponse);
+    return purchase;
+  };
+
+  const mockMultiExpress = () => {
+    const purchase = mockExpress();
+    const line = purchase.items[0];
+    purchase.items = [
+      { ...line, id: 11, workOrderId: 9, workOrder: purchase.workOrder },
+      { ...line, id: 12, descripcion: 'Ampolleta de otra OT', workOrderId: 22,
+        workOrder: { id: 22, codigo: 'OT-2026-0022', estado: 'en_progreso' } },
+    ];
     return purchase;
   };
 
@@ -92,6 +104,7 @@ describe('PurchaseDetailPage', () => {
     renderPage('jefe');
     fireEvent.click(await screen.findByRole('button', { name: 'Enviar a stock general' }));
     const dialog = within(screen.getByRole('dialog', { name: 'Enviar a stock general' }));
+    expect(dialog.queryByRole('checkbox')).not.toBeInTheDocument();
     fireEvent.change(dialog.getByLabelText('Motivo'), { target: { value: 'El cliente no necesitó el accesorio' } });
     fireEvent.click(dialog.getByRole('button', { name: 'Enviar a stock general' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/purchases/7/return-to-stock', { motivo: 'El cliente no necesitó el accesorio' }));
@@ -99,6 +112,133 @@ describe('PurchaseDetailPage', () => {
     expect(screen.getByText(/Accesorio enviado al stock general/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Enviar a stock general' })).not.toBeInTheDocument();
     expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('selecciona todos los pendientes y devuelve solo el producto elegido de su OT', async () => {
+    const purchase = mockMultiExpress();
+    vi.mocked(api.post).mockImplementation(async () => {
+      purchase.items = purchase.items.map((item) => item.id === 12
+        ? { ...item, stockReturnedAt: '2026-11-01T12:00:00Z', stockReturnReason: 'No se utilizó' }
+        : item);
+      return { data: { purchase } } as AxiosResponse;
+    });
+    renderPage('jefe');
+    fireEvent.click(await screen.findByRole('button', { name: 'Enviar a stock general' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Enviar a stock general' }));
+    expect(dialog.getAllByRole('checkbox')).toHaveLength(2);
+    dialog.getAllByRole('checkbox').forEach((checkbox) => expect(checkbox).toBeChecked());
+    const first = dialog.getByRole('checkbox', { name: /Filtro de aceite.*OT-2026-0009/ });
+    const second = dialog.getByRole('checkbox', { name: /Ampolleta de otra OT.*OT-2026-0022/ });
+    expect(first).toBeChecked();
+    expect(second).toBeChecked();
+    fireEvent.click(first);
+    fireEvent.change(dialog.getByLabelText('Motivo'), { target: { value: 'No se utilizó' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Enviar a stock general' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/purchases/7/return-to-stock', { motivo: 'No se utilizó', itemIds: [12] }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByText('Devolución parcial a stock: 1 de 2 productos.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enviar a stock general' })).toBeEnabled();
+    const firstRow = within(screen.getByText('Filtro de aceite', { selector: 'span.block.font-semibold' }).closest('tr')!);
+    const secondRow = within(screen.getByText('Ampolleta de otra OT').closest('tr')!);
+    expect(firstRow.getByText('En OT')).toBeInTheDocument();
+    expect(firstRow.getByRole('link', { name: 'OT: OT-2026-0009' })).toHaveAttribute('href', '/work-orders/9');
+    expect(secondRow.getByRole('link', { name: 'OT: OT-2026-0022' })).toHaveAttribute('href', '/work-orders/22');
+    expect(secondRow.getByText('Devuelto a stock general')).toBeInTheDocument();
+    expect(secondRow.queryByText('En OT')).not.toBeInTheDocument();
+    const association = within(screen.getByRole('heading', { name: 'Asociación' }).closest('section')!);
+    expect(association.getByText('Órdenes de trabajo por producto')).toBeInTheDocument();
+    expect(association.queryByRole('link')).not.toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('bloquea una selección vacía y permite enviar todos los productos pendientes', async () => {
+    const purchase = mockMultiExpress();
+    vi.mocked(api.post).mockResolvedValue({ data: { purchase } } as AxiosResponse);
+    renderPage('admin');
+    fireEvent.click(await screen.findByRole('button', { name: 'Enviar a stock general' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Enviar a stock general' }));
+    const checkboxes = dialog.getAllByRole('checkbox');
+    checkboxes.forEach((checkbox) => fireEvent.click(checkbox));
+    const submit = dialog.getByRole('button', { name: 'Enviar a stock general' });
+    expect(submit).toBeDisabled();
+    fireEvent.submit(submit.closest('form')!);
+    expect(dialog.getByText('0 de 2 productos seleccionados.')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+    checkboxes.forEach((checkbox) => fireEvent.click(checkbox));
+    fireEvent.change(dialog.getByLabelText('Motivo'), { target: { value: 'Sin uso' } });
+    fireEvent.click(submit);
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/purchases/7/return-to-stock', { motivo: 'Sin uso', itemIds: [11, 12] }));
+  });
+
+  it('omite los productos ya devueltos y oculta casillas cuando solo queda uno pendiente', async () => {
+    const purchase = mockMultiExpress();
+    purchase.items[0].stockReturnedAt = '2026-11-01T12:00:00Z';
+    vi.mocked(api.post).mockImplementation(async () => {
+      purchase.items[1].stockReturnedAt = '2026-11-02T12:00:00Z';
+      return { data: { purchase } } as AxiosResponse;
+    });
+    renderPage('admin');
+    fireEvent.click(await screen.findByRole('button', { name: 'Enviar a stock general' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Enviar a stock general' }));
+    expect(dialog.queryByRole('checkbox')).not.toBeInTheDocument();
+    fireEvent.change(dialog.getByLabelText('Motivo'), { target: { value: 'No' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Enviar a stock general' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/purchases/7/return-to-stock', { motivo: 'No', itemIds: [12] }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByText(/Todos los productos fueron enviados al stock general/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Enviar a stock general' })).not.toBeInTheDocument();
+  });
+
+  it('usa la OT de cabecera solo como respaldo de los productos antiguos sin OT propia', async () => {
+    const purchase = mockMultiExpress();
+    purchase.items[0].workOrderId = null;
+    purchase.items[0].workOrder = null;
+    purchase.items[1].workOrder = null;
+    renderPage('jefe');
+    await screen.findByRole('heading', { name: 'COMP-000007' });
+    const firstRow = within(screen.getByText('Filtro de aceite', { selector: 'span.block.font-semibold' }).closest('tr')!);
+    const secondRow = within(screen.getByText('Ampolleta de otra OT').closest('tr')!);
+    expect(firstRow.getByRole('link', { name: 'OT: OT-2026-0009' })).toHaveAttribute('href', '/work-orders/9');
+    expect(secondRow.getByRole('link', { name: 'OT: #22' })).toHaveAttribute('href', '/work-orders/22');
+    expect(secondRow.queryByText('OT: OT-2026-0009')).not.toBeInTheDocument();
+  });
+
+  it('oculta los selectores con un solo pendiente y excluye los ya devueltos', async () => {
+    const purchase = mockMultiExpress();
+    purchase.items[0].stockReturnedAt = '2026-11-01T12:00:00Z';
+    vi.mocked(api.post).mockResolvedValue({ data: { purchase } } as AxiosResponse);
+    renderPage('desarrollador');
+    fireEvent.click(await screen.findByRole('button', { name: 'Enviar a stock general' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Enviar a stock general' }));
+    expect(dialog.queryByRole('checkbox')).not.toBeInTheDocument();
+    fireEvent.change(dialog.getByLabelText('Motivo'), { target: { value: 'El producto restante no se usó' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Enviar a stock general' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/purchases/7/return-to-stock', { motivo: 'El producto restante no se usó', itemIds: [12] }));
+  });
+
+  it('conserva la selección al cancelar y bloquea el envío al perder permisos', async () => {
+    mockMultiExpress();
+    renderPage('jefe');
+    fireEvent.click(await screen.findByRole('button', { name: 'Enviar a stock general' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Enviar a stock general' }));
+    fireEvent.click(dialog.getAllByRole('checkbox')[0]);
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancelar' }));
+    expect(dialog.getByRole('alertdialog', { name: 'Descartar edición' })).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Seguir editando' }));
+    expect(dialog.getAllByRole('checkbox')[0]).not.toBeChecked();
+    act(() => useAuthStore.setState({ user: { ...useAuthStore.getState().user!, permissions: [{ modulo: 'compras', accion: 'read' }] } }));
+    expect(dialog.getAllByRole('checkbox')[1]).toBeDisabled();
+    const submit = dialog.getByRole('button', { name: 'Enviar a stock general' });
+    expect(submit).toBeDisabled();
+    fireEvent.submit(submit.closest('form')!);
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it.each(['vendedor', 'bodeguero', 'finanzas', 'mecanico'] as const)('oculta el envío a stock para %s', async (role) => {
+    mockMultiExpress();
+    renderPage(role);
+    await screen.findByRole('heading', { name: 'COMP-000007' });
+    expect(screen.queryByRole('button', { name: 'Enviar a stock general' })).not.toBeInTheDocument();
   });
 
   it('conserva el motivo y muestra el fallo si el accesorio no admite devolución', async () => {

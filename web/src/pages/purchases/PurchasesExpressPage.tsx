@@ -1,8 +1,6 @@
 import {
-  createExpressPurchaseSchema,
+  createExpressPurchaseBatchSchema,
   expressMinimumSale,
-  expressNetSale,
-  getQuotationGrossTotal,
   PAYMENT_METHODS,
 } from '@unithor/shared';
 import {
@@ -23,8 +21,10 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import CurrencyInput from '../../components/common/CurrencyInput';
 import FormRecoveryBanner from '../../components/common/FormRecoveryBanner';
+import ExpressPurchaseLine, {
+  expressLineTotals,
+} from '../../components/purchases/ExpressPurchaseLine';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useFormRecovery } from '../../hooks/useFormRecovery';
 import {
@@ -41,13 +41,13 @@ import { expressRecoverySchema } from '../../lib/purchase-express-recovery';
 import { PAYMENT_METHOD_LABELS, todayInputValue } from '../../lib/purchase-labels';
 import { useAuthStore } from '../../stores/auth.store';
 
-import type { ExpressRecovery } from '../../lib/purchase-express-recovery';
+import type { ExpressRecovery, ExpressRecoveryLine } from '../../lib/purchase-express-recovery';
 import type { Purchase } from '../../types/entities';
 import type { ExpressPurchaseRequest, ExpressScanResult } from '@unithor/shared';
 import type { FormEvent } from 'react';
 
-const emptyDraft = (): ExpressRecovery => ({
-  operationKey: crypto.randomUUID(),
+const emptyLine = (): ExpressRecoveryLine => ({
+  id: crypto.randomUUID(),
   order: null,
   requestId: null,
   descripcion: '',
@@ -55,6 +55,13 @@ const emptyDraft = (): ExpressRecovery => ({
   costoUnitario: '',
   ventaUnitario: '',
   saleEdited: false,
+  detalle: '',
+});
+const emptyDraft = (): ExpressRecovery => ({
+  operationKey: crypto.randomUUID(),
+  order: null,
+  items: [emptyLine()],
+  editedFields: [],
   conIva: true,
   metodoPago: 'efectivo',
   proveedorNombre: '',
@@ -67,7 +74,6 @@ const emptyDraft = (): ExpressRecovery => ({
 
 type ScanSelection = {
   result: ExpressScanResult;
-  index: number;
   sequence: number;
   costOnly?: boolean;
 };
@@ -122,14 +128,21 @@ function PurchasesExpressWorkspace({
   const controller = useRef<AbortController | null>(null);
   const scanSequence = useRef(0);
   const currentDraft = useRef(draft);
-  const manualFields = useRef(new Set<string>());
   currentDraft.current = draft;
   const formRef = useRef<HTMLFormElement>(null);
   const readConfirmationRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const hasContent = Boolean(
-    draft.descripcion ||
-    draft.costoUnitario ||
+    draft.items.some(
+      (item) =>
+        item.descripcion ||
+        item.costoUnitario ||
+        item.ventaUnitario ||
+        item.detalle ||
+        item.cantidad !== '1' ||
+        item.order,
+    ) ||
+    draft.items.length > 1 ||
     draft.order ||
     draft.detalle ||
     draft.file ||
@@ -143,17 +156,6 @@ function PurchasesExpressWorkspace({
     hasContent,
     paused: save.isPending || Boolean(success),
     onRestore: (value) => {
-      manualFields.current = new Set(
-        [
-          'descripcion',
-          'cantidad',
-          'costoUnitario',
-          'proveedorNombre',
-          'folio',
-          'fechaEmision',
-          'conIva',
-        ].filter((key) => key === 'conIva' || Boolean(value[key as keyof ExpressRecovery])),
-      );
       setDraft(value);
       setOpen(true);
       setSuccess(null);
@@ -200,8 +202,11 @@ function PurchasesExpressWorkspace({
   }, []);
 
   const update = <K extends keyof ExpressRecovery>(key: K, value: ExpressRecovery[K]) => {
-    manualFields.current.add(key);
-    setDraft((previous) => ({ ...previous, [key]: value }));
+    setDraft((previous) => ({
+      ...previous,
+      [key]: value,
+      editedFields: [...new Set([...previous.editedFields, ...(key === 'file' ? [] : [key])])],
+    }));
     setErrors((previous) => {
       const next = { ...previous };
       delete next[key];
@@ -209,22 +214,30 @@ function PurchasesExpressWorkspace({
     });
     save.reset();
   };
-  const changeCost = (cost: string) => {
-    manualFields.current.add('costoUnitario');
+  const changeLine = (id: string, changes: Partial<ExpressRecoveryLine>) => {
     setDraft((previous) => ({
       ...previous,
-      costoUnitario: cost,
-      ventaUnitario: previous.saleEdited
-        ? previous.ventaUnitario
-        : cost
-          ? String(Math.ceil(expressMinimumSale(Number(cost))))
-          : '',
+      items: previous.items.map((item) => {
+        if (item.id !== id) return item;
+        const next = { ...item, ...changes };
+        if ('costoUnitario' in changes && !next.saleEdited) {
+          next.ventaUnitario = next.costoUnitario
+            ? String(Math.ceil(expressMinimumSale(Number(next.costoUnitario))))
+            : '';
+        }
+        return next;
+      }),
+      editedFields: [
+        ...new Set([
+          ...previous.editedFields,
+          ...Object.keys(changes)
+            .filter((key) => key !== 'saleEdited')
+            .map((key) => `${id}.${key}`),
+        ]),
+      ],
     }));
-    setErrors((previous) => {
-      const next = { ...previous };
-      delete next.costoUnitario;
-      return next;
-    });
+    setErrors({});
+    save.reset();
   };
   const start = (request?: ExpressPurchaseRequest, replace = false) => {
     if (success) {
@@ -237,7 +250,6 @@ function PurchasesExpressWorkspace({
     }
     setReplacement(null);
     setReadReplacement(null);
-    manualFields.current.clear();
     controller.current?.abort();
     scanSequence.current += 1;
     setScanBusy(false);
@@ -246,10 +258,16 @@ function PurchasesExpressWorkspace({
         ? {
             ...emptyDraft(),
             order: request.order,
-            requestId: request.id,
-            descripcion: request.descripcion,
-            cantidad: String(request.cantidad),
-            detalle: request.detalle,
+            items: [
+              {
+                ...emptyLine(),
+                order: request.order,
+                requestId: request.id,
+                descripcion: request.descripcion,
+                cantidad: String(request.cantidad),
+                detalle: request.detalle,
+              },
+            ],
           }
         : emptyDraft(),
     );
@@ -265,11 +283,10 @@ function PurchasesExpressWorkspace({
     window.requestAnimationFrame(() => headingRef.current?.focus());
   };
   const applyRead = (selection: ScanSelection, confirmed = false) => {
-    const { result, index, sequence, costOnly } = selection;
+    const { result, sequence, costOnly } = selection;
     if (sequence !== scanSequence.current || controller.current?.signal.aborted) return;
-    const item = result.items[index];
-    if (!item) return;
     const previous = currentDraft.current;
+    const manual = new Set(previous.editedFields);
     const values: Partial<ExpressRecovery> = {};
     const apply = <K extends keyof ExpressRecovery>(
       key: K,
@@ -278,46 +295,87 @@ function PurchasesExpressWorkspace({
     ) => {
       if (value !== null) values[key] = value;
       // A new reading must not retain data detected for the previous product.
-      else if (!manualFields.current.has(key)) values[key] = fallback;
+      else if (!manual.has(key)) values[key] = fallback;
     };
     if (!costOnly) {
-      if (!previous.requestId) {
-        apply('descripcion', item.descripcion, '');
-        apply('cantidad', item.cantidad === null ? null : String(item.cantidad), '1');
-      }
       apply('proveedorNombre', result.proveedorNombre, '');
       apply('folio', result.folio, '');
       apply('fechaEmision', result.fechaEmision, todayInputValue());
       apply('conIva', result.incluyeIva, true);
       values.tipoDocumento = result.documento === 'recibo' ? 'recibo' : 'otro';
     }
-    apply('costoUnitario', item.costoUnitario === null ? null : String(item.costoUnitario), '');
-    const keys = Object.keys(values) as (keyof ExpressRecovery)[];
-    if (
-      !confirmed &&
-      keys.some((key) => manualFields.current.has(key) && previous[key] !== values[key])
-    ) {
-      setReadReplacement(selection);
-      return;
-    }
-    setReadReplacement(null);
-    keys.forEach((key) => {
-      if (previous[key] !== values[key]) manualFields.current.delete(key);
-    });
-    setDraft((latest) => {
-      const next = { ...latest, ...values };
-      if (!latest.saleEdited)
+    const sourceItems = costOnly ? result.items.slice(0, 1) : result.items;
+    const readItems = sourceItems.map((item, index) => {
+      const old = previous.items[index];
+      const next = old ? { ...old } : emptyLine();
+      const set = (
+        key: 'descripcion' | 'cantidad' | 'costoUnitario',
+        value: string | null,
+        fallback: string,
+      ) => {
+        if (value !== null) next[key] = value;
+        else if (!manual.has(`${next.id}.${key}`)) next[key] = fallback;
+      };
+      if (!costOnly && !next.requestId) {
+        set('descripcion', item.descripcion, '');
+        set('cantidad', item.cantidad === null ? null : String(item.cantidad), '1');
+      }
+      set('costoUnitario', item.costoUnitario === null ? null : String(item.costoUnitario), '');
+      if (!next.saleEdited)
         next.ventaUnitario = next.costoUnitario
           ? String(Math.ceil(expressMinimumSale(Number(next.costoUnitario))))
           : '';
       return next;
     });
-    setErrors((previousErrors) => {
-      const next = { ...previousErrors };
-      keys.forEach((key) => delete next[key]);
-      return next;
-    });
-    setScanResult({ ...result, items: [item] });
+    // An unreadable receipt must not erase products. Cost-only recovery also leaves other lines intact.
+    if (readItems.length)
+      values.items = costOnly
+        ? [...readItems, ...previous.items.slice(1)]
+        : [
+            ...readItems,
+            ...previous.items.slice(readItems.length).filter((item) => item.requestId),
+          ];
+    if ((values.items?.length ?? 0) > 30) {
+      setScanError('La lectura y las solicitudes superan 30 productos. Conservamos el borrador.');
+      return;
+    }
+    const keys = Object.keys(values) as (keyof ExpressRecovery)[];
+    const changesItems =
+      values.items && JSON.stringify(values.items) !== JSON.stringify(previous.items);
+    const changesManualLine =
+      changesItems &&
+      (manual.has('items') ||
+        previous.items.some((item, index) => {
+          const next = values.items?.[index];
+          return Object.keys(item).some(
+            (key) =>
+              manual.has(`${item.id}.${key}`) &&
+              item[key as keyof ExpressRecoveryLine] !== next?.[key as keyof ExpressRecoveryLine],
+          );
+        }));
+    if (
+      !confirmed &&
+      (changesManualLine ||
+        keys.some((key) => key !== 'items' && manual.has(key) && previous[key] !== values[key]))
+    ) {
+      setReadReplacement(selection);
+      return;
+    }
+    setReadReplacement(null);
+    setDraft((latest) => ({
+      ...latest,
+      ...values,
+      editedFields: latest.editedFields.filter((key) => {
+        if (key === 'items') return !changesItems;
+        if (keys.includes(key as keyof ExpressRecovery) && key !== 'items')
+          return previous[key as keyof ExpressRecovery] === values[key as keyof ExpressRecovery];
+        const index = previous.items.findIndex((item) => key.startsWith(`${item.id}.`));
+        if (index < 0 || !values.items) return true;
+        const field = key.slice(previous.items[index].id.length + 1) as keyof ExpressRecoveryLine;
+        return previous.items[index][field] === values.items[index]?.[field];
+      }),
+    }));
+    setErrors({});
     save.reset();
   };
   const runScan = async (image: File) => {
@@ -333,7 +391,7 @@ function PurchasesExpressWorkspace({
       const result = await scan.mutateAsync({ file: image, signal: abort.signal });
       if (sequence !== scanSequence.current || abort.signal.aborted) return;
       setScanResult(result);
-      if (result.items.length === 1) applyRead({ result, index: 0, sequence });
+      applyRead({ result, sequence });
     } catch (error) {
       if (sequence === scanSequence.current && !abort.signal.aborted)
         setScanError(
@@ -368,22 +426,36 @@ function PurchasesExpressWorkspace({
       );
     } else void runScan(image);
   };
-  const cost = Number(draft.costoUnitario) || 0;
-  const quantity = Number(draft.cantidad) || 0;
-  const sale = Number(draft.ventaUnitario) || 0;
-  const minimum = Math.ceil(expressMinimumSale(cost));
-  const invalidSale = cost > 0 && sale < expressMinimumSale(cost);
-  const totalCost = cost * quantity;
-  const totalSale =
-    sale > 0 && quantity > 0
-      ? getQuotationGrossTotal(expressNetSale(sale, quantity) * quantity)
-      : 0;
+  const quantity = draft.items.reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
+  const invalidSale = draft.items.some(
+    (item) =>
+      Number(item.costoUnitario) > 0 &&
+      Number(item.ventaUnitario) < expressMinimumSale(Number(item.costoUnitario)),
+  );
+  const totalCost = draft.items.reduce((sum, item) => sum + expressLineTotals(item).cost, 0);
+  const totalSale = draft.items.reduce((sum, item) => sum + expressLineTotals(item).sale, 0);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!canCreate || inFlight.current || scanBusy || readReplacement || !recovery.ready) return;
-    const parsed = createExpressPurchaseSchema.safeParse({
-      ...draft,
+    const parsed = createExpressPurchaseBatchSchema.safeParse({
+      operationKey: draft.operationKey,
       workOrderId: draft.order?.id,
+      conIva: draft.conIva,
+      metodoPago: draft.metodoPago,
+      proveedorNombre: draft.proveedorNombre,
+      tipoDocumento: draft.tipoDocumento,
+      folio: draft.folio,
+      fechaEmision: draft.fechaEmision || undefined,
+      detalle: draft.detalle,
+      items: draft.items.map((item) => ({
+        workOrderId: item.order?.id,
+        requestId: item.requestId,
+        descripcion: item.descripcion,
+        cantidad: item.cantidad,
+        costoUnitario: item.costoUnitario,
+        ventaUnitario: item.ventaUnitario,
+        detalle: item.detalle,
+      })),
     });
     if (!parsed.success) {
       const nextErrors = getFieldErrors(parsed.error.issues);
@@ -427,7 +499,7 @@ function PurchasesExpressWorkspace({
           <h1 ref={headingRef} tabIndex={-1}>
             Compras express
           </h1>
-          <p>Escanea, revisa el precio y vincula el accesorio a su OT.</p>
+          <p>Escanea, revisa los productos y vincula cada uno a su OT.</p>
         </div>
         {canRead && (
           <Link
@@ -474,8 +546,8 @@ function PurchasesExpressWorkspace({
           <div>
             <h2>Compra registrada</h2>
             <p>
-              {success.codigo} · Egreso de {formatClp(success.total)} registrado. El accesorio quedó
-              vinculado a la OT y su cotización.
+              {success.codigo} · Egreso de {formatClp(success.total)} registrado. Los productos
+              quedaron vinculados a sus OTs y cotizaciones.
             </p>
             {canRead && <Link to={`/purchases/${success.id}`}>Ver compra</Link>}
           </div>
@@ -576,9 +648,11 @@ function PurchasesExpressWorkspace({
             <div className="express-form-title">
               <div>
                 <span className="express-eyebrow">
-                  {draft.requestId ? `Solicitud #${draft.requestId}` : 'Compra nueva'}
+                  {draft.items[0]?.requestId
+                    ? `Solicitud #${draft.items[0].requestId}`
+                    : 'Compra nueva'}
                 </span>
-                <h2>Registra el accesorio</h2>
+                <h2>Revisa los productos</h2>
               </div>
               <button
                 type="button"
@@ -621,7 +695,7 @@ function PurchasesExpressWorkspace({
             )}
             <section className="express-order-section">
               <label htmlFor="express-order">
-                OT o patente <span className="express-required">Obligatorio</span>
+                OT predeterminada <span className="express-required">Obligatorio</span>
               </label>
               {draft.order && !choosingOrder ? (
                 <div className="express-selected-order">
@@ -632,7 +706,7 @@ function PurchasesExpressWorkspace({
                     </span>
                     {draft.order.cliente && <small>{draft.order.cliente}</small>}
                   </div>
-                  {!draft.requestId && (
+                  {canCreate && (
                     <button type="button" onClick={() => setChoosingOrder(true)}>
                       Cambiar
                     </button>
@@ -807,7 +881,7 @@ function PurchasesExpressWorkspace({
                     {scanResult.items.length === 1
                       ? 'Lectura lista. Revisa los datos antes de guardar.'
                       : scanResult.items.length > 1
-                        ? 'Hay varios productos. Elige el accesorio de esta compra.'
+                        ? `${scanResult.items.length} productos detectados. Revisa y edita cada uno antes de guardar.`
                         : 'No se encontró un producto legible. Completa los datos manualmente.'}
                   </p>
                   {scanResult.items.length === 1 && (
@@ -820,13 +894,12 @@ function PurchasesExpressWorkspace({
                   )}
                   {scanResult.items.length === 1 &&
                     scanResult.items[0].costoUnitario !== null &&
-                    Number(draft.costoUnitario) !== scanResult.items[0].costoUnitario && (
+                    Number(draft.items[0]?.costoUnitario) !== scanResult.items[0].costoUnitario && (
                       <button
                         type="button"
                         onClick={() =>
                           applyRead({
                             result: scanResult,
-                            index: 0,
                             sequence: scanSequence.current,
                             costOnly: true,
                           })
@@ -835,23 +908,6 @@ function PurchasesExpressWorkspace({
                         Usar precio detectado: {formatClp(scanResult.items[0].costoUnitario)}
                       </button>
                     )}
-                  {scanResult.items.length > 1 &&
-                    scanResult.items.map((item, index) => (
-                      <button
-                        type="button"
-                        key={index}
-                        onClick={() =>
-                          applyRead({ result: scanResult, index, sequence: scanSequence.current })
-                        }
-                      >
-                        <span>{item.descripcion}</span>
-                        <strong>
-                          {item.costoUnitario === null
-                            ? 'Precio por confirmar'
-                            : formatClp(item.costoUnitario)}
-                        </strong>
-                      </button>
-                    ))}
                   {scanResult.advertencias.map((warning, index) => (
                     <small key={index}>{warning}</small>
                   ))}
@@ -870,8 +926,8 @@ function PurchasesExpressWorkspace({
                     La lectura reemplazará datos que editaste manualmente.
                   </p>
                   <p id="express-read-description">
-                    Revisa el producto y el precio detectados antes de aceptar. Si conservas tus
-                    datos, el borrador y la foto seguirán disponibles.
+                    Revisa todos los productos y precios detectados antes de aceptar. Si conservas
+                    tus datos, el borrador y la foto seguirán disponibles.
                   </p>
                   <button
                     type="button"
@@ -898,99 +954,41 @@ function PurchasesExpressWorkspace({
                 </div>
               )}
             </section>
-            <section className="express-product-section">
-              <label htmlFor="express-description">Accesorio</label>
-              <input
-                id="express-description"
-                value={draft.descripcion}
-                maxLength={255}
-                readOnly={Boolean(draft.requestId)}
-                aria-invalid={Boolean(errors.descripcion)}
-                onChange={(event) => update('descripcion', event.target.value)}
-                placeholder="Nombre del accesorio o repuesto"
-              />
-              {fieldError('descripcion')}
-              <div className="express-price-grid">
-                <div>
-                  <label htmlFor="express-quantity">Cantidad</label>
-                  <input
-                    id="express-quantity"
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    step="1"
-                    value={draft.cantidad}
-                    readOnly={Boolean(draft.requestId)}
-                    aria-invalid={Boolean(errors.cantidad)}
-                    onChange={(event) => update('cantidad', event.target.value)}
-                  />
-                  {fieldError('cantidad')}
-                </div>
-                <div>
-                  <label htmlFor="express-cost">Compra por unidad</label>
-                  <CurrencyInput
-                    id="express-cost"
-                    value={draft.costoUnitario}
-                    onChange={changeCost}
-                    allowDecimals
-                    aria-invalid={Boolean(errors.costoUnitario)}
-                    placeholder="0"
-                  />
-                  {fieldError('costoUnitario')}
-                  <small>Importe realmente pagado</small>
-                </div>
-              </div>
-              <div className={`express-sale-field ${invalidSale ? 'is-invalid' : ''}`}>
-                <label htmlFor="express-sale">Venta por unidad al cliente</label>
-                <CurrencyInput
-                  id="express-sale"
-                  value={draft.ventaUnitario}
-                  onChange={(value) => {
-                    update('ventaUnitario', value);
-                    setDraft((previous) => ({ ...previous, saleEdited: true }));
+            <div className="grid min-w-0 gap-3" aria-label="Productos de la compra">
+              <p className="text-xs text-slate-500">
+                Venta con IVA incluido · Mínimo +25% sobre la compra por producto.
+              </p>
+              {draft.items.map((item, index) => (
+                <ExpressPurchaseLine
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  headerOrder={draft.order}
+                  errors={errors}
+                  canRemove={draft.items.length > 1}
+                  onChange={(changes) => changeLine(item.id, changes)}
+                  onRemove={() => {
+                    update(
+                      'items',
+                      draft.items.filter((line) => line.id !== item.id),
+                    );
+                    setErrors({});
                   }}
-                  allowDecimals
-                  aria-invalid={invalidSale || Boolean(errors.ventaUnitario)}
-                  placeholder="0"
                 />
-                <div>
-                  <span>
-                    Mínimo +25%: <strong>{formatClp(minimum)}</strong>
-                  </span>
-                  <button
-                    type="button"
-                    disabled={cost <= 0}
-                    onClick={() =>
-                      setDraft((previous) => ({
-                        ...previous,
-                        ventaUnitario: String(minimum),
-                        saleEdited: false,
-                      }))
-                    }
-                  >
-                    Usar sugerido
-                  </button>
-                </div>
-                <small>IVA incluido. El mínimo se mantiene también en la cotización.</small>
-                {invalidSale && (
-                  <small role="alert" className="express-field-error">
-                    La venta no puede ser menor al 125% del precio de compra.
-                  </small>
-                )}
-                {fieldError('ventaUnitario')}
-              </div>
-              <label htmlFor="express-detail">
-                Detalle <span>Opcional</span>
-              </label>
-              <textarea
-                id="express-detail"
-                rows={2}
-                maxLength={1000}
-                value={draft.detalle}
-                onChange={(event) => update('detalle', event.target.value)}
-                placeholder="Marca, medida o indicaciones para el taller"
-              />
-            </section>
+              ))}
+              {fieldError('items')}
+              <button
+                type="button"
+                className="express-secondary"
+                disabled={draft.items.length >= 30}
+                onClick={() => update('items', [...draft.items, emptyLine()])}
+              >
+                <Plus aria-hidden="true" /> Agregar producto
+              </button>
+              <small className="text-xs text-slate-500">
+                {draft.items.length} de 30 productos · Una compra y un egreso
+              </small>
+            </div>
             <details className="express-extra-fields" open={errors.fechaEmision ? true : undefined}>
               <summary>
                 Proveedor y datos del recibo <ChevronDown aria-hidden="true" />
@@ -1050,7 +1048,9 @@ function PurchasesExpressWorkspace({
                   </option>
                 ))}
               </select>
-              <p>Se registra el egreso de compra. El accesorio queda por cobrar al cliente.</p>
+              <p>
+                Se registra un solo egreso de compra. Los productos quedan por cobrar al cliente.
+              </p>
             </section>
             <section className="express-totals" aria-label="Resumen express">
               <div>
@@ -1065,9 +1065,10 @@ function PurchasesExpressWorkspace({
                 {draft.order
                   ? `${draft.order.codigo} · ${draft.order.patente}`
                   : 'Selecciona una OT para vincular el cobro'}{' '}
-                · {quantity || 0} unidad(es)
+                · {draft.items.length} producto(s) · {quantity || 0} unidad(es)
               </small>
             </section>
+            {fieldError('_form')}
             {save.isError && (
               <p role="alert" className="express-error">
                 {getApiErrorMessage(

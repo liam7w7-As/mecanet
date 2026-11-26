@@ -27,6 +27,7 @@ export const createExpressPurchaseSchema = z
     fechaEmision: z.string().date().optional(),
     detalle: optionalText(1000),
 })
+    .strict()
     .superRefine((value, ctx) => {
     if (Math.round(value.ventaUnitario * 100) < Math.ceil(value.costoUnitario * 125 - 0.000001)) {
         ctx.addIssue({
@@ -58,6 +59,72 @@ export const createExpressPurchaseSchema = z
         });
     }
 });
+const singlePurchaseFields = createExpressPurchaseSchema.innerType();
+export const expressPurchaseLineSchema = singlePurchaseFields
+    .pick({
+    workOrderId: true,
+    requestId: true,
+    descripcion: true,
+    cantidad: true,
+    costoUnitario: true,
+    ventaUnitario: true,
+    detalle: true,
+})
+    .extend({ workOrderId: z.coerce.number().int().positive().optional() })
+    .strict()
+    .superRefine((line, ctx) => {
+    if (Math.round(line.ventaUnitario * 100) < Math.ceil(line.costoUnitario * 125 - 0.000001)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['ventaUnitario'],
+            message: 'La venta debe ser al menos un 25% mayor al precio de compra',
+        });
+    }
+});
+export const createExpressPurchaseBatchSchema = singlePurchaseFields
+    .omit({
+    requestId: true,
+    descripcion: true,
+    cantidad: true,
+    costoUnitario: true,
+    ventaUnitario: true,
+})
+    .extend({ items: z.array(expressPurchaseLineSchema).min(1, 'Agrega un producto').max(30) })
+    .strict()
+    .superRefine((value, ctx) => {
+    if (value.tipoDocumento === 'nota_credito') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['tipoDocumento'], message: 'Una nota de crédito no es una compra express' });
+    }
+    if (value.fechaEmision && value.fechaEmision > new Date().toISOString().slice(0, 10)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['fechaEmision'], message: 'La fecha no puede ser futura' });
+    }
+    const requested = new Set();
+    let cost = 0;
+    let sale = 0;
+    value.items.forEach((line, index) => {
+        cost += Math.round(line.costoUnitario * 100) * line.cantidad;
+        sale += Math.round(line.ventaUnitario * 100) * line.cantidad;
+        if (line.requestId) {
+            if (requested.has(line.requestId)) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['items', index, 'requestId'], message: 'Esta solicitud ya está incluida en la compra' });
+            }
+            requested.add(line.requestId);
+        }
+    });
+    if (cost > 99999999900 || sale > 99999999900) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'El total supera el límite permitido' });
+    }
+});
+/** Keep existing single-product callers compatible while the UI submits a complete receipt. */
+export const createExpressPurchaseSubmissionSchema = z.union([
+    createExpressPurchaseBatchSchema,
+    createExpressPurchaseSchema,
+]);
+export const returnExpressPurchaseSchema = z.object({
+    motivo: z.string().trim().min(2, 'Explica el motivo de la devolución').max(500),
+    itemIds: z.array(z.number().int().positive()).min(1).max(30)
+        .refine((ids) => new Set(ids).size === ids.length, 'Hay productos repetidos').optional(),
+}).strict();
 export const expressSearchSchema = z.object({
     search: z.string().trim().max(180).optional(),
 });

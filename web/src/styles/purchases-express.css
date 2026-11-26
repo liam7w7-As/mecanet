@@ -43,7 +43,7 @@
 .express-empty h2 { font-size: 16px; font-weight: 500; }
 .express-empty p { max-width: 38ch; color: #627994; font-size: 13px; line-height: 1.6; }
 .express-message { display: flex; align-items: center; gap: 8px; color: #627994; font-size: 13px; }
-.express-form { width: 100%; max-width: 740px; margin-inline: auto; border: 1px solid #dfe7f2; border-radius: 20px; background: #fff; }
+.express-form { width: 100%; max-width: 1040px; margin-inline: auto; border: 1px solid #dfe7f2; border-radius: 20px; background: #fff; }
 .express-form > fieldset { display: grid; gap: 24px; min-width: 0; padding: 24px; border: 0; }
 .express-form-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .express-form-title h2 { margin-top: 4px; color: #1d396a; font-size: 20px; font-weight: 600; }
@@ -131,7 +131,7 @@
     bottom: calc(78px + env(safe-area-inset-bottom, 0px));
     z-index: 20;
     width: calc(100% - 32px);
-    max-width: 740px;
+    max-width: 1040px;
     margin: 0;
     padding: 12px;
     transform: translateX(-50%);
@@ -164,3 +164,37 @@
   .express-totals > div { flex-wrap: wrap; gap: 5px 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .purchases-express * { scroll-behavior: auto !important; } }
+
+/* Shared receipt with compact, editable product lines. */
+.express-line { min-width: 0; padding: 12px 14px; border: 1px solid #dfe7f2; border-radius: 12px; background: #fff; }
+.express-line-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.express-line-heading h3 { color: #526d90; font-size: 11px; font-weight: 600; }
+.express-line-heading button { display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; color: #627994; border-radius: 7px; }
+.express-line-heading button:hover { background: #f0f4fa; }
+.express-line-heading svg { width: 16px; height: 16px; }
+.express-line-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(65px, .55fr) minmax(0, 1fr) minmax(0, 1.2fr); gap: 10px; align-items: start; }
+.express-line-fields > div { min-width: 0; }
+.express-form .express-line-fields label { font-size: 11px; line-height: 1.4; }
+.express-line :is(input, textarea) { min-width: 0; }
+.express-line-fields small { color: #627994; font-size: 10px; line-height: 1.5; }
+.express-line-minimum { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin-top: 3px; }
+.express-line-minimum button { min-height: 28px; color: #356954; font-size: 10px; text-decoration: underline; }
+.express-line-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; margin-top: 5px; color: #627994; font-size: 11px; }
+.express-line-order { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; min-width: 0; }
+.express-line-order span { overflow-wrap: anywhere; }
+.express-line-order button { min-height: 30px; color: #43658a; text-decoration: underline; }
+.express-line-review { display: flex; flex-wrap: wrap; gap: 4px 14px; font-variant-numeric: tabular-nums; }
+.express-line-review strong { color: #294d7b; }
+.express-line-note { color: #627994; font-size: 11px; }
+.express-line-note summary { width: fit-content; min-height: 28px; padding-block: 5px; cursor: pointer; }
+.express-line-note[open] summary { margin-bottom: 5px; }
+.express-line-note label { margin-top: 5px; }
+@media (max-width: 800px) {
+  .express-line-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .express-line-description { grid-column: 1 / -1; }
+  .express-line-fields > div:last-child { grid-column: 1 / -1; }
+  .express-line-heading button { width: 40px; height: 40px; }
+  .express-line-minimum button, .express-line-order button { min-height: 40px; }
+  .express-line-note summary { min-height: 40px; }
+  .express-line-footer { margin-top: 8px; }
+}

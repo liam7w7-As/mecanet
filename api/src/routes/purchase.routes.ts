@@ -1,10 +1,11 @@
 import {
   createPurchaseSchema,
-  createExpressPurchaseSchema,
+  createExpressPurchaseSubmissionSchema,
   expressSearchSchema,
   purchaseQuerySchema,
   purchaseReportQuerySchema,
   registerPurchasePaymentSchema,
+  returnExpressPurchaseSchema,
   supplierQuerySchema,
   updateSupplierSchema,
   voidPurchaseSchema,
@@ -50,10 +51,10 @@ purchaseRouter.use(authenticate);
 purchaseRouter.get('/express/requests', authorize('compras', 'read'), validate({ query: expressSearchSchema }), expressRequestsHandler);
 purchaseRouter.get('/express/orders', authorize('compras', 'create'), validate({ query: expressSearchSchema }), expressOrdersHandler);
 purchaseRouter.post('/express/scan', authorize('compras', 'create'), purchaseUpload, expressScanHandler);
-purchaseRouter.post('/express', authorize('compras', 'create'), purchaseUpload, validate({ body: createExpressPurchaseSchema }), expressCreateHandler);
+purchaseRouter.post('/express', authorize('compras', 'create'), purchaseUpload, validate({ body: createExpressPurchaseSubmissionSchema }), expressCreateHandler);
 
 purchaseRouter.post('/:id/return-to-stock', authorize('compras', 'update'), authorizeRoles('jefe', 'admin', 'desarrollador'),
-  validate({ params: idParamSchema, body: voidPurchaseSchema }), expressReturnToStockHandler);
+  validate({ params: idParamSchema, body: returnExpressPurchaseSchema }), expressReturnToStockHandler);
 
 purchaseRouter.get(
   '/report/pdf',

@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import * as pwaUpdates from '../../../lib/pwa-updates';
+import { usePwaUpdateStore } from '../../../stores/pwa-update.store';
 import PwaReloadPrompt from '../PwaReloadPrompt';
 
 import type { RegisterSWOptions } from 'vite-plugin-pwa/types';
@@ -33,6 +35,53 @@ describe('PWA updates with open drafts', () => {
     sw.needRefresh = true;
     sw.offlineReady = false;
     sw.update.mockReset().mockResolvedValue(undefined);
+    usePwaUpdateStore.setState({ check: null, checking: false });
+  });
+  afterEach(() => { vi.restoreAllMocks(); Reflect.deleteProperty(navigator, 'serviceWorker'); });
+
+  const registerWaitingWorker = () => {
+    const active = Object.assign(new EventTarget(), { state: 'activated' });
+    const waiting = Object.assign(new EventTarget(), { state: 'installed' });
+    const registration = Object.assign(new EventTarget(), { active, waiting, installing: null, update: vi.fn() });
+    registration.update.mockResolvedValue(registration);
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { controller: active } });
+    act(() => sw.options.onRegisteredSW?.('/sw.js', registration as unknown as ServiceWorkerRegistration));
+    return { registration, waiting };
+  };
+
+  it('completes a confirmed reload when activation does not claim the current page', async () => {
+    const reload = vi.spyOn(pwaUpdates, 'reloadPwaPage').mockImplementation(() => {});
+    render(<Workspace />);
+    const { waiting } = registerWaitingWorker();
+    fireEvent.change(screen.getByLabelText('Notas OT/COT'), { target: { value: 'Borrador conservado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar ahora' }));
+    expect(reload).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar y recargar' }));
+    await waitFor(() => expect(sw.update).toHaveBeenCalledOnce());
+    act(() => { waiting.state = 'activated'; waiting.dispatchEvent(new Event('statechange')); });
+    expect(reload).toHaveBeenCalledOnce();
+    act(() => sw.options.onNeedReload?.());
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it('keeps drafts open if another tab activates the waiting worker', () => {
+    const reload = vi.spyOn(pwaUpdates, 'reloadPwaPage').mockImplementation(() => {});
+    render(<Workspace />);
+    const { waiting } = registerWaitingWorker();
+    fireEvent.change(screen.getByLabelText('Notas OT/COT'), { target: { value: 'Conservar mi OT' } });
+    act(() => { waiting.state = 'activated'; waiting.dispatchEvent(new Event('statechange')); });
+    expect(reload).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Notas OT/COT')).toHaveValue('Conservar mi OT');
+    expect(screen.getByText('Nueva versión disponible')).toBeInTheDocument();
+  });
+
+  it('shows a dismissed waiting update again after returning to the app', async () => {
+    render(<Workspace />);
+    registerWaitingWorker();
+    fireEvent.click(screen.getByRole('button', { name: 'Más tarde' }));
+    await waitFor(() => expect(screen.queryByRole('region')).not.toBeInTheDocument());
+    act(() => window.dispatchEvent(new Event('focus')));
+    expect(await screen.findByText('Nueva versión disponible')).toBeInTheDocument();
   });
 
   it('preserves the draft on an available update and requires a separate reload confirmation', async () => {

@@ -705,6 +705,8 @@ export interface PurchaseWarehouseSummary {
 }
 
 export interface PurchaseItem {
+  workOrderId?: number | null;
+  workOrder?: PurchaseWorkOrderSummary | null;
   stockReturnedAt?: string | null;
   stockReturnReason?: string | null;
   workOrderItemId?: number | null;

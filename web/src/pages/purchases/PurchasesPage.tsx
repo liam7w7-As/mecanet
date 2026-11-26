@@ -326,6 +326,11 @@ export const PurchasesPage = () => {
                     !purchase.pagadoAt &&
                     purchase.estado === 'registrada';
                   const vehicle = purchase.vehicle ?? purchase.fleetVehicle;
+                  const productOrders = [...new Map(purchase.items
+                    .map((item) => item.workOrder ?? purchase.workOrder)
+                    .filter((order) => order != null)
+                    .map((order) => [order.id, order])).values()];
+                  const multipleOrders = productOrders.length > 1;
 
                   return (
                     <tr role="row"
@@ -365,7 +370,9 @@ export const PurchasesPage = () => {
                         <span className="block">Emitido {formatDate(purchase.fechaEmision)}</span>
                       </td>
                       <td role="cell" data-label="Asociación" className="px-4 py-3 text-xs text-brand-muted">
-                        {vehicle ? (
+                        {multipleOrders ? (
+                          <span className="block font-semibold text-brand-ink">{productOrders.length} órdenes de trabajo</span>
+                        ) : vehicle ? (
                           <>
                             <span className="block font-mono font-bold uppercase text-brand-ink">
                               {vehicle.patente}
@@ -378,11 +385,9 @@ export const PurchasesPage = () => {
                         ) : (
                           <span className="block">Sin vehículo</span>
                         )}
-                        {purchase.workOrder && (
-                          <span className="mt-1 block font-mono text-[11px] text-brand-primaryInk">
-                            {purchase.workOrder.codigo}
-                          </span>
-                        )}
+                        {(productOrders.length ? productOrders : purchase.workOrder ? [purchase.workOrder] : []).map((order) => (
+                          <Link key={order.id} to={`/work-orders/${order.id}`} className="mt-1 block font-mono text-[11px] text-brand-primaryInk hover:underline">{order.codigo}</Link>
+                        ))}
                       </td>
                       <td role="cell" data-label="Pago" className="px-4 py-3 text-xs text-brand-muted">
                         <span className="block font-semibold text-brand-ink">

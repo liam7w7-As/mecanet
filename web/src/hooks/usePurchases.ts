@@ -156,8 +156,8 @@ export const useReturnPurchaseToStockMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     retry: false,
-    mutationFn: async ({ purchaseId, motivo }: { purchaseId: number; motivo: string }) => {
-      const response = await api.post<PurchaseResponse>(`/purchases/${purchaseId}/return-to-stock`, { motivo });
+    mutationFn: async ({ purchaseId, motivo, itemIds }: { purchaseId: number; motivo: string; itemIds?: number[] }) => {
+      const response = await api.post<PurchaseResponse>(`/purchases/${purchaseId}/return-to-stock`, { motivo, ...(itemIds ? { itemIds } : {}) });
       return response.data.purchase;
     },
     onSuccess: (purchase) => cachePurchase(queryClient, purchase),

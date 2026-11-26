@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto';
 
-import { expressMinimumSale, expressNetSale, getQuotationGrossTotal, PURCHASE_TAX_RATE } from '@unithor/shared';
+import {
+  expressMinimumSale,
+  expressNetSale,
+  getQuotationGrossTotal,
+  PURCHASE_TAX_RATE,
+} from '@unithor/shared';
 import { Op, Transaction } from 'sequelize';
 
 import { removeStoredFile } from './file-storage.service.js';
@@ -31,7 +36,7 @@ import { generatePurchaseCode } from '../utils/generateCode.js';
 import { plateSearch } from '../utils/plate-search.js';
 
 import type {
-  CreateExpressPurchaseInput,
+  CreateExpressPurchaseSubmission,
   CreatePurchaseInput,
   ExpressOrderOption,
   ExpressPurchaseRequest,
@@ -102,10 +107,14 @@ export async function listExpressRequests(search: string | undefined, userId: nu
     where: {
       tipo: 'repuesto',
       estado: { [Op.in]: ['pendiente', 'aprobada'] },
-      ...(search ? { [Op.or]: [
-        { '$workOrder.codigo$': { [Op.like]: `%${search}%` } },
-        plateSearch('workOrder->vehicle.patente', search),
-      ] } : {}),
+      ...(search
+        ? {
+            [Op.or]: [
+              { '$workOrder.codigo$': { [Op.like]: `%${search}%` } },
+              plateSearch('workOrder->vehicle.patente', search),
+            ],
+          }
+        : {}),
     },
     include: [
       {
@@ -166,11 +175,43 @@ export async function listExpressRequests(search: string | undefined, userId: nu
 }
 
 export async function createExpressPurchase(
-  data: CreateExpressPurchaseInput,
+  data: CreateExpressPurchaseSubmission,
   userId: number,
   file?: Express.Multer.File,
 ) {
+  // Hash the original submission: legacy operation keys must retain their exact fingerprint.
   const fingerprint = createHash('sha256').update(JSON.stringify(data)).digest('hex');
+  const lines = ('items' in data ? data.items : [data]).map((line) => ({
+    ...line,
+    workOrderId: line.workOrderId ?? data.workOrderId,
+  }));
+  if (!lines.length) throw ApiError.badRequest('Agrega al menos un accesorio a la compra');
+  const orderIds = [...new Set([data.workOrderId, ...lines.map((line) => line.workOrderId)])].sort(
+    (a, b) => a - b,
+  );
+  const requestIds = new Set<number>();
+  for (const line of lines) {
+    if (!line.requestId) continue;
+    if (requestIds.has(line.requestId))
+      throw ApiError.conflict('La solicitud aparece más de una vez en esta compra');
+    requestIds.add(line.requestId);
+  }
+  const grossCents = lines.map((line) => Math.round(line.costoUnitario * line.cantidad * 100));
+  const totalCents = grossCents.reduce((sum, value) => sum + value, 0);
+  const netCents = data.conIva ? Math.round(totalCents / (1 + PURCHASE_TAX_RATE)) : totalCents;
+  const exactNetCents = grossCents.map((value) =>
+    data.conIva ? value / (1 + PURCHASE_TAX_RATE) : value,
+  );
+  const lineNetCents = exactNetCents.map(Math.floor);
+  // Allocate the header's rounding cents to the largest remainders, keeping every line in cents.
+  const remainderOrder = exactNetCents
+    .map((value, index) => ({ index, remainder: value - lineNetCents[index] }))
+    .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  const roundingCents = netCents - lineNetCents.reduce((sum, value) => sum + value, 0);
+  for (let index = 0; index < roundingCents; index += 1)
+    lineNetCents[remainderOrder[index].index] += 1;
+  const total = totalCents / 100;
+  const neto = netCents / 100;
   const assertRetry = (purchase: Purchase) => {
     if (
       purchase.createdBy !== userId ||
@@ -183,7 +224,7 @@ export async function createExpressPurchase(
       );
     }
   };
-  await assertWorkOrderAccess(data.workOrderId, userId);
+  for (const orderId of orderIds) await assertWorkOrderAccess(orderId, userId);
   const previous = await Purchase.findOne({ where: { expressKey: data.operationKey } });
   if (previous) {
     assertRetry(previous);
@@ -193,12 +234,17 @@ export async function createExpressPurchase(
   let committed = false;
   try {
     const id = await withWorkshopTransaction(async (transaction) => {
-      const order = await WorkOrder.findByPk(data.workOrderId, {
-        transaction,
-        lock: Transaction.LOCK.UPDATE,
-      });
-      if (!order || order.vehicleId === null)
-        throw ApiError.badRequest('La OT no tiene un vehículo válido');
+      // Acquire every OT lock in the same order, regardless of the submitted line order.
+      const orders = new Map<number, WorkOrder>();
+      for (const orderId of orderIds) {
+        const order = await WorkOrder.findByPk(orderId, {
+          transaction,
+          lock: Transaction.LOCK.UPDATE,
+        });
+        if (!order || order.vehicleId === null)
+          throw ApiError.badRequest('La OT no tiene un vehículo válido');
+        orders.set(orderId, order);
+      }
       const repeated = await Purchase.findOne({
         where: { expressKey: data.operationKey },
         transaction,
@@ -208,60 +254,20 @@ export async function createExpressPurchase(
         assertRetry(repeated);
         return repeated.id;
       }
-      if (['entregada', 'cancelada'].includes(order.estado))
-        throw ApiError.badRequest('La OT está cerrada. No se registró ningún egreso.');
-      const quotation = await Quotation.findOne({
-        where: { workOrderId: order.id },
-        transaction,
-        lock: Transaction.LOCK.UPDATE,
-      });
-      if (!quotation || quotation.estadoPago === 'total')
-        throw ApiError.badRequest(
-          'La OT necesita una cotización vinculada y pendiente de pago. No se registró ningún egreso.',
-        );
-      let item: WorkOrderItem | null = null;
-      let request: WorkOrderRequest | null = null;
-      if (data.requestId) {
-        request = await WorkOrderRequest.findOne({
-          where: { id: data.requestId, workOrderId: order.id, tipo: 'repuesto' },
+      for (const order of orders.values()) {
+        if (['entregada', 'cancelada'].includes(order.estado))
+          throw ApiError.badRequest('La OT está cerrada. No se registró ningún egreso.');
+        const quotation = await Quotation.findOne({
+          where: { workOrderId: order.id },
           transaction,
           lock: Transaction.LOCK.UPDATE,
         });
-        if (!request || request.estado !== 'aprobada' || !request.workOrderItemId)
+        if (!quotation || quotation.estadoPago === 'total')
           throw ApiError.badRequest(
-            'La solicitud debe estar aprobada y vinculada a un accesorio de esta OT',
+            'La OT necesita una cotización vinculada y pendiente de pago. No se registró ningún egreso.',
           );
-        item = await WorkOrderItem.findOne({
-          where: { id: request.workOrderItemId, workOrderId: order.id },
-          transaction,
-          lock: Transaction.LOCK.UPDATE,
-        });
-        if (
-          !item ||
-          item.entregadoBodega ||
-          item.stockConsumido ||
-          ['completado', 'omitido'].includes(item.estadoOperativo)
-        )
-          throw ApiError.conflict('El accesorio ya fue entregado o no admite una compra');
-        if (Number(request.cantidad) !== data.cantidad || Number(item.cantidad) !== data.cantidad)
-          throw ApiError.badRequest(
-            `La compra debe cubrir la cantidad completa: solicitud aprobada ${Number(request.cantidad)}, accesorio en la OT ${Number(item.cantidad)}, compra ${data.cantidad}. ` +
-              'Actualiza la solicitud y la OT para que las cantidades coincidan y vuelve a cargar la compra. No se registró ninguna compra ni egreso.',
-          );
-        const existing = await PurchaseItem.findOne({
-          where: { workOrderItemId: item.id },
-          transaction,
-          include: [
-            { model: Purchase, as: 'purchase', required: true, where: { estado: 'registrada' } },
-          ],
-        });
-        if (existing) throw ApiError.conflict('Este accesorio ya tiene una compra registrada');
       }
-      const total = money(data.costoUnitario * data.cantidad);
-      const neto = data.conIva ? money(total / (1 + PURCHASE_TAX_RATE)) : total;
-      const venta = expressNetSale(data.ventaUnitario, data.cantidad);
-      const previousSale = item ? Number(item.precioUnitario) : null;
-      const createdItem = !item;
+      const order = orders.get(data.workOrderId)!;
       const codigo = await generatePurchaseCode(transaction);
       const supplier = await resolveSupplier(
         {
@@ -269,44 +275,101 @@ export async function createExpressPurchase(
         } as CreatePurchaseInput,
         transaction,
       );
-      if (item) {
-        await item.update(
-          {
-            precioUnitario: venta,
-            subtotal: money(venta * data.cantidad),
-            minimumSalePrice: expressNetSale(expressMinimumSale(data.costoUnitario), data.cantidad),
-          },
-          { transaction },
-        );
-      } else {
-        item = await WorkOrderItem.create(
-          {
-            workOrderId: order.id,
-            catalogItemId: null,
-            tipoLinea: 'parte',
-            division: 'ACC',
-            subtipo: 'a_pedido',
-            esAPedido: true,
-            descripcion: data.descripcion,
-            cantidad: data.cantidad,
-            unidadMedida: 'unidad',
-            precioUnitario: venta,
-            subtotal: money(venta * data.cantidad),
-            minimumSalePrice: expressNetSale(expressMinimumSale(data.costoUnitario), data.cantidad),
-            estadoOperativo: 'pendiente',
-            notasOperativas: data.detalle ?? null,
-          },
-          { transaction },
-        );
+      const itemIds = new Set<number>();
+      const prepared: Array<{
+        line: (typeof lines)[number];
+        item: WorkOrderItem;
+        request: WorkOrderRequest | null;
+        venta: number;
+        previousSale: number | null;
+        createdItem: boolean;
+      }> = [];
+      for (const line of lines) {
+        let item: WorkOrderItem | null = null;
+        let request: WorkOrderRequest | null = null;
+        if (line.requestId) {
+          request = await WorkOrderRequest.findOne({
+            where: { id: line.requestId, workOrderId: line.workOrderId, tipo: 'repuesto' },
+            transaction,
+            lock: Transaction.LOCK.UPDATE,
+          });
+          if (!request || request.estado !== 'aprobada' || !request.workOrderItemId)
+            throw ApiError.badRequest(
+              'La solicitud debe estar aprobada y vinculada a un accesorio de esta OT',
+            );
+          if (itemIds.has(request.workOrderItemId))
+            throw ApiError.conflict('El accesorio aparece más de una vez en esta compra');
+          item = await WorkOrderItem.findOne({
+            where: { id: request.workOrderItemId, workOrderId: line.workOrderId },
+            transaction,
+            lock: Transaction.LOCK.UPDATE,
+          });
+          if (
+            !item ||
+            item.entregadoBodega ||
+            item.stockConsumido ||
+            ['completado', 'omitido'].includes(item.estadoOperativo)
+          )
+            throw ApiError.conflict('El accesorio ya fue entregado o no admite una compra');
+          if (Number(request.cantidad) !== line.cantidad || Number(item.cantidad) !== line.cantidad)
+            throw ApiError.badRequest(
+              `La compra debe cubrir la cantidad completa: solicitud aprobada ${Number(request.cantidad)}, accesorio en la OT ${Number(item.cantidad)}, compra ${line.cantidad}. ` +
+                'Actualiza la solicitud y la OT para que las cantidades coincidan y vuelve a cargar la compra. No se registró ninguna compra ni egreso.',
+            );
+          const existing = await PurchaseItem.findOne({
+            where: { [Op.or]: [{ workOrderItemId: item.id }, { sourceRequestId: request.id }] },
+            transaction,
+            include: [
+              { model: Purchase, as: 'purchase', required: true, where: { estado: 'registrada' } },
+            ],
+          });
+          if (existing) throw ApiError.conflict('Este accesorio ya tiene una compra registrada');
+        }
+        const venta = expressNetSale(line.ventaUnitario, line.cantidad);
+        const previousSale = item ? Number(item.precioUnitario) : null;
+        const createdItem = !item;
+        const pricing = {
+          precioUnitario: venta,
+          subtotal: money(venta * line.cantidad),
+          minimumSalePrice: expressNetSale(expressMinimumSale(line.costoUnitario), line.cantidad),
+        };
+        if (item) {
+          await item.update(pricing, { transaction });
+        } else {
+          item = await WorkOrderItem.create(
+            {
+              workOrderId: line.workOrderId,
+              catalogItemId: null,
+              tipoLinea: 'parte',
+              division: 'ACC',
+              subtipo: 'a_pedido',
+              esAPedido: true,
+              descripcion: line.descripcion,
+              cantidad: line.cantidad,
+              unidadMedida: 'unidad',
+              ...pricing,
+              estadoOperativo: 'pendiente',
+              notasOperativas: line.detalle ?? null,
+            },
+            { transaction },
+          );
+        }
+        itemIds.add(item.id);
+        if (request) await request.update({ precioAprobado: venta }, { transaction });
+        prepared.push({ line, item, request, venta, previousSale, createdItem });
       }
-      await revokeFinalQuality(
-        order.id,
-        userId,
-        'Compra express vinculada a un accesorio',
-        transaction,
-      );
-      await syncMirrorQuotationFromWorkOrder(order.id, transaction);
-      if (request) await request.update({ precioAprobado: venta }, { transaction });
+      const affectedOrderIds = new Set(lines.map((line) => line.workOrderId));
+      for (const orderId of orderIds) {
+        if (!affectedOrderIds.has(orderId)) continue;
+        await revokeFinalQuality(
+          orderId,
+          userId,
+          'Compra express vinculada a un accesorio',
+          transaction,
+        );
+        // Validate margins after all new prices are present, including the final general discount.
+        await syncMirrorQuotationFromWorkOrder(orderId, transaction);
+      }
       const purchase = await Purchase.create(
         {
           codigo,
@@ -344,53 +407,58 @@ export async function createExpressPurchase(
         },
         { transaction },
       );
-      await PurchaseItem.create(
-        {
-          purchaseId: purchase.id,
-          sourceRequestId: request?.id ?? null,
-          workOrderItemId: item.id,
-          catalogItemId: item.catalogItemId,
-          descripcion: data.descripcion,
-          cantidad: data.cantidad,
-          precioUnitario: money(neto / data.cantidad),
-          subtotal: neto,
-          ventaUnitario: venta,
-          previousSalePrice: previousSale,
-          expressCreatedItem: createdItem,
-          afectaStock: false,
-          warehouseId: null,
-        },
-        { transaction },
-      );
-      await item.update({ expressPurchaseId: purchase.id }, { transaction });
+      for (const [index, entry] of prepared.entries()) {
+        const { line, item, request, venta, previousSale, createdItem } = entry;
+        const lineNeto = lineNetCents[index] / 100;
+        await PurchaseItem.create(
+          {
+            purchaseId: purchase.id,
+            workOrderId: line.workOrderId,
+            sourceRequestId: request?.id ?? null,
+            workOrderItemId: item.id,
+            catalogItemId: item.catalogItemId,
+            descripcion: line.descripcion,
+            cantidad: line.cantidad,
+            precioUnitario: money(lineNeto / line.cantidad),
+            subtotal: lineNeto,
+            ventaUnitario: venta,
+            previousSalePrice: previousSale,
+            expressCreatedItem: createdItem,
+            afectaStock: false,
+            warehouseId: null,
+          },
+          { transaction },
+        );
+        await item.update({ expressPurchaseId: purchase.id }, { transaction });
+        await WorkOrderEvent.create(
+          {
+            workOrderId: line.workOrderId,
+            actorUserId: userId,
+            tipo: 'actualizacion',
+            descripcion: `Compra express ${codigo}: ${line.descripcion}`.slice(0, 255),
+            metadata: {
+              purchaseId: purchase.id,
+              requestId: request?.id,
+              itemId: item.id,
+              ventaUnitario: venta,
+              totalCliente: getQuotationGrossTotal(venta * line.cantidad),
+            },
+          },
+          { transaction },
+        );
+      }
       const movement = await createCashMovement(
         {
           categoria: 'compra_repuesto',
           monto: total,
           metodo: data.metodoPago,
-          descripcion: `Compra express ${codigo} · ${order.codigo} · ${data.descripcion}`,
+          descripcion: `Compra express ${codigo} · ${order.codigo} · ${'items' in data ? `${lines.length} accesorios` : data.descripcion}`,
           referencia: codigo,
           userId,
         },
         transaction,
       );
       await purchase.update({ cashMovementId: movement.id }, { transaction });
-      await WorkOrderEvent.create(
-        {
-          workOrderId: order.id,
-          actorUserId: userId,
-          tipo: 'actualizacion',
-          descripcion: `Compra express ${codigo}: ${data.descripcion}`.slice(0, 255),
-          metadata: {
-            purchaseId: purchase.id,
-            requestId: request?.id,
-            itemId: item.id,
-            ventaUnitario: venta,
-            totalCliente: getQuotationGrossTotal(venta * data.cantidad),
-          },
-        },
-        { transaction },
-      );
       return purchase.id;
     });
     committed = true;

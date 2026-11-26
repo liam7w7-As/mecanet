@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 
 import type { Purchase } from '../types/entities';
 import type {
-  CreateExpressPurchaseInput,
+  CreateExpressPurchaseSubmission,
   ExpressOrderOption,
   ExpressPurchaseRequest,
   ExpressScanResult,
@@ -51,7 +51,7 @@ export const useCreateExpressPurchase = () => {
   const client = useQueryClient();
   return useMutation({
     retry: false,
-    mutationFn: async ({ data, file }: { data: CreateExpressPurchaseInput; file: File | null }) => {
+    mutationFn: async ({ data, file }: { data: CreateExpressPurchaseSubmission; file: File | null }) => {
       const body = new FormData();
       body.append('payload', JSON.stringify(data));
       if (file) body.append('comprobante', file);

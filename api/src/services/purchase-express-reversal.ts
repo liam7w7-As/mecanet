@@ -17,35 +17,73 @@ import { WorkOrderRequest } from '../models/WorkOrderRequest.js';
 import { ApiError } from '../utils/ApiError.js';
 
 /** Return unused goods, preserving both the paid expense and all workshop history. */
-export async function returnExpressPurchaseToStock(id: number, motivo: string, userId: number) {
+export async function returnExpressPurchaseToStock(id: number, motivo: string, userId: number, itemIds?: number[]) {
+  if (itemIds !== undefined && (!Array.isArray(itemIds) || !itemIds.length || itemIds.some((itemId) => !Number.isSafeInteger(itemId) || itemId <= 0))) {
+    throw ApiError.badRequest('Selecciona al menos un producto válido para enviar a stock');
+  }
+  const selectedIds = itemIds === undefined ? undefined : new Set(itemIds);
   const source = await Purchase.findByPk(id, { attributes: ['id', 'workOrderId', 'expressKey'] });
   if (!source) throw ApiError.notFound('Compra no encontrada');
-  if (!source.expressKey || !source.workOrderId) throw ApiError.badRequest('Esta acción corresponde a una compra express de taller');
-  await assertWorkOrderAccess(source.workOrderId, userId);
+  if (!source.expressKey) throw ApiError.badRequest('Esta acción corresponde a una compra express de taller');
+  // Discover the target OTs before locking: every OT, then every quotation, then the purchase/lines.
+  const snapshot = await PurchaseItem.findAll({ where: { purchaseId: id }, order: [['id', 'ASC']] });
+  const assertSelection = (lines: PurchaseItem[]) => {
+    if (selectedIds && [...selectedIds].some((itemId) => !lines.some((line) => line.id === itemId))) {
+      throw ApiError.badRequest('Los productos seleccionados deben pertenecer a esta compra');
+    }
+    if (!lines.length) throw ApiError.conflict('La compra no tiene un accesorio para enviar a stock');
+  };
+  assertSelection(snapshot);
+  // Legacy callers select every line for access checks, even when the retry is a no-op.
+  const targets = snapshot.filter((line) => !selectedIds || selectedIds.has(line.id));
+  const targetOrders = new Map(targets.map((line) => [line.id, line.workOrderId ?? source.workOrderId]));
+  if ([...targetOrders.values()].some((orderId) => orderId == null)) {
+    throw ApiError.conflict('El producto no tiene una OT vinculada');
+  }
+  const orderIds = [...new Set([...targetOrders.values()].filter((orderId): orderId is number => orderId != null))].sort((a, b) => a - b);
+  for (const orderId of orderIds) await assertWorkOrderAccess(orderId, userId);
   await withWorkshopTransaction(async (transaction) => {
-    const order = await WorkOrder.findByPk(source.workOrderId!, { transaction, lock: transaction.LOCK.UPDATE });
-    const quotation = await Quotation.findOne({ where: { workOrderId: source.workOrderId }, transaction, lock: transaction.LOCK.UPDATE });
+    const orders = new Map<number, WorkOrder | null>();
+    const quotations = new Map<number, Quotation | null>();
+    for (const orderId of orderIds) {
+      orders.set(orderId, await WorkOrder.findByPk(orderId, { transaction, lock: transaction.LOCK.UPDATE }));
+    }
+    for (const orderId of orderIds) {
+      quotations.set(orderId, await Quotation.findOne({ where: { workOrderId: orderId }, transaction, lock: transaction.LOCK.UPDATE }));
+    }
     const purchase = await Purchase.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
-    if (!order || !quotation || !purchase || purchase.estado !== 'registrada') {
+    if (!purchase || !purchase.expressKey || purchase.estado !== 'registrada') {
       throw ApiError.conflict('La compra debe estar vigente y vinculada a su OT y cotización');
     }
     const lines = await PurchaseItem.findAll({ where: { purchaseId: id }, order: [['id', 'ASC']], transaction, lock: transaction.LOCK.UPDATE });
-    if (!lines.length) throw ApiError.conflict('La compra no tiene un accesorio para enviar a stock');
-    if (lines.every((line) => line.stockReturnedAt !== null)) return;
-    if (['entregada', 'cancelada'].includes(order.estado) || quotation.estadoPago === 'total') {
-      throw ApiError.conflict('La OT está cerrada o la cotización está pagada. Regulariza el cobro antes de retirar el accesorio');
+    assertSelection(lines);
+    const pending = lines.filter((line) => (!selectedIds || selectedIds.has(line.id)) && !line.stockReturnedAt);
+    const affectedOrderIds = new Set<number>();
+    for (const line of pending) {
+      const orderId = line.workOrderId ?? purchase.workOrderId;
+      if (orderId == null || targetOrders.get(line.id) !== orderId) {
+        throw ApiError.conflict('El vínculo del producto cambió. Revisa la compra antes de enviarlo a stock');
+      }
+      const order = orders.get(orderId);
+      const quotation = quotations.get(orderId);
+      if (!order || !quotation) throw ApiError.conflict('La compra debe estar vigente y vinculada a su OT y cotización');
+      if (['entregada', 'cancelada'].includes(order.estado) || quotation.estadoPago === 'total') {
+        throw ApiError.conflict('La OT está cerrada o la cotización está pagada. Regulariza el cobro antes de retirar el accesorio');
+      }
+      affectedOrderIds.add(orderId);
     }
+    if (!pending.length) return;
     const [warehouse] = await Warehouse.findOrCreate({
       where: { codigo: 'CENTRAL' },
       defaults: { codigo: 'CENTRAL', nombre: 'Stock general', direccion: null, activo: true },
       transaction,
     });
     if (!warehouse.activo) throw ApiError.conflict('El stock general está inactivo. Administración debe reactivarlo antes de registrar el ingreso');
-    const discounts = new Map<number, { descuentoTipo: null; descuentoValor: number }>();
-    for (const line of lines) {
-      if (line.stockReturnedAt) continue;
+    const discountsByOrder = new Map<number, Map<number, { descuentoTipo: null; descuentoValor: number }>>();
+    for (const line of pending) {
+      const orderId = (line.workOrderId ?? purchase.workOrderId)!;
       const item = line.workOrderItemId ? await WorkOrderItem.findOne({
-        where: { id: line.workOrderItemId, workOrderId: order.id }, transaction, lock: transaction.LOCK.UPDATE,
+        where: { id: line.workOrderItemId, workOrderId: orderId }, transaction, lock: transaction.LOCK.UPDATE,
       }) : null;
       if (!item || item.expressPurchaseId !== id || Number(item.cantidad) !== Number(line.cantidad)) {
         throw ApiError.conflict('El vínculo o la cantidad del accesorio cambió. Revisa la OT antes de enviarlo a stock');
@@ -69,7 +107,9 @@ export async function returnExpressPurchaseToStock(id: number, motivo: string, u
       }, userId, { transaction, referencia: `EXP-STOCK-${id}-${line.id}` });
       const returnedAt = new Date();
       await item.update({ estadoOperativo: 'omitido', precioUnitario: 0, subtotal: 0, minimumSalePrice: null, expressStockReturnedAt: returnedAt }, { transaction });
+      const discounts = discountsByOrder.get(orderId) ?? new Map<number, { descuentoTipo: null; descuentoValor: number }>();
       discounts.set(item.id, { descuentoTipo: null, descuentoValor: 0 });
+      discountsByOrder.set(orderId, discounts);
       await WorkOrderRequest.update({ estado: 'cancelada', reviewNote: `Accesorio enviado al stock general: ${motivo}` }, {
         where: { workOrderItemId: item.id, tipo: 'repuesto', estado: { [Op.in]: ['pendiente', 'aprobada', 'entregada'] } }, transaction,
       });
@@ -77,11 +117,14 @@ export async function returnExpressPurchaseToStock(id: number, motivo: string, u
         stockReturnedAt: returnedAt, stockReturnedBy: userId, stockReturnReason: motivo,
       }, { transaction });
     }
-    await syncMirrorQuotationFromWorkOrder(order.id, transaction, false, { items: discounts });
-    await WorkOrderEvent.create({ workOrderId: order.id, actorUserId: userId, tipo: 'actualizacion',
-      descripcion: `Compra ${purchase.codigo}: accesorio no utilizado enviado al stock general`,
-      metadata: { purchaseId: id, warehouseId: warehouse.id, motivo, expensePreserved: true },
-    }, { transaction });
+    for (const orderId of [...affectedOrderIds].sort((a, b) => a - b)) {
+      await syncMirrorQuotationFromWorkOrder(orderId, transaction, false, { items: discountsByOrder.get(orderId) });
+      await WorkOrderEvent.create({ workOrderId: orderId, actorUserId: userId, tipo: 'actualizacion',
+        descripcion: `Compra ${purchase.codigo}: productos no utilizados enviados al stock general`,
+        metadata: { purchaseId: id, warehouseId: warehouse.id, motivo, expensePreserved: true,
+          itemIds: pending.filter((line) => (line.workOrderId ?? purchase.workOrderId) === orderId).map((line) => line.id) },
+      }, { transaction });
+    }
   });
   return getPurchaseById(id);
 }

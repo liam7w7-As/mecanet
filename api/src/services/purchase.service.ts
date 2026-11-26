@@ -89,6 +89,8 @@ export interface PurchaseItemPublic {
   catalogItem: PurchaseCatalogPublic | null;
   warehouse: PurchaseWarehousePublic | null;
   workOrderItemId?: number | null;
+  workOrderId?: number | null;
+  workOrder?: { id: number; codigo: string; estado: string } | null;
   ventaUnitario?: number | null;
   stockReturnedAt?: Date | null;
   stockReturnReason?: string | null;
@@ -252,6 +254,7 @@ const itemsInclude: Includeable = {
   include: [
     { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'codigo', 'nombre'], required: false },
     { model: Warehouse, as: 'warehouse', attributes: ['id', 'codigo', 'nombre'], required: false },
+    { ...workOrderInclude },
   ],
 };
 
@@ -304,6 +307,10 @@ const toItemPublic = (item: PurchaseItem): PurchaseItemPublic => ({
   subtotal: moneyValue(item.subtotal),
   afectaStock: item.afectaStock,
   workOrderItemId: item.workOrderItemId ?? null,
+  workOrderId: item.workOrderId ?? null,
+  workOrder: item.workOrder
+    ? { id: item.workOrder.id, codigo: item.workOrder.codigo, estado: item.workOrder.estado }
+    : null,
   ventaUnitario: item.ventaUnitario == null ? null : moneyValue(item.ventaUnitario),
   stockReturnedAt: item.stockReturnedAt ?? null,
   stockReturnReason: item.stockReturnReason ?? null,
@@ -417,6 +424,7 @@ const buildPurchaseWhere = (
 
   if (query.search) {
     const pattern = `%${query.search}%`;
+    const platePattern = `%${query.search.replace(/[^a-z0-9]/gi, '').toUpperCase() || query.search}%`;
     where[Op.or] = [
       { codigo: { [Op.like]: pattern } },
       { folio: { [Op.like]: pattern } },
@@ -427,6 +435,16 @@ const buildPurchaseWhere = (
       plateSearch('vehicle.patente', query.search),
       plateSearch('fleetVehicle.patente', query.search),
       { '$workOrder.codigo$': { [Op.like]: pattern } },
+      {
+        id: {
+          [Op.in]: sequelize.literal(`(SELECT line.purchase_id FROM purchase_items AS line
+            LEFT JOIN work_orders AS target ON target.id = line.work_order_id AND target.deleted_at IS NULL
+            LEFT JOIN vehicles AS car ON car.id = target.vehicle_id AND car.deleted_at IS NULL
+            WHERE line.descripcion LIKE ${sequelize.escape(pattern)}
+              OR target.codigo LIKE ${sequelize.escape(pattern)}
+              OR REPLACE(REPLACE(UPPER(car.patente), '-', ''), ' ', '') LIKE ${sequelize.escape(platePattern)})`),
+        },
+      },
     ] as WhereOptions<InferAttributes<Purchase>>[];
   }
 

@@ -12,6 +12,7 @@ import {
 import { CatalogItem } from './CatalogItem.js';
 import { Purchase } from './Purchase.js';
 import { Warehouse } from './Warehouse.js';
+import { WorkOrder } from './WorkOrder.js';
 
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 
@@ -45,6 +46,10 @@ export class PurchaseItem extends Model<
 
   @Column({ type: DataType.INTEGER, allowNull: true })
   declare workOrderItemId: CreationOptional<number | null>;
+
+  @ForeignKey(() => WorkOrder)
+  @Column({ type: DataType.INTEGER, allowNull: true, onDelete: 'SET NULL', onUpdate: 'CASCADE' })
+  declare workOrderId: CreationOptional<number | null>;
 
   @Column({ type: DataType.DECIMAL(12, 2), allowNull: true })
   declare ventaUnitario: CreationOptional<number | null>;
@@ -111,4 +116,7 @@ export class PurchaseItem extends Model<
 
   @BelongsTo(() => Warehouse)
   declare warehouse?: Warehouse;
+
+  @BelongsTo(() => WorkOrder)
+  declare workOrder?: WorkOrder;
 }

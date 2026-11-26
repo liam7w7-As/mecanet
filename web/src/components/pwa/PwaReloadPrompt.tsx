@@ -3,8 +3,13 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
+import { monitorPwaUpdates, reloadPwaPage } from '../../lib/pwa-updates';
+import { usePwaUpdateStore } from '../../stores/pwa-update.store';
+
 export const PwaReloadPrompt = () => {
   const reloadRequested = useRef(false);
+  const reloadHandled = useRef(false);
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [workerActivated, setWorkerActivated] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [updateError, setUpdateError] = useState(false);
@@ -15,11 +20,14 @@ export const PwaReloadPrompt = () => {
   } = useRegisterSW({
     onNeedReload() {
       // Otro tab puede activar el SW. Solo recargar si ESTE tab lo confirmó.
-      if (reloadRequested.current) window.location.reload();
+      if (reloadRequested.current) {
+        if (!reloadHandled.current) { reloadHandled.current = true; reloadPwaPage(); }
+      }
       else setWorkerActivated(true);
     },
-    onRegistered(r) {
+    onRegisteredSW(_url, r) {
       if (r) {
+        setRegistration(r);
         console.info('[PWA] Service Worker registrado correctamente.');
       }
     },
@@ -29,6 +37,21 @@ export const PwaReloadPrompt = () => {
   });
 
   const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    if (!registration) return;
+    const monitor = monitorPwaUpdates(registration, {
+      waiting: () => { setOfflineReady(false); setNeedRefresh(true); },
+      activated: () => {
+        if (reloadRequested.current) {
+          if (!reloadHandled.current) { reloadHandled.current = true; reloadPwaPage(); }
+        } else setWorkerActivated(true);
+      },
+      checking: (checking) => usePwaUpdateStore.setState({ checking }),
+    });
+    usePwaUpdateStore.setState({ check: monitor.check });
+    return () => { monitor.dispose(); usePwaUpdateStore.setState({ check: null, checking: false }); };
+  }, [registration, setNeedRefresh, setOfflineReady]);
 
   // Auto-cerrar mensaje de offlineReady a los 4 segundos
   useEffect(() => {
@@ -45,7 +68,9 @@ export const PwaReloadPrompt = () => {
     setIsUpdating(true);
     setUpdateError(false);
     try {
-      if (workerActivated) window.location.reload();
+      if (workerActivated || (registration && !registration.waiting && !registration.installing)) {
+        if (!reloadHandled.current) { reloadHandled.current = true; reloadPwaPage(); }
+      }
       else await updateServiceWorker(true);
     } catch (err) {
       console.error('[PWA] Error al actualizar la aplicación:', err);
@@ -72,7 +97,7 @@ export const PwaReloadPrompt = () => {
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           role="region"
           aria-label="Aviso de actualización de UNITHOR"
-          className="pwa-reload-prompt tabbar-safe fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-md"
+          className="pwa-reload-prompt tabbar-safe fixed bottom-6 right-6 z-[90] max-w-sm rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-md"
           style={{ boxShadow: '0 20px 40px -15px rgba(24, 51, 92, 0.25)' }}
         >
           <div className="flex items-start gap-3">

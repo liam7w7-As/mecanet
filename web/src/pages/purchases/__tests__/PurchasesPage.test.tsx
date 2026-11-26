@@ -103,6 +103,21 @@ describe('PurchasesPage', () => {
     expect(screen.getByRole('button', { name: /Proveedores/ })).toBeInTheDocument();
   });
 
+  it('muestra las OT de cada producto cuando una compra cubre varios vehículos', async () => {
+    const original = purchaseListResponse.items[0];
+    vi.mocked(api.get).mockResolvedValue({ data: {
+      ...purchaseListResponse,
+      items: [{ ...original, express: true, items: [
+        { ...original.items[0], workOrderId: original.workOrderId, workOrder: original.workOrder },
+        { ...original.items[0], id: 202, workOrderId: 21, workOrder: { id: 21, codigo: 'OT-26-21', estado: 'en_progreso' } },
+      ] }],
+    } });
+    renderPage('jefe');
+    expect(await screen.findByText('2 órdenes de trabajo')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'OT-26-21' })).toHaveAttribute('href', '/work-orders/21');
+    expect(screen.getByRole('link', { name: 'OT-2026-0009' })).toHaveAttribute('href', '/work-orders/9');
+  });
+
   it.each([false, true])('muestra el estado real de una compra anulada (pagada antes: %s)', async (wasPaid) => {
     vi.mocked(api.get).mockResolvedValue({ data: { ...purchaseListResponse, items: [{
       ...purchaseListResponse.items[0], estado: 'anulada',

@@ -8,6 +8,7 @@ import { useDashboardSummary } from '../../hooks/useDashboard';
 import { getMobilePrimaryItems } from '../../hooks/useShellNavigation';
 import { useAuthStore } from '../../stores/auth.store';
 import PwaInstallButton from '../pwa/PwaInstallButton';
+import PwaUpdateButton from '../pwa/PwaUpdateButton';
 
 import type { BadgeKey } from './navigation';
 
@@ -51,6 +52,7 @@ export default function MobileMoreSheet({ onClose, onProfile, panelRef }: Props)
             <button type="button" onClick={onProfile}><UserRound aria-hidden="true" /><span>Mi perfil</span></button>
             <div className="mobile-more-notifications"><NotificationBell /><span>Notificaciones</span></div>
             <PwaInstallButton className="mobile-more-install" />
+            <PwaUpdateButton onClick={onClose} />
             <button type="button" disabled={logout.isPending} onClick={() => logout.mutate()}><LogOut aria-hidden="true" /><span>{logout.isPending ? 'Saliendo…' : 'Cerrar sesión'}</span></button>
           </div>
         </div>

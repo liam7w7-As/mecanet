@@ -38,6 +38,7 @@ import { up as ensureVehicleDpClassification } from '../database/migrations/066-
 import { up as ensureQuotationDpVehicleContext } from '../database/migrations/067-quotation-dp-vehicle-context.js';
 import { up as ensurePurchasesExpress } from '../database/migrations/068-purchases-express.js';
 import { up as ensureExpressStockReturns } from '../database/migrations/069-express-stock-returns-and-late-expenses.js';
+import { up as ensureExpressPurchaseLineOrders } from '../database/migrations/070-express-purchase-line-orders.js';
 
 /**
  * Vacia las tablas transaccionales antes de cada archivo de test.
@@ -131,6 +132,7 @@ beforeAll(async () => {
   await ensureQuotationDpVehicleContext(sequelize.getQueryInterface());
   await ensurePurchasesExpress(sequelize.getQueryInterface());
   await ensureExpressStockReturns(sequelize.getQueryInterface());
+  await ensureExpressPurchaseLineOrders(sequelize.getQueryInterface());
   await ensureFleetPermissions();
   await ensurePurchasePermissions();
   await ensureImportPermissions();

@@ -1,6 +1,7 @@
 import {
   PURCHASE_DOCUMENT_TYPES,
   PURCHASE_DOCUMENT_TYPE_LABELS,
+  PURCHASE_LEDGERS,
   PURCHASE_PAYMENT_TYPES,
   PURCHASE_PAYMENT_TYPE_LABELS,
   PURCHASE_STATUSES,
@@ -9,6 +10,7 @@ import {
 import {
   AlertCircle,
   Ban,
+  Check,
   Landmark,
   Plus,
   ReceiptText,
@@ -22,9 +24,11 @@ import { Link } from 'react-router-dom';
 
 import ListExportButtons from '../../components/common/ListExportButtons';
 import Pagination from '../../components/common/Pagination';
+import CompleteExpressExpenseModal from '../../components/purchases/CompleteExpressExpenseModal';
 import SupplierListModal from '../../components/purchases/SupplierListModal';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { usePurchases } from '../../hooks/usePurchases';
+import { useConfirmExpressPurchase, usePurchaseCreators } from '../../hooks/usePurchasesExpress';
 import { getApiErrorMessage } from '../../lib/api-error';
 import { formatClp, formatDate, formatDateTime } from '../../lib/formatters';
 import { hasUserPermission } from '../../lib/permissions';
@@ -34,6 +38,7 @@ import type { PurchaseQueryParams } from '../../hooks/usePurchases';
 import type { Purchase } from '../../types/entities';
 import type {
   PurchaseDocumentType,
+  PurchaseLedger,
   PurchasePaymentType,
   PurchaseStatus,
 } from '@unithor/shared';
@@ -41,6 +46,8 @@ import type {
 type StatusFilter = PurchaseStatus | 'all';
 type PaymentFilter = PurchasePaymentType | 'all';
 type DocumentFilter = PurchaseDocumentType | 'all';
+
+const ledgerLabel = { taller: 'Taller', flota: 'Flota', oficina: 'Oficina' } as const;
 
 const statusBadge = (purchase: Purchase) =>
   purchase.estado === 'registrada' ? (
@@ -79,7 +86,13 @@ export const PurchasesPage = () => {
   const [fechaHasta, setFechaHasta] = useState('');
   const [page, setPage] = useState(1);
   const [showSuppliers, setShowSuppliers] = useState(false);
+  const [ledger, setLedger] = useState<PurchaseLedger>('taller');
+  const [creatorId, setCreatorId] = useState('');
+  const [completion, setCompletion] = useState<Purchase | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
+  const isAdmin = user?.role === 'admin';
+  const creators = usePurchaseCreators(isAdmin);
+  const confirm = useConfirmExpressPurchase();
 
   const queryParams: PurchaseQueryParams = {
     page,
@@ -90,14 +103,17 @@ export const PurchasesPage = () => {
     tipoDocumento: documentType === 'all' ? undefined : documentType,
     fechaDesde: fechaDesde || undefined,
     fechaHasta: fechaHasta || undefined,
+    registro: ledger,
+    creadoPor: isAdmin && creatorId ? Number(creatorId) : undefined,
   };
   const purchasesQuery = usePurchases(queryParams);
   const canCreate = Boolean(user && hasUserPermission(user, 'compras', 'create'));
+  const canUpdate = Boolean(user && hasUserPermission(user, 'compras', 'update'));
   const validDateRange = !fechaDesde || !fechaHasta || fechaDesde <= fechaHasta;
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, status, payment, documentType, fechaDesde, fechaHasta]);
+  }, [debouncedSearch, status, payment, documentType, fechaDesde, fechaHasta, ledger, creatorId]);
 
   const summary = purchasesQuery.data?.summary;
   const purchases = purchasesQuery.data?.items ?? [];
@@ -106,8 +122,7 @@ export const PurchasesPage = () => {
     <div className="workspace-page workspace-purchases purchases-board min-w-0 space-y-5">
       <header className="purchases-heading max-sm:flex-col max-sm:items-start max-sm:gap-3">
         <div className="min-w-0">
-          <p className="text-sm text-brand-muted">Egresos con comprobante</p>
-          <h1 className="mt-1">Compras</h1>
+          <h1>Historial de compras</h1>
         </div>
         <div className="purchases-heading-actions relative z-[1] ml-auto flex flex-wrap gap-2">
           <button
@@ -129,6 +144,11 @@ export const PurchasesPage = () => {
         </div>
       </header>
 
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Registro de compras">
+        {PURCHASE_LEDGERS.map((value) => <button key={value} type="button" aria-pressed={ledger === value}
+          className={ledger === value ? 'primary-button' : 'secondary-button'} onClick={() => setLedger(value)}>{ledgerLabel[value]}</button>)}
+      </div>
+
       <section className="purchases-metrics grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen de compras">
         <article className="rounded-xl border border-brand-line bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-2">
@@ -140,7 +160,6 @@ export const PurchasesPage = () => {
             </span>
           </div>
           <p className="mt-2 text-2xl font-bold text-brand-primaryInk">{summary?.count ?? 0}</p>
-          <p className="mt-1 text-xs text-brand-muted">Según los filtros aplicados</p>
         </article>
         <article className="rounded-xl border border-brand-line bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-2">
@@ -152,7 +171,6 @@ export const PurchasesPage = () => {
           <p className="mt-2 text-2xl font-bold text-brand-primaryInk">
             {formatClp(summary?.neto ?? 0)}
           </p>
-          <p className="mt-1 text-xs text-brand-muted">Compras registradas, sin anuladas</p>
         </article>
         <article className="rounded-xl border border-brand-line bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-2">
@@ -164,7 +182,6 @@ export const PurchasesPage = () => {
           <p className="mt-2 text-2xl font-bold text-brand-primaryInk">
             {formatClp(summary?.iva ?? 0)}
           </p>
-          <p className="mt-1 text-xs text-brand-muted">Solo compras con IVA</p>
         </article>
         <article className="rounded-xl border border-brand-line bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-2">
@@ -190,6 +207,15 @@ export const PurchasesPage = () => {
       >
         <div className="purchases-toolbar border-b border-brand-line p-4 sm:p-5">
           <div className="purchases-filter-grid grid gap-3 md:grid-cols-2">
+            {isAdmin && <label>
+              <span className="sr-only">Usuario que registró la compra</span>
+              <select className="h-11 w-full rounded-xl border border-brand-line bg-white px-3 text-sm"
+                value={creatorId} onChange={(event) => setCreatorId(event.target.value)}>
+                <option value="">Todos los usuarios</option>
+                {creators.data?.map((creator) => <option key={creator.id} value={creator.id}>{creator.nombre}</option>)}
+              </select>
+              {creators.isError && <button type="button" className="text-xs underline" onClick={() => void creators.refetch()}>Reintentar cargar usuarios</button>}
+            </label>}
             <label className="purchases-search relative">
               <span className="sr-only">Buscar compras</span>
               <Search
@@ -314,9 +340,6 @@ export const PurchasesPage = () => {
                     <p className="mt-2 text-sm font-semibold text-brand-ink">
                       No hay compras que coincidan con el filtro.
                     </p>
-                    <p className="mt-1 text-xs">
-                      Registra una compra con su comprobante para verla aquí.
-                    </p>
                   </td>
                 </tr>
               ) : (
@@ -331,6 +354,8 @@ export const PurchasesPage = () => {
                     .filter((order) => order != null)
                     .map((order) => [order.id, order])).values()];
                   const multipleOrders = productOrders.length > 1;
+                  const canComplete = canUpdate && purchase.expressDestination === 'taller' && !purchase.expressCompletedAt && purchase.estado === 'registrada';
+                  const canConfirm = isAdmin && canUpdate && purchase.express && !purchase.confirmedAt && purchase.estado === 'registrada';
 
                   return (
                     <tr role="row"
@@ -345,12 +370,12 @@ export const PurchasesPage = () => {
                           {purchase.codigo}
                         </Link>
                         <span className="mt-0.5 block text-xs text-brand-muted">
-                          {purchase.items.length}{' '}
-                          {purchase.items.length === 1 ? 'ítem' : 'ítems'}
+                          {purchase.items.length === 1 ? purchase.items[0]?.descripcion : `${purchase.items.length} ítems`}
                         </span>
                       </td>
                       <td role="cell" data-label="Registro" className="whitespace-nowrap px-4 py-3 text-xs text-brand-muted">
                         {formatDateTime(purchase.createdAt)}
+                        {isAdmin && purchase.creator && <span className="block">{purchase.creator.nombre}</span>}
                       </td>
                       <td role="cell" data-label="Proveedor" className="max-w-[210px] px-4 py-3">
                         <span className="block truncate font-semibold text-brand-ink">
@@ -383,7 +408,7 @@ export const PurchasesPage = () => {
                             </span>
                           </>
                         ) : (
-                          <span className="block">Sin vehículo</span>
+                          <span className="block">{purchase.expressDestination === 'oficina' ? 'Oficina' : 'Sin vehículo'}</span>
                         )}
                         {(productOrders.length ? productOrders : purchase.workOrder ? [purchase.workOrder] : []).map((order) => (
                           <Link key={order.id} to={`/work-orders/${order.id}`} className="mt-1 block font-mono text-[11px] text-brand-primaryInk hover:underline">{order.codigo}</Link>
@@ -419,9 +444,12 @@ export const PurchasesPage = () => {
                           Neto {formatClp(purchase.neto)}
                         </span>
                       </td>
-                      <td role="cell" data-label="Estado" className="px-4 py-3">{statusBadge(purchase)}</td>
+                      <td role="cell" data-label="Estado" className="px-4 py-3">
+                        {statusBadge(purchase)}
+                        {isAdmin && purchase.confirmedAt && <span className="mt-1 block text-xs text-brand-mintInk">Confirmada · {formatDate(purchase.confirmedAt)}</span>}
+                      </td>
                       <td role="cell" data-label="Acciones" className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
                           <Link
                             to={`/purchases/${purchase.id}`}
                             aria-label={`Ver compra ${purchase.codigo}`}
@@ -440,7 +468,14 @@ export const PurchasesPage = () => {
                           >
                             <ReceiptText className="h-4 w-4" aria-hidden="true" />
                           </a>
+                          {canComplete && <button type="button" className="secondary-button whitespace-nowrap text-xs" onClick={() => setCompletion(purchase)}>Completar datos</button>}
+                          {canConfirm && <button type="button" className="secondary-button whitespace-nowrap text-xs" disabled={confirm.isPending}
+                            aria-label={`Confirmar compra ${purchase.codigo}`} onClick={() => confirm.mutate(purchase.id)}>
+                            <Check className="h-4 w-4" aria-hidden="true" />
+                            {confirm.isPending && confirm.variables === purchase.id ? 'Confirmando…' : 'Confirmar'}
+                          </button>}
                         </div>
+                        {isAdmin && confirm.isError && confirm.variables === purchase.id && <p role="alert" className="mt-1 text-xs text-brand-coralInk">{getApiErrorMessage(confirm.error, 'No se pudo confirmar la compra.')}</p>}
                       </td>
                     </tr>
                   );
@@ -459,6 +494,7 @@ export const PurchasesPage = () => {
       </section>
 
       {showSuppliers && <SupplierListModal onClose={() => setShowSuppliers(false)} />}
+      {completion && <CompleteExpressExpenseModal purchase={completion} onClose={() => setCompletion(null)} />}
     </div>
   );
 };

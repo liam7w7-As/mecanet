@@ -27,15 +27,15 @@ const authenticatedUser = {
   role: 'desarrollador' as const,
 };
 
-const demoPrimaryPaths = ['/dashboard', '/work-orders', '/vehicles', '/warehouses'];
-const adminMorePaths = ['/reports', '/work-orders/journal', '/work-orders/daily-report', '/quotations', '/quotations/new-dp', '/clients', '/catalog', '/purchases', '/finance', '/users', '/settings'];
+const demoPrimaryPaths = ['/dashboard', '/work-orders', '/vehicles', '/purchases'];
+const adminMorePaths = ['/reports', '/work-orders/journal', '/work-orders/daily-report', '/warehouses', '/quotations', '/quotations/new-dp', '/clients', '/catalog', '/finance', '/users', '/settings'];
 const mobileRoleCases: { role: Role; permissions?: PermissionDefinition[]; primary: string[]; more: string[] }[] = [
   { role: 'desarrollador', primary: demoPrimaryPaths, more: adminMorePaths },
   { role: 'admin', primary: demoPrimaryPaths, more: adminMorePaths },
   { role: 'jefe', primary: demoPrimaryPaths, more: adminMorePaths.filter((path) => path !== '/finance') },
-  { role: 'vendedor', primary: demoPrimaryPaths, more: ['/reports', '/quotations', '/quotations/new-dp', '/clients', '/catalog'] },
-  { role: 'bodeguero', primary: demoPrimaryPaths, more: ['/reports', '/quotations', '/clients', '/catalog', '/purchases'] },
-  { role: 'finanzas', primary: ['/dashboard', '/vehicles', '/quotations'], more: ['/reports', '/clients', '/catalog', '/purchases', '/finance'] },
+  { role: 'vendedor', primary: ['/dashboard', '/work-orders', '/vehicles', '/quotations'], more: ['/reports', '/warehouses', '/quotations/new-dp', '/clients', '/catalog'] },
+  { role: 'bodeguero', primary: demoPrimaryPaths, more: ['/reports', '/warehouses', '/quotations', '/clients', '/catalog'] },
+  { role: 'finanzas', primary: ['/dashboard', '/vehicles', '/purchases'], more: ['/reports', '/quotations', '/clients', '/catalog', '/finance'] },
   { role: 'mecanico', primary: ['/work-orders/mine', '/work-orders/journal'], more: [] },
   { role: 'vendedor', permissions: [{ modulo: 'comercial', accion: 'read' }, { modulo: 'taller', accion: 'read' }], primary: ['/dashboard', '/work-orders', '/vehicles', '/quotations'], more: ['/reports', '/clients', '/catalog'] },
   { role: 'vendedor', permissions: [{ modulo: 'comercial', accion: 'read' }], primary: ['/dashboard', '/vehicles', '/quotations'], more: ['/reports', '/clients', '/catalog'] },
@@ -368,12 +368,13 @@ describe('App routing and authentication', () => {
     useAuthStore.setState({ user: authenticatedUser, isAuthenticated: true, isLoading: false });
     renderRoute(path);
     const tabs = within(screen.getByRole('navigation', { name: 'Navegación principal (móvil)' }));
-    expect(tabs.getAllByRole('link').map((link) => link.getAttribute('aria-label'))).toEqual(['Inicio', 'Taller', 'Vehículos', 'Almacenes']);
+    expect(tabs.getAllByRole('link').map((link) => link.getAttribute('aria-label'))).toEqual(['Inicio', 'Taller', 'Vehículos', 'Compras Express']);
     expect(tabs.getByRole('link', { name: 'Taller' })).not.toHaveAttribute('aria-current');
+    expect(tabs.getByRole('link', { name: 'Compras Express' })).toHaveAttribute('href', '/purchases');
     expect(tabs.getByRole('button', { name: 'Abrir todas las secciones' })).toHaveClass('active');
     fireEvent.click(tabs.getByRole('button', { name: 'Abrir todas las secciones' }));
     expect(screen.getByRole('link', { name: path.endsWith('/journal') ? 'Registro diario' : 'Reporte diario' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Compras express' })).toHaveAttribute('href', '/purchases');
+    expect(screen.getByRole('link', { name: 'Almacenes' })).toHaveAttribute('href', '/warehouses');
     expect(screen.getByRole('link', { name: 'Configuración' })).toHaveAttribute('href', '/settings');
   });
 
@@ -395,11 +396,12 @@ describe('App routing and authentication', () => {
     mockViewport(false);
     renderRoute('/forbidden');
     const tabs = within(screen.getByRole('navigation', { name: 'Navegación principal (móvil)' }));
-    await waitFor(() => expect(tabs.getByRole('link', { name: 'Almacenes' })).toHaveAccessibleDescription('11 pendientes'));
-    expect(tabs.getByRole('link', { name: 'Inicio' })).toHaveAccessibleDescription('145 pendientes');
+    await waitFor(() => expect(tabs.getByRole('link', { name: 'Inicio' })).toHaveAccessibleDescription('145 pendientes'));
     expect(tabs.getByRole('link', { name: 'Taller' })).toHaveAccessibleDescription('5 pendientes');
+    expect(tabs.getByRole('link', { name: 'Compras Express' })).toBeInTheDocument();
     fireEvent.click(tabs.getByRole('button', { name: 'Abrir todas las secciones' }));
     const sheet = within(screen.getByRole('dialog', { name: 'Más opciones' }));
+    await waitFor(() => expect(sheet.getByRole('link', { name: 'Almacenes' })).toHaveAccessibleDescription('11 pendientes'));
     expect(sheet.getByRole('link', { name: 'Cotizaciones' })).toHaveAccessibleDescription('107 pendientes');
     expect(sheet.getByRole('link', { name: 'Finanzas / Contabilidad' })).toHaveAccessibleDescription('1 pendientes');
   });

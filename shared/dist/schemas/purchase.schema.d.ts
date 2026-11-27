@@ -165,6 +165,8 @@ export declare const purchaseQuerySchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
     pageSize: z.ZodDefault<z.ZodNumber>;
 } & {
+    creadoPor: z.ZodOptional<z.ZodNumber>;
+    registro: z.ZodOptional<z.ZodEnum<["taller", "flota", "oficina"]>>;
     search: z.ZodOptional<z.ZodString>;
     estado: z.ZodOptional<z.ZodEnum<["registrada", "anulada"]>>;
     formaPago: z.ZodOptional<z.ZodEnum<["contado", "credito"]>>;
@@ -182,6 +184,8 @@ export declare const purchaseQuerySchema: z.ZodObject<{
     formaPago?: "contado" | "credito" | undefined;
     proveedorId?: number | undefined;
     tipoDocumento?: "factura" | "boleta" | "recibo" | "nota_credito" | "otro" | undefined;
+    creadoPor?: number | undefined;
+    registro?: "taller" | "flota" | "oficina" | undefined;
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
@@ -192,11 +196,15 @@ export declare const purchaseQuerySchema: z.ZodObject<{
     formaPago?: "contado" | "credito" | undefined;
     proveedorId?: number | undefined;
     tipoDocumento?: "factura" | "boleta" | "recibo" | "nota_credito" | "otro" | undefined;
+    creadoPor?: number | undefined;
+    registro?: "taller" | "flota" | "oficina" | undefined;
 }>;
 export declare const purchaseReportQuerySchema: z.ZodObject<Omit<{
     page: z.ZodDefault<z.ZodNumber>;
     pageSize: z.ZodDefault<z.ZodNumber>;
 } & {
+    creadoPor: z.ZodOptional<z.ZodNumber>;
+    registro: z.ZodOptional<z.ZodEnum<["taller", "flota", "oficina"]>>;
     search: z.ZodOptional<z.ZodString>;
     estado: z.ZodOptional<z.ZodEnum<["registrada", "anulada"]>>;
     formaPago: z.ZodOptional<z.ZodEnum<["contado", "credito"]>>;
@@ -212,6 +220,8 @@ export declare const purchaseReportQuerySchema: z.ZodObject<Omit<{
     formaPago?: "contado" | "credito" | undefined;
     proveedorId?: number | undefined;
     tipoDocumento?: "factura" | "boleta" | "recibo" | "nota_credito" | "otro" | undefined;
+    creadoPor?: number | undefined;
+    registro?: "taller" | "flota" | "oficina" | undefined;
 }, {
     search?: string | undefined;
     estado?: "registrada" | "anulada" | undefined;
@@ -220,6 +230,8 @@ export declare const purchaseReportQuerySchema: z.ZodObject<Omit<{
     formaPago?: "contado" | "credito" | undefined;
     proveedorId?: number | undefined;
     tipoDocumento?: "factura" | "boleta" | "recibo" | "nota_credito" | "otro" | undefined;
+    creadoPor?: number | undefined;
+    registro?: "taller" | "flota" | "oficina" | undefined;
 }>;
 export declare const voidPurchaseSchema: z.ZodObject<{
     motivo: z.ZodString;

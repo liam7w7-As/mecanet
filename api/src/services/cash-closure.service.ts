@@ -142,7 +142,7 @@ const getAggregates = async (
     }) as unknown as Promise<MethodAggregate[]>,
     CashMovement.findAll({
       attributes: ['tipo', 'metodo', [fn('SUM', col('monto')), 'total']],
-      where: { voidedAt: null, fecha: { [Op.between]: [start, end] } },
+      where: { ledger: 'taller', voidedAt: null, fecha: { [Op.between]: [start, end] } },
       group: ['tipo', 'metodo'],
       raw: true,
       transaction,
@@ -212,7 +212,7 @@ export const getDailyCashSummary = async (fecha: string): Promise<DailyCashSumma
     CashClosure.findOne({ where: { fecha }, include: [closerInclude] }),
   ]);
 
-  const lateWhere = { afterClosureId: closure?.id ?? 0, tipo: 'egreso' as const, voidedAt: null };
+  const lateWhere = { ledger: 'taller' as const, afterClosureId: closure?.id ?? 0, tipo: 'egreso' as const, voidedAt: null };
   const [lateCount, lateTotal] = closure ? await Promise.all([
     CashMovement.count({ where: lateWhere }),
     CashMovement.sum('monto', { where: lateWhere }),

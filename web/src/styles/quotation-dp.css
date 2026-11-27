@@ -1,0 +1,77 @@
+/* Cotización D&P usa la jerarquía de Taller, con el ajuste tipográfico global. */
+.dp-quotation .dp-quote-page-title {
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -.45px;
+}
+
+.dp-quotation :is(.dp-quote-section-title, .dp-quote-budget .quotation-commercial-fields .quotation-section-title) {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.dp-quotation :is(.dp-quote-subtitle, .dp-quote-budget .quotation-discount-controls .quotation-section-title) {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.dp-quotation .dp-quote-field,
+.dp-quotation .dp-quote-identity input,
+.dp-quotation .dp-quote-budget :is(input, select, textarea) {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.dp-quotation .dp-quote-control,
+.dp-quotation .dp-quote-budget :is(.quotation-commercial-grid > label, .quotation-pricing-breakdown) {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.dp-quotation .dp-quote-secondary {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.dp-quotation .dp-quote-budget .quotation-pricing-total {
+  align-items: baseline;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.dp-quotation .dp-quote-budget .quotation-pricing-total dd {
+  font-size: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dp-quotation .dp-quote-budget .quotation-section-title > svg { display: none; }
+
+.dp-quotation .dp-quote-budget .quotation-commercial-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.dp-quotation .dp-quote-budget .quotation-pricing-summary { grid-template-columns: minmax(0, 1fr); }
+.dp-quotation .dp-quote-budget .quotation-discount-inputs { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+
+@media (min-width: 640px) {
+  .dp-quotation .dp-quote-budget .quotation-commercial-grid { grid-template-columns: minmax(0, 1fr) 116px; }
+  .dp-quotation .dp-quote-budget .quotation-commercial-grid > label:first-child { grid-column: span 2; }
+}
+
+@media (max-width: 639px) {
+  .dp-quotation .dp-quote-page-title { font-size: 23px; }
+
+  /* iOS acerca la pantalla al enfocar campos con texto inferior a 16 px. */
+  .dp-quotation :is(input, textarea, select).dp-quote-field,
+  .dp-quotation .dp-quote-identity input,
+  .dp-quotation .dp-quote-budget :is(input, select, textarea) { font-size: 16px; }
+}

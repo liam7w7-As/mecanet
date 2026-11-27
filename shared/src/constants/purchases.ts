@@ -40,3 +40,7 @@ export const PURCHASE_VEHICLE_ORIGIN_LABELS: Record<PurchaseVehicleOrigin, strin
   taller: 'Taller',
   flota: 'Flota',
 };
+export const EXPRESS_PURCHASE_DESTINATIONS = ['ot', 'flota', 'multiple', 'oficina', 'taller'] as const;
+export type ExpressPurchaseDestination = (typeof EXPRESS_PURCHASE_DESTINATIONS)[number];
+export const PURCHASE_LEDGERS = ['taller', 'flota', 'oficina'] as const;
+export type PurchaseLedger = (typeof PURCHASE_LEDGERS)[number];

@@ -89,7 +89,10 @@ export const createExpressPurchaseBatchSchema = singlePurchaseFields
     costoUnitario: true,
     ventaUnitario: true,
 })
-    .extend({ items: z.array(expressPurchaseLineSchema).min(1, 'Agrega un producto').max(30) })
+    .extend({
+    destino: z.enum(['ot', 'multiple']).optional(),
+    items: z.array(expressPurchaseLineSchema).min(1, 'Agrega un producto').max(30),
+})
     .strict()
     .superRefine((value, ctx) => {
     if (value.tipoDocumento === 'nota_credito') {
@@ -111,6 +114,13 @@ export const createExpressPurchaseBatchSchema = singlePurchaseFields
             requested.add(line.requestId);
         }
     });
+    const destinations = new Set(value.items.map((line) => line.workOrderId ?? value.workOrderId));
+    if (value.destino === 'ot' && (destinations.size !== 1 || !destinations.has(value.workOrderId))) {
+        ctx.addIssue({ code: 'custom', path: ['items'], message: 'Para asignar productos a distintas OT, elige Múltiple' });
+    }
+    if (value.destino === 'multiple' && destinations.size < 2) {
+        ctx.addIssue({ code: 'custom', path: ['items'], message: 'Asigna los productos a por lo menos dos OT' });
+    }
     if (cost > 99999999900 || sale > 99999999900) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'El total supera el límite permitido' });
     }
@@ -125,6 +135,31 @@ export const returnExpressPurchaseSchema = z.object({
     itemIds: z.array(z.number().int().positive()).min(1).max(30)
         .refine((ids) => new Set(ids).size === ids.length, 'Hay productos repetidos').optional(),
 }).strict();
+const internalExpenseFields = z.object({
+    operationKey: z.string().uuid(),
+    concepto: z.string().trim().min(2, 'Ingresa el concepto').max(255),
+    monto: money,
+    metodoPago: z.enum(PAYMENT_METHODS),
+    fechaEmision: z.string().date().optional(),
+    proveedorNombre: optionalText(180),
+    folio: optionalText(50),
+    tipoDocumento: z.enum(['recibo', 'otro']).optional(),
+    detalle: optionalText(1000),
+});
+export const createExpressExpenseSchema = z.discriminatedUnion('destino', [
+    internalExpenseFields.extend({ destino: z.literal('flota'), fleetVehicleId: z.number().int().positive() }).strict(),
+    internalExpenseFields.extend({ destino: z.literal('oficina') }).strict(),
+    internalExpenseFields.extend({ destino: z.literal('taller') }).strict(),
+]).refine((value) => !value.fechaEmision || value.fechaEmision <= new Date().toISOString().slice(0, 10), {
+    path: ['fechaEmision'], message: 'La fecha no puede ser futura',
+});
+export const completeExpressExpenseSchema = z.object({
+    workOrderId: z.number().int().positive().nullable().optional(),
+    ventaUnitario: money.optional(),
+    detalle: optionalText(1000),
+}).strict().refine((value) => value.ventaUnitario === undefined || !!value.workOrderId, {
+    path: ['workOrderId'], message: 'Selecciona la OT donde se cobrará el accesorio',
+});
 export const expressSearchSchema = z.object({
     search: z.string().trim().max(180).optional(),
 });
@@ -139,6 +174,7 @@ export const expressScanResultSchema = z.object({
     proveedorNombre: z.string().max(180).nullable(),
     folio: z.string().max(50).nullable(),
     fechaEmision: z.string().date().nullable(),
+    totalComprobante: z.number().positive().max(99999999).multipleOf(0.01).nullable().optional(),
     incluyeIva: z.boolean().nullable(),
     items: z.array(scanItem).max(30),
     advertencias: z.array(z.string().max(300)).max(10),

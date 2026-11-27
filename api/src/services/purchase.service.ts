@@ -5,8 +5,10 @@ import {
   calculatePurchaseTotals,
   isSupplierDataComplete,
   type CreatePurchaseInput,
+  type ExpressPurchaseDestination,
   type PaymentMethod,
   type PurchaseDocumentType,
+  type PurchaseLedger,
   type PurchasePaymentType,
   type PurchaseQueryInput,
   type PurchaseReportQueryInput,
@@ -42,6 +44,8 @@ import type { Includeable, InferAttributes, Order, WhereOptions } from 'sequeliz
 type PurchaseWhere = WhereOptions<InferAttributes<Purchase>> & {
   [Op.or]?: WhereOptions<InferAttributes<Purchase>>[];
 };
+
+export interface PurchaseViewer { id: number; role: string }
 
 export interface SupplierPublic {
   id: number;
@@ -172,6 +176,10 @@ export interface PurchasePublic {
   cashMovement: PurchaseCashMovementPublic | null;
   items: PurchaseItemPublic[];
   express?: boolean;
+  expressDestination?: ExpressPurchaseDestination;
+  expressCompletedAt?: Date | null;
+  confirmedAt?: Date | null;
+  confirmedBy?: number | null;
 }
 
 export interface PurchaseSummary {
@@ -323,7 +331,7 @@ const toItemPublic = (item: PurchaseItem): PurchaseItemPublic => ({
     : null,
 });
 
-const toPurchasePublic = (purchase: Purchase): PurchasePublic => {
+const toPurchasePublic = (purchase: Purchase, viewer?: PurchaseViewer): PurchasePublic => {
   if (!purchase.supplier) {
     throw ApiError.internal('La compra no tiene proveedor disponible');
   }
@@ -331,6 +339,11 @@ const toPurchasePublic = (purchase: Purchase): PurchasePublic => {
   return {
     id: purchase.id,
     express: Boolean(purchase.expressKey),
+    ...(purchase.expressKey ? {
+      expressDestination: purchase.expressDestination ?? (new Set((purchase.items ?? []).map((item) => item.workOrderId ?? purchase.workOrderId)).size > 1 ? 'multiple' : 'ot'),
+      expressCompletedAt: purchase.expressCompletedAt ?? null,
+      ...(viewer?.role === 'admin' ? { confirmedAt: purchase.confirmedAt ?? null, confirmedBy: purchase.confirmedBy ?? null } : {}),
+    } : {}),
     codigo: purchase.codigo,
     supplierId: purchase.supplierId,
     vehicleId: purchase.vehicleId,
@@ -407,8 +420,14 @@ const toPurchasePublic = (purchase: Purchase): PurchasePublic => {
 
 const buildPurchaseWhere = (
   query: PurchaseQueryInput | PurchaseReportQueryInput,
+  viewer?: PurchaseViewer,
 ): PurchaseWhere => {
   const where: PurchaseWhere = {};
+
+  if (viewer?.role !== 'admin' && viewer) where.createdBy = viewer.id;
+  else if (query.creadoPor !== undefined) where.createdBy = query.creadoPor;
+  if (query.registro === 'taller') where.expressDestination = { [Op.or]: [null, { [Op.in]: ['ot', 'multiple', 'taller'] }] };
+  else if (query.registro) where.expressDestination = query.registro;
 
   if (query.estado !== undefined) where.estado = query.estado;
   if (query.formaPago !== undefined) where.formaPago = query.formaPago;
@@ -526,9 +545,9 @@ export const updateSupplier = async (
   return toSupplierPublic(supplier);
 };
 
-export const listPurchases = async (query: PurchaseQueryInput): Promise<ListPurchasesResult> => {
+export const listPurchases = async (query: PurchaseQueryInput, viewer?: PurchaseViewer): Promise<ListPurchasesResult> => {
   const pagination = getPagination(query);
-  const where = buildPurchaseWhere(query);
+  const where = buildPurchaseWhere(query, viewer);
 
   const { rows, count } = await Purchase.findAndCountAll({
     where,
@@ -567,7 +586,7 @@ export const listPurchases = async (query: PurchaseQueryInput): Promise<ListPurc
   );
 
   return {
-    items: rows.map(toPurchasePublic),
+    items: rows.map((purchase) => toPurchasePublic(purchase, viewer)),
     total: count,
     page: pagination.page,
     pageSize: pagination.limit,
@@ -576,17 +595,43 @@ export const listPurchases = async (query: PurchaseQueryInput): Promise<ListPurc
   };
 };
 
-export const getPurchaseById = async (id: number): Promise<PurchasePublic> => {
+export function assertPurchaseVisible(purchase: Purchase | null, viewer?: PurchaseViewer): asserts purchase is Purchase {
+  if (!purchase || (viewer && viewer.role !== 'admin' && purchase.createdBy !== viewer.id)) throw ApiError.notFound('Compra no encontrada');
+}
+
+export const getPurchaseById = async (id: number, viewer?: PurchaseViewer): Promise<PurchasePublic> => {
   const purchase = await Purchase.findByPk(id, { include: purchaseIncludes });
-  if (!purchase) throw ApiError.notFound('Compra no encontrada');
-  return toPurchasePublic(purchase);
+  assertPurchaseVisible(purchase, viewer);
+  return toPurchasePublic(purchase, viewer);
 };
+
+export async function listPurchaseCreators(viewer: PurchaseViewer) {
+  if (viewer.role !== 'admin') throw ApiError.forbidden('Solo administración puede consultar los usuarios del historial');
+  const creators = await User.findAll({
+    attributes: ['id', 'nombre'],
+    where: { id: { [Op.in]: sequelize.literal('(SELECT DISTINCT created_by FROM purchases WHERE created_by IS NOT NULL)') } },
+    order: [['nombre', 'ASC'], ['id', 'ASC']],
+  });
+  return creators.map(({ id, nombre }) => ({ id, nombre }));
+}
+
+export async function confirmExpressPurchase(id: number, viewer: PurchaseViewer): Promise<PurchasePublic> {
+  if (viewer.role !== 'admin') throw ApiError.forbidden('Solo administración puede confirmar una compra');
+  await sequelize.transaction(async (transaction) => {
+    const purchase = await Purchase.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+    assertPurchaseVisible(purchase, viewer);
+    if (!purchase.expressKey || purchase.estado !== 'registrada') throw ApiError.badRequest('Solo se pueden confirmar compras express registradas');
+    if (!purchase.confirmedAt) await purchase.update({ confirmedAt: new Date(), confirmedBy: viewer.id }, { transaction });
+  });
+  return getPurchaseById(id, viewer);
+}
 
 export const getPurchasesForReport = async (
   filters: PurchaseReportQueryInput,
+  viewer?: PurchaseViewer,
 ): Promise<PurchasePublic[]> => {
   const purchases = await Purchase.findAll({
-    where: buildPurchaseWhere(filters),
+    where: buildPurchaseWhere(filters, viewer),
     include: purchaseIncludes,
     subQuery: false,
     order: [
@@ -594,11 +639,11 @@ export const getPurchasesForReport = async (
       ['id', 'DESC'],
     ],
   });
-  return purchases.map(toPurchasePublic);
+  return purchases.map((purchase) => toPurchasePublic(purchase, viewer));
 };
 
 export const resolveSupplier = async (
-  data: CreatePurchaseInput,
+  data: Pick<CreatePurchaseInput, 'proveedorId' | 'proveedorNombre'>,
   transaction: Transaction,
 ): Promise<Supplier> => {
   if (data.proveedorId != null) {
@@ -712,27 +757,30 @@ export const storePurchaseReceipt = async (
 
 export const createCashMovement = async (
   args: {
-    categoria: 'compra_repuesto' | 'pago_proveedor';
+    categoria: 'compra_repuesto' | 'pago_proveedor' | 'gasto_operativo';
     monto: number;
     metodo: PaymentMethod;
     descripcion: string;
     referencia: string;
     userId: number;
     fecha?: Date;
+    ledger?: PurchaseLedger;
   },
   transaction: Transaction,
 ): Promise<CashMovement> => {
   const fecha = args.fecha ?? new Date();
   // A later purchase is an additional expense, never a rewrite of the stored closure.
-  const closure = await CashClosure.findOne({
+  const ledger = args.ledger ?? 'taller';
+  const closure = ledger === 'taller' ? await CashClosure.findOne({
     where: { fecha: fecha.toISOString().slice(0, 10) },
     transaction,
     lock: Transaction.LOCK.SHARE,
-  });
+  }) : null;
   return CashMovement.create(
     {
       tipo: 'egreso',
       categoria: args.categoria,
+      ledger,
       monto: moneyValue(args.monto),
       metodo: args.metodo,
       descripcion: args.descripcion.slice(0, 255),
@@ -867,7 +915,7 @@ export const createPurchase = async (
 export const registerPurchasePayment = async (
   id: number,
   data: RegisterPurchasePaymentInput,
-  userId: number,
+  viewer: PurchaseViewer,
 ): Promise<PurchasePublic> => {
   await sequelize.transaction(async (transaction) => {
     const purchase = await Purchase.findByPk(id, {
@@ -876,6 +924,7 @@ export const registerPurchasePayment = async (
       include: [{ model: Supplier, as: 'supplier', required: true }],
     });
     if (!purchase) throw ApiError.notFound('Compra no encontrada');
+    if (purchase.expressKey) assertPurchaseVisible(purchase, viewer);
     if (purchase.estado === 'anulada') {
       throw ApiError.conflict('No se puede pagar una compra anulada');
     }
@@ -901,7 +950,7 @@ export const registerPurchasePayment = async (
         metodo: data.metodo,
         descripcion: `${description.slice(0, 255 - suffix.length)}${suffix}`,
         referencia: data.referencia?.trim() || purchase.codigo,
-        userId,
+        userId: viewer.id,
       },
       transaction,
     );
@@ -922,8 +971,9 @@ export const registerPurchasePayment = async (
 export const voidPurchase = async (
   id: number,
   motivo: string,
-  userId: number,
+  viewer: PurchaseViewer,
 ): Promise<PurchasePublic> => {
+  const userId = viewer.id;
   await sequelize.transaction(async (transaction) => {
     const purchase = await Purchase.findByPk(id, {
       transaction,
@@ -935,6 +985,7 @@ export const voidPurchase = async (
       ],
     });
     if (!purchase) throw ApiError.notFound('Compra no encontrada');
+    if (purchase.expressKey) assertPurchaseVisible(purchase, viewer);
     if (purchase.estado === 'anulada') throw ApiError.conflict('La compra ya está anulada');
     if (purchase.expressKey) {
       throw ApiError.badRequest('La compra express conserva su egreso. Si el accesorio no se utilizó, envíalo al stock general desde el detalle de la compra.');
@@ -981,8 +1032,8 @@ export const voidPurchase = async (
   return getPurchaseById(id);
 };
 
-export const getPurchaseReceipt = async (id: number): Promise<PurchaseReceipt> => {
-  const purchase = await getPurchaseById(id);
+export const getPurchaseReceipt = async (id: number, viewer?: PurchaseViewer): Promise<PurchaseReceipt> => {
+  const purchase = await getPurchaseById(id, viewer);
   const stored = await Purchase.findByPk(id, {
     attributes: ['id', 'codigo', 'comprobanteStorageKey', 'comprobanteNombre'],
   });

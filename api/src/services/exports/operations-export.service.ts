@@ -456,7 +456,7 @@ export const buildOperationsExport: ExportBuilder = async (target, rawQuery, act
     }
     case 'purchases': {
       const query = purchaseQuerySchema.parse(exportQuery(rawQuery));
-      const rows = await collectExportPages((page) => listPurchases({ ...query, page }));
+      const rows = await collectExportPages((page) => listPurchases({ ...query, page }, actor));
       return {
         title: 'Listado de compras',
         filters: exportFilters(query),

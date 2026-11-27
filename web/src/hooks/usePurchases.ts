@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 
 import { useDebouncedValue } from './useDebouncedValue';
 import { api } from '../lib/api';
+import { useAuthStore } from '../stores/auth.store';
 
 import type { PaginatedResponse, Purchase, PurchaseListResponse, Supplier } from '../types/entities';
 import type {
@@ -50,30 +51,39 @@ const invalidatePurchaseSideEffects = (queryClient: ReturnType<typeof useQueryCl
   }
 };
 
-const cachePurchase = (queryClient: ReturnType<typeof useQueryClient>, purchase: Purchase): void => {
-  queryClient.setQueryData(purchaseKeys.detail(purchase.id), purchase);
+const usePurchaseViewer = () => useAuthStore((state) => state.user ? `${state.user.id}:${state.user.role}` : null);
+
+const cachePurchase = (queryClient: ReturnType<typeof useQueryClient>, purchase: Purchase, viewer: string | null): void => {
+  queryClient.setQueryData([...purchaseKeys.detail(purchase.id), viewer], purchase);
   invalidatePurchaseSideEffects(queryClient);
 };
 
-export const usePurchases = (queryParams: PurchaseQueryParams) =>
-  useQuery({
-    queryKey: purchaseKeys.list(queryParams),
+export const usePurchases = (queryParams: PurchaseQueryParams) => {
+  const viewer = usePurchaseViewer();
+  return useQuery({
+    queryKey: [...purchaseKeys.list(queryParams), viewer],
     queryFn: async () => {
       const response = await api.get<PurchaseListResponse>('/purchases', { params: queryParams });
       return response.data;
     },
-    placeholderData: keepPreviousData,
+    placeholderData: (previous, query) =>
+      query?.queryKey.at(-1) === viewer ? previous : undefined,
   });
+};
 
-export const usePurchase = (id: number | null) =>
-  useQuery({
-    queryKey: purchaseKeys.detail(id ?? 0),
+export const usePurchase = (id: number | null) => {
+  const viewer = usePurchaseViewer();
+  const userId = useAuthStore((state) => state.user?.id);
+  return useQuery({
+    queryKey: [...purchaseKeys.detail(id ?? 0), viewer],
     queryFn: async () => {
       const response = await api.get<PurchaseResponse>(`/purchases/${id}`);
       return response.data.purchase;
     },
     enabled: id !== null && Number.isInteger(id) && id > 0,
+    placeholderData: (previous) => previous?.id === id && previous.createdBy === userId ? previous : undefined,
   });
+};
 
 export const useSuppliers = (queryParams: SupplierQueryParams, enabled = true) =>
   useQuery({
@@ -115,6 +125,7 @@ export const useSupplierSearch = (term: string, enabled = true) => {
 
 export const useCreatePurchaseMutation = () => {
   const queryClient = useQueryClient();
+  const viewer = usePurchaseViewer();
   return useMutation({
     retry: false,
     mutationFn: async ({
@@ -132,7 +143,7 @@ export const useCreatePurchaseMutation = () => {
       return response.data.purchase;
     },
     onSuccess: (purchase) => {
-      cachePurchase(queryClient, purchase);
+      cachePurchase(queryClient, purchase, viewer);
       void queryClient.invalidateQueries({ queryKey: purchaseKeys.suppliers() });
     },
   });
@@ -140,6 +151,7 @@ export const useCreatePurchaseMutation = () => {
 
 export const useVoidPurchaseMutation = () => {
   const queryClient = useQueryClient();
+  const viewer = usePurchaseViewer();
   return useMutation({
     retry: false,
     mutationFn: async ({ purchaseId, motivo }: { purchaseId: number; motivo: string }) => {
@@ -148,24 +160,26 @@ export const useVoidPurchaseMutation = () => {
       });
       return response.data.purchase;
     },
-    onSuccess: (purchase) => cachePurchase(queryClient, purchase),
+    onSuccess: (purchase) => cachePurchase(queryClient, purchase, viewer),
   });
 };
 
 export const useReturnPurchaseToStockMutation = () => {
   const queryClient = useQueryClient();
+  const viewer = usePurchaseViewer();
   return useMutation({
     retry: false,
     mutationFn: async ({ purchaseId, motivo, itemIds }: { purchaseId: number; motivo: string; itemIds?: number[] }) => {
       const response = await api.post<PurchaseResponse>(`/purchases/${purchaseId}/return-to-stock`, { motivo, ...(itemIds ? { itemIds } : {}) });
       return response.data.purchase;
     },
-    onSuccess: (purchase) => cachePurchase(queryClient, purchase),
+    onSuccess: (purchase) => cachePurchase(queryClient, purchase, viewer),
   });
 };
 
 export const useRegisterPurchasePaymentMutation = () => {
   const queryClient = useQueryClient();
+  const viewer = usePurchaseViewer();
   return useMutation({
     retry: false,
     mutationFn: async ({
@@ -178,7 +192,7 @@ export const useRegisterPurchasePaymentMutation = () => {
       const response = await api.post<PurchaseResponse>(`/purchases/${purchaseId}/payment`, data);
       return response.data.purchase;
     },
-    onSuccess: (purchase) => cachePurchase(queryClient, purchase),
+    onSuccess: (purchase) => cachePurchase(queryClient, purchase, viewer),
   });
 };
 

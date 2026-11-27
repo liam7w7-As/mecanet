@@ -16,6 +16,7 @@ import type {
   CashMovementCategory,
   CashMovementType,
   PaymentMethod,
+  PurchaseLedger,
 } from '@unithor/shared';
 import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 
@@ -40,6 +41,9 @@ export class CashMovement extends Model<
 
   @Column({ type: DataType.ENUM(...CASH_MOVEMENT_CATEGORIES), allowNull: false })
   declare categoria: CashMovementCategory;
+
+  @Column({ type: DataType.STRING(12), allowNull: false, defaultValue: 'taller' })
+  declare ledger: CreationOptional<PurchaseLedger>;
 
   @Column({ type: DataType.DECIMAL(12, 2), allowNull: false })
   declare monto: number;

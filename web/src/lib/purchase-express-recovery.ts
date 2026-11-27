@@ -1,3 +1,4 @@
+import { EXPRESS_PURCHASE_DESTINATIONS } from '@unithor/shared';
 import { z } from 'zod';
 
 const orderSchema = z.object({
@@ -49,10 +50,29 @@ const lineSchema = z.object({
   order: orderSchema.nullable(),
   detalle: z.string(),
 });
+export const expressFleetOptionSchema = z.object({
+  id: z.number().int().positive(), patente: z.string(), marca: z.string().nullable(), modelo: z.string().nullable(),
+});
+export type ExpressFleetOption = z.infer<typeof expressFleetOptionSchema>;
+
+const destinationFields = {
+  destino: z.enum(EXPRESS_PURCHASE_DESTINATIONS).nullable().optional(),
+  fleet: expressFleetOptionSchema.nullable().default(null),
+  concept: z.string().default(''),
+  amount: z.string().default(''),
+  additionalOrders: z.array(orderSchema).default([]),
+};
 const batchRecoverySchema = z.object({
   ...headerFields,
+  ...destinationFields,
   items: z.array(lineSchema).min(1).max(30),
   editedFields: z.array(z.string()).default([]),
+}).transform((draft) => {
+  if (draft.destino !== undefined) return { ...draft, destino: draft.destino };
+  const additionalOrders = [...new Map(draft.items.flatMap((line) =>
+    line.order && line.order.id !== draft.order?.id ? [[line.order.id, line.order] as const] : [],
+  )).values()];
+  return { ...draft, destino: additionalOrders.length ? 'multiple' as const : 'ot' as const, additionalOrders };
 });
 const legacyRecoverySchema = z.object({ ...headerFields, ...lineFields });
 
@@ -71,6 +91,11 @@ export const expressRecoverySchema = z.union([
     const id = crypto.randomUUID();
     return {
       ...header,
+      destino: 'ot' as const,
+      fleet: null,
+      concept: '',
+      amount: '',
+      additionalOrders: [],
       detalle: '',
       items: [
         {

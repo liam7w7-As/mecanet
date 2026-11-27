@@ -9,6 +9,7 @@ import { api } from '../../../lib/api';
 import { useAuthStore } from '../../../stores/auth.store';
 import PurchasesPage from '../PurchasesPage';
 
+import type { Purchase } from '../../../types/entities';
 import type { Role } from '@unithor/shared';
 import type { AxiosResponse } from 'axios';
 
@@ -71,7 +72,7 @@ describe('PurchasesPage', () => {
   it('muestra el resumen, el comprobante, el vehículo y el crédito pendiente', async () => {
     renderPage('jefe');
 
-    expect(await screen.findByRole('heading', { name: 'Compras' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Historial de compras' })).toBeInTheDocument();
     expect(await screen.findByText('COMP-000007')).toBeInTheDocument();
     expect(screen.getByText('Repuestos Andes')).toBeInTheDocument();
     expect(screen.getByText('Datos incompletos')).toBeInTheDocument();
@@ -155,7 +156,7 @@ describe('PurchasesPage', () => {
     fireEvent.change(screen.getByLabelText('Fecha de registro desde'), { target: { value: '2026-10-01' } });
     fireEvent.change(screen.getByLabelText('Fecha de registro hasta'), { target: { value: '2026-10-31' } });
     const filters = { page: 1, pageSize: 20, search: 'Andes', estado: 'anulada', formaPago: 'credito',
-      tipoDocumento: 'factura', fechaDesde: '2026-10-01', fechaHasta: '2026-10-31' };
+      tipoDocumento: 'factura', fechaDesde: '2026-10-01', fechaHasta: '2026-10-31', registro: 'taller', creadoPor: undefined };
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/purchases', { params: filters }));
     expect(exportProps('purchases').filters).toEqual(filters);
     expect(screen.getAllByTestId('export-purchases')).toHaveLength(1);
@@ -191,5 +192,34 @@ describe('PurchasesPage', () => {
     expect(screen.getByTestId('export-purchases')).toBeDisabled();
     await screen.findByRole('alert');
     expect(screen.getByTestId('export-purchases')).toBeDisabled();
+  });
+
+  it.each(['admin', 'jefe'] as const)('reserva el filtro por usuario y la confirmación a administración (%s)', async (role) => {
+    const purchase: Purchase = { ...purchaseListResponse.items[0], express: true, expressDestination: 'oficina', confirmedAt: null };
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/purchases/creators'
+      ? { items: [{ id: 3, nombre: 'Pedro Compra' }] }
+      : { ...purchaseListResponse, items: [purchase] } }) as AxiosResponse);
+    vi.mocked(api.patch).mockImplementation(async () => {
+      purchase.confirmedAt = '2026-11-27T14:00:00.000Z';
+      return { data: { purchase } } as AxiosResponse;
+    });
+    renderPage(role);
+    await screen.findByText('COMP-000007');
+    fireEvent.click(screen.getByRole('button', { name: 'Oficina' }));
+    const creatorLabel = 'Usuario que registró la compra';
+    if (role === 'admin') {
+      await screen.findByRole('option', { name: 'Pedro Compra' });
+      fireEvent.change(screen.getByLabelText(creatorLabel), { target: { value: '3' } });
+      fireEvent.click(screen.getByRole('button', { name: /Confirmar compra/ }));
+      expect(await screen.findByText(/Confirmada ·/)).toBeInTheDocument();
+      expect(api.patch).toHaveBeenCalledWith('/purchases/7/confirm');
+    } else {
+      expect(screen.queryByLabelText(creatorLabel)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Confirmar compra/ })).not.toBeInTheDocument();
+      expect(api.get).not.toHaveBeenCalledWith('/purchases/creators');
+    }
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/purchases', {
+      params: expect.objectContaining({ registro: 'oficina', creadoPor: role === 'admin' ? 3 : undefined }),
+    }));
   });
 });

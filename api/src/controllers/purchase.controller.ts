@@ -51,15 +51,15 @@ export const updateSupplierHandler = asyncHandler(
 );
 
 export const getPurchasesHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     const query = res.locals.validatedQuery as PurchaseQueryInput;
-    res.status(200).json(await purchaseService.listPurchases(query));
+    res.status(200).json(await purchaseService.listPurchases(query, req.user!));
   },
 );
 
 export const getPurchaseHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    res.status(200).json({ purchase: await purchaseService.getPurchaseById(getParamId(req)) });
+    res.status(200).json({ purchase: await purchaseService.getPurchaseById(getParamId(req), req.user!) });
   },
 );
 
@@ -78,6 +78,7 @@ export const getPurchaseReceiptHandler = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const { bytes, filename, mimeType } = await purchaseService.getPurchaseReceipt(
       getParamId(req),
+      req.user!,
     );
     const download = (res.locals.validatedQuery as { download?: boolean } | undefined)?.download;
 
@@ -98,7 +99,7 @@ export const voidPurchaseHandler = asyncHandler(
     const purchase = await purchaseService.voidPurchase(
       getParamId(req),
       motivo,
-      getCurrentUserId(req),
+      req.user!,
     );
     res.status(200).json({ purchase });
   },
@@ -109,16 +110,16 @@ export const registerPurchasePaymentHandler = asyncHandler(
     const purchase = await purchaseService.registerPurchasePayment(
       getParamId(req),
       req.body as RegisterPurchasePaymentInput,
-      getCurrentUserId(req),
+      req.user!,
     );
     res.status(200).json({ purchase });
   },
 );
 
 export const getPurchaseReportPdfHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     const filters = res.locals.validatedQuery as PurchaseReportQueryInput;
-    const pdfBytes = await generatePurchaseReportPdf(filters);
+    const pdfBytes = await generatePurchaseReportPdf(filters, req.user!);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
@@ -131,9 +132,9 @@ export const getPurchaseReportPdfHandler = asyncHandler(
 );
 
 export const getPurchaseReportExcelHandler = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     const filters = res.locals.validatedQuery as PurchaseReportQueryInput;
-    const reportBuffer = await generatePurchaseReportExcel(filters);
+    const reportBuffer = await generatePurchaseReportExcel(filters, req.user!);
 
     res.setHeader(
       'Content-Type',

@@ -19,6 +19,7 @@ import { up as ensureQuotationDpVehicleContext } from './migrations/067-quotatio
 import { up as ensurePurchasesExpress } from './migrations/068-purchases-express.js';
 import { up as ensureExpressStockReturns } from './migrations/069-express-stock-returns-and-late-expenses.js';
 import { up as ensureExpressPurchaseLineOrders } from './migrations/070-express-purchase-line-orders.js';
+import { up as ensureExpressPurchaseDestinations } from './migrations/071-express-purchase-destinations.js';
 import { sequelize } from '../config/database.js';
 import { env } from '../config/env.js';
 import { CatalogItem } from '../models/CatalogItem.js';
@@ -252,6 +253,7 @@ async function ensureSchemaUpToDate(): Promise<void> {
   await ensurePurchasesExpress(qi);
   await ensureExpressStockReturns(qi);
   await ensureExpressPurchaseLineOrders(qi);
+  await ensureExpressPurchaseDestinations(qi);
   try {
     const woCols = await qi.describeTable('work_orders');
     if (!woCols.vehicle_owner_client_id) {

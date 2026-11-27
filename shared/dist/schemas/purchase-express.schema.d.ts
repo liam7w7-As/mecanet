@@ -135,6 +135,7 @@ export declare const createExpressPurchaseBatchSchema: z.ZodEffects<z.ZodObject<
     fechaEmision: z.ZodOptional<z.ZodString>;
     detalle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "cantidad" | "descripcion" | "requestId" | "costoUnitario" | "ventaUnitario"> & {
+    destino: z.ZodOptional<z.ZodEnum<["ot", "multiple"]>>;
     items: z.ZodArray<z.ZodEffects<z.ZodObject<{
         cantidad: z.ZodNumber;
         descripcion: z.ZodString;
@@ -196,6 +197,7 @@ export declare const createExpressPurchaseBatchSchema: z.ZodEffects<z.ZodObject<
     proveedorNombre?: string | null | undefined;
     folio?: string | null | undefined;
     detalle?: string | null | undefined;
+    destino?: "ot" | "multiple" | undefined;
 }, {
     items: {
         cantidad: number;
@@ -215,6 +217,7 @@ export declare const createExpressPurchaseBatchSchema: z.ZodEffects<z.ZodObject<
     tipoDocumento?: "factura" | "boleta" | "recibo" | "nota_credito" | "otro" | undefined;
     folio?: string | null | undefined;
     detalle?: string | null | undefined;
+    destino?: "ot" | "multiple" | undefined;
 }>, {
     items: {
         cantidad: number;
@@ -234,6 +237,7 @@ export declare const createExpressPurchaseBatchSchema: z.ZodEffects<z.ZodObject<
     proveedorNombre?: string | null | undefined;
     folio?: string | null | undefined;
     detalle?: string | null | undefined;
+    destino?: "ot" | "multiple" | undefined;
 }, {
     items: {
         cantidad: number;
@@ -253,6 +257,7 @@ export declare const createExpressPurchaseBatchSchema: z.ZodEffects<z.ZodObject<
     tipoDocumento?: "factura" | "boleta" | "recibo" | "nota_credito" | "otro" | undefined;
     folio?: string | null | undefined;
     detalle?: string | null | undefined;
+    destino?: "ot" | "multiple" | undefined;
 }>;
 /** Keep existing single-product callers compatible while the UI submits a complete receipt. */
 export declare const createExpressPurchaseSubmissionSchema: z.ZodUnion<[z.ZodEffects<z.ZodObject<Omit<{
@@ -271,6 +276,7 @@ export declare const createExpressPurchaseSubmissionSchema: z.ZodUnion<[z.ZodEff
     fechaEmision: z.ZodOptional<z.ZodString>;
     detalle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "cantidad" | "descripcion" | "requestId" | "costoUnitario" | "ventaUnitario"> & {
+    destino: z.ZodOptional<z.ZodEnum<["ot", "multiple"]>>;
     items: z.ZodArray<z.ZodEffects<z.ZodObject<{
         cantidad: z.ZodNumber;
         descripcion: z.ZodString;
@@ -332,6 +338,7 @@ export declare const createExpressPurchaseSubmissionSchema: z.ZodUnion<[z.ZodEff
     proveedorNombre?: string | null | undefined;
     folio?: string | null | undefined;
     detalle?: string | null | undefined;
+    destino?: "ot" | "multiple" | undefined;
 }, {
     items: {
         cantidad: number;
@@ -351,6 +358,7 @@ export declare const createExpressPurchaseSubmissionSchema: z.ZodUnion<[z.ZodEff
     tipoDocumento?: "factura" | "boleta" | "recibo" | "nota_credito" | "otro" | undefined;
     folio?: string | null | undefined;
     detalle?: string | null | undefined;
+    destino?: "ot" | "multiple" | undefined;
 }>, {
     items: {
         cantidad: number;
@@ -370,6 +378,7 @@ export declare const createExpressPurchaseSubmissionSchema: z.ZodUnion<[z.ZodEff
     proveedorNombre?: string | null | undefined;
     folio?: string | null | undefined;
     detalle?: string | null | undefined;
+    destino?: "ot" | "multiple" | undefined;
 }, {
     items: {
         cantidad: number;
@@ -389,6 +398,7 @@ export declare const createExpressPurchaseSubmissionSchema: z.ZodUnion<[z.ZodEff
     tipoDocumento?: "factura" | "boleta" | "recibo" | "nota_credito" | "otro" | undefined;
     folio?: string | null | undefined;
     detalle?: string | null | undefined;
+    destino?: "ot" | "multiple" | undefined;
 }>, z.ZodEffects<z.ZodObject<{
     operationKey: z.ZodString;
     workOrderId: z.ZodNumber;
@@ -479,6 +489,203 @@ export type ExpressPurchaseLineInput = z.infer<typeof expressPurchaseLineSchema>
 export type CreateExpressPurchaseBatchInput = z.infer<typeof createExpressPurchaseBatchSchema>;
 export type CreateExpressPurchaseSubmission = z.infer<typeof createExpressPurchaseSubmissionSchema>;
 export type ReturnExpressPurchaseInput = z.infer<typeof returnExpressPurchaseSchema>;
+export declare const createExpressExpenseSchema: z.ZodEffects<z.ZodDiscriminatedUnion<"destino", [z.ZodObject<{
+    operationKey: z.ZodString;
+    concepto: z.ZodString;
+    monto: z.ZodNumber;
+    metodoPago: z.ZodEnum<["efectivo", "transferencia", "tarjeta_debito", "tarjeta_credito", "cheque", "otro"]>;
+    fechaEmision: z.ZodOptional<z.ZodString>;
+    proveedorNombre: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    folio: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    tipoDocumento: z.ZodOptional<z.ZodEnum<["recibo", "otro"]>>;
+    detalle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+} & {
+    destino: z.ZodLiteral<"flota">;
+    fleetVehicleId: z.ZodNumber;
+}, "strict", z.ZodTypeAny, {
+    monto: number;
+    fleetVehicleId: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "flota";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+}, {
+    monto: number;
+    fleetVehicleId: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "flota";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+}>, z.ZodObject<{
+    operationKey: z.ZodString;
+    concepto: z.ZodString;
+    monto: z.ZodNumber;
+    metodoPago: z.ZodEnum<["efectivo", "transferencia", "tarjeta_debito", "tarjeta_credito", "cheque", "otro"]>;
+    fechaEmision: z.ZodOptional<z.ZodString>;
+    proveedorNombre: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    folio: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    tipoDocumento: z.ZodOptional<z.ZodEnum<["recibo", "otro"]>>;
+    detalle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+} & {
+    destino: z.ZodLiteral<"oficina">;
+}, "strict", z.ZodTypeAny, {
+    monto: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "oficina";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+}, {
+    monto: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "oficina";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+}>, z.ZodObject<{
+    operationKey: z.ZodString;
+    concepto: z.ZodString;
+    monto: z.ZodNumber;
+    metodoPago: z.ZodEnum<["efectivo", "transferencia", "tarjeta_debito", "tarjeta_credito", "cheque", "otro"]>;
+    fechaEmision: z.ZodOptional<z.ZodString>;
+    proveedorNombre: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    folio: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    tipoDocumento: z.ZodOptional<z.ZodEnum<["recibo", "otro"]>>;
+    detalle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+} & {
+    destino: z.ZodLiteral<"taller">;
+}, "strict", z.ZodTypeAny, {
+    monto: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "taller";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+}, {
+    monto: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "taller";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+}>]>, {
+    monto: number;
+    fleetVehicleId: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "flota";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+} | {
+    monto: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "oficina";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+} | {
+    monto: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "taller";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+}, {
+    monto: number;
+    fleetVehicleId: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "flota";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+} | {
+    monto: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "oficina";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+} | {
+    monto: number;
+    metodoPago: "transferencia" | "efectivo" | "otro" | "tarjeta_debito" | "tarjeta_credito" | "cheque";
+    operationKey: string;
+    destino: "taller";
+    concepto: string;
+    fechaEmision?: string | undefined;
+    proveedorNombre?: string | null | undefined;
+    tipoDocumento?: "recibo" | "otro" | undefined;
+    folio?: string | null | undefined;
+    detalle?: string | null | undefined;
+}>;
+export declare const completeExpressExpenseSchema: z.ZodEffects<z.ZodObject<{
+    workOrderId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    ventaUnitario: z.ZodOptional<z.ZodNumber>;
+    detalle: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, "strict", z.ZodTypeAny, {
+    workOrderId?: number | null | undefined;
+    ventaUnitario?: number | undefined;
+    detalle?: string | null | undefined;
+}, {
+    workOrderId?: number | null | undefined;
+    ventaUnitario?: number | undefined;
+    detalle?: string | null | undefined;
+}>, {
+    workOrderId?: number | null | undefined;
+    ventaUnitario?: number | undefined;
+    detalle?: string | null | undefined;
+}, {
+    workOrderId?: number | null | undefined;
+    ventaUnitario?: number | undefined;
+    detalle?: string | null | undefined;
+}>;
+export type CreateExpressExpenseInput = z.infer<typeof createExpressExpenseSchema>;
+export type CompleteExpressExpenseInput = z.infer<typeof completeExpressExpenseSchema>;
 export declare const expressSearchSchema: z.ZodObject<{
     search: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -491,6 +698,7 @@ export declare const expressScanResultSchema: z.ZodObject<{
     proveedorNombre: z.ZodNullable<z.ZodString>;
     folio: z.ZodNullable<z.ZodString>;
     fechaEmision: z.ZodNullable<z.ZodString>;
+    totalComprobante: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     incluyeIva: z.ZodNullable<z.ZodBoolean>;
     items: z.ZodArray<z.ZodObject<{
         descripcion: z.ZodString;
@@ -522,6 +730,7 @@ export declare const expressScanResultSchema: z.ZodObject<{
     documento: "recibo" | "etiqueta" | "desconocido";
     incluyeIva: boolean | null;
     advertencias: string[];
+    totalComprobante?: number | null | undefined;
 }, {
     items: {
         cantidad: number | null;
@@ -535,6 +744,7 @@ export declare const expressScanResultSchema: z.ZodObject<{
     documento: "recibo" | "etiqueta" | "desconocido";
     incluyeIva: boolean | null;
     advertencias: string[];
+    totalComprobante?: number | null | undefined;
 }>;
 export type CreateExpressPurchaseInput = z.infer<typeof createExpressPurchaseSchema>;
 export type ExpressScanResult = z.infer<typeof expressScanResultSchema>;

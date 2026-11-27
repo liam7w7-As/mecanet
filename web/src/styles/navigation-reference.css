@@ -208,14 +208,21 @@
   }
   .redesign-shell .tabbar-inner { max-width: 600px; }
   .redesign-shell .tab-item {
-    justify-content: center;
+    justify-content: flex-start;
     min-height: 58px;
-    padding: 4px 0;
+    padding: 6px 2px 4px;
     border-radius: 13px;
     color: #8b9bb1;
     font-size: 10px;
     line-height: 1.4;
     touch-action: manipulation;
+  }
+  .redesign-shell .tab-item .tab-label {
+    white-space: normal;
+    line-height: 1.15;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
   .redesign-shell .tab-item .tab-icon { width: 44px; height: 31px; border-radius: 13px; }
   .redesign-shell .tab-item .tab-icon svg { width: 21px; height: 21px; stroke-width: 1.7; }

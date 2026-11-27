@@ -20,7 +20,8 @@ import { getLastWorkActivity } from './work-order-activity.service.js';
 import { createPriceSuggestionInTransaction } from './work-order-commercial.service.js';
 import { ensureAccRequestsForItems } from './work-order-division-actions.js';
 import { normalizeDivisionMetadata } from './work-order-division-rules.js';
-import { assertDpItemStatus, ensureDpStagesForItems, getDpStages } from './work-order-dp-state.js';
+import { assertDpItemIdentityUpdate, assertNewDpItemPending } from './work-order-dp-integrity.js';
+import { assertDpItemStatus, ensureDpStagesForItems } from './work-order-dp-state.js';
 import { assertWorkItemsRemovable, ensureQuotationItemLinks, itemIdentity } from './work-order-item-links.js';
 import { recordChecklistStatusChange, recordItemProgressEvent, synchronizeTeamCompletion } from './work-order-labor-events.js';
 import { closeWorkOrderTimers } from './work-order-labor-sessions.js';
@@ -2026,9 +2027,7 @@ export const createWorkOrderInTransaction = async (
     }
     itemsWithLaborDefaults[index].dpPricingSnapshot = snapshot;
   }
-  if (itemsWithLaborDefaults.some((item) => item.division === 'DP' && item.estadoOperativo && item.estadoOperativo !== 'pendiente')) {
-    throw ApiError.badRequest('Los trabajos D&P nuevos deben iniciar con sus cinco etapas pendientes');
-  }
+  for (const item of itemsWithLaborDefaults) assertNewDpItemPending(normalizeDivisionMetadata(item).division, item.estadoOperativo);
 
   const codigo = await generateWorkOrderCode(transaction);
   const workOrder = await WorkOrder.create(
@@ -2243,14 +2242,15 @@ export const updateWorkOrder = async (
         )) {
           throw ApiError.badRequest('El accesorio tiene una compra express: no cambies su cantidad ni su identidad sin regularizar la compra');
         }
-        if (metadata.division === 'DP' && existing.division !== 'DP' && (existing.estadoOperativo !== 'pendiente' || Number(existing.horasHombreReales) > 0)) {
-          throw ApiError.badRequest('Conserva el historial de este trabajo y agrega una nueva línea D&P');
-        }
+        const dpPricingSnapshot = metadata.division === 'DP'
+          ? (item.dpPricingSnapshot !== undefined ? item.dpPricingSnapshot : existing.dpPricingSnapshot ?? null)
+          : null;
+        const dpSelectionChanged = await assertDpItemIdentityUpdate(existing, {
+          ...metadata, catalogItemId: item.catalogItemId ?? null, tipoLinea: item.tipoLinea,
+          dpPricingSnapshot, estadoOperativo: item.estadoOperativo,
+        }, transaction);
         await assertDpItemStatus(existing, item.estadoOperativo, transaction);
-        if (existing.division === 'DP' && metadata.division !== 'DP' && (await getDpStages(existing.id, transaction)).some((stage) => stage.assignedUserId !== null || stage.status !== 'pendiente')) {
-          throw ApiError.badRequest('Este trabajo D&P tiene asignaciones o avances. Conserva su historial y agrega una nueva línea para otra división');
-        }
-        const technicalChanged = existing.descripcion !== item.descripcion || Number(existing.cantidad) !== cantidad || existing.catalogItemId !== (item.catalogItemId ?? null) || existing.tipoLinea !== item.tipoLinea || existing.unidadMedida !== item.unidadMedida || existing.notasOperativas !== (item.notasOperativas ?? null);
+        const technicalChanged = dpSelectionChanged || existing.descripcion !== item.descripcion || Number(existing.cantidad) !== cantidad || existing.catalogItemId !== (item.catalogItemId ?? null) || existing.tipoLinea !== item.tipoLinea || existing.unidadMedida !== item.unidadMedida || existing.notasOperativas !== (item.notasOperativas ?? null) || existing.division !== metadata.division || existing.subtipo !== metadata.subtipo || existing.esAPedido !== metadata.esAPedido;
         if (technicalChanged) await invalidateItemQuality(existing, userId, 'Contenido del servicio actualizado desde la OT', transaction);
         await existing.update(
           {
@@ -2261,9 +2261,7 @@ export const updateWorkOrder = async (
             unidadMedida: item.unidadMedida,
             cantidad,
             precioUnitario,
-            dpPricingSnapshot: metadata.division === 'DP'
-              ? (item.dpPricingSnapshot !== undefined ? item.dpPricingSnapshot : existing.dpPricingSnapshot ?? null)
-              : null,
+            dpPricingSnapshot,
             subtotal: cantidad * precioUnitario,
             estadoOperativo: item.estadoOperativo ?? existing.estadoOperativo,
             notasOperativas: item.notasOperativas ?? null,
@@ -2284,9 +2282,11 @@ export const updateWorkOrder = async (
       }
 
       if (itemsToCreate.length > 0) {
+        const newItems = await applyCatalogLaborDefaults(itemsToCreate, transaction);
+        for (const item of newItems) assertNewDpItemPending(normalizeDivisionMetadata(item).division, item.estadoOperativo);
         await revokeFinalQuality(id, userId, 'Se agregaron trabajos a la orden', transaction);
         const createdItems = await WorkOrderItem.bulkCreate(
-          buildItemsPayload(id, await applyCatalogLaborDefaults(itemsToCreate, transaction)),
+          buildItemsPayload(id, newItems),
           { transaction },
         );
         await initDpStagesForItems(id, createdItems, transaction);

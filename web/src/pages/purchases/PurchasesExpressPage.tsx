@@ -1,27 +1,35 @@
 import {
+  createExpressExpenseSchema,
   createExpressPurchaseBatchSchema,
+  EXPRESS_PURCHASE_DESTINATIONS,
   expressMinimumSale,
   PAYMENT_METHODS,
 } from '@unithor/shared';
 import {
   ArrowLeft,
+  Building2,
   Camera,
+  Car,
   Check,
   CheckCircle2,
   ChevronDown,
   FileImage,
   History,
+  Layers,
   LoaderCircle,
-  Package,
   Plus,
   Search,
   ShoppingBag,
+  Truck,
+  Wrench,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import FormRecoveryBanner from '../../components/common/FormRecoveryBanner';
+import ExpressInternalPurchaseFields from '../../components/purchases/ExpressInternalPurchaseFields';
+import ExpressOrderPicker from '../../components/purchases/ExpressOrderPicker';
 import ExpressPurchaseLine, {
   expressLineTotals,
 } from '../../components/purchases/ExpressPurchaseLine';
@@ -43,7 +51,7 @@ import { useAuthStore } from '../../stores/auth.store';
 
 import type { ExpressRecovery, ExpressRecoveryLine } from '../../lib/purchase-express-recovery';
 import type { Purchase } from '../../types/entities';
-import type { ExpressPurchaseRequest, ExpressScanResult } from '@unithor/shared';
+import type { CreateExpressExpenseInput, CreateExpressPurchaseSubmission, ExpressPurchaseDestination, ExpressPurchaseRequest, ExpressScanResult } from '@unithor/shared';
 import type { FormEvent } from 'react';
 
 const emptyLine = (): ExpressRecoveryLine => ({
@@ -59,6 +67,11 @@ const emptyLine = (): ExpressRecoveryLine => ({
 });
 const emptyDraft = (): ExpressRecovery => ({
   operationKey: crypto.randomUUID(),
+  destino: null,
+  fleet: null,
+  concept: '',
+  amount: '',
+  additionalOrders: [],
   order: null,
   items: [emptyLine()],
   editedFields: [],
@@ -72,6 +85,14 @@ const emptyDraft = (): ExpressRecovery => ({
   tipoDocumento: 'otro',
 });
 
+const destinations = {
+  ot: { label: 'OT', icon: Car },
+  flota: { label: 'Flota', icon: Truck },
+  multiple: { label: 'Múltiple', icon: Layers },
+  oficina: { label: 'Oficina', icon: Building2 },
+  taller: { label: 'Taller', icon: Wrench },
+};
+
 type ScanSelection = {
   result: ExpressScanResult;
   sequence: number;
@@ -84,9 +105,10 @@ export default function PurchasesExpressPage({
   initiallyOpen?: boolean;
 }) {
   const [session, setSession] = useState({ key: 0, open: initiallyOpen });
+  const userId = useAuthStore((state) => state.user?.id);
   return (
     <PurchasesExpressWorkspace
-      key={session.key}
+      key={`${userId ?? 'guest'}:${session.key}`}
       initiallyOpen={session.open}
       onRestart={() => setSession((previous) => ({ key: previous.key + 1, open: true }))}
     />
@@ -103,9 +125,12 @@ function PurchasesExpressWorkspace({
   const user = useAuthStore((state) => state.user);
   const canRead = Boolean(user && hasUserPermission(user, 'compras', 'read'));
   const canCreate = Boolean(user && hasUserPermission(user, 'compras', 'create'));
+  const canReadFleet = Boolean(user && hasUserPermission(user, 'flota', 'read'));
   const [open, setOpen] = useState(initiallyOpen);
   const [draft, setDraft] = useState(emptyDraft);
   const [search, setSearch] = useState('');
+  const [requestsOpen, setRequestsOpen] = useState(false);
+  const [addingOrder, setAddingOrder] = useState(false);
   const [orderSearch, setOrderSearch] = useState('');
   const [choosingOrder, setChoosingOrder] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -117,7 +142,13 @@ function PurchasesExpressWorkspace({
   const [replacement, setReplacement] = useState<{ request?: ExpressPurchaseRequest } | null>(null);
   const [photoUrl, setPhotoUrl] = useState('');
   const [scanBusy, setScanBusy] = useState(false);
-  const requests = useExpressRequests(useDebouncedValue(search.trim(), 250), canRead);
+  const requestCount = useExpressRequests('', canRead);
+  const debouncedSearch = useDebouncedValue(search.trim(), 250);
+  const searchedRequests = useExpressRequests(debouncedSearch, canRead && requestsOpen && Boolean(debouncedSearch));
+  const requests = requestsOpen && debouncedSearch ? searchedRequests : requestCount;
+  const internal = draft.destino === 'flota' || draft.destino === 'oficina' || draft.destino === 'taller';
+  const allowedOrders = draft.order ? [draft.order, ...draft.additionalOrders] : draft.additionalOrders;
+  const canReviewProducts = Boolean(draft.order && (draft.destino !== 'multiple' || allowedOrders.length > 1));
   const orders = useExpressOrders(
     useDebouncedValue(orderSearch.trim(), 250),
     open && canCreate && choosingOrder,
@@ -144,9 +175,11 @@ function PurchasesExpressWorkspace({
     ) ||
     draft.items.length > 1 ||
     draft.order ||
+    draft.fleet || draft.concept || draft.amount ||
     draft.detalle ||
     draft.file ||
-    draft.proveedorNombre,
+    draft.proveedorNombre ||
+    draft.folio,
   );
   const recovery = useFormRecovery({
     userId: user?.id,
@@ -257,6 +290,7 @@ function PurchasesExpressWorkspace({
       request
         ? {
             ...emptyDraft(),
+            destino: 'ot',
             order: request.order,
             items: [
               {
@@ -271,6 +305,7 @@ function PurchasesExpressWorkspace({
           }
         : emptyDraft(),
     );
+    setAddingOrder(false);
     setChoosingOrder(false);
     setOrderSearch('');
     setOpen(true);
@@ -301,10 +336,16 @@ function PurchasesExpressWorkspace({
       apply('proveedorNombre', result.proveedorNombre, '');
       apply('folio', result.folio, '');
       apply('fechaEmision', result.fechaEmision, todayInputValue());
-      apply('conIva', result.incluyeIva, true);
       values.tipoDocumento = result.documento === 'recibo' ? 'recibo' : 'otro';
+      apply('conIva', result.incluyeIva, true);
+      if (internal) {
+        const description = result.items.map((item) => item.descripcion).join(', ').slice(0, 255);
+        const total = result.documento === 'recibo' ? result.totalComprobante : null;
+        apply('concept', description || null, '');
+        apply('amount', total == null ? null : String(total), '');
+      }
     }
-    const sourceItems = costOnly ? result.items.slice(0, 1) : result.items;
+    const sourceItems = internal ? [] : costOnly ? result.items.slice(0, 1) : result.items;
     const readItems = sourceItems.map((item, index) => {
       const old = previous.items[index];
       const next = old ? { ...old } : emptyLine();
@@ -404,29 +445,34 @@ function PurchasesExpressWorkspace({
       if (sequence === scanSequence.current) setScanBusy(false);
     }
   };
-  const selectPhoto = (image: File | undefined) => {
-    if (!image) return;
-    if (
-      !['image/jpeg', 'image/png', 'image/webp'].includes(image.type) ||
-      image.size > 8 * 1024 * 1024 ||
-      image.size === 0
-    ) {
-      setScanError('Usa una foto JPG, PNG o WebP de hasta 8 MB.');
-      return;
-    }
+  const cancelScan = () => {
     controller.current?.abort();
     scanSequence.current += 1;
     setScanBusy(false);
     setReadReplacement(null);
     setScanResult(null);
-    update('file', { blob: image, name: image.name, lastModified: image.lastModified });
+    setScanError('');
+  };
+  const selectReceipt = (attachment: File | undefined) => {
+    if (!attachment) return;
+    const isPdf = attachment.type === 'application/pdf';
+    if (
+      (!isPdf && !['image/jpeg', 'image/png', 'image/webp'].includes(attachment.type)) ||
+      attachment.size > 8 * 1024 * 1024 ||
+      attachment.size === 0
+    ) {
+      setScanError('Usa una imagen JPG, PNG o WebP, o un PDF de hasta 8 MB.');
+      return;
+    }
+    cancelScan();
+    update('file', { blob: attachment, name: attachment.name, lastModified: attachment.lastModified });
+    if (isPdf) return;
     if (requests.data?.scannerConfigured === false) {
       setScanError(
         'Foto adjunta. Falta configurar la IA en el servidor; puedes completar los campos manualmente.',
       );
-    } else void runScan(image);
+    } else void runScan(attachment);
   };
-  const quantity = draft.items.reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
   const invalidSale = draft.items.some(
     (item) =>
       Number(item.costoUnitario) > 0 &&
@@ -437,8 +483,17 @@ function PurchasesExpressWorkspace({
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!canCreate || inFlight.current || scanBusy || readReplacement || !recovery.ready) return;
-    const parsed = createExpressPurchaseBatchSchema.safeParse({
+    if (!draft.destino || (!internal && !canReviewProducts)) return;
+    const parsed = internal ? createExpressExpenseSchema.safeParse({
+      operationKey: draft.operationKey, destino: draft.destino, concepto: draft.concept, monto: draft.amount,
+      metodoPago: draft.metodoPago, fechaEmision: draft.fechaEmision || undefined,
+      proveedorNombre: draft.proveedorNombre || undefined,
+      folio: draft.folio || undefined,
+      tipoDocumento: draft.tipoDocumento === 'recibo' ? 'recibo' : undefined,
+      ...(draft.destino === 'flota' ? { fleetVehicleId: draft.fleet?.id } : {}),
+    }) : createExpressPurchaseBatchSchema.safeParse({
       operationKey: draft.operationKey,
+      destino: draft.destino,
       workOrderId: draft.order?.id,
       conIva: draft.conIva,
       metodoPago: draft.metodoPago,
@@ -467,7 +522,8 @@ function PurchasesExpressWorkspace({
     }
     inFlight.current = true;
     try {
-      const result = await save.mutateAsync({ data: parsed.data, file });
+      const data: CreateExpressPurchaseSubmission | CreateExpressExpenseInput = parsed.data;
+      const result = await save.mutateAsync({ data, file });
       setSuccess(result);
       setOpen(false);
       // Clear the local draft only after an acknowledged successful registration.
@@ -490,16 +546,186 @@ function PurchasesExpressWorkspace({
       </small>
     );
   const available = requests.data?.items ?? [];
+  const changeDestination = (destino: ExpressPurchaseDestination) => {
+    update('destino', destino);
+    setChoosingOrder(false);
+    setOrderSearch('');
+  };
+
+  const receiptCapture = (
+    <section className="express-scan-section">
+      <div className="express-camera-actions">
+        <label className="express-camera">
+          <Camera aria-hidden="true" />
+            <span>Tomar foto</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            capture="environment"
+              aria-label="Tomar foto"
+            className="sr-only"
+            onChange={(event) => {
+                selectReceipt(event.target.files?.[0]);
+              event.target.value = '';
+            }}
+          />
+        </label>
+        <label className="express-gallery">
+          <FileImage aria-hidden="true" />
+            <span>Elegir imagen o PDF</span>
+          <input
+            type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              aria-label="Elegir imagen o PDF"
+            className="sr-only"
+            onChange={(event) => {
+                selectReceipt(event.target.files?.[0]);
+              event.target.value = '';
+            }}
+          />
+        </label>
+      </div>
+        {file && (
+        <div className="express-photo">
+            {photoUrl && file.type !== 'application/pdf' && <img src={photoUrl} alt="Foto de la etiqueta o recibo" />}
+          <div>
+              <strong>{file.name}</strong>
+            <button
+              type="button"
+              onClick={() => {
+                  cancelScan();
+                update('file', null);
+              }}
+            >
+                {file.type === 'application/pdf' ? 'Quitar PDF' : 'Quitar foto'}
+            </button>
+          </div>
+            {!scanBusy && file.type !== 'application/pdf' && requests.data?.scannerConfigured !== false && (
+              <button type="button" onClick={() => void runScan(file)}>
+              Reintentar lectura
+            </button>
+          )}
+        </div>
+      )}
+      {scanBusy && (
+        <div>
+          <p role="status" className="express-scan-status">
+            <LoaderCircle className="animate-spin" aria-hidden="true" /> Luna está leyendo
+            la foto… Puedes seguir completando los datos.
+          </p>
+          <button
+            type="button"
+            className="express-scan-cancel"
+            onClick={() => {
+                cancelScan();
+              setScanError(
+                'Lectura cancelada. Conservamos la foto; puedes completar los datos manualmente.',
+              );
+            }}
+          >
+            Continuar manualmente
+          </button>
+        </div>
+      )}
+      {scanError && (
+        <p role="alert" className="express-error">
+          {scanError}
+        </p>
+      )}
+      {scanResult && (
+        <div className="express-scan-result">
+          <p>
+            <CheckCircle2 aria-hidden="true" />{' '}
+              {internal
+                ? scanResult.documento === 'recibo' && scanResult.totalComprobante != null
+                  ? `Total leído: ${formatClp(scanResult.totalComprobante)}. Revísalo antes de guardar.`
+                  : 'Total ilegible. Ingresa el monto del comprobante.'
+                : scanResult.items.length === 1
+              ? 'Lectura lista. Revisa los datos antes de guardar.'
+              : scanResult.items.length > 1
+                ? `${scanResult.items.length} productos detectados. Revisa y edita cada uno antes de guardar.`
+                : 'No se encontró un producto legible. Completa los datos manualmente.'}
+          </p>
+            {!internal && scanResult.items.length === 1 && (
+            <small>
+              {scanResult.items[0].descripcion} ·{' '}
+              {scanResult.items[0].costoUnitario === null
+                ? 'Precio no legible'
+                : `Compra detectada: ${formatClp(scanResult.items[0].costoUnitario)}`}
+            </small>
+          )}
+            {!internal && scanResult.items.length === 1 &&
+            scanResult.items[0].costoUnitario !== null &&
+            Number(draft.items[0]?.costoUnitario) !== scanResult.items[0].costoUnitario && (
+              <button
+                type="button"
+                onClick={() =>
+                  applyRead({
+                    result: scanResult,
+                    sequence: scanSequence.current,
+                    costOnly: true,
+                  })
+                }
+              >
+                Usar precio detectado: {formatClp(scanResult.items[0].costoUnitario)}
+              </button>
+            )}
+          {scanResult.advertencias.map((warning, index) => (
+            <small key={index}>{warning}</small>
+          ))}
+        </div>
+      )}
+      {readReplacement && (
+        <div
+          ref={readConfirmationRef}
+          className="express-discard"
+          role="alertdialog"
+          aria-labelledby="express-read-title"
+          aria-describedby="express-read-description"
+          tabIndex={-1}
+        >
+          <p id="express-read-title">
+            La lectura reemplazará datos que editaste manualmente.
+          </p>
+          <p id="express-read-description">
+              {internal
+                ? 'Revisa el total y los datos detectados antes de aceptar.'
+                : 'Revisa los productos y precios detectados antes de aceptar.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              applyRead(readReplacement, true);
+              formRef.current
+                  ?.querySelector<HTMLInputElement>(internal ? '#express-expense-concept' : '#express-description')
+                ?.focus();
+            }}
+          >
+            Aceptar nuevos datos
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setReadReplacement(null);
+              formRef.current
+                  ?.querySelector<HTMLInputElement>(internal ? '#express-expense-concept' : '#express-description')
+                ?.focus();
+            }}
+          >
+            Conservar mis datos
+          </button>
+        </div>
+      )}
+    </section>
+  );
 
   return (
     <div className="workspace-page purchases-express">
       <header className="express-page-heading">
         <div>
-          <span className="express-eyebrow">Del taller a la compra, sin vueltas</span>
           <h1 ref={headingRef} tabIndex={-1}>
             Compras express
           </h1>
-          <p>Escanea, revisa los productos y vincula cada uno a su OT.</p>
         </div>
         {canRead && (
           <Link
@@ -545,10 +771,7 @@ function PurchasesExpressWorkspace({
           <CheckCircle2 aria-hidden="true" />
           <div>
             <h2>Compra registrada</h2>
-            <p>
-              {success.codigo} · Egreso de {formatClp(success.total)} registrado. Los productos
-              quedaron vinculados a sus OTs y cotizaciones.
-            </p>
+            <p>{success.codigo} · {formatClp(success.total)}</p>
             {canRead && <Link to={`/purchases/${success.id}`}>Ver compra</Link>}
           </div>
         </section>
@@ -556,10 +779,12 @@ function PurchasesExpressWorkspace({
       {!open && (
         <>
           <div className="express-inbox-heading">
-            <div>
-              <h2>Solicitudes del taller</h2>
-              <p>Compra lo que falta; las entregas se confirman en bodega.</p>
-            </div>
+            {canRead && <h2 className="express-requests-title">
+              <button type="button" aria-expanded={requestsOpen} aria-controls="express-requests" onClick={() => setRequestsOpen(!requestsOpen)}>
+                Solicitudes del taller <span>{requestCount.data ? requestCount.data.total ?? requestCount.data.items.length : '—'}</span>
+                <ChevronDown aria-hidden="true" />
+              </button>
+            </h2>}
             {canCreate && (
               <button
                 className="express-primary"
@@ -571,7 +796,7 @@ function PurchasesExpressWorkspace({
               </button>
             )}
           </div>
-          {canRead && (
+          {canRead && requestsOpen && <div id="express-requests" className="express-requests-content">
             <label className="express-search">
               <Search aria-hidden="true" />
               <input
@@ -581,7 +806,6 @@ function PurchasesExpressWorkspace({
                 onChange={(event) => setSearch(event.target.value)}
               />
             </label>
-          )}
           {requests.isPending && canRead && (
             <p role="status" className="express-message">
               <LoaderCircle className="animate-spin" aria-hidden="true" /> Cargando solicitudes…
@@ -595,13 +819,7 @@ function PurchasesExpressWorkspace({
               </button>
             </div>
           )}
-          {!requests.isPending && !requests.isError && available.length === 0 && canRead && (
-            <section className="express-empty">
-              <Package aria-hidden="true" />
-              <h2>No hay solicitudes pendientes</h2>
-              <p>Puedes registrar una compra nueva sin partir de una solicitud.</p>
-            </section>
-          )}
+          {!requests.isPending && !requests.isError && available.length === 0 && <p className="express-message">Sin solicitudes</p>}
           <div className="express-request-list">
             {available.map((request) => (
               <article key={request.id} className="express-request">
@@ -635,9 +853,26 @@ function PurchasesExpressWorkspace({
               </article>
             ))}
           </div>
+          </div>}
         </>
       )}
-      {open && (
+      {open && !draft.destino && canCreate && (
+        <section className="express-destination-panel" aria-labelledby="express-destination-title">
+          <div className="express-form-title">
+            <h2 id="express-destination-title">Destino de la compra</h2>
+            <button type="button" className="express-icon-button" aria-label="Cerrar selección de destino" onClick={() => setOpen(false)}><X aria-hidden="true" /></button>
+          </div>
+          <div className="express-destination-grid">
+            {EXPRESS_PURCHASE_DESTINATIONS.map((option) => {
+              const { label, icon: Icon } = destinations[option];
+              return <button type="button" key={option} disabled={!recovery.ready || (option === 'flota' && !canReadFleet)} onClick={() => changeDestination(option)}>
+                <Icon aria-hidden="true" />{label}
+              </button>;
+            })}
+          </div>
+        </section>
+      )}
+      {open && draft.destino && (
         <form
           ref={formRef}
           className="express-form"
@@ -647,12 +882,7 @@ function PurchasesExpressWorkspace({
           <fieldset disabled={pending || !canCreate || !recovery.ready}>
             <div className="express-form-title">
               <div>
-                <span className="express-eyebrow">
-                  {draft.items[0]?.requestId
-                    ? `Solicitud #${draft.items[0].requestId}`
-                    : 'Compra nueva'}
-                </span>
-                <h2>Revisa los productos</h2>
+                <h2>{destinations[draft.destino].label}</h2>
               </div>
               <button
                 type="button"
@@ -660,7 +890,7 @@ function PurchasesExpressWorkspace({
                 aria-label="Cerrar formulario de compra"
                 onClick={() => {
                   if (hasContent) setConfirmDiscard(true);
-                  else setOpen(false);
+                  else update('destino', null);
                 }}
               >
                 <X aria-hidden="true" />
@@ -693,9 +923,13 @@ function PurchasesExpressWorkspace({
                 </button>
               </div>
             )}
+            {internal ? <>
+              {receiptCapture}
+              <ExpressInternalPurchaseFields draft={draft} update={update} errors={errors} />
+            </> : <>
             <section className="express-order-section">
               <label htmlFor="express-order">
-                OT predeterminada <span className="express-required">Obligatorio</span>
+                {draft.destino === 'multiple' ? 'OT principal' : 'Orden de trabajo'}
               </label>
               {draft.order && !choosingOrder ? (
                 <div className="express-selected-order">
@@ -706,7 +940,7 @@ function PurchasesExpressWorkspace({
                     </span>
                     {draft.order.cliente && <small>{draft.order.cliente}</small>}
                   </div>
-                  {canCreate && (
+                  {canCreate && !draft.items.some((item) => item.requestId) && (
                     <button type="button" onClick={() => setChoosingOrder(true)}>
                       Cambiar
                     </button>
@@ -750,6 +984,12 @@ function PurchasesExpressWorkspace({
                           type="button"
                           key={order.id}
                           onClick={() => {
+                            if (draft.destino === 'multiple' && draft.order && draft.order.id !== order.id) {
+                              update('additionalOrders', [...draft.additionalOrders.filter((entry) => entry.id !== order.id), draft.order]);
+                              if (draft.items.some((item) => !item.requestId && item.order?.id === order.id)) {
+                                update('items', draft.items.map((item) => !item.requestId && item.order?.id === order.id ? { ...item, order: null } : item));
+                              }
+                            }
                             update('order', order);
                             setChoosingOrder(false);
                             setErrors((previous) => {
@@ -767,10 +1007,7 @@ function PurchasesExpressWorkspace({
                         </button>
                       ))}
                       {!orders.isFetching && !orders.isError && orders.data?.length === 0 && (
-                        <p>
-                          No hay OTs disponibles. Solo se muestran órdenes abiertas con cotización
-                          pendiente de pago.
-                        </p>
+                        <p>Sin OT disponibles</p>
                       )}
                       {draft.order && (
                         <button type="button" onClick={() => setChoosingOrder(false)}>
@@ -783,187 +1020,30 @@ function PurchasesExpressWorkspace({
               )}
               {fieldError('workOrderId')}
             </section>
-            <section className="express-scan-section">
-              <div>
-                <h3>Una foto, menos datos por escribir</h3>
-                <p>Etiqueta o recibo. Revisa siempre el precio detectado.</p>
-              </div>
-              <div className="express-camera-actions">
-                <label className="express-camera">
-                  <Camera aria-hidden="true" />
-                  <span>Escanear con cámara</span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    capture="environment"
-                    aria-label="Escanear con cámara"
-                    className="sr-only"
-                    onChange={(event) => {
-                      selectPhoto(event.target.files?.[0]);
-                      event.target.value = '';
-                    }}
-                  />
-                </label>
-                <label className="express-gallery">
-                  <FileImage aria-hidden="true" />
-                  <span>Elegir foto</span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    aria-label="Elegir foto del recibo"
-                    className="sr-only"
-                    onChange={(event) => {
-                      selectPhoto(event.target.files?.[0]);
-                      event.target.value = '';
-                    }}
-                  />
-                </label>
-              </div>
-              {photoUrl && (
-                <div className="express-photo">
-                  <img src={photoUrl} alt="Foto de la etiqueta o recibo" />
-                  <div>
-                    <strong>{file?.name}</strong>
-                    <span>Foto adjunta al registro</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        controller.current?.abort();
-                        scanSequence.current += 1;
-                        setScanBusy(false);
-                        setReadReplacement(null);
-                        update('file', null);
-                        setScanResult(null);
-                        setScanError('');
-                      }}
-                    >
-                      Quitar foto
-                    </button>
-                  </div>
-                  {!scanBusy && (
-                    <button type="button" onClick={() => file && void runScan(file)}>
-                      Reintentar lectura
-                    </button>
-                  )}
-                </div>
-              )}
-              {scanBusy && (
-                <div>
-                  <p role="status" className="express-scan-status">
-                    <LoaderCircle className="animate-spin" aria-hidden="true" /> Luna está leyendo
-                    la foto… Puedes seguir completando los datos.
-                  </p>
-                  <button
-                    type="button"
-                    className="express-scan-cancel"
-                    onClick={() => {
-                      controller.current?.abort();
-                      scanSequence.current += 1;
-                      setScanBusy(false);
-                      setScanError(
-                        'Lectura cancelada. Conservamos la foto; puedes completar los datos manualmente.',
-                      );
-                    }}
-                  >
-                    Continuar manualmente
-                  </button>
-                </div>
-              )}
-              {scanError && (
-                <p role="alert" className="express-error">
-                  {scanError}
-                </p>
-              )}
-              {scanResult && (
-                <div className="express-scan-result">
-                  <p>
-                    <CheckCircle2 aria-hidden="true" />{' '}
-                    {scanResult.items.length === 1
-                      ? 'Lectura lista. Revisa los datos antes de guardar.'
-                      : scanResult.items.length > 1
-                        ? `${scanResult.items.length} productos detectados. Revisa y edita cada uno antes de guardar.`
-                        : 'No se encontró un producto legible. Completa los datos manualmente.'}
-                  </p>
-                  {scanResult.items.length === 1 && (
-                    <small>
-                      {scanResult.items[0].descripcion} ·{' '}
-                      {scanResult.items[0].costoUnitario === null
-                        ? 'Precio no legible'
-                        : `Compra detectada: ${formatClp(scanResult.items[0].costoUnitario)}`}
-                    </small>
-                  )}
-                  {scanResult.items.length === 1 &&
-                    scanResult.items[0].costoUnitario !== null &&
-                    Number(draft.items[0]?.costoUnitario) !== scanResult.items[0].costoUnitario && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          applyRead({
-                            result: scanResult,
-                            sequence: scanSequence.current,
-                            costOnly: true,
-                          })
-                        }
-                      >
-                        Usar precio detectado: {formatClp(scanResult.items[0].costoUnitario)}
-                      </button>
-                    )}
-                  {scanResult.advertencias.map((warning, index) => (
-                    <small key={index}>{warning}</small>
-                  ))}
-                </div>
-              )}
-              {readReplacement && (
-                <div
-                  ref={readConfirmationRef}
-                  className="express-discard"
-                  role="alertdialog"
-                  aria-labelledby="express-read-title"
-                  aria-describedby="express-read-description"
-                  tabIndex={-1}
-                >
-                  <p id="express-read-title">
-                    La lectura reemplazará datos que editaste manualmente.
-                  </p>
-                  <p id="express-read-description">
-                    Revisa todos los productos y precios detectados antes de aceptar. Si conservas
-                    tus datos, el borrador y la foto seguirán disponibles.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      applyRead(readReplacement, true);
-                      formRef.current
-                        ?.querySelector<HTMLInputElement>('#express-description')
-                        ?.focus();
-                    }}
-                  >
-                    Aceptar nuevos datos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReadReplacement(null);
-                      formRef.current
-                        ?.querySelector<HTMLInputElement>('#express-description')
-                        ?.focus();
-                    }}
-                  >
-                    Conservar mis datos
-                  </button>
-                </div>
-              )}
-            </section>
+            {draft.destino === 'multiple' && draft.order && <section className="express-multiple-orders" aria-label="Órdenes adicionales">
+              <ul>{draft.additionalOrders.map((order) => {
+                const assigned = draft.items.some((item) => item.order?.id === order.id);
+                return <li key={order.id}><span>{order.codigo} · {order.patente}</span>
+                  <button type="button" className="express-icon-button" title={assigned ? 'Reasigna sus productos antes de quitarla' : 'Quitar orden'}
+                    aria-label={`Quitar ${order.codigo}`} disabled={assigned} onClick={() => update('additionalOrders', draft.additionalOrders.filter((entry) => entry.id !== order.id))}><X aria-hidden="true" /></button>
+                </li>;
+              })}</ul>
+              <button type="button" className="express-secondary" onClick={() => setAddingOrder(!addingOrder)}><Plus aria-hidden="true" /> {addingOrder ? 'Cerrar búsqueda' : 'Añadir otra OT'}</button>
+              {addingOrder && <ExpressOrderPicker label="Buscar otra OT" exclude={allowedOrders.map((order) => order.id)} onSelect={(order) => {
+                update('additionalOrders', [...draft.additionalOrders, order]);
+                setAddingOrder(false);
+              }} />}
+            </section>}
+            {receiptCapture}
+            {canReviewProducts && <>
             <div className="grid min-w-0 gap-3" aria-label="Productos de la compra">
-              <p className="text-xs text-slate-500">
-                Venta con IVA incluido · Mínimo +25% sobre la compra por producto.
-              </p>
               {draft.items.map((item, index) => (
                 <ExpressPurchaseLine
                   key={item.id}
                   item={item}
                   index={index}
                   headerOrder={draft.order}
+                  orderOptions={draft.destino === 'multiple' ? draft.additionalOrders : undefined}
                   errors={errors}
                   canRemove={draft.items.length > 1}
                   onChange={(changes) => changeLine(item.id, changes)}
@@ -985,9 +1065,7 @@ function PurchasesExpressWorkspace({
               >
                 <Plus aria-hidden="true" /> Agregar producto
               </button>
-              <small className="text-xs text-slate-500">
-                {draft.items.length} de 30 productos · Una compra y un egreso
-              </small>
+              <small className="text-xs text-slate-500">{draft.items.length} de 30</small>
             </div>
             <details className="express-extra-fields" open={errors.fechaEmision ? true : undefined}>
               <summary>
@@ -1048,9 +1126,6 @@ function PurchasesExpressWorkspace({
                   </option>
                 ))}
               </select>
-              <p>
-                Se registra un solo egreso de compra. Los productos quedan por cobrar al cliente.
-              </p>
             </section>
             <section className="express-totals" aria-label="Resumen express">
               <div>
@@ -1061,13 +1136,14 @@ function PurchasesExpressWorkspace({
                 <span>Venta al cliente · IVA incluido</span>
                 <strong>{formatClp(totalSale, 2)}</strong>
               </div>
-              <small>
-                {draft.order
-                  ? `${draft.order.codigo} · ${draft.order.patente}`
-                  : 'Selecciona una OT para vincular el cobro'}{' '}
-                · {draft.items.length} producto(s) · {quantity || 0} unidad(es)
-              </small>
+              {draft.destino === 'multiple' && <div className="express-order-totals">
+                {allowedOrders.map((order) => {
+                  const lines = draft.items.filter((line) => (line.order?.id ?? draft.order?.id) === order.id);
+                  return <small key={order.id}>{order.codigo} · {lines.length} {lines.length === 1 ? 'producto' : 'productos'}</small>;
+                })}
+              </div>}
             </section>
+            </>}</>}
             {fieldError('_form')}
             {save.isError && (
               <p role="alert" className="express-error">
@@ -1077,7 +1153,7 @@ function PurchasesExpressWorkspace({
                 )}
               </p>
             )}
-            <footer className="express-save-bar">
+            {(internal || canReviewProducts) && <footer className="express-save-bar">
               <button
                 className="express-primary"
                 type="submit"
@@ -1088,15 +1164,14 @@ function PurchasesExpressWorkspace({
                 ) : (
                   <Check aria-hidden="true" />
                 )}
-                {pending ? 'Registrando…' : 'Confirmar compra y egreso'}
+                {pending ? 'Registrando…' : 'Registrar compra'}
               </button>
-            </footer>
+            </footer>}
           </fieldset>
         </form>
       )}
       {!open && hasContent && canCreate && !success && recovery.ready && (
         <section className="express-resume">
-          <p>Tienes una compra en preparación.</p>
           <button className="express-secondary" type="button" onClick={() => setOpen(true)}>
             <ArrowLeft aria-hidden="true" /> Continuar compra
           </button>

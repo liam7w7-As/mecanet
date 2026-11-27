@@ -28,3 +28,5 @@ export const PURCHASE_VEHICLE_ORIGIN_LABELS = {
     taller: 'Taller',
     flota: 'Flota',
 };
+export const EXPRESS_PURCHASE_DESTINATIONS = ['ot', 'flota', 'multiple', 'oficina', 'taller'];
+export const PURCHASE_LEDGERS = ['taller', 'flota', 'oficina'];

@@ -115,8 +115,9 @@ const createReportDocument = async (
 
 export async function generatePurchaseReportPdf(
   filters: PurchaseReportQueryInput,
+  viewer?: import('./purchase.service.js').PurchaseViewer,
 ): Promise<Uint8Array> {
-  const purchases = await getPurchasesForReport(filters);
+  const purchases = await getPurchasesForReport(filters, viewer);
   const summary = buildSummary(purchases);
   const doc = await createReportDocument('Reporte de compras', subtitle(filters));
 
@@ -288,8 +289,9 @@ const addSheet = (
 
 export async function generatePurchaseReportExcel(
   filters: PurchaseReportQueryInput,
+  viewer?: import('./purchase.service.js').PurchaseViewer,
 ): Promise<Buffer> {
-  const purchases = await getPurchasesForReport(filters);
+  const purchases = await getPurchasesForReport(filters, viewer);
   const summary = buildSummary(purchases);
   const workbook = setupWorkbook();
   const reportSubtitle = subtitle(filters);

@@ -161,6 +161,8 @@ export const createPurchaseSchema = z
   });
 
 export const purchaseQuerySchema = paginationSchema.extend({
+  creadoPor: z.coerce.number().int().positive().optional(),
+  registro: z.enum(['taller', 'flota', 'oficina']).optional(),
   search: z.string().trim().max(180).optional(),
   estado: z.enum(PURCHASE_STATUSES).optional(),
   formaPago: z.enum(PURCHASE_PAYMENT_TYPES).optional(),

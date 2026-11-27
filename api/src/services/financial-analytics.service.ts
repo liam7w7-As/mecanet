@@ -327,7 +327,7 @@ const loadDataset = async (
         'fecha',
         'createdBy',
       ],
-      where: movementWhere,
+      where: { [Op.and]: [movementWhere, { ledger: 'taller' }] },
       include: [
         {
           model: User,

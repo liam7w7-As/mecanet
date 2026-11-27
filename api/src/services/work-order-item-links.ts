@@ -74,6 +74,22 @@ export const ensureQuotationItemLinks = async (
   return { quotationItems, workOrderItems };
 };
 
+export const hasWorkItemHistory = async (item: WorkOrderItem, transaction: Transaction): Promise<boolean> => {
+  const where = { workOrderItemId: item.id };
+  const counts = await Promise.all([
+    WorkOrderQualityReview.count({ where, transaction }),
+    WorkOrderDpStage.count({ where: { ...where, [Op.or]: [{ assignedUserId: { [Op.ne]: null } }, { status: { [Op.ne]: 'pendiente' } }, { note: { [Op.ne]: null } }, { startedAt: { [Op.ne]: null } }, { completedAt: { [Op.ne]: null } }] }, transaction }),
+    WorkOrderItemAssignment.count({ where, transaction }),
+    WorkshopTimeRequest.count({ where, transaction }),
+    WorkOrderItemSession.count({ where, transaction }),
+    WorkOrderItemProgressEvent.count({ where, transaction }),
+    WorkOrderObservation.count({ where, transaction }),
+    WorkOrderPriceSuggestion.count({ where, transaction }),
+    WorkshopCommercialReview.count({ where, transaction }),
+  ]);
+  return item.horasHombreReales !== null || item.laborValidatedAt !== null || counts.some((count) => count > 0);
+};
+
 export const assertWorkItemsRemovable = async (
   items: WorkOrderItem[],
   transaction: Transaction,
@@ -84,23 +100,7 @@ export const assertWorkItemsRemovable = async (
     if (!allowPurchased && item.minimumSalePrice != null) {
       throw ApiError.badRequest(`No se puede quitar "${item.descripcion}": si no se utilizó, envíalo al stock general desde su compra express`);
     }
-    const where = { workOrderItemId: item.id };
-    const counts = await Promise.all([
-      WorkOrderQualityReview.count({ where, transaction }),
-      WorkOrderDpStage.count({ where: { ...where, [Op.or]: [{ assignedUserId: { [Op.ne]: null } }, { status: { [Op.ne]: 'pendiente' } }, { note: { [Op.ne]: null } }] }, transaction }),
-      WorkOrderItemAssignment.count({ where, transaction }),
-      WorkshopTimeRequest.count({ where, transaction }),
-      WorkOrderItemSession.count({ where, transaction }),
-      WorkOrderItemProgressEvent.count({ where, transaction }),
-      WorkOrderObservation.count({ where, transaction }),
-      WorkOrderPriceSuggestion.count({ where, transaction }),
-      WorkshopCommercialReview.count({ where, transaction }),
-    ]);
-    if (
-      item.horasHombreReales !== null ||
-      item.laborValidatedAt !== null ||
-      counts.some((count) => count > 0)
-    ) {
+    if (await hasWorkItemHistory(item, transaction)) {
       throw ApiError.badRequest(
         `No se puede quitar "${item.descripcion}": ya tiene horas o historial de trabajo registrado`,
       );

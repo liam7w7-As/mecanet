@@ -76,7 +76,7 @@ const getMovementById = async (
     include: movementIncludes,
     transaction,
   });
-  if (!movement) throw ApiError.notFound('Movimiento de caja no encontrado');
+  if (!movement || movement.ledger !== 'taller') throw ApiError.notFound('Movimiento de caja no encontrado');
   return toPublic(movement);
 };
 
@@ -96,6 +96,7 @@ const getAvailableCash = async (
     }),
     CashMovement.sum('monto', {
       where: {
+        ledger: 'taller',
         tipo: 'ingreso',
         metodo: 'efectivo',
         voidedAt: null,
@@ -105,6 +106,7 @@ const getAvailableCash = async (
     }),
     CashMovement.sum('monto', {
       where: {
+        ledger: 'taller',
         tipo: 'egreso',
         metodo: 'efectivo',
         voidedAt: null,
@@ -122,7 +124,7 @@ const getAvailableCash = async (
 export const listCashMovements = async (fecha: string): Promise<CashMovementPublic[]> => {
   const { start, end } = getDateRange(fecha);
   const movements = await CashMovement.findAll({
-    where: { fecha: { [Op.between]: [start, end] } },
+    where: { ledger: 'taller', fecha: { [Op.between]: [start, end] } },
     include: movementIncludes,
     order: [['fecha', 'DESC'], ['id', 'DESC']],
   });
@@ -186,7 +188,7 @@ export const voidCashMovement = async (
         transaction,
         lock: transaction.LOCK.UPDATE,
       });
-      if (!movement) throw ApiError.notFound('Movimiento de caja no encontrado');
+      if (!movement || movement.ledger !== 'taller') throw ApiError.notFound('Movimiento de caja no encontrado');
       if (movement.voidedAt) throw ApiError.conflict('El movimiento ya fue anulado');
       const expressPurchase = await Purchase.findOne({
         where: { cashMovementId: id, estado: 'registrada', expressKey: { [Op.ne]: null } }, transaction,

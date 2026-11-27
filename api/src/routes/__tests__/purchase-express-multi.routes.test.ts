@@ -170,11 +170,13 @@ describe('Multi-product express purchases', () => {
       }),
     ]);
     data.detalle = 'Un comprobante para ambos accesorios';
+    data.destino = 'ot';
     const response = await buy(data);
     expect(response.status, JSON.stringify(response.body)).toBe(201);
     const purchase = response.body.purchase;
     expect(purchase).toMatchObject({
       express: true,
+      expressDestination: 'ot',
       workOrderId: orderId,
       total: 26180,
       neto: 22000,
@@ -217,13 +219,14 @@ describe('Multi-product express purchases', () => {
     const source = await sourceRequest(secondId);
     // Submit in reverse OT order to exercise deterministic locking.
     const response = await buy(
-      payload(headerId, [
+      { ...payload(headerId, [
         line({ workOrderId: secondId, requestId: source.id }),
         line({ descripcion: 'Accesorio para la OT predeterminada' }),
-      ]),
+      ]), destino: 'multiple' },
     );
     expect(response.status, JSON.stringify(response.body)).toBe(201);
     const purchase = response.body.purchase;
+    expect(purchase.expressDestination).toBe('multiple');
     expect(purchase.workOrderId).toBe(headerId);
     expect(purchase.total).toBe(47600);
     expect(purchase.cashMovement.monto).toBe(47600);

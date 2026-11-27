@@ -13,11 +13,10 @@ import { ApiError } from '../../utils/ApiError.js';
 import { calculateDpWorkPricing } from '../dp-configuration.service.js';
 import { convertQuotationToWorkOrder, createQuotation, updateQuotation } from '../quotation.service.js';
 import { consumeForWorkOrder, restoreForWorkOrder } from '../warehouse.service.js';
-import { assertDpItemStatus, ensureDpStagesForItems, getDpStages } from '../work-order-dp-state.js';
-import { ensureQuotationItemLinks } from '../work-order-item-links.js';
+import { assertDpItemStatus, ensureDpStagesForItems } from '../work-order-dp-state.js';
+import { ensureQuotationItemLinks, hasWorkItemHistory } from '../work-order-item-links.js';
 import { createWorkOrderInTransaction, getWorkOrderById } from '../work-order.service.js';
 
-import type { WorkOrderDpStage } from '../../models/WorkOrderDpStage.js';
 import type { WorkOrderPublic } from '../work-order.service.js';
 import type { CatalogDivision, CatalogSubtype, DpQuoteInput, QuotationItemInput } from '@unithor/shared';
 
@@ -42,7 +41,7 @@ vi.mock('../sales-access-grant.service.js', () => ({ propagateLinkedSalesAccess:
 vi.mock('../sales-access.service.js', () => ({ assertSalesWorkOrderAccess: vi.fn(), getSalesScope: vi.fn(), quotationWhere: () => ({}), scopeSalesAssociations: (includes: unknown) => includes }));
 vi.mock('../warehouse.service.js', () => ({ consumeForWorkOrder: vi.fn(), restoreForWorkOrder: vi.fn() }));
 vi.mock('../work-order-inspection-photo.service.js', () => ({ getInspectionPhoto: vi.fn() }));
-vi.mock('../work-order-item-links.js', () => ({ assertWorkItemsRemovable: vi.fn(), ensureQuotationItemLinks: vi.fn(), itemIdentity: (item: { catalogItemId?: number | null; descripcion: string; tipoLinea: string; unidadMedida: string }) => JSON.stringify([item.catalogItemId ?? null, item.descripcion, item.tipoLinea, item.unidadMedida]) }));
+vi.mock('../work-order-item-links.js', () => ({ assertWorkItemsRemovable: vi.fn(), hasWorkItemHistory: vi.fn(), ensureQuotationItemLinks: vi.fn(), itemIdentity: (item: { catalogItemId?: number | null; descripcion: string; tipoLinea: string; unidadMedida: string }) => JSON.stringify([item.catalogItemId ?? null, item.descripcion, item.tipoLinea, item.unidadMedida]) }));
 vi.mock('../work-order-labor-events.js', () => ({ recordChecklistStatusChange: vi.fn() }));
 vi.mock('../work-order-labor-sessions.js', () => ({ closeWorkOrderTimers: vi.fn() }));
 vi.mock('../work-order-price-policy.js', () => ({ assertChiefPriceEditsAllowed: vi.fn() }));
@@ -89,6 +88,7 @@ const workItemFixture = (line: QuotationItem): WorkOrderItem => {
   const item = {
     ...line, id: 81, workOrderId: 80, horasHombreEstimadas: 3,
     horasHombreReales: 5, stockConsumido: false, stockConsumidoCantidad: 0,
+    qualityStatus: 'pendiente', ccfStatus: 'pendiente',
     esAPedido: line.subtipo === 'a_pedido',
     update: vi.fn(async (payload: object) => Object.assign(item, payload)),
   };
@@ -112,7 +112,7 @@ describe('quotation division synchronization without a database', () => {
     vi.mocked(Payment.count).mockResolvedValue(0);
     vi.mocked(WorkOrder.findByPk).mockResolvedValue({ id: 80, codigo: 'OT-26-1', estado: 'en_progreso' } as WorkOrder);
     vi.mocked(assertDpItemStatus).mockResolvedValue(undefined);
-    vi.mocked(getDpStages).mockResolvedValue([]);
+    vi.mocked(hasWorkItemHistory).mockResolvedValue(false);
     vi.mocked(calculateDpWorkPricing).mockResolvedValue(dpSnapshot());
   });
 
@@ -267,7 +267,7 @@ describe('quotation division synchronization without a database', () => {
     quotation.workOrderId = 80;
     vi.mocked(QuotationItem.findAll).mockResolvedValue([line]);
     vi.mocked(ensureQuotationItemLinks).mockResolvedValue({ quotationItems: [line], workOrderItems: [workItem] });
-    vi.mocked(getDpStages).mockResolvedValue([{ assignedUserId: 4, status: 'pendiente' } as WorkOrderDpStage]);
+    vi.mocked(hasWorkItemHistory).mockResolvedValue(true);
     await expect(updateQuotation(70, { items: [lineInput({ id: 71, division: 'MEC', subtipo: 'estandar' })] }, 5)).rejects.toThrow('asignaciones o historial');
     expect(workItem.update).not.toHaveBeenCalled();
     expect(workItem.horasHombreReales).toBe(5);

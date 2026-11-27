@@ -1,4 +1,5 @@
-import { Car, Check } from 'lucide-react';
+import { Check, ChevronDown, Search } from 'lucide-react';
+import { useState } from 'react';
 
 import type { DpConfiguration } from '@unithor/shared';
 
@@ -36,6 +37,10 @@ interface SvgPartProps {
   textX: number;
   textY: number;
 }
+
+const QUICK_PIECE_LIMIT = 8;
+
+const normalizePieceSearch = (text: string) => text.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
 
 function getPartPalette(selected: boolean, status?: PieceVisualStatus) {
   if (selected) {
@@ -117,7 +122,7 @@ function SvgCarPart({
       aria-pressed={selected}
       onClick={() => onSelect(pieceId, positionId)}
       onKeyDown={handleKeyDown}
-      className="cursor-pointer transition-opacity hover:opacity-90 focus:outline-none"
+      className="cursor-pointer outline-none [&>path]:transition-colors [&>rect]:transition-colors hover:[&>path]:stroke-purple-600 hover:[&>rect]:stroke-purple-600 focus-visible:[&>path]:stroke-purple-700 focus-visible:[&>path]:stroke-[3px] focus-visible:[&>rect]:stroke-purple-700 focus-visible:[&>rect]:stroke-[3px]"
     >
       <title>{label}</title>
       {shape === 'path' ? (
@@ -178,6 +183,9 @@ export default function DpVehicleMap({
   configuredPieces,
   onSelectPiece,
 }: DpVehicleMapProps) {
+  const [search, setSearch] = useState('');
+  const [onlyConfigured, setOnlyConfigured] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const rateMap = new Map(rates.map((r) => [`${r.pieceId}:${r.positionId}`, r]));
   const hasRate = (pieceId: string, positionId: string) =>
     rateMap.has(`${pieceId}:${positionId}`);
@@ -195,16 +203,22 @@ export default function DpVehicleMap({
   const sideRearPieceId = hasRate('lateral_pickup', 'L') ? 'lateral_pickup' : 'panel_lateral';
   const isPickup = bodyTypeId === 'pickup';
 
-  const secondaryRates = rates.filter((rate) => !SVG_MAPPED_PIECES.has(rate.pieceId));
+  // Lead with pieces the diagram does not offer, and include all positions in search.
+  const orderedRates = [...rates].sort((a, b) => Number(SVG_MAPPED_PIECES.has(a.pieceId)) - Number(SVG_MAPPED_PIECES.has(b.pieceId)));
+  const searchWords = normalizePieceSearch(search).trim().split(/\s+/).filter(Boolean);
+  const matchingRates = orderedRates.filter((rate) => {
+    if (onlyConfigured && !configuredPieces.has(`${rate.pieceId}:${rate.positionId}`)) return false;
+    const label = normalizePieceSearch(`${labelFor(rate.pieceId, rate.positionId)} ${rate.positionId}`);
+    return searchWords.every((word) => label.includes(word));
+  });
+  const filtering = searchWords.length > 0 || onlyConfigured;
+  const visibleRates = expanded || filtering ? matchingRates : matchingRates.slice(0, QUICK_PIECE_LIMIT);
 
   return (
     <div className="rounded-2xl border border-brand-line bg-white p-4 shadow-2xs">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-brand-line/70 pb-2.5">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-[#1d396a]">
-          <Car className="h-4 w-4 text-purple-700" aria-hidden="true" />
-          <span>Mapa de piezas</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-[10px] font-semibold text-brand-muted">
+        <h2 className="dp-quote-section-title text-brand-primaryInk">Mapa de piezas</h2>
+        <div className="dp-quote-secondary flex flex-wrap items-center gap-3 text-brand-muted">
           <span className="inline-flex items-center gap-1">
             <span className="h-2.5 w-2.5 rounded-full bg-blue-500" aria-hidden="true" />
             Pintura
@@ -220,7 +234,7 @@ export default function DpVehicleMap({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-[260px_minmax(0,1fr)] sm:items-start">
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)] sm:items-start">
         {/* Diagrama cenital interactivo */}
         <div className="mx-auto w-full max-w-[260px] rounded-xl border border-slate-100 bg-[#fafcff] p-2">
           <svg
@@ -550,87 +564,52 @@ export default function DpVehicleMap({
           </svg>
         </div>
 
-        {/* Selector rápido de piezas adicionales / estructurales */}
-        <div className="space-y-3">
-          {secondaryRates.length > 0 && (
-            <div>
-              <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-muted">
-                Pilares, marcos y molduras
-              </h3>
-              <div className="flex flex-wrap gap-1.5">
-                {secondaryRates.map((rate) => {
-                  const key = `${rate.pieceId}:${rate.positionId}`;
-                  const selected = selectedPieceKey === key;
-                  const status = configuredPieces.get(key);
-                  const pieceLabel = pieces.get(rate.pieceId) ?? rate.pieceId;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => onSelectPiece(rate.pieceId, rate.positionId)}
-                      className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
-                        selected
-                          ? 'border-purple-600 bg-purple-700 text-white shadow-2xs'
-                          : status
-                            ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                            : 'border-brand-line bg-[#f8fafc] text-brand-ink hover:bg-[#eef3fa]'
-                      }`}
-                    >
-                      {status && !selected && <Check className="h-3 w-3 text-emerald-600" aria-hidden="true" />}
-                      <span>
-                        {pieceLabel} · {rate.positionLabel}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+        <div className="min-w-0 space-y-3">
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-muted" aria-hidden="true" />
+            <input type="search" aria-label="Buscar pieza o ubicación" placeholder="Buscar pieza o ubicación…"
+              value={search} onChange={(event) => setSearch(event.target.value)}
+              className="dp-quote-field h-10 w-full min-w-0 rounded-lg border border-brand-line bg-[#f8fafc] pl-9 pr-2 text-brand-ink outline-none focus:border-purple-600 focus:bg-white" />
+          </label>
 
-          <div>
-            <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-muted">
-              Todas las piezas ({rates.length})
-            </h3>
-            <div className="flex max-h-52 flex-wrap gap-1 overflow-y-auto pr-1">
-              {rates
-                .filter((r) => SVG_MAPPED_PIECES.has(r.pieceId))
-                .map((rate) => {
-                  const key = `${rate.pieceId}:${rate.positionId}`;
-                  const selected = selectedPieceKey === key;
-                  const status = configuredPieces.get(key);
-                  const pieceLabel = pieces.get(rate.pieceId) ?? rate.pieceId;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => onSelectPiece(rate.pieceId, rate.positionId)}
-                      className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition ${
-                        selected
-                          ? 'border-purple-600 bg-purple-700 text-white'
-                          : status?.hasReplacement
-                            ? 'border-purple-300 bg-purple-50 text-purple-900'
-                            : status?.hasRepair
-                              ? 'border-amber-300 bg-amber-50 text-amber-900'
-                              : status?.hasPaint
-                                ? 'border-blue-300 bg-blue-50 text-blue-900'
-                                : 'border-brand-line/80 bg-white text-brand-ink hover:bg-brand-pale'
-                      }`}
-                    >
-                      <span>
-                        {pieceLabel} · {rate.positionLabel}
-                      </span>
-                      {status?.damageLabel && (
-                        <span className="rounded bg-amber-600 px-1 text-[9px] text-white">
-                          {status.damageLabel}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="dp-quote-secondary text-brand-muted" aria-live="polite">{matchingRates.length} {matchingRates.length === 1 ? 'pieza' : 'piezas'}</span>
+            <button type="button" aria-pressed={onlyConfigured} onClick={() => setOnlyConfigured((current) => !current)}
+              className={`dp-quote-control inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 py-1 focus-visible:outline focus-visible:outline-purple-700 ${
+                onlyConfigured ? 'bg-purple-50 text-purple-800' : 'text-brand-muted hover:bg-brand-pale'
+              }`}>
+              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+              Cotizadas ({configuredPieces.size})
+            </button>
           </div>
+
+          {visibleRates.length > 0 ? (
+            <div aria-label="Piezas disponibles" role="group" className="flex flex-wrap gap-1.5">
+              {visibleRates.map((rate) => {
+                const key = `${rate.pieceId}:${rate.positionId}`;
+                const selected = selectedPieceKey === key;
+                const status = configuredPieces.get(key);
+                return (
+                  <button key={key} type="button" aria-pressed={selected} onClick={() => onSelectPiece(rate.pieceId, rate.positionId)}
+                    className={`dp-quote-control inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 py-1 text-left transition focus-visible:outline focus-visible:outline-purple-700 ${
+                      selected ? 'bg-purple-700 text-white' : status ? 'bg-purple-50 text-purple-800' : 'bg-[#f6f8fb] text-brand-ink hover:bg-brand-pale'
+                    }`}>
+                    {status && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+                    {labelFor(rate.pieceId, rate.positionId)}
+                    {status?.damageLabel && <span className="dp-quote-secondary">{status.damageLabel}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          ) : <p className="rounded-lg bg-brand-pale px-3 py-2 text-xs text-brand-muted">{searchWords.length ? 'No se encontraron piezas.' : onlyConfigured ? 'Todavía no hay piezas cotizadas.' : 'Sin piezas disponibles.'}</p>}
+
+          {!filtering && matchingRates.length > QUICK_PIECE_LIMIT && (
+            <button type="button" aria-expanded={expanded} onClick={() => setExpanded((current) => !current)}
+              className="inline-flex min-h-8 items-center gap-1.5 rounded px-1 text-xs font-semibold text-purple-800 hover:underline focus-visible:outline focus-visible:outline-purple-700">
+              {expanded ? 'Ver menos' : 'Ver todas las piezas'}
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
     </div>

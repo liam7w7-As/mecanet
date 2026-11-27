@@ -352,7 +352,7 @@ describe('PurchaseDetailPage', () => {
     expect(screen.queryByRole('button', { name: 'Registrar pago' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pagar compra completa' })).not.toBeInTheDocument();
     await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3));
-    expect(queryClient.getQueryData(['purchases', 'detail', purchaseFixture.id])).toEqual(paid);
+    expect(queryClient.getQueryData(['purchases', 'detail', purchaseFixture.id, '1:jefe'])).toEqual(paid);
   });
 
   it.each([false, true])('distingue anulación sin pago y pago anulado (pagada: %s)', async (wasPaid) => {

@@ -69,7 +69,7 @@ const orderOption = (order: WorkOrder): ExpressOrderOption => ({
   vehiculo: [order.vehicle?.marca, order.vehicle?.modelo].filter(Boolean).join(' '),
   cliente: order.client?.nombre ?? null,
 });
-export async function listExpressOrders(search: string | undefined, userId: number) {
+export async function listExpressOrders(search: string | undefined, userId: number, forCompletion = false) {
   const scope = await getSalesScope(userId);
   const conditions: WhereOptions<WorkOrder>[] = [
     workOrderWhere(scope),
@@ -81,7 +81,7 @@ export async function listExpressOrders(search: string | undefined, userId: numb
     } as WhereOptions<WorkOrder>);
   const rows = await WorkOrder.findAll({
     where: { [Op.and]: conditions },
-    include: orderIncludes,
+    include: forCompletion ? orderIncludes.filter((include) => include.as !== 'quotation') : orderIncludes,
     order: [['id', 'DESC']],
     limit: 12,
     subQuery: false,
@@ -129,7 +129,6 @@ export async function listExpressRequests(search: string | undefined, userId: nu
       { model: WorkOrderItem, as: 'workOrderItem', required: false },
     ],
     order: [['id', 'DESC']],
-    limit: 80,
     subQuery: false,
   });
   const used = rows.length
@@ -171,7 +170,7 @@ export async function listExpressRequests(search: string | undefined, userId: nu
         (row.catalogItem.subtipo === 'a_pedido' || Number(row.catalogItem.stock) <= 0),
     });
   }
-  return { items, scannerConfigured: purchaseScannerConfigured() };
+  return { items, total: items.length, scannerConfigured: purchaseScannerConfigured() };
 }
 
 export async function createExpressPurchase(
@@ -375,6 +374,7 @@ export async function createExpressPurchase(
           codigo,
           expressKey: data.operationKey,
           expressFingerprint: fingerprint,
+          expressDestination: new Set(lines.map((line) => line.workOrderId)).size > 1 ? 'multiple' : 'ot',
           supplierId: supplier.id,
           vehicleId: order.vehicleId,
           fleetVehicleId: null,

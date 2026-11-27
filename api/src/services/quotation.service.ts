@@ -14,7 +14,8 @@ import { assertSalesWorkOrderAccess, getSalesScope, quotationWhere, scopeSalesAs
 import { consumeForWorkOrder, restoreForWorkOrder } from './warehouse.service.js';
 import { ensureAccRequestsForItems } from './work-order-division-actions.js';
 import { normalizeDivisionMetadata } from './work-order-division-rules.js';
-import { assertDpItemStatus, ensureDpStagesForItems, getDpStages } from './work-order-dp-state.js';
+import { assertDpItemIdentityUpdate } from './work-order-dp-integrity.js';
+import { assertDpItemStatus, ensureDpStagesForItems } from './work-order-dp-state.js';
 import { getInspectionPhoto } from './work-order-inspection-photo.service.js';
 import { assertWorkItemsRemovable, ensureQuotationItemLinks, itemIdentity } from './work-order-item-links.js';
 import { recordChecklistStatusChange } from './work-order-labor-events.js';
@@ -571,20 +572,15 @@ const syncLinkedWorkOrderFromQuotation = async (
       if (stockChanged && (existing.entregadoBodega || existing.recibidoTaller)) {
         throw ApiError.badRequest('No se puede cambiar el repuesto ni la cantidad de una entrega física sin registrar antes su devolución');
       }
+      const dpSelectionChanged = await assertDpItemIdentityUpdate(existing, payload, transaction);
       if (existing.division === 'DP') await assertDpItemStatus(existing, payload.estadoOperativo, transaction);
       if (existing.division !== 'DP' && payload.division === 'DP') payload.estadoOperativo = 'pendiente';
-      if (existing.division === 'DP' && (payload.division !== 'DP' || existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea)) {
-        const stages = await getDpStages(existing.id, transaction);
-        if (stages.some((stage) => stage.assignedUserId != null || stage.status !== 'pendiente' || stage.startedAt != null || stage.completedAt != null || Boolean(stage.note?.trim()))) {
-          throw ApiError.badRequest('No se puede reclasificar un trabajo D&P que ya tiene asignaciones o historial de etapas');
-        }
-      }
       if (existing.estadoOperativo !== 'completado' && payload.estadoOperativo === 'completado') completedChanged = true;
       if (existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea) {
         await assertWorkItemsRemovable([existing], transaction);
       }
       const previousStatus = existing.estadoOperativo;
-      const technicalChanged = existing.descripcion !== payload.descripcion || Number(existing.cantidad) !== Number(payload.cantidad) || existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea || existing.unidadMedida !== payload.unidadMedida || existing.notasOperativas !== payload.notasOperativas || existing.division !== payload.division || existing.subtipo !== payload.subtipo || existing.esAPedido !== payload.esAPedido;
+      const technicalChanged = dpSelectionChanged || existing.descripcion !== payload.descripcion || Number(existing.cantidad) !== Number(payload.cantidad) || existing.catalogItemId !== payload.catalogItemId || existing.tipoLinea !== payload.tipoLinea || existing.unidadMedida !== payload.unidadMedida || existing.notasOperativas !== payload.notasOperativas || existing.division !== payload.division || existing.subtipo !== payload.subtipo || existing.esAPedido !== payload.esAPedido;
       if (technicalChanged) await invalidateItemQuality(existing, userId, 'Contenido del servicio actualizado desde la cotización', transaction);
       if (stockChanged) await restoreConsumedWorkOrderStock([existing], transaction, userId, workOrder.codigo);
       await existing.update({

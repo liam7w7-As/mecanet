@@ -1,4 +1,6 @@
 import {
+  completeExpressExpenseSchema,
+  createExpressExpenseSchema,
   createPurchaseSchema,
   createExpressPurchaseSubmissionSchema,
   expressSearchSchema,
@@ -13,7 +15,7 @@ import {
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { expressCreateHandler, expressOrdersHandler, expressRequestsHandler, expressReturnToStockHandler, expressScanHandler } from '../controllers/purchase-express.controller.js';
+import { expressCompleteHandler, expressConfirmHandler, expressCreateHandler, expressExpenseHandler, expressFleetHandler, expressOrdersHandler, expressRequestsHandler, expressReturnToStockHandler, expressScanHandler, purchaseCreatorsHandler } from '../controllers/purchase-express.controller.js';
 import {
   createPurchaseHandler,
   getPurchaseHandler,
@@ -50,8 +52,14 @@ purchaseRouter.use(authenticate);
 
 purchaseRouter.get('/express/requests', authorize('compras', 'read'), validate({ query: expressSearchSchema }), expressRequestsHandler);
 purchaseRouter.get('/express/orders', authorize('compras', 'create'), validate({ query: expressSearchSchema }), expressOrdersHandler);
+purchaseRouter.get('/express/completion-orders', authorize('compras', 'update'), validate({ query: expressSearchSchema }), expressOrdersHandler);
+purchaseRouter.get('/express/fleet', authorize('compras', 'create'), authorize('flota', 'read'), validate({ query: expressSearchSchema }), expressFleetHandler);
 purchaseRouter.post('/express/scan', authorize('compras', 'create'), purchaseUpload, expressScanHandler);
+purchaseRouter.post('/express/expense', authorize('compras', 'create'), purchaseUpload, validate({ body: createExpressExpenseSchema }), expressExpenseHandler);
 purchaseRouter.post('/express', authorize('compras', 'create'), purchaseUpload, validate({ body: createExpressPurchaseSubmissionSchema }), expressCreateHandler);
+purchaseRouter.get('/creators', authorize('compras', 'read'), authorizeRoles('admin'), purchaseCreatorsHandler);
+purchaseRouter.patch('/:id/confirm', authorize('compras', 'update'), authorizeRoles('admin'), validate({ params: idParamSchema }), expressConfirmHandler);
+purchaseRouter.patch('/:id/complete', authorize('compras', 'update'), purchaseUpload, validate({ params: idParamSchema, body: completeExpressExpenseSchema }), expressCompleteHandler);
 
 purchaseRouter.post('/:id/return-to-stock', authorize('compras', 'update'), authorizeRoles('jefe', 'admin', 'desarrollador'),
   validate({ params: idParamSchema, body: returnExpressPurchaseSchema }), expressReturnToStockHandler);

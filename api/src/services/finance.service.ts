@@ -76,13 +76,13 @@ export const getFinanceSummary = async (): Promise<FinanceSummary> => {
       where: { estado: 'confirmado', fecha: { [Op.between]: [monthStart, monthEnd] } },
     }),
     CashMovement.sum('monto', {
-      where: { tipo: 'egreso', voidedAt: null, fecha: { [Op.between]: [todayStart, todayEnd] } },
+      where: { ledger: 'taller', tipo: 'egreso', voidedAt: null, fecha: { [Op.between]: [todayStart, todayEnd] } },
     }),
     CashMovement.sum('monto', {
-      where: { tipo: 'egreso', voidedAt: null, fecha: { [Op.between]: [monthStart, monthEnd] } },
+      where: { ledger: 'taller', tipo: 'egreso', voidedAt: null, fecha: { [Op.between]: [monthStart, monthEnd] } },
     }),
     CashMovement.sum('monto', {
-      where: { tipo: 'ingreso', voidedAt: null, fecha: { [Op.between]: [todayStart, todayEnd] } },
+      where: { ledger: 'taller', tipo: 'ingreso', voidedAt: null, fecha: { [Op.between]: [todayStart, todayEnd] } },
     }),
     Payment.count({ where: { estado: 'por_verificar' } }),
     Payment.sum('monto', { where: { estado: 'por_verificar' } }),

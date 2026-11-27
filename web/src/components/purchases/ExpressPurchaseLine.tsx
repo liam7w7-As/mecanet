@@ -1,9 +1,6 @@
 import { expressMinimumSale, expressNetSale, getQuotationGrossTotal } from '@unithor/shared';
-import { Search, X } from 'lucide-react';
-import { useState } from 'react';
+import { X } from 'lucide-react';
 
-import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useExpressOrders } from '../../hooks/usePurchasesExpress';
 import { formatClp } from '../../lib/formatters';
 import CurrencyInput from '../common/CurrencyInput';
 
@@ -27,6 +24,7 @@ export default function ExpressPurchaseLine({
   item,
   index,
   headerOrder,
+  orderOptions,
   errors,
   canRemove,
   onChange,
@@ -35,14 +33,12 @@ export default function ExpressPurchaseLine({
   item: ExpressRecoveryLine;
   index: number;
   headerOrder: ExpressOrderOption | null;
+  orderOptions?: ExpressOrderOption[];
   errors: Record<string, string>;
   canRemove: boolean;
   onChange: (changes: Partial<ExpressRecoveryLine>) => void;
   onRemove: () => void;
 }) {
-  const [choosingOrder, setChoosingOrder] = useState(false);
-  const [search, setSearch] = useState('');
-  const orders = useExpressOrders(useDebouncedValue(search.trim(), 250), choosingOrder);
   const prefix = index === 0 ? 'express' : `express-${item.id}`;
   const cost = Number(item.costoUnitario) || 0;
   const minimum = Math.ceil(expressMinimumSale(cost));
@@ -142,34 +138,14 @@ export default function ExpressPurchaseLine({
         </div>
       </div>
       <div className="express-line-footer">
-        <div className="express-line-order">
-          <span>
-            {item.requestId
-              ? 'OT de la solicitud'
-              : item.order
-                ? 'OT asignada'
-                : 'OT del encabezado'}
-            : {order ? `${order.codigo} · ${order.patente}` : 'Selecciona una OT'}
-          </span>
-          {!item.requestId && (
-            <>
-              <button type="button" onClick={() => setChoosingOrder(!choosingOrder)}>
-                {choosingOrder ? 'Cerrar búsqueda de OT' : 'Asignar otra OT'}
-              </button>
-              {item.order && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange({ order: null });
-                    setChoosingOrder(false);
-                  }}
-                >
-                  Usar OT del encabezado
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        {item.requestId && <span className="express-line-order">OT de la solicitud: {order?.codigo}</span>}
+        {!item.requestId && orderOptions && (
+          <select aria-label={`OT del producto ${index + 1}`} value={item.order?.id ?? ''}
+            onChange={(event) => onChange({ order: orderOptions.find((option) => option.id === Number(event.target.value)) ?? null })}>
+            <option value="">OT principal · {headerOrder?.codigo}</option>
+            {orderOptions.map((option) => <option key={option.id} value={option.id}>{option.codigo} · {option.patente}</option>)}
+          </select>
+        )}
         <div className="express-line-review" aria-label={`Resumen producto ${index + 1}`}>
           <span>
             Compra: <strong>{formatClp(totals.cost, 2)}</strong>
@@ -179,53 +155,6 @@ export default function ExpressPurchaseLine({
           </span>
         </div>
       </div>
-      {choosingOrder && !item.requestId && (
-        <div className="express-order-picker">
-          <label className="express-search">
-            <Search aria-hidden="true" />
-            <input
-              aria-label={`Buscar OT del producto ${index + 1}`}
-              value={search}
-              autoComplete="off"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar OT o patente"
-            />
-          </label>
-          <div
-            className="express-order-results"
-            role="region"
-            aria-label={`Órdenes para producto ${index + 1}`}
-          >
-            {orders.isFetching && <p role="status">Buscando órdenes…</p>}
-            {orders.isError && (
-              <p role="alert">
-                No se pudo buscar.{' '}
-                <button type="button" onClick={() => void orders.refetch()}>
-                  Reintentar
-                </button>
-              </p>
-            )}
-            {orders.data?.map((option) => (
-              <button
-                type="button"
-                key={option.id}
-                onClick={() => {
-                  onChange({ order: option });
-                  setChoosingOrder(false);
-                }}
-              >
-                <strong>{option.patente}</strong>
-                <span>
-                  {option.codigo} · {option.vehiculo}
-                </span>
-              </button>
-            ))}
-            {!orders.isFetching && !orders.isError && orders.data?.length === 0 && (
-              <p>No hay OTs disponibles.</p>
-            )}
-          </div>
-        </div>
-      )}
       {fieldError('workOrderId')}
       <details
         className="express-line-note"

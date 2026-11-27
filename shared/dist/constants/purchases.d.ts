@@ -11,3 +11,7 @@ export declare const PURCHASE_STATUS_LABELS: Record<PurchaseStatus, string>;
 export declare const PURCHASE_PAYMENT_TYPE_LABELS: Record<PurchasePaymentType, string>;
 export declare const PURCHASE_DOCUMENT_TYPE_LABELS: Record<PurchaseDocumentType, string>;
 export declare const PURCHASE_VEHICLE_ORIGIN_LABELS: Record<PurchaseVehicleOrigin, string>;
+export declare const EXPRESS_PURCHASE_DESTINATIONS: readonly ["ot", "flota", "multiple", "oficina", "taller"];
+export type ExpressPurchaseDestination = (typeof EXPRESS_PURCHASE_DESTINATIONS)[number];
+export declare const PURCHASE_LEDGERS: readonly ["taller", "flota", "oficina"];
+export type PurchaseLedger = (typeof PURCHASE_LEDGERS)[number];

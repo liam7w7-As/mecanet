@@ -27,6 +27,7 @@ import { Vehicle } from './Vehicle.js';
 import { WorkOrder } from './WorkOrder.js';
 
 import type {
+  ExpressPurchaseDestination,
   PaymentMethod,
   PurchaseDocumentType,
   PurchasePaymentType,
@@ -57,6 +58,19 @@ export class Purchase extends Model<InferAttributes<Purchase>, InferCreationAttr
 
   @Column({ type: DataType.STRING(64), allowNull: true })
   declare expressFingerprint: CreationOptional<string | null>;
+
+  @Column({ type: DataType.STRING(12), allowNull: true })
+  declare expressDestination: CreationOptional<ExpressPurchaseDestination | null>;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare expressCompletedAt: CreationOptional<Date | null>;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare confirmedAt: CreationOptional<Date | null>;
+
+  @ForeignKey(() => User)
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare confirmedBy: CreationOptional<number | null>;
 
   @ForeignKey(() => Supplier)
   @Column({

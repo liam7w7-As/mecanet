@@ -78,14 +78,22 @@ const setup = (initiallyOpen = false) => {
     ),
   };
 };
-const openNew = async () => {
+const startPurchase = async () => {
   const button = await screen.findByRole('button', { name: 'Nueva compra' });
   await waitFor(() => expect(button).not.toBeDisabled());
   fireEvent.click(button);
 };
 const selectOrder = async () => {
+  if (screen.queryByRole('button', { name: 'Cambiar' })) return;
   fireEvent.focus(screen.getByLabelText('Buscar OT o patente'));
   fireEvent.click(await screen.findByRole('button', { name: /ABCD12.*OT-26-7/ }));
+};
+const openNew = async () => {
+  await startPurchase();
+  const destination = await screen.findByRole('button', { name: 'OT' });
+  await waitFor(() => expect(destination).toBeEnabled());
+  fireEvent.click(destination);
+  await selectOrder();
 };
 const fill = async () => {
   await selectOrder();
@@ -97,13 +105,14 @@ const fill = async () => {
 const parsedBody = (index = 0) =>
   JSON.parse((vi.mocked(api.post).mock.calls[index][1] as FormData).get('payload') as string);
 const choosePhoto = (name = 'recibo.png') =>
-  fireEvent.change(screen.getByLabelText('Elegir foto del recibo'), {
+  fireEvent.change(screen.getByLabelText('Elegir imagen o PDF'), {
     target: { files: [new File(['image'], name, { type: 'image/png' })] },
   });
 
 describe('Compras express mobile flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(api.post).mockReset();
     scannerConfigured = true;
     requestItems = [];
     orderItems = [order];
@@ -145,6 +154,9 @@ describe('Compras express mobile flow', () => {
       },
     ];
     setup();
+    expect(screen.queryByText('Filtro solicitado')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Elegir imagen o PDF')).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Solicitudes del taller 2/ }));
     expect(await screen.findByText('Filtro solicitado')).toBeInTheDocument();
     expect(screen.getByText('Por autorizar')).toBeInTheDocument();
     const button = screen.getByRole('button', { name: 'Registrar compra' });
@@ -161,11 +173,11 @@ describe('Compras express mobile flow', () => {
     await openNew();
     await fill();
     expect(screen.getByLabelText('Venta por unidad al cliente')).toHaveValue('14.875');
-    expect(screen.getByLabelText('Escanear con cámara')).toHaveAttribute('capture', 'environment');
-    expect(screen.getByLabelText('Elegir foto del recibo')).not.toHaveAttribute('capture');
+    expect(screen.getByLabelText('Tomar foto')).toHaveAttribute('capture', 'environment');
+    expect(screen.getByLabelText('Elegir imagen o PDF')).not.toHaveAttribute('capture');
     expect(api.post).not.toHaveBeenCalled();
     client.setQueryData(['quotations'], { items: [] });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
     expect(await screen.findByRole('heading', { name: 'Compra registrada' })).toBeInTheDocument();
     expect(parsedBody()).toMatchObject({
       workOrderId: 7,
@@ -175,6 +187,73 @@ describe('Compras express mobile flow', () => {
     expect((vi.mocked(api.post).mock.calls[0][1] as FormData).get('comprobante')).toBeNull();
     expect(client.getQueryState(['quotations'])?.isInvalidated).toBe(true);
   });
+  it.each(['Oficina', 'Taller', 'Flota'] as const)('lee y registra el comprobante de %s', async (destination) => {
+    vi.mocked(api.get).mockImplementation(async (url) => ({
+      data: url === '/purchases/express/fleet'
+        ? { items: [{ id: 13, patente: 'TEST-34', marca: 'Toyota', modelo: 'Hilux' }] }
+        : { items: [], scannerConfigured },
+    }) as AxiosResponse);
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ...multipleReading, totalComprobante: 96000 } });
+    setup();
+    await startPurchase();
+    const picker = screen.getByRole('region', { name: 'Destino de la compra' });
+    expect(within(picker).getAllByRole('button').map((button) => button.textContent?.trim()).filter(Boolean))
+      .toEqual(['OT', 'Flota', 'Múltiple', 'Oficina', 'Taller']);
+    fireEvent.click(within(picker).getByRole('button', { name: destination }));
+    expect(screen.queryByLabelText('Buscar OT o patente')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Agregar producto' })).not.toBeInTheDocument();
+    if (destination === 'Flota') fireEvent.click(await screen.findByRole('button', { name: /TEST-34/ }));
+    expect(screen.getByLabelText('Tomar foto')).toHaveAttribute('capture', 'environment');
+    choosePhoto();
+    await waitFor(() => expect(screen.getByLabelText('Monto')).toHaveValue('96.000'));
+    expect(screen.getByLabelText('Concepto')).toHaveValue('Bujía, Espejo');
+    expect(screen.getByLabelText('Fecha')).toHaveValue(multipleReading.fechaEmision);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByLabelText('Monto'), { target: { value: '95000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
+    await screen.findByRole('heading', { name: 'Compra registrada' });
+    expect(api.post).toHaveBeenCalledWith('/purchases/express/expense', expect.any(FormData));
+    expect(parsedBody(1)).toMatchObject({
+      destino: destination.toLowerCase(), concepto: 'Bujía, Espejo', monto: 95000,
+      proveedorNombre: 'Otro proveedor', folio: 'F456', tipoDocumento: 'recibo',
+      ...(destination === 'Flota' ? { fleetVehicleId: 13 } : {}),
+    });
+    expect((vi.mocked(api.post).mock.calls[1][1] as FormData).get('comprobante')).toBeInstanceOf(File);
+  });
+  it('conserva el monto manual hasta recibir confirmación y pide el total si es ilegible', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ...reading, totalComprobante: 20000 } })
+      .mockResolvedValueOnce({ data: { ...reading, totalComprobante: null } });
+    setup();
+    await startPurchase();
+    fireEvent.click(screen.getByRole('button', { name: 'Oficina' }));
+    const amount = screen.getByLabelText('Monto');
+    fireEvent.change(amount, { target: { value: '15000' } });
+    choosePhoto('primero.png');
+    const warning = await screen.findByRole('alertdialog');
+    expect(amount).toHaveValue('15.000');
+    fireEvent.click(within(warning).getByRole('button', { name: 'Aceptar nuevos datos' }));
+    expect(amount).toHaveValue('20.000');
+    choosePhoto('ilegible.png');
+    expect(await screen.findByText('Total ilegible. Ingresa el monto del comprobante.')).toBeInTheDocument();
+    expect(amount).toHaveValue('');
+    expect(screen.getByText('ilegible.png')).toBeInTheDocument();
+  });
+  it('guarda un PDF como comprobante de Taller con datos ingresados manualmente', async () => {
+    setup();
+    await startPurchase();
+    fireEvent.click(screen.getByRole('button', { name: 'Taller' }));
+    fireEvent.change(screen.getByLabelText('Elegir imagen o PDF'), {
+      target: { files: [new File(['%PDF-1.4'], 'recibo.pdf', { type: 'application/pdf' })] },
+    });
+    expect(screen.getByText('recibo.pdf')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Concepto'), { target: { value: 'Insumos' } });
+    fireEvent.change(screen.getByLabelText('Monto'), { target: { value: '12000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
+    await screen.findByRole('heading', { name: 'Compra registrada' });
+    const receipt = (vi.mocked(api.post).mock.calls[0][1] as FormData).get('comprobante');
+    expect(receipt).toMatchObject({ name: 'recibo.pdf', type: 'application/pdf' });
+  });
   it('blocks a below-minimum sale, and does not silently replace an edited sale when cost rises', async () => {
     setup();
     await openNew();
@@ -182,10 +261,10 @@ describe('Compras express mobile flow', () => {
     fireEvent.change(screen.getByLabelText('Venta por unidad al cliente'), {
       target: { value: '14000' },
     });
-    expect(screen.getByRole('button', { name: 'Confirmar compra y egreso' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Registrar compra' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Compra por unidad'), { target: { value: '15000' } });
     expect(screen.getByLabelText('Venta por unidad al cliente')).toHaveValue('14.000');
-    expect(screen.getByRole('button', { name: 'Confirmar compra y egreso' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Registrar compra' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Usar sugerido' }));
     expect(screen.getByLabelText('Venta por unidad al cliente')).toHaveValue('18.750');
     expect(api.post).not.toHaveBeenCalled();
@@ -193,7 +272,7 @@ describe('Compras express mobile flow', () => {
   it('prefills a single scan without registering a purchase or expense', async () => {
     setup();
     await openNew();
-    fireEvent.change(screen.getByLabelText('Elegir foto del recibo'), {
+    fireEvent.change(screen.getByLabelText('Elegir imagen o PDF'), {
       target: { files: [new File(['image'], 'recibo.png', { type: 'image/png' })] },
     });
     await waitFor(() => expect(screen.getByLabelText('Compra por unidad')).toHaveValue('11.900'));
@@ -213,7 +292,7 @@ describe('Compras express mobile flow', () => {
       );
       setup();
       await openNew();
-      fireEvent.change(screen.getByLabelText('Elegir foto del recibo'), {
+      fireEvent.change(screen.getByLabelText('Elegir imagen o PDF'), {
         target: { files: [new File(['image'], 'recibo.png', { type: 'image/png' })] },
       });
       await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
@@ -228,7 +307,7 @@ describe('Compras express mobile flow', () => {
       expect(screen.getByLabelText('Compra por unidad')).toHaveValue('15.000');
       expect(screen.getByLabelText('Proveedor', { exact: false })).toHaveValue('');
       expect(await screen.findByRole('alertdialog')).toHaveFocus();
-      expect(screen.getByRole('button', { name: 'Confirmar compra y egreso' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Registrar compra' })).toBeDisabled();
       fireEvent.click(screen.getByRole('button', { name: decision }));
       const accepted = decision === 'Aceptar nuevos datos';
       expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue(
@@ -251,7 +330,7 @@ describe('Compras express mobile flow', () => {
     await openNew();
     await fill();
     fireEvent.change(screen.getByLabelText('Compra por unidad'), { target: { value: '15000' } });
-    fireEvent.change(screen.getByLabelText('Elegir foto del recibo'), {
+    fireEvent.change(screen.getByLabelText('Elegir imagen o PDF'), {
       target: { files: [new File(['image'], 'recibo.png', { type: 'image/png' })] },
     });
     const useDetected = await screen.findByRole('button', { name: /Usar precio detectado/ });
@@ -273,11 +352,11 @@ describe('Compras express mobile flow', () => {
     setup();
     await openNew();
     await fill();
-    fireEvent.change(screen.getByLabelText('Elegir foto del recibo'), {
+    fireEvent.change(screen.getByLabelText('Elegir imagen o PDF'), {
       target: { files: [new File(['image'], 'recibo.png', { type: 'image/png' })] },
     });
     fireEvent.click(await screen.findByRole('button', { name: 'Continuar manualmente' }));
-    expect(screen.getByRole('button', { name: 'Confirmar compra y egreso' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Registrar compra' })).not.toBeDisabled();
     expect(screen.getByRole('img', { name: 'Foto de la etiqueta o recibo' })).toBeInTheDocument();
     await act(async () => {
       resolve({ data: reading } as AxiosResponse);
@@ -309,7 +388,7 @@ describe('Compras express mobile flow', () => {
     expect(screen.getByRole('region', { name: 'Resumen express' })).toHaveTextContent('153.750');
     expect(api.post).toHaveBeenCalledTimes(1);
     await selectOrder();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
     await screen.findByRole('heading', { name: 'Compra registrada' });
     expect(parsedBody(1)).toMatchObject({
       workOrderId: 7,
@@ -477,6 +556,7 @@ describe('Compras express mobile flow', () => {
       requestItems = [source];
       vi.mocked(api.post).mockResolvedValueOnce({ data: multiple ? multipleReading : reading });
       setup();
+      fireEvent.click(await screen.findByRole('button', { name: /Solicitudes del taller/ }));
       const register = await screen.findByRole('button', { name: 'Registrar compra' });
       await waitFor(() => expect(register).not.toBeDisabled());
       fireEvent.click(register);
@@ -496,7 +576,7 @@ describe('Compras express mobile flow', () => {
       expect(product().getByLabelText('Cantidad')).toHaveValue(source.cantidad);
       expect(product().getByLabelText('Cantidad')).toHaveAttribute('readonly');
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
       await screen.findByRole('heading', { name: 'Compra registrada' });
       expect(parsedBody(1)).toMatchObject({
         items: [
@@ -577,7 +657,7 @@ describe('Compras express mobile flow', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Foto de la etiqueta o recibo' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Confirmar compra y egreso' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Registrar compra' })).not.toBeDisabled();
     await act(async () => {
       await flushFormDrafts();
     });
@@ -590,7 +670,7 @@ describe('Compras express mobile flow', () => {
     setup();
     await openNew();
     await fill();
-    fireEvent.change(screen.getByLabelText('Elegir foto del recibo'), {
+    fireEvent.change(screen.getByLabelText('Elegir imagen o PDF'), {
       target: { files: [new File(['image'], 'recibo.png', { type: 'image/png' })] },
     });
     expect(await screen.findByText(/Falta configurar la IA/)).toBeInTheDocument();
@@ -603,13 +683,13 @@ describe('Compras express mobile flow', () => {
     setup();
     await openNew();
     await fill();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Confirmar compra y egreso' })).not.toBeDisabled(),
+      expect(screen.getByRole('button', { name: 'Registrar compra' })).not.toBeDisabled(),
     );
     expect(api.post).toHaveBeenCalledTimes(1);
     const first = parsedBody();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
     expect(parsedBody(1).operationKey).toBe(first.operationKey);
     expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue('Filtro manual');
@@ -627,7 +707,7 @@ describe('Compras express mobile flow', () => {
     fireEvent.change(product(1).getByLabelText('Venta por unidad al cliente'), {
       target: { value: '8000' },
     });
-    fireEvent.change(screen.getByLabelText('Elegir foto del recibo'), {
+    fireEvent.change(screen.getByLabelText('Elegir imagen o PDF'), {
       target: { files: [new File(['image'], 'guardada.png', { type: 'image/png' })] },
     });
     await act(async () => {
@@ -663,7 +743,7 @@ describe('Compras express mobile flow', () => {
         },
       }),
     );
-    expect(screen.getByRole('button', { name: 'Confirmar compra y egreso' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Registrar compra' })).toBeDisabled();
     expect(screen.getByLabelText('Accesorio', { exact: true })).toHaveValue('Filtro manual');
     expect(api.post).not.toHaveBeenCalled();
   });
@@ -671,7 +751,7 @@ describe('Compras express mobile flow', () => {
     setup();
     await openNew();
     await fill();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
     await screen.findByRole('heading', { name: 'Compra registrada' });
     await openNew();
     await fill();
@@ -705,7 +785,7 @@ describe('Compras express mobile flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }));
     expect(product(1).getByLabelText('Accesorio', { exact: true })).toHaveValue('');
     fireEvent.click(screen.getByRole('button', { name: 'Quitar producto 2' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
     await screen.findByRole('heading', { name: 'Compra registrada' });
     expect(parsedBody().items).toEqual([
       expect.objectContaining({
@@ -716,35 +796,27 @@ describe('Compras express mobile flow', () => {
       }),
     ]);
   });
-  it('changes only inherited OTs and searches explicit per-product overrides', async () => {
+  it('distributes products among selected OTs and changes only inherited assignments', async () => {
     const other = { ...order, id: 8, codigo: 'OT-26-8', patente: 'OTRA88' };
     const header = { ...order, id: 10, codigo: 'OT-26-10', patente: 'NUEVA10' };
     orderItems = [order, other, header];
     setup();
-    await openNew();
+    await startPurchase();
+    fireEvent.click(screen.getByRole('button', { name: 'Múltiple' }));
+    await selectOrder();
+    expect(screen.getByLabelText('Elegir imagen o PDF')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Registrar compra' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir otra OT' }));
+    fireEvent.change(screen.getByLabelText('Buscar otra OT'), { target: { value: 'OTRA' } });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/purchases/express/orders', { params: { search: 'OTRA' } }));
+    fireEvent.click(await within(screen.getByRole('region', { name: 'Resultados de órdenes' })).findByRole('button', { name: /OTRA88/ }));
     await fill();
     fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }));
     fireEvent.change(product(1).getByLabelText('Accesorio', { exact: true }), {
       target: { value: 'Espejo' },
     });
     fireEvent.change(product(1).getByLabelText('Compra por unidad'), { target: { value: '8000' } });
-    fireEvent.click(product(1).getByRole('button', { name: 'Asignar otra OT' }));
-    fireEvent.change(screen.getByLabelText('Buscar OT del producto 2'), {
-      target: { value: 'OTRA' },
-    });
-    await waitFor(() =>
-      expect(api.get).toHaveBeenCalledWith('/purchases/express/orders', {
-        params: { search: 'OTRA' },
-      }),
-    );
-    fireEvent.click(
-      await within(screen.getByRole('region', { name: 'Órdenes para producto 2' })).findByRole(
-        'button',
-        {
-          name: /OTRA88/,
-        },
-      ),
-    );
+    fireEvent.change(screen.getByLabelText('OT del producto 2'), { target: { value: '8' } });
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
     fireEvent.click(
       within(await screen.findByRole('region', { name: 'Órdenes disponibles' })).getByRole(
@@ -752,18 +824,9 @@ describe('Compras express mobile flow', () => {
         { name: /NUEVA10/ },
       ),
     );
-    expect(product().getByText(/OT del encabezado:.*OT-26-10/)).toBeInTheDocument();
-    expect(product(1).getByText(/OT asignada:.*OT-26-8/)).toBeInTheDocument();
-    fireEvent.click(product(1).getByRole('button', { name: 'Usar OT del encabezado' }));
-    expect(product(1).getByText(/OT del encabezado:.*OT-26-10/)).toBeInTheDocument();
-    fireEvent.click(product(1).getByRole('button', { name: 'Asignar otra OT' }));
-    fireEvent.click(
-      within(await screen.findByRole('region', { name: 'Órdenes para producto 2' })).getByRole(
-        'button',
-        { name: /OTRA88/ },
-      ),
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra y egreso' }));
+    expect(screen.getByLabelText('OT del producto 1')).toHaveDisplayValue('OT principal · OT-26-10');
+    expect(screen.getByLabelText('OT del producto 2')).toHaveValue('8');
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
     await screen.findByRole('heading', { name: 'Compra registrada' });
     expect(parsedBody().workOrderId).toBe(header.id);
     expect(parsedBody().items[0]).not.toHaveProperty('workOrderId');

@@ -764,6 +764,10 @@ export interface PurchaseCreator {
 
 export interface Purchase {
   express?: boolean;
+  expressDestination?: import('@unithor/shared').ExpressPurchaseDestination;
+  expressCompletedAt?: string | null;
+  confirmedAt?: string | null;
+  confirmedBy?: number | null;
   id: number;
   codigo: string;
   supplierId: number;

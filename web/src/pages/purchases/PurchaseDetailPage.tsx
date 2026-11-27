@@ -24,6 +24,7 @@ import {
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import CompleteExpressExpenseModal from '../../components/purchases/CompleteExpressExpenseModal';
 import PurchasePaymentModal from '../../components/purchases/PurchasePaymentModal';
 import PurchaseReturnToStockModal from '../../components/purchases/PurchaseReturnToStockModal';
 import PurchaseVoidModal from '../../components/purchases/PurchaseVoidModal';
@@ -74,6 +75,7 @@ export const PurchaseDetailPage = () => {
   const [showReturnStock, setShowReturnStock] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
+  const [showCompletion, setShowCompletion] = useState(false);
 
   if (validId !== null && purchaseQuery.isPending) {
     return <DetailSkeleton />;
@@ -83,7 +85,7 @@ export const PurchaseDetailPage = () => {
     return (
       <div className="workspace-page workspace-purchases min-w-0 space-y-5">
         <Link
-          to="/purchases"
+          to="/purchases/history"
           className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-line bg-white px-4 text-sm font-semibold text-brand-ink hover:bg-brand-pale"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -103,7 +105,9 @@ export const PurchaseDetailPage = () => {
   const canUpdate = Boolean(user && hasUserPermission(user, 'compras', 'update'));
   const returnedCount = purchase.express ? purchase.items.filter((item) => item.stockReturnedAt).length : 0;
   const returnedToStock = returnedCount > 0 && returnedCount === purchase.items.length;
-  const canReturnStock = Boolean(canUpdate && user && ['jefe', 'admin', 'desarrollador'].includes(user.role) && purchase.express && returnedCount < purchase.items.length && purchase.estado === 'registrada');
+  const canReturnStock = Boolean(canUpdate && user && ['jefe', 'admin', 'desarrollador'].includes(user.role) && purchase.express && returnedCount < purchase.items.length && purchase.estado === 'registrada' &&
+    (!purchase.expressDestination || purchase.items.some((item) => item.workOrderItemId && !item.stockReturnedAt)));
+  const canComplete = canUpdate && purchase.expressDestination === 'taller' && !purchase.expressCompletedAt && purchase.estado === 'registrada';
   const usesHeaderAssociation = !purchase.express || purchase.items.every((item) => (item.workOrderId ?? purchase.workOrderId) === purchase.workOrderId);
   const canVoid = Boolean(
     user &&
@@ -133,7 +137,7 @@ export const PurchaseDetailPage = () => {
       <header className="purchases-detail-heading flex flex-col gap-4">
         <div className="flex items-start gap-3">
           <Link
-            to="/purchases"
+            to="/purchases/history"
             className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-line bg-white text-brand-muted transition-colors hover:bg-brand-pale"
             aria-label="Volver a compras"
           >
@@ -168,6 +172,9 @@ export const PurchaseDetailPage = () => {
         </div>
 
         <div className="purchases-detail-actions flex flex-wrap gap-2 sm:justify-end">
+          {canComplete && <button type="button" className="primary-button" onClick={() => setShowCompletion(true)}>
+            <Pencil className="h-4 w-4" aria-hidden="true" /> Completar datos
+          </button>}
           <a
             hidden={purchase.comprobanteSizeBytes <= 0}
             href={`/api/purchases/${purchase.id}/receipt`}
@@ -573,9 +580,6 @@ export const PurchaseDetailPage = () => {
               <p className="mt-3 text-sm text-brand-muted">Sin vehículo asociado.</p>
             )}
 
-            <p className="mt-3 border-t border-brand-line pt-3 text-xs text-brand-muted">
-              La compra no se edita. La asociación queda tal como fue registrada.
-            </p>
           </section>
 
           <section className="rounded-xl border border-brand-line bg-white p-4 shadow-sm">
@@ -678,6 +682,7 @@ export const PurchaseDetailPage = () => {
         <PurchaseVoidModal key={purchase.id} purchase={purchase} onClose={() => setShowVoid(false)} />
       )}
       {showReturnStock && <PurchaseReturnToStockModal purchase={purchase} onClose={() => setShowReturnStock(false)} />}
+      {showCompletion && <CompleteExpressExpenseModal purchase={purchase} onClose={() => setShowCompletion(false)} />}
       {showPayment && (
         <PurchasePaymentModal key={purchase.id} purchase={purchase} onClose={() => setShowPayment(false)} />
       )}

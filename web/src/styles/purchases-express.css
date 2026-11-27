@@ -13,6 +13,26 @@
 .express-history-link { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 9px 13px; border: 1px solid #dce6f2; border-radius: 12px; background: #fff; color: #43658f; font-size: 12px; white-space: nowrap; }
 .express-inbox-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .express-inbox-heading h2 { color: #294d7b; font-size: 18px; font-weight: 600; }
+.express-requests-title button { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; min-height: 44px; text-align: left; }
+.express-requests-title button > span { display: inline-grid; min-width: 27px; height: 25px; place-items: center; padding: 0 6px; border-radius: 99px; background: #e7effa; font-size: 12px; }
+.express-requests-title button[aria-expanded=true] svg { transform: rotate(180deg); }
+.express-requests-content { display: grid; gap: 14px; }
+.express-destination-panel { display: grid; gap: 15px; padding: 20px; border: 1px solid #dfe7f2; border-radius: 18px; background: #fff; }
+.express-destination-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(122px, 1fr)); gap: 10px; }
+.express-destination-grid button { display: flex; align-items: center; gap: 9px; min-height: 58px; padding: 10px 14px; border: 1px solid #dce6f2; border-radius: 12px; background: #f5f8fd; color: #1d396a; font-size: 14px; font-weight: 600; }
+.express-destination-grid button:hover:not(:disabled) { border-color: #9bb5d6; background: #e9f0fb; }
+.express-expense-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.express-expense-concept { grid-column: 1 / -1; }
+.express-expense-receipt { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; font-size: 13px; overflow-wrap: anywhere; }
+.express-expense-receipt .express-gallery { width: fit-content; min-height: 44px; }
+.express-expense-receipt > span { min-width: 0; }
+.express-expense-receipt > p { flex-basis: 100%; }
+.express-multiple-orders { display: grid; justify-items: start; gap: 10px; }
+.express-multiple-orders :is(ul, .express-order-picker) { display: grid; gap: 5px; width: 100%; }
+.express-multiple-orders li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; padding-left: 12px; border-radius: 10px; background: #edf3fc; font-size: 13px; }
+.express-totals > .express-order-totals { display: grid; gap: 5px; padding-top: 8px; border-top: 1px solid #d6e1ef; }
+.express-order-totals > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.express-line-footer > select { max-width: 260px; }
 .express-inbox-heading p { margin-top: 5px; color: #627994; font-size: 12px; line-height: 1.6; }
 .express-primary, .express-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 11px 18px; border: 0; border-radius: 12px; font-size: 13px; font-weight: 500; }
 .express-primary { background: #1d396a; color: #fff; }
@@ -141,6 +161,9 @@
   }
 }
 @media (max-width: 650px) {
+  .express-expense-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .express-expense-fields > :last-child { grid-column: 1 / -1; }
+  .express-destination-panel { padding: 14px; }
   .purchases-express { gap: 18px; padding-bottom: 18px; }
   .express-page-heading { flex-wrap: wrap; gap: 8px; }
   .express-page-heading > div { flex: 1; min-width: 215px; }

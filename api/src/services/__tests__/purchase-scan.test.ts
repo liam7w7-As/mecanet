@@ -12,6 +12,7 @@ const data = {
   proveedorNombre: 'Proveedor',
   folio: '123',
   fechaEmision: null,
+  totalComprobante: 23500,
   incluyeIva: true,
   items: [{ descripcion: 'Filtro', codigo: null, cantidad: 2, costoUnitario: 11900 }],
   advertencias: [],
@@ -58,6 +59,7 @@ describe('Luna purchase scanner', () => {
     expect(body.model).toBe('gpt-6-luna');
     expect(body.store).toBe(false);
     expect(body.text.format.strict).toBe(true);
+    expect(body.text.format.schema.required).toContain('totalComprobante');
     expect(body.tools).toBeUndefined();
     expect(body.input[0].content[1].image_url).toMatch(/^data:image\/jpeg;base64,/);
   });
